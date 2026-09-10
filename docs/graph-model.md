@@ -103,7 +103,7 @@ Every entity in the input JSON is imported into its corresponding vertex categor
 |:---|:---|:---|
 | **Node** | `id`, `name` | Physical or virtual compute host. |
 | **Broker** | `id`, `name` | Middleware message routing engine. |
-| **Topic** | `id`, `name`, `size`, `qos_*`, `frequency`, `criticality`, `deadline_ms`, `history_depth` | Asynchronous message distribution channel with QoS contracts (reliability, durability, transport priority, deadline SLA, history depth buffer limit). |
+| **Topic** | `id`, `name`, `size`, `qos_reliability`, `qos_durability`, `qos_transport_priority`, `qos_deadline_ms`, `qos_history_depth`, `topic_frequency`, `topic_criticality` | Asynchronous message distribution channel with QoS contracts (reliability, durability, transport priority, deadline SLA, history-depth buffer limit). The `qos_`/`topic_` prefixes are the flattened graph-store names; the nested input JSON spells them `qos.*`, `frequency` and `criticality` (see §Input Schema). |
 | **Application** | `id`, `name`, `role`, `app_type`, `version`, `criticality`, `hotstandby`, `cm_*` | Executable software service or process with 3-tier operational criticality (`HIGH`, `MEDIUM`, `LOW`) and dual-node redundancy (`hotstandby`). |
 | **Library** | `id`, `name`, `version`, `cm_*` | Shared software module or package. |
 

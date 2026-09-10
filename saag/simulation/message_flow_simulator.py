@@ -132,29 +132,19 @@ def _extract_qos(data: Dict[str, Any], default_queue: int = 100) -> QoSProfile:
     has_reliability = bool(data.get("qos_reliability") or qos_raw.get("reliability"))
     has_durability = bool(data.get("qos_durability") or qos_raw.get("durability"))
 
-    deadline = (
-        data.get("deadline_ms")
-        or data.get("qos_deadline_ms")
-        or qos_raw.get("deadline_ms")
-        or qos_raw.get("deadline")
-        or declared.deadline_ms
+    # deadline_ms / history_depth need no separate lookup: from_node_attrs()
+    # above already resolves both across the flat and nested shapes.
+    q_size = QoSPolicy._first_present(
+        data.get("queue_size"), qos_raw.get("queue_size"), default_queue
     )
-    history = (
-        data.get("history_depth")
-        or data.get("qos_history_depth")
-        or qos_raw.get("history_depth")
-        or declared.history_depth
-    )
-    hist_depth = int(history) if history is not None else 10
-    q_size = int(data.get("queue_size") or qos_raw.get("queue_size") or default_queue)
 
     return QoSProfile(
         reliability=declared.reliability if has_reliability else "RELIABLE",
         durability=declared.durability if has_durability else "VOLATILE",
-        deadline_ms=float(deadline) if deadline is not None else None,
+        deadline_ms=declared.deadline_ms,
         lifespan_ms=qos_raw.get("lifespan_ms"),
-        queue_size=q_size,
-        history_depth=hist_depth,
+        queue_size=int(q_size),
+        history_depth=int(declared.history_depth),
     )
 
 

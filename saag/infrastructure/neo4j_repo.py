@@ -361,7 +361,7 @@ class Neo4jRepository:
         # Conditionally set optional fields only when present in the source data
         self._import_batch(topics, f"""
             MATCH (t:Topic {{id: row.id}})
-{_set_if_present_clause("t", ["topic_frequency", "topic_criticality"])}
+{_set_if_present_clause("t", ["topic_frequency", "topic_criticality", "qos_deadline_ms", "qos_history_depth"])}
         """, tx=tx)
 
     def _import_applications(self, apps_data: List[Dict[str, Any]], tx: Any = None) -> None:
@@ -375,7 +375,7 @@ class Neo4jRepository:
         # Conditionally set optional classification fields only when present in the source data
         self._import_batch(apps, f"""
             MATCH (a:Application {{id: row.id}})
-{_set_if_present_clause("a", ["criticality", "priority", "hotstandby"])}
+{_set_if_present_clause("a", ["criticality", "hotstandby"])}
         """, tx=tx)
 
     def _import_libraries(self, libs_data: List[Dict[str, Any]], tx: Any = None) -> None:

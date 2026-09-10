@@ -212,10 +212,10 @@ class FailureSimulator:
         """Author-declared Topic.criticality as an ordinal normalised to [0, 1]."""
         comp = self.graph.components.get(topic_id)
         props = getattr(comp, "properties", {}) or {}
-        label = str(
-            props.get("criticality", props.get("topic_criticality", "minimal"))
-        ).lower()
-        return TOPIC_CRITICALITY_ORD.get(label, 0.0) / MAX_TOPIC_CRITICALITY_ORD
+        label = canonical_criticality(
+            props.get("criticality", props.get("topic_criticality")), default="LOW"
+        )
+        return TOPIC_CRITICALITY_ORD[label] / MAX_TOPIC_CRITICALITY_ORD
 
     def _component_severity(self, component_id: str) -> float:
         """Severity of a non-topic component, from its aggregate QoS weight."""

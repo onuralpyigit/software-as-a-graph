@@ -3,7 +3,7 @@ Statistical Data Models for Graph Generation
 """
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional
-from saag.core.models import QoSPolicy
+from saag.core.models import QoSPolicy, CRITICALITY_LEVELS, canonical_criticality
 
 SCALE_PRESETS: Dict[str, Dict[str, int]] = {
     "tiny":   {"apps": 5,   "topics": 5,   "brokers": 1,  "nodes": 2,  "libs": 2},
@@ -19,7 +19,6 @@ SCALE_PRESETS: Dict[str, Dict[str, int]] = {
 DURABILITY_OPTIONS = list(QoSPolicy.DURABILITY_SCORES.keys())
 RELIABILITY_OPTIONS = list(QoSPolicy.RELIABILITY_SCORES.keys())
 PRIORITY_OPTIONS = list(QoSPolicy.PRIORITY_SCORES.keys())
-APP_CRITICALITY_OPTIONS = ["HIGH", "MEDIUM", "LOW"]
 
 APP_TYPE_OPTIONS = ["sensor", "actuator", "controller", "monitor", "gateway", "processor"]
 APP_HOTSTANDBY_OPTIONS = [False, True]
@@ -89,17 +88,8 @@ class AppCriticalityDistribution(CategoricalDistribution):
         """Convert to weighted list with HIGH, MEDIUM, LOW criticality values."""
         result = []
         for category, count in self.category_counts.items():
-            cat_upper = category.upper()
-            if cat_upper in ("HIGH", "CRITICAL", "TRUE", "1", "YES"):
-                val = "HIGH"
-            elif cat_upper in ("LOW", "NON_CRITICAL", "MINIMAL", "FALSE", "0", "NO"):
-                val = "LOW"
-            elif cat_upper == "MEDIUM":
-                val = "MEDIUM"
-            else:
-                val = "MEDIUM"
-            result.extend([val] * count)
-        return result if result else (default_options or ["LOW", "MEDIUM", "HIGH"])
+            result.extend([canonical_criticality(category)] * count)
+        return result if result else (default_options or list(CRITICALITY_LEVELS))
 
 
 @dataclass
@@ -198,8 +188,12 @@ class QosStats:
     qos_durability_distribution: Optional[CategoricalDistribution] = None
     qos_reliability_distribution: Optional[CategoricalDistribution] = None
     qos_transport_priority_distribution: Optional[CategoricalDistribution] = None
-    deadline_ms_distribution: Optional[CategoricalDistribution] = None
-    history_depth_distribution: Optional[CategoricalDistribution] = None
+    # No deadline_ms/history_depth distribution here on purpose: both are
+    # derived per-topic from frequency and the QoS policy
+    # (StatisticalGraphGenerator._derive_topic_deadline /
+    # _derive_topic_history_depth), so a flat categorical pool would be parsed
+    # and never read — the same dead-config shape that made qos_stats
+    # unreachable before.
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "QosStats":
@@ -213,12 +207,6 @@ class QosStats:
             qos_transport_priority_distribution=CategoricalDistribution.from_dict(
                 data["qos_transport_priority_distribution"]
             ) if "qos_transport_priority_distribution" in data else None,
-            deadline_ms_distribution=CategoricalDistribution.from_dict(
-                data["deadline_ms_distribution"]
-            ) if "deadline_ms_distribution" in data else None,
-            history_depth_distribution=CategoricalDistribution.from_dict(
-                data["history_depth_distribution"]
-            ) if "history_depth_distribution" in data else None,
         )
 
 

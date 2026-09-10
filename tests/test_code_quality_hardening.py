@@ -161,10 +161,12 @@ def test_topic_serialization_deadline_and_history():
         "history_depth": 50,
     }
     flat = serialization.flatten_component(comp, "Topic")
-    assert flat["deadline_ms"] == 20.0
+    # One canonical flattened name per field, under the qos_* prefix shared with
+    # the other QoS policies — not a double-write of both spellings.
     assert flat["qos_deadline_ms"] == 20.0
-    assert flat["history_depth"] == 50
     assert flat["qos_history_depth"] == 50
+    assert "deadline_ms" not in flat
+    assert "history_depth" not in flat
 
     reconstructed = serialization._reconstruct_topic(flat)
     assert reconstructed["deadline_ms"] == 20.0

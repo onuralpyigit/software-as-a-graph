@@ -7,8 +7,13 @@ Graph stores hold scalar properties only, so the nested ``code_metrics`` and
 the same field tables below, so a new metric is added in exactly one place.
 """
 
-from typing import Any, Dict, Iterable, List
-from saag.core.models import ComponentData, GraphData
+from typing import Any, Dict, Iterable, List, Optional
+from saag.core.models import (
+    ComponentData,
+    GraphData,
+    QoSPolicy,
+    canonical_criticality,
+)
 
 #: Flat property name -> nested key, grouped by ``code_metrics`` section.
 CODE_METRIC_FIELDS: Dict[str, Dict[str, str]] = {
@@ -35,6 +40,16 @@ CODE_METRIC_FIELDS: Dict[str, Dict[str, str]] = {
 
 #: Flat property names of the system-decomposition hierarchy.
 HIERARCHY_FIELDS = ("csms_name", "css_name", "csc_name", "csci_name")
+
+
+def _coerce(value: Any, cast: Any) -> Optional[Any]:
+    """Cast *value* with *cast*, returning ``None`` when it is absent or junk."""
+    if value is None:
+        return None
+    try:
+        return cast(value)
+    except (ValueError, TypeError):
+        return None
 
 
 def _normalize_role(value: Any) -> List[str]:
@@ -109,27 +124,19 @@ def _reconstruct_topic(props: Dict[str, Any]) -> Dict[str, Any]:
         "durability": props.get("qos_durability", "VOLATILE"),
         "transport_priority": props.get("qos_transport_priority", "MEDIUM"),
     }
-    deadline = (
-        props.get("deadline_ms")
-        if props.get("deadline_ms") is not None
-        else props.get("qos_deadline_ms")
+    # ``qos_deadline_ms`` / ``qos_history_depth`` are the canonical flattened
+    # names (matching the other qos_* properties); the unprefixed spellings are
+    # still accepted so externally-authored node dumps keep importing.
+    deadline = _coerce(
+        QoSPolicy._first_present(props.get("qos_deadline_ms"), props.get("deadline_ms")), float
+    )
+    history = _coerce(
+        QoSPolicy._first_present(props.get("qos_history_depth"), props.get("history_depth")), int
     )
     if deadline is not None:
-        try:
-            qos_data["deadline_ms"] = float(deadline)
-        except (ValueError, TypeError):
-            pass
-
-    history = (
-        props.get("history_depth")
-        if props.get("history_depth") is not None
-        else props.get("qos_history_depth")
-    )
+        qos_data["deadline_ms"] = deadline
     if history is not None:
-        try:
-            qos_data["history_depth"] = int(history)
-        except (ValueError, TypeError):
-            pass
+        qos_data["history_depth"] = history
 
     res: Dict[str, Any] = {
         "size": props.get("size", 256),
@@ -137,54 +144,27 @@ def _reconstruct_topic(props: Dict[str, Any]) -> Dict[str, Any]:
     }
     # Restore derived fields if present; backend caller is responsible for
     # ensuring they are populated (import backfill or frontend recompute).
-    if "topic_frequency" in props:
-        res["frequency"] = props["topic_frequency"]
-    elif "frequency" in props:
-        res["frequency"] = props["frequency"]
-    if "topic_criticality" in props:
-        tc = str(props["topic_criticality"]).upper()
-        if tc in ("HIGH", "CRITICAL"):
-            res["criticality"] = "HIGH"
-        elif tc in ("LOW", "MINIMAL"):
-            res["criticality"] = "LOW"
-        else:
-            res["criticality"] = "MEDIUM"
-    elif "criticality" in props:
-        tc = str(props["criticality"]).upper()
-        if tc in ("HIGH", "CRITICAL"):
-            res["criticality"] = "HIGH"
-        elif tc in ("LOW", "MINIMAL"):
-            res["criticality"] = "LOW"
-        else:
-            res["criticality"] = "MEDIUM"
+    frequency = QoSPolicy._first_present(props.get("topic_frequency"), props.get("frequency"))
+    if frequency is not None:
+        res["frequency"] = frequency
+    criticality = QoSPolicy._first_present(
+        props.get("topic_criticality"), props.get("criticality")
+    )
+    if criticality is not None:
+        res["criticality"] = canonical_criticality(criticality)
 
     if deadline is not None:
-        try:
-            res["deadline_ms"] = float(deadline)
-        except (ValueError, TypeError):
-            pass
+        res["deadline_ms"] = deadline
     if history is not None:
-        try:
-            res["history_depth"] = int(history)
-        except (ValueError, TypeError):
-            pass
+        res["history_depth"] = history
     return res
 
 
 def _reconstruct_application(props: Dict[str, Any]) -> Dict[str, Any]:
-    crit = props.get("criticality", "MEDIUM")
-    if isinstance(crit, bool):
-        crit = "HIGH" if crit else "LOW"
-    elif isinstance(crit, str):
-        cu = crit.upper()
-        crit = "HIGH" if cu in ("HIGH", "CRITICAL") else ("LOW" if cu in ("LOW", "MINIMAL") else "MEDIUM")
-    else:
-        crit = "MEDIUM"
-
     res = {
         "app_type": props.get("app_type", "service"),
         "role": _normalize_role(props.get("role", ["Operative"])),
-        "criticality": crit,
+        "criticality": canonical_criticality(props.get("criticality")),
         "hotstandby": props.get("hotstandby", False),
     }
     if props.get("version"):
@@ -331,31 +311,21 @@ def _flatten_topic(comp: Dict[str, Any]) -> Dict[str, Any]:
     if comp.get("frequency") is not None:
         res["topic_frequency"] = comp["frequency"]
     if comp.get("criticality") is not None:
-        tc = str(comp["criticality"]).upper()
-        if tc in ("HIGH", "CRITICAL"):
-            res["topic_criticality"] = "HIGH"
-        elif tc in ("LOW", "MINIMAL"):
-            res["topic_criticality"] = "LOW"
-        else:
-            res["topic_criticality"] = "MEDIUM"
+        res["topic_criticality"] = canonical_criticality(comp["criticality"])
 
-    deadline = comp.get("deadline_ms") if comp.get("deadline_ms") is not None else qos.get("deadline_ms")
+    # One canonical flattened name per field, under the existing qos_* prefix —
+    # deadline and history are DDS QoS policies like the three enums above.
+    deadline = _coerce(
+        QoSPolicy._first_present(comp.get("deadline_ms"), qos.get("deadline_ms")), float
+    )
     if deadline is not None:
-        try:
-            val = float(deadline)
-            res["deadline_ms"] = val
-            res["qos_deadline_ms"] = val
-        except (ValueError, TypeError):
-            pass
+        res["qos_deadline_ms"] = deadline
 
-    history = comp.get("history_depth") if comp.get("history_depth") is not None else qos.get("history_depth")
+    history = _coerce(
+        QoSPolicy._first_present(comp.get("history_depth"), qos.get("history_depth")), int
+    )
     if history is not None:
-        try:
-            h_val = int(history)
-            res["history_depth"] = h_val
-            res["qos_history_depth"] = h_val
-        except (ValueError, TypeError):
-            pass
+        res["qos_history_depth"] = history
 
     return res
 
@@ -368,15 +338,8 @@ def _flatten_application(comp: Dict[str, Any]) -> Dict[str, Any]:
     }
     # Only include optional classification fields if explicitly present in the source data
     res.update(_present_keys(comp, ("hotstandby",)))
-    if "criticality" in comp and comp["criticality"] is not None:
-        crit = comp["criticality"]
-        if isinstance(crit, bool):
-            res["criticality"] = "HIGH" if crit else "LOW"
-        elif isinstance(crit, str):
-            cu = crit.upper()
-            res["criticality"] = "HIGH" if cu in ("HIGH", "CRITICAL") else ("LOW" if cu in ("LOW", "MINIMAL") else "MEDIUM")
-        else:
-            res["criticality"] = "MEDIUM"
+    if comp.get("criticality") is not None:
+        res["criticality"] = canonical_criticality(comp["criticality"])
     return res
 
 

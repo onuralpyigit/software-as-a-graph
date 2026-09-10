@@ -133,6 +133,7 @@ from saag.core.models import (
     QoSPolicy,
     TOPIC_CRITICALITY_ORD as _TOPIC_CRITICALITY_ORD,
     MAX_TOPIC_CRITICALITY_ORD,
+    canonical_criticality,
 )
 
 logger = logging.getLogger(__name__)
@@ -434,10 +435,9 @@ def _normalize_infra_features(
             )
             topic_freq_raw[n] = freq_raw
             # Criticality ordinal (Topic.criticality, NOT Application.criticality).
-            crit_raw = attrs.get("criticality", attrs.get("topic_criticality", "LOW"))
-            crit_str = str(crit_raw).upper()
+            crit_raw = attrs.get("criticality", attrs.get("topic_criticality"))
             topic_crit_ord[n] = (
-                TOPIC_CRITICALITY_ORD.get(crit_str, TOPIC_CRITICALITY_ORD.get(crit_str.lower(), 0.0))
+                TOPIC_CRITICALITY_ORD[canonical_criticality(crit_raw, default="LOW")]
                 if qos_enabled
                 else 0.0
             )

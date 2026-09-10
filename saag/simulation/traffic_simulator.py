@@ -132,9 +132,9 @@ class TrafficSimulator:
                         t.qos_transport_priority   AS qos_transport_priority,
                         COALESCE(t.size, 0)        AS size,
                         COALESCE(t.topic_frequency, 10.0) AS frequency,
-                        t.criticality              AS criticality,
-                        COALESCE(t.deadline_ms, t.qos_deadline_ms) AS deadline_ms,
-                        COALESCE(t.history_depth, t.qos_history_depth, 10) AS history_depth
+                        t.topic_criticality        AS criticality,
+                        t.qos_deadline_ms          AS deadline_ms,
+                        COALESCE(t.qos_history_depth, 10) AS history_depth
                     ORDER BY t.id
                     """
                 )

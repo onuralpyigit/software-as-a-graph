@@ -158,8 +158,13 @@ graph:
     total_publish_count_including_libraries: { ... }   # takes priority over direct_* when present
     total_subscribe_count_including_libraries: { ... }
     app_criticality_distribution:
-      category_counts: { high: <int>, medium: <int>, low: <int> }
+      category_counts: { HIGH: <int>, MEDIUM: <int>, LOW: <int> }
       # (+ total_count, mode, mode_count, mode_percentage — see StatisticalMetric-style fields above)
+    app_hotstandby_distribution:
+      category_counts: { true: <int>, false: <int> }
+      # (+ the same StatisticalMetric-style fields)
+    # Both pools are read for their tier *counts* only — which app receives
+    # which tier is decided by the ranking in _assign_criticality_two_pass().
 
   library_stats:
     applications_using_this_library: { mean, median, std, min, max, q1, q3, iqr }
@@ -206,10 +211,10 @@ Located at [tools/generation/generator.py](../tools/generation/generator.py). `g
 | Infrastructure | `_build_infrastructure` | `Node`, `Broker` entities |
 | Topics | `_build_topics` | `Topic` entities: QoS, size, domain-aware frequency, deadline SLA, history depth, noisy criticality |
 | Hierarchy clusters | `_assign_clusters` | Pre-assigns apps/libs/topics to `css_name` clusters so later wiring is structurally coherent, not an independent label |
-| Applications | `_build_apps` | `Application` entities (criticality defaulted to `LOW`, updated to `HIGH`/`MEDIUM` in Pass 2 based on degree and hotstandby redundancy) |
+| Applications | `_build_apps` | `Application` entities (criticality defaulted to `MEDIUM` and hotstandby to `False`; both are assigned for real in Pass 2, once the topology exists) |
 | Libraries | `_build_libs` | `Library` entities and the cluster→libs grouping |
 
-**Topic frequency** is sampled by `_sample_topic_frequency()` from a per-domain log-uniform range (`_DOMAIN_FREQ_BOUNDS`), then snapped to the nearest of a fixed Hz set. **Topic deadline** (`deadline_ms`) is set in inverse correlation with frequency ($T = 1000/f$), while **history depth** (`history_depth`) reflects buffering requirements under DDS `KEEP_LAST`. **Topic criticality** is derived from the QoS weight via a threshold table (`HIGH`, `MEDIUM`, `LOW`), then has ~17% label noise injected (`_derive_topic_criticality_with_noise()`) so a GNN cannot recover it from QoS features via lookup alone — it must use structural context. These draws use an isolated RNG stream (`topic_attr_rng`), so changing them never perturbs the main topology RNG and existing seeded outputs for unrelated fields stay stable.
+**Topic frequency** is sampled by `_sample_topic_frequency()` from a per-domain log-uniform range (`_DOMAIN_FREQ_BOUNDS`), then snapped to the nearest of a fixed Hz set. **Topic deadline** (`deadline_ms`) is anchored to the message period $T = 1000/f$ and scaled by a slack factor, while **history depth** (`history_depth`) reflects buffering requirements under DDS `KEEP_LAST`. Criticality shifts *where* each draw is centred but never *which* values are reachable: the slack factor is triangular over a support shared by all three tiers, every tier can declare no deadline at all, and the depth ladder overlaps between tiers. That overlap is load-bearing — with criticality-disjoint bands, `deadline_ms · f / 1000` inverted the label exactly and handed the GNN a closed form for the ~17 % label noise below (enforced by `tests/test_generation_service.py::TestTemporalContractNonInvertibility`). **Topic criticality** is derived from the QoS weight via a threshold table (`HIGH`, `MEDIUM`, `LOW`), then has ~17% label noise injected (`_derive_topic_criticality_with_noise()`) so a GNN cannot recover it from QoS features via lookup alone — it must use structural context. These draws use an isolated RNG stream (`topic_attr_rng`), so changing them never perturbs the main topology RNG and existing seeded outputs for unrelated fields stay stable.
 
 ### 6.2 Pass 2 — Relationships
 
@@ -221,7 +226,7 @@ Edges are constructed in dependency order because later steps consume earlier on
 4. **`USES`** and library-direct pub/sub — `_wire_uses()`: lib→lib transitive dependencies (30% chance per library), then, if configured, direct library `PUBLISHES_TO`/`SUBSCRIBES_TO` edges, then app→lib usage.
 5. **`PUBLISHES_TO`/`SUBSCRIBES_TO`** (apps) — `_wire_pubsub()` dispatches to one of four mutually-exclusive strategies (§5.1's priority order). All four apply cluster-biased sampling (`_sample_biased`, `p_intra` = `intra_cluster_coupling`) and QoS-affinity steering (`_qos_preferred_topics()`: gateway/controller apps draw from `RELIABLE`/`HIGH` topics first, sensors from `BEST_EFFORT`/`LOW`).
 6. **`CONNECTS_TO`** — `_wire_connects()`: probabilistic node mesh, guarded against a fully disconnected result.
-7. **Post-topology passes** — `_apply_post_topology()`: guarantees every app has at least one pub/sub edge (isolated apps would otherwise inflate F1 scores trivially), then assigns 3-tier criticality (`HIGH`, `MEDIUM`, `LOW`) and correlated `hotstandby: bool` redundancy (with dual-node host placement) to structurally highest-degree apps (`_assign_criticality_two_pass()`) now that the topology — and therefore each app's degree — is known.
+7. **Post-topology passes** — `_apply_post_topology()`: guarantees every app has at least one pub/sub edge (isolated apps would otherwise inflate F1 scores trivially), then assigns 3-tier criticality (`HIGH`, `MEDIUM`, `LOW`) and correlated `hotstandby: bool` redundancy (with dual-node host placement) via `_assign_criticality_two_pass()`, now that the topology is known. Apps are ranked by a composite score — connected-topic QoS urgency (0.50, itself `0.6·w(t) + 0.4·Topic.criticality` blended as `0.55·max + 0.45·mean` over the app's pub/sub topics), operational `app_type` semantics (0.25: controller > gateway > processor > actuator > sensor > monitor), and normalised pub/sub degree (0.25) — plus a small seeded jitter to break ties. The tier counts come from the scenario's `app_criticality_distribution`, and `hotstandby` is granted to the top of the same ranking, so redundancy correlates with criticality by construction.
 
 ### 6.3 Code-Metrics Generation
 
@@ -237,7 +242,7 @@ Every application and library carries a `system_hierarchy` block (`csc_name`, `c
 
 ### 6.5 QoS and Contract Assignment
 
-Topics receive categorical values for durability, reliability, and transport priority, along with continuous temporal SLA contracts (`deadline_ms`, inversely correlated with publishing frequency: $T = 1000/f$) and queue capacity limits (`history_depth`, scaled by reliability and criticality, matching DDS `KEEP_LAST`). The QoS weight (`QoSPolicy.calculate_weight()`) drives both the criticality threshold lookup (§6.1) and, downstream in analysis, the QSPOF Availability $A(v)$ term — topics carrying `PERSISTENT + RELIABLE + CRITICAL` traffic receive the maximum QoS weight ($1.0$).
+Topics receive categorical values for durability, reliability, and transport priority, along with continuous temporal SLA contracts (`deadline_ms`, anchored to the publishing period $T = 1000/f$) and queue capacity limits (`history_depth`, matching DDS `KEEP_LAST`, pushed up by reliability/durability and down by publish rate). Neither is drawn from criticality-exclusive ranges — see §6.1. The QoS weight (`QoSPolicy.calculate_weight()`) drives both the criticality threshold lookup (§6.1) and, downstream in analysis, the QSPOF Availability $A(v)$ term — topics carrying `PERSISTENT + RELIABLE + CRITICAL` traffic receive the maximum QoS weight ($1.0$).
 
 ---
 

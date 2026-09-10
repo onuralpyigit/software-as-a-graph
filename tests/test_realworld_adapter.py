@@ -4,6 +4,7 @@ Unit tests for RealWorldAdapter and real-world system topologies.
 
 import json
 import pytest
+from collections import Counter
 from pathlib import Path
 from saag.adapters.realworld_adapter import RealWorldAdapter
 from cli.validation.graph_io import load_graph
@@ -113,3 +114,53 @@ def test_realworld_applications_have_criticality_and_hotstandby_and_no_priority(
                 assert app["hotstandby"] is False
 
 
+
+_TOPOLOGY_CREATORS = [
+    RealWorldAdapter.create_autoware_ros2_topology,
+    RealWorldAdapter.create_cloud_microservices_topology,
+    RealWorldAdapter.create_trainticket_microservices_topology,
+    RealWorldAdapter.create_homeassistant_topology,
+    RealWorldAdapter.create_edgex_foundry_topology,
+]
+
+
+@pytest.mark.parametrize("creator", _TOPOLOGY_CREATORS)
+def test_realworld_topics_declare_the_temporal_contract(creator):
+    """Every real-world topic must carry the same QoS fields as the synthetic corpus.
+
+    The QoS edge encoder turns ``deadline_ms`` into the ``has_deadline`` and
+    ``deadline_log`` dimensions.  When these fixtures carried neither field,
+    those dims were live in training and constant-zero at test — a train/test
+    shift on exactly the zero-shot transfer path.  ``history_depth`` is always
+    declared; ``deadline_ms`` may legitimately be null where the real system
+    declares no temporal contract, but must be present on some topics.
+    """
+    topics = creator()["topics"]
+    for t in topics:
+        assert "history_depth" in t, f"Topic {t['id']} missing history_depth"
+        assert isinstance(t["history_depth"], int) and t["history_depth"] >= 1
+        assert "deadline_ms" in t, f"Topic {t['id']} missing deadline_ms"
+        assert t["deadline_ms"] is None or t["deadline_ms"] > 0
+
+    with_deadline = [t for t in topics if t["deadline_ms"] is not None]
+    assert with_deadline, "no topic in this fixture declares a deadline at all"
+
+
+@pytest.mark.parametrize("creator", _TOPOLOGY_CREATORS)
+def test_realworld_topic_criticality_is_not_near_constant(creator):
+    """A fixture whose topics are ~all one tier carries no criticality signal.
+
+    Folding the retired 5-level scale onto 3 tiers mechanically (critical+high
+    -> HIGH) left Autoware at 22 HIGH out of 24, making the feature useless for
+    the zero-shot evaluation.  Labels must reflect *relative* urgency within
+    each system.
+    """
+    topics = creator()["topics"]
+    counts = Counter(t["criticality"] for t in topics)
+    assert set(counts) <= {"LOW", "MEDIUM", "HIGH"}
+    assert len(counts) == 3, f"only {sorted(counts)} present — no spread"
+    dominant = max(counts.values()) / len(topics)
+    assert dominant <= 0.80, (
+        f"{dominant:.0%} of topics are {counts.most_common(1)[0][0]}; "
+        "the criticality feature is effectively constant for this fixture"
+    )

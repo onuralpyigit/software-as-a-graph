@@ -31,7 +31,7 @@ def _canonical_sha256(data: dict) -> str:
 
 _SCENARIO_08_YAML = project_root / "data" / "scenarios" / "scenario_08_tiny_regression.yaml"
 
-_GOLDEN_SHA256 = "888f3c5bceb1c694fc95a5a0da406b60025974c289b7d312ee1e9de04cc6e65a"
+_GOLDEN_SHA256 = "258e0b80dde4b613028adbdcb7ab59fcb7d618691041f079d60fea9816a6f65c"
 
 _GOLDEN_ENTITY_COUNTS = {
     "nodes": 3,
@@ -339,3 +339,73 @@ class TestSchemaValidation:
         }
         with pytest.raises(ValueError, match="references non-existent target ID"):
             validate_and_clean_schema(graph)
+
+
+class TestTemporalContractNonInvertibility:
+    """The temporal contract must not leak Topic.criticality.
+
+    ``_derive_topic_criticality_with_noise()`` deliberately flips ~17 % of the
+    QoS-derived labels so the prediction task cannot collapse to a QoS lookup.
+    ``deadline_ms`` and ``history_depth`` are both model inputs alongside
+    ``frequency``, so if either is drawn from criticality-disjoint ranges the
+    noise becomes analytically invertible and that design is void.
+
+    An earlier revision did exactly that: the deadline slack factor
+    ``deadline_ms * frequency / 1000`` fell in HIGH [1.0, 1.5], MEDIUM
+    [1.5, 3.0], LOW [3.0, 5.0] — three non-overlapping intervals — and only
+    LOW topics could have a null deadline.
+    """
+
+    @pytest.fixture(scope="class")
+    def topics(self):
+        """Topics from several domains, enough to populate every tier."""
+        collected = []
+        for stem in (
+            "scenario_01_autonomous_vehicle",
+            "scenario_06_microservices",
+            "scenario_19_industrial_scada",
+        ):
+            config = load_config(project_root / "data" / "scenarios" / f"{stem}.yaml")
+            collected.extend(GenerationService(config=config).generate()["topics"])
+        return collected
+
+    def test_deadline_slack_ranges_overlap_across_tiers(self, topics):
+        """No criticality tier may own an exclusive slack-factor interval."""
+        ranges = {}
+        for t in topics:
+            if t["deadline_ms"] is None:
+                continue
+            factor = t["deadline_ms"] * t["frequency"] / 1000.0
+            lo, hi = ranges.get(t["criticality"], (factor, factor))
+            ranges[t["criticality"]] = (min(lo, factor), max(hi, factor))
+
+        assert set(ranges) == {"LOW", "MEDIUM", "HIGH"}, (
+            f"expected all three tiers to carry deadlines, got {sorted(ranges)}"
+        )
+        for a, b in (("LOW", "MEDIUM"), ("MEDIUM", "HIGH"), ("LOW", "HIGH")):
+            a_lo, a_hi = ranges[a]
+            b_lo, b_hi = ranges[b]
+            overlap = min(a_hi, b_hi) - max(a_lo, b_lo)
+            assert overlap > 0, (
+                f"{a} {ranges[a]} and {b} {ranges[b]} do not overlap — the slack "
+                "factor deadline_ms*frequency/1000 identifies the criticality label"
+            )
+
+    def test_null_deadline_does_not_identify_a_tier(self, topics):
+        """"No deadline declared" must be reachable from more than one tier."""
+        tiers = {t["criticality"] for t in topics if t["deadline_ms"] is None}
+        assert len(tiers) > 1, (
+            f"a null deadline appears only in {tiers} — its absence is a perfect "
+            "detector for that criticality label"
+        )
+
+    def test_no_history_depth_identifies_a_tier(self, topics):
+        """Every KEEP_LAST depth must be reachable from at least two tiers."""
+        tiers_by_depth = {}
+        for t in topics:
+            tiers_by_depth.setdefault(t["history_depth"], set()).add(t["criticality"])
+        exclusive = {d: s for d, s in tiers_by_depth.items() if len(s) < 2}
+        assert not exclusive, (
+            f"history_depth values {exclusive} are reachable from a single "
+            "criticality tier, so the depth alone identifies the label"
+        )

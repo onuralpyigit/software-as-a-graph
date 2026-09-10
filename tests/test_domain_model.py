@@ -71,10 +71,15 @@ class TestQoSPolicy:
     def test_to_dict(self):
         policy = QoSPolicy(reliability="RELIABLE", durability="PERSISTENT", transport_priority="URGENT")
         d = policy.to_dict()
+        # Both temporal-contract keys are always emitted, matching
+        # Topic.to_dict(); a conditional key made "declared 10" and
+        # "defaulted 10" indistinguishable on the round-trip.
         assert d == {
             "reliability": "RELIABLE",
             "durability": "PERSISTENT",
             "transport_priority": "URGENT",
+            "deadline_ms": None,
+            "history_depth": 10,
         }
 
     def test_from_dict(self):

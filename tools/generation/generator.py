@@ -15,6 +15,10 @@ from saag.core.models import (
     Library,
     QoSPolicy,
     CRITICALITY_THRESHOLDS,
+    CRITICALITY_LEVELS,
+    TOPIC_CRITICALITY_ORD,
+    MAX_TOPIC_CRITICALITY_ORD,
+    canonical_criticality,
 )
 from .models import (
     GraphConfig,
@@ -23,7 +27,6 @@ from .models import (
     RELIABILITY_OPTIONS,
     PRIORITY_OPTIONS,
     APP_TYPE_OPTIONS,
-    APP_HOTSTANDBY_OPTIONS,
     APP_USER_ROLE_OPTIONS,
 )
 from .datasets import (
@@ -186,7 +189,32 @@ _DOMAIN_FREQ_BOUNDS_DEFAULT: tuple = (0.1, 100.0)
 _CRITICALITY_NOISE_RATE: float = 0.17
 
 # Ordered criticality levels (used to pick a random *different* label on flip).
-_CRITICALITY_LABELS = ["LOW", "MEDIUM", "HIGH"]
+_CRITICALITY_LABELS = list(CRITICALITY_LEVELS)
+
+# --- Temporal contract sampling (deadline_ms / history_depth) ----------------
+# Deadline slack is expressed as a multiple of the message period T = 1000/f.
+# All three criticality tiers draw from the SAME support and differ only in the
+# mode of a triangular distribution, so the bands overlap and the label cannot
+# be inverted from (deadline_ms, frequency).  See _derive_topic_deadline().
+_DEADLINE_FACTOR_RANGE: tuple = (1.0, 6.0)
+_DEADLINE_FACTOR_MODE: Dict[str, float] = {
+    "HIGH": 1.4,
+    "MEDIUM": 2.4,
+    "LOW": 4.0,
+}
+
+# Probability that a topic declares no deadline at all.  Nonzero for every tier:
+# best-effort channels exist at all urgencies, and an all-or-nothing rule made
+# "deadline is null" a perfect LOW detector.
+_NO_DEADLINE_RATE: Dict[str, float] = {
+    "HIGH": 0.05,
+    "MEDIUM": 0.20,
+    "LOW": 0.45,
+}
+
+# Shared KEEP_LAST depth ladder.  Criticality, durability/reliability and
+# publish rate shift a sampling window over it; they do not partition it.
+_HISTORY_DEPTH_CHOICES: List[int] = [1, 5, 10, 20, 50, 100]
 
 
 class StatisticalGraphGenerator:
@@ -522,31 +550,39 @@ class StatisticalGraphGenerator:
         qos: "QoSPolicy",
         rng: Optional[random.Random] = None,
     ) -> Optional[float]:
-        """Derive a domain-correlated temporal SLA deadline in milliseconds.
+        """Derive a temporal SLA deadline in milliseconds.
 
-        In real-time publish-subscribe systems (e.g. DDS, ROS 2, time-critical streaming),
-        the deadline is physically correlated with the message period T = 1000 / frequency_hz.
-        - HIGH criticality: tight real-time SLA: [1.0 * T, 1.5 * T] ms.
-        - MEDIUM criticality: moderate real-time SLA: [1.5 * T, 3.0 * T] ms.
-        - LOW criticality: non-realtime / best-effort: 70% None (infinite deadline),
-          30% relaxed [3.0 * T, 5.0 * T] ms.
+        In real-time publish-subscribe systems (e.g. DDS, ROS 2, time-critical
+        streaming), the deadline is physically anchored to the message period
+        T = 1000 / frequency_hz, and tightens as channel urgency rises.
+
+        The slack factor is drawn from a *triangular* distribution over the
+        shared support ``_DEADLINE_FACTOR_RANGE``, with criticality shifting
+        only the mode.  The three bands therefore overlap: observing a factor
+        of 2.0 is consistent with any criticality, just with different
+        likelihood.  Likewise every tier has a nonzero chance of declaring no
+        deadline at all.
+
+        This overlap is load-bearing, not cosmetic.  An earlier version drew
+        the factor from three *disjoint* uniform intervals (HIGH [1.0, 1.5],
+        MEDIUM [1.5, 3.0], LOW [3.0, 5.0]) and emitted ``None`` only for LOW.
+        Because both ``frequency`` and ``deadline_ms`` are model inputs,
+        ``deadline_ms * frequency / 1000`` recovered the label exactly — which
+        handed the GNN a closed-form inverse of the ~17 % label noise that
+        ``_derive_topic_criticality_with_noise()`` exists to inject.
+        Enforced by tests/test_generation_service.py.
         """
         _rng = rng if rng is not None else self.rng
         period_ms = 1000.0 / max(0.001, float(frequency_hz))
 
-        crit_upper = str(criticality).upper()
-        if crit_upper in ("HIGH", "CRITICAL"):
-            factor = _rng.uniform(1.0, 1.5)
-            return round(period_ms * factor, 1)
-        elif crit_upper == "MEDIUM":
-            factor = _rng.uniform(1.5, 3.0)
-            return round(period_ms * factor, 1)
-        else:
-            # LOW criticality
-            if _rng.random() < 0.70:
-                return None
-            factor = _rng.uniform(3.0, 5.0)
-            return round(period_ms * factor, 1)
+        crit_upper = canonical_criticality(criticality)
+        mode = _DEADLINE_FACTOR_MODE.get(crit_upper, _DEADLINE_FACTOR_MODE["MEDIUM"])
+        if _rng.random() < _NO_DEADLINE_RATE.get(crit_upper, _NO_DEADLINE_RATE["MEDIUM"]):
+            return None
+
+        lo, hi = _DEADLINE_FACTOR_RANGE
+        factor = _rng.triangular(lo, hi, mode)
+        return round(period_ms * factor, 1)
 
     def _derive_topic_history_depth(
         self,
@@ -555,29 +591,46 @@ class StatisticalGraphGenerator:
         frequency_hz: float,
         rng: Optional[random.Random] = None,
     ) -> int:
-        """Derive a domain-correlated queue/buffering limit (history depth).
+        """Derive a queue/buffering limit (history depth).
 
-        Corresponds to OMG DDS HistoryQosPolicy KEEP_LAST depth or Kafka buffer limits:
-        - HIGH criticality + RELIABLE/PERSISTENT: deep queue [20, 50, 100] to avoid drops.
-        - HIGH criticality + streaming sensor (>= 50 Hz): shallow queue [5, 10] (freshest value).
-        - MEDIUM criticality: standard queue [10, 20].
-        - LOW criticality: shallow queue [1, 5, 10].
+        Corresponds to the OMG DDS ``HistoryQosPolicy`` KEEP_LAST depth, or to
+        a broker's per-topic buffer limit.  Two forces pull in opposite
+        directions and both are modelled:
+
+        * durability/reliability pull the depth *up* — a RELIABLE or
+          TRANSIENT_LOCAL channel buffers more samples to survive a slow or
+          late-joining subscriber;
+        * publish rate pulls it *down* — a high-rate stream keeps only the
+          freshest samples, since a stale one has no value.
+
+        Every tier draws from ``_HISTORY_DEPTH_CHOICES``, shifted by those two
+        forces rather than partitioned by criticality.  As with
+        ``_derive_topic_deadline()``, the per-tier supports must overlap: when
+        the deep depths ``{20, 50, 100}`` belonged to HIGH alone, the depth
+        alone identified the label.  Enforced by
+        tests/test_generation_service.py.
         """
         _rng = rng if rng is not None else self.rng
-        crit_upper = str(criticality).upper()
+        crit_upper = canonical_criticality(criticality)
 
-        if crit_upper in ("HIGH", "CRITICAL"):
-            is_reliable = qos.reliability.upper() == "RELIABLE" or qos.durability.upper() in ("PERSISTENT", "TRANSIENT_LOCAL")
-            if is_reliable and frequency_hz < 50.0:
-                return _rng.choice([20, 50, 100])
-            elif frequency_hz >= 50.0:
-                return _rng.choice([5, 10])
-            else:
-                return _rng.choice([10, 20])
-        elif crit_upper == "MEDIUM":
-            return _rng.choice([10, 20])
-        else:
-            return _rng.choice([1, 5, 10])
+        # Shift the sampling window over the shared ladder instead of carving
+        # it into disjoint per-tier sets.
+        offset = {"HIGH": 2, "MEDIUM": 1}.get(crit_upper, 0)
+        if qos.reliability.upper() == "RELIABLE" or qos.durability.upper() in (
+            "PERSISTENT", "TRANSIENT_LOCAL"
+        ):
+            offset += 1
+        if frequency_hz >= 50.0:
+            offset -= 1
+
+        # The window is deliberately wide enough that no single depth value is
+        # reachable from only one criticality tier — a lone reachable value
+        # would identify the label as surely as a disjoint range does.
+        ladder = _HISTORY_DEPTH_CHOICES
+        centre = max(0, min(len(ladder) - 1, offset))
+        lo = max(0, centre - 1)
+        hi = min(len(ladder) - 1, centre + 3)
+        return _rng.choice(ladder[lo:hi + 1])
 
     def _assign_criticality_two_pass(
         self,
@@ -615,7 +668,10 @@ class StatisticalGraphGenerator:
         topic_imp: Dict[str, float] = {}
         for tid, t in topic_map.items():
             qos_w = t.qos.calculate_weight()
-            crit_ord = {"LOW": 0.0, "MEDIUM": 0.5, "HIGH": 1.0}.get(str(t.criticality).upper(), 0.5)
+            crit_ord = (
+                TOPIC_CRITICALITY_ORD[canonical_criticality(t.criticality)]
+                / MAX_TOPIC_CRITICALITY_ORD
+            )
             topic_imp[tid] = 0.6 * qos_w + 0.4 * crit_ord
 
         deg_counts = {
@@ -658,17 +714,7 @@ class StatisticalGraphGenerator:
         n_total = len(apps)
 
         if criticality_pool is not None and len(criticality_pool) > 0:
-            pool_norm = []
-            for item in criticality_pool:
-                iu = str(item).upper()
-                if iu in ("HIGH", "CRITICAL", "TRUE", "1"):
-                    pool_norm.append("HIGH")
-                elif iu in ("LOW", "NON_CRITICAL", "MINIMAL", "FALSE", "0"):
-                    pool_norm.append("LOW")
-                elif iu == "MEDIUM":
-                    pool_norm.append("MEDIUM")
-                else:
-                    pool_norm.append("MEDIUM")
+            pool_norm = [canonical_criticality(item) for item in criticality_pool]
             n_high = sum(1 for x in pool_norm if x == "HIGH")
             n_med = sum(1 for x in pool_norm if x == "MEDIUM")
             if n_med == 0 and n_high > 0 and n_high < n_total:
@@ -693,20 +739,14 @@ class StatisticalGraphGenerator:
         # High-criticality services receive redundancy first, followed by top medium-criticality apps.
         can_hotstandby = nodes is not None and len(nodes) >= 2
         if not can_hotstandby:
-            for app in apps:
-                app.hotstandby = False
-        elif hotstandby_pool is not None and len(hotstandby_pool) > 0:
-            n_standby = min(
-                n_total,
-                sum(1 for x in hotstandby_pool if x is True or str(x).strip().lower() in ("true", "1", "yes", "redundant", "hotstandby"))
-            )
-            for idx, app in enumerate(ranked):
-                app.hotstandby = (idx < n_standby)
+            n_standby = 0
+        elif hotstandby_pool:
+            n_standby = min(n_total, sum(1 for x in hotstandby_pool if x))
         else:
             # Domain fallback: all HIGH apps + 25% of MEDIUM apps get hotstandby
             n_standby = min(n_total, n_high + max(0, round(n_med * 0.25)))
-            for idx, app in enumerate(ranked):
-                app.hotstandby = (idx < n_standby)
+        for idx, app in enumerate(ranked):
+            app.hotstandby = (idx < n_standby)
 
         # Synchronize runs_on relationships:
         # hotstandby=True requires 2 RUNS_ON edges to distinct nodes;
@@ -921,10 +961,12 @@ class StatisticalGraphGenerator:
         topology is built (_apply_post_topology / _assign_criticality_two_pass)
         so they properly correlate with each other, topic QoS, and graph structure.
         """
+        # Both pools are consumed for their *tier counts* only — the ranking in
+        # _assign_criticality_two_pass() decides which app gets which tier — so
+        # neither is shuffled: the order carries no information.
         criticality_pool = None
         if c.application_stats and c.application_stats.app_criticality_distribution:
             criticality_pool = c.application_stats.app_criticality_distribution.to_weighted_list()
-            self.rng.shuffle(criticality_pool)
 
         hotstandby_pool = None
         if c.application_stats and c.application_stats.app_hotstandby_distribution:

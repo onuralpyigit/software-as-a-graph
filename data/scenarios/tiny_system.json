@@ -45,11 +45,12 @@
         "durability": "VOLATILE",
         "reliability": "RELIABLE",
         "transport_priority": "LOW",
+        "deadline_ms": 2220.5,
         "history_depth": 1
       },
       "frequency": 1.0,
       "criticality": "LOW",
-      "deadline_ms": null,
+      "deadline_ms": 2220.5,
       "history_depth": 1
     },
     {
@@ -60,12 +61,13 @@
         "durability": "PERSISTENT",
         "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM",
-        "deadline_ms": 2525.6
+        "deadline_ms": null,
+        "history_depth": 20
       },
       "frequency": 1.0,
       "criticality": "MEDIUM",
-      "deadline_ms": 2525.6,
-      "history_depth": 10
+      "deadline_ms": null,
+      "history_depth": 20
     },
     {
       "id": "T2",
@@ -75,13 +77,13 @@
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM",
-        "deadline_ms": 1234.9,
-        "history_depth": 50
+        "deadline_ms": 2226.6,
+        "history_depth": 20
       },
       "frequency": 1.0,
       "criticality": "HIGH",
-      "deadline_ms": 1234.9,
-      "history_depth": 50
+      "deadline_ms": 2226.6,
+      "history_depth": 20
     },
     {
       "id": "T3",
@@ -91,13 +93,13 @@
         "durability": "TRANSIENT_LOCAL",
         "reliability": "BEST_EFFORT",
         "transport_priority": "LOW",
-        "deadline_ms": 4571.2,
-        "history_depth": 5
+        "deadline_ms": null,
+        "history_depth": 1
       },
       "frequency": 1.0,
       "criticality": "LOW",
-      "deadline_ms": 4571.2,
-      "history_depth": 5
+      "deadline_ms": null,
+      "history_depth": 1
     },
     {
       "id": "T4",
@@ -107,12 +109,13 @@
         "durability": "TRANSIENT",
         "reliability": "BEST_EFFORT",
         "transport_priority": "HIGH",
-        "deadline_ms": 1584.8
+        "deadline_ms": 2969.3,
+        "history_depth": 1
       },
       "frequency": 1.0,
       "criticality": "MEDIUM",
-      "deadline_ms": 1584.8,
-      "history_depth": 10
+      "deadline_ms": 2969.3,
+      "history_depth": 1
     },
     {
       "id": "T5",
@@ -122,13 +125,13 @@
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
         "transport_priority": "HIGH",
-        "deadline_ms": 2719.4,
-        "history_depth": 20
+        "deadline_ms": null,
+        "history_depth": 1
       },
       "frequency": 1.0,
-      "criticality": "MEDIUM",
-      "deadline_ms": 2719.4,
-      "history_depth": 20
+      "criticality": "LOW",
+      "deadline_ms": null,
+      "history_depth": 1
     },
     {
       "id": "T6",
@@ -138,13 +141,13 @@
         "durability": "TRANSIENT",
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL",
-        "deadline_ms": 1428.9,
-        "history_depth": 20
+        "deadline_ms": 2860.7,
+        "history_depth": 10
       },
       "frequency": 1.0,
       "criticality": "HIGH",
-      "deadline_ms": 1428.9,
-      "history_depth": 20
+      "deadline_ms": 2860.7,
+      "history_depth": 10
     },
     {
       "id": "T7",
@@ -154,22 +157,24 @@
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
         "transport_priority": "CRITICAL",
-        "deadline_ms": 2300.2
+        "deadline_ms": null,
+        "history_depth": 5
       },
       "frequency": 1.0,
       "criticality": "MEDIUM",
-      "deadline_ms": 2300.2,
-      "history_depth": 10
+      "deadline_ms": null,
+      "history_depth": 5
     }
   ],
   "applications": [
     {
       "id": "A0",
       "name": "invoice-service",
-      "version": "1.5.0",
+      "version": "2.8.1",
       "app_type": "service",
       "role": [
-        "Supervisor"
+        "Administrator",
+        "Operative"
       ],
       "criticality": "MEDIUM",
       "hotstandby": false,
@@ -181,39 +186,40 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1249,
-          "total_classes": 19,
-          "total_methods": 129,
-          "total_fields": 57
+          "total_loc": 1695,
+          "total_classes": 25,
+          "total_methods": 135,
+          "total_fields": 123
         },
         "complexity": {
-          "total_wmc": 240,
-          "avg_wmc": 12.61,
-          "max_wmc": 15
+          "total_wmc": 525,
+          "avg_wmc": 21.01,
+          "max_wmc": 40
         },
         "cohesion": {
-          "avg_lcom": 45.64,
-          "max_lcom": 159.5
+          "avg_lcom": 42.08,
+          "max_lcom": 88.2
         },
         "coupling": {
-          "avg_cbo": 4.18,
-          "max_cbo": 10,
-          "avg_rfc": 35.37,
-          "max_rfc": 86,
-          "avg_fanin": 5.5,
-          "max_fanin": 24,
-          "avg_fanout": 8.91,
-          "max_fanout": 24
+          "avg_cbo": 7.32,
+          "max_cbo": 16,
+          "avg_rfc": 35.33,
+          "max_rfc": 73,
+          "avg_fanin": 5.59,
+          "max_fanin": 14,
+          "avg_fanout": 8.64,
+          "max_fanout": 21
         }
       }
     },
     {
       "id": "A1",
       "name": "inventory-tracker",
-      "version": "3.7.9",
+      "version": "2.9.0",
       "app_type": "monitor",
       "role": [
-        "Supervisor"
+        "Analyst",
+        "Operative"
       ],
       "criticality": "MEDIUM",
       "hotstandby": false,
@@ -225,39 +231,41 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 843,
+          "total_loc": 739,
           "total_classes": 12,
-          "total_methods": 85,
-          "total_fields": 57
+          "total_methods": 71,
+          "total_fields": 56
         },
         "complexity": {
-          "total_wmc": 113,
-          "avg_wmc": 9.38,
-          "max_wmc": 17
+          "total_wmc": 192,
+          "avg_wmc": 15.98,
+          "max_wmc": 39
         },
         "cohesion": {
-          "avg_lcom": 11.02,
-          "max_lcom": 34.5
+          "avg_lcom": 27.34,
+          "max_lcom": 77.7
         },
         "coupling": {
-          "avg_cbo": 4.14,
-          "max_cbo": 8,
-          "avg_rfc": 21.05,
-          "max_rfc": 41,
-          "avg_fanin": 2.93,
-          "max_fanin": 7,
-          "avg_fanout": 3.59,
-          "max_fanout": 8
+          "avg_cbo": 5.39,
+          "max_cbo": 9,
+          "avg_rfc": 29.02,
+          "max_rfc": 67,
+          "avg_fanin": 3.38,
+          "max_fanin": 10,
+          "avg_fanout": 3.53,
+          "max_fanout": 10
         }
       }
     },
     {
       "id": "A2",
       "name": "invoice-service-1",
-      "version": "1.0.8",
+      "version": "3.5.9",
       "app_type": "service",
       "role": [
-        "Supervisor"
+        "Administrator",
+        "Engineer",
+        "Operative"
       ],
       "criticality": "MEDIUM",
       "hotstandby": true,
@@ -269,41 +277,41 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1940,
-          "total_classes": 23,
-          "total_methods": 202,
-          "total_fields": 93
+          "total_loc": 1494,
+          "total_classes": 21,
+          "total_methods": 177,
+          "total_fields": 89
         },
         "complexity": {
-          "total_wmc": 347,
-          "avg_wmc": 15.07,
-          "max_wmc": 34
+          "total_wmc": 394,
+          "avg_wmc": 18.78,
+          "max_wmc": 98
         },
         "cohesion": {
-          "avg_lcom": 38.14,
-          "max_lcom": 160.7
+          "avg_lcom": 23.92,
+          "max_lcom": 86.9
         },
         "coupling": {
-          "avg_cbo": 6.3,
-          "max_cbo": 13,
-          "avg_rfc": 17.23,
-          "max_rfc": 35,
-          "avg_fanin": 1.5,
-          "max_fanin": 4,
-          "avg_fanout": 3.64,
-          "max_fanout": 9
+          "avg_cbo": 6.95,
+          "max_cbo": 12,
+          "avg_rfc": 21.17,
+          "max_rfc": 43,
+          "avg_fanin": 1.36,
+          "max_fanin": 3,
+          "avg_fanout": 6.83,
+          "max_fanout": 17
         }
       }
     },
     {
       "id": "A3",
       "name": "crm-manager",
-      "version": "1.2.6",
+      "version": "3.2.6",
       "app_type": "controller",
       "role": [
-        "Engineer"
+        "Operative"
       ],
-      "criticality": "MEDIUM",
+      "criticality": "LOW",
       "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",
@@ -313,29 +321,29 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1112,
-          "total_classes": 15,
-          "total_methods": 85,
-          "total_fields": 69
+          "total_loc": 677,
+          "total_classes": 11,
+          "total_methods": 96,
+          "total_fields": 54
         },
         "complexity": {
-          "total_wmc": 201,
-          "avg_wmc": 13.39,
-          "max_wmc": 34
+          "total_wmc": 141,
+          "avg_wmc": 12.79,
+          "max_wmc": 80
         },
         "cohesion": {
-          "avg_lcom": 20.0,
-          "max_lcom": 61.8
+          "avg_lcom": 47.63,
+          "max_lcom": 127.9
         },
         "coupling": {
-          "avg_cbo": 5.41,
-          "max_cbo": 13,
-          "avg_rfc": 25.37,
-          "max_rfc": 39,
-          "avg_fanin": 3.83,
-          "max_fanin": 10,
-          "avg_fanout": 6.1,
-          "max_fanout": 17
+          "avg_cbo": 12.74,
+          "max_cbo": 30,
+          "avg_rfc": 18.34,
+          "max_rfc": 34,
+          "avg_fanin": 3.3,
+          "max_fanin": 12,
+          "avg_fanout": 7.58,
+          "max_fanout": 20
         }
       }
     },
@@ -348,7 +356,7 @@
         "Administrator",
         "Supervisor"
       ],
-      "criticality": "LOW",
+      "criticality": "MEDIUM",
       "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Business Systems",

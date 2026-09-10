@@ -2,9 +2,12 @@
 Core Value Objects and Entities
 """
 from __future__ import annotations
+import logging
 import math
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Any, Optional, ClassVar
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -34,46 +37,88 @@ TOPIC_FREQUENCY_HZ: list = [
     200.0,   # [0.94, 1.00]
 ]
 #: Thresholds for classifying a QoS weight score into criticality levels.
-#: Sorted ascending; first threshold whose lower bound is exceeded wins.
+#: Sorted ascending; each entry is the *upper* bound of its band — the first
+#: threshold the score does not exceed wins (``qos_score <= threshold``).
 CRITICALITY_THRESHOLDS: list = [
     (0.35, "LOW"),
     (0.70, "MEDIUM"),
     (1.00, "HIGH"),
 ]
 
+#: The three canonical criticality labels, ascending.  Both Topic.criticality
+#: (QoS-channel urgency) and Application.criticality (process-level operational
+#: criticality) use this vocabulary — they remain distinct *concepts* that must
+#: not share a feature dimension (see saag/prediction/data_preparation.py).
+CRITICALITY_LEVELS: tuple = ("LOW", "MEDIUM", "HIGH")
+
+#: Legacy spellings accepted on input.  The retired 5-level Topic scale
+#: (minimal/low/medium/high/critical) and the retired Application boolean both
+#: fold onto the 3-level vocabulary here, in one place.
+_CRITICALITY_ALIASES: Dict[str, str] = {
+    "LOW": "LOW",
+    "MEDIUM": "MEDIUM",
+    "HIGH": "HIGH",
+    "MINIMAL": "LOW",
+    "CRITICAL": "HIGH",
+    "NON_CRITICAL": "LOW",
+    "TRUE": "HIGH",
+    "FALSE": "LOW",
+    "1": "HIGH",
+    "0": "LOW",
+    "YES": "HIGH",
+    "NO": "LOW",
+}
+
+
+def canonical_criticality(value: Any, default: str = "MEDIUM") -> str:
+    """Fold any accepted criticality spelling onto ``LOW``/``MEDIUM``/``HIGH``.
+
+    Accepts the canonical labels in any case, the retired 5-level Topic scale,
+    the retired ``Application.criticality`` boolean, and ``None`` (which yields
+    *default*).  An unrecognised non-empty value is a data error rather than a
+    silent MEDIUM: it is logged and then folded to *default* so a malformed
+    dataset degrades visibly instead of quietly mislabelling every topic.
+    """
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return "HIGH" if value else "LOW"
+    key = str(value).strip().upper()
+    if not key:
+        return default
+    canon = _CRITICALITY_ALIASES.get(key)
+    if canon is None:
+        logger.warning(
+            "Unrecognised criticality %r; falling back to %s. "
+            "Expected one of %s or a documented legacy alias.",
+            value, default, ", ".join(CRITICALITY_LEVELS),
+        )
+        return default
+    return canon
+
+
 #: Ordinal encoding of the Topic.criticality label produced by
 #: CRITICALITY_THRESHOLDS. Lives in core because both the prediction feature
 #: encoder and the simulation severity model read it, and simulation must not
 #: import prediction (see tests/test_independence_guarantee.py).
+#: Keyed by canonical label only — route lookups through canonical_criticality().
 TOPIC_CRITICALITY_ORD: Dict[str, float] = {
-    "LOW": 0.0,
-    "MEDIUM": 1.0,
-    "HIGH": 2.0,
-    # Case-insensitive and backward-compatible fallbacks
-    "low": 0.0,
-    "medium": 1.0,
-    "high": 2.0,
-    "minimal": 0.0,
-    "critical": 2.0,
-    "MINIMAL": 0.0,
-    "CRITICAL": 2.0,
+    label: float(i) for i, label in enumerate(CRITICALITY_LEVELS)
 }
 
 #: Highest value in TOPIC_CRITICALITY_ORD, used to normalise it to [0, 1].
-MAX_TOPIC_CRITICALITY_ORD: float = 2.0
+MAX_TOPIC_CRITICALITY_ORD: float = float(len(CRITICALITY_LEVELS) - 1)
 
 #: Ordinal encoding of the Application.criticality operational label.
-APP_CRITICALITY_ORD: Dict[str, float] = {
-    "LOW": 0.0,
-    "MEDIUM": 1.0,
-    "HIGH": 2.0,
-    "low": 0.0,
-    "medium": 1.0,
-    "high": 2.0,
-}
+APP_CRITICALITY_ORD: Dict[str, float] = dict(TOPIC_CRITICALITY_ORD)
 
 #: Highest value in APP_CRITICALITY_ORD, used to normalise it to [0, 1].
-MAX_APP_CRITICALITY_ORD: float = 2.0
+MAX_APP_CRITICALITY_ORD: float = MAX_TOPIC_CRITICALITY_ORD
+
+#: DDS ``HistoryQosPolicy`` KEEP_LAST depth applied when a topic declares none.
+#: Matches the OMG DDS specification's own default of 1 sample scaled to the
+#: buffered-transport convention used across the corpus.
+DEFAULT_HISTORY_DEPTH: int = 10
 
 #: Convex combination factors for topic weight: β QoS + α Size + ψ Frequency.
 #: Rationale: QoS semantics are the primary signal; payload size and message rate modulate runtime stress.
@@ -313,19 +358,19 @@ class QoSPolicy:
     reliability: str = "BEST_EFFORT"
     transport_priority: str = "MEDIUM"
     deadline_ms: Optional[float] = None
-    history_depth: int = 10
+    history_depth: int = DEFAULT_HISTORY_DEPTH
 
     def to_dict(self) -> Dict[str, Any]:
-        res: Dict[str, Any] = {
+        # Both temporal-contract keys are emitted unconditionally, matching
+        # Topic.to_dict(): a conditional key made "declared 10" and "defaulted
+        # 10" indistinguishable on the round-trip.
+        return {
             "durability": self.durability,
             "reliability": self.reliability,
             "transport_priority": self.transport_priority,
+            "deadline_ms": self.deadline_ms,
+            "history_depth": self.history_depth,
         }
-        if self.deadline_ms is not None:
-            res["deadline_ms"] = self.deadline_ms
-        if self.history_depth != 10:
-            res["history_depth"] = self.history_depth
-        return res
 
     @staticmethod
     def _canon(value: Any, default: str) -> str:
@@ -340,15 +385,26 @@ class QoSPolicy:
         return str(value).strip().upper() if value else default
 
     @staticmethod
+    def _first_present(*values: Any) -> Any:
+        """Return the first argument that is not ``None``.
+
+        Distinct from ``or``-chaining, which would discard a legitimate 0.
+        """
+        for value in values:
+            if value is not None:
+                return value
+        return None
+
+    @staticmethod
     def from_dict(data: Dict[str, Any]) -> "QoSPolicy":
-        deadline = data.get("deadline_ms") if data.get("deadline_ms") is not None else data.get("deadline")
+        deadline = QoSPolicy._first_present(data.get("deadline_ms"), data.get("deadline"))
         history = data.get("history_depth")
         return QoSPolicy(
             durability=QoSPolicy._canon(data.get("durability"), "VOLATILE"),
             reliability=QoSPolicy._canon(data.get("reliability"), "BEST_EFFORT"),
             transport_priority=QoSPolicy._canon(data.get("transport_priority"), "MEDIUM"),
             deadline_ms=float(deadline) if deadline is not None else None,
-            history_depth=int(history) if history is not None else 10,
+            history_depth=int(history) if history is not None else DEFAULT_HISTORY_DEPTH,
         )
 
     @staticmethod
@@ -368,27 +424,16 @@ class QoSPolicy:
         ``qos_priority`` is accepted as a legacy alias for the priority key.
         """
         nested = attrs.get("qos") or attrs.get("qos_policy") or {}
-        deadline = (
-            attrs.get("deadline_ms")
-            if attrs.get("deadline_ms") is not None
-            else (
-                attrs.get("qos_deadline_ms")
-                if attrs.get("qos_deadline_ms") is not None
-                else (
-                    nested.get("deadline_ms")
-                    if nested.get("deadline_ms") is not None
-                    else nested.get("deadline")
-                )
-            )
+        deadline = QoSPolicy._first_present(
+            attrs.get("deadline_ms"),
+            attrs.get("qos_deadline_ms"),
+            nested.get("deadline_ms"),
+            nested.get("deadline"),
         )
-        history = (
-            attrs.get("history_depth")
-            if attrs.get("history_depth") is not None
-            else (
-                attrs.get("qos_history_depth")
-                if attrs.get("qos_history_depth") is not None
-                else nested.get("history_depth")
-            )
+        history = QoSPolicy._first_present(
+            attrs.get("history_depth"),
+            attrs.get("qos_history_depth"),
+            nested.get("history_depth"),
         )
         return QoSPolicy(
             durability=QoSPolicy._canon(
@@ -405,7 +450,7 @@ class QoSPolicy:
                 "MEDIUM",
             ),
             deadline_ms=float(deadline) if deadline is not None else None,
-            history_depth=int(history) if history is not None else 10,
+            history_depth=int(history) if history is not None else DEFAULT_HISTORY_DEPTH,
         )
 
     def calculate_weight(self) -> float:
@@ -455,27 +500,12 @@ class Application(GraphEntity):
     code_metrics: Optional[Dict[str, Any]] = None
 
     def __post_init__(self) -> None:
-        if isinstance(self.criticality, bool):
-            self.criticality = "HIGH" if self.criticality else "LOW"
-        elif isinstance(self.criticality, str):
-            crit_upper = self.criticality.upper()
-            if crit_upper in ("HIGH", "CRITICAL"):
-                self.criticality = "HIGH"
-            elif crit_upper in ("LOW", "MINIMAL"):
-                self.criticality = "LOW"
-            elif crit_upper == "MEDIUM":
-                self.criticality = "MEDIUM"
-            else:
-                self.criticality = "MEDIUM"
-        elif self.criticality is None:
-            self.criticality = "MEDIUM"
+        # ``criticality`` was a bool before the 3-tier migration; legacy
+        # datasets and hand-authored fixtures still carry that shape.
+        self.criticality = canonical_criticality(self.criticality)
 
         if isinstance(self.hotstandby, str):
             self.hotstandby = self.hotstandby.strip().lower() in ("true", "1", "yes")
-        elif isinstance(self.hotstandby, (int, float)):
-            self.hotstandby = bool(self.hotstandby)
-        elif self.hotstandby is None:
-            self.hotstandby = False
         else:
             self.hotstandby = bool(self.hotstandby)
 
@@ -573,7 +603,9 @@ class Topic(GraphEntity):
     frequency: Optional[float] = field(default=None)
     criticality: Optional[str] = field(default=None)
     deadline_ms: Optional[float] = field(default=None)
-    history_depth: int = 10
+    #: ``None`` means "not declared at Topic level" — the value then falls back
+    #: to ``qos.history_depth`` and finally to DEFAULT_HISTORY_DEPTH.
+    history_depth: Optional[int] = field(default=None)
 
     def __post_init__(self) -> None:
         # Enforce size is a power of 2
@@ -611,42 +643,31 @@ class Topic(GraphEntity):
             else:
                 self.criticality = "HIGH"
         else:
-            crit_upper = str(self.criticality).upper()
-            if crit_upper in ("HIGH", "CRITICAL"):
-                self.criticality = "HIGH"
-            elif crit_upper in ("LOW", "MINIMAL"):
-                self.criticality = "LOW"
-            elif crit_upper == "MEDIUM":
-                self.criticality = "MEDIUM"
-            else:
-                self.criticality = "MEDIUM"
+            self.criticality = canonical_criticality(self.criticality)
 
-        # --- history_depth -----------------------------------------------
-        if self.history_depth is not None:
-            try:
-                self.history_depth = max(1, int(self.history_depth))
-            except (ValueError, TypeError):
-                self.history_depth = 10
-        else:
-            self.history_depth = 10
-
-        # --- deadline_ms -------------------------------------------------
+        # --- temporal contract (deadline_ms / history_depth) --------------
+        # The Topic is the single owner: an explicitly declared Topic-level
+        # value wins, otherwise the value falls back to the QoS policy, and
+        # the resolved result is pushed back down so both views agree.  The
+        # earlier bidirectional sync used ``== 10`` as an "unset" sentinel,
+        # which silently overwrote a topic that genuinely declared a depth
+        # of 10.
+        if self.deadline_ms is None:
+            self.deadline_ms = self.qos.deadline_ms
         if self.deadline_ms is not None:
             try:
                 self.deadline_ms = max(0.001, float(self.deadline_ms))
             except (ValueError, TypeError):
                 self.deadline_ms = None
+        self.qos.deadline_ms = self.deadline_ms
 
-        # Bidirectional sync between Topic and QoSPolicy attributes
-        if self.deadline_ms is None and getattr(self.qos, "deadline_ms", None) is not None:
-            self.deadline_ms = float(self.qos.deadline_ms)
-        elif self.deadline_ms is not None and getattr(self.qos, "deadline_ms", None) is None:
-            self.qos.deadline_ms = self.deadline_ms
-
-        if self.history_depth == 10 and getattr(self.qos, "history_depth", 10) != 10:
-            self.history_depth = int(self.qos.history_depth)
-        elif self.history_depth != 10 and getattr(self.qos, "history_depth", 10) == 10:
-            self.qos.history_depth = self.history_depth
+        if self.history_depth is None:
+            self.history_depth = self.qos.history_depth
+        try:
+            self.history_depth = max(1, int(self.history_depth))
+        except (ValueError, TypeError):
+            self.history_depth = DEFAULT_HISTORY_DEPTH
+        self.qos.history_depth = self.history_depth
 
     def to_dict(self) -> Dict[str, Any]:
         return {
