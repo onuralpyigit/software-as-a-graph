@@ -38,7 +38,8 @@ DRAFT = JSS / "draft.md"
 
 SECTIONS = ["sec1_introduction", "sec2_related_work", "sec3_sag_model",
             "sec4_failure_impact_prediction", "sec5_explanation_layer",
-            "sec6_experimental_setup", "sec7_results", "sec8_discussion"]
+            "sec6_experimental_setup", "sec7_results", "sec8_discussion",
+            "sec9_conclusion"]
 
 
 def load_numbering() -> tuple[dict, dict]:

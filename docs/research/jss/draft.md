@@ -121,7 +121,7 @@ Figure 1 shows how the two pathways relate. The predictive pathway is the primar
 
 ![Figure 1](latex/figures/Figure_1.png)
 
-> **Figure numbering.** Figures 1–4 are numbered as in the LaTeX submission sources: Figure 1 pipeline (`Figure_1`), Figure 2 running example (`Figure_2`), Figure 3 results at a glance (`Figure_5`), Figure 4 HGT attention (`Figure_3`). The ASCII schematics and Figure M1 are specific to this document. Supplementary Sections S1–S7 live in `latex/supplementary.tex` and are not reproduced here.
+> **Figure numbering.** Figure files are named for the order in which they print, per the JSS Guide for Authors: Figure 1 pipeline (`Figure_1`), Figure 2 running example (`Figure_2`), Figure 3 results at a glance (`Figure_3`). The supplement's two figures are `Figure_S1` (AHP shrinkage) and `Figure_S2` (HGT attention). The ASCII schematics and Figure M1 are specific to this document. Supplementary Sections S1–S8 live in `latex/supplementary.tex` and are not reproduced here.
 
 *Figure 1. End-to-end architecture of the SaG framework. A shared front end (manifest ingestion → typed multigraph → QoS-weighted DEPENDS_ON projection → typed node features) feeds two pathways that share no parameters: the predictive pathway (§4), which emits a ranked critical set and per-relationship criticality, and the explanation layer (§5), which emits a standards-grounded quality profile. The simulation oracle scores only the former and runs on Gstructural alone.*
 
@@ -431,7 +431,8 @@ To evaluate predictive accuracy prior to deployment without relying on productio
 
 -   **Dynamic Queue-Flow Oracle ($I_{\text{dyn}}(v)$)**, via `MessageFlowSimulator` on SimPy [77]: simulates emission rates, stochastic latencies, broker buffer saturation, and queue drops under fault injection, extracting the drop in delivered message rate to surviving consumers.
 
--   **Change-Propagation Oracle ($I_M(v)$)**, via `ChangePropagationSimulator`: a deterministic reverse-dependency traversal quantifying maintenance change impact, $$I_M(v) = 0.45\,\text{ChangeReach}(v) + 0.35\,\text{WeightedChangeImpact}(v) + 0.20\,\text{NormalizedChangeDepth}(v).$$
+-   **Change-Propagation Oracle ($I_M(v)$)**, via `ChangePropagationSimulator`: a deterministic reverse-dependency traversal quantifying maintenance change impact, $$\label{eq:change_prop}
+        I_M(v) = 0.45\,\text{ChangeReach}(v) + 0.35\,\text{WeightedChangeImpact}(v) + 0.20\,\text{NormalizedChangeDepth}(v)$$
 
 -   **Relationship (Edge) Removal Oracle ($I_{\text{edge}}(u,v)$):** the systemic impact of severing one dependency while both endpoints stay operational. Writing $\bar{I}_{\text{comp}}(G)$ for the mean composite impact over $G$: $$\label{eq:edge_crit}
         I_{\text{edge}}(u,v) = \bar{I}_{\text{comp}}\big(G \setminus \{(u,v)\}\big) - \bar{I}_{\text{comp}}(G)$$
@@ -547,7 +548,7 @@ Five real-world architectures were transcribed from authentic open-source reposi
 
 1.  *In-Distribution Evaluation (Table 6):* Evaluated on the seven core synthetic domains from Table 4 using stratified 60% train / 20% validation / 20% test node splits over five random seeds.
 
-2.  *Inductive Leave-One-Scenario-Out (LOSO) Cross-Validation (Table 8):* Evaluated across twelve distinct inductive folds totaling 2,461 components: the seven core synthetic scenarios, four extended domain topologies (Telecom RAN, Industrial SCADA, Realtime Gaming, and Logistics Fleet) — 2,387 components between them — and an Air Traffic Management (ATM) network scenario contributing the remaining 74. In each fold, models are trained on eleven graphs and tested zero-shot on the held-out twelfth graph.
+2.  *Inductive Leave-One-Scenario-Out (LOSO) Cross-Validation (Table 8):* Evaluated across twelve distinct inductive folds totaling 2,461 components: the seven core synthetic scenarios, four extended domain topologies (Telecom RAN, Industrial SCADA, Real-Time Gaming, and Logistics Fleet) — 2,387 components between them — and an Air Traffic Management (ATM) network scenario contributing the remaining 74. In each fold, models are trained on eleven graphs and tested zero-shot on the held-out twelfth graph.
 
 3.  *Real-World Architectural Transfer (Table 11; Supplementary §S7):* The five open-source real-world systems (Autoware.universe, Cloud Microservices, Train-Ticket, Home Assistant, EdgeX Foundry) are never used as training folds; they are withheld entirely and used strictly for zero-shot architectural transfer validation.
 
@@ -628,7 +629,7 @@ Every predictor within a given evaluation table is scored on an identical node p
 
 This section presents empirical results for RQ1–RQ5 across the twelve-fold inductive benchmark and five authentic open-source distributed systems. Evaluated populations are strictly stratified on the Application service set ($V_{\text{app}}$) under the input–label independence guarantee (§4.4).
 
-## 7.1 RQ1: Graph Learning vs. Structural Baselines
+## 7.1 RQ1: Graph Learning vs. Structural Baselines
 
 Table 6 presents in-distribution held-out Spearman rank correlation ($\rho$) against simulated cascade impact $I^*(v)$ across seven representative distributed architecture domains.
 
@@ -693,7 +694,7 @@ Figure 3 summarizes these results alongside critical-set identification and inte
 
 4.  **The explanation layer is weakly predictive, not noise.** RM/$Q(v)$ reaches $\rho = 0.133$, losing to unweighted Topo on all twelve folds ($-0.117$, $p = 0.0005$), so no ranking claim is made for it. Its interval $[0.009, 0.247]$ stays above zero and it supplies interpretable diagnostics without training (§5). It appears in Table 8 as a reference point, not a competitor.
 
-![Figure 3](latex/figures/Figure_5.png)
+![Figure 3](latex/figures/Figure_3.png)
 
 *Figure 3. Results at a glance, Application population. (A) Out-of-distribution rank correlation per predictor across the twelve LOSO folds. (B) Critical-set identification at K = 20%. (C) Pairwise rank agreement between the three simulation oracles, against the chance baseline. Panels A and B are read directly from the same artifact as Table 8 and panel C from that behind Table 10; the ordering shown is whatever the data gives, which is why the untrained Topo-QoS baseline sits third rather than last.*
 
@@ -857,7 +858,7 @@ The results do not support a simple recommendation of the learned model over the
 
     -   *Typed relational attention* exposes *which* channels mediate a cascade, rather than only which components rank highly. Supplementary §S8 illustrates this on one topology and is explicitly not evidence of a general effect.
 
-    -   *Relationship-level criticality* ($I_{\text{edge}}$, Eq. 13) scores individual dependencies rather than components, which is what circuit-breaker or bulkhead placement actually requires, and which a node ranking cannot express. We report this as a property of the formulation rather than an evaluated result: this paper defines the edge oracle and the model’s edge head but presents no evaluation of edge-level predictions against it, so the capability is available and untested.
+    -   *Relationship-level criticality* ($I_{\text{edge}}$, Eq. 14) scores individual dependencies rather than components, which is what circuit-breaker or bulkhead placement actually requires, and which a node ranking cannot express. We report this as a property of the formulation rather than an evaluated result: this paper defines the edge oracle and the model’s edge head but presents no evaluation of edge-level predictions against it, so the capability is available and untested.
 
     -   *QoS-conditioned ranking.* The 16-D edge encoding improves out-of-distribution ranking by $+0.054$ within the typed architecture (11 of 12 folds, $p = 0.0093$) and $+0.088$ within the untyped one, so declared middleware contracts carry signal a purely structural score discards.
 
@@ -929,6 +930,16 @@ Prediction dispersion does not replicate as a fallback indicator on this corpus 
 
 We envision three primary extensions: (1) modeling distributed LLM serving clusters (e.g., vLLM, DeepSpeed) to mitigate straggler-induced GPU dissipation; (2) measuring hardware energy directly via RAPL/NVML to compare static gating against live chaos sweeps in joules; and (3) advancing from predictive diagnostics to prescriptive synthesis, automatically generating pull requests with circuit breakers, broker replicas, and tuned QoS parameters to resolve single points of failure.
 
+# 9. Conclusion
+
+This work introduced **Software-as-a-Graph (SaG)**, a pre-deployment Static System Analysis framework that combines a relation-specific Heterogeneous Graph Transformer for failure-impact forecasting with an interpretable ISO/IEC 25010 Reliability–Maintainability attribution layer, both operating on a typed multigraph derived from Architecture-as-Code manifests with no runtime telemetry.
+
+The central empirical finding is about *when* architectural typing pays. Given training data from the same distribution as the test split, typed and untyped message passing are indistinguishable, and the best in-distribution mean belongs to the untyped model. Asked to rank an architecture it has never seen, the typed model wins 11 of 12 inductive folds by $\Delta\rho = +0.114$ ($p = 0.0122$), and the 16-D QoS edge encoding adds a further $+0.054$ ($p = 0.0093$) independently of typing. Relation-specific parameters therefore act as an inductive bias for unfamiliar topologies rather than as additional fitting capacity — which is the regime a pre-deployment gate always operates in, since every architecture it sees is by construction new.
+
+We are equally clear about what is not established. Against an unparameterized QoS-weighted centrality score, learned ranking is not superior: the nominal margin of $+0.127$ ($p = 0.077$) rests almost entirely on a single fold and falls to $+0.078$ without it. On the five open-source systems, full-population correlation of $\rho = 0.680$ drops to $+0.160$ once restricted to components that actually propagate failures, and inverts on both microservice call-tree architectures, so zero-shot transfer to authentic systems is a negative result on this evidence. A label-free confidence signal we previously reported does not replicate. The explanation layer’s elicited AHP weights measurably worsen ranking relative to a uniform prior, and we have no independent evidence that they improve attribution — validating the attribution itself remains its principal open question.
+
+What the work does contribute is a reproducible typed-multigraph formulation of pub-sub architecture, a corpus that regenerates byte-identically from committed configurations, a clean measurement of where relational typing helps and where it does not, and a pre-deployment analysis pipeline whose learned component is the cheapest stage by three orders of magnitude. Whether that pipeline predicts failures that actually occur — rather than failures a simulator produces — is the question we most want answered next, and it requires field data no static corpus can supply.
+
 ---
 
 # References
@@ -944,7 +955,9 @@ We envision three primary extensions: (1) modeling distributed LLM serving clust
 [3] Object Management Group, Data distribution service (dds), Tech. Rep.
   formal/2015-04-10, version 1.4, Object Management Group (2015).
 
-[4] OASIS, MQTT version 5.0, OASIS Standard (2019).
+[4] OASIS, MQTT version 5.0, OASIS Standard,
+  <https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html> (accessed 9
+  September 2026) (2019).
 
 [5] N. Dragoni, S. Giallorenzo, A. L. Lafuente, M. Mazzara, F. Montesi,
   R. Mustafin, L. Safina, Microservices: Yesterday, today, and tomorrow, in:
@@ -985,7 +998,9 @@ We envision three primary extensions: (1) modeling distributed LLM serving clust
   smells, in: Proc. 13th European Conf. on Software Maintenance and
   Reengineering (CSMR), 2009, pp. 255--258.
 
-[15] SonarSource, Clean as you code, SonarQube documentation (2024).
+[15] SonarSource, Clean as you code, SonarQube documentation,
+  <https://docs.sonarsource.com/sonarqube-server/latest/core-concepts/clean-as-you-code/introduction/>
+  (accessed 9 September 2026) (2024).
 
 [16] T. J. McCabe, A complexity measure, IEEE Transactions on Software Engineering
   SE-2 (4) (1976) 308--320.
@@ -1109,8 +1124,10 @@ https://doi.org/10.1109/ASE51524.2021.9678749
 
 [45] S. Schneider, A. Bakhtin, X. Li, J. Soldani, A. Brogi, T. Cerny,
   R. Scandariato, D. Taibi, Comparison of static analysis architecture recovery
-  tools for microservice applications, preprint (2024).
-http://arxiv.org/abs/2412.08352 `arXiv:2412.08352`.
+  tools for microservice applications, arXiv preprint (2024).
+http://arxiv.org/abs/2412.08352 `arXiv:2412.08352`,
+  https://doi.org/10.48550/arXiv.2412.08352
+  `doi:10.48550/arXiv.2412.08352`.
 
 [46] J. Garcia, D. Popescu, G. Edwards, N. Medvidovic, Toward a catalogue of
   architectural bad smells, in: Proc. 5th Int. Conf. on the Quality of Software
@@ -1225,8 +1242,8 @@ http://arxiv.org/abs/2412.08352 `arXiv:2412.08352`.
   to rank: Theory and algorithm, in: Proc. 25th Int. Conf. on Machine Learning
   (ICML), 2008, pp. 1192--1199.
 
-[77] Team SimPy, Simpy: Event discrete simulation for Python,
-  <https://simpy.readthedocs.io> (2020).
+[77] Team SimPy, Simpy: Discrete event simulation for Python, Software,
+  <https://simpy.readthedocs.io> (accessed 9 September 2026) (2020).
 
 [78] International Organization for Standardization, ISO/IEC 25022:2016 ---
   systems and software engineering --- systems and software quality
@@ -1239,7 +1256,9 @@ http://arxiv.org/abs/2412.08352 `arXiv:2412.08352`.
   on Cyber-Physical Systems (ICCPS), 2018, pp. 287--296.
 
 [80] Google Cloud Platform, Online boutique: A cloud-native microservices demo
-  application, Software artifact (2024).
+  application, Software,
+  <https://github.com/GoogleCloudPlatform/microservices-demo> (accessed 9
+  September 2026) (2024).
 
 [81] X. Zhou, X. Peng, T. Xie, J. Sun, C. Ji, W. Li, D. Ding, Fault analysis and
   debugging of microservice systems: Industrial survey, benchmark system, and
@@ -1247,12 +1266,12 @@ http://arxiv.org/abs/2412.08352 `arXiv:2412.08352`.
   243--260.
 
 [82] Home Assistant Community, Home assistant: Open source home automation that
-  puts local control and privacy first, Software artifact,
-  <https://www.home-assistant.io/> (2024).
+  puts local control and privacy first, Software,
+  <https://www.home-assistant.io/> (accessed 9 September 2026) (2024).
 
 [83] Linux Foundation LF Edge, Edgex foundry: An open, vendor-neutral edge iot
-  middleware platform, Software artifact, <https://www.edgexfoundry.org/>
-  (2024).
+  middleware platform, Software, <https://www.edgexfoundry.org/> (accessed
+  9 September 2026) (2024).
 
 [84] F. Wilcoxon, Individual comparisons by ranking methods, Biometrics Bulletin
   1 (6) (1945) 80--83.
@@ -1287,9 +1306,9 @@ https://doi.org/10.48550/arXiv.2104.10350
 https://doi.org/10.1145/3510003.3510221
   `doi:10.1145/3510003.3510221`.
 
-[91] I. O. Yigit, F. Buzluca, Software-as-a-graph: Replication package (datasets,
-  generator configurations, simulation harnesses, model checkpoints, and
-  analysis scripts), <https://doi.org/10.5281/zenodo.14922108> (2026).
+[91] I. O. Yigit, F. Buzluca, [dataset] software-as-a-graph: Replication package
+  (datasets, generator configurations, simulation harnesses, model checkpoints,
+  and analysis scripts), <https://doi.org/10.5281/zenodo.14922108> (2026).
 https://doi.org/10.5281/zenodo.14922108
   `doi:10.5281/zenodo.14922108`.
 
