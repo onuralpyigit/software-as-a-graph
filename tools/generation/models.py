@@ -19,7 +19,6 @@ SCALE_PRESETS: Dict[str, Dict[str, int]] = {
 DURABILITY_OPTIONS = list(QoSPolicy.DURABILITY_SCORES.keys())
 RELIABILITY_OPTIONS = list(QoSPolicy.RELIABILITY_SCORES.keys())
 PRIORITY_OPTIONS = list(QoSPolicy.PRIORITY_SCORES.keys())
-APP_PRIORITY_OPTIONS = ["HIGH", "MEDIUM", "LOW"]
 APP_CRITICALITY_OPTIONS = ["HIGH", "MEDIUM", "LOW"]
 
 APP_TYPE_OPTIONS = ["sensor", "actuator", "controller", "monitor", "gateway", "processor"]
@@ -43,7 +42,7 @@ class StatisticalMetric:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "StatisticalMetric":
         return cls(
-            count=data.get("count", 0),
+            count=int(data.get("count", 0)),
             mean=float(data.get("mean", 0)),
             median=float(data.get("median", 0)),
             std=float(data.get("std", 0)),
@@ -104,12 +103,32 @@ class AppCriticalityDistribution(CategoricalDistribution):
 
 
 @dataclass
+class AppHotstandbyDistribution(CategoricalDistribution):
+    """Distribution of application hotstandby redundancy (True, False)."""
+
+    def to_weighted_list(self, default_options: Optional[List[bool]] = None) -> List[bool]:
+        """Convert to weighted list with boolean True / False values."""
+        result = []
+        for category, count in self.category_counts.items():
+            cat_str = str(category).strip().lower()
+            if cat_str in ("true", "1", "yes", "redundant", "hotstandby"):
+                val = True
+            elif cat_str in ("false", "0", "no", "non_redundant", "standalone"):
+                val = False
+            else:
+                val = False
+            result.extend([val] * count)
+        return result if result else (default_options or [False, True])
+
+
+@dataclass
 class ApplicationStats:
     direct_publish_count: StatisticalMetric = field(default_factory=StatisticalMetric)
     direct_subscribe_count: StatisticalMetric = field(default_factory=StatisticalMetric)
     total_publish_count_including_libraries: StatisticalMetric = field(default_factory=StatisticalMetric)
     total_subscribe_count_including_libraries: StatisticalMetric = field(default_factory=StatisticalMetric)
     app_criticality_distribution: Optional[AppCriticalityDistribution] = None
+    app_hotstandby_distribution: Optional[AppHotstandbyDistribution] = None
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "ApplicationStats":
@@ -125,6 +144,9 @@ class ApplicationStats:
             app_criticality_distribution=AppCriticalityDistribution.from_dict(
                 data.get("app_criticality_distribution", {})
             ) if "app_criticality_distribution" in data else None,
+            app_hotstandby_distribution=AppHotstandbyDistribution.from_dict(
+                data.get("app_hotstandby_distribution", {})
+            ) if "app_hotstandby_distribution" in data else None,
         )
 
 

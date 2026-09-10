@@ -23,7 +23,6 @@ from .models import (
     RELIABILITY_OPTIONS,
     PRIORITY_OPTIONS,
     APP_TYPE_OPTIONS,
-    APP_PRIORITY_OPTIONS,
     APP_HOTSTANDBY_OPTIONS,
     APP_USER_ROLE_OPTIONS,
 )
@@ -522,18 +521,24 @@ class StatisticalGraphGenerator:
         publishes: List[Dict[str, str]],
         subscribes: List[Dict[str, str]],
         criticality_pool: Optional[List[Any]],
+        hotstandby_pool: Optional[List[Any]] = None,
         topics: Optional[List[Topic]] = None,
+        nodes: Optional[List[Node]] = None,
+        runs_on: Optional[List[Dict[str, str]]] = None,
     ) -> None:
-        """Assign operational criticality (HIGH, MEDIUM, LOW) in-place after topology is built.
+        """Assign operational criticality (HIGH, MEDIUM, LOW) and hotstandby redundancy
+        in-place after topology is built.
 
         Ranks apps by a composite correlation score combining:
           1. Connected topic QoS and Topic.criticality urgency (w(t) and urgency of pub/sub channels)
-          2. Application priority and operational app_type semantics
+          2. Operational app_type semantics (controllers/gateways > processors > actuators > sensors/monitors)
           3. Structural degree proxy (pub_count + sub_count)
 
         Assigns HIGH, MEDIUM, LOW to apps according to the scenario's criticality_pool
-        (or a calibrated domain fallback). Also harmonizes app.priority with criticality
-        to ensure operational coherence across the system.
+        (or a calibrated domain fallback).
+        Assigns hotstandby redundancy in direct correlation with criticality:
+        top-ranked services (all HIGH, then top MEDIUM) receive hotstandby=True
+        and a secondary RUNS_ON edge to a distinct infrastructure node.
         """
         pub_topics_by_app: Dict[str, List[str]] = {}
         sub_topics_by_app: Dict[str, List[str]] = {}
@@ -555,7 +560,6 @@ class StatisticalGraphGenerator:
         }
         max_deg = max(deg_counts.values(), default=1) or 1
 
-        priority_score_map = {"HIGH": 1.0, "MEDIUM": 0.5, "LOW": 0.0}
         type_score_map = {
             "controller": 1.0,
             "gateway": 0.9,
@@ -575,15 +579,13 @@ class StatisticalGraphGenerator:
             else:
                 app_qos = 0.4
 
-            pri_score = priority_score_map.get(str(a.priority).upper(), 0.5)
             type_score = type_score_map.get(a.app_type, 0.5)
             deg_norm = deg_counts[a.id] / max_deg
 
             composite = (
-                0.40 * app_qos
-                + 0.25 * pri_score
-                + 0.20 * deg_norm
-                + 0.15 * type_score
+                0.50 * app_qos
+                + 0.25 * type_score
+                + 0.25 * deg_norm
                 + self.rng.uniform(0.0, 0.1)
             )
             app_scores[a.id] = composite
@@ -618,14 +620,68 @@ class StatisticalGraphGenerator:
         for idx, app in enumerate(ranked):
             if idx < n_high:
                 app.criticality = "HIGH"
-                if app.priority == "LOW":
-                    app.priority = "MEDIUM"
             elif idx < n_high + n_med:
                 app.criticality = "MEDIUM"
             else:
                 app.criticality = "LOW"
-                if app.priority == "HIGH":
-                    app.priority = "MEDIUM"
+
+        # Correlate hotstandby redundancy with criticality:
+        # High-criticality services receive redundancy first, followed by top medium-criticality apps.
+        can_hotstandby = nodes is not None and len(nodes) >= 2
+        if not can_hotstandby:
+            for app in apps:
+                app.hotstandby = False
+        elif hotstandby_pool is not None and len(hotstandby_pool) > 0:
+            n_standby = min(
+                n_total,
+                sum(1 for x in hotstandby_pool if x is True or str(x).strip().lower() in ("true", "1", "yes", "redundant", "hotstandby"))
+            )
+            for idx, app in enumerate(ranked):
+                app.hotstandby = (idx < n_standby)
+        else:
+            # Domain fallback: all HIGH apps + 25% of MEDIUM apps get hotstandby
+            n_standby = min(n_total, n_high + max(0, round(n_med * 0.25)))
+            for idx, app in enumerate(ranked):
+                app.hotstandby = (idx < n_standby)
+
+        # Synchronize runs_on relationships:
+        # hotstandby=True requires 2 RUNS_ON edges to distinct nodes;
+        # hotstandby=False requires exactly 1 RUNS_ON edge.
+        if runs_on is not None and nodes is not None:
+            app_edges: Dict[str, List[Dict[str, str]]] = {a.id: [] for a in apps}
+            other_edges = []
+            for e in runs_on:
+                fid = e.get("from")
+                if fid in app_edges:
+                    app_edges[fid].append(e)
+                else:
+                    other_edges.append(e)
+
+            new_app_edges = []
+            for app in apps:
+                current_edges = app_edges[app.id]
+                if not current_edges:
+                    primary_host = self.rng.choice(nodes)
+                    current_edges.append(self._make_edge(app, primary_host))
+
+                if app.hotstandby and can_hotstandby:
+                    if len(current_edges) == 1:
+                        primary_host_id = current_edges[0]["to"]
+                        candidates = [n for n in nodes if n.id != primary_host_id]
+                        if candidates:
+                            standby_host = self.rng.choice(candidates)
+                            current_edges.append(self._make_edge(app, standby_host))
+                    elif len(current_edges) > 2:
+                        current_edges = current_edges[:2]
+                else:
+                    if len(current_edges) > 1:
+                        current_edges = current_edges[:1]
+
+                new_app_edges.extend(current_edges)
+
+            runs_on.clear()
+            runs_on.extend(new_app_edges)
+            runs_on.extend(other_edges)
 
     # ------------------------------------------------------------------
     # Generation phases (called in order from generate() below)
@@ -786,19 +842,22 @@ class StatisticalGraphGenerator:
         app_cluster_domain: List[str],
         single_csms_name: str,
         cluster_domains: List[str],
-    ) -> Tuple[List[Application], Optional[List[str]], Dict[str, List[Application]]]:
-        """Construct all Application entities and the criticality-pool target
-        count and cluster grouping.
+    ) -> Tuple[List[Application], Optional[List[str]], Optional[List[bool]], Dict[str, List[Application]]]:
+        """Construct all Application entities and the criticality/hotstandby pools
+        and cluster grouping.
 
-        Criticality is NOT assigned here (every app starts with
-        criticality="MEDIUM"); _apply_post_topology()'s two-pass assignment sets
-        it once the topology (and therefore each app's structural degree) is
-        known.
+        Criticality and hotstandby redundancy are assigned in-place after
+        topology is built (_apply_post_topology / _assign_criticality_two_pass)
+        so they properly correlate with each other, topic QoS, and graph structure.
         """
         criticality_pool = None
         if c.application_stats and c.application_stats.app_criticality_distribution:
             criticality_pool = c.application_stats.app_criticality_distribution.to_weighted_list()
             self.rng.shuffle(criticality_pool)
+
+        hotstandby_pool = None
+        if c.application_stats and c.application_stats.app_hotstandby_distribution:
+            hotstandby_pool = c.application_stats.app_hotstandby_distribution.to_weighted_list()
 
         apps: List[Application] = []
         for i in range(c.apps):
@@ -818,8 +877,6 @@ class StatisticalGraphGenerator:
                 "csms_name": single_csms_name,
             }
 
-            priority = self.rng.choice(APP_PRIORITY_OPTIONS)
-            hotstandby = self.rng.choice(APP_HOTSTANDBY_OPTIONS)
             num_roles = self.rng.randint(1, 3)
             role = sorted(self.rng.sample(APP_USER_ROLE_OPTIONS, num_roles))
             apps.append(Application(
@@ -828,8 +885,7 @@ class StatisticalGraphGenerator:
                 app_type=app_type,
                 role=role,
                 criticality="MEDIUM",  # assigned after topology by _assign_criticality_two_pass
-                priority=priority,
-                hotstandby=hotstandby,
+                hotstandby=False,      # assigned after topology correlated with criticality
                 version=f"{self.rng.randint(1, 3)}.{self.rng.randint(0, 9)}.{self.rng.randint(0, 9)}",
                 system_hierarchy=hierarchy,
                 code_metrics=code_metrics,
@@ -839,7 +895,7 @@ class StatisticalGraphGenerator:
         for i, app in enumerate(apps):
             cluster_to_apps[app_cluster_domain[i]].append(app)
 
-        return apps, criticality_pool, cluster_to_apps
+        return apps, criticality_pool, hotstandby_pool, cluster_to_apps
 
     def _build_libs(
         self,
@@ -1206,11 +1262,14 @@ class StatisticalGraphGenerator:
         publishes: List[Dict[str, str]],
         subscribes: List[Dict[str, str]],
         criticality_pool: Optional[List[str]],
+        hotstandby_pool: Optional[List[bool]] = None,
+        runs_on: Optional[List[Dict[str, str]]] = None,
+        nodes: Optional[List[Node]] = None,
     ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
         """Post-topology quality passes: guarantee every app has at least one
         pub/sub edge (preventing inflated F1 from trivially-isolated nodes),
-        then assign criticality to the structurally central apps now that the
-        topology (and therefore each app's degree) is known.
+        then assign criticality and hotstandby redundancy to the structurally central
+        apps now that the topology (and therefore each app's degree) is known.
         """
         connected_apps = {e["from"] for e in publishes}.union(e["from"] for e in subscribes)
         isolated_apps = [a for a in apps if a.id not in connected_apps]
@@ -1221,7 +1280,16 @@ class StatisticalGraphGenerator:
             elif _can_subscribe(app.app_type):
                 subscribes.append(self._make_edge(app, t))
 
-        self._assign_criticality_two_pass(apps, publishes, subscribes, criticality_pool, topics=topics)
+        self._assign_criticality_two_pass(
+            apps,
+            publishes,
+            subscribes,
+            criticality_pool,
+            hotstandby_pool=hotstandby_pool,
+            topics=topics,
+            nodes=nodes,
+            runs_on=runs_on,
+        )
         return publishes, subscribes
 
     def _assemble(
@@ -1293,7 +1361,7 @@ class StatisticalGraphGenerator:
         (hier_pool, cluster_domains, app_cluster_domain, lib_cluster_domain,
          app_id_to_cluster, single_csms_name, cluster_to_topics, topic_id_to_cluster
          ) = self._assign_clusters(c, name_rng, topics)
-        apps, criticality_pool, cluster_to_apps = self._build_apps(
+        apps, criticality_pool, hotstandby_pool, cluster_to_apps = self._build_apps(
             c, domain_ds, name_rng, hier_pool, app_cluster_domain, single_csms_name, cluster_domains
         )
         libs, cluster_to_libs = self._build_libs(
@@ -1333,7 +1401,8 @@ class StatisticalGraphGenerator:
         connects = self._wire_connects(nodes, c.connection_density)
 
         publishes, subscribes = self._apply_post_topology(
-            apps, topics, publishes, subscribes, criticality_pool
+            apps, topics, publishes, subscribes, criticality_pool,
+            hotstandby_pool=hotstandby_pool, runs_on=runs_on, nodes=nodes,
         )
 
         return self._assemble(

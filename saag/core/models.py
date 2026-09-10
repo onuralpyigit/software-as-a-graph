@@ -414,7 +414,6 @@ class Application(GraphEntity):
     app_type: str = "service"
     role: List[str] = field(default_factory=lambda: ["Operative"])
     criticality: str = "MEDIUM"  # HIGH, MEDIUM, LOW
-    priority: str = "MEDIUM"  # HIGH, MEDIUM, LOW
     hotstandby: bool = False  # true = runs on 2 distinct nodes
     version: Optional[str] = None
     system_hierarchy: Optional[Dict[str, str]] = None
@@ -435,6 +434,15 @@ class Application(GraphEntity):
                 self.criticality = "MEDIUM"
         elif self.criticality is None:
             self.criticality = "MEDIUM"
+
+        if isinstance(self.hotstandby, str):
+            self.hotstandby = self.hotstandby.strip().lower() in ("true", "1", "yes")
+        elif isinstance(self.hotstandby, (int, float)):
+            self.hotstandby = bool(self.hotstandby)
+        elif self.hotstandby is None:
+            self.hotstandby = False
+        else:
+            self.hotstandby = bool(self.hotstandby)
 
     # --- backward-compatible computed properties for analysis pipeline ---
 
@@ -482,7 +490,6 @@ class Application(GraphEntity):
             "app_type": self.app_type,
             "role": self.role,
             "criticality": self.criticality,
-            "priority": self.priority,
             "hotstandby": self.hotstandby,
             "system_hierarchy": self.system_hierarchy,
             "code_metrics": self.code_metrics,

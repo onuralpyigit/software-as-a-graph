@@ -196,14 +196,16 @@ class TestEntities:
     """Tests for graph entity domain models."""
 
     def test_application_to_dict(self):
-        app = Application(id="A1", name="Sensor", role=["pub"], app_type="driver", criticality="HIGH", version="1.0")
+        app = Application(id="A1", name="Sensor", role=["pub"], app_type="driver", criticality="HIGH", hotstandby=True, version="1.0")
         d = app.to_dict()
         assert d["id"] == "A1"
         assert d["role"] == ["pub"]
         assert d["criticality"] == "HIGH"
+        assert d["hotstandby"] is True
+        assert "priority" not in d
         assert d["version"] == "1.0"
 
-        # Boolean backward compatibility
+        # Boolean backward compatibility for criticality
         app_legacy = Application(id="A2", name="Sensor2", criticality=True)
         assert app_legacy.criticality == "HIGH"
         app_legacy_false = Application(id="A3", name="Sensor3", criticality=False)
@@ -214,6 +216,8 @@ class TestEntities:
         assert app.role == ["Operative"]
         assert app.app_type == "service"
         assert app.criticality == "MEDIUM"
+        assert app.hotstandby is False
+        assert not hasattr(app, "priority")
 
     def test_broker_to_dict(self):
         broker = Broker(id="B1", name="DDS-0")

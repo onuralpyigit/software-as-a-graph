@@ -120,6 +120,17 @@ graph:
       mode_count: 54
       mode_percentage: 45.0
 
+    # Application hotstandby redundancy distribution (Categorical)
+    # Values: true (multi-node redundant active/standby), false (standalone)
+    app_hotstandby_distribution:
+      total_count: 120
+      category_counts:
+        true: 48
+        false: 72
+      mode: false
+      mode_count: 72
+      mode_percentage: 60.0
+
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Shared telemetry-encoding and 3GPP model stack
   # ---------------------------------------------------------------------------

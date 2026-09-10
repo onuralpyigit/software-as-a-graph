@@ -118,6 +118,17 @@ graph:
       mode_count: 32
       mode_percentage: 45.71
 
+    # Application hotstandby redundancy distribution (Categorical)
+    # Values: true (multi-node redundant active/standby), false (standalone)
+    app_hotstandby_distribution:
+      total_count: 70
+      category_counts:
+        true: 24
+        false: 46
+      mode: false
+      mode_count: 46
+      mode_percentage: 65.71
+
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Widely shared libraries amplify blast radius
   # ---------------------------------------------------------------------------

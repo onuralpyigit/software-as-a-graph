@@ -166,13 +166,12 @@
     {
       "id": "A0",
       "name": "App-0",
-      "version": "2.7.5",
+      "version": "1.6.4",
       "app_type": "gateway",
       "role": [
-        "Administrator"
+        "Engineer"
       ],
-      "criticality": "HIGH",
-      "priority": "HIGH",
+      "criticality": "MEDIUM",
       "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
@@ -211,15 +210,13 @@
     {
       "id": "A1",
       "name": "App-1",
-      "version": "1.3.9",
+      "version": "2.6.4",
       "app_type": "processor",
       "role": [
-        "Administrator",
-        "Analyst"
+        "Operative"
       ],
       "criticality": "HIGH",
-      "priority": "HIGH",
-      "hotstandby": false,
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Systems Engineering",
@@ -228,15 +225,15 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 933,
-          "total_classes": 10,
-          "total_methods": 63,
-          "total_fields": 28
+          "total_loc": 1528,
+          "total_classes": 19,
+          "total_methods": 137,
+          "total_fields": 59
         },
         "complexity": {
-          "total_wmc": 240,
-          "avg_wmc": 24.05,
-          "max_wmc": 74
+          "total_wmc": 250,
+          "avg_wmc": 13.14,
+          "max_wmc": 40
         },
         "cohesion": {
           "avg_lcom": 21.85,
@@ -257,15 +254,12 @@
     {
       "id": "A2",
       "name": "App-2",
-      "version": "1.6.6",
+      "version": "2.1.0",
       "app_type": "gateway",
       "role": [
-        "Administrator",
-        "Analyst",
-        "Engineer"
+        "Supervisor"
       ],
-      "criticality": "HIGH",
-      "priority": "HIGH",
+      "criticality": "MEDIUM",
       "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
@@ -275,45 +269,43 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 2088,
-          "total_classes": 19,
-          "total_methods": 171,
-          "total_fields": 107
+          "total_loc": 1071,
+          "total_classes": 10,
+          "total_methods": 117,
+          "total_fields": 56
         },
         "complexity": {
-          "total_wmc": 424,
-          "avg_wmc": 22.29,
-          "max_wmc": 35
+          "total_wmc": 170,
+          "avg_wmc": 17.03,
+          "max_wmc": 47
         },
         "cohesion": {
-          "avg_lcom": 53.52,
-          "max_lcom": 179.2
+          "avg_lcom": 61.15,
+          "max_lcom": 192.4
         },
         "coupling": {
-          "avg_cbo": 13.47,
-          "max_cbo": 26,
-          "avg_rfc": 37.51,
-          "max_rfc": 70,
-          "avg_fanin": 7.98,
-          "max_fanin": 19,
-          "avg_fanout": 8.94,
-          "max_fanout": 25
+          "avg_cbo": 8.65,
+          "max_cbo": 15,
+          "avg_rfc": 36.84,
+          "max_rfc": 65,
+          "avg_fanin": 5.51,
+          "max_fanin": 23,
+          "avg_fanout": 7.99,
+          "max_fanout": 18
         }
       }
     },
     {
       "id": "A3",
       "name": "App-3",
-      "version": "2.2.8",
+      "version": "2.0.4",
       "app_type": "monitor",
       "role": [
-        "Engineer",
-        "Operative",
-        "Supervisor"
+        "Administrator",
+        "Engineer"
       ],
-      "criticality": "MEDIUM",
-      "priority": "HIGH",
-      "hotstandby": true,
+      "criticality": "LOW",
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Systems Engineering",
@@ -322,45 +314,43 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 910,
-          "total_classes": 16,
-          "total_methods": 114,
-          "total_fields": 79
+          "total_loc": 412,
+          "total_classes": 5,
+          "total_methods": 28,
+          "total_fields": 20
         },
         "complexity": {
-          "total_wmc": 238,
-          "avg_wmc": 14.89,
-          "max_wmc": 46
+          "total_wmc": 64,
+          "avg_wmc": 12.77,
+          "max_wmc": 22
         },
         "cohesion": {
-          "avg_lcom": 18.0,
-          "max_lcom": 64.8
+          "avg_lcom": 24.04,
+          "max_lcom": 63.2
         },
         "coupling": {
-          "avg_cbo": 4.67,
-          "max_cbo": 9,
-          "avg_rfc": 22.17,
-          "max_rfc": 54,
-          "avg_fanin": 4.5,
-          "max_fanin": 12,
-          "avg_fanout": 5.5,
-          "max_fanout": 12
+          "avg_cbo": 7.32,
+          "max_cbo": 18,
+          "avg_rfc": 26.25,
+          "max_rfc": 42,
+          "avg_fanin": 4.54,
+          "max_fanin": 18,
+          "avg_fanout": 6.84,
+          "max_fanout": 16
         }
       }
     },
     {
       "id": "A4",
       "name": "App-4",
-      "version": "3.3.4",
+      "version": "1.9.1",
       "app_type": "actuator",
       "role": [
-        "Administrator",
-        "Operative",
-        "Supervisor"
+        "Engineer",
+        "Operative"
       ],
-      "criticality": "MEDIUM",
-      "priority": "HIGH",
-      "hotstandby": true,
+      "criticality": "LOW",
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Infrastructure Software",
@@ -369,44 +359,43 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 371,
-          "total_classes": 5,
-          "total_methods": 29,
-          "total_fields": 15
+          "total_loc": 356,
+          "total_classes": 4,
+          "total_methods": 22,
+          "total_fields": 9
         },
         "complexity": {
-          "total_wmc": 23,
-          "avg_wmc": 4.56,
-          "max_wmc": 14
+          "total_wmc": 29,
+          "avg_wmc": 7.13,
+          "max_wmc": 29
         },
         "cohesion": {
-          "avg_lcom": 8.61,
-          "max_lcom": 29.4
+          "avg_lcom": 7.98,
+          "max_lcom": 23.4
         },
         "coupling": {
-          "avg_cbo": 2.24,
-          "max_cbo": 5,
-          "avg_rfc": 16.16,
-          "max_rfc": 40,
-          "avg_fanin": 2.07,
-          "max_fanin": 5,
-          "avg_fanout": 3.98,
-          "max_fanout": 12
+          "avg_cbo": 2.48,
+          "max_cbo": 6,
+          "avg_rfc": 17.22,
+          "max_rfc": 42,
+          "avg_fanin": 2.2,
+          "max_fanin": 7,
+          "avg_fanout": 2.34,
+          "max_fanout": 6
         }
       }
     },
     {
       "id": "A5",
       "name": "App-5",
-      "version": "1.9.9",
+      "version": "2.1.3",
       "app_type": "gateway",
       "role": [
         "Administrator",
         "Analyst",
-        "Engineer"
+        "Supervisor"
       ],
       "criticality": "MEDIUM",
-      "priority": "HIGH",
       "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Information Systems",
@@ -416,42 +405,41 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 2434,
-          "total_classes": 34,
-          "total_methods": 337,
-          "total_fields": 147
+          "total_loc": 1150,
+          "total_classes": 14,
+          "total_methods": 153,
+          "total_fields": 83
         },
         "complexity": {
-          "total_wmc": 690,
-          "avg_wmc": 20.28,
-          "max_wmc": 30
+          "total_wmc": 287,
+          "avg_wmc": 20.52,
+          "max_wmc": 21
         },
         "cohesion": {
-          "avg_lcom": 35.21,
-          "max_lcom": 122.2
+          "avg_lcom": 62.61,
+          "max_lcom": 151.1
         },
         "coupling": {
-          "avg_cbo": 8.3,
-          "max_cbo": 14,
-          "avg_rfc": 22.13,
-          "max_rfc": 47,
-          "avg_fanin": 3.37,
-          "max_fanin": 14,
-          "avg_fanout": 12.6,
-          "max_fanout": 26
+          "avg_cbo": 11.28,
+          "max_cbo": 24,
+          "avg_rfc": 48.93,
+          "max_rfc": 119,
+          "avg_fanin": 6.53,
+          "max_fanin": 24,
+          "avg_fanout": 11.13,
+          "max_fanout": 27
         }
       }
     },
     {
       "id": "A6",
       "name": "App-6",
-      "version": "1.4.7",
+      "version": "3.6.5",
       "app_type": "processor",
       "role": [
-        "Administrator"
+        "Operative"
       ],
       "criticality": "MEDIUM",
-      "priority": "LOW",
       "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Software Systems",
@@ -461,44 +449,44 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1568,
-          "total_classes": 15,
-          "total_methods": 118,
-          "total_fields": 48
+          "total_loc": 1060,
+          "total_classes": 9,
+          "total_methods": 46,
+          "total_fields": 33
         },
         "complexity": {
-          "total_wmc": 171,
-          "avg_wmc": 11.41,
-          "max_wmc": 31
+          "total_wmc": 169,
+          "avg_wmc": 18.83,
+          "max_wmc": 23
         },
         "cohesion": {
-          "avg_lcom": 31.44,
-          "max_lcom": 130.8
+          "avg_lcom": 35.57,
+          "max_lcom": 95.9
         },
         "coupling": {
-          "avg_cbo": 5.49,
-          "max_cbo": 12,
-          "avg_rfc": 35.45,
-          "max_rfc": 55,
-          "avg_fanin": 5.37,
-          "max_fanin": 21,
-          "avg_fanout": 3.98,
-          "max_fanout": 9
+          "avg_cbo": 9.37,
+          "max_cbo": 19,
+          "avg_rfc": 37.53,
+          "max_rfc": 89,
+          "avg_fanin": 4.46,
+          "max_fanin": 12,
+          "avg_fanout": 7.26,
+          "max_fanout": 17
         }
       }
     },
     {
       "id": "A7",
       "name": "App-7",
-      "version": "2.8.7",
+      "version": "3.0.1",
       "app_type": "processor",
       "role": [
-        "Administrator",
-        "Analyst"
+        "Analyst",
+        "Operative",
+        "Supervisor"
       ],
       "criticality": "MEDIUM",
-      "priority": "HIGH",
-      "hotstandby": true,
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Information Systems",
         "csci_name": "Infrastructure Software",
@@ -507,44 +495,42 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1111,
+          "total_loc": 1467,
           "total_classes": 16,
-          "total_methods": 87,
-          "total_fields": 71
+          "total_methods": 163,
+          "total_fields": 35
         },
         "complexity": {
-          "total_wmc": 365,
-          "avg_wmc": 22.84,
-          "max_wmc": 23
+          "total_wmc": 317,
+          "avg_wmc": 19.8,
+          "max_wmc": 50
         },
         "cohesion": {
-          "avg_lcom": 36.62,
-          "max_lcom": 74.6
+          "avg_lcom": 44.13,
+          "max_lcom": 176.6
         },
         "coupling": {
-          "avg_cbo": 5.84,
-          "max_cbo": 13,
-          "avg_rfc": 24.38,
-          "max_rfc": 46,
-          "avg_fanin": 3.89,
-          "max_fanin": 16,
-          "avg_fanout": 11.12,
-          "max_fanout": 24
+          "avg_cbo": 5.98,
+          "max_cbo": 10,
+          "avg_rfc": 32.48,
+          "max_rfc": 53,
+          "avg_fanin": 2.1,
+          "max_fanin": 7,
+          "avg_fanout": 10.87,
+          "max_fanout": 23
         }
       }
     },
     {
       "id": "A8",
       "name": "App-8",
-      "version": "1.6.9",
+      "version": "3.8.0",
       "app_type": "actuator",
       "role": [
-        "Analyst",
         "Engineer",
         "Operative"
       ],
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
       "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
@@ -554,44 +540,42 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 179,
+          "total_loc": 221,
           "total_classes": 2,
-          "total_methods": 9,
-          "total_fields": 4
+          "total_methods": 11,
+          "total_fields": 5
         },
         "complexity": {
-          "total_wmc": 15,
-          "avg_wmc": 7.68,
-          "max_wmc": 10
+          "total_wmc": 12,
+          "avg_wmc": 6.01,
+          "max_wmc": 7
         },
         "cohesion": {
-          "avg_lcom": 5.75,
-          "max_lcom": 18.4
+          "avg_lcom": 19.78,
+          "max_lcom": 52.7
         },
         "coupling": {
-          "avg_cbo": 4.76,
-          "max_cbo": 10,
-          "avg_rfc": 8.57,
-          "max_rfc": 17,
-          "avg_fanin": 2.7,
-          "max_fanin": 6,
-          "avg_fanout": 2.2,
-          "max_fanout": 6
+          "avg_cbo": 4.35,
+          "max_cbo": 9,
+          "avg_rfc": 12.23,
+          "max_rfc": 30,
+          "avg_fanin": 2.99,
+          "max_fanin": 10,
+          "avg_fanout": 4.16,
+          "max_fanout": 9
         }
       }
     },
     {
       "id": "A9",
       "name": "App-9",
-      "version": "2.4.2",
+      "version": "3.9.9",
       "app_type": "controller",
       "role": [
-        "Engineer",
-        "Operative"
+        "Administrator"
       ],
-      "criticality": "MEDIUM",
-      "priority": "MEDIUM",
-      "hotstandby": false,
+      "criticality": "HIGH",
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Information Systems",
         "csci_name": "Application Software",
@@ -600,45 +584,42 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1557,
-          "total_classes": 20,
-          "total_methods": 193,
-          "total_fields": 52
+          "total_loc": 1931,
+          "total_classes": 22,
+          "total_methods": 116,
+          "total_fields": 75
         },
         "complexity": {
-          "total_wmc": 343,
-          "avg_wmc": 17.16,
-          "max_wmc": 26
+          "total_wmc": 422,
+          "avg_wmc": 19.19,
+          "max_wmc": 44
         },
         "cohesion": {
-          "avg_lcom": 37.52,
-          "max_lcom": 103.2
+          "avg_lcom": 31.3,
+          "max_lcom": 129.2
         },
         "coupling": {
-          "avg_cbo": 7.85,
-          "max_cbo": 18,
-          "avg_rfc": 17.74,
-          "max_rfc": 35,
-          "avg_fanin": 5.99,
-          "max_fanin": 27,
-          "avg_fanout": 3.51,
-          "max_fanout": 8
+          "avg_cbo": 5.62,
+          "max_cbo": 9,
+          "avg_rfc": 36.68,
+          "max_rfc": 70,
+          "avg_fanin": 5.71,
+          "max_fanin": 20,
+          "avg_fanout": 7.05,
+          "max_fanout": 14
         }
       }
     },
     {
       "id": "A10",
       "name": "App-10",
-      "version": "1.6.4",
+      "version": "1.3.5",
       "app_type": "actuator",
       "role": [
-        "Administrator",
-        "Analyst",
-        "Operative"
+        "Analyst"
       ],
-      "criticality": "LOW",
-      "priority": "LOW",
-      "hotstandby": true,
+      "criticality": "MEDIUM",
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
         "csci_name": "Application Software",
@@ -647,28 +628,28 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 324,
+          "total_loc": 367,
           "total_classes": 4,
-          "total_methods": 24,
+          "total_methods": 19,
           "total_fields": 13
         },
         "complexity": {
-          "total_wmc": 36,
-          "avg_wmc": 8.94,
-          "max_wmc": 29
+          "total_wmc": 22,
+          "avg_wmc": 5.57,
+          "max_wmc": 10
         },
         "cohesion": {
-          "avg_lcom": 14.95,
-          "max_lcom": 65.0
+          "avg_lcom": 14.68,
+          "max_lcom": 46.1
         },
         "coupling": {
-          "avg_cbo": 2.4,
-          "max_cbo": 4,
-          "avg_rfc": 9.07,
-          "max_rfc": 19,
-          "avg_fanin": 1.54,
+          "avg_cbo": 4.79,
+          "max_cbo": 12,
+          "avg_rfc": 8.09,
+          "max_rfc": 17,
+          "avg_fanin": 2.13,
           "max_fanin": 5,
-          "avg_fanout": 4.15,
+          "avg_fanout": 3.61,
           "max_fanout": 9
         }
       }
@@ -676,14 +657,14 @@
     {
       "id": "A11",
       "name": "App-11",
-      "version": "1.3.1",
+      "version": "2.0.1",
       "app_type": "sensor",
       "role": [
-        "Analyst"
+        "Administrator",
+        "Supervisor"
       ],
-      "criticality": "LOW",
-      "priority": "MEDIUM",
-      "hotstandby": true,
+      "criticality": "MEDIUM",
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Application Software",
@@ -692,44 +673,42 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 122,
-          "total_classes": 1,
-          "total_methods": 7,
-          "total_fields": 3
+          "total_loc": 245,
+          "total_classes": 2,
+          "total_methods": 15,
+          "total_fields": 7
         },
         "complexity": {
-          "total_wmc": 6,
-          "avg_wmc": 5.57,
-          "max_wmc": 20
+          "total_wmc": 15,
+          "avg_wmc": 7.67,
+          "max_wmc": 10
         },
         "cohesion": {
-          "avg_lcom": 13.55,
-          "max_lcom": 27.4
+          "avg_lcom": 23.78,
+          "max_lcom": 55.5
         },
         "coupling": {
-          "avg_cbo": 2.3,
-          "max_cbo": 5,
-          "avg_rfc": 18.85,
-          "max_rfc": 39,
-          "avg_fanin": 3.5,
-          "max_fanin": 12,
-          "avg_fanout": 2.44,
-          "max_fanout": 5
+          "avg_cbo": 2.46,
+          "max_cbo": 4,
+          "avg_rfc": 14.64,
+          "max_rfc": 26,
+          "avg_fanin": 2.81,
+          "max_fanin": 11,
+          "avg_fanout": 2.61,
+          "max_fanout": 7
         }
       }
     },
     {
       "id": "A12",
       "name": "App-12",
-      "version": "1.4.5",
+      "version": "1.0.4",
       "app_type": "controller",
       "role": [
-        "Analyst",
-        "Supervisor"
+        "Administrator"
       ],
-      "criticality": "MEDIUM",
-      "priority": "HIGH",
-      "hotstandby": false,
+      "criticality": "HIGH",
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Information Systems",
         "csci_name": "Software Engineering",
@@ -738,42 +717,42 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1124,
-          "total_classes": 16,
-          "total_methods": 151,
-          "total_fields": 52
+          "total_loc": 1699,
+          "total_classes": 20,
+          "total_methods": 128,
+          "total_fields": 40
         },
         "complexity": {
-          "total_wmc": 259,
-          "avg_wmc": 16.21,
-          "max_wmc": 52
+          "total_wmc": 354,
+          "avg_wmc": 17.71,
+          "max_wmc": 46
         },
         "cohesion": {
-          "avg_lcom": 41.92,
-          "max_lcom": 95.2
+          "avg_lcom": 40.17,
+          "max_lcom": 135.7
         },
         "coupling": {
-          "avg_cbo": 12.85,
-          "max_cbo": 30,
-          "avg_rfc": 21.34,
-          "max_rfc": 49,
-          "avg_fanin": 3.3,
-          "max_fanin": 9,
-          "avg_fanout": 8.57,
-          "max_fanout": 19
+          "avg_cbo": 8.85,
+          "max_cbo": 13,
+          "avg_rfc": 17.81,
+          "max_rfc": 42,
+          "avg_fanin": 5.52,
+          "max_fanin": 19,
+          "avg_fanout": 8.84,
+          "max_fanout": 23
         }
       }
     },
     {
       "id": "A13",
       "name": "App-13",
-      "version": "3.3.5",
+      "version": "3.5.6",
       "app_type": "processor",
       "role": [
-        "Supervisor"
+        "Engineer",
+        "Operative"
       ],
       "criticality": "HIGH",
-      "priority": "HIGH",
       "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Software Systems",
@@ -783,44 +762,43 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1913,
-          "total_classes": 22,
-          "total_methods": 200,
-          "total_fields": 100
+          "total_loc": 1346,
+          "total_classes": 19,
+          "total_methods": 186,
+          "total_fields": 87
         },
         "complexity": {
-          "total_wmc": 329,
-          "avg_wmc": 14.97,
-          "max_wmc": 20
+          "total_wmc": 446,
+          "avg_wmc": 23.48,
+          "max_wmc": 38
         },
         "cohesion": {
-          "avg_lcom": 54.34,
-          "max_lcom": 113.9
+          "avg_lcom": 19.11,
+          "max_lcom": 75.5
         },
         "coupling": {
-          "avg_cbo": 10.37,
-          "max_cbo": 19,
-          "avg_rfc": 39.23,
-          "max_rfc": 76,
-          "avg_fanin": 6.91,
-          "max_fanin": 16,
-          "avg_fanout": 11.1,
-          "max_fanout": 24
+          "avg_cbo": 12.96,
+          "max_cbo": 25,
+          "avg_rfc": 34.76,
+          "max_rfc": 58,
+          "avg_fanin": 6.58,
+          "max_fanin": 27,
+          "avg_fanout": 11.79,
+          "max_fanout": 33
         }
       }
     },
     {
       "id": "A14",
       "name": "App-14",
-      "version": "2.4.3",
+      "version": "3.8.5",
       "app_type": "sensor",
       "role": [
-        "Operative",
-        "Supervisor"
+        "Administrator",
+        "Analyst"
       ],
       "criticality": "LOW",
-      "priority": "LOW",
-      "hotstandby": true,
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Information Systems",
         "csci_name": "Systems Engineering",
@@ -829,29 +807,29 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 320,
-          "total_classes": 3,
-          "total_methods": 20,
-          "total_fields": 8
+          "total_loc": 442,
+          "total_classes": 6,
+          "total_methods": 43,
+          "total_fields": 15
         },
         "complexity": {
-          "total_wmc": 18,
-          "avg_wmc": 5.88,
-          "max_wmc": 38
+          "total_wmc": 52,
+          "avg_wmc": 8.72,
+          "max_wmc": 29
         },
         "cohesion": {
-          "avg_lcom": 11.01,
-          "max_lcom": 30.5
+          "avg_lcom": 21.33,
+          "max_lcom": 67.2
         },
         "coupling": {
-          "avg_cbo": 3.63,
+          "avg_cbo": 3.22,
           "max_cbo": 7,
-          "avg_rfc": 11.55,
-          "max_rfc": 19,
-          "avg_fanin": 2.26,
-          "max_fanin": 10,
-          "avg_fanout": 4.03,
-          "max_fanout": 12
+          "avg_rfc": 10.73,
+          "max_rfc": 16,
+          "avg_fanin": 1.58,
+          "max_fanin": 4,
+          "avg_fanout": 4.59,
+          "max_fanout": 14
         }
       }
     }
@@ -860,7 +838,7 @@
     {
       "id": "L0",
       "name": "Lib-0",
-      "version": "1.3.3",
+      "version": "2.3.5",
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Infrastructure Software",
@@ -869,36 +847,36 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 4021,
-          "total_classes": 43,
-          "total_methods": 467,
-          "total_fields": 184
+          "total_loc": 726,
+          "total_classes": 5,
+          "total_methods": 69,
+          "total_fields": 19
         },
         "complexity": {
-          "total_wmc": 810,
-          "avg_wmc": 18.84,
-          "max_wmc": 57
+          "total_wmc": 146,
+          "avg_wmc": 29.25,
+          "max_wmc": 52
         },
         "cohesion": {
-          "avg_lcom": 50.72,
-          "max_lcom": 223.1
+          "avg_lcom": 34.56,
+          "max_lcom": 132.1
         },
         "coupling": {
-          "avg_cbo": 13.1,
-          "max_cbo": 28,
-          "avg_rfc": 25.65,
-          "max_rfc": 56,
-          "avg_fanin": 8.57,
-          "max_fanin": 19,
-          "avg_fanout": 7.71,
-          "max_fanout": 17
+          "avg_cbo": 8.45,
+          "max_cbo": 18,
+          "avg_rfc": 33.39,
+          "max_rfc": 63,
+          "avg_fanin": 8.19,
+          "max_fanin": 22,
+          "avg_fanout": 6.25,
+          "max_fanout": 13
         }
       }
     },
     {
       "id": "L1",
       "name": "Lib-1",
-      "version": "1.3.2",
+      "version": "2.9.4",
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Infrastructure Software",
@@ -907,36 +885,36 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 803,
-          "total_classes": 6,
-          "total_methods": 37,
-          "total_fields": 21
+          "total_loc": 1966,
+          "total_classes": 15,
+          "total_methods": 125,
+          "total_fields": 45
         },
         "complexity": {
-          "total_wmc": 108,
-          "avg_wmc": 18.05,
-          "max_wmc": 21
+          "total_wmc": 166,
+          "avg_wmc": 11.08,
+          "max_wmc": 72
         },
         "cohesion": {
-          "avg_lcom": 32.04,
-          "max_lcom": 79.7
+          "avg_lcom": 20.51,
+          "max_lcom": 56.9
         },
         "coupling": {
-          "avg_cbo": 9.57,
-          "max_cbo": 19,
-          "avg_rfc": 17.61,
-          "max_rfc": 38,
-          "avg_fanin": 2.03,
-          "max_fanin": 8,
-          "avg_fanout": 5.08,
-          "max_fanout": 11
+          "avg_cbo": 7.27,
+          "max_cbo": 14,
+          "avg_rfc": 18.8,
+          "max_rfc": 31,
+          "avg_fanin": 4.52,
+          "max_fanin": 20,
+          "avg_fanout": 4.71,
+          "max_fanout": 14
         }
       }
     },
     {
       "id": "L2",
       "name": "Lib-2",
-      "version": "2.7.7",
+      "version": "1.1.3",
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Application Software",
@@ -945,36 +923,36 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1101,
-          "total_classes": 9,
-          "total_methods": 47,
-          "total_fields": 33
+          "total_loc": 981,
+          "total_classes": 12,
+          "total_methods": 48,
+          "total_fields": 31
         },
         "complexity": {
-          "total_wmc": 82,
-          "avg_wmc": 9.11,
-          "max_wmc": 44
+          "total_wmc": 106,
+          "avg_wmc": 8.87,
+          "max_wmc": 24
         },
         "cohesion": {
-          "avg_lcom": 29.7,
-          "max_lcom": 103.6
+          "avg_lcom": 16.62,
+          "max_lcom": 51.6
         },
         "coupling": {
-          "avg_cbo": 7.75,
-          "max_cbo": 19,
-          "avg_rfc": 21.03,
-          "max_rfc": 47,
-          "avg_fanin": 4.52,
-          "max_fanin": 18,
-          "avg_fanout": 3.19,
-          "max_fanout": 9
+          "avg_cbo": 4.07,
+          "max_cbo": 8,
+          "avg_rfc": 26.22,
+          "max_rfc": 60,
+          "avg_fanin": 2.85,
+          "max_fanin": 6,
+          "avg_fanout": 3.06,
+          "max_fanout": 8
         }
       }
     },
     {
       "id": "L3",
       "name": "Lib-3",
-      "version": "1.6.5",
+      "version": "0.6.3",
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Software Engineering",
@@ -983,36 +961,36 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 680,
-          "total_classes": 10,
-          "total_methods": 82,
-          "total_fields": 26
+          "total_loc": 785,
+          "total_classes": 8,
+          "total_methods": 40,
+          "total_fields": 16
         },
         "complexity": {
-          "total_wmc": 120,
-          "avg_wmc": 12.0,
-          "max_wmc": 26
+          "total_wmc": 58,
+          "avg_wmc": 7.2,
+          "max_wmc": 14
         },
         "cohesion": {
-          "avg_lcom": 16.0,
-          "max_lcom": 60.5
+          "avg_lcom": 6.82,
+          "max_lcom": 20.7
         },
         "coupling": {
-          "avg_cbo": 4.17,
-          "max_cbo": 8,
-          "avg_rfc": 26.07,
-          "max_rfc": 41,
-          "avg_fanin": 2.75,
-          "max_fanin": 8,
-          "avg_fanout": 1.61,
-          "max_fanout": 4
+          "avg_cbo": 6.15,
+          "max_cbo": 10,
+          "avg_rfc": 22.53,
+          "max_rfc": 45,
+          "avg_fanin": 3.22,
+          "max_fanin": 12,
+          "avg_fanout": 1.02,
+          "max_fanout": 3
         }
       }
     },
     {
       "id": "L4",
       "name": "Lib-4",
-      "version": "1.6.7",
+      "version": "0.7.7",
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Software Engineering",
@@ -1021,28 +999,28 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 327,
-          "total_classes": 5,
-          "total_methods": 16,
-          "total_fields": 13
+          "total_loc": 140,
+          "total_classes": 3,
+          "total_methods": 17,
+          "total_fields": 6
         },
         "complexity": {
-          "total_wmc": 25,
-          "avg_wmc": 4.95,
-          "max_wmc": 12
+          "total_wmc": 17,
+          "avg_wmc": 5.79,
+          "max_wmc": 7
         },
         "cohesion": {
-          "avg_lcom": 14.31,
-          "max_lcom": 39.3
+          "avg_lcom": 9.37,
+          "max_lcom": 31.8
         },
         "coupling": {
-          "avg_cbo": 2.17,
-          "max_cbo": 5,
-          "avg_rfc": 12.52,
-          "max_rfc": 26,
-          "avg_fanin": 6.41,
-          "max_fanin": 26,
-          "avg_fanout": 3.69,
+          "avg_cbo": 1.95,
+          "max_cbo": 4,
+          "avg_rfc": 8.98,
+          "max_rfc": 21,
+          "avg_fanin": 7.35,
+          "max_fanin": 23,
+          "avg_fanout": 3.72,
           "max_fanout": 9
         }
       }
@@ -1052,39 +1030,35 @@
     "runs_on": [
       {
         "from": "A0",
-        "to": "N2"
+        "to": "N3"
       },
       {
         "from": "A1",
         "to": "N0"
       },
       {
+        "from": "A1",
+        "to": "N1"
+      },
+      {
         "from": "A2",
-        "to": "N0"
-      },
-      {
-        "from": "A3",
-        "to": "N3"
-      },
-      {
-        "from": "A3",
-        "to": "N0"
-      },
-      {
-        "from": "A4",
         "to": "N1"
       },
       {
+        "from": "A3",
+        "to": "N2"
+      },
+      {
         "from": "A4",
+        "to": "N0"
+      },
+      {
+        "from": "A5",
         "to": "N0"
       },
       {
         "from": "A5",
         "to": "N2"
-      },
-      {
-        "from": "A5",
-        "to": "N0"
       },
       {
         "from": "A6",
@@ -1097,14 +1071,14 @@
       {
         "from": "A7",
         "to": "N0"
-      },
-      {
-        "from": "A7",
-        "to": "N2"
       },
       {
         "from": "A8",
-        "to": "N3"
+        "to": "N1"
+      },
+      {
+        "from": "A9",
+        "to": "N2"
       },
       {
         "from": "A9",
@@ -1115,32 +1089,24 @@
         "to": "N2"
       },
       {
-        "from": "A10",
-        "to": "N0"
-      },
-      {
         "from": "A11",
         "to": "N0"
-      },
-      {
-        "from": "A11",
-        "to": "N1"
       },
       {
         "from": "A12",
-        "to": "N1"
+        "to": "N3"
+      },
+      {
+        "from": "A12",
+        "to": "N2"
       },
       {
         "from": "A13",
-        "to": "N1"
+        "to": "N3"
       },
       {
         "from": "A13",
-        "to": "N0"
-      },
-      {
-        "from": "A14",
-        "to": "N0"
+        "to": "N2"
       },
       {
         "from": "A14",
@@ -1148,24 +1114,24 @@
       },
       {
         "from": "B0",
-        "to": "N3"
+        "to": "N1"
       },
       {
         "from": "B1",
-        "to": "N0"
+        "to": "N1"
       }
     ],
     "routes": [
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T0"
       },
       {
-        "from": "B1",
+        "from": "B0",
         "to": "T1"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T2"
       },
       {
@@ -1173,16 +1139,20 @@
         "to": "T3"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T4"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T5"
       },
       {
-        "from": "B1",
+        "from": "B0",
         "to": "T6"
+      },
+      {
+        "from": "B0",
+        "to": "T7"
       },
       {
         "from": "B1",
@@ -1193,29 +1163,25 @@
         "to": "T8"
       },
       {
-        "from": "B1",
-        "to": "T8"
+        "from": "B0",
+        "to": "T9"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T9"
       }
     ],
     "publishes_to": [
       {
-        "from": "A2",
-        "to": "T0"
-      },
-      {
-        "from": "A14",
-        "to": "T0"
-      },
-      {
         "from": "A7",
         "to": "T0"
       },
       {
-        "from": "A6",
+        "from": "A2",
+        "to": "T0"
+      },
+      {
+        "from": "A1",
         "to": "T0"
       },
       {
@@ -1227,12 +1193,28 @@
         "to": "T1"
       },
       {
-        "from": "A13",
+        "from": "A14",
         "to": "T1"
       },
       {
-        "from": "A5",
+        "from": "A9",
+        "to": "T1"
+      },
+      {
+        "from": "A0",
+        "to": "T1"
+      },
+      {
+        "from": "A2",
         "to": "T2"
+      },
+      {
+        "from": "A12",
+        "to": "T2"
+      },
+      {
+        "from": "A9",
+        "to": "T3"
       },
       {
         "from": "A6",
@@ -1247,19 +1229,19 @@
         "to": "T3"
       },
       {
-        "from": "A13",
-        "to": "T4"
+        "from": "A5",
+        "to": "T3"
       },
       {
         "from": "A0",
         "to": "T4"
       },
       {
-        "from": "A1",
+        "from": "A13",
         "to": "T4"
       },
       {
-        "from": "A7",
+        "from": "A6",
         "to": "T4"
       },
       {
@@ -1271,7 +1253,27 @@
         "to": "T5"
       },
       {
+        "from": "A6",
+        "to": "T5"
+      },
+      {
+        "from": "A11",
+        "to": "T5"
+      },
+      {
+        "from": "A12",
+        "to": "T5"
+      },
+      {
+        "from": "A7",
+        "to": "T5"
+      },
+      {
         "from": "A2",
+        "to": "T6"
+      },
+      {
+        "from": "A7",
         "to": "T6"
       },
       {
@@ -1279,15 +1281,27 @@
         "to": "T6"
       },
       {
-        "from": "A11",
+        "from": "A12",
         "to": "T6"
       },
       {
-        "from": "A5",
+        "from": "A11",
         "to": "T7"
       },
       {
-        "from": "A13",
+        "from": "A12",
+        "to": "T7"
+      },
+      {
+        "from": "A6",
+        "to": "T8"
+      },
+      {
+        "from": "A14",
+        "to": "T8"
+      },
+      {
+        "from": "A5",
         "to": "T8"
       },
       {
@@ -1295,29 +1309,17 @@
         "to": "T8"
       },
       {
-        "from": "A5",
-        "to": "T8"
-      },
-      {
         "from": "A12",
-        "to": "T8"
-      },
-      {
-        "from": "A2",
-        "to": "T8"
-      },
-      {
-        "from": "A6",
         "to": "T9"
       },
       {
-        "from": "A13",
+        "from": "A11",
         "to": "T9"
       }
     ],
     "subscribes_to": [
       {
-        "from": "A4",
+        "from": "A7",
         "to": "T0"
       },
       {
@@ -1325,151 +1327,143 @@
         "to": "T0"
       },
       {
-        "from": "A7",
+        "from": "A4",
         "to": "T0"
       },
       {
-        "from": "A13",
+        "from": "A6",
+        "to": "T0"
+      },
+      {
+        "from": "A1",
+        "to": "T0"
+      },
+      {
+        "from": "A0",
+        "to": "T0"
+      },
+      {
+        "from": "A3",
         "to": "T0"
       },
       {
         "from": "A8",
-        "to": "T0"
+        "to": "T1"
+      },
+      {
+        "from": "A5",
+        "to": "T1"
+      },
+      {
+        "from": "A1",
+        "to": "T1"
+      },
+      {
+        "from": "A7",
+        "to": "T1"
+      },
+      {
+        "from": "A6",
+        "to": "T1"
+      },
+      {
+        "from": "A9",
+        "to": "T1"
       },
       {
         "from": "A10",
-        "to": "T0"
+        "to": "T1"
       },
       {
-        "from": "A6",
-        "to": "T0"
+        "from": "A3",
+        "to": "T2"
+      },
+      {
+        "from": "A10",
+        "to": "T2"
       },
       {
         "from": "A9",
-        "to": "T0"
+        "to": "T2"
       },
       {
         "from": "A8",
-        "to": "T1"
-      },
-      {
-        "from": "A5",
-        "to": "T1"
-      },
-      {
-        "from": "A4",
-        "to": "T1"
-      },
-      {
-        "from": "A3",
-        "to": "T1"
-      },
-      {
-        "from": "A1",
-        "to": "T1"
-      },
-      {
-        "from": "A12",
-        "to": "T1"
-      },
-      {
-        "from": "A2",
-        "to": "T1"
-      },
-      {
-        "from": "A3",
         "to": "T2"
       },
       {
         "from": "A13",
         "to": "T2"
-      },
-      {
-        "from": "A8",
-        "to": "T2"
-      },
-      {
-        "from": "A9",
-        "to": "T3"
-      },
-      {
-        "from": "A12",
-        "to": "T3"
-      },
-      {
-        "from": "A6",
-        "to": "T3"
-      },
-      {
-        "from": "A4",
-        "to": "T3"
-      },
-      {
-        "from": "A0",
-        "to": "T3"
-      },
-      {
-        "from": "A0",
-        "to": "T4"
-      },
-      {
-        "from": "A13",
-        "to": "T4"
-      },
-      {
-        "from": "A2",
-        "to": "T4"
-      },
-      {
-        "from": "A1",
-        "to": "T5"
-      },
-      {
-        "from": "A8",
-        "to": "T5"
-      },
-      {
-        "from": "A6",
-        "to": "T5"
-      },
-      {
-        "from": "A3",
-        "to": "T5"
-      },
-      {
-        "from": "A0",
-        "to": "T5"
-      },
-      {
-        "from": "A4",
-        "to": "T6"
-      },
-      {
-        "from": "A2",
-        "to": "T6"
       },
       {
         "from": "A7",
-        "to": "T6"
+        "to": "T2"
       },
       {
-        "from": "A3",
-        "to": "T6"
+        "from": "A12",
+        "to": "T2"
       },
       {
-        "from": "A13",
-        "to": "T6"
+        "from": "A9",
+        "to": "T3"
       },
       {
-        "from": "A6",
-        "to": "T6"
+        "from": "A12",
+        "to": "T3"
+      },
+      {
+        "from": "A10",
+        "to": "T3"
+      },
+      {
+        "from": "A5",
+        "to": "T3"
       },
       {
         "from": "A0",
-        "to": "T6"
+        "to": "T3"
+      },
+      {
+        "from": "A13",
+        "to": "T4"
+      },
+      {
+        "from": "A0",
+        "to": "T4"
+      },
+      {
+        "from": "A5",
+        "to": "T4"
+      },
+      {
+        "from": "A10",
+        "to": "T4"
+      },
+      {
+        "from": "A12",
+        "to": "T4"
       },
       {
         "from": "A1",
+        "to": "T4"
+      },
+      {
+        "from": "A1",
+        "to": "T5"
+      },
+      {
+        "from": "A13",
+        "to": "T5"
+      },
+      {
+        "from": "A8",
+        "to": "T5"
+      },
+      {
+        "from": "A12",
+        "to": "T5"
+      },
+      {
+        "from": "A7",
         "to": "T6"
       },
       {
@@ -1481,23 +1475,15 @@
         "to": "T7"
       },
       {
-        "from": "A9",
+        "from": "A10",
         "to": "T7"
       },
       {
-        "from": "A4",
-        "to": "T7"
-      },
-      {
-        "from": "A7",
+        "from": "A6",
         "to": "T7"
       },
       {
         "from": "A12",
-        "to": "T7"
-      },
-      {
-        "from": "A13",
         "to": "T7"
       },
       {
@@ -1506,6 +1492,22 @@
       },
       {
         "from": "A6",
+        "to": "T8"
+      },
+      {
+        "from": "A1",
+        "to": "T8"
+      },
+      {
+        "from": "A9",
+        "to": "T8"
+      },
+      {
+        "from": "A2",
+        "to": "T8"
+      },
+      {
+        "from": "A10",
         "to": "T9"
       },
       {
@@ -1513,32 +1515,28 @@
         "to": "T9"
       },
       {
-        "from": "A10",
+        "from": "A9",
         "to": "T9"
       },
       {
-        "from": "A7",
+        "from": "A1",
         "to": "T9"
       }
     ],
     "connects_to": [
       {
         "from": "N0",
-        "to": "N3"
+        "to": "N2"
       },
       {
-        "from": "N1",
-        "to": "N2"
+        "from": "N2",
+        "to": "N3"
       }
     ],
     "uses": [
       {
-        "from": "L2",
-        "to": "L4"
-      },
-      {
-        "from": "L2",
-        "to": "L3"
+        "from": "L3",
+        "to": "L2"
       },
       {
         "from": "A0",
@@ -1546,54 +1544,18 @@
       },
       {
         "from": "A0",
-        "to": "L4"
-      },
-      {
-        "from": "A1",
-        "to": "L4"
-      },
-      {
-        "from": "A1",
-        "to": "L3"
-      },
-      {
-        "from": "A1",
         "to": "L1"
       },
       {
-        "from": "A2",
+        "from": "A0",
         "to": "L3"
       },
       {
-        "from": "A2",
-        "to": "L4"
-      },
-      {
-        "from": "A2",
-        "to": "L0"
-      },
-      {
-        "from": "A3",
-        "to": "L2"
-      },
-      {
-        "from": "A3",
+        "from": "A1",
         "to": "L4"
       },
       {
         "from": "A4",
-        "to": "L3"
-      },
-      {
-        "from": "A4",
-        "to": "L2"
-      },
-      {
-        "from": "A4",
-        "to": "L0"
-      },
-      {
-        "from": "A6",
         "to": "L3"
       },
       {
@@ -1602,66 +1564,22 @@
       },
       {
         "from": "A7",
-        "to": "L3"
-      },
-      {
-        "from": "A7",
-        "to": "L2"
-      },
-      {
-        "from": "A7",
-        "to": "L0"
-      },
-      {
-        "from": "A8",
-        "to": "L2"
-      },
-      {
-        "from": "A8",
-        "to": "L1"
-      },
-      {
-        "from": "A8",
         "to": "L3"
       },
       {
         "from": "A9",
-        "to": "L2"
-      },
-      {
-        "from": "A10",
-        "to": "L2"
-      },
-      {
-        "from": "A10",
-        "to": "L4"
-      },
-      {
-        "from": "A11",
-        "to": "L4"
-      },
-      {
-        "from": "A11",
-        "to": "L0"
-      },
-      {
-        "from": "A12",
-        "to": "L0"
-      },
-      {
-        "from": "A13",
-        "to": "L1"
-      },
-      {
-        "from": "A14",
         "to": "L3"
       },
       {
-        "from": "A14",
-        "to": "L4"
+        "from": "A10",
+        "to": "L2"
       },
       {
-        "from": "A14",
+        "from": "A10",
+        "to": "L1"
+      },
+      {
+        "from": "A12",
         "to": "L2"
       }
     ]

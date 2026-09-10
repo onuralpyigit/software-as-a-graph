@@ -119,6 +119,17 @@ graph:
       mode_count: 65
       mode_percentage: 46.43
 
+    # Application hotstandby redundancy distribution (Categorical)
+    # Values: true (multi-node redundant active/standby), false (standalone)
+    app_hotstandby_distribution:
+      total_count: 140
+      category_counts:
+        true: 50
+        false: 90
+      mode: false
+      mode_count: 90
+      mode_percentage: 64.29
+
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Few libraries, but each is widely linked (fieldbus drivers)
   # ---------------------------------------------------------------------------

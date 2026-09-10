@@ -90,3 +90,26 @@ def test_realworld_scenarios_loadable_by_graph_io():
         assert G.number_of_edges() > 0
         assert raw["metadata"]["generation_mode"] == "realworld_open_source"
 
+
+def test_realworld_applications_have_criticality_and_hotstandby_and_no_priority():
+    creators = [
+        RealWorldAdapter.create_autoware_ros2_topology,
+        RealWorldAdapter.create_cloud_microservices_topology,
+        RealWorldAdapter.create_trainticket_microservices_topology,
+        RealWorldAdapter.create_homeassistant_topology,
+        RealWorldAdapter.create_edgex_foundry_topology,
+    ]
+    for creator in creators:
+        data = creator()
+        for app in data["applications"]:
+            assert "criticality" in app, f"App {app['id']} missing criticality"
+            assert app["criticality"] in {"HIGH", "MEDIUM", "LOW"}
+            assert "hotstandby" in app, f"App {app['id']} missing hotstandby"
+            assert isinstance(app["hotstandby"], bool)
+            assert "priority" not in app, f"App {app['id']} should not have priority"
+            if app["criticality"] == "HIGH":
+                assert app["hotstandby"] is True
+            else:
+                assert app["hotstandby"] is False
+
+

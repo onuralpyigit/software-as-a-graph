@@ -122,6 +122,17 @@ graph:
       mode_count: 42
       mode_percentage: 46.67
 
+    # Application hotstandby redundancy distribution (Categorical)
+    # Values: true (multi-node redundant active/standby), false (standalone)
+    app_hotstandby_distribution:
+      total_count: 90
+      category_counts:
+        true: 28
+        false: 62
+      mode: false
+      mode_count: 62
+      mode_percentage: 68.89
+
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Service-specific; low fan-out = lower blast radius
   # ---------------------------------------------------------------------------

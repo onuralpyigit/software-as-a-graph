@@ -367,7 +367,7 @@
       "name": "device_modbus_service",
       "app_type": "sensor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 4200,
@@ -391,7 +391,7 @@
       "name": "device_mqtt_service",
       "app_type": "sensor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3600,
@@ -415,7 +415,7 @@
       "name": "device_gpio_service",
       "app_type": "sensor",
       "criticality": "HIGH",
-      "priority": "HIGHEST",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 2800,
@@ -439,7 +439,7 @@
       "name": "device_camera_vision_service",
       "app_type": "sensor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 5200,
@@ -463,7 +463,7 @@
       "name": "device_snmp_service",
       "app_type": "sensor",
       "criticality": "LOW",
-      "priority": "LOW",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 2100,
@@ -487,7 +487,7 @@
       "name": "core_data_service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGHEST",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 6100,
@@ -511,7 +511,7 @@
       "name": "core_metadata_service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 5400,
@@ -535,7 +535,7 @@
       "name": "core_command_service",
       "app_type": "actuator",
       "criticality": "HIGH",
-      "priority": "HIGHEST",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 4800,
@@ -559,7 +559,7 @@
       "name": "core_keeper_registry",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3900,
@@ -583,7 +583,7 @@
       "name": "app_service_configurable",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 5900,
@@ -607,7 +607,7 @@
       "name": "app_rules_engine_ekuiper",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGHEST",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 7200,
@@ -631,7 +631,7 @@
       "name": "app_safety_interlock",
       "app_type": "actuator",
       "criticality": "HIGH",
-      "priority": "HIGHEST",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3100,
@@ -655,7 +655,7 @@
       "name": "app_cloud_exporter_aws",
       "app_type": "processor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 3300,
@@ -679,7 +679,7 @@
       "name": "app_cloud_exporter_azure",
       "app_type": "processor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 3200,
@@ -703,7 +703,7 @@
       "name": "app_historian_persister",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3500,
@@ -727,7 +727,7 @@
       "name": "support_notifications",
       "app_type": "actuator",
       "criticality": "HIGH",
-      "priority": "HIGHEST",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3700,
@@ -751,7 +751,7 @@
       "name": "support_scheduler",
       "app_type": "sensor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 2400,
@@ -775,7 +775,7 @@
       "name": "security_proxy_kong",
       "app_type": "sensor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 4400,
@@ -799,7 +799,7 @@
       "name": "security_secretstore_vault",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGHEST",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 4100,
@@ -823,7 +823,7 @@
       "name": "security_bootstrapper",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 2600,
@@ -847,7 +847,7 @@
       "name": "system_management_agent",
       "app_type": "sensor",
       "criticality": "LOW",
-      "priority": "LOW",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 2200,
@@ -871,7 +871,7 @@
       "name": "ui_management_dashboard",
       "app_type": "actuator",
       "criticality": "LOW",
-      "priority": "LOW",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 3800,

@@ -141,7 +141,6 @@ def _reconstruct_application(props: Dict[str, Any]) -> Dict[str, Any]:
         "app_type": props.get("app_type", "service"),
         "role": _normalize_role(props.get("role", ["Operative"])),
         "criticality": crit,
-        "priority": props.get("priority", "MEDIUM"),
         "hotstandby": props.get("hotstandby", False),
     }
     if props.get("version"):
@@ -305,7 +304,7 @@ def _flatten_application(comp: Dict[str, Any]) -> Dict[str, Any]:
         "version": comp.get("version", ""),
     }
     # Only include optional classification fields if explicitly present in the source data
-    res.update(_present_keys(comp, ("priority", "hotstandby")))
+    res.update(_present_keys(comp, ("hotstandby",)))
     if "criticality" in comp and comp["criticality"] is not None:
         crit = comp["criticality"]
         if isinstance(crit, bool):

@@ -325,7 +325,7 @@
       "name": "frontend-web-ui",
       "app_type": "sensor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 4500,
@@ -349,7 +349,7 @@
       "name": "api-gateway-service",
       "app_type": "sensor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 5200,
@@ -373,7 +373,7 @@
       "name": "auth-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3100,
@@ -397,7 +397,7 @@
       "name": "cart-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 2800,
@@ -421,7 +421,7 @@
       "name": "checkout-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 6100,
@@ -445,7 +445,7 @@
       "name": "order-processor-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 7800,
@@ -469,7 +469,7 @@
       "name": "payment-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 4900,
@@ -493,7 +493,7 @@
       "name": "inventory-reservation-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 5400,
@@ -517,7 +517,7 @@
       "name": "email-notification-worker",
       "app_type": "actuator",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 1900,
@@ -541,7 +541,7 @@
       "name": "push-notification-worker",
       "app_type": "actuator",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 1600,
@@ -565,7 +565,7 @@
       "name": "shipping-fulfillment-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3900,
@@ -589,7 +589,7 @@
       "name": "clickstream-analytics-consumer",
       "app_type": "processor",
       "criticality": "LOW",
-      "priority": "LOW",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 2400,
@@ -613,7 +613,7 @@
       "name": "product-recommendation-engine",
       "app_type": "processor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 6500,
@@ -637,7 +637,7 @@
       "name": "fraud-detection-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGHEST",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 5100,
@@ -661,7 +661,7 @@
       "name": "search-indexing-worker",
       "app_type": "processor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 3200,
@@ -685,7 +685,7 @@
       "name": "catalog-search-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 4100,
@@ -709,7 +709,7 @@
       "name": "currency-conversion-service",
       "app_type": "processor",
       "criticality": "LOW",
-      "priority": "LOW",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 1100,
@@ -733,7 +733,7 @@
       "name": "audit-logging-collector",
       "app_type": "actuator",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 2300,
@@ -757,7 +757,7 @@
       "name": "ad-service",
       "app_type": "sensor",
       "criticality": "LOW",
-      "priority": "LOW",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 1500,
@@ -781,7 +781,7 @@
       "name": "user-profile-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3600,
@@ -805,7 +805,7 @@
       "name": "prometheus-metrics-exporter",
       "app_type": "actuator",
       "criticality": "LOW",
-      "priority": "LOW",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 950,
@@ -829,7 +829,7 @@
       "name": "tracing-agent-daemon",
       "app_type": "actuator",
       "criticality": "LOW",
-      "priority": "LOW",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 1250,

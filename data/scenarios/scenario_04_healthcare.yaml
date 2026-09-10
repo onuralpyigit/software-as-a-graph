@@ -120,6 +120,17 @@ graph:
       mode_count: 22
       mode_percentage: 44.0
 
+    # Application hotstandby redundancy distribution (Categorical)
+    # Values: true (multi-node redundant active/standby), false (standalone)
+    app_hotstandby_distribution:
+      total_count: 50
+      category_counts:
+        true: 20
+        false: 30
+      mode: false
+      mode_count: 30
+      mode_percentage: 60.0
+
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Medical device SDK used by many apps
   # ---------------------------------------------------------------------------

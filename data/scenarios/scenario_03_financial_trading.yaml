@@ -119,6 +119,17 @@ graph:
       mode_count: 26
       mode_percentage: 43.33
 
+    # Application hotstandby redundancy distribution (Categorical)
+    # Values: true (multi-node redundant active/standby), false (standalone)
+    app_hotstandby_distribution:
+      total_count: 60
+      category_counts:
+        true: 28
+        false: 32
+      mode: false
+      mode_count: 32
+      mode_percentage: 53.33
+
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Shared quant/order-management libraries widely used
   # ---------------------------------------------------------------------------

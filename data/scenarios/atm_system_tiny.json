@@ -177,10 +177,11 @@
       "version": "3.2.6",
       "app_type": "sensor",
       "role": [
-        "Engineer"
+        "Administrator",
+        "Operative",
+        "Supervisor"
       ],
       "criticality": "HIGH",
-      "priority": "MEDIUM",
       "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Surveillance Data System",
@@ -219,15 +220,13 @@
     {
       "id": "A1",
       "name": "conflict-detector-1",
-      "version": "2.2.5",
+      "version": "2.5.1",
       "app_type": "sensor",
       "role": [
-        "Analyst",
         "Operative"
       ],
       "criticality": "HIGH",
-      "priority": "HIGH",
-      "hotstandby": false,
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Surveillance Data System",
         "csci_name": "Weather Integration",
@@ -265,13 +264,12 @@
     {
       "id": "A2",
       "name": "clearance-router",
-      "version": "3.9.1",
+      "version": "1.1.8",
       "app_type": "gateway",
       "role": [
-        "Operative"
+        "Analyst"
       ],
       "criticality": "HIGH",
-      "priority": "HIGH",
       "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Flight Data Processing System",
@@ -281,43 +279,43 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1336,
-          "total_classes": 19,
-          "total_methods": 224,
-          "total_fields": 89
+          "total_loc": 2471,
+          "total_classes": 32,
+          "total_methods": 344,
+          "total_fields": 126
         },
         "complexity": {
-          "total_wmc": 411,
-          "avg_wmc": 21.65,
-          "max_wmc": 51
+          "total_wmc": 891,
+          "avg_wmc": 27.85,
+          "max_wmc": 76
         },
         "cohesion": {
-          "avg_lcom": 47.98,
-          "max_lcom": 159.3
+          "avg_lcom": 24.93,
+          "max_lcom": 88.6
         },
         "coupling": {
-          "avg_cbo": 14.03,
-          "max_cbo": 28,
-          "avg_rfc": 26.91,
-          "max_rfc": 63,
-          "avg_fanin": 4.12,
-          "max_fanin": 11,
-          "avg_fanout": 12.06,
-          "max_fanout": 35
+          "avg_cbo": 11.28,
+          "max_cbo": 26,
+          "avg_rfc": 34.57,
+          "max_rfc": 60,
+          "avg_fanin": 7.14,
+          "max_fanin": 21,
+          "avg_fanout": 6.24,
+          "max_fanout": 18
         }
       }
     },
     {
       "id": "A3",
       "name": "trajectory-predictor",
-      "version": "2.5.4",
+      "version": "1.4.5",
       "app_type": "service",
       "role": [
-        "Analyst"
+        "Administrator",
+        "Engineer"
       ],
       "criticality": "HIGH",
-      "priority": "MEDIUM",
-      "hotstandby": false,
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Air Traffic Control Platform",
         "csci_name": "Flight Plan Management",
@@ -326,42 +324,41 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1880,
-          "total_classes": 17,
-          "total_methods": 151,
-          "total_fields": 57
+          "total_loc": 1594,
+          "total_classes": 15,
+          "total_methods": 78,
+          "total_fields": 65
         },
         "complexity": {
-          "total_wmc": 165,
-          "avg_wmc": 9.68,
-          "max_wmc": 27
+          "total_wmc": 214,
+          "avg_wmc": 14.25,
+          "max_wmc": 14
         },
         "cohesion": {
-          "avg_lcom": 30.29,
-          "max_lcom": 114.6
+          "avg_lcom": 28.81,
+          "max_lcom": 94.2
         },
         "coupling": {
-          "avg_cbo": 5.93,
-          "max_cbo": 11,
-          "avg_rfc": 32.68,
-          "max_rfc": 79,
-          "avg_fanin": 5.09,
-          "max_fanin": 17,
-          "avg_fanout": 3.06,
-          "max_fanout": 7
+          "avg_cbo": 9.71,
+          "max_cbo": 17,
+          "avg_rfc": 21.96,
+          "max_rfc": 50,
+          "avg_fanin": 5.59,
+          "max_fanin": 23,
+          "avg_fanout": 6.56,
+          "max_fanout": 13
         }
       }
     },
     {
       "id": "A4",
       "name": "trajectory-predictor-1",
-      "version": "1.0.4",
+      "version": "3.4.3",
       "app_type": "service",
       "role": [
-        "Operative"
+        "Supervisor"
       ],
       "criticality": "HIGH",
-      "priority": "MEDIUM",
       "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Air Traffic Control Platform",
@@ -371,43 +368,42 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1446,
-          "total_classes": 17,
-          "total_methods": 152,
-          "total_fields": 50
+          "total_loc": 1074,
+          "total_classes": 14,
+          "total_methods": 106,
+          "total_fields": 65
         },
         "complexity": {
-          "total_wmc": 250,
-          "avg_wmc": 14.69,
-          "max_wmc": 48
+          "total_wmc": 127,
+          "avg_wmc": 9.08,
+          "max_wmc": 37
         },
         "cohesion": {
-          "avg_lcom": 19.71,
-          "max_lcom": 66.2
+          "avg_lcom": 44.69,
+          "max_lcom": 115.1
         },
         "coupling": {
-          "avg_cbo": 9.18,
-          "max_cbo": 22,
-          "avg_rfc": 31.57,
-          "max_rfc": 67,
-          "avg_fanin": 3.28,
-          "max_fanin": 9,
-          "avg_fanout": 3.85,
-          "max_fanout": 10
+          "avg_cbo": 4.16,
+          "max_cbo": 7,
+          "avg_rfc": 36.38,
+          "max_rfc": 76,
+          "avg_fanin": 1.48,
+          "max_fanin": 6,
+          "avg_fanout": 6.19,
+          "max_fanout": 16
         }
       }
     },
     {
       "id": "A5",
       "name": "flight-plan-processor",
-      "version": "2.0.2",
+      "version": "2.2.6",
       "app_type": "processor",
       "role": [
-        "Analyst"
+        "Administrator"
       ],
       "criticality": "HIGH",
-      "priority": "MEDIUM",
-      "hotstandby": false,
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Surveillance Data System",
         "csci_name": "Flight Plan Management",
@@ -416,44 +412,41 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 876,
-          "total_classes": 11,
-          "total_methods": 110,
-          "total_fields": 41
+          "total_loc": 620,
+          "total_classes": 6,
+          "total_methods": 40,
+          "total_fields": 24
         },
         "complexity": {
-          "total_wmc": 141,
-          "avg_wmc": 12.86,
-          "max_wmc": 23
+          "total_wmc": 135,
+          "avg_wmc": 22.48,
+          "max_wmc": 55
         },
         "cohesion": {
-          "avg_lcom": 54.8,
-          "max_lcom": 129.8
+          "avg_lcom": 26.84,
+          "max_lcom": 62.4
         },
         "coupling": {
-          "avg_cbo": 12.3,
-          "max_cbo": 19,
-          "avg_rfc": 42.07,
-          "max_rfc": 94,
-          "avg_fanin": 4.64,
-          "max_fanin": 13,
-          "avg_fanout": 4.57,
-          "max_fanout": 11
+          "avg_cbo": 13.95,
+          "max_cbo": 23,
+          "avg_rfc": 39.91,
+          "max_rfc": 60,
+          "avg_fanin": 6.35,
+          "max_fanin": 24,
+          "avg_fanout": 8.47,
+          "max_fanout": 20
         }
       }
     },
     {
       "id": "A6",
       "name": "weather-analyzer",
-      "version": "1.6.5",
+      "version": "3.0.9",
       "app_type": "service",
       "role": [
-        "Administrator",
-        "Analyst",
-        "Engineer"
+        "Administrator"
       ],
       "criticality": "HIGH",
-      "priority": "MEDIUM",
       "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Flight Data Processing System",
@@ -463,43 +456,41 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1200,
-          "total_classes": 16,
-          "total_methods": 84,
-          "total_fields": 61
+          "total_loc": 471,
+          "total_classes": 5,
+          "total_methods": 32,
+          "total_fields": 10
         },
         "complexity": {
-          "total_wmc": 252,
-          "avg_wmc": 15.73,
-          "max_wmc": 38
+          "total_wmc": 67,
+          "avg_wmc": 13.48,
+          "max_wmc": 40
         },
         "cohesion": {
-          "avg_lcom": 27.05,
-          "max_lcom": 58.5
+          "avg_lcom": 40.51,
+          "max_lcom": 133.4
         },
         "coupling": {
-          "avg_cbo": 4.07,
-          "max_cbo": 8,
-          "avg_rfc": 29.72,
-          "max_rfc": 71,
-          "avg_fanin": 2.11,
+          "avg_cbo": 10.59,
+          "max_cbo": 21,
+          "avg_rfc": 25.71,
+          "max_rfc": 42,
+          "avg_fanin": 1.37,
           "max_fanin": 6,
-          "avg_fanout": 9.43,
-          "max_fanout": 27
+          "avg_fanout": 7.78,
+          "max_fanout": 16
         }
       }
     },
     {
       "id": "A7",
       "name": "flight-plan-processor-1",
-      "version": "2.0.9",
+      "version": "2.0.7",
       "app_type": "processor",
       "role": [
-        "Administrator",
         "Operative"
       ],
       "criticality": "HIGH",
-      "priority": "MEDIUM",
       "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Surveillance Data System",
@@ -509,44 +500,41 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 2490,
-          "total_classes": 32,
-          "total_methods": 205,
-          "total_fields": 91
+          "total_loc": 2157,
+          "total_classes": 27,
+          "total_methods": 270,
+          "total_fields": 98
         },
         "complexity": {
-          "total_wmc": 605,
-          "avg_wmc": 18.92,
-          "max_wmc": 72
+          "total_wmc": 455,
+          "avg_wmc": 16.87,
+          "max_wmc": 17
         },
         "cohesion": {
-          "avg_lcom": 41.83,
-          "max_lcom": 170.5
+          "avg_lcom": 51.91,
+          "max_lcom": 218.8
         },
         "coupling": {
-          "avg_cbo": 13.6,
-          "max_cbo": 26,
-          "avg_rfc": 30.45,
-          "max_rfc": 63,
-          "avg_fanin": 4.71,
-          "max_fanin": 11,
-          "avg_fanout": 5.06,
-          "max_fanout": 14
+          "avg_cbo": 8.45,
+          "max_cbo": 13,
+          "avg_rfc": 44.51,
+          "max_rfc": 83,
+          "avg_fanin": 2.49,
+          "max_fanin": 5,
+          "avg_fanout": 10.92,
+          "max_fanout": 32
         }
       }
     },
     {
       "id": "A8",
       "name": "flight-plan-processor-2",
-      "version": "1.8.8",
+      "version": "2.4.8",
       "app_type": "processor",
       "role": [
-        "Administrator",
-        "Engineer",
         "Supervisor"
       ],
       "criticality": "HIGH",
-      "priority": "HIGH",
       "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Flight Data Processing System",
@@ -556,44 +544,41 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 600,
+          "total_loc": 684,
           "total_classes": 8,
-          "total_methods": 73,
-          "total_fields": 37
+          "total_methods": 70,
+          "total_fields": 20
         },
         "complexity": {
-          "total_wmc": 191,
-          "avg_wmc": 23.84,
-          "max_wmc": 103
+          "total_wmc": 107,
+          "avg_wmc": 13.43,
+          "max_wmc": 39
         },
         "cohesion": {
-          "avg_lcom": 54.87,
-          "max_lcom": 220.8
+          "avg_lcom": 34.46,
+          "max_lcom": 105.0
         },
         "coupling": {
-          "avg_cbo": 7.17,
-          "max_cbo": 14,
-          "avg_rfc": 42.06,
-          "max_rfc": 77,
-          "avg_fanin": 2.72,
-          "max_fanin": 10,
-          "avg_fanout": 6.83,
-          "max_fanout": 18
+          "avg_cbo": 5.43,
+          "max_cbo": 11,
+          "avg_rfc": 41.6,
+          "max_rfc": 91,
+          "avg_fanin": 6.21,
+          "max_fanin": 27,
+          "avg_fanout": 9.26,
+          "max_fanout": 25
         }
       }
     },
     {
       "id": "A9",
       "name": "trajectory-predictor-2",
-      "version": "2.2.1",
+      "version": "1.4.8",
       "app_type": "service",
       "role": [
-        "Engineer",
-        "Operative",
-        "Supervisor"
+        "Analyst"
       ],
       "criticality": "HIGH",
-      "priority": "MEDIUM",
       "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Surveillance Data System",
@@ -603,29 +588,29 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 471,
-          "total_classes": 5,
-          "total_methods": 40,
-          "total_fields": 23
+          "total_loc": 1055,
+          "total_classes": 15,
+          "total_methods": 121,
+          "total_fields": 33
         },
         "complexity": {
-          "total_wmc": 43,
-          "avg_wmc": 8.53,
-          "max_wmc": 9
+          "total_wmc": 202,
+          "avg_wmc": 13.49,
+          "max_wmc": 44
         },
         "cohesion": {
-          "avg_lcom": 44.28,
-          "max_lcom": 122.1
+          "avg_lcom": 32.43,
+          "max_lcom": 98.8
         },
         "coupling": {
-          "avg_cbo": 7.86,
-          "max_cbo": 15,
-          "avg_rfc": 21.94,
-          "max_rfc": 44,
-          "avg_fanin": 2.88,
-          "max_fanin": 9,
-          "avg_fanout": 6.01,
-          "max_fanout": 14
+          "avg_cbo": 7.6,
+          "max_cbo": 13,
+          "avg_rfc": 37.64,
+          "max_rfc": 76,
+          "avg_fanin": 2.3,
+          "max_fanin": 8,
+          "avg_fanout": 9.0,
+          "max_fanout": 18
         }
       }
     }
@@ -634,7 +619,7 @@
     {
       "id": "L0",
       "name": "asterix-parser",
-      "version": "2.7.7",
+      "version": "0.7.3",
       "system_hierarchy": {
         "csc_name": "Surveillance Data System",
         "csci_name": "Radar Data Processing",
@@ -643,28 +628,28 @@
       },
       "code_metrics": {
         "size": {
-          "total_loc": 999,
+          "total_loc": 679,
           "total_classes": 10,
-          "total_methods": 44,
-          "total_fields": 37
+          "total_methods": 55,
+          "total_fields": 30
         },
         "complexity": {
-          "total_wmc": 72,
-          "avg_wmc": 7.17,
-          "max_wmc": 17
+          "total_wmc": 84,
+          "avg_wmc": 8.39,
+          "max_wmc": 14
         },
         "cohesion": {
-          "avg_lcom": 17.14,
-          "max_lcom": 62.2
+          "avg_lcom": 14.39,
+          "max_lcom": 43.9
         },
         "coupling": {
-          "avg_cbo": 5.73,
-          "max_cbo": 13,
-          "avg_rfc": 18.64,
-          "max_rfc": 31,
-          "avg_fanin": 4.0,
-          "max_fanin": 9,
-          "avg_fanout": 1.84,
+          "avg_cbo": 5.15,
+          "max_cbo": 10,
+          "avg_rfc": 19.48,
+          "max_rfc": 40,
+          "avg_fanin": 3.22,
+          "max_fanin": 13,
+          "avg_fanout": 1.61,
           "max_fanout": 4
         }
       }
@@ -672,11 +657,49 @@
     {
       "id": "L1",
       "name": "icao-protocol",
-      "version": "0.2.7",
+      "version": "1.7.9",
       "system_hierarchy": {
         "csc_name": "Flight Data Processing System",
         "csci_name": "Weather Integration",
         "css_name": "Meteorology",
+        "csms_name": "ATM"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 254,
+          "total_classes": 4,
+          "total_methods": 35,
+          "total_fields": 12
+        },
+        "complexity": {
+          "total_wmc": 36,
+          "avg_wmc": 9.11,
+          "max_wmc": 20
+        },
+        "cohesion": {
+          "avg_lcom": 18.66,
+          "max_lcom": 75.5
+        },
+        "coupling": {
+          "avg_cbo": 5.4,
+          "max_cbo": 9,
+          "avg_rfc": 17.19,
+          "max_rfc": 28,
+          "avg_fanin": 3.04,
+          "max_fanin": 8,
+          "avg_fanout": 4.89,
+          "max_fanout": 13
+        }
+      }
+    },
+    {
+      "id": "L2",
+      "name": "asterix-parser-1",
+      "version": "0.2.7",
+      "system_hierarchy": {
+        "csc_name": "Flight Data Processing System",
+        "csci_name": "Radar Data Processing",
+        "css_name": "Surveillance",
         "csms_name": "ATM"
       },
       "code_metrics": {
@@ -706,58 +729,28 @@
           "max_fanout": 7
         }
       }
-    },
-    {
-      "id": "L2",
-      "name": "asterix-parser-1",
-      "version": "1.2.5",
-      "system_hierarchy": {
-        "csc_name": "Flight Data Processing System",
-        "csci_name": "Radar Data Processing",
-        "css_name": "Surveillance",
-        "csms_name": "ATM"
-      },
-      "code_metrics": {
-        "size": {
-          "total_loc": 572,
-          "total_classes": 8,
-          "total_methods": 47,
-          "total_fields": 28
-        },
-        "complexity": {
-          "total_wmc": 59,
-          "avg_wmc": 7.43,
-          "max_wmc": 9
-        },
-        "cohesion": {
-          "avg_lcom": 11.38,
-          "max_lcom": 40.8
-        },
-        "coupling": {
-          "avg_cbo": 5.61,
-          "max_cbo": 9,
-          "avg_rfc": 25.25,
-          "max_rfc": 59,
-          "avg_fanin": 6.89,
-          "max_fanin": 21,
-          "avg_fanout": 2.32,
-          "max_fanout": 6
-        }
-      }
     }
   ],
   "relationships": {
     "runs_on": [
       {
         "from": "A0",
-        "to": "N2"
+        "to": "N1"
       },
       {
         "from": "A0",
-        "to": "N0"
+        "to": "N2"
       },
       {
         "from": "A1",
+        "to": "N1"
+      },
+      {
+        "from": "A1",
+        "to": "N2"
+      },
+      {
+        "from": "A2",
         "to": "N0"
       },
       {
@@ -765,8 +758,8 @@
         "to": "N1"
       },
       {
-        "from": "A2",
-        "to": "N2"
+        "from": "A3",
+        "to": "N1"
       },
       {
         "from": "A3",
@@ -785,19 +778,27 @@
         "to": "N1"
       },
       {
+        "from": "A5",
+        "to": "N0"
+      },
+      {
         "from": "A6",
         "to": "N2"
       },
       {
         "from": "A6",
-        "to": "N0"
+        "to": "N1"
+      },
+      {
+        "from": "A7",
+        "to": "N1"
       },
       {
         "from": "A7",
         "to": "N0"
       },
       {
-        "from": "A7",
+        "from": "A8",
         "to": "N2"
       },
       {
@@ -805,20 +806,16 @@
         "to": "N0"
       },
       {
-        "from": "A8",
-        "to": "N2"
-      },
-      {
-        "from": "A9",
-        "to": "N2"
-      },
-      {
         "from": "A9",
         "to": "N0"
+      },
+      {
+        "from": "A9",
+        "to": "N2"
       },
       {
         "from": "B0",
-        "to": "N0"
+        "to": "N2"
       },
       {
         "from": "B1",
@@ -827,12 +824,16 @@
     ],
     "routes": [
       {
-        "from": "B1",
+        "from": "B0",
         "to": "T0"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T1"
+      },
+      {
+        "from": "B0",
+        "to": "T2"
       },
       {
         "from": "B1",
@@ -840,7 +841,7 @@
       },
       {
         "from": "B0",
-        "to": "T2"
+        "to": "T3"
       },
       {
         "from": "B1",
@@ -856,49 +857,53 @@
       },
       {
         "from": "B1",
-        "to": "T6"
-      },
-      {
-        "from": "B0",
-        "to": "T6"
+        "to": "T5"
       },
       {
         "from": "B1",
-        "to": "T7"
+        "to": "T6"
       },
       {
         "from": "B0",
         "to": "T7"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T8"
       },
       {
+        "from": "B1",
+        "to": "T9"
+      },
+      {
         "from": "B0",
-        "to": "T9"
-      },
-      {
-        "from": "B1",
-        "to": "T9"
-      },
-      {
-        "from": "B1",
         "to": "T10"
       }
     ],
     "publishes_to": [
       {
         "from": "A0",
+        "to": "T7"
+      },
+      {
+        "from": "A0",
         "to": "T2"
+      },
+      {
+        "from": "A0",
+        "to": "T0"
       },
       {
         "from": "A1",
         "to": "T2"
       },
       {
-        "from": "A2",
-        "to": "T1"
+        "from": "A1",
+        "to": "T7"
+      },
+      {
+        "from": "A1",
+        "to": "T3"
       },
       {
         "from": "A2",
@@ -906,11 +911,7 @@
       },
       {
         "from": "A2",
-        "to": "T2"
-      },
-      {
-        "from": "A2",
-        "to": "T0"
+        "to": "T9"
       },
       {
         "from": "A3",
@@ -918,11 +919,7 @@
       },
       {
         "from": "A3",
-        "to": "T8"
-      },
-      {
-        "from": "A3",
-        "to": "T9"
+        "to": "T6"
       },
       {
         "from": "A4",
@@ -930,19 +927,19 @@
       },
       {
         "from": "A5",
+        "to": "T1"
+      },
+      {
+        "from": "A5",
         "to": "T6"
       },
       {
         "from": "A5",
-        "to": "T7"
+        "to": "T4"
       },
       {
-        "from": "A6",
-        "to": "T9"
-      },
-      {
-        "from": "A6",
-        "to": "T1"
+        "from": "A7",
+        "to": "T3"
       },
       {
         "from": "A7",
@@ -950,23 +947,11 @@
       },
       {
         "from": "A7",
-        "to": "T3"
-      },
-      {
-        "from": "A7",
-        "to": "T10"
+        "to": "T9"
       },
       {
         "from": "A8",
-        "to": "T10"
-      },
-      {
-        "from": "A8",
-        "to": "T0"
-      },
-      {
-        "from": "A9",
-        "to": "T0"
+        "to": "T5"
       },
       {
         "from": "A9",
@@ -974,16 +959,28 @@
       },
       {
         "from": "A9",
-        "to": "T3"
+        "to": "T10"
+      },
+      {
+        "from": "A9",
+        "to": "T7"
       }
     ],
     "subscribes_to": [
       {
         "from": "A2",
+        "to": "T6"
+      },
+      {
+        "from": "A2",
         "to": "T1"
       },
       {
         "from": "A2",
+        "to": "T5"
+      },
+      {
+        "from": "A3",
         "to": "T8"
       },
       {
@@ -992,47 +989,51 @@
       },
       {
         "from": "A3",
-        "to": "T8"
+        "to": "T6"
       },
       {
         "from": "A3",
+        "to": "T4"
+      },
+      {
+        "from": "A3",
+        "to": "T9"
+      },
+      {
+        "from": "A4",
+        "to": "T6"
+      },
+      {
+        "from": "A4",
+        "to": "T1"
+      },
+      {
+        "from": "A4",
+        "to": "T2"
+      },
+      {
+        "from": "A4",
+        "to": "T4"
+      },
+      {
+        "from": "A4",
+        "to": "T9"
+      },
+      {
+        "from": "A4",
+        "to": "T7"
+      },
+      {
+        "from": "A4",
         "to": "T5"
       },
       {
-        "from": "A3",
-        "to": "T1"
-      },
-      {
-        "from": "A3",
-        "to": "T7"
-      },
-      {
-        "from": "A4",
-        "to": "T1"
-      },
-      {
-        "from": "A4",
-        "to": "T6"
-      },
-      {
-        "from": "A4",
-        "to": "T7"
-      },
-      {
-        "from": "A4",
-        "to": "T0"
-      },
-      {
-        "from": "A4",
-        "to": "T8"
-      },
-      {
         "from": "A5",
         "to": "T1"
       },
       {
-        "from": "A5",
-        "to": "T6"
+        "from": "A6",
+        "to": "T4"
       },
       {
         "from": "A6",
@@ -1040,15 +1041,7 @@
       },
       {
         "from": "A6",
-        "to": "T4"
-      },
-      {
-        "from": "A6",
-        "to": "T6"
-      },
-      {
-        "from": "A6",
-        "to": "T10"
+        "to": "T8"
       },
       {
         "from": "A7",
@@ -1060,60 +1053,44 @@
       },
       {
         "from": "A7",
-        "to": "T0"
+        "to": "T5"
       },
       {
         "from": "A7",
-        "to": "T4"
+        "to": "T1"
+      },
+      {
+        "from": "A7",
+        "to": "T7"
       },
       {
         "from": "A8",
         "to": "T10"
       },
       {
-        "from": "A9",
-        "to": "T5"
-      },
-      {
-        "from": "A9",
-        "to": "T10"
-      },
-      {
-        "from": "A9",
+        "from": "A8",
         "to": "T0"
       },
       {
-        "from": "A9",
-        "to": "T2"
+        "from": "A8",
+        "to": "T5"
+      },
+      {
+        "from": "A8",
+        "to": "T7"
+      },
+      {
+        "from": "A8",
+        "to": "T1"
       }
     ],
     "connects_to": [
       {
         "from": "N0",
         "to": "N1"
-      },
-      {
-        "from": "N1",
-        "to": "N2"
       }
     ],
     "uses": [
-      {
-        "from": "L0",
-        "to": "L1"
-      },
-      {
-        "from": "L0",
-        "to": "L2"
-      },
-      {
-        "from": "L1",
-        "to": "L0"
-      },
-      {
-        "from": "L1",
-        "to": "L2"
-      },
       {
         "from": "A1",
         "to": "L0"
@@ -1131,35 +1108,19 @@
         "to": "L1"
       },
       {
-        "from": "A7",
-        "to": "L1"
-      },
-      {
-        "from": "A5",
-        "to": "L1"
-      },
-      {
-        "from": "A6",
-        "to": "L1"
+        "from": "A8",
+        "to": "L2"
       },
       {
         "from": "A9",
         "to": "L2"
       },
       {
-        "from": "A8",
+        "from": "A4",
         "to": "L2"
       },
       {
-        "from": "A7",
-        "to": "L2"
-      },
-      {
-        "from": "A2",
-        "to": "L2"
-      },
-      {
-        "from": "A3",
+        "from": "A6",
         "to": "L2"
       }
     ]

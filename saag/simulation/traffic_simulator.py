@@ -72,7 +72,6 @@ class TrafficSimulator:
                         COALESCE(a.name, a.id)     AS name,
                         COALESCE(a.weight, 0.5)    AS weight,
                         a.role                     AS role,
-                        a.priority                 AS priority,
                         a.hotstandby               AS hotstandby,
                         a.criticality              AS criticality,
                         pub_ids,
@@ -88,9 +87,8 @@ class TrafficSimulator:
                             "name": rec["name"],
                             "weight": float(rec["weight"]),
                             "role": rec["role"],
-                            # priority, hotstandby, criticality are optional — only include when
+                            # hotstandby, criticality are optional — only include when
                             # the property exists on the node (not null/missing)
-                            "priority": rec["priority"],
                             "hotstandby": rec["hotstandby"],
                             "criticality": rec["criticality"],
                             "pub_topic_ids": list(rec["pub_ids"]),

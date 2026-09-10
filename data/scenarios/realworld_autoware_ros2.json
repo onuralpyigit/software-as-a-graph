@@ -367,7 +367,7 @@
       "name": "velodyne_node_container",
       "app_type": "sensor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 2840,
@@ -391,7 +391,7 @@
       "name": "pointcloud_preprocessor",
       "app_type": "sensor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3410,
@@ -415,7 +415,7 @@
       "name": "camera_driver_node",
       "app_type": "sensor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 1450,
@@ -439,7 +439,7 @@
       "name": "gnss_poser_node",
       "app_type": "sensor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 1120,
@@ -463,7 +463,7 @@
       "name": "imu_corrector_node",
       "app_type": "sensor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 890,
@@ -487,7 +487,7 @@
       "name": "radar_tracks_msgs_converter",
       "app_type": "sensor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 940,
@@ -511,7 +511,7 @@
       "name": "lidar_centerpoint_node",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 6800,
@@ -535,7 +535,7 @@
       "name": "multi_object_tracker",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 5900,
@@ -559,7 +559,7 @@
       "name": "detected_object_validation",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 2100,
@@ -583,7 +583,7 @@
       "name": "occupancy_grid_map_node",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3800,
@@ -607,7 +607,7 @@
       "name": "ndt_scan_matcher",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 4600,
@@ -631,7 +631,7 @@
       "name": "ekf_localizer",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3200,
@@ -655,7 +655,7 @@
       "name": "stop_filter_node",
       "app_type": "processor",
       "criticality": "LOW",
-      "priority": "LOW",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 650,
@@ -679,7 +679,7 @@
       "name": "lanelet2_map_loader",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 2900,
@@ -703,7 +703,7 @@
       "name": "mission_planner",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 4100,
@@ -727,7 +727,7 @@
       "name": "behavior_path_planner",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 9500,
@@ -751,7 +751,7 @@
       "name": "behavior_velocity_planner",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 8200,
@@ -775,7 +775,7 @@
       "name": "obstacle_avoidance_planner",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 7400,
@@ -799,7 +799,7 @@
       "name": "scenario_selector",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 1800,
@@ -823,7 +823,7 @@
       "name": "trajectory_follower_controller",
       "app_type": "actuator",
       "criticality": "HIGH",
-      "priority": "HIGHEST",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 5200,
@@ -847,7 +847,7 @@
       "name": "latlon_controller",
       "app_type": "actuator",
       "criticality": "HIGH",
-      "priority": "HIGHEST",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3100,
@@ -871,7 +871,7 @@
       "name": "shift_decider",
       "app_type": "actuator",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 1200,
@@ -895,7 +895,7 @@
       "name": "vehicle_cmd_gate",
       "app_type": "actuator",
       "criticality": "HIGH",
-      "priority": "HIGHEST",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 4400,
@@ -919,7 +919,7 @@
       "name": "raw_vehicle_cmd_converter",
       "app_type": "actuator",
       "criticality": "HIGH",
-      "priority": "HIGHEST",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 2300,
@@ -943,7 +943,7 @@
       "name": "can_bus_interface_node",
       "app_type": "actuator",
       "criticality": "HIGH",
-      "priority": "HIGHEST",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3800,
@@ -967,7 +967,7 @@
       "name": "mrm_emergency_stop_operator",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGHEST",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 2700,
@@ -991,7 +991,7 @@
       "name": "emergency_handler",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGHEST",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3300,
@@ -1015,7 +1015,7 @@
       "name": "system_error_monitor",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 2200,
@@ -1039,7 +1039,7 @@
       "name": "robot_state_publisher",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 1900,
@@ -1063,7 +1063,7 @@
       "name": "static_transform_publisher",
       "app_type": "processor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 720,
@@ -1087,7 +1087,7 @@
       "name": "zenoh_teleop_bridge",
       "app_type": "processor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 2600,
@@ -1111,7 +1111,7 @@
       "name": "autoware_web_hmi_gateway",
       "app_type": "processor",
       "criticality": "LOW",
-      "priority": "LOW",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 1750,

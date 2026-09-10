@@ -451,7 +451,7 @@
       "name": "ts-ui-dashboard",
       "app_type": "sensor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 4800,
@@ -475,7 +475,7 @@
       "name": "ts-gateway-service",
       "app_type": "sensor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 5800,
@@ -499,7 +499,7 @@
       "name": "ts-auth-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3400,
@@ -523,7 +523,7 @@
       "name": "ts-user-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 2900,
@@ -547,7 +547,7 @@
       "name": "ts-verification-code-service",
       "app_type": "processor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 1200,
@@ -571,7 +571,7 @@
       "name": "ts-contacts-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 2600,
@@ -595,7 +595,7 @@
       "name": "ts-order-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 8200,
@@ -619,7 +619,7 @@
       "name": "ts-order-other-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 7100,
@@ -643,7 +643,7 @@
       "name": "ts-preserve-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 9400,
@@ -667,7 +667,7 @@
       "name": "ts-preserve-other-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 8500,
@@ -691,7 +691,7 @@
       "name": "ts-travel-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 9100,
@@ -715,7 +715,7 @@
       "name": "ts-travel2-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 8100,
@@ -739,7 +739,7 @@
       "name": "ts-travel-plan-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 6400,
@@ -763,7 +763,7 @@
       "name": "ts-route-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 4500,
@@ -787,7 +787,7 @@
       "name": "ts-route-plan-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 5200,
@@ -811,7 +811,7 @@
       "name": "ts-train-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3600,
@@ -835,7 +835,7 @@
       "name": "ts-station-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 2800,
@@ -859,7 +859,7 @@
       "name": "ts-seat-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 5900,
@@ -883,7 +883,7 @@
       "name": "ts-price-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3300,
@@ -907,7 +907,7 @@
       "name": "ts-config-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 2200,
@@ -931,7 +931,7 @@
       "name": "ts-payment-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 5100,
@@ -955,7 +955,7 @@
       "name": "ts-inside-payment-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 4600,
@@ -979,7 +979,7 @@
       "name": "ts-execute-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3900,
@@ -1003,7 +1003,7 @@
       "name": "ts-cancel-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 4400,
@@ -1027,7 +1027,7 @@
       "name": "ts-rebook-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 4900,
@@ -1051,7 +1051,7 @@
       "name": "ts-assurance-service",
       "app_type": "processor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 2100,
@@ -1075,7 +1075,7 @@
       "name": "ts-consign-service",
       "app_type": "processor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 2700,
@@ -1099,7 +1099,7 @@
       "name": "ts-consign-price-service",
       "app_type": "processor",
       "criticality": "LOW",
-      "priority": "LOW",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 1500,
@@ -1123,7 +1123,7 @@
       "name": "ts-food-service",
       "app_type": "processor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 3200,
@@ -1147,7 +1147,7 @@
       "name": "ts-food-map-service",
       "app_type": "processor",
       "criticality": "LOW",
-      "priority": "LOW",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 1800,
@@ -1171,7 +1171,7 @@
       "name": "ts-notification-service",
       "app_type": "actuator",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 2300,
@@ -1195,7 +1195,7 @@
       "name": "ts-security-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "CRITICAL",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 4100,
@@ -1219,7 +1219,7 @@
       "name": "ts-voucher-service",
       "app_type": "processor",
       "criticality": "LOW",
-      "priority": "LOW",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 1900,
@@ -1243,7 +1243,7 @@
       "name": "ts-admin-user-service",
       "app_type": "processor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 2400,
@@ -1267,7 +1267,7 @@
       "name": "ts-admin-travel-service",
       "app_type": "processor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 2600,
@@ -1291,7 +1291,7 @@
       "name": "ts-admin-order-service",
       "app_type": "processor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 2800,
@@ -1315,7 +1315,7 @@
       "name": "ts-admin-route-service",
       "app_type": "processor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 2300,
@@ -1339,7 +1339,7 @@
       "name": "ts-admin-basic-info-service",
       "app_type": "processor",
       "criticality": "MEDIUM",
-      "priority": "MEDIUM",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 2500,
@@ -1363,7 +1363,7 @@
       "name": "ts-delivery-service",
       "app_type": "processor",
       "criticality": "LOW",
-      "priority": "LOW",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 1600,
@@ -1387,7 +1387,7 @@
       "name": "ts-wait-order-service",
       "app_type": "processor",
       "criticality": "HIGH",
-      "priority": "HIGH",
+      "hotstandby": true,
       "code_metrics": {
         "size": {
           "total_loc": 3700,
@@ -1411,7 +1411,7 @@
       "name": "ts-news-service",
       "app_type": "processor",
       "criticality": "LOW",
-      "priority": "LOW",
+      "hotstandby": false,
       "code_metrics": {
         "size": {
           "total_loc": 1100,

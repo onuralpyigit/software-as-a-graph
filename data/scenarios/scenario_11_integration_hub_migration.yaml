@@ -156,6 +156,17 @@ graph:
       mode_count: 20
       mode_percentage: 50.0
 
+    # Application hotstandby redundancy distribution (Categorical)
+    # Values: true (multi-node redundant active/standby), false (standalone)
+    app_hotstandby_distribution:
+      total_count: 40
+      category_counts:
+        true: 15
+        false: 25
+      mode: false
+      mode_count: 25
+      mode_percentage: 62.5
+
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — integration/adapter SDKs, shared across services
   # ---------------------------------------------------------------------------

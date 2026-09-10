@@ -31,7 +31,7 @@ def _canonical_sha256(data: dict) -> str:
 
 _SCENARIO_08_YAML = project_root / "data" / "scenarios" / "scenario_08_tiny_regression.yaml"
 
-_GOLDEN_SHA256 = "2685013828c48def4b3a48f41c94ee76ab98e7c7b3ff3a2566f915daa2b283df"
+_GOLDEN_SHA256 = "1a5ae0bfb50571dabb2598ee4b81fcf3aba027611a149d243d16c5b5666efd8b"
 
 _GOLDEN_ENTITY_COUNTS = {
     "nodes": 3,
@@ -42,11 +42,11 @@ _GOLDEN_ENTITY_COUNTS = {
 }
 
 _GOLDEN_RELATIONSHIP_COUNTS = {
-    "runs_on": 21,
+    "runs_on": 18,
     "routes": 12,
-    "publishes_to": 26,
-    "subscribes_to": 29,
-    "uses": 12,
+    "publishes_to": 17,
+    "subscribes_to": 35,
+    "uses": 13,
     "connects_to": 1,
 }
 
@@ -258,6 +258,9 @@ class TestTopicDerivedFields:
             assert app["criticality"] in {"HIGH", "MEDIUM", "LOW"}, (
                 f"Application {app.get('id')!r}: invalid criticality {app['criticality']!r}"
             )
+            assert "hotstandby" in app, f"Application {app.get('id')!r} missing 'hotstandby'"
+            assert isinstance(app["hotstandby"], bool), f"Application {app.get('id')!r} hotstandby not boolean"
+            assert "priority" not in app, f"Application {app.get('id')!r} should not have 'priority'"
 
 
 class TestSchemaValidation:

@@ -118,6 +118,17 @@ graph:
       mode_count: 45
       mode_percentage: 40.91
 
+    # Application hotstandby redundancy distribution (Categorical)
+    # Values: true (multi-node redundant active/standby), false (standalone)
+    app_hotstandby_distribution:
+      total_count: 110
+      category_counts:
+        true: 35
+        false: 75
+      mode: false
+      mode_count: 75
+      mode_percentage: 68.18
+
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Shared geo/manifest codecs, moderate reuse
   # ---------------------------------------------------------------------------
