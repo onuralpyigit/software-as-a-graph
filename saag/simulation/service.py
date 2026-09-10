@@ -231,6 +231,52 @@ class SimulationService:
             layer=layer,
         )
 
+    def run_telemetry_simulation(
+        self,
+        duration: float = 60.0,
+        fault_node: Optional[str] = None,
+        fault_time: Optional[float] = None,
+        seed: int = 42,
+        poisson_arrivals: bool = False,
+        layer: str = "system",
+        **kwargs,
+    ) -> Any:
+        """Run unified runtime telemetry simulation across all layers."""
+        from .runtime_telemetry_simulator import RuntimeTelemetrySimulator
+        from .telemetry.models import TelemetryScenario
+
+        graph = self._get_graph()
+        scenario = TelemetryScenario(
+            duration=duration,
+            fault_node=fault_node,
+            fault_time=fault_time,
+            seed=seed,
+            poisson_arrivals=poisson_arrivals,
+            **kwargs,
+        )
+        sim = RuntimeTelemetrySimulator(graph, scenario=scenario)
+        return sim.simulate()
+
+    def run_telemetry_sweep(
+        self,
+        node_types: Optional[List[str]] = None,
+        duration: float = 60.0,
+        seeds: Optional[List[int]] = None,
+        layer: str = "system",
+    ) -> Any:
+        """Run telemetry-based fault injection sweep producing GNN labels and metrics."""
+        from .runtime_telemetry_simulator import RuntimeTelemetrySimulator
+
+        graph = self._get_graph()
+        sim = RuntimeTelemetrySimulator(graph)
+        candidates = graph.get_analyze_components_by_layer(layer) if layer != "system" else None
+        return sim.sweep_all_components(
+            node_types=node_types,
+            candidate_ids=candidates,
+            duration=duration,
+            seeds=seeds,
+        )
+
     # =========================================================================
     # Reporting
     # =========================================================================

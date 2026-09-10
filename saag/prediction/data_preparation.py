@@ -1189,9 +1189,12 @@ def normalize_labels_robust(hetero_data, rank_normalize: bool = False) -> None:
 
 # ── Extraction utilities ───────────────────────────────────────────────────────
 
-def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, Dict[str, float]]:
+def extract_simulation_dict(simulation_results: Union[list, dict, Any]) -> Dict[str, Dict[str, float]]:
     """Normalise Simulation output to common flat dict format."""
     out: Dict[str, Dict[str, float]] = {}
+
+    if hasattr(simulation_results, "to_dict"):
+        simulation_results = simulation_results.to_dict()
 
     if isinstance(simulation_results, dict) and "component_criticality" in simulation_results:
         for c in simulation_results["component_criticality"]:

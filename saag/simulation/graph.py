@@ -102,6 +102,8 @@ class SimulationGraph:
                     qos_durability=qos.durability,
                     qos_priority=qos.transport_priority,
                     weight=comp_weight,
+                    deadline_ms=qos.deadline_ms,
+                    history_depth=qos.history_depth,
                 )
             
             self.components[comp_id] = ComponentInfo(

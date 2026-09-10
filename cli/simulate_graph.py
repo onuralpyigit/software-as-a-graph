@@ -464,6 +464,69 @@ def _run_combined(args: argparse.Namespace) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# telemetry subcommand
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _run_telemetry(args: argparse.Namespace) -> None:
+    """Execute unified cross-layer runtime telemetry simulation."""
+    from saag.simulation.runtime_telemetry_simulator import RuntimeTelemetrySimulator
+    from saag.simulation.telemetry.models import TelemetryScenario
+
+    logger.info("Loading graph from %s", args.input)
+    graph = _load_graph(Path(args.input))
+
+    out_dir = Path(args.output)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    seeds = _parse_seeds(args.seeds)
+
+    if args.fault_node:
+        fault_time = args.fault_time if args.fault_time is not None else args.duration / 2.0
+        scenario = TelemetryScenario(
+            duration=args.duration,
+            fault_node=args.fault_node,
+            fault_time=fault_time,
+            seed=seeds[0],
+            default_publish_rate_hz=args.default_rate,
+        )
+        sim = RuntimeTelemetrySimulator(graph, scenario=scenario)
+        telemetry = sim.simulate()
+
+        logger.info("Runtime telemetry simulation complete.")
+        print(f"\n--- Runtime Telemetry Summary ({args.fault_node}) ---")
+        print(f"  Duration:            {telemetry.simulation_duration:.1f} s")
+        print(f"  Messages Generated:  {telemetry.total_messages_generated}")
+        print(f"  Messages Delivered:  {telemetry.total_messages_delivered}")
+        print(f"  System Delivery Rate:{telemetry.system_delivery_rate * 100:.2f}%")
+        print(f"  System Drop Rate:    {telemetry.system_drop_rate * 100:.2f}%")
+        print(f"  Latency p50:         {telemetry.system_latency_p50_ms:.2f} ms")
+        print(f"  Latency p95:         {telemetry.system_latency_p95_ms:.2f} ms")
+        print(f"  QoS Violations:      {len(telemetry.qos_violations)}")
+        if telemetry.pre_fault_delivery_rate is not None and telemetry.post_fault_delivery_rate is not None:
+            print(f"  Delivery Drop:       {telemetry.pre_fault_delivery_rate:.4f} -> {telemetry.post_fault_delivery_rate:.4f}")
+
+        if getattr(args, "export_telemetry", False) or args.export_json:
+            tel_path = out_dir / f"telemetry_{args.fault_node}.json"
+            telemetry.save(tel_path)
+            logger.info("Telemetry saved → %s", tel_path)
+    else:
+        node_types = [t.strip() for t in args.node_types.split(",") if t.strip()]
+        sim = RuntimeTelemetrySimulator(graph)
+        result = sim.sweep_all_components(
+            node_types=node_types,
+            duration=args.duration,
+            seeds=seeds,
+        )
+        print(f"\n--- Telemetry Sweep Complete ({len(result.records)} nodes evaluated) ---")
+        for item in result.top_k_by_impact[:10]:
+            print(f"  {item['rank']:2d}. {item['node_id']:<25} ({item['node_type']}) I = {item['impact_score']:.4f}")
+
+        if args.export_json:
+            out_file = out_dir / "impact_scores.json" if not args.output.endswith(".json") else Path(args.output)
+            result.save(out_file)
+            logger.info("Impact scores written → %s", out_file)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Argument parsing
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -638,6 +701,24 @@ def _build_parser() -> argparse.ArgumentParser:
     co.add_argument("--default-rate", type=float, default=10.0, metavar="HZ")
     co.add_argument("--default-queue-size", type=int, default=100, metavar="N")
 
+    # ── telemetry ─────────────────────────────────────────────────────────
+    tm = subparsers.add_parser(
+        "telemetry",
+        help="Unified cross-layer runtime telemetry simulation & impact derivation.",
+        description=(
+            "Simulates concurrent traffic across Nodes, Brokers, Topics, and Applications, "
+            "collects runtime telemetry, and derives ground-truth impact scores."
+        ),
+    )
+    _add_shared(tm)
+    tm.add_argument("--duration", type=float, default=60.0, metavar="SECONDS", help="Simulation duration (s). Default: 60.0")
+    tm.add_argument("--fault-node", default=None, metavar="NODE_ID", help="Node ID to fault. If omitted, runs sweep across components.")
+    tm.add_argument("--fault-time", type=float, default=None, metavar="SECONDS", help="Time to inject fault. Default: duration / 2.")
+    tm.add_argument("--seeds", default="42", metavar="42,123,...", help="Comma-separated seeds. Default: 42")
+    tm.add_argument("--node-types", default="Application,Broker,Node,Library", metavar="TYPES", help="Node types for sweep.")
+    tm.add_argument("--default-rate", type=float, default=10.0, metavar="HZ", help="Default publish rate (Hz). Default: 10.0")
+    tm.add_argument("--export-telemetry", action="store_true", help="Write full telemetry JSON report.")
+
     return parser
 
 
@@ -669,6 +750,7 @@ def main() -> None:
         "fault-inject": _run_fault_inject,
         "message-flow": _run_message_flow,
         "combined": _run_combined,
+        "telemetry": _run_telemetry,
     }
 
     handler = dispatch.get(args.subcommand)
