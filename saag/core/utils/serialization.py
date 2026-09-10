@@ -104,18 +104,43 @@ def _reconstruct_topic(props: Dict[str, Any]) -> Dict[str, Any]:
     # Preserve uppercase QoS values — the canonical format and weight calculations
     # both use uppercase (RELIABLE, TRANSIENT_LOCAL, HIGH, etc.). Lowercasing here
     # would cause silent weight mismatches on round-trip import.
-    res = {
+    qos_data: Dict[str, Any] = {
+        "reliability": props.get("qos_reliability", "BEST_EFFORT"),
+        "durability": props.get("qos_durability", "VOLATILE"),
+        "transport_priority": props.get("qos_transport_priority", "MEDIUM"),
+    }
+    deadline = (
+        props.get("deadline_ms")
+        if props.get("deadline_ms") is not None
+        else props.get("qos_deadline_ms")
+    )
+    if deadline is not None:
+        try:
+            qos_data["deadline_ms"] = float(deadline)
+        except (ValueError, TypeError):
+            pass
+
+    history = (
+        props.get("history_depth")
+        if props.get("history_depth") is not None
+        else props.get("qos_history_depth")
+    )
+    if history is not None:
+        try:
+            qos_data["history_depth"] = int(history)
+        except (ValueError, TypeError):
+            pass
+
+    res: Dict[str, Any] = {
         "size": props.get("size", 256),
-        "qos": {
-            "reliability": props.get("qos_reliability", "BEST_EFFORT"),
-            "durability": props.get("qos_durability", "VOLATILE"),
-            "transport_priority": props.get("qos_transport_priority", "MEDIUM"),
-        },
+        "qos": qos_data,
     }
     # Restore derived fields if present; backend caller is responsible for
     # ensuring they are populated (import backfill or frontend recompute).
     if "topic_frequency" in props:
         res["frequency"] = props["topic_frequency"]
+    elif "frequency" in props:
+        res["frequency"] = props["frequency"]
     if "topic_criticality" in props:
         tc = str(props["topic_criticality"]).upper()
         if tc in ("HIGH", "CRITICAL"):
@@ -124,6 +149,25 @@ def _reconstruct_topic(props: Dict[str, Any]) -> Dict[str, Any]:
             res["criticality"] = "LOW"
         else:
             res["criticality"] = "MEDIUM"
+    elif "criticality" in props:
+        tc = str(props["criticality"]).upper()
+        if tc in ("HIGH", "CRITICAL"):
+            res["criticality"] = "HIGH"
+        elif tc in ("LOW", "MINIMAL"):
+            res["criticality"] = "LOW"
+        else:
+            res["criticality"] = "MEDIUM"
+
+    if deadline is not None:
+        try:
+            res["deadline_ms"] = float(deadline)
+        except (ValueError, TypeError):
+            pass
+    if history is not None:
+        try:
+            res["history_depth"] = int(history)
+        except (ValueError, TypeError):
+            pass
     return res
 
 
@@ -294,6 +338,25 @@ def _flatten_topic(comp: Dict[str, Any]) -> Dict[str, Any]:
             res["topic_criticality"] = "LOW"
         else:
             res["topic_criticality"] = "MEDIUM"
+
+    deadline = comp.get("deadline_ms") if comp.get("deadline_ms") is not None else qos.get("deadline_ms")
+    if deadline is not None:
+        try:
+            val = float(deadline)
+            res["deadline_ms"] = val
+            res["qos_deadline_ms"] = val
+        except (ValueError, TypeError):
+            pass
+
+    history = comp.get("history_depth") if comp.get("history_depth") is not None else qos.get("history_depth")
+    if history is not None:
+        try:
+            h_val = int(history)
+            res["history_depth"] = h_val
+            res["qos_history_depth"] = h_val
+        except (ValueError, TypeError):
+            pass
+
     return res
 
 

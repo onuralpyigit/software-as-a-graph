@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-10T15:14:20+00:00",
-  "generator_commit": "8c3b135a840a875910ac149468d958339554b687",
+  "generated_at": "2026-09-10T16:21:51+00:00",
+  "generator_commit": "9e7497747b85dda7e558f09e235ff0f3ed2d7a23",
   "regenerate_with": "PYTHONPATH=. python cli/generate_graph.py batch --input-dir data/scenarios --output-dir <dir> --force",
   "pooled_evaluation_suite": {
     "applications": 1295,
@@ -23,7 +23,7 @@
         "nodes": 8,
         "libraries": 20
       },
-      "sha256": "9687f746115493e1293db5a1e65aede487dc1f48c159b38d1e5b3ca53549846b"
+      "sha256": "884950aa28a7c61b8271d7e54e8da7c88b1793caa4648d77087933d6a0b977d2"
     },
     "iot_smart_city_system": {
       "config": "scenario_02_iot_smart_city.yaml",
@@ -37,7 +37,7 @@
         "nodes": 30,
         "libraries": 10
       },
-      "sha256": "d3a21216e77fcf9bc116462a64dfc868ed712b2b0338f3c72a44def31234c60a"
+      "sha256": "57ddd16aa34a6d17cbeb8d92befa236a4d5afa695272b6ff52de2f5fb88cac5e"
     },
     "financial_trading_system": {
       "config": "scenario_03_financial_trading.yaml",
@@ -51,7 +51,7 @@
         "nodes": 6,
         "libraries": 18
       },
-      "sha256": "9ea834a7edd9f4b3d33ad26e3e3a9df4b0091382182621cb719035f376f2bc79"
+      "sha256": "aa62af457509b0f7d285db866bf378f2d2eb1b45c1402bec828de8c74d31a663"
     },
     "healthcare_system": {
       "config": "scenario_04_healthcare.yaml",
@@ -65,7 +65,7 @@
         "nodes": 8,
         "libraries": 12
       },
-      "sha256": "4e71f0c4f7389f674d296f7f7c36226cfb0e26d3f68344fc1425424dfeafbf10"
+      "sha256": "2a54482b70a60c3c6a3d87af6ec046efccde6686b6d805192d16b8dd2af010a2"
     },
     "hub_and_spoke_system": {
       "config": "scenario_05_hub_and_spoke.yaml",
@@ -79,7 +79,7 @@
         "nodes": 12,
         "libraries": 25
       },
-      "sha256": "140692bde5fd3f6ef8c03ac6c6dd6e18da9b2ed906f5ef7064e22d3faa996a39"
+      "sha256": "c983ddd6fd409e36b847c22a93209b8c8413cd3b59c440d3fad102cb9254a639"
     },
     "microservices_system": {
       "config": "scenario_06_microservices.yaml",
@@ -93,7 +93,7 @@
         "nodes": 15,
         "libraries": 30
       },
-      "sha256": "a0b6e8d1dd83abed2f57168c405e71f629a7bf0c5b9c4854ed23212e8707048d"
+      "sha256": "4abaa8ee252a543448cb6dfb408d4d2d56aacad016fdb22e8789e7276b3f7b96"
     },
     "enterprise_system": {
       "config": "scenario_07_enterprise_xlarge.yaml",
@@ -107,7 +107,7 @@
         "nodes": 40,
         "libraries": 50
       },
-      "sha256": "a13f2004b75b70a939e922a4801b98e3cfb874199035b44b90a34fae15716500"
+      "sha256": "eca28052120d37c43f4c8b44b0a9085dff832c429869d693649ec1edcbb72114"
     },
     "tiny_system": {
       "config": "scenario_08_tiny_regression.yaml",
@@ -121,7 +121,7 @@
         "nodes": 3,
         "libraries": 4
       },
-      "sha256": "1a5ae0bfb50571dabb2598ee4b81fcf3aba027611a149d243d16c5b5666efd8b"
+      "sha256": "888f3c5bceb1c694fc95a5a0da406b60025974c289b7d312ee1e9de04cc6e65a"
     },
     "xlarge_system": {
       "config": "scenario_09_xlarge_stress.yaml",
@@ -135,7 +135,7 @@
         "nodes": 50,
         "libraries": 100
       },
-      "sha256": "223021e8e97eff989a99637ad7f599337b5cdf6c848a00245e6289e84db542fe"
+      "sha256": "385632860e4538d648fb25c5b63afb4046389e6b4bdd088b7305b088de5c4325"
     },
     "atm_system": {
       "config": "scenario_10_atm_system.yaml",
@@ -149,7 +149,7 @@
         "nodes": 8,
         "libraries": 8
       },
-      "sha256": "9ac80e43a0c34db452d29ddf8c116cc7fe409575d93e60e2ff47445afbec126b"
+      "sha256": "39b54eac9728ac6d511dea8a1cb7164ba9b14a299049e6e6437ec0e4be63b279"
     },
     "integration_hub_migration_system": {
       "config": "scenario_11_integration_hub_migration.yaml",
@@ -163,7 +163,7 @@
         "nodes": 6,
         "libraries": 10
       },
-      "sha256": "5d8bdd919b74e58277607a91a219959fd98e606133fa2bc8f3e88e54042a4ba9"
+      "sha256": "aaf3a60415f2b6ff9e73d9a84204e407bd458c4d5981d499b7b47cf51eb1a957"
     },
     "atm_system_tiny": {
       "config": "scenario_14_atm_tiny.yaml",
@@ -177,7 +177,7 @@
         "nodes": 3,
         "libraries": 3
       },
-      "sha256": "bceb63cfec044da614a4df7c08fbecd3ac4d8a9967b1d103b1da33747f617891"
+      "sha256": "0ac043d27278c342dadef58119d5e0c8045d5f5e019fb672075d53221dd42f88"
     },
     "atm_system_medium": {
       "config": "scenario_15_atm_medium.yaml",
@@ -191,7 +191,7 @@
         "nodes": 16,
         "libraries": 16
       },
-      "sha256": "0c4da543b2530b37a8a1e456500e67c0c329c26e32b55c77d22e9add8110b050"
+      "sha256": "414199b7f0df67ca47be0f4b4a4ee6d14e2bb154c632a4ea8ba0359dfeca6b61"
     },
     "atm_system_large": {
       "config": "scenario_16_atm_large.yaml",
@@ -205,7 +205,7 @@
         "nodes": 32,
         "libraries": 32
       },
-      "sha256": "19a4f7562182c90a362b7b44f36cf3f73ef31304767728bfb3c8df6eb358fad0"
+      "sha256": "0c4deebd01a40ce5220c41408a7628bddc69c6a8f1e23ed2dd17993a71fd1dd7"
     },
     "atm_system_xlarge": {
       "config": "scenario_17_atm_xlarge.yaml",
@@ -219,7 +219,7 @@
         "nodes": 48,
         "libraries": 48
       },
-      "sha256": "db040b593cdc2141bc05abafece9465c2ab7d0e3024a39ffed56c06281f75d7a"
+      "sha256": "e49739c600a4c66289bf94891d99917461d2a3fdc485f29ffc6bd3d3682162ba"
     },
     "telecom_ran_system": {
       "config": "scenario_18_telecom_ran.yaml",
@@ -233,7 +233,7 @@
         "nodes": 20,
         "libraries": 22
       },
-      "sha256": "06a35db3217c39c7ba5ddcc20a93e10a4695020352d160655844a9864823f3b5"
+      "sha256": "fff71b5b0c10412ae68a4bc0da625881f502149df51a8f4b5fed1a13102abbd7"
     },
     "industrial_scada_system": {
       "config": "scenario_19_industrial_scada.yaml",
@@ -247,7 +247,7 @@
         "nodes": 25,
         "libraries": 15
       },
-      "sha256": "cb4688ce66efe91d063708d93c71763831349d5217c9682b1eb2487c9479a841"
+      "sha256": "1fe91c082c8d3ca1ddaa6ade4f36bf4eb8ec6294d14cbc388e8abea89465e957"
     },
     "realtime_gaming_system": {
       "config": "scenario_20_realtime_gaming.yaml",
@@ -261,7 +261,7 @@
         "nodes": 12,
         "libraries": 28
       },
-      "sha256": "f4d1c2f9a0fd466b8e43fda1fa3e9e76ed07b6b646c8d0c0b149fa9a8f3ce9e6"
+      "sha256": "19fab8d91ea9d7ccee03d62dbdc51900b6512c554721b54c422dae516cdd3b74"
     },
     "logistics_fleet_system": {
       "config": "scenario_21_logistics_fleet.yaml",
@@ -275,7 +275,7 @@
         "nodes": 18,
         "libraries": 20
       },
-      "sha256": "9a8c8ff3b0f3080756311ebeed2733b2dd328bc4c70fe08d752c4659f2fbc4df"
+      "sha256": "6634c80154cc289d1f3c6779cd9ddeeed513e5cc253c290f01303555e68fdbfb"
     }
   }
 }

@@ -515,6 +515,70 @@ class StatisticalGraphGenerator:
             return _rng.choice(alternatives)
         return base_label
 
+    def _derive_topic_deadline(
+        self,
+        frequency_hz: float,
+        criticality: str,
+        qos: "QoSPolicy",
+        rng: Optional[random.Random] = None,
+    ) -> Optional[float]:
+        """Derive a domain-correlated temporal SLA deadline in milliseconds.
+
+        In real-time publish-subscribe systems (e.g. DDS, ROS 2, time-critical streaming),
+        the deadline is physically correlated with the message period T = 1000 / frequency_hz.
+        - HIGH criticality: tight real-time SLA: [1.0 * T, 1.5 * T] ms.
+        - MEDIUM criticality: moderate real-time SLA: [1.5 * T, 3.0 * T] ms.
+        - LOW criticality: non-realtime / best-effort: 70% None (infinite deadline),
+          30% relaxed [3.0 * T, 5.0 * T] ms.
+        """
+        _rng = rng if rng is not None else self.rng
+        period_ms = 1000.0 / max(0.001, float(frequency_hz))
+
+        crit_upper = str(criticality).upper()
+        if crit_upper in ("HIGH", "CRITICAL"):
+            factor = _rng.uniform(1.0, 1.5)
+            return round(period_ms * factor, 1)
+        elif crit_upper == "MEDIUM":
+            factor = _rng.uniform(1.5, 3.0)
+            return round(period_ms * factor, 1)
+        else:
+            # LOW criticality
+            if _rng.random() < 0.70:
+                return None
+            factor = _rng.uniform(3.0, 5.0)
+            return round(period_ms * factor, 1)
+
+    def _derive_topic_history_depth(
+        self,
+        criticality: str,
+        qos: "QoSPolicy",
+        frequency_hz: float,
+        rng: Optional[random.Random] = None,
+    ) -> int:
+        """Derive a domain-correlated queue/buffering limit (history depth).
+
+        Corresponds to OMG DDS HistoryQosPolicy KEEP_LAST depth or Kafka buffer limits:
+        - HIGH criticality + RELIABLE/PERSISTENT: deep queue [20, 50, 100] to avoid drops.
+        - HIGH criticality + streaming sensor (>= 50 Hz): shallow queue [5, 10] (freshest value).
+        - MEDIUM criticality: standard queue [10, 20].
+        - LOW criticality: shallow queue [1, 5, 10].
+        """
+        _rng = rng if rng is not None else self.rng
+        crit_upper = str(criticality).upper()
+
+        if crit_upper in ("HIGH", "CRITICAL"):
+            is_reliable = qos.reliability.upper() == "RELIABLE" or qos.durability.upper() in ("PERSISTENT", "TRANSIENT_LOCAL")
+            if is_reliable and frequency_hz < 50.0:
+                return _rng.choice([20, 50, 100])
+            elif frequency_hz >= 50.0:
+                return _rng.choice([5, 10])
+            else:
+                return _rng.choice([10, 20])
+        elif crit_upper == "MEDIUM":
+            return _rng.choice([10, 20])
+        else:
+            return _rng.choice([1, 5, 10])
+
     def _assign_criticality_two_pass(
         self,
         apps: List[Application],
@@ -783,6 +847,11 @@ class StatisticalGraphGenerator:
                 reliability=reliability,
                 transport_priority=transport_priority,
             )
+            freq = self._sample_topic_frequency(c.domain, rng=topic_attr_rng)
+            crit = self._derive_topic_criticality_with_noise(qos_policy, rng=topic_attr_rng)
+            deadline = self._derive_topic_deadline(freq, crit, qos_policy, rng=topic_attr_rng)
+            history = self._derive_topic_history_depth(crit, qos_policy, freq, rng=topic_attr_rng)
+
             topics.append(Topic(
                 id=f"T{i}",
                 name=topic_name,
@@ -793,8 +862,10 @@ class StatisticalGraphGenerator:
                 # task from collapsing to a QoS lookup (leakage path).
                 # Both calls use the isolated topic_attr_rng so the main
                 # topology RNG stream (self.rng) remains unperturbed.
-                frequency=self._sample_topic_frequency(c.domain, rng=topic_attr_rng),
-                criticality=self._derive_topic_criticality_with_noise(qos_policy, rng=topic_attr_rng),
+                frequency=freq,
+                criticality=crit,
+                deadline_ms=deadline,
+                history_depth=history,
             ))
         return topics
 

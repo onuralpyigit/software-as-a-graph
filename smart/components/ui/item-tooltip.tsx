@@ -167,9 +167,10 @@ function TypeSpecificRows({ type, properties }: { type: string; properties: Reco
       if (hasKey("qos_durability"))         rows.push({ key: "qos_durability",         label: "Durability" })
       if (hasKey("qos_transport_priority")) rows.push({ key: "qos_transport_priority", label: "Transport Priority" })
       if (hasKey("frequency"))   rows.push({ key: "frequency",   label: "Frequency",  unit: "Hz" })
-      if (hasKey("deadline_ms")) rows.push({ key: "deadline_ms", label: "Deadline",   unit: "ms" })
-      if (hasKey("queue_size"))  rows.push({ key: "queue_size",  label: "Queue Size", unit: "msgs" })
-      if (hasKey("weight"))      rows.push({ key: "weight",      label: "QoS Weight", unit: "[0–1]" })
+      if (hasKey("deadline_ms"))   rows.push({ key: "deadline_ms",   label: "Deadline",      unit: "ms" })
+      if (hasKey("queue_size"))    rows.push({ key: "queue_size",    label: "Queue Size",    unit: "msgs" })
+      if (hasKey("history_depth")) rows.push({ key: "history_depth", label: "History Depth", unit: "msgs" })
+      if (hasKey("weight"))        rows.push({ key: "weight",        label: "QoS Weight",    unit: "[0–1]" })
       break
 
     case "Node":

@@ -124,10 +124,13 @@
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
-        "transport_priority": "HIGH"
+        "transport_priority": "HIGH",
+        "deadline_ms": 25.3
       },
       "frequency": 50.0,
-      "criticality": "HIGH"
+      "criticality": "HIGH",
+      "deadline_ms": 25.3,
+      "history_depth": 10
     },
     {
       "id": "T1",
@@ -136,10 +139,14 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 2187.7,
+        "history_depth": 20
       },
       "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "criticality": "MEDIUM",
+      "deadline_ms": 2187.7,
+      "history_depth": 20
     },
     {
       "id": "T2",
@@ -148,10 +155,14 @@
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "BEST_EFFORT",
-        "transport_priority": "LOW"
+        "transport_priority": "LOW",
+        "deadline_ms": 2510.6,
+        "history_depth": 20
       },
       "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "criticality": "MEDIUM",
+      "deadline_ms": 2510.6,
+      "history_depth": 20
     },
     {
       "id": "T3",
@@ -163,7 +174,9 @@
         "transport_priority": "HIGH"
       },
       "frequency": 1.0,
-      "criticality": "LOW"
+      "criticality": "LOW",
+      "deadline_ms": null,
+      "history_depth": 10
     },
     {
       "id": "T4",
@@ -172,10 +185,14 @@
       "qos": {
         "durability": "VOLATILE",
         "reliability": "RELIABLE",
-        "transport_priority": "CRITICAL"
+        "transport_priority": "CRITICAL",
+        "deadline_ms": 2089.1,
+        "history_depth": 20
       },
       "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "criticality": "MEDIUM",
+      "deadline_ms": 2089.1,
+      "history_depth": 20
     },
     {
       "id": "T5",
@@ -184,10 +201,13 @@
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 29.6
       },
-      "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "frequency": 100.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 29.6,
+      "history_depth": 10
     },
     {
       "id": "T6",
@@ -196,10 +216,14 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "HIGH"
+        "transport_priority": "HIGH",
+        "deadline_ms": 47.7,
+        "history_depth": 20
       },
-      "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "frequency": 50.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 47.7,
+      "history_depth": 20
     },
     {
       "id": "T7",
@@ -208,10 +232,14 @@
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 1177.0,
+        "history_depth": 50
       },
       "frequency": 1.0,
-      "criticality": "HIGH"
+      "criticality": "HIGH",
+      "deadline_ms": 1177.0,
+      "history_depth": 50
     },
     {
       "id": "T8",
@@ -220,10 +248,14 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "BEST_EFFORT",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 2936.1,
+        "history_depth": 20
       },
       "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "criticality": "MEDIUM",
+      "deadline_ms": 2936.1,
+      "history_depth": 20
     },
     {
       "id": "T9",
@@ -232,10 +264,13 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "LOW"
+        "transport_priority": "LOW",
+        "deadline_ms": 236.4
       },
-      "frequency": 100.0,
-      "criticality": "MEDIUM"
+      "frequency": 10.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 236.4,
+      "history_depth": 10
     },
     {
       "id": "T10",
@@ -244,10 +279,14 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "BEST_EFFORT",
-        "transport_priority": "HIGH"
+        "transport_priority": "HIGH",
+        "deadline_ms": 1642.5,
+        "history_depth": 20
       },
-      "frequency": 100.0,
-      "criticality": "MEDIUM"
+      "frequency": 1.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 1642.5,
+      "history_depth": 20
     },
     {
       "id": "T11",
@@ -256,10 +295,14 @@
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "RELIABLE",
-        "transport_priority": "HIGH"
+        "transport_priority": "HIGH",
+        "deadline_ms": 120.6,
+        "history_depth": 50
       },
-      "frequency": 50.0,
-      "criticality": "HIGH"
+      "frequency": 10.0,
+      "criticality": "HIGH",
+      "deadline_ms": 120.6,
+      "history_depth": 50
     },
     {
       "id": "T12",
@@ -268,10 +311,14 @@
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "RELIABLE",
-        "transport_priority": "CRITICAL"
+        "transport_priority": "CRITICAL",
+        "deadline_ms": 1342.2,
+        "history_depth": 20
       },
       "frequency": 1.0,
-      "criticality": "LOW"
+      "criticality": "HIGH",
+      "deadline_ms": 1342.2,
+      "history_depth": 20
     },
     {
       "id": "T13",
@@ -280,10 +327,14 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "BEST_EFFORT",
-        "transport_priority": "LOW"
+        "transport_priority": "LOW",
+        "deadline_ms": 1063.7,
+        "history_depth": 20
       },
       "frequency": 1.0,
-      "criticality": "LOW"
+      "criticality": "HIGH",
+      "deadline_ms": 1063.7,
+      "history_depth": 20
     },
     {
       "id": "T14",
@@ -292,10 +343,14 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 4465.8,
+        "history_depth": 5
       },
       "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "criticality": "LOW",
+      "deadline_ms": 4465.8,
+      "history_depth": 5
     },
     {
       "id": "T15",
@@ -304,10 +359,14 @@
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 1884.1,
+        "history_depth": 20
       },
       "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "criticality": "MEDIUM",
+      "deadline_ms": 1884.1,
+      "history_depth": 20
     },
     {
       "id": "T16",
@@ -316,10 +375,14 @@
       "qos": {
         "durability": "VOLATILE",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 3161.7,
+        "history_depth": 1
       },
       "frequency": 1.0,
-      "criticality": "LOW"
+      "criticality": "LOW",
+      "deadline_ms": 3161.7,
+      "history_depth": 1
     },
     {
       "id": "T17",
@@ -328,10 +391,13 @@
       "qos": {
         "durability": "VOLATILE",
         "reliability": "RELIABLE",
-        "transport_priority": "LOW"
+        "transport_priority": "LOW",
+        "history_depth": 1
       },
       "frequency": 1.0,
-      "criticality": "LOW"
+      "criticality": "LOW",
+      "deadline_ms": null,
+      "history_depth": 1
     },
     {
       "id": "T18",
@@ -340,10 +406,13 @@
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "RELIABLE",
-        "transport_priority": "LOW"
+        "transport_priority": "LOW",
+        "deadline_ms": 1610.9
       },
       "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "criticality": "MEDIUM",
+      "deadline_ms": 1610.9,
+      "history_depth": 10
     },
     {
       "id": "T19",
@@ -352,10 +421,14 @@
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
-        "transport_priority": "LOW"
+        "transport_priority": "LOW",
+        "deadline_ms": 40.7,
+        "history_depth": 20
       },
-      "frequency": 10.0,
-      "criticality": "HIGH"
+      "frequency": 25.0,
+      "criticality": "HIGH",
+      "deadline_ms": 40.7,
+      "history_depth": 20
     },
     {
       "id": "T20",
@@ -364,10 +437,14 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "BEST_EFFORT",
-        "transport_priority": "HIGH"
+        "transport_priority": "HIGH",
+        "deadline_ms": 185.1,
+        "history_depth": 20
       },
       "frequency": 10.0,
-      "criticality": "MEDIUM"
+      "criticality": "MEDIUM",
+      "deadline_ms": 185.1,
+      "history_depth": 20
     },
     {
       "id": "T21",
@@ -376,10 +453,13 @@
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "BEST_EFFORT",
-        "transport_priority": "HIGH"
+        "transport_priority": "HIGH",
+        "deadline_ms": 52.6
       },
-      "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "frequency": 50.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 52.6,
+      "history_depth": 10
     },
     {
       "id": "T22",
@@ -388,10 +468,13 @@
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "BEST_EFFORT",
-        "transport_priority": "LOW"
+        "transport_priority": "LOW",
+        "deadline_ms": 2685.1
       },
       "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "criticality": "MEDIUM",
+      "deadline_ms": 2685.1,
+      "history_depth": 10
     },
     {
       "id": "T23",
@@ -400,10 +483,13 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "BEST_EFFORT",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 1578.4
       },
-      "frequency": 25.0,
-      "criticality": "MEDIUM"
+      "frequency": 1.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 1578.4,
+      "history_depth": 10
     },
     {
       "id": "T24",
@@ -414,8 +500,10 @@
         "reliability": "RELIABLE",
         "transport_priority": "LOW"
       },
-      "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "frequency": 25.0,
+      "criticality": "LOW",
+      "deadline_ms": null,
+      "history_depth": 10
     },
     {
       "id": "T25",
@@ -424,10 +512,13 @@
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 44.3
       },
-      "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "frequency": 50.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 44.3,
+      "history_depth": 10
     },
     {
       "id": "T26",
@@ -438,8 +529,10 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 25.0,
-      "criticality": "LOW"
+      "frequency": 1.0,
+      "criticality": "LOW",
+      "deadline_ms": null,
+      "history_depth": 10
     },
     {
       "id": "T27",
@@ -448,10 +541,13 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 2016.6
       },
-      "frequency": 50.0,
-      "criticality": "MEDIUM"
+      "frequency": 1.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 2016.6,
+      "history_depth": 10
     },
     {
       "id": "T28",
@@ -460,10 +556,14 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "LOW"
+        "transport_priority": "LOW",
+        "deadline_ms": 233.0,
+        "history_depth": 20
       },
-      "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "frequency": 10.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 233.0,
+      "history_depth": 20
     },
     {
       "id": "T29",
@@ -472,10 +572,14 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 182.1,
+        "history_depth": 20
       },
-      "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "frequency": 10.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 182.1,
+      "history_depth": 20
     },
     {
       "id": "T30",
@@ -484,10 +588,13 @@
       "qos": {
         "durability": "VOLATILE",
         "reliability": "RELIABLE",
-        "transport_priority": "LOW"
+        "transport_priority": "LOW",
+        "history_depth": 5
       },
-      "frequency": 1.0,
-      "criticality": "LOW"
+      "frequency": 10.0,
+      "criticality": "LOW",
+      "deadline_ms": null,
+      "history_depth": 5
     },
     {
       "id": "T31",
@@ -498,8 +605,10 @@
         "reliability": "RELIABLE",
         "transport_priority": "MEDIUM"
       },
-      "frequency": 25.0,
-      "criticality": "MEDIUM"
+      "frequency": 1.0,
+      "criticality": "LOW",
+      "deadline_ms": null,
+      "history_depth": 10
     },
     {
       "id": "T32",
@@ -508,10 +617,13 @@
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "RELIABLE",
-        "transport_priority": "LOW"
+        "transport_priority": "LOW",
+        "deadline_ms": 282.9
       },
-      "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "frequency": 10.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 282.9,
+      "history_depth": 10
     },
     {
       "id": "T33",
@@ -520,10 +632,14 @@
       "qos": {
         "durability": "VOLATILE",
         "reliability": "RELIABLE",
-        "transport_priority": "CRITICAL"
+        "transport_priority": "CRITICAL",
+        "deadline_ms": 1922.3,
+        "history_depth": 20
       },
       "frequency": 1.0,
-      "criticality": "LOW"
+      "criticality": "MEDIUM",
+      "deadline_ms": 1922.3,
+      "history_depth": 20
     },
     {
       "id": "T34",
@@ -532,10 +648,14 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "CRITICAL"
+        "transport_priority": "CRITICAL",
+        "deadline_ms": 31.2,
+        "history_depth": 20
       },
       "frequency": 50.0,
-      "criticality": "HIGH"
+      "criticality": "MEDIUM",
+      "deadline_ms": 31.2,
+      "history_depth": 20
     },
     {
       "id": "T35",
@@ -544,10 +664,14 @@
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
-        "transport_priority": "HIGH"
+        "transport_priority": "HIGH",
+        "deadline_ms": 101.4,
+        "history_depth": 100
       },
-      "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "frequency": 10.0,
+      "criticality": "HIGH",
+      "deadline_ms": 101.4,
+      "history_depth": 100
     },
     {
       "id": "T36",
@@ -556,10 +680,14 @@
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
-        "transport_priority": "HIGH"
+        "transport_priority": "HIGH",
+        "deadline_ms": 59.5,
+        "history_depth": 100
       },
-      "frequency": 10.0,
-      "criticality": "HIGH"
+      "frequency": 25.0,
+      "criticality": "HIGH",
+      "deadline_ms": 59.5,
+      "history_depth": 100
     },
     {
       "id": "T37",
@@ -568,10 +696,14 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "BEST_EFFORT",
-        "transport_priority": "HIGH"
+        "transport_priority": "HIGH",
+        "deadline_ms": 2554.2,
+        "history_depth": 20
       },
       "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "criticality": "MEDIUM",
+      "deadline_ms": 2554.2,
+      "history_depth": 20
     },
     {
       "id": "T38",
@@ -580,10 +712,13 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "HIGH"
+        "transport_priority": "HIGH",
+        "deadline_ms": 1904.5
       },
       "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "criticality": "MEDIUM",
+      "deadline_ms": 1904.5,
+      "history_depth": 10
     },
     {
       "id": "T39",
@@ -592,10 +727,13 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "BEST_EFFORT",
-        "transport_priority": "HIGH"
+        "transport_priority": "HIGH",
+        "deadline_ms": 199.6
       },
-      "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "frequency": 10.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 199.6,
+      "history_depth": 10
     },
     {
       "id": "T40",
@@ -604,10 +742,13 @@
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "BEST_EFFORT",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 1695.3
       },
       "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "criticality": "MEDIUM",
+      "deadline_ms": 1695.3,
+      "history_depth": 10
     },
     {
       "id": "T41",
@@ -616,10 +757,13 @@
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
-        "transport_priority": "HIGH"
+        "transport_priority": "HIGH",
+        "deadline_ms": 10.7
       },
-      "frequency": 1.0,
-      "criticality": "HIGH"
+      "frequency": 100.0,
+      "criticality": "HIGH",
+      "deadline_ms": 10.7,
+      "history_depth": 10
     },
     {
       "id": "T42",
@@ -628,10 +772,14 @@
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 1974.8,
+        "history_depth": 20
       },
-      "frequency": 100.0,
-      "criticality": "MEDIUM"
+      "frequency": 1.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 1974.8,
+      "history_depth": 20
     },
     {
       "id": "T43",
@@ -640,10 +788,14 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "LOW"
+        "transport_priority": "LOW",
+        "deadline_ms": 78.3,
+        "history_depth": 20
       },
-      "frequency": 1.0,
-      "criticality": "MEDIUM"
+      "frequency": 25.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 78.3,
+      "history_depth": 20
     },
     {
       "id": "T44",
@@ -652,10 +804,14 @@
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 1253.6,
+        "history_depth": 50
       },
       "frequency": 1.0,
-      "criticality": "HIGH"
+      "criticality": "HIGH",
+      "deadline_ms": 1253.6,
+      "history_depth": 50
     },
     {
       "id": "T45",
@@ -664,10 +820,14 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "HIGH"
+        "transport_priority": "HIGH",
+        "deadline_ms": 2190.2,
+        "history_depth": 20
       },
-      "frequency": 50.0,
-      "criticality": "MEDIUM"
+      "frequency": 1.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 2190.2,
+      "history_depth": 20
     },
     {
       "id": "T46",
@@ -676,10 +836,14 @@
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 82.6,
+        "history_depth": 20
       },
-      "frequency": 100.0,
-      "criticality": "MEDIUM"
+      "frequency": 25.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 82.6,
+      "history_depth": 20
     },
     {
       "id": "T47",
@@ -688,10 +852,14 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 68.9,
+        "history_depth": 20
       },
-      "frequency": 10.0,
-      "criticality": "LOW"
+      "frequency": 25.0,
+      "criticality": "MEDIUM",
+      "deadline_ms": 68.9,
+      "history_depth": 20
     },
     {
       "id": "T48",
@@ -700,10 +868,14 @@
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 196.2,
+        "history_depth": 20
       },
       "frequency": 10.0,
-      "criticality": "MEDIUM"
+      "criticality": "MEDIUM",
+      "deadline_ms": 196.2,
+      "history_depth": 20
     },
     {
       "id": "T49",
@@ -712,10 +884,13 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "BEST_EFFORT",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 2084.9
       },
       "frequency": 1.0,
-      "criticality": "LOW"
+      "criticality": "MEDIUM",
+      "deadline_ms": 2084.9,
+      "history_depth": 10
     }
   ],
   "applications": [
@@ -1270,7 +1445,7 @@
         "Operative"
       ],
       "criticality": "MEDIUM",
-      "hotstandby": false,
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Infrastructure Software",
@@ -1677,7 +1852,7 @@
         "Supervisor"
       ],
       "criticality": "MEDIUM",
-      "hotstandby": true,
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Infrastructure Software",
@@ -2348,8 +2523,8 @@
         "Administrator",
         "Analyst"
       ],
-      "criticality": "HIGH",
-      "hotstandby": true,
+      "criticality": "MEDIUM",
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Application Software",
@@ -2482,8 +2657,8 @@
       "role": [
         "Operative"
       ],
-      "criticality": "HIGH",
-      "hotstandby": true,
+      "criticality": "MEDIUM",
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Information Systems",
         "csci_name": "Systems Engineering",
@@ -2757,7 +2932,7 @@
         "Operative"
       ],
       "criticality": "MEDIUM",
-      "hotstandby": true,
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
         "csci_name": "Application Software",
@@ -2802,7 +2977,7 @@
         "Supervisor"
       ],
       "criticality": "MEDIUM",
-      "hotstandby": true,
+      "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Application Software",
@@ -3481,7 +3656,7 @@
         "Engineer"
       ],
       "criticality": "MEDIUM",
-      "hotstandby": false,
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Computer Science",
         "csci_name": "Systems Engineering",
@@ -4068,8 +4243,8 @@
         "Engineer",
         "Supervisor"
       ],
-      "criticality": "MEDIUM",
-      "hotstandby": false,
+      "criticality": "HIGH",
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Software Engineering",
@@ -4202,7 +4377,7 @@
         "Operative",
         "Supervisor"
       ],
-      "criticality": "MEDIUM",
+      "criticality": "LOW",
       "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Computer Science",
@@ -4519,7 +4694,7 @@
         "Analyst",
         "Engineer"
       ],
-      "criticality": "LOW",
+      "criticality": "MEDIUM",
       "hotstandby": false,
       "system_hierarchy": {
         "csc_name": "Information Systems",
@@ -4696,8 +4871,8 @@
       "role": [
         "Administrator"
       ],
-      "criticality": "MEDIUM",
-      "hotstandby": false,
+      "criticality": "HIGH",
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Software Systems",
         "csci_name": "Software Engineering",
@@ -5283,7 +5458,7 @@
         "Supervisor"
       ],
       "criticality": "MEDIUM",
-      "hotstandby": false,
+      "hotstandby": true,
       "system_hierarchy": {
         "csc_name": "Computing Platform",
         "csci_name": "Software Engineering",
@@ -6533,6 +6708,10 @@
         "to": "N8"
       },
       {
+        "from": "A12",
+        "to": "N11"
+      },
+      {
         "from": "A13",
         "to": "N16"
       },
@@ -6546,7 +6725,7 @@
       },
       {
         "from": "A15",
-        "to": "N11"
+        "to": "N10"
       },
       {
         "from": "A16",
@@ -6554,7 +6733,7 @@
       },
       {
         "from": "A16",
-        "to": "N9"
+        "to": "N7"
       },
       {
         "from": "A17",
@@ -6574,15 +6753,11 @@
       },
       {
         "from": "A20",
-        "to": "N7"
-      },
-      {
-        "from": "A21",
-        "to": "N7"
-      },
-      {
-        "from": "A21",
         "to": "N17"
+      },
+      {
+        "from": "A21",
+        "to": "N7"
       },
       {
         "from": "A22",
@@ -6657,10 +6832,6 @@
         "to": "N9"
       },
       {
-        "from": "A36",
-        "to": "N7"
-      },
-      {
         "from": "A37",
         "to": "N6"
       },
@@ -6673,16 +6844,12 @@
         "to": "N1"
       },
       {
-        "from": "A39",
-        "to": "N11"
-      },
-      {
         "from": "A40",
         "to": "N8"
       },
       {
         "from": "A40",
-        "to": "N17"
+        "to": "N7"
       },
       {
         "from": "A41",
@@ -6705,16 +6872,8 @@
         "to": "N5"
       },
       {
-        "from": "A45",
-        "to": "N9"
-      },
-      {
         "from": "A46",
         "to": "N0"
-      },
-      {
-        "from": "A46",
-        "to": "N11"
       },
       {
         "from": "A47",
@@ -6730,7 +6889,7 @@
       },
       {
         "from": "A49",
-        "to": "N6"
+        "to": "N11"
       },
       {
         "from": "A50",
@@ -6758,7 +6917,7 @@
       },
       {
         "from": "A55",
-        "to": "N13"
+        "to": "N17"
       },
       {
         "from": "A56",
@@ -6770,7 +6929,7 @@
       },
       {
         "from": "A57",
-        "to": "N11"
+        "to": "N9"
       },
       {
         "from": "A58",
@@ -6787,6 +6946,10 @@
       {
         "from": "A61",
         "to": "N8"
+      },
+      {
+        "from": "A61",
+        "to": "N11"
       },
       {
         "from": "A62",
@@ -6806,7 +6969,7 @@
       },
       {
         "from": "A65",
-        "to": "N0"
+        "to": "N7"
       },
       {
         "from": "A66",
@@ -6818,7 +6981,7 @@
       },
       {
         "from": "A67",
-        "to": "N17"
+        "to": "N13"
       },
       {
         "from": "A68",
@@ -6846,11 +7009,15 @@
       },
       {
         "from": "A73",
-        "to": "N14"
+        "to": "N11"
       },
       {
         "from": "A74",
         "to": "N6"
+      },
+      {
+        "from": "A74",
+        "to": "N0"
       },
       {
         "from": "A75",
@@ -6874,7 +7041,7 @@
       },
       {
         "from": "A78",
-        "to": "N7"
+        "to": "N14"
       },
       {
         "from": "A79",
@@ -6918,11 +7085,15 @@
       },
       {
         "from": "A87",
-        "to": "N5"
+        "to": "N7"
       },
       {
         "from": "A88",
         "to": "N8"
+      },
+      {
+        "from": "A88",
+        "to": "N17"
       },
       {
         "from": "A89",
@@ -6934,7 +7105,7 @@
       },
       {
         "from": "A90",
-        "to": "N4"
+        "to": "N6"
       },
       {
         "from": "A91",
@@ -6954,7 +7125,7 @@
       },
       {
         "from": "A94",
-        "to": "N16"
+        "to": "N4"
       },
       {
         "from": "A95",
@@ -6970,7 +7141,7 @@
       },
       {
         "from": "A97",
-        "to": "N10"
+        "to": "N16"
       },
       {
         "from": "A98",
@@ -6982,7 +7153,7 @@
       },
       {
         "from": "A99",
-        "to": "N3"
+        "to": "N10"
       },
       {
         "from": "A100",
@@ -6991,6 +7162,10 @@
       {
         "from": "A101",
         "to": "N1"
+      },
+      {
+        "from": "A101",
+        "to": "N4"
       },
       {
         "from": "A102",

@@ -204,6 +204,7 @@ class TopicFlowStats:
     reliability_policy: str             # RELIABLE | BEST_EFFORT
     deadline_ms: Optional[float]        # None means no deadline enforced
     durability_policy: str              # VOLATILE | TRANSIENT_LOCAL
+    history_depth: int = 10
 
     total_published: int = 0            # Messages injected by all publishers
     total_delivered: int = 0            # Messages received by ≥1 subscriber
@@ -240,6 +241,7 @@ class TopicFlowStats:
             "reliability_policy": self.reliability_policy,
             "deadline_ms": self.deadline_ms,
             "durability_policy": self.durability_policy,
+            "history_depth": self.history_depth,
             "total_published": self.total_published,
             "total_delivered": self.total_delivered,
             "total_dropped_queue_full": self.total_dropped_queue_full,

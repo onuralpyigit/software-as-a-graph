@@ -140,3 +140,34 @@ def test_cqp_formula_weights_v7():
     assert m2.code_quality_penalty == pytest.approx(0.85)
     # Check app1 score: 0.10*0.0 + 0.35*0.0 + 0.30*0.5 + 0.25*0.0 = 0.15
     assert m1.code_quality_penalty == pytest.approx(0.15)
+
+
+def test_topic_serialization_deadline_and_history():
+    """Verify Topic flattening and reconstruction preserves deadline_ms and history_depth."""
+    comp = {
+        "id": "T1",
+        "name": "sensor.imu",
+        "size": 512,
+        "qos": {
+            "reliability": "RELIABLE",
+            "durability": "TRANSIENT_LOCAL",
+            "transport_priority": "HIGH",
+            "deadline_ms": 20.0,
+            "history_depth": 50,
+        },
+        "frequency": 50.0,
+        "criticality": "HIGH",
+        "deadline_ms": 20.0,
+        "history_depth": 50,
+    }
+    flat = serialization.flatten_component(comp, "Topic")
+    assert flat["deadline_ms"] == 20.0
+    assert flat["qos_deadline_ms"] == 20.0
+    assert flat["history_depth"] == 50
+    assert flat["qos_history_depth"] == 50
+
+    reconstructed = serialization._reconstruct_topic(flat)
+    assert reconstructed["deadline_ms"] == 20.0
+    assert reconstructed["history_depth"] == 50
+    assert reconstructed["qos"]["deadline_ms"] == 20.0
+    assert reconstructed["qos"]["history_depth"] == 50

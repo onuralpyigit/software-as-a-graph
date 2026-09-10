@@ -198,6 +198,8 @@ class QosStats:
     qos_durability_distribution: Optional[CategoricalDistribution] = None
     qos_reliability_distribution: Optional[CategoricalDistribution] = None
     qos_transport_priority_distribution: Optional[CategoricalDistribution] = None
+    deadline_ms_distribution: Optional[CategoricalDistribution] = None
+    history_depth_distribution: Optional[CategoricalDistribution] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "QosStats":
@@ -211,6 +213,12 @@ class QosStats:
             qos_transport_priority_distribution=CategoricalDistribution.from_dict(
                 data["qos_transport_priority_distribution"]
             ) if "qos_transport_priority_distribution" in data else None,
+            deadline_ms_distribution=CategoricalDistribution.from_dict(
+                data["deadline_ms_distribution"]
+            ) if "deadline_ms_distribution" in data else None,
+            history_depth_distribution=CategoricalDistribution.from_dict(
+                data["history_depth_distribution"]
+            ) if "history_depth_distribution" in data else None,
         )
 
 

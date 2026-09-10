@@ -132,13 +132,29 @@ def _extract_qos(data: Dict[str, Any], default_queue: int = 100) -> QoSProfile:
     has_reliability = bool(data.get("qos_reliability") or qos_raw.get("reliability"))
     has_durability = bool(data.get("qos_durability") or qos_raw.get("durability"))
 
+    deadline = (
+        data.get("deadline_ms")
+        or data.get("qos_deadline_ms")
+        or qos_raw.get("deadline_ms")
+        or qos_raw.get("deadline")
+        or declared.deadline_ms
+    )
+    history = (
+        data.get("history_depth")
+        or data.get("qos_history_depth")
+        or qos_raw.get("history_depth")
+        or declared.history_depth
+    )
+    hist_depth = int(history) if history is not None else 10
+    q_size = int(data.get("queue_size") or qos_raw.get("queue_size") or default_queue)
+
     return QoSProfile(
         reliability=declared.reliability if has_reliability else "RELIABLE",
         durability=declared.durability if has_durability else "VOLATILE",
-        deadline_ms=qos_raw.get("deadline_ms") or qos_raw.get("deadline"),
+        deadline_ms=float(deadline) if deadline is not None else None,
         lifespan_ms=qos_raw.get("lifespan_ms"),
-        queue_size=int(qos_raw.get("queue_size", default_queue)),
-        history_depth=int(qos_raw.get("history_depth", 10)),
+        queue_size=q_size,
+        history_depth=hist_depth,
     )
 
 
@@ -518,6 +534,7 @@ class MessageFlowSimulator:
                 reliability_policy=qos.reliability,
                 deadline_ms=qos.deadline_ms,
                 durability_policy=qos.durability,
+                history_depth=qos.history_depth,
             )
         return topic_qos, topic_stats
 

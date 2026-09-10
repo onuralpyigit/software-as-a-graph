@@ -369,6 +369,8 @@ class TopicInfoModel(BaseModel):
     size: int = 0
     frequency: Optional[float] = None
     criticality: Optional[str] = None
+    deadline_ms: Optional[float] = None
+    history_depth: Optional[int] = 10
 
 
 class TopicsListResponse(BaseModel):

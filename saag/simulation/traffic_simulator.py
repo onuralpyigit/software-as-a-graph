@@ -132,7 +132,9 @@ class TrafficSimulator:
                         t.qos_transport_priority   AS qos_transport_priority,
                         COALESCE(t.size, 0)        AS size,
                         COALESCE(t.topic_frequency, 10.0) AS frequency,
-                        t.criticality              AS criticality
+                        t.criticality              AS criticality,
+                        COALESCE(t.deadline_ms, t.qos_deadline_ms) AS deadline_ms,
+                        COALESCE(t.history_depth, t.qos_history_depth, 10) AS history_depth
                     ORDER BY t.id
                     """
                 )
@@ -153,6 +155,8 @@ class TrafficSimulator:
                             "size": int(rec["size"]),
                             "frequency": float(rec["frequency"]),
                             "criticality": rec["criticality"],
+                            "deadline_ms": float(rec["deadline_ms"]) if rec["deadline_ms"] is not None else None,
+                            "history_depth": int(rec["history_depth"]) if rec["history_depth"] is not None else 10,
                         }
                     )
                 return topics

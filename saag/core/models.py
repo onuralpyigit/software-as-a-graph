@@ -312,13 +312,20 @@ class QoSPolicy:
     durability: str = "VOLATILE"
     reliability: str = "BEST_EFFORT"
     transport_priority: str = "MEDIUM"
+    deadline_ms: Optional[float] = None
+    history_depth: int = 10
 
-    def to_dict(self) -> Dict[str, str]:
-        return {
+    def to_dict(self) -> Dict[str, Any]:
+        res: Dict[str, Any] = {
             "durability": self.durability,
             "reliability": self.reliability,
             "transport_priority": self.transport_priority,
         }
+        if self.deadline_ms is not None:
+            res["deadline_ms"] = self.deadline_ms
+        if self.history_depth != 10:
+            res["history_depth"] = self.history_depth
+        return res
 
     @staticmethod
     def _canon(value: Any, default: str) -> str:
@@ -334,10 +341,14 @@ class QoSPolicy:
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "QoSPolicy":
+        deadline = data.get("deadline_ms") if data.get("deadline_ms") is not None else data.get("deadline")
+        history = data.get("history_depth")
         return QoSPolicy(
             durability=QoSPolicy._canon(data.get("durability"), "VOLATILE"),
             reliability=QoSPolicy._canon(data.get("reliability"), "BEST_EFFORT"),
             transport_priority=QoSPolicy._canon(data.get("transport_priority"), "MEDIUM"),
+            deadline_ms=float(deadline) if deadline is not None else None,
+            history_depth=int(history) if history is not None else 10,
         )
 
     @staticmethod
@@ -357,6 +368,28 @@ class QoSPolicy:
         ``qos_priority`` is accepted as a legacy alias for the priority key.
         """
         nested = attrs.get("qos") or attrs.get("qos_policy") or {}
+        deadline = (
+            attrs.get("deadline_ms")
+            if attrs.get("deadline_ms") is not None
+            else (
+                attrs.get("qos_deadline_ms")
+                if attrs.get("qos_deadline_ms") is not None
+                else (
+                    nested.get("deadline_ms")
+                    if nested.get("deadline_ms") is not None
+                    else nested.get("deadline")
+                )
+            )
+        )
+        history = (
+            attrs.get("history_depth")
+            if attrs.get("history_depth") is not None
+            else (
+                attrs.get("qos_history_depth")
+                if attrs.get("qos_history_depth") is not None
+                else nested.get("history_depth")
+            )
+        )
         return QoSPolicy(
             durability=QoSPolicy._canon(
                 attrs.get("qos_durability") or nested.get("durability"), "VOLATILE"
@@ -371,6 +404,8 @@ class QoSPolicy:
                 or nested.get("priority"),
                 "MEDIUM",
             ),
+            deadline_ms=float(deadline) if deadline is not None else None,
+            history_depth=int(history) if history is not None else 10,
         )
 
     def calculate_weight(self) -> float:
@@ -537,6 +572,8 @@ class Topic(GraphEntity):
     # Optional generator-supplied overrides.  ``None`` triggers QoS-derived fallback.
     frequency: Optional[float] = field(default=None)
     criticality: Optional[str] = field(default=None)
+    deadline_ms: Optional[float] = field(default=None)
+    history_depth: int = 10
 
     def __post_init__(self) -> None:
         # Enforce size is a power of 2
@@ -584,6 +621,33 @@ class Topic(GraphEntity):
             else:
                 self.criticality = "MEDIUM"
 
+        # --- history_depth -----------------------------------------------
+        if self.history_depth is not None:
+            try:
+                self.history_depth = max(1, int(self.history_depth))
+            except (ValueError, TypeError):
+                self.history_depth = 10
+        else:
+            self.history_depth = 10
+
+        # --- deadline_ms -------------------------------------------------
+        if self.deadline_ms is not None:
+            try:
+                self.deadline_ms = max(0.001, float(self.deadline_ms))
+            except (ValueError, TypeError):
+                self.deadline_ms = None
+
+        # Bidirectional sync between Topic and QoSPolicy attributes
+        if self.deadline_ms is None and getattr(self.qos, "deadline_ms", None) is not None:
+            self.deadline_ms = float(self.qos.deadline_ms)
+        elif self.deadline_ms is not None and getattr(self.qos, "deadline_ms", None) is None:
+            self.qos.deadline_ms = self.deadline_ms
+
+        if self.history_depth == 10 and getattr(self.qos, "history_depth", 10) != 10:
+            self.history_depth = int(self.qos.history_depth)
+        elif self.history_depth != 10 and getattr(self.qos, "history_depth", 10) == 10:
+            self.qos.history_depth = self.history_depth
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
@@ -592,6 +656,8 @@ class Topic(GraphEntity):
             "qos": self.qos.to_dict(),
             "frequency": self.frequency,
             "criticality": self.criticality,
+            "deadline_ms": self.deadline_ms,
+            "history_depth": self.history_depth,
         }
     
     def calculate_weight(self) -> float:

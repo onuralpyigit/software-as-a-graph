@@ -82,6 +82,20 @@ class TestQoSPolicy:
         assert policy.reliability == "RELIABLE"
         assert policy.durability == "TRANSIENT"
         assert policy.transport_priority == "MEDIUM"  # default
+        assert policy.deadline_ms is None
+        assert policy.history_depth == 10
+
+    def test_deadline_and_history_depth(self):
+        p1 = QoSPolicy.from_dict({"deadline_ms": 50.0, "history_depth": 20})
+        assert p1.deadline_ms == 50.0
+        assert p1.history_depth == 20
+        d1 = p1.to_dict()
+        assert d1["deadline_ms"] == 50.0
+        assert d1["history_depth"] == 20
+
+        p2 = QoSPolicy.from_node_attrs({"qos_deadline_ms": 100.0, "qos_history_depth": 5})
+        assert p2.deadline_ms == 100.0
+        assert p2.history_depth == 5
 
 
 # =========================================================================
@@ -245,6 +259,19 @@ class TestEntities:
         d = topic.to_dict()
         assert d["size"] == 8192
         assert "qos" in d
+        assert "deadline_ms" in d
+        assert "history_depth" in d
+        assert d["history_depth"] == 10
+
+    def test_topic_deadline_and_history_depth(self):
+        topic = Topic(id="T2", name="/control/cmd", size=512, deadline_ms=25.0, history_depth=50)
+        assert topic.deadline_ms == 25.0
+        assert topic.history_depth == 50
+        assert topic.qos.deadline_ms == 25.0
+        assert topic.qos.history_depth == 50
+        d = topic.to_dict()
+        assert d["deadline_ms"] == 25.0
+        assert d["history_depth"] == 50
 
 
 # =========================================================================

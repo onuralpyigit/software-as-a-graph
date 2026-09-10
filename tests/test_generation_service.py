@@ -31,7 +31,7 @@ def _canonical_sha256(data: dict) -> str:
 
 _SCENARIO_08_YAML = project_root / "data" / "scenarios" / "scenario_08_tiny_regression.yaml"
 
-_GOLDEN_SHA256 = "1a5ae0bfb50571dabb2598ee4b81fcf3aba027611a149d243d16c5b5666efd8b"
+_GOLDEN_SHA256 = "888f3c5bceb1c694fc95a5a0da406b60025974c289b7d312ee1e9de04cc6e65a"
 
 _GOLDEN_ENTITY_COUNTS = {
     "nodes": 3,
@@ -235,8 +235,11 @@ class TestTopicDerivedFields:
         d = t.to_dict()
         assert "frequency" in d, "to_dict() missing 'frequency'"
         assert "criticality" in d, "to_dict() missing 'criticality'"
+        assert "deadline_ms" in d, "to_dict() missing 'deadline_ms'"
+        assert "history_depth" in d, "to_dict() missing 'history_depth'"
         assert isinstance(d["frequency"], (int, float))
         assert d["criticality"] in {"HIGH", "MEDIUM", "LOW"}
+        assert d["history_depth"] == 10
 
     def test_generated_topics_have_derived_fields(self):
         gen = GenerationService(scale="tiny", seed=7)
@@ -244,11 +247,15 @@ class TestTopicDerivedFields:
         for topic in data["topics"]:
             assert "frequency" in topic, f"Topic {topic.get('id')!r} missing 'frequency'"
             assert "criticality" in topic, f"Topic {topic.get('id')!r} missing 'criticality'"
+            assert "history_depth" in topic, f"Topic {topic.get('id')!r} missing 'history_depth'"
             assert topic["criticality"] in {"HIGH", "MEDIUM", "LOW"}, (
                 f"Topic {topic.get('id')!r}: invalid criticality {topic['criticality']!r}"
             )
             assert isinstance(topic["frequency"], (int, float))
             assert topic["frequency"] > 0.0
+            assert topic["history_depth"] in {1, 5, 10, 20, 50, 100}
+            if topic.get("deadline_ms") is not None:
+                assert topic["deadline_ms"] > 0.0
 
     def test_generated_apps_have_derived_fields(self):
         gen = GenerationService(scale="tiny", seed=7)

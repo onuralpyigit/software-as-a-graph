@@ -334,8 +334,12 @@ def _extract_qos_edge_features(
     ).upper()
     priority = _PRIORITY_SCORE.get(priority_key, 0.33)
 
-    # Deadline handling: raw nanoseconds → log10-scaled ms, clamped
-    deadline_ns = float(qp.get("deadline_ns", qp.get("deadline", 0)) or 0)
+    # Deadline handling: ms or raw nanoseconds → log10-scaled ms, clamped
+    raw_deadline_ms = qp.get("deadline_ms")
+    if raw_deadline_ms is not None and float(raw_deadline_ms) > 0:
+        deadline_ns = float(raw_deadline_ms) * 1e6
+    else:
+        deadline_ns = float(qp.get("deadline_ns", qp.get("deadline", 0)) or 0)
     has_deadline = 1.0 if deadline_ns > 0 else 0.0
     deadline_log = math.log10(1.0 + deadline_ns / 1e6) if deadline_ns > 0 else 0.0
     deadline_log = min(deadline_log, 10.0) / 10.0  # normalise to [0,1]

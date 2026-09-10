@@ -114,6 +114,8 @@ class TopicInfo:
     qos_durability: str = "VOLATILE"      # VOLATILE, TRANSIENT, PERSISTENT
     qos_priority: str = "LOW"             # LOW, MEDIUM, HIGH, URGENT
     weight: float = 1.0
+    deadline_ms: Optional[float] = None
+    history_depth: int = 10
     
     @property
     def requires_ack(self) -> bool:
