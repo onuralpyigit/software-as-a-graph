@@ -522,14 +522,14 @@ def print_id_metrics_console(data: Dict):
             acc  = st.get("mean_accuracy")
             rmse = st.get("mean_rmse")
             mae  = st.get("mean_mae")
-            ndcg = st.get("mean_ndcg_10", 0.0)
+            ndcg = st.get("mean_ndcg_10")
             cal  = st.get("calibration",  "rank_matched")
             marker = "" if cal == "rank_matched" else ("‡" if "degenerate" in cal else ("†" if cal == "fixed" else "?"))
             f1_s = f"{f1:.3f}" if f1 is not None else "NaN"
 
             print(f"  {label:<25} {_VARIANT_LABELS_PLAIN.get(v, v):<15} "
                   f"{(rho or 0.0):<8.3f} {f1_s+marker:<10} "
-                  f"{(acc or 0.0):<8.3f} {(rmse or 0.0):<8.3f} {(mae or 0.0):<8.3f} {ndcg:<8.3f} {cal}")
+                  f"{(acc or 0.0):<8.3f} {(rmse or 0.0):<8.3f} {(mae or 0.0):<8.3f} {(ndcg or 0.0):<8.3f} {cal}")
             label = ""
         print("")
 
