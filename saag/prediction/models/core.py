@@ -24,7 +24,11 @@ logger = logging.getLogger(__name__)
 
 # ── GNN Support Classes ─────────────────────────────────────────────────────────
 
+_hgtconv_patched = False
+
+
 def _require_pyg():
+    global _hgtconv_patched
     try:
         import torch_geometric  # noqa: F401
     except ImportError as exc:
@@ -32,6 +36,56 @@ def _require_pyg():
             "PyTorch Geometric is required for GNN functionality.\n"
             "Install with:  pip install torch-geometric"
         ) from exc
+    if not _hgtconv_patched:
+        _patch_hgtconv_device_bug()
+        _hgtconv_patched = True
+
+
+def _patch_hgtconv_device_bug():
+    """Work around an upstream HGTConv device bug, still present through at least
+    torch-geometric 2.8.0.post1 (checked directly against that wheel's source).
+    `HGTConv._construct_src_node_feat` builds its per-relation type index with
+    `torch.arange(H, dtype=torch.long)` — no `device=` — so on any CUDA run that
+    CPU-resident index gets passed into `HeteroLinear`, which raises "indices
+    should be either on cpu or on the same device as the indexed tensor". Invisible
+    on a CPU-only dev machine since everything already matches there; reproduces on
+    every GPU run (e.g. Colab) for the `hgl`/`hgl_qos` variants, the only ones using
+    HGTConv. This reimplements the method with the missing `device=` added — no
+    other behavior change.
+    """
+    from torch_geometric.nn import HGTConv
+
+    def _construct_src_node_feat(self, k_dict, v_dict, edge_index_dict):
+        cumsum = 0
+        num_edge_types = len(self.edge_types)
+        H, D = self.heads, self.out_channels // self.heads
+
+        ks, vs, type_list = [], [], []
+        offset = {}
+        for edge_type in edge_index_dict.keys():
+            src = edge_type[0]
+            N = k_dict[src].size(0)
+            offset[edge_type] = cumsum
+            cumsum += N
+
+            edge_type_offset = self.edge_types_map[edge_type]
+            type_vec = torch.arange(
+                H, dtype=torch.long, device=k_dict[src].device
+            ).view(-1, 1).repeat(1, N) * num_edge_types + edge_type_offset
+
+            type_list.append(type_vec)
+            ks.append(k_dict[src])
+            vs.append(v_dict[src])
+
+        ks = torch.cat(ks, dim=0).transpose(0, 1).reshape(-1, D)
+        vs = torch.cat(vs, dim=0).transpose(0, 1).reshape(-1, D)
+        type_vec = torch.cat(type_list, dim=1).flatten()
+
+        k = self.k_rel(ks, type_vec).view(H, -1, D).transpose(0, 1)
+        v = self.v_rel(vs, type_vec).view(H, -1, D).transpose(0, 1)
+        return k, v, offset
+
+    HGTConv._construct_src_node_feat = _construct_src_node_feat
 
 
 NODE_TYPES: List[str] = ["Application", "Broker", "Topic", "Node", "Library"]
