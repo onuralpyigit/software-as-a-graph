@@ -394,6 +394,23 @@ def _run_message_flow(args: argparse.Namespace) -> None:
     _write_message_flow_text_summary(result, elapsed, output_dir)
 
 
+def _operating_point(result) -> Optional[str]:
+    """Requested vs realised utilization, or None for an uncalibrated run.
+
+    A `target_utilization` unaccompanied by the measured busy fraction is a
+    requested number, not a measured one; the two belong in the same line so a
+    reader can check them against each other without reopening the JSON.
+    """
+    if result.target_utilization is None:
+        return None
+    measured = list(result.measured_utilization.values())
+    realised = (
+        f"{sum(measured) / len(measured):.3f} measured (n={len(measured)})"
+        if measured else "not measured"
+    )
+    return f"{result.target_utilization:.2f} target / {realised}"
+
+
 def _print_message_flow_summary(result, elapsed: float) -> None:
     print()
     print("=" * 70)
@@ -407,6 +424,10 @@ def _print_message_flow_summary(result, elapsed: float) -> None:
     print(f"  System drop rate      : {result.system_drop_rate:.4f}")
     print(f"  Deadline violations   : {result.total_deadline_violations:,}")
     print(f"  Queue overflows       : {result.total_queue_overflows:,}")
+    print(f"  QoS mode              : {result.qos_mode}")
+    _op = _operating_point(result)
+    if _op:
+        print(f"  Utilization           : {_op}")
     print(f"  Elapsed (wall)        : {elapsed:.2f}s")
 
     if result.fault_event:
@@ -443,6 +464,10 @@ def _write_message_flow_text_summary(result, elapsed: float, output_dir: Path) -
     lines.append(f"System delivery    : {result.system_delivery_rate:.4f}")
     lines.append(f"Deadline violations: {result.total_deadline_violations:,}")
     lines.append(f"Queue overflows    : {result.total_queue_overflows:,}")
+    lines.append(f"QoS mode           : {result.qos_mode}")
+    _op = _operating_point(result)
+    if _op:
+        lines.append(f"Utilization        : {_op}")
     lines.append(f"Elapsed (wall)     : {elapsed:.2f}s")
     if result.fault_event:
         fe = result.fault_event

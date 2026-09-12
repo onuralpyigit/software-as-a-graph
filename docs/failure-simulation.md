@@ -324,8 +324,8 @@ While `MessageFlowSimulator` collects extensive runtime diagnostics—including 
    - $\Delta L_{p95}$ vs. $I_{\text{dyn}}$: $\rho = -0.499$ ($p = 0.069$)
    - $\text{LIF}$ vs. $I_{\text{dyn}}$: $\rho = -0.518$ ($p = 0.058$)
    - $\text{DVR} / \Delta\text{SLA}$ vs. $I_{\text{dyn}}$: $\rho = -0.418$ ($p = 0.137$)
-   - $\text{BDR}$ vs. $I_{\text{dyn}}$: $\rho = -0.242$ ($p = 0.405$)
-   - Jain's $J$ vs. $I_{\text{dyn}}$: $\rho = -0.301$ ($p = 0.296$)
+
+   Each of the three is recomputable from `FaultEventRecord` alone — `delta_latency_p95`, `latency_inflation_factor` and `delta_deadline_violations` respectively — so the sign of the effect can be re-derived from any saved run.
 
    An additive composite $I_{\text{dyn}}^{\text{comp}} = w_A \Delta\text{DR} + w_L \Delta L_{p95} + w_D \Delta\text{SLA} + \dots$ with positive weights would sum anti-correlated quantities, structurally cancelling the damage signal and reducing discriminative ranking accuracy.
 
@@ -333,7 +333,7 @@ While `MessageFlowSimulator` collects extensive runtime diagnostics—including 
    On low-rate scenarios ($\sim 1\text{--}10\text{ Hz}$), within-node seed noise ($\sigma_{\text{seed}} \approx 79.4\text{ ms}$) swamps across-node variation ($\sigma_{\text{across}} \approx 20.9\text{ ms}$), producing $\text{SNR} = 0.26$. On high-rate scenarios ($\sim 700\text{ Hz}$), $\text{SNR}$ reaches $2.68$, but resolves consistently negative deltas (contention relief). A metric whose SNR swings by an order of magnitude cannot serve as a cross-scenario ranking label.
 
 3. **Structural Neutralization of Saturation & Starvation**:
-   Subscriber-level calibration ($\rho = 0.65$) ensures bounded queues: Buffer Drop Rate ($\text{BDR}$) reflects flat baseline pressure ($0.0025$) even for unimpacted nodes. Subscriber Starvation Ratio ($\text{SSR}$) is identically $0.000$ and Jain's fairness index is saturated ($J \in [0.987, 0.999]$) corpus-wide.
+   Saturation- and starvation-flavoured metrics (buffer drop rates, starvation ratios, fairness indices) have no headroom to vary at the corpus operating point, because per-subscriber calibration bounds every queue by construction: sizing $E[S_s] = \rho / \Lambda_s$ at $\rho = 0.65$ (§5.4) holds each station below saturation whatever its offered load. A metric that is pinned near its floor by the experimental design cannot discriminate between components under it. `measured_utilization` on every result records where each station actually landed, so the claim is checkable per run rather than assumed — and it bounds the argument in the safe direction, since stations that undershoot $\rho$ are further from saturation still.
 
 **Conclusion**: $I_{\text{dyn}}$ remains strictly 1-dimensional (unweighted delivery rate loss), operating at $\text{SNR} = 1.46\text{--}95.8$. Secondary metrics are exposed in `FaultEventRecord` exclusively as per-scenario runtime diagnostics.
 
@@ -471,6 +471,12 @@ PYTHONPATH=. python cli/simulate_graph.py combined     --input data/scenarios/at
   "graph_id": "atm_system",
   "simulation_duration": 300.0,
   "system_delivery_rate": 0.9975,
+  "qos_mode": "full",
+  "target_utilization": 0.65,
+  "utilization_mode": "per_subscriber",
+  "service_distribution": "exponential",
+  "measured_utilization": {"ConflictDetector": 0.6478, "TrackDisplay": 0.6512},
+  "service_time_s": {"ConflictDetector": 0.0129, "TrackDisplay": 0.0093},
   "fault_event": {
     "fault_time": 150.0,
     "faulted_node_id": "ConflictDetector",

@@ -540,6 +540,14 @@ class MessageFlowResult:
             "total_messages_delivered": self.total_messages_delivered,
             "total_deadline_violations": self.total_deadline_violations,
             "total_queue_overflows": self.total_queue_overflows,
+            "qos_mode": self.qos_mode,
+            "target_utilization": self.target_utilization,
+            "utilization_mode": self.utilization_mode,
+            "service_distribution": self.service_distribution,
+            "measured_utilization": {
+                k: round(v, 4) for k, v in self.measured_utilization.items()
+            },
+            "service_time_s": self.service_time_s,
             "topic_stats": {tid: ts.to_dict() for tid, ts in self.topic_stats.items()},
             "subscriber_stats": {sid: ss.to_dict() for sid, ss in self.subscriber_stats.items()},
             "labeler": self.labeler,

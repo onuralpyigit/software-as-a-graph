@@ -12,6 +12,7 @@ The operating point is the load-bearing part: if `target_utilization` is not
 actually realised, every downstream number is derived from a requested value
 rather than a measured one.
 """
+import json
 import statistics
 
 import pytest
@@ -91,6 +92,31 @@ def test_calibration_is_off_without_a_target():
     result = _run(_fan_in(3), target_utilization=None)
     assert result.measured_utilization == {}
     assert result.target_utilization is None
+
+
+def test_operating_point_survives_serialization(tmp_path):
+    """The realised-vs-requested check has to be performable on a saved run.
+
+    `to_dict()` previously dropped every operating-point field, so a saved
+    result stated neither which QoS arm produced it nor whether the requested
+    utilization was ever reached — leaving the only recorded number the
+    requested one, which is what the field's own comment warns against.
+    """
+    result = _run(_fan_in(4), target_utilization=0.65)
+    path = tmp_path / "message_flow_results.json"
+    result.save(path)
+    raw = json.loads(path.read_text())
+
+    for key in ("qos_mode", "target_utilization", "utilization_mode",
+                "service_distribution", "measured_utilization", "service_time_s"):
+        assert key in raw, f"{key} never reached the artifact"
+
+    assert raw["target_utilization"] == pytest.approx(0.65)
+    assert raw["qos_mode"] == "full"
+    assert raw["measured_utilization"], "a calibrated run must record what it realised"
+    assert statistics.mean(raw["measured_utilization"].values()) == pytest.approx(
+        raw["target_utilization"], abs=0.05
+    )
 
 
 def test_legacy_mode_ignores_the_target():
