@@ -83,6 +83,7 @@ class EdgeFeatureEncoder(nn.Module):
         except ImportError:
             # Fallback: manual scatter via index_add
             def scatter_mean(src, index, dim, dim_size):
+                index = index.to(src.device)
                 out = torch.zeros(dim_size, src.size(1), device=src.device, dtype=src.dtype)
                 count = torch.zeros(dim_size, 1, device=src.device, dtype=src.dtype)
                 out.index_add_(0, index, src)
@@ -149,6 +150,7 @@ class TypedQoSEdgeFeatureEncoder(nn.Module):
             from torch_scatter import scatter_mean
         except ImportError:
             def scatter_mean(src, index, dim, dim_size):
+                index = index.to(src.device)
                 out = torch.zeros(dim_size, src.size(1), device=src.device, dtype=src.dtype)
                 count = torch.zeros(dim_size, 1, device=src.device, dtype=src.dtype)
                 out.index_add_(0, index, src)
