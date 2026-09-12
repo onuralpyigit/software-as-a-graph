@@ -80,7 +80,7 @@ def _fault_injector_labels(
     scenario: str, seeds: List[int], qos: bool = True
 ) -> Dict[str, float]:
     """I*(v) — the labels that back the published tables."""
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     from saag.simulation.fault_injector import FaultInjector
     from reproduce.ahp_sensitivity import _load_topology
 
@@ -171,7 +171,7 @@ def _message_flow_labels(
     Brokers (ROUTES) or Nodes (RUNS_ON), and a component it cannot observe is
     omitted rather than recorded as impact 0.0.
     """
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     from saag.simulation.message_flow_simulator import MessageFlowSimulator
     from reproduce.ahp_sensitivity import _load_topology
 
@@ -216,7 +216,7 @@ def _restrict(
     """
     if population == "labeled":
         return oracles
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     from reproduce.ahp_sensitivity import _load_topology
 
     graph = _build_graph_from_json(_load_topology(scenario))

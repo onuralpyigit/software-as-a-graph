@@ -224,11 +224,11 @@ class Client:
         and stakeholder roles by id, never read off the ranking itself (a
         GNN result carries no root cause of its own).
         """
-        from saag.usecases.triage_graph import TriageGraphUseCase
+        from saag.usecases.triage import TriageUseCase
 
         raw = getattr(prediction_result, "raw", prediction_result)
         layer = getattr(raw, "layer", "system")
-        uc = TriageGraphUseCase()
+        uc = TriageUseCase()
         return uc.execute(raw, k=k, layer=layer, node_types=node_types)
 
     def detect_antipatterns(self, prediction_result: Any, active_patterns: Optional[List[str]] = None) -> List[Any]:

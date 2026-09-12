@@ -303,7 +303,7 @@ def main() -> None:
     scenario_name = args.scenario.stem
 
     # ── Build graph ───────────────────────────────────────────────────────────
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     graph = _build_graph_from_json(topology)
 
     if not args.json:

@@ -36,7 +36,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from cli.simulate_graph import _load_graph
+from saag.core.graph_io import load_graph as _load_graph
 from saag.simulation.fault_injector import FaultInjector, RECOMMENDED_SEEDS
 
 #: The seven evaluation scenarios (Tables 3/18/20 of the JSS draft). Matches

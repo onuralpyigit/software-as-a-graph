@@ -66,7 +66,7 @@ def _rho(
     Applications, so this sweep is too.
     """
     if scenario is not None:
-        from cli.loso_evaluate import _build_graph_from_json
+        from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
         from saag.evaluation.metrics import resolve_eval_keys
 
         graph = _build_graph_from_json(_topology(scenario))
@@ -85,7 +85,7 @@ def _rho(
 
 def _labels_at_threshold(scenario: str, threshold: float, seeds: List[int]) -> Dict[str, float]:
     """Re-label the scenario with FaultInjector at a given propagation threshold."""
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     from saag.simulation.fault_injector import FaultInjector
     from reproduce.ahp_sensitivity import _load_topology
 

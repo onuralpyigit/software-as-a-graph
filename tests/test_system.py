@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from tools.generation import generate_graph
-from saag.adapters import create_repository
+from saag.infrastructure import create_repository
 from saag.analysis import AnalysisService
 from saag.simulation import SimulationService
 from saag.validation import ValidationService

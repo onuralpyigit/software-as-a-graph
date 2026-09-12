@@ -75,7 +75,7 @@ def _counts_for(n_target: int) -> Dict[str, int]:
 def measure(n_target: int, repeats: int, hidden: int, heads: int, layers: int, device: str = "cpu") -> Dict[str, Any]:
     import torch
 
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     from saag.analysis.service import AnalysisService
     from saag.infrastructure.memory_repo import MemoryRepository
     from saag.prediction.data_preparation import networkx_to_hetero_data

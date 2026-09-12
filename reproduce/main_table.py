@@ -567,7 +567,7 @@ def _load_scenario_data(scenario: str, substrate: str = "projection") -> Tuple[A
     Structural feature source priority: SAAG StructuralAnalyzer (with derived
     DEPENDS_ON edges) > cached structural_metrics.json > NX-derived fallback.
     """
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
 
     cache_dir = _find_cache_dir(scenario)
 

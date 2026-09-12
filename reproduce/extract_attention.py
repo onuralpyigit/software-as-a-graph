@@ -181,7 +181,7 @@ def _extract_via_return_attention_weights(
 
 def _load_scenario(scenario: str) -> Tuple[Any, Dict, Dict, Dict]:
     """Load graph + metrics from cache or raw scenario JSON."""
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
 
     json_path = _SCENARIOS / f"{scenario}.json"
     if not json_path.exists():

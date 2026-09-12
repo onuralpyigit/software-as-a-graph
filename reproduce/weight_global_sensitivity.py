@@ -446,7 +446,7 @@ def run_dirichlet(n: int, topologies, truths, graphs, seed: int = 43) -> Dict[st
 # ── Data loading (shared with the other RM sweeps) ─────────────────────────
 
 def _load_data(scenarios: List[str]):
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     from reproduce.ahp_sensitivity import _load_topology
     from reproduce.main_table import _load_scenario_data
 

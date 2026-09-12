@@ -67,7 +67,7 @@ def test_flattened_topic_properties_are_all_persisted():
 @pytest.mark.integration
 def test_topic_contract_survives_neo4j_roundtrip():
     """Write a topic through the repository and read its properties back."""
-    from saag.adapters import create_repository
+    from saag.infrastructure import create_repository
 
     try:
         repo = create_repository(

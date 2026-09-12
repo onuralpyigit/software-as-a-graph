@@ -225,117 +225,15 @@ def _load_json(path: Path) -> Optional[Dict]:
         return json.load(f)
 
 
-def _build_graph_from_json(topology: Dict[str, Any]) -> nx.DiGraph:
-    """Lightweight builder, peer of cli/simulate_graph.py:_load_graph fallback path."""
-    g = nx.DiGraph()
-
-    type_buckets = [
-        ("applications", "Application"),
-        ("brokers", "Broker"),
-        ("topics", "Topic"),
-        ("nodes", "Node"),
-        ("libraries", "Library"),
-    ]
-    for key, type_label in type_buckets:
-        for entity in topology.get(key, []):
-            # ``type`` is excluded from the splat, not just ``id``/``name``: the
-            # three real-world topologies carry a per-entity ``type`` field, and
-            # letting it through collided with the keyword above
-            # (``TypeError: got multiple values for keyword argument 'type'``),
-            # so this builder raised on every one of them. The canonical bucket
-            # label wins because the node-type contract downstream
-            # (``resolve_eval_keys``, ``networkx_to_hetero_data``) is keyed on it;
-            # where both are present they agree anyway.
-            g.add_node(
-                entity["id"],
-                type=type_label,
-                name=entity.get("name", entity["id"]),
-                **{k: v for k, v in entity.items() if k not in ("id", "name", "type")},
-            )
-
-    rels = topology.get("relationships", {}) or {}
-
-    edge_buckets = [
-        (rels.get("publishes_to", []) + topology.get("publishes", []), "PUBLISHES_TO"),
-        (rels.get("subscribes_to", []) + topology.get("subscribes", []), "SUBSCRIBES_TO"),
-        (rels.get("routes", []) + topology.get("routes", []), "ROUTES"),
-        (rels.get("runs_on", []) + topology.get("runs_on", []), "RUNS_ON"),
-        (rels.get("connects_to", []) + topology.get("connects_to", []), "CONNECTS_TO"),
-        (rels.get("uses", []) + topology.get("uses", []), "USES"),
-        (rels.get("depends_on", []), "DEPENDS_ON"),
-    ]
-    for items, type_label in edge_buckets:
-        for r in items:
-            src = (
-                r.get("source") or r.get("from")
-                or r.get("application_id") or r.get("topic_id")
-                or r.get("node_id") or r.get("broker_id")
-            )
-            dst = (
-                r.get("target") or r.get("to")
-                or r.get("topic_id") or r.get("broker_id")
-                or r.get("application_id") or r.get("node_id")
-            )
-            if src and dst and src != dst:
-                attrs: Dict[str, Any] = {
-                    "type": r.get("type", type_label),
-                    "qos_profile": r.get("qos_profile", {}),
-                }
-                # Only pin a weight the topology actually stated, so the
-                # projection below can tell "unset" from "deliberately 1.0".
-                if r.get("weight") is not None:
-                    attrs["weight"] = float(r["weight"])
-                g.add_edge(src, dst, **attrs)
-
-    _project_topic_qos_onto_edges(g)
-    for _, _, data in g.edges(data=True):
-        data.setdefault("weight", 1.0)
-    return g
-
-
-#: Edge types that inherit their weight and QoS profile from the Topic endpoint.
-_TOPIC_MEDIATED_EDGES = ("PUBLISHES_TO", "SUBSCRIBES_TO", "ROUTES")
-
-
-def _project_topic_qos_onto_edges(g: nx.DiGraph) -> None:
-    """Inherit each Topic's w(t) and QoS profile onto its incident pub/sub edges.
-
-    Mirrors the ``SET r.weight = t.weight`` inheritance the repositories perform
-    on import (see ``Neo4jRepository._calculate_intrinsic_weights``). Topology
-    JSON carries QoS on Topic *nodes* only and states no edge attributes at all,
-    so without this pass every pub/sub edge reaching a consumer has
-    ``weight=1.0`` and ``qos_profile={}`` — constant across the whole graph.
-    That is what made the GNN's QoS edge dimensions carry no signal.
-
-    Existing non-default values are left alone, so a topology that does state
-    edge-level QoS keeps it.
-    """
-    for u, v, data in g.edges(data=True):
-        etype = (data.get("type") or data.get("etype") or "").upper()
-        if etype not in _TOPIC_MEDIATED_EDGES:
-            continue
-
-        # Topic is the target on PUBLISHES_TO/SUBSCRIBES_TO/ROUTES, but tolerate
-        # either orientation rather than silently skipping a reversed edge.
-        topic = v if g.nodes.get(v, {}).get("type") == "Topic" else u
-        attrs = g.nodes.get(topic, {})
-        if attrs.get("type") != "Topic":
-            continue
-
-        if not data.get("qos_profile"):
-            data["qos_profile"] = QoSPolicy.from_node_attrs(attrs).to_dict()
-        # An explicit ``weight: 1.0`` counts as absent, not as a stated value.
-        # The real-world architecture adapters emit ``weight: 1.0`` on every
-        # edge while the synthetic generator omits the key entirely, so a bare
-        # ``"weight" not in data`` guard applied the QoS weight to generated
-        # topologies and skipped it on transcribed ones -- leaving all five
-        # open-source systems with constant edge weights, which is precisely the
-        # signal-free condition this pass exists to prevent. 1.0 is the default
-        # rather than a meaningful contract, so it is safe to overwrite; any
-        # other stated value is still honoured.
-        existing = data.get("weight")
-        if existing is None or abs(float(existing) - 1.0) < 1e-9:
-            data["weight"] = topic_weight_from_node_attrs(attrs)
+# Graph construction moved to saag/core/graph_io.py: fifteen modules under
+# reproduce/ imported these by their private names, which made a core
+# primitive depend on a CLI script. Re-exported here so existing imports
+# keep working.
+from saag.core.graph_io import (  # noqa: E402
+    build_graph_from_json as _build_graph_from_json,
+    _project_topic_qos_onto_edges,
+    _TOPIC_MEDIATED_EDGES,
+)
 
 
 def load_scenario_bundle(scenario_dir: Path) -> Optional[ScenarioBundle]:

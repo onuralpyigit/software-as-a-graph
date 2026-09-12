@@ -100,7 +100,7 @@ def _stratum(records, node_type: str, index: _PubSubIndex) -> Dict[str, Any]:
 
 
 def run(scenarios: List[str], seeds: List[int]) -> Dict[str, Any]:
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     from reproduce.ahp_sensitivity import _load_topology
 
     per_scenario: Dict[str, Any] = {}

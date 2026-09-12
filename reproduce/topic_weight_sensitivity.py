@@ -155,7 +155,7 @@ def _topic_terms(topologies: Dict[str, Dict]) -> Tuple[np.ndarray, np.ndarray, n
 
 def _topo_qos_rho(topology: Dict, truth: Dict[str, float]) -> Optional[float]:
     """rho(Topo-QoS, I*) on the Application population under current weights."""
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     from reproduce.main_table import (
         _compute_topo_baseline_scores, _derive_depends_on_edges,
         _saag_structural_features,
@@ -202,7 +202,7 @@ def _rm_rho(topology: Dict, truth: Dict[str, float], layer: str = "system") -> O
     than the DEPENDS_ON-projection recomputation, whose Availability channel is
     degenerate on that substrate (see that module for the details).
     """
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     from reproduce.ahp_sensitivity import _score_components
 
     pred = _score_components(topology, lam=0.70, layer=layer)

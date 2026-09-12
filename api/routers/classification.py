@@ -7,7 +7,7 @@ from typing import Dict, Any, List, Optional
 import logging
 
 from api.models import Neo4jCredentials
-from saag.adapters import create_repository
+from saag.infrastructure import create_repository
 from saag.analysis.structural_analyzer import StructuralAnalyzer
 from saag.analysis.classifier import BoxPlotClassifier
 

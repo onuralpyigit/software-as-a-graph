@@ -274,10 +274,8 @@ software-as-a-graph/
 │   │   ├── metrics.py                #     Structural and quality metrics definitions
 │   │   ├── criticality.py            #     Node/Edge criticality thresholds
 │   │   ├── graph_generator.py        #     Core topological generator logic
-│   │   ├── file_exporter.py          #     Graph export utility functions
 │   │   ├── ports/                    #     Domain interface ports
 │   │   │   ├── graph_repository.py   #       IGraphRepository protocol definition
-│   │   │   └── file_store.py         #       IFileStore protocol definition
 │   │   └── utils/                    #     Helper utilities
 │   │       └── serialization.py      #       JSON / GraphML serializers
 │   │
