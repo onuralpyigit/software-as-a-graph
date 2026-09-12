@@ -23,6 +23,14 @@ CACHE_DIR="${CACHE_DIR:-output/loso_cache}"
 # predictors. Measuring those arms against QoS-free labels separates "QoS
 # features help" from "the label function reads the same QoS". Pair it with a
 # CACHE_DIR override so the two label sets never share a directory.
+#
+# Applies to fault-inject -- the node labels every reported table is scored
+# against. The edge-removal sweep below runs on FailureSimulator, which exposes
+# no equivalent switch; its QoS enters through w(t) and cannot be disabled from
+# here. That is tolerable only because the edge head is inert in every
+# evaluation harness (they all construct GNNService(predict_edges=False)), so
+# edge_criticality.json reaches no reported number. If an edge-level result is
+# ever published, this asymmetry must be closed first.
 QOS_FACTOR="${QOS_FACTOR:-ladder}"
 SCENARIOS_DIR="data/scenarios"
 
@@ -133,7 +141,6 @@ for scenario in "${TARGETS[@]}"; do
         echo "  [5/6] Running edge-removal sweep ..."
         PYTHONPATH=. python cli/simulate_graph.py edge-criticality \
             --input "$out/topology.json" \
-            --qos-factor "$QOS_FACTOR" \
             --output "$out/edge_criticality.json" 2>&1 | tail -3 || \
             echo "  (edge-criticality error — skipping)"
     else
