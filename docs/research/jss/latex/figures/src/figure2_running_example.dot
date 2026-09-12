@@ -11,6 +11,14 @@
 
 digraph Figure2 {
   bgcolor="white";
+  // margin=0: graphviz's PDF/PS back end adds a 0.5in page margin by default
+  // (the PNG back end does not), so the MediaBox came out 1125pt around 1031pt
+  // of ink and \includegraphics scaled that dead margin down with the drawing,
+  // printing the figure ~8% smaller than \linewidth allows. Same fix as
+  // figure1_pipeline.dot. Verify with `gs -sDEVICE=bbox ../Figure_2.pdf`,
+  // not with pdfinfo, which reports the padded MediaBox.
+  margin=0;
+  pad="0.06,0.06";
   fontname="Helvetica";
   node [fontname="Helvetica", fontsize=12, style=filled, shape=circle, fixedsize=true, width=0.55];
   edge [fontname="Helvetica", fontsize=9];
