@@ -248,3 +248,72 @@ def test_fault_injector_impact_no_unbound_error_on_empty_cascade():
     injector = FaultInjector(g, seeds=[42], propagation_threshold=0.2)
     result = injector.run(node_ids=["App1"])
     assert result.records["App1"].impact_score == 0.0
+
+
+# --- FaultInjector: a Broker outage must register on topics that still have a
+# live publisher. `compute_topic_loss` used to take router loss only in the
+# *else* branch of "this topic has no publishers", so a broker failure was
+# invisible wherever a publisher survived. Since every topic in the corpus is
+# both published to and routed, that made Broker labels a function of how many
+# publisher-less topics a broker happened to route (Spearman rho = 0.904,
+# pooled over the 65 Brokers of the twelve cached scenarios) and drove three
+# scenarios to score every Broker at exactly 0.0.
+# `FailureSimulator._impact_throughput` has always used
+# max(pub_loss, broker_loss); the two engines now agree.
+
+def test_fault_injector_broker_outage_visible_with_live_publisher():
+    import networkx as nx
+    from saag.simulation.fault_injector import FaultInjector
+
+    g = nx.DiGraph()
+    g.add_node("Pub1", type="Application")
+    g.add_node("Sub1", type="Application")
+    g.add_node("Topic1", type="Topic")
+    g.add_node("Broker1", type="Broker")
+    g.add_edge("Pub1", "Topic1", type="PUBLISHES_TO")
+    g.add_edge("Sub1", "Topic1", type="SUBSCRIBES_TO")
+    g.add_edge("Broker1", "Topic1", type="ROUTES")
+
+    injector = FaultInjector(g, seeds=[42], qos_factor_mode="none")
+    result = injector.run(node_types=["Broker"])
+
+    # Pub1 is alive, so pre-fix this scored 0.0.
+    assert result.records["Broker1"].impact_score == pytest.approx(1.0)
+    assert "Broker" not in result.degenerate_node_types
+
+
+def test_fault_injector_router_loss_is_fractional_and_redundancy_softens():
+    """Two routing brokers: losing one costs half the feed, not all of it."""
+    import networkx as nx
+    from saag.simulation.fault_injector import FaultInjector
+
+    g = nx.DiGraph()
+    g.add_node("Pub1", type="Application")
+    g.add_node("Sub1", type="Application")
+    g.add_node("Topic1", type="Topic")
+    for b in ("Broker1", "Broker2"):
+        g.add_node(b, type="Broker")
+        g.add_edge(b, "Topic1", type="ROUTES")
+    g.add_edge("Pub1", "Topic1", type="PUBLISHES_TO")
+    g.add_edge("Sub1", "Topic1", type="SUBSCRIBES_TO")
+
+    injector = FaultInjector(g, seeds=[42], qos_factor_mode="none")
+    result = injector.run(node_types=["Broker"])
+    assert result.records["Broker1"].impact_score == pytest.approx(0.5)
+
+
+def test_fault_injector_brokerless_topology_unaffected_by_router_term():
+    """A DDS-direct topology has no routing tier; the max() must not invent one."""
+    import networkx as nx
+    from saag.simulation.fault_injector import FaultInjector
+
+    g = nx.DiGraph()
+    g.add_node("Pub1", type="Application")
+    g.add_node("Sub1", type="Application")
+    g.add_node("Topic1", type="Topic")
+    g.add_edge("Pub1", "Topic1", type="PUBLISHES_TO")
+    g.add_edge("Sub1", "Topic1", type="SUBSCRIBES_TO")
+
+    injector = FaultInjector(g, seeds=[42], qos_factor_mode="none")
+    result = injector.run(node_ids=["Pub1"])
+    assert result.records["Pub1"].impact_score == pytest.approx(1.0)

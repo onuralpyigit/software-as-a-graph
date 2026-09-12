@@ -26,10 +26,10 @@ For each candidate node v (Application or Broker by default):
 
   Wave 0 – Direct orphaning
     • Remove v from the graph.
-    • Application: a topic is orphaned only if v was its SOLE live publisher.
-    • Broker: a topic is orphaned only if v was its SOLE routing broker.
-      Multi-path routing (another live broker also routes the topic) prevents
-      orphaning.  [FIX: BUG-FI-1]
+    • Both publisher loss and router loss are fractional, not all-or-nothing:
+      a topic served by two live brokers loses half its feed when one dies.
+      Redundancy therefore softens the blow rather than nullifying it.
+      [FIX: BUG-FI-1]
 
   Cascade propagation (waves 1, 2, …)
     Each wave runs two phases:
@@ -39,9 +39,13 @@ For each candidate node v (Application or Broker by default):
       source node is itself typed Library); other DEPENDS_ON arcs do not
       propagate.
     Phase B — topic-mediated soft propagation. Each topic's feed loss L(t) is
-      the rate-weighted share of its publishers that are down (or, for a topic
-      with no publishers, the share of its routing brokers). A subscriber's
-      loss is the mean L(t) over its feeds, scaled by the topic QoS factor;
+      max(publisher loss, router loss): the rate-weighted share of its
+      publishers that are down, against the share of its routing brokers that
+      are down. Either channel alone silences the topic, so they combine as a
+      weakest link — a topic with no publishers (or no brokers) contributes
+      0.0 from that side rather than being scored on the other side alone.
+      A subscriber's loss is the mean L(t) over its feeds, scaled by the
+      topic QoS factor;
       once that exceeds *propagation_threshold* it fails with probability
       min(1, loss/threshold) × depth_damp, where depth_damp decays by 0.15 per
       wave down to a floor of 0.25.
@@ -592,15 +596,33 @@ class FaultInjector:
                 if topic in failed_nodes:
                     loss[topic] = 1.0
                     continue
+                # Publisher-side and router-side loss are independent ways to
+                # silence the same channel, so they combine as a weakest-link
+                # max() rather than as alternatives. This used to be an
+                # if/else — router loss counted only for topics with no
+                # publisher — which made a Broker outage invisible on every
+                # topic that had a live publisher. Since every corpus topic is
+                # both published to and routed, Broker labels collapsed onto
+                # "does this broker happen to route one of the few
+                # publisher-less topics", and three scenarios scored every
+                # Broker at exactly 0.0. `FailureSimulator._impact_throughput`
+                # has always used max(pub_loss, broker_loss); this is the same
+                # semantics.
+                #
+                # Blast radius, measured A/B over all twelve cached scenarios:
+                # Application (1290 nodes), Library and Topic labels are
+                # bit-identical, because injecting one of those types never puts
+                # a Broker in `failed_nodes`, so router_loss stays 0.0 and
+                # max(pub_loss, 0) == pub_loss. Broker labels change throughout
+                # (24/65 non-zero before, 65/65 after). *Node labels change too*:
+                # a Node outage kills its residents via RUNS_ON (see the
+                # `residents_of` branch in `_cascade`), and a resident Broker is
+                # exactly what makes router_loss non-zero — so this is the one
+                # injected type besides Broker whose labels move.
+                # `results/passive_stratum_labels.json` was regenerated for that
+                # reason; no manuscript number depends on it.
                 publishers = idx.publishers_of(topic)
-                if not publishers:
-                    routers = idx.topic_routers.get(topic, set())
-                    if routers:
-                        failed_routers = routers & failed_nodes
-                        loss[topic] = len(failed_routers) / len(routers)
-                    else:
-                        loss[topic] = 0.0
-                else:
+                if publishers:
                     # Sorted for the same reason the subscriber loop below is:
                     # float addition is not associative, so summing an unordered
                     # set gives a result whose last bits depend on
@@ -612,10 +634,22 @@ class FaultInjector:
                     total_rate = sum(get_rate_hz(p, topic) for p in ordered_pubs)
                     if total_rate > 0:
                         failed_rate = sum(get_rate_hz(p, topic) for p in ordered_pubs if p in failed_nodes)
-                        loss[topic] = failed_rate / total_rate
+                        pub_loss = failed_rate / total_rate
                     else:
                         failed_pubs = publishers & failed_nodes
-                        loss[topic] = len(failed_pubs) / len(publishers)
+                        pub_loss = len(failed_pubs) / len(publishers)
+                else:
+                    pub_loss = 0.0
+
+                # A brokerless (DDS direct) topology has no routing tier to
+                # lose, so an absent router set contributes nothing rather than
+                # scoring as total loss.
+                routers = idx.topic_routers.get(topic, set())
+                router_loss = (
+                    len(routers & failed_nodes) / len(routers) if routers else 0.0
+                )
+
+                loss[topic] = max(pub_loss, router_loss)
 
                 # Apply QoS factor and clamp to [0, 1]
                 loss[topic] = min(1.0, loss[topic] * get_qos_factor(topic))
