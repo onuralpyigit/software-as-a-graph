@@ -520,7 +520,7 @@ flowchart LR
     RealExt -->|"Link 3: UNMEASURED<br>(Telemetry vs. User Perception)"| QiU["Quality-in-Use Loss<br>(D1/D2 Construct)"]
 ```
 
-- **Link 1 (Internal $\to$ Simulated External)**: **Rigorously Measured**. Verified by statistical batteries against simulation oracles (mean $\rho(I_{\text{dyn}}, I^*) = 0.620$ over the twelve LOSO folds, against $I^*$'s own $0.817$–$1.0$ reproducibility ceiling).
+- **Link 1 (Internal $\to$ Simulated External)**: **Rigorously Measured**. Verified by statistical batteries against simulation oracles (mean $\rho(I_{\text{dyn}}, I^*) = 0.620$ over the twelve LOSO folds, against $I^*$'s own $0.811$–$1.0$ reproducibility ceiling).
 - **Link 2 (Simulated $\to$ Real System)**: **Unmeasured**. Simulator acts as a discrete-event model of runtime behavior.
 - **Link 3 (Real System $\to$ Stakeholder Perception)**: **Unmeasured**. Assumes service degradation translates to stakeholder harm without human survey studies.
 

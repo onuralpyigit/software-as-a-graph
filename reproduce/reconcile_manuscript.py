@@ -570,6 +570,7 @@ FRESHNESS_TARGETS = {
     "realworld_zeroshot_v4.json": "Table 9b",
     "detection_validation_v3.json": "7.3 stratification",
     "convergent_validity.json": "Table 8c",
+    "label_stability.json": "7.1 label-noise ceiling",
     "topic_weight_sensitivity_v3.json": "Supplementary S1",
     "weight_global_sensitivity_v3.json": "Supplementary S1",
     "ahp_shrinkage_sweep_v3.json": "Supplementary S1",
