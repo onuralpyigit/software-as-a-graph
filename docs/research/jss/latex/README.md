@@ -162,8 +162,13 @@ supplement builds to 8 pages (S1--S8, 6 tables, 2 figures), also with zero undef
 - **Generative-AI declaration** — its own `\section*{}` at the end of `sections/declarations.tex`,
   immediately before the reference list, with the heading the Guide prescribes. Tool name filled in
   (Anthropic's Claude, for language and LaTeX typesetting only). Resolved.
-- **Vitae** — `vitae.tex` exists but both biographies are placeholders. The Guide requires a
-  ≤100-word biography per author, in an editable format.
+- **Vitae** — `vitae.tex` is drafted from facts recorded in this repository (affiliation,
+  CRediT contributions, the RASSE 2025 joint publication, and the degree/advisor line in
+  `docs/research/thesis/outline.md`). Yigit's entry is 82 words, Buzluca's 58, both under the
+  Guide's 100-word cap. **Two `\vitaeTODO` slots remain** — degrees with institution and year
+  for both authors, plus Buzluca's wider research interests and service. These are facts the
+  repository does not record; they were left blank rather than plausibly filled in, and must be
+  completed before submission. Re-count with `detex vitae.tex | wc -w` after editing.
 - No **Acknowledgements** section is included; add one before submission if needed. It belongs in its
   own section directly before the reference list (and before the generative-AI declaration).
 - **Graphical abstract** — encouraged by the Guide, not required; not produced here. If added:
