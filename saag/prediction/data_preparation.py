@@ -881,7 +881,26 @@ def _labelled_index_mask(store) -> np.ndarray:
     mask = getattr(store, "label_mask", None)
     if mask is not None:
         return mask.detach().cpu().numpy().astype(bool)
-    return np.abs(store.y[:, 0].detach().numpy()) > 1e-6
+    return np.abs(store.y[:, 0].detach().cpu().numpy()) > 1e-6
+
+
+def _store_device(store) -> torch.device:
+    """Device this node store's existing tensors already live on.
+
+    Splits can be (re-)computed after the graph has been moved to CUDA (e.g.
+    re-deriving the winning seed's masks for eval metrics), so a freshly built
+    boolean mask must land on that same device — `torch.zeros(...)` defaults to
+    CPU, and a CPU mask attached to an otherwise-CUDA store breaks the next
+    `HeteroData.subgraph()` call with "indices should be either on cpu or on
+    the same device as the indexed tensor". Mirrors the device probe already
+    used in `trainer.get_inductive_subgraph`'s own fallback branch.
+    """
+    if hasattr(store, "x") and isinstance(store.x, torch.Tensor):
+        return store.x.device
+    for _, val in store.items():
+        if isinstance(val, torch.Tensor):
+            return val.device
+    return torch.device("cpu")
 
 
 def apply_external_splits(
@@ -933,9 +952,10 @@ def apply_external_splits(
                 if name in wanted[key]:
                     masks[key][idx] = True
                     break
-        store.train_mask = masks["train"]
-        store.val_mask = masks["val"]
-        store.test_mask = masks["test"]
+        device = _store_device(store)
+        store.train_mask = masks["train"].to(device)
+        store.val_mask = masks["val"].to(device)
+        store.test_mask = masks["test"].to(device)
 
 
 def create_node_splits(
@@ -996,9 +1016,10 @@ def create_node_splits(
                 val_mask[torch.from_numpy(all_val.astype(np.int64))]     = True
                 test_mask[torch.from_numpy(all_test.astype(np.int64))]   = True
 
-                store.train_mask = train_mask
-                store.val_mask   = val_mask
-                store.test_mask  = test_mask
+                device = _store_device(store)
+                store.train_mask = train_mask.to(device)
+                store.val_mask   = val_mask.to(device)
+                store.test_mask  = test_mask.to(device)
                 continue
 
         # ── Fallback: uniform random split ──────────────────────────────────
@@ -1008,9 +1029,10 @@ def create_node_splits(
         train_mask[torch.from_numpy(indices[:n_train].astype(np.int64))]               = True
         val_mask[torch.from_numpy(indices[n_train: n_train + n_val].astype(np.int64))] = True
         test_mask[torch.from_numpy(indices[n_train + n_val:].astype(np.int64))]        = True
-        store.train_mask = train_mask
-        store.val_mask   = val_mask
-        store.test_mask  = test_mask
+        device = _store_device(store)
+        store.train_mask = train_mask.to(device)
+        store.val_mask   = val_mask.to(device)
+        store.test_mask  = test_mask.to(device)
 
 
 def create_kfold_masks(
@@ -1076,16 +1098,18 @@ def create_kfold_masks(
                 val_mask[torch.from_numpy(all_val.astype(np.int64))]     = True
                 test_mask[torch.from_numpy(all_test.astype(np.int64))]   = True
 
-                store.train_mask = train_mask
-                store.val_mask   = val_mask
-                store.test_mask  = test_mask
+                device = _store_device(store)
+                store.train_mask = train_mask.to(device)
+                store.val_mask   = val_mask.to(device)
+                store.test_mask  = test_mask.to(device)
                 continue
 
         # ── Fallback: not enough labelled nodes for k folds — all train ─────
         train_mask[:] = True
-        store.train_mask = train_mask
-        store.val_mask   = val_mask
-        store.test_mask  = test_mask
+        device = _store_device(store)
+        store.train_mask = train_mask.to(device)
+        store.val_mask   = val_mask.to(device)
+        store.test_mask  = test_mask.to(device)
 
 
 
