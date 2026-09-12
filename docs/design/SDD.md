@@ -83,8 +83,8 @@ The design covers the full pipeline: Generate (synthetic topology generation), I
 | PR / RPR | PageRank / Reverse PageRank |
 | QADS | QoS-weighted Attack Dependent Surface — synonym for w\_in(v) when it fed the retired Vulnerability dimension V(v); w\_in is now diagnostic-only |
 | QSPOF | QoS-weighted SPOF Severity — `AP_c_directed(v) × w(v)` |
-| RCL | Reverse Closeness Centrality — closeness computed on G^T |
-| REV | Reverse Eigenvector Centrality — eigenvector centrality computed on G^T |
+| RCL | *(retired)* Reverse Closeness Centrality — removed with `V(v)`; see §6.18 |
+| REV | *(retired)* Reverse Eigenvector Centrality — removed with `V(v)`; see §6.18 |
 | RI | Random Index for AHP consistency check |
 | RM | Reliability, Maintainability — the two ISO/IEC 25010:2023 characteristics scored by this system. Reliability is hierarchical: `R(v) = α·FT(v) + (1−α)·A(v)`, with Fault Tolerance (FT) and Availability (A) as sub-characteristics, `α = 0.36`. Vulnerability/Security was a third peer dimension in earlier versions; it has been deleted entirely (no successor metric or gate). |
 | SOLID | Single responsibility, Open-closed, Liskov substitution, Interface segregation, Dependency inversion |
@@ -295,7 +295,7 @@ software-as-a-graph/
 │   ├── analysis/                     #   Structural Metrics & RM Analysis Package
 │   │   ├── service.py                #     AnalysisService pipeline orchestrator
 │   │   ├── analyzer.py               #     AnalysisService backwards compatibility wrapper
-│   │   ├── structural_analyzer.py    #     StructuralAnalyzer (20-field NetworkX metric computation)
+│   │   ├── structural_analyzer.py    #     StructuralAnalyzer (53-field NetworkX metric computation)
 │   │   ├── antipattern_detector.py   #     Architectural smells / anti-pattern rules
 │   │   ├── classifier.py             #     BoxPlotClassifier / Percentile classifier
 │   │   ├── weight_calculator.py      #     AHPProcessor consistency checks and weights
@@ -387,7 +387,7 @@ JSON / GraphML Topology
        ▼ [Step 2: Analyze]     │ (trains)      │ (ground-truth)
 ┌─────────────────────────────┐│               │
 │  Structural Analysis Result ││               │
-│ (11 Tier-1 Metric Vector M) ││               │
+│ (53-field Metric Vector M)  ││               │
 └──────┬───────────────┬──────┘│               │
        │               │       │               │
 [Step 3: Predict]              │[Step 4: Diagnose]
@@ -513,9 +513,7 @@ These are Python dataclasses that flow between services. All continuous metrics 
 | `reverse_pagerank` | float | RPR(v) | Transitive reachability | FT(v) → R(v) |
 | `betweenness` | float | BT(v) | Shortest-path bottleneck position | M(v) |
 | `closeness` | float | CL(v) | Average distance (forward) | Diagnostic |
-| `reverse_closeness`| float | RCL(v) | Average distance (reverse) | Diagnostic (formerly V(v); retired) |
 | `eigenvector` | float | EV(v) | Connection to important hubs | Diagnostic |
-| `reverse_eigenvector`| float | REV(v) | Connection from important dependents | Diagnostic (formerly V(v); retired) |
 | `in_degree_raw` | int | — | Count of incoming edges | FT(v) → R(v) (norm) |
 | `out_degree_raw` | int | — | Count of outgoing edges | M(v) (norm) |
 | `clustering_coeff` | float | CC(v) | Local neighbor interconnectedness | M(v) |
@@ -532,7 +530,7 @@ These are Python dataclasses that flow between services. All continuous metrics 
 
 > **On metric count:** The output vector M(v) has expanded from 16 to 20 fields in version 2.3 to include refined signals like MPCI, FOC, CQP, and AP_c_dir directly in the analysis step. All 20 fields are present in the `StructuralMetrics` dataclass and are available for both RM and GNN prediction paths.
 
-**Metric-to-Dimension Orthogonality:** Each raw metric from the 20-field vector M(v) feeds **at most one** RM sub-formula (FT, A, or M). No metric appears in more than one formula. `REV`, `RCL`, and `w_in` (QADS) fed the Vulnerability/Security dimension in the retired 4-D "RMAV" model; that dimension has been deleted with no successor, so these three metrics are now diagnostic-only, alongside `PR`, `CL`, `EV`, and `DG_out`.
+**Metric-to-Dimension Orthogonality:** Each raw metric from the metric vector M(v) feeds **at most one** RM sub-formula (FT, A, or M). No metric appears in more than one formula. `REV`, `RCL`, and `w_in` (QADS) fed the Vulnerability/Security dimension in the retired 4-D "RMAV" model; that dimension has been deleted with no successor, so these three metrics are now diagnostic-only, alongside `PR`, `CL`, `EV`, and `DG_out`.
 
 | Metric | Symbol | FT | A | M | Notes |
 |--------|--------|:-:|:-:|:-:|-------|
@@ -550,8 +548,6 @@ These are Python dataclasses that flow between services. All continuous metrics 
 | CDI | CDI | | ✓ | | Path elongation on removal |
 | QoS-Weighted SPOF | QSPOF | | ✓ | | Case-weighted SPOF (AP_c_d * weight) |
 | Component QoS Weight | w(v) | | ✓ | | Direct operational priority |
-| Reverse Eigenvector | REV | — | — | — | Diagnostic only (formerly V(v); retired) |
-| Reverse Closeness | RCL | — | — | — | Diagnostic only (formerly V(v); retired) |
 | QoS-Weighted In-Degree | w_in | — | — | — | Diagnostic only (formerly V(v)/QADS; retired) |
 | PageRank | PR | — | — | — | Diagnostic only |
 | Closeness | CL | — | — | — | Diagnostic only |
@@ -676,7 +672,7 @@ saag.analysis.service.AnalysisService.analyze_layer(layer)
     1. Export G_analysis(layer) from Neo4j → NetworkX DiGraph
     2. StructuralAnalyzer.analyze(graph)
          │  → Compute all 20 metric fields per component (§6.1–§6.6, §6.8)
-         │  → Compute reverse-graph metrics (RPR, REV, RCL) on G^T (§6.1, §6.18)
+         │  → Compute the reverse-graph metric (RPR) on G^T (§6.1)
          │  → Compute continuous AP_c scores via undirected/directed removals (§6.5, §6.16)
          │  → Detect bridge edges (§6.6)
          │  → Return StructuralAnalysisResult
@@ -905,7 +901,7 @@ Output: CL[v] ∈ [0, 1] for all v
 
 Complexity: O(|V| × (|V| + |E|)). Delegated to `networkx.closeness_centrality()`.
 
-> **Note:** CL is reported in the output but does not directly enter any RM formula. **Reverse Closeness (RCL)** — closeness computed on G^T, capturing how rapidly dependents can reach v — is also reported but no longer feeds any formula; it fed the Vulnerability dimension in the retired 4-D "RMAV" model, which has been deleted with no successor.
+> **Note:** CL is reported in the output but does not directly enter any RM formula. **Reverse Closeness (RCL)** was *(retired, see §6.18)* — it would have captured how rapidly dependents can reach v — is also reported but no longer feeds any formula; it fed the Vulnerability dimension in the retired 4-D "RMAV" model, which has been deleted with no successor.
 
 ### 6.4 Eigenvector Centrality
 
@@ -926,7 +922,7 @@ Output: EV[v] ∈ [0, 1] for all v
 
 Complexity: O(|V| + |E|) per iteration. Delegated to `networkx.eigenvector_centrality()`. The fallback to in-degree is safe because in-degree is the zeroth-order approximation of eigenvector centrality.
 
-> **Note:** EV is reported in output but does not directly enter any RM formula. **Reverse Eigenvector (REV)** — EV computed on G^T, capturing strategic exposure through downstream dependencies — is also reported but no longer feeds any formula; it fed the Vulnerability dimension in the retired 4-D "RMAV" model, which has been deleted with no successor.
+> **Note:** EV is reported in output but does not directly enter any RM formula. **Reverse Eigenvector (REV)** was *(retired, see §6.18)* — it would have captured strategic exposure through downstream dependencies — is also reported but no longer feeds any formula; it fed the Vulnerability dimension in the retired 4-D "RMAV" model, which has been deleted with no successor.
 
 ### 6.5 Articulation Point Detection and AP\_c Score
 
@@ -1194,24 +1190,21 @@ Complexity: O(|V| × (|V| + |E|)) via BFS for each APSP. For enterprise-scale sy
 
 CDI feeds exclusively into A(v) (§6.21).
 
-### 6.18 Reverse Centrality Metrics (REV, RCL)
+### 6.18 *(retired)* Reverse Centrality Metrics (REV, RCL)
 
-Reverse Eigenvector (REV) and Reverse Closeness (RCL) are computed by running the standard eigenvector and closeness algorithms on the **transposed graph G^T** (all edges reversed).
+**Deleted, not retained.** This section previously specified Reverse Eigenvector (REV) and Reverse
+Closeness (RCL) as computed on the transposed graph, and described them as "diagnostic-only
+structural metrics". Both statements were wrong: the two metrics fed only `V(v)`, and when the
+Vulnerability dimension was deleted in the RMAV to RM migration they were removed from the codebase
+outright. They are not computed, not stored on `StructuralMetrics`, and not present in
+[`metric_registry.py`](../../saag/core/metric_registry.py).
 
-```
-G^T = transpose(G)   [edge A→B in G becomes B→A in G^T]
+`tests/test_metric_registry.py::test_reverse_closeness_and_reverse_eigenvector_are_gone` asserts
+their absence, so restoring anything described here would fail CI. Reverse PageRank (RPR), computed
+on the same transposed graph, is a *different* metric and is very much live -- it is the 0.45 term of
+`FT(v)` (§6.19). Do not confuse the three.
 
-REV(v) = eigenvector_centrality(G^T, max_iter=1000)[v]
-         (with in-degree fallback on non-convergence, as per §6.4)
-
-RCL(v) = closeness_centrality(G^T, Wasserman-Faust)[v]
-```
-
-**Semantic interpretation:**
-- **High REV(v):** v receives influence from other high-REV components in the reversed graph — meaning v is connected to downstream critical hubs in the original graph. This signals strategic exposure to dependent failures.
-- **High RCL(v):** v is "close" to many components in G^T — meaning many components can reach v quickly in the original graph. Adversarial paths from dependents are short.
-
-REV and RCL fed exclusively into V(v) in the retired 4-D "RMAV" model. That dimension has been deleted entirely (not folded into anything, no successor metric or gate) — REV and RCL are retained as diagnostic-only structural metrics (§4.2) and no longer feed any RM formula.
+The section number is kept so the numbering of §6.19 onward does not shift.
 
 ### 6.19 Fault Tolerance Score FT(v)
 
@@ -1486,7 +1479,7 @@ CREATE INDEX IF NOT EXISTS FOR ()-[d:DEPENDS_ON]-() ON (d.dependency_type);
 
 ```
 PYTHONPATH=. python cli/run.py --all --layer system [--scale medium] [--open]
-PYTHONPATH=. python cli/run.py --generate --import --analyze --layer app
+PYTHONPATH=. python cli/run.py --generate --input data/system.json --analyze --layer app
 PYTHONPATH=. python cli/run.py --all --layer system --verbose
 ```
 
@@ -1703,7 +1696,8 @@ criteria_availability = [
 # [RETIRED] Vulnerability V(v): inputs = [REV, RCL, QADS]
 # The Vulnerability/Security dimension was deleted entirely (not folded into
 # anything, no successor metric or gate) — see docs/structural-analysis.md §11.
-# REV, RCL, and w_in (QADS) are retained as diagnostic-only structural metrics.
+# REV and RCL were DELETED with V(v) (§6.18); only w_in (QADS) survives, and not
+# as diagnostic residue -- it is a live Topic-only input to FT(v).
 ```
 
 **Reliability's hierarchical blend `R(v) = α·FT(v) + (1−α)·A(v)` and the composite `Q(v) = w_R·R(v) + w_M·M(v)` are NOT AHP-derived.** AHP is retired at both the sub-characteristic-combination and composite levels — a pairwise Saaty matrix over 2 criteria is trivially consistent (CR=0) and contributes no discriminating information over just stating the weight directly. `α = 0.36` and `(w_R, w_M) = (0.80, 0.20)` are **declared constants**, algebraically derived from the retired 4-D AHP composite's per-dimension weights (R=0.24, M=0.17, A=0.43, V=0.16):

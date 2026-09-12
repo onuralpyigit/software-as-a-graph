@@ -32,10 +32,10 @@ reproduce/     # Paper reproduction package — its own Makefile/Dockerfile/READ
 scripts/       # Shell orchestrators for longer experiment sweeps
 examples/      # Annotated, runnable SDK usage examples
 data/          # Topology JSONs, scenario YAMLs, and configuration datasets
-models/        # Trained GNN checkpoints
+models/        # (unused) checkpoints go to output/gnn_checkpoints/ — see Client/Pipeline defaults
 output/        # Pipeline run artifacts (dashboards, predictions, checkpoints)
 results/       # Rendered paper tables/figures from reproduce/
-evaluation/    # Ad-hoc evaluation artifacts
+evaluation/    # (leftover, gitignored) not to be confused with the live saag/evaluation/ package
 tests/         # Pytest test suite
 docs/          # Per-stage methodology documentation + formal specs
 ```
@@ -70,7 +70,7 @@ Step 3 (Predict) and Step 4 (Diagnose) are two deliberately separate stages over
                                        ▼ [Step 2: Analyze]     │ (trains)      │ (ground-truth)
                          ┌─────────────────────────────┐       │               │
                          │  StructuralAnalysisResult   │       │               │
-                         │ (11 Tier-1 Metrics Vector M)│       │               │
+                         │  (53-field Metric Vector M) │       │               │
                          └──────┬───────────────┬──────┘       │               │
                                 │               │              │               │
               [Step 3: Predict]      [Step 4: Diagnose]                        │

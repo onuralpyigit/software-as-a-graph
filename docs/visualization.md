@@ -109,7 +109,7 @@ Below the table, the "RM quality dimension breakdown" chart shows Fault Toleranc
 
 MPCI and FOC are **not** table columns — they appear in the network graph tooltip.
 
-**Architectural Explanations** follow the table when the analysis service produced them (e.g. `analyze_graph.py --explain`): one card per component with an automated risk narrative and triage guidance.
+**Architectural Explanations** follow the table when the diagnosis stage produced them (`diagnose_graph.py`, which emits the explanation alongside the RM profile): one card per component with an automated risk narrative and triage guidance.
 
 ### 3.3 Validation
 
@@ -342,12 +342,12 @@ PYTHONPATH=. python cli/visualize_graph.py --demo --open
 for seed in 42 123 456 789 2024; do
     PYTHONPATH=. python cli/generate_graph.py --scale medium --seed $seed --output data/s${seed}.json
     PYTHONPATH=. python cli/import_graph.py --input data/s${seed}.json --clear
-    PYTHONPATH=. python cli/analyze_graph.py  --layer app --use-ahp --output results/pred_s${seed}.json
-    PYTHONPATH=. python cli/simulate_graph.py event --all --messages 50 --layer app
-    PYTHONPATH=. python cli/simulate_graph.py failure --exhaustive --layer app \
-                                  --output results/sim_s${seed}.json
-    PYTHONPATH=. python cli/validate_graph.py results/pred_s${seed}.json results/sim_s${seed}.json \
-                           --output results/val_s${seed}.json
+    PYTHONPATH=. python cli/analyze_graph.py   --layer app --output results/metrics_s${seed}.json
+    PYTHONPATH=. python cli/diagnose_graph.py  --layer app --use-ahp --output results/pred_s${seed}.json
+    PYTHONPATH=. python cli/simulate_graph.py  fault-inject --input data/s${seed}.json --layer app \
+                                  --seeds ${seed} --output results/sim_s${seed}/ --export-json
+    PYTHONPATH=. python cli/validate_graph.py  report --input data/s${seed}.json --qos \
+                                  --output results/val_s${seed}.json
 done
 PYTHONPATH=. python cli/multi_seed_summary.py results/val_s*.json
 # Pass the expanded glob to --multi-seed

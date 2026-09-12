@@ -101,12 +101,12 @@ These five datasets represent authentic, real-world open-source software archite
 
 | Artifact | Scenarios used | Produced by |
 |---|---|---|
-| Table 3 — in-distribution ρ (§8.1) | all 7 evaluation | `make -f reproduce/Makefile table3` |
-| Table 4 — LOSO × variants (§8.1) | all 7 evaluation (7 folds) | `make -f reproduce/Makefile table4` |
-| Per-domain k-fold (§8.x) | all 7 evaluation | `make -f reproduce/Makefile kfold` |
-| Figure 4 — stratified per-node-type ρ (§8.2) | all 7 evaluation | `make -f reproduce/Makefile figure4` |
+| JSS Table 5 — in-distribution ρ | 7 core domains | `make -f reproduce/Makefile table3` |
+| JSS Table 7 — LOSO × variants | 12 synthetic scenarios (12 folds) | `make -f reproduce/Makefile table4` |
+| Per-domain k-fold (opt-in) | 12 synthetic scenarios | `make -f reproduce/Makefile kfold` |
+| Figure 4 — stratified per-node-type ρ | 8 detection-benchmark scenarios | `make -f reproduce/Makefile figure4` |
 | Figure 5 — attention subgraph | ATM only | `make -f reproduce/Makefile figure5` |
-| Oracle agreement (§5.4–§5.5) | all 7 evaluation | `reproduce/convergent_validity.py` |
+| Oracle agreement (JSS Table 8c) | 12 LOSO folds | `reproduce/convergent_validity.py` |
 | Remediation SRI table (§6.7) | 6 evaluation — **Enterprise excluded** | `reproduce/run_prescribe_all.py` |
 | Anti-pattern catalog efficacy (§6) | 7 evaluation + `tiny_system` | `reproduce/detection_validation.py` |
 | Expert study (§9) | ATM only | `reproduce/run_expert_study.py` |

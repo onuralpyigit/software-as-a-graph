@@ -629,8 +629,8 @@ sequenceDiagram
     participant Rx as Step 7: Prescribe
 
     M->>A: Graph topology, code metrics, QoS contracts (Layer 0)
-    A->>P: 11 Tier-1 structural metrics M(v) (Layer 1)
-    A->>D: 11 Tier-1 structural metrics M(v) (Layer 1)
+    A->>P: 53-field structural metric vector M(v) (Layer 1)
+    A->>D: 53-field structural metric vector M(v) (Layer 1)
     P->>P: Pathway B: Predictive HGL Î*(v) (GNN)
     D->>D: Pathway A: Diagnostic ISO-RM Q*(v) (Layer 2) & Anti-Patterns
     P->>D: Triage Bridge: Scope Diagnosis to Top-K Risks

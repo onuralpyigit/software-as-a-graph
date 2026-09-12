@@ -82,7 +82,7 @@ block0:
 	@echo "✓ Block 0 PASSED — W1 audit gate cleared."
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Block C: Table 3 — 8 × 4 variants × 5 seeds
+# Block C: Table 3 (JSS Table 5) — 7 core domains × 6 variants × 5 seeds = 210 runs
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Writes the VERSIONED artifact the manuscript is reconciled against. It used
@@ -102,7 +102,7 @@ table3: block0
 	@echo "✓ Table 3 ready: $(RESULTS_DIR)/table3_main_results.tex"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Block E: Table 4 — LOSO × 4 variants
+# Block E: Table 4 (JSS Table 7) — LOSO, 12 folds × 7 variants
 # ─────────────────────────────────────────────────────────────────────────────
 
 table4:

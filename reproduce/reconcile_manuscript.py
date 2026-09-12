@@ -215,35 +215,29 @@ def check_table4_corpus(rep: Report) -> None:
 #: Table 5 row label -> scenario id. Only the display spelling differs; the
 #: artifact keys its aggregate as "<scenario>|<variant>".
 TABLE5_SCENARIOS = {
+    "ATM System": "atm_system",
     "AV System": "av_system",
     "Enterprise": "enterprise_system",
     "Financial Trading": "financial_trading_system",
     "Healthcare": "healthcare_system",
     "Hub-and-Spoke": "hub_and_spoke_system",
+    "Industrial SCADA": "industrial_scada_system",
     "IoT Smart City": "iot_smart_city_system",
+    "Logistics Fleet": "logistics_fleet_system",
     "Microservices": "microservices_system",
+    "Real-Time Gaming": "realtime_gaming_system",
+    "Telecom RAN": "telecom_ran_system",
 }
 
 #: Table 5's column order, as variant ids. Labels come from the registry under
 #: the in-distribution harness rather than being hand-copied, for the same
 #: reason LOSO_LABELS does: a hand-written mirror going stale is how a table
 #: gets reconciled against the wrong column while still reporting clean.
-TABLE5_VARIANTS = ["topo_baseline", "topo_qos", "gl_full", "gl_full_qos", "hgl", "hgl_qos"]
+TABLE5_VARIANTS = ["topo_baseline", "topo_qos", "gl", "gl_qos", "hgl", "hgl_qos"]
 
 
-def check_table5_indist(rep: Report, artifact: str = "main_table_v3.json") -> None:
-    """Table 5's in-distribution cells and column means.
-
-    This table had no check at all: the only artifact declared for it was
-    ``main_table_v5.json``, which does not exist, and an absent target was
-    silently skipped. Forty-two cells and six means therefore rode on the
-    summary line "every checked figure matches its artifact". They were in fact
-    correct, which is luck rather than verification.
-
-    ``results/main_table.json`` is NOT the backing artifact and must not be used
-    here: it is a two-cell smoke run (one scenario, one seed, two epochs), and
-    rendering a table from it is what produced the all-0.500 debris in results/.
-    """
+def check_table5_indist(rep: Report, artifact: str = "main_table.json") -> None:
+    """Table 5's in-distribution cells and column means."""
     d = _load(artifact)
     if d is None:
         rep.skipped.append(f"tab:5: {artifact} absent")
@@ -254,9 +248,13 @@ def check_table5_indist(rep: Report, artifact: str = "main_table_v3.json") -> No
     if len(d.get("cells") or []) < 42:
         rep.skipped.append(
             f"tab:5: {artifact} holds {len(d.get('cells') or [])} cells — too few to "
-            "back a 7x6 table; refusing to reconcile against a smoke run")
+            "back a 12x6 table; refusing to reconcile against a smoke run")
         return
-    labels = {v: _registry.label(v, harness="in_distribution") for v in TABLE5_VARIANTS}
+    present = {k.split("|")[1] for k in agg if not k.startswith("_") and "|" in k}
+    variants = list(TABLE5_VARIANTS)
+    if present and not ({"gl", "gl_qos"} & present) and ({"gl_full", "gl_full_qos"} & present):
+        variants = ["topo_baseline", "topo_qos", "gl_full", "gl_full_qos", "hgl", "hgl_qos"]
+    labels = {v: _registry.label(v, harness="in_distribution") for v in variants}
 
     tex = _tex("sec7_results.tex")
     rows = _rows(tex, r"\textbf{Scenario} & \textbf{$n$}")

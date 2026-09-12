@@ -49,7 +49,7 @@ Each capability is a pipeline stage with its own CLI script, SDK method, and met
 |:--|:---|:---|:---|:---|
 | — | *Generate (prep)* | Synthesizes a pub-sub topology for experiments, benchmarks, and CI regression | Topology JSON | [graph-generation.md](docs/graph-generation.md) |
 | 1 | **Model** | Imports topology JSON into Neo4j as a weighted directed graph $G = (V, E, \tau_V, \tau_E, w)$; derives logical `DEPENDS_ON` edges via six rules; computes QoS-derived weights | $G_{\text{structural}}$, $G_{\text{analysis}}(l)$ | [graph-model.md](docs/graph-model.md) |
-| 2 | **Analyze** | Deterministic, closed-form. Computes the 11 Tier-1 structural metrics $M(v)$ — and nothing else | $M(v)$ metric vector | [structural-analysis.md](docs/structural-analysis.md) |
+| 2 | **Analyze** | Deterministic, closed-form. Computes the 53-field structural metric vector $M(v)$ (19 of its fields feed the RM composite) — and nothing else | $M(v)$ metric vector | [structural-analysis.md](docs/structural-analysis.md) |
 | 3 | **Predict** | Pathway B: optional HGT neural blast-radius forecasts $\hat{I}^*(v)$ and Top-K criticality ranking; always computes the deterministic ISO-RM composite $Q^*(v)$ as the GNN's own input feature and zero-checkpoint fallback | GNN ranks (or RM fallback), Top-K shortlist | [prediction.md](docs/prediction.md) |
 | 4 | **Diagnose** | Pathway A: deterministic ISO-RM dimension scores $Q^*(v)$ and 5-level classification, grounded in ISO/IEC 25010/25019; detects 19 anti-patterns; generates natural-language explanations; links to stage 3's ranking via the Triage Bridge to map Top-K risks to stakeholder actions — needs no GNN checkpoint (zero-GNN cold start) | RM/$Q^*(v)$ scores, Triage profile, anti-pattern report | [diagnosis.md](docs/diagnosis.md) |
 | 5 | **Simulate** | Injects faults and propagates cascades over the raw structural graph to obtain ground-truth impact — training labels for stage 3 and the offline oracle for stage 6 | $I^*(v)$ composite and per-dimension $I_R, I_M$ (itself $\alpha\cdot I_{FT}+(1-\alpha)\cdot I_A$) | [failure-simulation.md](docs/failure-simulation.md) |
@@ -77,7 +77,7 @@ Each capability is a pipeline stage with its own CLI script, SDK method, and met
                                        ▼ [Step 2: Analyze]     │ (trains)      │ (ground-truth)
                          ┌─────────────────────────────┐       │               │
                          │  StructuralAnalysisResult   │       │               │
-                         │ (11 Tier-1 Metrics Vector M)│       │               │
+                         │  (53-field Metric Vector M) │       │               │
                          └──────┬───────────────┬──────┘       │               │
                                 │               │              │               │
               [Step 3: Predict]      [Step 4: Diagnose]                        │
@@ -202,8 +202,8 @@ pytest -m "not integration"  # skip anything requiring a database
 
 ```bash
 # Exact environment (recommended)
-docker build -t saag-repro -f reproduce/Dockerfile .
-docker run --rm -v $(pwd)/results:/workspace/results saag-repro
+docker build -t sag-jss -f reproduce/Dockerfile .
+docker run --rm -v $(pwd)/results:/workspace/results sag-jss
 
 # Or locally, after the install above
 make -f reproduce/Makefile smoke-test   # ~15-30 min, 50 epochs, 2 seeds

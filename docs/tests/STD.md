@@ -423,8 +423,8 @@ Tests that the RM formula inputs are correctly resolved, derived terms are compu
 | UT-ANAL-39 | QSPOF: AP node × high QoS weight | QSPOF > 0.0; non-AP node QSPOF = 0.0 |
 | UT-ANAL-40 | AP\_c\_directed: directed removal | AP\_c\_directed ≥ undirected AP\_c on graphs with asymmetric reachability |
 | UT-ANAL-41 | CDI: path elongation upon removal | CDI(bottleneck) > CDI(leaf) on path graph |
-| UT-ANAL-42 | REV: computed on G^T | REV(source\_hub) > REV(sink) (roles reversed vs. EV) |
-| UT-ANAL-43 | RCL: computed on G^T | RCL(easily\_reached\_node) > RCL(isolated) |
+| ~~UT-ANAL-42~~ | *(retired)* REV was deleted with `V(v)`; the metric does not exist | — |
+| ~~UT-ANAL-43~~ | *(retired)* RCL was deleted with `V(v)`; the metric does not exist | — |
 
 ```python
 def test_ahp_inconsistency_raises(self):
@@ -468,24 +468,20 @@ def test_coupling_risk_cap_enforcement(self):
     # Base CR = 1.0, path_complexity = 10.0 -> Enriched = 1.0 * (1 + 0.1*10) = 2.0 -> Capped at 1.0
     assert compute_coupling_risk(dg_in_raw=5, dg_out_raw=5, path_complexity=10.0) == 1.0
 
-def test_rev_roles_reversed_vs_ev(self, star_graph):
-    """REV is eigenvector on G^T; source hubs in G become sink hubs in G^T.
-
-    REV is retained as a diagnostic-only StructuralMetrics field (it fed the
-    retired Vulnerability dimension; no RM formula consumes it now) — this
-    test verifies the metric's computation, not any downstream score.
-    """
-    metrics = StructuralAnalyzer().analyze(star_graph)
-    hub = metrics.components["H"]
-    assert hub.eigenvector > 0   # H is a hub in G (high EV)
-    # REV computed directly on G^T within StructuralAnalyzer (§6.18);
-    # leaves in G are the hubs of G^T, so they should have higher REV.
-    leaf_rev = max(
-        (c for c in metrics.components.values() if c.id != "H"),
-        key=lambda c: c.reverse_eigenvector
-    )
-    assert leaf_rev.reverse_eigenvector > hub.reverse_eigenvector, \
-        "Leaves in G are hubs in G^T; they should have higher REV(v)"
+# RETIRED: the former test_rev_roles_reversed_vs_ev lived here.
+#
+# It asserted on `component.reverse_eigenvector`, a field that no longer exists:
+# REV and RCL were deleted outright with the Vulnerability dimension, not
+# "retained as diagnostic-only" as this document and SDD 6.18 both used to
+# claim. The spec outlived the code by months because nothing checks that a
+# documented test is a real one.
+#
+# tests/test_metric_registry.py::test_reverse_closeness_and_reverse_eigenvector_are_gone
+# now asserts the opposite -- that neither field nor registry entry exists -- so
+# reinstating the test above would fail CI.
+#
+# Reverse PageRank (RPR) IS live and IS computed on G^T; it is the 0.45 term of
+# FT(v). If you came here looking for a transposed-graph test, that is the one.
 ```
 
 ### 4.4 Simulation Module
@@ -819,9 +815,10 @@ System tests exercise the complete pipeline through CLI tools and the Docker sta
 ```bash
 PYTHONPATH=. python cli/generate_graph.py --scale small --output /tmp/test_data.json
 PYTHONPATH=. python cli/import_graph.py --input /tmp/test_data.json --clear
-PYTHONPATH=. python cli/analyze_graph.py --layer system --use-ahp --output /tmp/analysis.json
-PYTHONPATH=. python cli/simulate_graph.py failure --layer system --exhaustive --output /tmp/simulation.json
-PYTHONPATH=. python cli/validate_graph.py --layer system --output /tmp/validation.json
+PYTHONPATH=. python cli/analyze_graph.py --layer system --output /tmp/analysis.json
+PYTHONPATH=. python cli/diagnose_graph.py --layer system --use-ahp --output /tmp/diagnosis.json
+PYTHONPATH=. python cli/simulate_graph.py fault-inject --input /tmp/test_data.json --layer system --output /tmp/simulation/ --export-json
+PYTHONPATH=. python cli/validate_graph.py report --input /tmp/test_data.json --output /tmp/validation.json --qos
 PYTHONPATH=. python cli/visualize_graph.py --layer system --output /tmp/dashboard.html
 ```
 
@@ -840,12 +837,12 @@ Each CLI tool is tested independently with its most common options.
 | ST-CLI-01 | `cli/import_graph.py --input <json>` | Exit 0; entities present in Neo4j |
 | ST-CLI-02 | `cli/import_graph.py --input <json>` (JSON format) | Correct DEPENDS\_ON edges derived |
 | ST-CLI-03 | `cli/import_graph.py --input <graphml>` | Equivalent topology as JSON import |
-| ST-CLI-04 | `cli/analyze_graph.py --layer app` | Non-empty JSON output; RM scores present |
-| ST-CLI-05 | `cli/simulate_graph.py failure --exhaustive` | One I(v) per component; sorted by impact |
-| ST-CLI-06 | `cli/validate_graph.py --layer app` | JSON with Spearman ρ, F1, pass/fail flag |
+| ST-CLI-04 | `cli/analyze_graph.py --layer app` | Non-empty JSON output; structural metric vector present (no RM scores — Analyze is structural-only) |
+| ST-CLI-05 | `cli/simulate_graph.py fault-inject --input <json>` | One I(v) per component; sorted by impact |
+| ST-CLI-06 | `cli/validate_graph.py report --input <json> --qos` | JSON with Spearman ρ, F1, pass/fail flag |
 | ST-CLI-07 | `cli/visualize_graph.py --layer system` | Valid HTML file; vis.js network included |
 | ST-CLI-08 | `cli/generate_graph.py --scale medium --seed 42` | Deterministic output; same topology on re-run |
-| ST-CLI-09 | `cli/run.py --all --layer system --open` | Full pipeline; browser launch attempted (mocked) |
+| ST-CLI-09 | `cli/visualize_graph.py --layer system --open` | Browser launch attempted (mocked); `--open` is a visualize flag, not a `run.py` one |
 | ST-CLI-10 | `cli/run.py --all --layer system --verbose` | DEBUG log entries visible; timing logged per step |
 | ST-CLI-11 | `cli/run.py --generate --layer system --scale large` | Topology generated at large scale; import succeeds |
 | ST-CLI-12 | `cli/benchmark.py --scales small,medium --runs 3` | JSON benchmark output; timing within budget |
@@ -905,8 +902,9 @@ PYTHONPATH=. python cli/benchmark.py \
     --seed 42 \
     --output benchmarks/benchmark_$(date +%Y%m%d).json
 
-# Verify timing targets
-PYTHONPATH=. python cli/benchmark.py --check-targets --results benchmarks/benchmark_latest.json
+# Verify timing and accuracy targets (checked inline during the run; there is no
+# separate --check-targets pass, and --spearman-target sets the accuracy gate)
+PYTHONPATH=. python cli/benchmark.py --dry-run --scales small,medium --spearman-target 0.70
 ```
 
 The benchmark outputs a JSON file with `mean`, `std`, `min`, and `max` timing for each scale/layer combination across the specified number of runs.
@@ -986,9 +984,10 @@ Scale-specific targets are set below the aggregate primary targets to account fo
 # Deterministic validation with fixed seed
 PYTHONPATH=. python cli/generate_graph.py --scale medium --seed 42 --output test_data.json
 PYTHONPATH=. python cli/import_graph.py --input test_data.json --clear
-PYTHONPATH=. python cli/analyze_graph.py --layer app --use-ahp --output analysis.json
-PYTHONPATH=. python cli/simulate_graph.py failure --layer app --exhaustive --output simulation.json
-PYTHONPATH=. python cli/validate_graph.py --layer app --output validation_result.json
+PYTHONPATH=. python cli/analyze_graph.py --layer app --output analysis.json
+PYTHONPATH=. python cli/diagnose_graph.py --layer app --use-ahp --output diagnosis.json
+PYTHONPATH=. python cli/simulate_graph.py fault-inject --input test_data.json --layer app --seeds 42 --output simulation/ --export-json
+PYTHONPATH=. python cli/validate_graph.py report --input test_data.json --output validation_result.json --qos
 
 # Inspect pass/fail
 cat validation_result.json | jq '.overall.passed'
