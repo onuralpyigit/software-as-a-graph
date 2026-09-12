@@ -36,6 +36,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from cli.simulate_graph import _load_graph  # noqa: E402
+from reproduce._provenance import stamp  # noqa: E402
 from saag.simulation.fault_injector import FaultInjector  # noqa: E402
 
 #: CLI defaults of ``simulate_graph.py fault-inject``; see its argument parser.
@@ -127,6 +128,11 @@ def main() -> int:
 
     out = ROOT / args.output
     out.parent.mkdir(parents=True, exist_ok=True)
+    # Stamp the corpus this artifact describes, by content. Without it
+    # reconcile_manuscript.py can only compare timestamps, which the
+    # byte-identical corpus regeneration routinely invalidates in both
+    # directions.
+    payload["provenance"] = stamp()
     json.dump(payload, open(out, "w"), indent=2)
     print(f"\nwrote {out}")
     print(f"oracle sweep: {min(medians):.2f}-{max(medians):.2f} s per scenario")
