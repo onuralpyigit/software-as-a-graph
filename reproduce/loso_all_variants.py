@@ -40,6 +40,15 @@ from saag.evaluation import variant_registry as _registry
 # Structural baselines first: they are training-free, so their LOSO score is
 # their only score, and a learned variant has to beat them to be worth training.
 ALL_VARIANTS = ["topo_baseline", "topo_qos", "topology_rm", "gl", "gl_qos", "hgl", "hgl_qos"]
+#: RQ2 confound controls (Section 7.2). Held apart from ALL_VARIANTS so a plain
+#: sweep still produces exactly the manuscript's variant set; pass them
+#: explicitly via --variants to run the controls. They must be run in the SAME
+#: invocation as the arms they are compared against, because the Wilcoxon tests
+#: downstream are paired over folds.
+CONTROL_VARIANTS = [
+    "gl_full_cap", "gl_full_qos_cap", "gl_full_qos16_cap", "hgl_qos_uni",
+]
+
 DEFAULT_SEEDS = "42,123,456,789,2024"
 OUTPUT_BASE   = Path("output/loso")
 #: Beyond this, a --resume result is re-run rather than trusted. Model code
@@ -179,7 +188,7 @@ def _extra_args(args) -> List[str]:
 # harness gl/gl_qos run on the native graph, so they report as GAT-N / GAT-N-QoS.
 _VARIANT_LABELS = {
     v: _registry.label(v, harness="loso")
-    for v in ("topology_rm", "gl", "gl_qos", "hgl", "hgl_qos")
+    for v in ("topology_rm", "gl", "gl_qos", "hgl", "hgl_qos", *CONTROL_VARIANTS)
 }
 
 
@@ -266,7 +275,7 @@ def _print_comparison_table(table: Dict):
 
 def parse_args():
     p = argparse.ArgumentParser(description="Block E: LOSO × all variants.")
-    p.add_argument("--variants", nargs="+", default=None, choices=ALL_VARIANTS,
+    p.add_argument("--variants", nargs="+", default=None, choices=ALL_VARIANTS + CONTROL_VARIANTS,
                    help="Variants to run (default: all 4)")
     p.add_argument("--seeds", default=DEFAULT_SEEDS,
                    help="Comma-separated seeds (default: 5 seeds)")
@@ -385,6 +394,10 @@ def main():
         "provenance": stamp(
             variants=list(results_by_variant), seeds=args.seeds, epochs=args.epochs,
             cache_dir=str(args.cache_dir), eval_population=args.eval_population,
+            # Recorded because the CPU->GPU re-baseline makes rows from
+            # different devices non-comparable, and nothing else on disk
+            # distinguishes them.
+            device=getattr(args, "device", None),
         ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

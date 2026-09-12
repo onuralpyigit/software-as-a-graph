@@ -101,6 +101,10 @@ class _HomoGATBase(nn.Module):
         self.hidden_channels = hidden_channels
         self.num_layers = num_layers
         self.dropout_p = dropout
+        #: Width of the edge channel handed to GATConv, and the number of
+        #: leading ``edge_attr`` columns ``_build_homo_edge_attr`` slices out.
+        #: ``None`` means the model sees no edge features at all.
+        self.edge_dim = edge_dim
 
         # Per-type input projections → common hidden space
         self.input_proj = nn.ModuleDict({
@@ -264,10 +268,19 @@ class HomogeneousGAT_Unweighted(_HomoGATBase):
 
 
 class HomogeneousGAT_ScalarWeighted(_HomoGATBase):
-    """Flat GAT with a scalar QoS-aggregate edge weight as the sole edge feature.
+    """Flat GAT reading the leading ``edge_dim`` columns of the edge encoding.
 
-    Ablation: captures the bulk QoS signal (w(e) = 0.3·R + 0.4·D + 0.3·P)
-    without per-dimension decomposition.  Sits between Unweighted and HeteroQoS.
+    At the default ``edge_dim=1`` this is the scalar QoS aggregate
+    (w(e) = 0.3·R + 0.4·D + 0.3·P) alone, without per-dimension decomposition —
+    the configuration behind every published GAT-QoS / GAT-N-QoS number, sitting
+    between Unweighted and HeteroQoS.
+
+    ``edge_dim=16`` widens it to the full encoding, the same channel HGT-QoS
+    consumes. That is not an ablation but a control: it removes the edge-feature
+    asymmetry from the Section 7.2 typed-vs-untyped comparison, which otherwise
+    confounds relational typing with per-dimension QoS access. Until this
+    parameter existed the width was hard-wired to 1 and any ``edge_dim`` passed
+    by a caller was silently swallowed by ``**kwargs``.
 
     Display name: **GAT-QoS** (saag/evaluation/variant_registry.py). Internal
     identifier ``homo_scalar`` kept as-is; see HomogeneousGAT_Unweighted's docstring for why.
@@ -280,29 +293,44 @@ class HomogeneousGAT_ScalarWeighted(_HomoGATBase):
         num_heads: int = 4,
         num_layers: int = 3,
         dropout: float = 0.2,
+        edge_dim: int = 1,
         **kwargs,
     ):
         dims = node_type_dims or NODE_TYPE_TO_DIM
-        super().__init__(dims, hidden_channels, num_heads, num_layers, dropout, edge_dim=1)
+        super().__init__(
+            dims, hidden_channels, num_heads, num_layers, dropout, edge_dim=edge_dim
+        )
 
     def _build_homo_edge_attr(
         self,
         edge_index_dict: Dict,
         edge_attr_dict: Optional[Dict],
     ) -> Tensor:
-        """Collect the scalar weight (dim 0 of edge_attr) across all relation triples."""
+        """Collect the leading ``self.edge_dim`` edge-feature columns.
+
+        At the default ``edge_dim=1`` this is dim 0 alone — the QoS aggregate
+        weight w(e) — which is what every published GAT-QoS number was trained
+        on. ``edge_dim=16`` takes the whole encoding, the same channel HGT-QoS
+        reads, which is what makes the RQ2 edge-channel control a control.
+        """
+        width = self.edge_dim or 1
         scalar_parts = []
         for rel, ei in edge_index_dict.items():
             E = ei.size(1)
             if edge_attr_dict and rel in edge_attr_dict:
-                # dim 0 is the QoS aggregate weight w(e)
-                scalar_parts.append(edge_attr_dict[rel][:, 0:1].float())
+                scalar_parts.append(edge_attr_dict[rel][:, :width].float())
             else:
-                scalar_parts.append(torch.ones(E, 1))
+                # No edge_attr for this relation: fall back to unit weight in
+                # dim 0 and zeros elsewhere, preserving the previous behaviour
+                # of the width-1 case. data_preparation writes edge_attr for
+                # every relation, so this is defensive only.
+                fallback = torch.zeros(E, width)
+                fallback[:, 0] = 1.0
+                scalar_parts.append(fallback)
 
         if scalar_parts:
             return torch.cat(scalar_parts, dim=0)
-        return torch.zeros(0, 1)
+        return torch.zeros(0, width)
 
     def forward(
         self,
@@ -336,6 +364,7 @@ def build_baseline(
     num_heads: int = 4,
     num_layers: int = 3,
     dropout: float = 0.2,
+    edge_dim: Optional[int] = None,
 ) -> nn.Module:
     """Instantiate a baseline model by variant name.
 
@@ -345,6 +374,12 @@ def build_baseline(
         One of ``"homo_unweighted"`` or ``"homo_scalar"``.
     node_type_dims:
         Per-type feature dimensions.  Defaults to ``NODE_TYPE_TO_DIM``.
+    edge_dim:
+        Width of the edge channel for ``"homo_scalar"``.  ``None`` keeps that
+        class's own default of 1, so existing callers are unaffected.  Ignored
+        by ``"homo_unweighted"``, which takes no edge features by construction.
+        Resolve it from a variant id with
+        ``saag.evaluation.variant_registry.edge_dim`` rather than hard-coding.
     """
     kwargs = dict(
         node_type_dims=node_type_dims or NODE_TYPE_TO_DIM,
@@ -356,6 +391,8 @@ def build_baseline(
     if variant == "homo_unweighted":
         return HomogeneousGAT_Unweighted(**kwargs)
     elif variant == "homo_scalar":
+        if edge_dim is not None:
+            kwargs["edge_dim"] = edge_dim
         return HomogeneousGAT_ScalarWeighted(**kwargs)
     else:
         raise ValueError(

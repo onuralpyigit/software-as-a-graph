@@ -57,6 +57,7 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from reproduce._provenance import stamp
+from saag.evaluation import variant_registry as _registry
 
 logger = logging.getLogger(__name__)
 
@@ -106,9 +107,18 @@ ALL_VARIANTS = [
 #: into the full multigraph" from "typed message passing" for the in-distribution
 #: table. Not part of ALL_VARIANTS: this is a standalone control, not a seventh
 #: column in the canonical 210-cell (7x6x5) matrix.
+#: The RQ2 confound controls added after the Section 7.2 audit extend the same
+#: idea to the three factors the substrate control does not hold constant:
+#: parameter budget, edge-channel width, and message-passing directionality.
+#: Their widths come from saag/evaluation/variant_registry.py, not from
+#: --hidden, because a matched parameter count is the point of those arms.
 CONTROL_VARIANTS = [
     "gl_full",              # GAT-N: Homogeneous GAT (unweighted, native substrate)
     "gl_full_qos",          # GAT-N-QoS: Homogeneous GAT (QoS-weighted, native substrate)
+    "gl_full_cap",          # GAT-N-C: capacity-matched GAT-N (h=296)
+    "gl_full_qos_cap",      # GAT-N-QoS-C: capacity-matched GAT-N-QoS (h=296)
+    "gl_full_qos16_cap",    # GAT-N-QoS16-C: capacity-matched, full 16-D edge channel
+    "hgl_qos_uni",          # HGT-QoS-U: HGT-QoS without the reverse pass
 ]
 
 DEFAULT_SEEDS = [42, 123, 456, 789, 2024]
@@ -1382,7 +1392,10 @@ def _train_cell(
 
     # Decouple substrate per variant. gl_full/gl_full_qos are the RQ2 control:
     # same architecture as gl/gl_qos, native substrate like hgl/hgl_qos.
-    substrate = "native" if variant in ("hgl", "hgl_qos", "gl_full", "gl_full_qos") else "projection"
+    substrate = "native" if variant in (
+        "hgl", "hgl_qos", "hgl_qos_uni",
+        "gl_full", "gl_full_qos", "gl_full_cap", "gl_full_qos_cap", "gl_full_qos16_cap",
+    ) else "projection"
     nx_graph, structural_dict, simulation_dict, rm_dict, gt_source = _load_scenario_data(scenario, substrate=substrate)
 
     if nx_graph.number_of_nodes() == 0:
@@ -1439,14 +1452,14 @@ def _train_cell(
             **score_common,
         )
 
-    elif variant in ("gl", "gl_qos", "gl_full", "gl_full_qos"):
+    elif variant in ("gl", "gl_qos", "gl_full", "gl_full_qos", "gl_full_cap", "gl_full_qos_cap", "gl_full_qos16_cap"):
         from saag.prediction.models.baselines import build_baseline
         start = time.time()
 
         # gl/gl_full are homogeneous unweighted; gl_qos/gl_full_qos are homogeneous
         # QoS-weighted. The "_full" pair differs only in substrate (native, set
         # above), not in architecture -- see CONTROL_VARIANTS docstring.
-        use_qos = variant in ("gl_qos", "gl_full_qos")
+        use_qos = _registry.edge_dim(variant) is not None
         if use_qos:
             train_graph = nx_graph
             train_sm    = structural_dict
@@ -1464,8 +1477,12 @@ def _train_cell(
         effective_lr = 1e-3
         effective_patience = max(patience, 60)
         target_device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        baseline_name = "homo_unweighted" if variant in ("gl", "gl_full") else "homo_scalar"
-        model = build_baseline(baseline_name, hidden_channels=hidden, num_heads=num_heads,
+        # Registry-resolved; identity for every variant the manuscript reports.
+        edge_dim = _registry.edge_dim(variant)
+        baseline_name = "homo_unweighted" if edge_dim is None else "homo_scalar"
+        model = build_baseline(baseline_name, edge_dim=edge_dim,
+                               hidden_channels=_registry.hidden_for(variant, hidden),
+                               num_heads=num_heads,
                                num_layers=effective_layers, dropout=dropout)
         model.to(target_device)
         ckpt_dir = f"output/gnn_checkpoints/{scenario}_{variant}_s{seed}"
@@ -1482,12 +1499,12 @@ def _train_cell(
             **score_common,
         )
 
-    elif variant in ("hgl", "hgl_qos"):
+    elif variant in ("hgl", "hgl_qos", "hgl_qos_uni"):
         # hgl (HGT): HGT with QoS dimensions masked (unweighted native).
         # hgl_qos (HGT-QoS): full QoS-aware HGT (QoS native).
         from saag.prediction.gnn_service import GNNService
 
-        use_qos = (variant == "hgl_qos")
+        use_qos = variant in ("hgl_qos", "hgl_qos_uni")
 
         if use_qos:
             train_graph = nx_graph
@@ -1506,6 +1523,7 @@ def _train_cell(
             predict_edges=False,
             device=target_device,
             checkpoint_dir=f"output/gnn_checkpoints/{scenario}_{variant}_s{seed}",
+            use_bidirectional=_registry.bidirectional_for(variant),
         )
 
         train_kwargs: Dict[str, Any] = dict(
@@ -1979,6 +1997,17 @@ def main():
             "variants": sorted(list({c["variant"] for c in cells if "variant" in c})),
             "seeds": sorted(list({c["seed"] for c in cells if "seed" in c})),
             "epochs": args.epochs, "hidden": args.hidden,
+            # `hidden` above is the harness default; the RQ2 capacity controls
+            # override it per variant, so the flat field alone is a lie the
+            # moment one of them runs.
+            "hidden_by_variant": {
+                v: _registry.hidden_for(v, args.hidden)
+                for v in sorted({c["variant"] for c in cells if "variant" in c})
+                if v in _registry.VARIANTS
+            },
+            # Rows computed on different devices are not comparable, and
+            # nothing else on disk distinguishes a CPU run from a CUDA one.
+            "device": str(getattr(args, "device", "") or "auto"),
             # Recorded so any table rendered from this file can state which node
             # population produced it — the single most important caveat when
             # comparing a training-free baseline against a learned model.

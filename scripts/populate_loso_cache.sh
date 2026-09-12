@@ -17,6 +17,13 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 # landing in output/loso_cache/, where discover_scenarios() would pick it up as
 # an extra fold and silently change every LOSO number.
 CACHE_DIR="${CACHE_DIR:-output/loso_cache}"
+# The oracle's QoS arm. "ladder" is the published setting. "none" builds the
+# label-side control for RQ3.1: I*'s QoS ladder reads reliability and transport
+# priority, which are edge-feature dims 9 and 11 -- given only to the -QoS
+# predictors. Measuring those arms against QoS-free labels separates "QoS
+# features help" from "the label function reads the same QoS". Pair it with a
+# CACHE_DIR override so the two label sets never share a directory.
+QOS_FACTOR="${QOS_FACTOR:-ladder}"
 SCENARIOS_DIR="data/scenarios"
 
 ALL_SCENARIOS=(
@@ -104,6 +111,7 @@ for scenario in "${TARGETS[@]}"; do
             --output "$out/" \
             --export-json \
             --node-types Application,Broker,Library \
+            --qos-factor "$QOS_FACTOR" \
             --seeds 42,123,456,789,2024 2>&1 | tail -3 || \
             echo "  (simulate_graph error — skipping)"
         # Rename if generated with different name
@@ -125,6 +133,7 @@ for scenario in "${TARGETS[@]}"; do
         echo "  [5/6] Running edge-removal sweep ..."
         PYTHONPATH=. python cli/simulate_graph.py edge-criticality \
             --input "$out/topology.json" \
+            --qos-factor "$QOS_FACTOR" \
             --output "$out/edge_criticality.json" 2>&1 | tail -3 || \
             echo "  (edge-criticality error — skipping)"
     else

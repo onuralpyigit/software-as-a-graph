@@ -107,3 +107,72 @@ configurations are ranked under the budget they will be reported under.
 outer folds than it would under inner-LOSO. That variation is reported per fold
 rather than hidden, and it is itself a finding: a configuration that cannot be
 picked stably from the training set is not one to recommend.
+
+---
+
+## Amendment 2 — RQ2 confound controls (2026-09-12, before any control result)
+
+**Status when written:** the four control arms below have been implemented and
+smoke-tested for capacity only (3 epochs, 3 folds, CPU — enough to confirm each
+arm builds and trains at its intended parameter count, far too little to produce
+a ρ worth reading). No control arm has been run at the reported budget on any
+fold, so no outcome was known when this amendment was registered. The decision
+rule in the last section is therefore a commitment, not a description.
+
+**Why this amendment exists.** Section 7.2 attributes the typed-vs-untyped LOSO
+margin (+0.114, 11/12 folds, p = 0.0122) to "relational typing rather than to
+substrate, training set, depth, or selection rule". An internal audit found that
+list incomplete. Three factors the comparison did not hold constant:
+
+| Factor | As published |
+|:---|:---|
+| Parameter budget | HGT 434,620 vs GAT-N-QoS 28,168 — a 15.4× gap |
+| Message-passing directionality | HGT carries a reverse HGTConv (103,725 params, 24% of the model); the homogeneous GAT propagates along native edge direction only, and `I*(v)` is a downstream-reachability functional |
+| Edge-channel width | HGT-QoS reads all 16 edge-feature dimensions; GAT-N-QoS reads dimension 0 alone |
+
+A fourth concerns the label rather than the model: `I*`'s QoS ladder keys on
+reliability and transport priority, which are edge-feature dimensions 9 and 11 —
+given only to the `-QoS` arms. The QoS ablation therefore compares a predictor
+that can see the oracle's severity multipliers against one that cannot.
+
+**These are post-hoc.** They were not part of the original pre-registration and
+must be reported as exploratory throughout. Their Wilcoxon contrasts are
+Holm-corrected within their own family, never pooled with the primary contrast.
+
+**The arms** (`saag/evaluation/variant_registry.py`, family `control`):
+
+| Arm | Label | Isolates | Parameters |
+|:---|:---|:---|---:|
+| `gl_full_qos_cap` | GAT-N-QoS-C | capacity | 439,272 (1.011×) |
+| `gl_full_cap` | GAT-N-C | capacity, QoS-off replication | 437,496 (1.007×) |
+| `gl_full_qos16_cap` | GAT-N-QoS16-C | edge-channel width | 429,992 (0.989×) |
+| `hgl_qos_uni` | HGT-QoS-U | directionality | 330,895 |
+
+Plus a label-side arm: the full LOSO sweep repeated against a cache built with
+`QOS_FACTOR=none`, so the oracle's QoS ladder is disabled.
+
+The edge-channel arm deliberately receives the 7-dimensional relation one-hot
+(dims 2–8) along with the QoS block. That hands the untyped model relation type
+*as a feature*, which is the strict form of the control: it separates typing as
+an input signal from typing as relation-specific parameters. That distinction
+must be stated wherever the arm is reported.
+
+### Decision rule, committed before the results exist
+
+| Outcome | What we will report |
+|:---|:---|
+| Margin survives all four (shrinks < 0.02, ≥ 10/12 folds, p < 0.05) | Section 7.2 is strengthened: the attribution sentence is rewritten to name capacity, directionality, edge-channel width and label overlap explicitly, with the controls table. |
+| Margin shrinks but holds significance | The **controlled** margin becomes the headline in the abstract, Section 1, Section 7.2, Section 8 and Section 9. The uncontrolled +0.114 is reported alongside it, labelled as the naive comparison, with the parameter ratio that accounts for the difference. |
+| Margin does not survive | Section 7.2's claim becomes "typed message passing does not outperform a capacity-matched untyped GAT under distribution shift". The abstract's +0.114 is withdrawn. The contribution shifts to per-relation edge criticalities and attention over heterogeneous schemas, which have no untyped counterpart — the argument Section 8.1 already makes as a secondary one. |
+| Mixed (e.g. capacity survives, directionality does not) | Reported per confound in the controls table, with the claim narrowed to the factors actually controlled. Results are **not** aggregated into a single verdict. |
+
+**Reporting commitment.** Every arm that is run is reported, whichever way it
+comes out, with its parameter count in the table. An arm may be dropped only for
+a stated technical failure, never for its result. Parameter counts belong in the
+table rather than the prose: their absence is what allowed this confound to
+survive internal review in the first place.
+
+**Corpus and device.** The controls are run against the corpus committed on
+2026-09-10 and are compared only against arms re-baselined on the same corpus
+and the same device. Rows measured on CPU and rows measured on GPU are never
+placed in the same comparison; `config.device` in each artifact records which.

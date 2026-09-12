@@ -538,3 +538,110 @@ def test_decouple_features_flag_respected():
         assert app_x_decoupled[18] == 0.7  # loc_norm (retained!)
     finally:
         os.environ["DECOUPLE_FEATURES"] = "false"
+
+
+# ── Architecture defaults and checkpoint round-trip ──────────────────────────
+# The two tests above pin that use_bidirectional is *respected when passed*.
+# Nothing pinned the default, and nothing persisted it. Both gaps mattered:
+# the reverse HGTConv is ~24% of HGT's parameters, so a flipped default would
+# silently move every number in the manuscript's Tables 6-9, and a checkpoint
+# that did not record the flag reloaded into the wrong architecture with the
+# missing tensors left at random initialisation.
+
+def test_bidirectional_default_is_pinned():
+    """The published HGT has a reverse pass. Keep it that way by default."""
+    import inspect
+
+    from saag.prediction.models import NodeCriticalityGNN
+    from saag.prediction.models.core import build_node_gnn, build_edge_gnn
+    from saag.prediction.gnn_service import GNNService
+
+    for fn in (NodeCriticalityGNN.__init__, build_node_gnn, build_edge_gnn,
+               GNNService.__init__):
+        param = inspect.signature(fn).parameters.get("use_bidirectional")
+        assert param is not None, f"{fn.__qualname__} lost use_bidirectional"
+        assert param.default is True, (
+            f"{fn.__qualname__} defaults use_bidirectional to {param.default!r}; "
+            "the published model is bidirectional and every reported number "
+            "assumes it."
+        )
+
+    data = _minimal_hetero_data(num_app=3, num_broker=2, num_topic=2)
+    default_model = build_node_gnn(data.metadata(), 16, 2, 1, 0.2)
+    assert default_model.rev_conv is not None, (
+        "a no-keyword build_node_gnn produced a unidirectional model"
+    )
+
+    uni = build_node_gnn(data.metadata(), 16, 2, 1, 0.2, use_bidirectional=False)
+    n = lambda m: sum(p.numel() for p in m.parameters())
+    assert n(default_model) > n(uni), (
+        "the reverse pass costs no parameters, so it cannot be the capacity "
+        "confound the RQ2 directionality control was built to test"
+    )
+
+
+def test_architecture_flags_round_trip_through_a_checkpoint(tmp_path):
+    """save() -> from_checkpoint() must rebuild the same architecture.
+
+    Before use_bidirectional and qos_injection were persisted, resuming a
+    unidirectional checkpoint rebuilt a bidirectional service and left every
+    rev_conv.* tensor at its initialisation while reporting a trained model.
+    """
+    from saag.prediction.gnn_service import GNNService
+
+    data = _minimal_hetero_data(num_app=3, num_broker=2, num_topic=2)
+    metadata = data.metadata()
+
+    svc = GNNService(
+        checkpoint_dir=str(tmp_path), predict_edges=False,
+        hidden_channels=16, num_heads=2, num_layers=1,
+        use_bidirectional=False, qos_injection="typed",
+    )
+    svc._init_models(metadata)
+    svc._best_seed = 42
+    svc.layer = "app"
+    svc._rank_normalize_features = False
+    assert svc._node_model.rev_conv is None
+    svc.save(str(tmp_path))
+
+    restored = GNNService.from_checkpoint(
+        str(tmp_path), metadata=metadata, layer="app"
+    )
+    assert restored.use_bidirectional is False
+    assert restored.qos_injection == "typed"
+    assert restored._node_model.rev_conv is None
+
+
+def test_checkpoint_architecture_mismatch_raises(tmp_path):
+    """A config that disagrees with the weights must fail, not half-load.
+
+    strict=False is deliberate elsewhere (it lets a node-feature width change
+    through), but it also silently accepts a missing reverse pass. Scoring a
+    partly randomly-initialised model and reporting it as trained is the exact
+    failure this guard exists to make loud.
+    """
+    import json
+
+    from saag.prediction.gnn_service import GNNService
+
+    data = _minimal_hetero_data(num_app=3, num_broker=2, num_topic=2)
+    metadata = data.metadata()
+
+    svc = GNNService(
+        checkpoint_dir=str(tmp_path), predict_edges=False,
+        hidden_channels=16, num_heads=2, num_layers=1,
+        use_bidirectional=False,
+    )
+    svc._init_models(metadata)
+    svc._best_seed = 42
+    svc.layer = "app"
+    svc._rank_normalize_features = False
+    svc.save(str(tmp_path))
+
+    cfg_path = tmp_path / "service_config.json"
+    cfg = json.loads(cfg_path.read_text())
+    cfg["use_bidirectional"] = True          # claim an architecture we did not save
+    cfg_path.write_text(json.dumps(cfg))
+
+    with pytest.raises(ValueError, match="missing"):
+        GNNService.from_checkpoint(str(tmp_path), metadata=metadata, layer="app")
