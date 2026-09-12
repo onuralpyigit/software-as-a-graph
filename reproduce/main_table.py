@@ -1362,6 +1362,7 @@ def _train_cell(
     val_ratio: float = 0.2,
     auto_layers: bool = True,
     eval_population: str = "application",
+    device: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """Train one cell of the 7×6×5 matrix and return metrics dict.
 
@@ -1462,17 +1463,17 @@ def _train_cell(
         # make this configurable without a documented rerun of those tables.
         effective_lr = 1e-3
         effective_patience = max(patience, 60)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        target_device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
         baseline_name = "homo_unweighted" if variant in ("gl", "gl_full") else "homo_scalar"
         model = build_baseline(baseline_name, hidden_channels=hidden, num_heads=num_heads,
                                num_layers=effective_layers, dropout=dropout)
-        model.to(device)
+        model.to(target_device)
         ckpt_dir = f"output/gnn_checkpoints/{scenario}_{variant}_s{seed}"
         trainer = GNNTrainer(model=model, checkpoint_dir=ckpt_dir, lr=effective_lr,
                              num_epochs=num_epochs, patience=effective_patience)
         trainer.train(data)
 
-        pred_scores = _predict_all_nodes(model, data, conv, device)
+        pred_scores = _predict_all_nodes(model, data, conv, target_device)
         return _score_cell(
             pred_scores=pred_scores,
             use_qos=use_qos,
@@ -1496,12 +1497,14 @@ def _train_cell(
             train_sm    = _mask_qos_in_structural(structural_dict)
 
         start = time.time()
+        target_device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
         svc = GNNService(
             hidden_channels=hidden,
             num_heads=num_heads,
             num_layers=effective_layers,
             dropout=dropout,
             predict_edges=False,
+            device=target_device,
             checkpoint_dir=f"output/gnn_checkpoints/{scenario}_{variant}_s{seed}",
         )
 
@@ -1819,6 +1822,8 @@ def parse_args():
     p.add_argument("--dry-run", action="store_true",
                    help="Print the planned matrix without training")
     p.add_argument("-v", "--verbose", action="store_true")
+    p.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"],
+                   help="Device for model training and inference (default: auto -> cuda if available else cpu)")
     p.add_argument("--cache-dir", type=Path, default=None,
                    help="Path to LOSO cache directory (default: output/loso_cache)")
     p.add_argument("--allow-rm-substitution", action="store_true",
@@ -1831,6 +1836,7 @@ def parse_args():
 
 def main():
     global ALLOW_RM_SUBSTITUTION, LOSO_CACHE_DIR
+    import torch
     args = parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARNING)
 
@@ -1838,6 +1844,13 @@ def main():
         LOSO_CACHE_DIR = args.cache_dir
 
     ALLOW_RM_SUBSTITUTION = args.allow_rm_substitution
+
+    if args.device == "cuda" or (args.device == "auto" and torch.cuda.is_available()):
+        device = torch.device("cuda")
+        dev_desc = f"cuda ({torch.cuda.get_device_name(0)})"
+    else:
+        device = torch.device("cpu")
+        dev_desc = "cpu"
 
     scenarios = args.scenarios or ALL_SCENARIOS
     variants = args.variants or ALL_VARIANTS
@@ -1848,6 +1861,7 @@ def main():
     print(f"  Scenarios : {scenarios}")
     print(f"  Variants  : {variants}")
     print(f"  Seeds     : {seeds}")
+    print(f"  Device    : {dev_desc}")
     print(f"  Total runs: {total}")
     print()
 
@@ -1925,6 +1939,7 @@ def main():
                         num_layers=args.layers, num_epochs=args.epochs,
                         patience=args.patience, auto_layers=args.auto_layers,
                         eval_population=args.eval_population,
+                        device=device,
                     )
                 except Exception as exc:
                     cell = {"scenario": sc, "variant": v, "seed": s, "error": str(exc)}

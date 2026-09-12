@@ -214,6 +214,7 @@ def run_extraction(
     num_layers: int = 3,
     dropout: float = 0.2,
     num_epochs: int = 100,
+    device: Optional[str] = "auto",
 ) -> Path:
     import torch
     from saag.prediction.data_preparation import networkx_to_hetero_data, create_node_splits
@@ -222,6 +223,11 @@ def run_extraction(
     torch.manual_seed(seed)
     np.random.seed(seed)
 
+    target_device = torch.device(
+        "cuda" if (device == "cuda" or (device in ("auto", None) and torch.cuda.is_available())) else "cpu"
+    )
+    print(f"  Device: {target_device}")
+
     print(f"  Loading scenario: {scenario}")
     g, struct, sim, rm = _load_scenario(scenario)
 
@@ -229,23 +235,19 @@ def run_extraction(
     data = conv.hetero_data
     create_node_splits(data, seed=seed)
 
-    x_dict  = {nt: data[nt].x for nt in data.node_types if hasattr(data[nt], "x")}
-    ei_dict = {rel: data[rel].edge_index for rel in data.edge_types}
-    ea_dict = {rel: data[rel].edge_attr for rel in data.edge_types
-               if hasattr(data[rel], "edge_attr")}
-
     # Build or load model
-    ckpt = None
     if checkpoint_dir and (checkpoint_dir / "best_model.pt").exists():
         print(f"  Loading checkpoint: {checkpoint_dir}")
         model = build_node_gnn(data.metadata(), hidden_channels=hidden,
                                num_heads=num_heads, num_layers=num_layers, dropout=dropout)
-        model.load_state_dict(torch.load(checkpoint_dir / "best_model.pt", map_location="cpu"))
+        model.load_state_dict(torch.load(checkpoint_dir / "best_model.pt", map_location=target_device))
+        model.to(target_device)
     else:
         print(f"  No checkpoint found — training {num_epochs} epochs on {scenario}")
         from saag.prediction.trainer import GNNTrainer
         model = build_node_gnn(data.metadata(), hidden_channels=hidden,
                                num_heads=num_heads, num_layers=num_layers, dropout=dropout)
+        model.to(target_device)
         ckpt_dir = output_dir / "checkpoint"
         trainer = GNNTrainer(model=model, checkpoint_dir=str(ckpt_dir),
                              lr=3e-4, num_epochs=num_epochs, patience=20)
@@ -253,6 +255,11 @@ def run_extraction(
 
     model.eval()
     print("  Extracting attention weights ...")
+
+    x_dict  = {nt: data[nt].x.to(target_device) for nt in data.node_types if hasattr(data[nt], "x")}
+    ei_dict = {rel: data[rel].edge_index.to(target_device) for rel in data.edge_types}
+    ea_dict = {rel: data[rel].edge_attr.to(target_device) for rel in data.edge_types
+               if hasattr(data[rel], "edge_attr")}
 
     with torch.no_grad():
         attn_data = _extract_via_return_attention_weights(model, x_dict, ei_dict, ea_dict)
@@ -320,6 +327,8 @@ def parse_args():
     p.add_argument("--layers", type=int, default=3)
     p.add_argument("--epochs", type=int, default=100,
                    help="Epochs to train if no checkpoint (default: 100)")
+    p.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"],
+                   help="Device to use for training/inference (default: auto).")
     return p.parse_args()
 
 
@@ -335,6 +344,7 @@ def main():
         num_heads=args.heads,
         num_layers=args.layers,
         num_epochs=args.epochs,
+        device=args.device,
     )
     _print_attention_summary(out_path)
     print("\n  Done. Run: python reproduce/render_attention_subgraph.py")

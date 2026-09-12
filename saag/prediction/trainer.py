@@ -304,8 +304,14 @@ class GNNTrainer:
 
         Averaged over relation types so a graph with many PUBLISHES_TO edges and
         few DEPENDS_ON edges does not let one relation dominate the term.
-        Relations without labels (``y_edge`` is only written when simulation
-        results were supplied) contribute nothing.
+        Relations without labels (``y_edge`` is only written when a measured
+        edge-removal sweep was supplied) contribute nothing.
+
+        ``y_edge_mask`` restricts the term to edges the sweep actually
+        evaluated. The sweep is bounded to bridges and top-betweenness
+        candidates, so most edges in a graph are unmeasured; regressing them
+        toward the 0.0 padding would teach the head that an unevaluated edge is
+        a harmless one.
         """
         total = torch.tensor(0.0, device=self.device, requires_grad=True)
         count = 0
@@ -314,7 +320,15 @@ class GNNTrainer:
             y_edge = getattr(store, "y_edge", None)
             if y_edge is None or y_edge.shape[0] != preds.shape[0] or preds.shape[0] == 0:
                 continue
-            total = total + F.mse_loss(preds[:, 0], y_edge[:, 0].to(preds.device))
+            mask = getattr(store, "y_edge_mask", None)
+            if mask is None:
+                continue
+            mask = mask.to(preds.device)
+            if not bool(mask.any()):
+                continue
+            total = total + F.mse_loss(
+                preds[mask, 0], y_edge[:, 0].to(preds.device)[mask]
+            )
             count += 1
         return total / count if count else total
 

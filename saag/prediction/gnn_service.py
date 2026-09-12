@@ -422,6 +422,7 @@ class GNNService:
         node_splits: Optional[Dict[str, Iterable[str]]] = None,
         rank_normalize_features: bool = False,
         rank_normalize_labels: bool = False,
+        edge_simulation_results: Optional[Dict[Tuple[str, str], float]] = None,
     ) -> GNNAnalysisResult:
         """Process graphs and train the GNN model using a multi-seed approach.
 
@@ -477,6 +478,7 @@ class GNNService:
         conv = networkx_to_hetero_data(
             graph, structural_metrics, simulation_results, rm_scores, qos_enabled=qos_enabled,
             rank_normalize_features=rank_normalize_features,
+            edge_simulation_results=edge_simulation_results,
         )
         self._conversion_result = conv
         self._pinned_splits = node_splits

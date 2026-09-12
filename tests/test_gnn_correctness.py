@@ -87,6 +87,11 @@ def test_edge_head_receives_gradient_from_edge_loss():
     `y_edge` labels were written by data_preparation but no loss term ever read
     them, so the edge head kept its random initialisation and every edge score
     the CLI/API emitted was noise. GNNTrainer._edge_loss closes that gap.
+
+    `y_edge_mask` is part of the fixture because it is part of the contract:
+    the edge-removal sweep measures only its candidate set, so a label tensor
+    without a mask cannot say which rows are measurements and which are
+    padding. `_edge_loss` skips an unmasked relation rather than guess.
     """
     from saag.prediction.models import build_edge_gnn
     from saag.prediction.trainer import GNNTrainer
@@ -102,7 +107,8 @@ def test_edge_head_receives_gradient_from_edge_loss():
     data["Application"].label_mask = torch.ones(4, dtype=torch.bool)
     data[rel].edge_index = torch.tensor([[0, 1, 2], [1, 2, 3]])
     data[rel].edge_attr = torch.randn(3, 16)
-    data[rel].y_edge = torch.rand(3, 3)
+    data[rel].y_edge = torch.rand(3, 1)
+    data[rel].y_edge_mask = torch.ones(3, dtype=torch.bool)
 
     trainer = GNNTrainer(model=model, checkpoint_dir="/tmp/_edge_loss_test", num_epochs=1)
 

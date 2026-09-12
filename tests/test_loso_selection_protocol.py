@@ -169,6 +169,9 @@ def _tiny_bundle():
         structural = {}
         rm = {}
         simulation = {f"A{i}": {"composite": 0.1 * (i + 1)} for i in range(6)}
+        # No edge-removal sweep for this fixture, so the edge head goes
+        # unsupervised — which is the point: labels are measured or absent.
+        edge_simulation = {}
         n_nodes = 7
 
     return B()

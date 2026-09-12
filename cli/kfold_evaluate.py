@@ -171,8 +171,14 @@ def run_one_scenario(
     rank_normalize_labels: bool = False,
     qos_injection: str = "pooled",
     eval_population: str = "application",
+    device: Optional[str] = "auto",
 ) -> ScenarioResult:
     """Repeated stratified k-fold within a single scenario's own graph."""
+    if device == "cuda" or (device in ("auto", None) and torch.cuda.is_available()):
+        target_device = torch.device("cuda")
+    else:
+        target_device = torch.device("cpu")
+
     scenario_dir = workdir / bundle.scenario_id
     scenario_dir.mkdir(parents=True, exist_ok=True)
 
@@ -264,6 +270,7 @@ def run_one_scenario(
                         baseline_name, hidden_channels=hidden, num_heads=heads,
                         num_layers=layers, dropout=dropout,
                     )
+                    model.to(target_device)
                     trainer = GNNTrainer(
                         model=model, checkpoint_dir=str(ckpt_dir),
                         lr=lr, num_epochs=epochs, patience=min(60, epochs),
@@ -277,10 +284,11 @@ def run_one_scenario(
 
                     test_ids = _test_node_ids(data, conv.node_id_map)
                     model.eval()
+                    data_dev = data.to(target_device)
                     with torch.no_grad():
-                        x = {nt: data[nt].x for nt in data.node_types if hasattr(data[nt], "x")}
-                        ei = {r: data[r].edge_index for r in data.edge_types}
-                        ea = {r: data[r].edge_attr for r in data.edge_types if hasattr(data[r], "edge_attr")}
+                        x = {nt: data_dev[nt].x for nt in data_dev.node_types if hasattr(data_dev[nt], "x")}
+                        ei = {r: data_dev[r].edge_index for r in data_dev.edge_types}
+                        ea = {r: data_dev[r].edge_attr for r in data_dev.edge_types if hasattr(data_dev[r], "edge_attr")}
                         out = model(x, ei, ea)
                     pred_scores = {}
                     for nt, preds in out.items():
@@ -315,6 +323,7 @@ def run_one_scenario(
                             dropout=dropout,
                             predict_edges=False,
                             qos_injection=qos_injection,
+                            device=target_device,
                         )
                         service.train(
                             graph=train_graph,
@@ -468,11 +477,12 @@ def run_kfold(
     multitask_weight: float,
     rm_consistency_weight: float,
     ranking_weight: float,
-    pairwise_ranking_weight: float,
+    pairwise_ranking_weight: float = 0.1,
     rank_normalize_features: bool = False,
     rank_normalize_labels: bool = False,
     qos_injection: str = "pooled",
     eval_population: str = "application",
+    device: Optional[str] = "auto",
 ) -> KFoldReport:
     output_dir.mkdir(parents=True, exist_ok=True)
     workdir = output_dir / "workspace"
@@ -507,6 +517,7 @@ def run_kfold(
                 rank_normalize_labels=rank_normalize_labels,
                 qos_injection=qos_injection,
                 eval_population=eval_population,
+                device=device,
             )
             scenario_results.append(result)
         except Exception as exc:
@@ -716,6 +727,10 @@ def parse_args() -> argparse.Namespace:
              "'application', matching reproduce/main_table.py and "
              "cli/loso_evaluate.py.",
     )
+    p.add_argument(
+        "--device", default="auto", choices=["auto", "cuda", "cpu"],
+        help="Device for model training/inference (default: auto -> cuda if available else cpu)",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
@@ -731,9 +746,14 @@ def main() -> int:
     seeds = [int(s.strip()) for s in args.seeds.split(",") if s.strip()]
     skip = [s.strip() for s in args.skip.split(",") if s.strip()]
 
+    dev_desc = "cuda" if (args.device == "cuda" or (args.device == "auto" and torch.cuda.is_available())) else "cpu"
+    if dev_desc == "cuda":
+        dev_desc += f" ({torch.cuda.get_device_name(0)})"
+
     logger.info("Per-Domain K-Fold Evaluation")
     logger.info("  Cache:     %s", args.cache_dir)
     logger.info("  Output:    %s", args.output_dir)
+    logger.info("  Device:    %s", dev_desc)
     logger.info("  Layer:     %s", args.layer)
     logger.info("  k:         %s", args.k)
     logger.info("  Seeds:     %s", seeds)
@@ -766,6 +786,7 @@ def main() -> int:
         rank_normalize_labels=args.rank_normalize_labels,
         qos_injection=args.qos_injection,
         eval_population=args.eval_population,
+        device=args.device,
     )
     elapsed = time.time() - t0
     logger.info("K-fold evaluation complete in %.1f s.", elapsed)

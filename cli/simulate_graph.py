@@ -269,6 +269,82 @@ def _run_fault_inject(args: argparse.Namespace) -> None:
     _write_fault_inject_text_summary(result, elapsed, output_dir)
 
 
+def _run_edge_criticality(args: argparse.Namespace) -> None:
+    """Measure the cost of severing each candidate relationship.
+
+    Produces the edge labels the GNN's edge head is trained against. Before
+    this command existed, ``networkx_to_hetero_data`` synthesised them from
+    ``I*(source) x {1.0 if bridge else 0.1}`` — a structural heuristic standing
+    in for a measurement — so the relationship-criticality results were
+    validated against a hand-chosen multiplier rather than against a severed
+    edge. ``FailureSimulator.simulate_edge_removal`` actually removes the edge,
+    with both endpoints left alive, and recomputes the composite.
+    """
+    from saag.infrastructure.memory_repo import MemoryRepository
+    from saag.simulation.failure_simulator import FailureSimulator
+    from saag.simulation.graph import SimulationGraph
+    from saag.simulation.service import SimulationService
+
+    input_path = Path(args.input)
+    if not input_path.exists():
+        logger.error("Input file not found: %s", input_path)
+        sys.exit(1)
+
+    is_direct_file = args.output.endswith(".json")
+    if is_direct_file:
+        out_json = Path(args.output)
+        output_dir = out_json.parent
+    else:
+        output_dir = Path(args.output)
+        out_json = output_dir / "edge_criticality.json"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.info("=" * 60)
+    logger.info("EDGE CRITICALITY (relationship removal sweep)")
+    logger.info("  Input  : %s", input_path)
+    logger.info("  Output : %s", out_json)
+    logger.info("  Layer  : %s", args.layer_scope)
+    logger.info("  Top-q  : %s", args.top_q)
+    logger.info("=" * 60)
+
+    t0 = time.perf_counter()
+    repo = MemoryRepository()
+    repo.save_graph(json.loads(input_path.read_text()), clear=True)
+    graph = SimulationGraph(repo.get_graph_data(include_raw=True))
+    sim = FailureSimulator(graph)
+    # Flow disruption carries 15% of the composite and reads 0.0 until the
+    # discrete-event baseline exists. Primed through the service so this path
+    # and the shipped API path cannot drift apart.
+    SimulationService._prime_baseline_flows(graph, sim)
+
+    edges = sim.simulate_edge_removal_sweep(layer=args.layer_scope, top_q=args.top_q)
+    elapsed = time.perf_counter() - t0
+
+    payload = {
+        "labeler": "FailureSimulator.simulate_edge_removal",
+        "layer": args.layer_scope,
+        "top_q": args.top_q,
+        "elapsed_s": round(elapsed, 4),
+        "n_evaluated": sum(1 for e in edges if e.evaluated),
+        "n_nonzero": sum(1 for e in edges if e.combined_impact > 1e-6),
+        "edge_criticality": [e.to_dict() for e in edges],
+    }
+    out_json.write_text(json.dumps(payload, indent=2))
+
+    print()
+    print("=" * 70)
+    print("EDGE CRITICALITY SUMMARY")
+    print("=" * 70)
+    print(f"  Candidates evaluated : {payload['n_evaluated']}")
+    print(f"  Non-zero impact      : {payload['n_nonzero']}")
+    print(f"  Elapsed              : {elapsed:.2f}s")
+    for e in edges[:10]:
+        print(f"    {e.source:>18s} -> {e.target:<18s} "
+              f"{e.relationship:<14s} {e.combined_impact:.4f}  [{e.level}]")
+    print("=" * 70)
+    logger.info("Edge criticality written -> %s", out_json)
+
+
 def _print_fault_inject_summary(result, elapsed: float) -> None:
     print()
     print("=" * 70)
@@ -622,6 +698,36 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    # ── edge-criticality ─────────────────────────────────────────────────
+    ec = subparsers.add_parser(
+        "edge-criticality",
+        help="Relationship removal sweep -> measured per-edge criticality labels.",
+        description=(
+            "Severs each candidate relationship with both endpoints left alive "
+            "and recomputes the composite impact, producing the measured edge "
+            "labels the GNN edge head trains against."
+        ),
+    )
+    _add_shared(ec)
+    ec.add_argument(
+        "--layer-scope",
+        default="system",
+        metavar="LAYER",
+        help="Layer whose edges are swept. Default: system",
+    )
+    ec.add_argument(
+        "--top-q",
+        type=int,
+        default=50,
+        metavar="N",
+        help=(
+            "Candidate budget beyond bridges: the N highest-betweenness edges. "
+            "An exhaustive sweep is O(|E|) full impact recomputations, so edges "
+            "outside the candidate set are emitted with evaluated=false rather "
+            "than scored 0. Default: 50"
+        ),
+    )
+
     # ── message-flow ─────────────────────────────────────────────────────
     mf = subparsers.add_parser(
         "message-flow",
@@ -789,6 +895,7 @@ def main() -> None:
 
     dispatch = {
         "fault-inject": _run_fault_inject,
+        "edge-criticality": _run_edge_criticality,
         "message-flow": _run_message_flow,
         "combined": _run_combined,
     }

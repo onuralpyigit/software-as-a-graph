@@ -81,6 +81,7 @@ def train_once(
     layers: int,
     rank_normalize_features: bool,
     rank_normalize_labels: bool,
+    device: Optional[str] = "auto",
 ) -> GNNService:
     """Train one HGT on the whole synthetic corpus.
 
@@ -91,6 +92,10 @@ def train_once(
     nothing is held out for *testing* — the test set is the real-world corpus,
     which lives in a different cache entirely.
     """
+    import torch
+    target_device = torch.device(
+        "cuda" if (device == "cuda" or (device in ("auto", None) and torch.cuda.is_available())) else "cpu"
+    )
     primary = max(bundles, key=lambda b: b.n_nodes)
     inductives = [b for b in bundles if b.scenario_id != primary.scenario_id]
     val_bundle = _select_val_bundle(inductives, "auto")
@@ -111,6 +116,7 @@ def train_once(
         num_layers=layers,
         dropout=0.2,
         predict_edges=False,
+        device=target_device,
     )
     service.train(
         graph=train_graph,
@@ -295,6 +301,10 @@ def main() -> int:
     p.add_argument("--rank-normalize-labels", action="store_true", default=True)
     p.add_argument("--no-rank-normalize-labels", dest="rank_normalize_labels", action="store_false")
     p.add_argument("--workdir", type=Path, default=Path("output/realworld_zeroshot"))
+    p.add_argument(
+        "--device", default="auto", choices=["auto", "cuda", "cpu"],
+        help="Device for training/inference (default: auto -> cuda if available else cpu)",
+    )
     p.add_argument("--output", type=Path,
                    default=RESULTS_DIR / "realworld_zeroshot.json")
     args = p.parse_args()
@@ -335,6 +345,7 @@ def main() -> int:
             use_qos=use_qos, epochs=args.epochs, layers=args.layers,
             rank_normalize_features=args.rank_normalize_features,
             rank_normalize_labels=args.rank_normalize_labels,
+            device=args.device,
         )
         for b in real:
             try:

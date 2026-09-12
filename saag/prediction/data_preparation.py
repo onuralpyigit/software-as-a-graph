@@ -608,6 +608,10 @@ class GraphConversionResult:
 
     num_labelled_nodes: int = 0
 
+    #: Edges carrying a measured criticality label (``y_edge_mask`` true).
+    #: Zero means L_edge is inactive — no edge-removal sweep was supplied.
+    num_labelled_edges: int = 0
+
     present_node_types: List[str] = field(default_factory=list)
 
     #: Which of the 3 label columns (see LABEL_COLS) the labeler actually
@@ -626,6 +630,7 @@ def networkx_to_hetero_data(
     rm_scores: Optional[Dict[str, Dict[str, float]]] = None,
     qos_enabled: bool = True,
     rank_normalize_features: bool = False,
+    edge_simulation_results: Optional[Dict[Tuple[str, str], float]] = None,
 ) -> GraphConversionResult:
     """Convert a NetworkX DiGraph to a PyG HeteroData object.
 
@@ -646,6 +651,16 @@ def networkx_to_hetero_data(
                         fault_tolerance, availability}}`` for node
         predictions — fault_tolerance/availability are Reliability's
         sub-characteristics, reported but not separate label columns.
+    edge_simulation_results:
+        ``{(source_id, target_id): combined_impact}`` measured edge criticality
+        from ``FailureSimulator.simulate_edge_removal`` — the edge is actually
+        severed and the composite recomputed. Only edges present here are
+        supervised; the rest carry ``y_edge_mask=False`` so the edge loss skips
+        them. Omit it and no edge labels are written at all, which leaves
+        ``L_edge`` inactive rather than substituting a proxy. There used to be
+        such a proxy here (``I*(source) x {1.0 if bridge else 0.1}``), so the
+        edge head was scored against a hand-chosen structural heuristic rather
+        than against a measurement; that is the defect this parameter closes.
     rank_normalize_features:
         Apply within-graph rank normalization (see
         :func:`_rank_normalize_base_columns`) to the ``BASE_METRIC_KEYS``
@@ -790,11 +805,6 @@ def networkx_to_hetero_data(
             data[node_type].y_rm = torch.from_numpy(rm_matrix)
 
     # ── 3. Build edge index and feature tensors per relation ──────────────────
-    try:
-        bridges = set(nx.bridges(graph.to_undirected()))
-    except Exception:
-        bridges = set()
-
     # Pre-compute per-edge QoS heterogeneity flags (single graph pass)
     _hetero_flags: Dict[Tuple[str, str], float] = _compute_qos_heterogeneity_flags(graph)
 
@@ -832,32 +842,56 @@ def networkx_to_hetero_data(
 
         rel_edges[rel_key][2].append([weight, path_count_norm] + type_onehot + qos_dims)
 
+    n_edge_labelled = 0
     for (src_type, edge_type, dst_type), (srcs, dsts, feats) in rel_edges.items():
         rel = (src_type, edge_type, dst_type)
         data[rel].edge_index = torch.tensor([srcs, dsts], dtype=torch.long)
         data[rel].edge_attr = torch.tensor(feats, dtype=torch.float32)
 
-        # Edge labels: grounded in structural bridge property (Issue G3 workaround)
-        if simulation_results:
+        # Edge labels: the measured cost of severing this relationship, from
+        # FailureSimulator.simulate_edge_removal. Edges the sweep did not
+        # evaluate are masked out rather than written as 0.0 — an unmeasured
+        # edge is not an edge measured to be harmless (the same distinction
+        # FaultInjectionResult.unlabeled_node_ids draws for nodes).
+        if edge_simulation_results:
             src_nodes = result.node_id_map[src_type]
             dst_nodes = result.node_id_map[dst_type]
-            edge_labels = np.zeros((len(srcs), len(LABEL_COLS)), dtype=np.float32)
+            edge_labels = np.zeros((len(srcs), 1), dtype=np.float32)
+            edge_mask = np.zeros(len(srcs), dtype=bool)
             for i, (s_idx, d_idx) in enumerate(zip(srcs, dsts)):
-                s_name = src_nodes[s_idx]
-                d_name = dst_nodes[d_idx]
-                is_bridge = (s_name, d_name) in bridges or (d_name, s_name) in bridges
-                bridge_multiplier = 1.0 if is_bridge else 0.1
-                s_sim = simulation_results.get(s_name, {})
-                for key, col in LABEL_COLS.items():
-                    edge_labels[i, col] = float(s_sim.get(key, 0.0)) * bridge_multiplier
-            data[rel].y_edge = torch.from_numpy(edge_labels)
+                measured = edge_simulation_results.get(
+                    (src_nodes[s_idx], dst_nodes[d_idx])
+                )
+                if measured is None:
+                    continue
+                edge_labels[i, 0] = float(measured)
+                edge_mask[i] = True
+            if edge_mask.any():
+                data[rel].y_edge = torch.from_numpy(edge_labels)
+                data[rel].y_edge_mask = torch.from_numpy(edge_mask)
+                n_edge_labelled += int(edge_mask.sum())
 
+    result.num_labelled_edges = n_edge_labelled
     logger.info(
-        "Graph converted: %d node types, %d relation types, %d labelled nodes.",
+        "Graph converted: %d node types, %d relation types, %d labelled nodes, "
+        "%d labelled edges.",
         len(result.present_node_types),
         len(rel_edges),
         result.num_labelled_nodes,
+        n_edge_labelled,
     )
+    if simulation_results and not edge_simulation_results:
+        # Gated on simulation_results so only label-bearing (training)
+        # conversions speak up; a predict-time conversion has no labels of any
+        # kind and nothing to say. Stated rather than silent: the
+        # edge-criticality head still predicts, but nothing supervises it, so
+        # L_edge contributes zero to the loss. Silence here is what let a
+        # structural proxy stand in for a measurement unnoticed.
+        logger.warning(
+            "No measured edge criticality supplied — L_edge is inactive. Run "
+            "`cli/simulate_graph.py edge-criticality` and pass its output as "
+            "edge_simulation_results to supervise the edge head."
+        )
     if result.num_labelled_nodes == 0 and simulation_results:
         logger.warning(
             "ZERO labelled nodes found! Check if component IDs in simulation results "
@@ -1290,6 +1324,40 @@ def extract_simulation_dict(simulation_results: Union[list, dict, Any]) -> Dict[
                 "reliability": float(impact.get("reliability_impact", 0.0)),
                 "maintainability": float(impact.get("maintainability_impact", 0.0)),
             }
+    return out
+
+
+def extract_edge_simulation_dict(
+    edge_results: Union[list, dict, Any]
+) -> Dict[Tuple[str, str], float]:
+    """Normalise edge-removal sweep output to ``{(source, target): impact}``.
+
+    Accepts a ``SimulationReport``-shaped dict (``{"edge_criticality": [...]}``),
+    a bare list of :class:`~saag.simulation.models.EdgeCriticality` dicts, or the
+    objects themselves.
+
+    Entries marked ``evaluated=False`` are dropped, not read as 0.0: the sweep
+    bounds its candidate set to bridges and top-betweenness edges, and an edge
+    it never severed is unmeasured rather than measured harmless.
+    """
+    if hasattr(edge_results, "to_dict"):
+        edge_results = edge_results.to_dict()
+
+    if isinstance(edge_results, dict):
+        edge_results = edge_results.get("edge_criticality", [])
+
+    out: Dict[Tuple[str, str], float] = {}
+    for e in edge_results or []:
+        if hasattr(e, "to_dict"):
+            e = e.to_dict()
+        if not isinstance(e, dict):
+            continue
+        if not e.get("evaluated", True):
+            continue
+        src, tgt = e.get("source"), e.get("target")
+        if src is None or tgt is None:
+            continue
+        out[(str(src), str(tgt))] = float(e.get("combined_impact", 0.0))
     return out
 
 

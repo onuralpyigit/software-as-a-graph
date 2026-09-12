@@ -283,18 +283,28 @@ def parse_args():
         help="Node population every variant is scored on; forwarded to "
              "cli/kfold_evaluate.py. Defaults to 'application'.",
     )
+    p.add_argument(
+        "--device", default="auto", choices=["auto", "cuda", "cpu"],
+        help="Device for model training/inference (default: auto -> cuda if available else cpu)",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
 
 def main():
+    import torch
     args = parse_args()
     variants = args.variants or ALL_VARIANTS
+
+    dev_desc = "cuda" if (args.device == "cuda" or (args.device == "auto" and torch.cuda.is_available())) else "cpu"
+    if dev_desc == "cuda":
+        dev_desc += f" ({torch.cuda.get_device_name(0)})"
 
     print(f"\n  K-Fold All-Variants Sweep")
     print(f"  Variants  : {variants}")
     print(f"  Seeds     : {args.seeds}")
     print(f"  k         : {args.k}")
+    print(f"  Device    : {dev_desc}")
     print(f"  Cache dir : {args.cache_dir}")
     print()
 
@@ -326,7 +336,7 @@ def main():
             data = _run_variant(
                 variant=var, seeds=args.seeds, k=args.k,
                 cache_dir=args.cache_dir, epochs=args.epochs,
-                extra_args=["--eval-population", args.eval_population],
+                extra_args=["--eval-population", args.eval_population, "--device", args.device],
                 verbose=args.verbose,
             )
             results_by_variant[var] = data

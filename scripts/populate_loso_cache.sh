@@ -70,29 +70,29 @@ for scenario in "${TARGETS[@]}"; do
     # Step 1: Copy topology
     if [ ! -f "$out/topology.json" ]; then
         cp "$json_path" "$out/topology.json"
-        echo "  [1/4] topology.json copied"
+        echo "  [1/6] topology.json copied"
     fi
 
     # Step 2: Import graph
-    echo "  [2/4] Importing graph ..."
+    echo "  [2/6] Importing graph ..."
     PYTHONPATH=. python cli/import_graph.py \
         --input "$out/topology.json" \
         --clear 2>&1 | tail -2 || echo "  (import_graph error — continuing)"
 
     # Step 3: Structural metrics
     if [ ! -f "$out/structural_metrics.json" ]; then
-        echo "  [3/4] Computing structural metrics ..."
+        echo "  [3/6] Computing structural metrics ..."
         PYTHONPATH=. python cli/analyze_graph.py \
             --layer app \
             --output "$out/structural_metrics.json" 2>&1 | tail -2 || \
             echo "  (analyze_graph error — skipping)"
     else
-        echo "  [3/4] structural_metrics.json exists"
+        echo "  [3/6] structural_metrics.json exists"
     fi
 
     # Step 4: Fault injection → failure_impact.json
     if [ ! -f "$out/failure_impact.json" ]; then
-        echo "  [4/4] Running fault injection ..."
+        echo "  [4/6] Running fault injection ..."
         # Five seeds, not one: the artifact's label_stability block needs at
         # least two to measure test-retest agreement, and the reported rho has
         # no stated ceiling without it.
@@ -111,10 +111,27 @@ for scenario in "${TARGETS[@]}"; do
             [ -f "$f" ] && mv "$f" "$out/failure_impact.json" && break
         done
     else
-        echo "  [4/4] failure_impact.json exists"
+        echo "  [4/6] failure_impact.json exists"
     fi
 
-    # Step 5: RM quality scores
+    # Step 5: Edge criticality -> edge_criticality.json
+    # The measured cost of severing a relationship, both endpoints alive. This
+    # is what supervises the GNN's edge head; without it networkx_to_hetero_data
+    # writes no edge labels at all and L_edge stays inactive (it used to
+    # substitute I*(source) x {1.0 if bridge else 0.1}, a structural heuristic
+    # standing in for a measurement). Reads topology.json directly, so it needs
+    # no live database.
+    if [ ! -f "$out/edge_criticality.json" ]; then
+        echo "  [5/6] Running edge-removal sweep ..."
+        PYTHONPATH=. python cli/simulate_graph.py edge-criticality \
+            --input "$out/topology.json" \
+            --output "$out/edge_criticality.json" 2>&1 | tail -3 || \
+            echo "  (edge-criticality error — skipping)"
+    else
+        echo "  [5/6] edge_criticality.json exists"
+    fi
+
+    # Step 6: RM quality scores
     # --no-antipatterns: the cache consumes RM scores only, and detection is
     # measured separately by reproduce/detection_validation.py. Leaving it on
     # also makes this step hang — DEEP_PIPELINE enumerates every simple path and
@@ -122,13 +139,13 @@ for scenario in "${TARGETS[@]}"; do
     # in reproduce/detection_validation.py). It also forces a non-zero exit via
     # the deployment gate, which this script would report as a spurious error.
     if [ ! -f "$out/quality_scores.json" ]; then
-        echo "  [5/5] Computing RM quality scores ..."
+        echo "  [6/6] Computing RM quality scores ..."
         PYTHONPATH=. python cli/predict_graph.py \
             --layer app --no-antipatterns \
             --output "$out/quality_scores.json" 2>&1 | tail -2 || \
             echo "  (predict_graph error — skipping)"
     else
-        echo "  [5/5] quality_scores.json exists"
+        echo "  [6/6] quality_scores.json exists"
     fi
 
     echo "  ✓ $scenario done"

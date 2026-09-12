@@ -168,6 +168,8 @@ def _extra_args(args) -> List[str]:
         extra.append("--rank-normalize-features")
     if args.rank_normalize_labels:
         extra.append("--rank-normalize-labels")
+    if getattr(args, "device", None):
+        extra += ["--device", args.device]
     return extra
 
 
@@ -312,17 +314,27 @@ def parse_args():
                    help="Forwarded to cli/loso_evaluate.py.")
     p.add_argument("--rank-normalize-labels", action="store_true",
                    help="Forwarded to cli/loso_evaluate.py.")
+    p.add_argument(
+        "--device", default="auto", choices=["auto", "cuda", "cpu"],
+        help="Device for model training/inference (default: auto -> cuda if available else cpu)",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
 
 def main():
+    import torch
     args = parse_args()
     variants = args.variants or ALL_VARIANTS
+
+    dev_desc = "cuda" if (args.device == "cuda" or (args.device == "auto" and torch.cuda.is_available())) else "cpu"
+    if dev_desc == "cuda":
+        dev_desc += f" ({torch.cuda.get_device_name(0)})"
 
     print(f"\n  LOSO All-Variants Sweep (Block E)")
     print(f"  Variants  : {variants}")
     print(f"  Seeds     : {args.seeds}")
+    print(f"  Device    : {dev_desc}")
     print(f"  Cache dir : {args.cache_dir}")
     print()
 

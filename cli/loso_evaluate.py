@@ -117,6 +117,7 @@ from saag.prediction.data_preparation import (
     extract_simulation_dict,
     extract_structural_metrics_dict,
     extract_rm_scores_dict,
+    extract_edge_simulation_dict,
 )
 from saag.core.models import QoSPolicy, topic_weight_from_node_attrs
 
@@ -144,6 +145,11 @@ class ScenarioBundle:
     #: The test-retest rho here is the ceiling on any rho reported against them.
     label_stability: Dict[str, Any] = field(default_factory=dict)
     labeler: str = ""
+    #: ``{(source, target): combined_impact}`` from the edge-removal sweep, when
+    #: the cache carries an ``edge_criticality.json``. Empty leaves the edge head
+    #: unsupervised rather than substituting a structural proxy for a
+    #: measurement — see ``networkx_to_hetero_data``.
+    edge_simulation: Dict[Any, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -321,6 +327,8 @@ def load_scenario_bundle(scenario_dir: Path) -> Optional[ScenarioBundle]:
     structural_raw = _load_json(scenario_dir / "structural_metrics.json")
     rm_raw = _load_json(scenario_dir / "quality_scores.json")
     sim_raw = _load_json(scenario_dir / "failure_impact.json")
+    # Optional: absent in caches built before the edge-removal sweep existed.
+    edge_raw = _load_json(scenario_dir / "edge_criticality.json")
 
     missing = [
         name for name, val in [
@@ -355,7 +363,11 @@ def load_scenario_bundle(scenario_dir: Path) -> Optional[ScenarioBundle]:
         rm = extract_rm_scores_dict(rm_raw) if rm_raw else {}
         simulation = extract_simulation_dict(sim_raw)
 
-    conv = networkx_to_hetero_data(graph, structural, simulation, rm)
+    edge_simulation = extract_edge_simulation_dict(edge_raw) if edge_raw else {}
+    conv = networkx_to_hetero_data(
+        graph, structural, simulation, rm,
+        edge_simulation_results=edge_simulation or None,
+    )
 
     bundle = ScenarioBundle(
         scenario_id=scenario_id,
@@ -369,6 +381,7 @@ def load_scenario_bundle(scenario_dir: Path) -> Optional[ScenarioBundle]:
         n_labelled=conv.num_labelled_nodes,
         label_stability=sim_raw.get("label_stability", {}) if isinstance(sim_raw, dict) else {},
         labeler=sim_raw.get("labeler", "") if isinstance(sim_raw, dict) else "",
+        edge_simulation=edge_simulation,
     )
     logger.info(
         "  [%s] %d nodes, %d edges, %d labelled%s",
@@ -454,6 +467,7 @@ def _build_training_hetero(
         graph, sm, bundle.simulation, bundle.rm,
         qos_enabled=use_qos,
         rank_normalize_features=rank_normalize_features,
+        edge_simulation_results=bundle.edge_simulation or None,
     ).hetero_data
 
 
@@ -525,6 +539,7 @@ def run_one_fold(
     inner_val: str = "none",
     rank_normalize_features: bool = False,
     rank_normalize_labels: bool = False,
+    device: Optional[str] = "auto",
 ) -> FoldResult:
     """
     One LOSO fold: train on N-1 scenarios with multi-seed, predict on held-out.
@@ -535,6 +550,10 @@ def run_one_fold(
       - holdout's structural/rm are passed at predict() time (needed for features)
       - holdout's simulation is passed only for evaluation, never for training
     """
+    if device == "cuda" or (device in ("auto", None) and torch.cuda.is_available()):
+        target_device = torch.device("cuda")
+    else:
+        target_device = torch.device("cpu")
     holdout = bundles[holdout_idx]
     train_set = [b for i, b in enumerate(bundles) if i != holdout_idx]
     train_ids = [b.scenario_id for b in train_set]
@@ -687,10 +706,11 @@ def run_one_fold(
                 baseline_name = "homo_unweighted" if variant == "gl" else "homo_scalar"
                 model = build_baseline(baseline_name, hidden_channels=hidden, num_heads=heads,
                                        num_layers=layers, dropout=dropout)
+                model.to(target_device)
                 best_path = ckpt_dir / "best_model.pt"
                 if best_path.exists():
                     logger.info("  Found baseline checkpoint %s. Skipping training.", best_path)
-                    model.load_state_dict(torch.load(best_path, map_location="cpu"))
+                    model.load_state_dict(torch.load(best_path, map_location=target_device))
                 else:
                     trainer = GNNTrainer(model=model, checkpoint_dir=str(ckpt_dir),
                                          lr=lr, num_epochs=epochs, patience=min(60, epochs),
@@ -719,15 +739,15 @@ def run_one_fold(
                 )
                 data_h = conv_h.hetero_data
                 create_node_splits(data_h, seed=seed)
-                device = torch.device("cpu")
-                metrics = evaluate(model, data_h, "test_mask", device)
+                metrics = evaluate(model, data_h, "test_mask", target_device)
 
                 # Build pred_scores from model output for inductive metrics
                 model.eval()
+                data_h_dev = data_h.to(target_device)
                 with torch.no_grad():
-                    x_h = {nt: data_h[nt].x for nt in data_h.node_types if hasattr(data_h[nt], "x")}
-                    ei_h = {r: data_h[r].edge_index for r in data_h.edge_types}
-                    ea_h = {r: data_h[r].edge_attr for r in data_h.edge_types if hasattr(data_h[r], "edge_attr")}
+                    x_h = {nt: data_h_dev[nt].x for nt in data_h_dev.node_types if hasattr(data_h_dev[nt], "x")}
+                    ei_h = {r: data_h_dev[r].edge_index for r in data_h_dev.edge_types}
+                    ea_h = {r: data_h_dev[r].edge_attr for r in data_h_dev.edge_types if hasattr(data_h_dev[r], "edge_attr")}
                     out_h = model(x_h, ei_h, ea_h)
 
                 pred_scores: Dict[str, float] = {}
@@ -758,6 +778,7 @@ def run_one_fold(
                         str(ckpt_dir),
                         graph=train_graph,
                         layer=layer,
+                        device=target_device,
                     )
                 else:
                     service = GNNService(
@@ -767,11 +788,13 @@ def run_one_fold(
                         num_layers=effective_layers,
                         dropout=dropout,
                         predict_edges=False,
+                        device=target_device,
                     )
                     service.train(
                         graph=train_graph,
                         structural_metrics=train_sm,
                         simulation_results=primary.simulation,
+                        edge_simulation_results=primary.edge_simulation or None,
                         rm_scores=primary.rm,
                         inductive_graphs=[
                             _build_training_hetero(b, use_qos, rank_normalize_features)
@@ -959,6 +982,7 @@ def run_loso(
     inner_val: str = "none",
     rank_normalize_features: bool = False,
     rank_normalize_labels: bool = False,
+    device: Optional[str] = "auto",
 ) -> LOSOReport:
     """Run leave-one-scenario-out across all loaded bundles."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -1001,6 +1025,7 @@ def run_loso(
                 inner_val=inner_val,
                 rank_normalize_features=rank_normalize_features,
                 rank_normalize_labels=rank_normalize_labels,
+                device=device,
             )
             fold_results.append(fold)
         except Exception as exc:
@@ -1366,6 +1391,10 @@ def parse_args() -> argparse.Namespace:
              "The reported metric is Spearman, so ranks are the matched target "
              "scale. Off by default.",
     )
+    p.add_argument(
+        "--device", default="auto", choices=["auto", "cuda", "cpu"],
+        help="Device for model training/inference (default: auto -> cuda if available else cpu)",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
@@ -1381,9 +1410,14 @@ def main() -> int:
     seeds = [int(s.strip()) for s in args.seeds.split(",") if s.strip()]
     skip = [s.strip() for s in args.skip.split(",") if s.strip()]
 
+    dev_desc = "cuda" if (args.device == "cuda" or (args.device == "auto" and torch.cuda.is_available())) else "cpu"
+    if dev_desc == "cuda":
+        dev_desc += f" ({torch.cuda.get_device_name(0)})"
+
     logger.info("LOSO Evaluation — G4 closure")
     logger.info("  Cache:     %s", args.cache_dir)
     logger.info("  Output:    %s", args.output_dir)
+    logger.info("  Device:    %s", dev_desc)
     logger.info("  Layer:     %s", args.layer)
     logger.info("  Seeds:     %s", seeds)
     logger.info("  Mode:      %s", args.mode)
@@ -1416,6 +1450,7 @@ def main() -> int:
         inner_val=args.inner_val_scenario,
         rank_normalize_features=args.rank_normalize_features,
         rank_normalize_labels=args.rank_normalize_labels,
+        device=args.device,
     )
     elapsed = time.time() - t0
     logger.info("LOSO complete in %.1f s.", elapsed)

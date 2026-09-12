@@ -125,6 +125,7 @@ def _score_fold(
     variant: str,
     epochs: int,
     eval_population: str,
+    device: Optional[str] = "auto",
 ) -> float:
     """Mean Spearman rho for one fold under one configuration.
 
@@ -161,6 +162,7 @@ def _score_fold(
         inner_val=cfg.get("inner_val", "auto"),
         rank_normalize_features=cfg.get("rank_normalize_features", False),
         rank_normalize_labels=cfg.get("rank_normalize_labels", False),
+        device=device,
     )
     return float(fold.mean_metrics["spearman_rho"])
 
@@ -197,6 +199,7 @@ def run_search(
     inner_mode: str = "loso",
     inner_epochs: Optional[int] = None,
     inner_k: int = 2,
+    device: Optional[str] = "auto",
 ) -> Dict[str, Any]:
     cache: Dict[str, float] = {}
     if cache_path and cache_path.exists():
@@ -238,6 +241,7 @@ def run_search(
                 scores.append(_cached(key, lambda: _score_fold(
                     inner_bundles, inner_idx, cfg, inner_seeds, wd,
                     variant, inner_epochs or epochs, eval_population,
+                    device=device,
                 )))
             inner_means[cid] = float(np.mean(scores))
             print(f"     inner rho={inner_means[cid]:+.4f}  {cid}")
@@ -250,6 +254,7 @@ def run_search(
             bundles, outer_idx, best_cfg, outer_seeds,
             workroot / "outer" / outer.scenario_id, variant, epochs,
             eval_population,
+            device=device,
         ))
 
         print(f"     selected: {best_cid}  (inner {inner_means[best_cid]:+.4f})")
@@ -319,6 +324,10 @@ def parse_args():
                         "shorter budget is often enough; the reported outer "
                         "folds always use --epochs.")
     p.add_argument("--skip", default="", help="Comma-separated scenario id substrings")
+    p.add_argument(
+        "--device", default="auto", choices=["auto", "cuda", "cpu"],
+        help="Device to use for training/evaluation (default: auto).",
+    )
     return p.parse_args()
 
 
@@ -340,6 +349,7 @@ def main() -> int:
     print(f"\n  Nested LOSO search — variant={args.variant} grid={args.grid}")
     print(f"  Scenarios : {len(bundles)}")
     print(f"  Configs   : {len(configs)}")
+    print(f"  Device    : {args.device}")
     print(f"  Inner mode: {args.inner_mode} ({per_config} inner fold(s) per config, "
           f"{args.inner_epochs or args.epochs} epochs)")
     print(f"  Inner fold-trainings: {n_inner} x {len(inner_seeds)} seed(s)")
@@ -352,6 +362,7 @@ def main() -> int:
         eval_population=args.eval_population, workroot=args.workroot,
         cache_path=cache_path, inner_mode=args.inner_mode,
         inner_epochs=args.inner_epochs, inner_k=args.inner_k,
+        device=args.device,
     )
 
     args.output.parent.mkdir(parents=True, exist_ok=True)

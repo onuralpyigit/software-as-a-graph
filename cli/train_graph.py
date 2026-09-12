@@ -113,6 +113,9 @@ def parse_args() -> argparse.Namespace:
         ),
     )
 
+    gnn.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"],
+                      help="Compute device (default: auto -> cuda if available else cpu)")
+
     # Output
     output = parser.add_argument_group("Output")
     output.add_argument("--checkpoint", default="output/gnn_checkpoints",
@@ -280,6 +283,7 @@ def main() -> None:
         create_node_splits(data, args.train_ratio, args.val_ratio, seed=seed)
         torch.manual_seed(seed)
 
+        target_device = torch.device("cuda" if (args.device == "cuda" or (args.device == "auto" and torch.cuda.is_available())) else "cpu")
         model = build_baseline(
             variant,
             hidden_channels=args.hidden,
@@ -287,6 +291,7 @@ def main() -> None:
             num_layers=args.layers,
             dropout=args.dropout,
         )
+        model.to(target_device)
         trainer = GNNTrainer(
             model=model,
             checkpoint_dir=ckpt_dir,
@@ -306,6 +311,8 @@ def main() -> None:
         return
 
     # Default: hetero_qos — existing GNNService path
+    import torch
+    target_device = torch.device("cuda" if (args.device == "cuda" or (args.device == "auto" and torch.cuda.is_available())) else "cpu")
     service = GNNService(
         hidden_channels=args.hidden,
         num_heads=args.heads,
@@ -313,6 +320,7 @@ def main() -> None:
         dropout=args.dropout,
         predict_edges=not args.no_edge_model,
         checkpoint_dir=ckpt_dir,
+        device=target_device,
     )
 
     display.print_step("Starting GNN training session...")

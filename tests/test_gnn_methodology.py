@@ -8,59 +8,38 @@ from saag.prediction.models import CriticalityLoss
 from saag.prediction.gnn_service import GNNService
 from saag.prediction.trainer import EvalMetrics
 
-def test_bridge_aware_edge_labels():
-    """GNN-G3: Verify that edge labels are grounded in bridge property."""
+def test_edge_labels_are_not_derived_from_bridge_structure():
+    """GNN-G3 (superseded): edge labels must be measurements, not structure.
+
+    This test used to assert the opposite — that ``y_edge`` equalled
+    ``I*(source) x {1.0 if bridge else 0.1}``. That multiplier was a stand-in
+    for the edge-removal oracle the paper declares, so the edge head was scored
+    against a hand-chosen structural heuristic. The heuristic is gone; node
+    simulation results alone no longer produce edge labels of any kind.
+
+    The positive contract (measured labels, masked gaps) is pinned in
+    tests/test_edge_label_provenance.py.
+    """
     G = nx.DiGraph()
-    # Simple line graph: 1 -> 2 -> 3
-    # Both 1->2 and 2->3 are bridges in the underlying undirected graph
-    G.add_edge("1", "2")
-    G.add_edge("2", "3")
+    G.add_edge("1", "2", type="DEPENDS_ON")   # a bridge
+    G.add_edge("2", "3", type="PUBLISHES_TO")
     G.nodes["1"]["type"] = "Application"
     G.nodes["2"]["type"] = "Application"
     G.nodes["3"]["type"] = "Topic"
-    
-    # Simulation results: node 1 is critical
+
     simulation = {
-        "1": {"composite": 1.0, "reliability": 0.8, "maintainability": 0.0, "availability": 0.0, "security": 0.0},
-        "2": {"composite": 0.5, "reliability": 0.4, "maintainability": 0.0, "availability": 0.0, "security": 0.0},
-        "3": {"composite": 0.1, "reliability": 0.1, "maintainability": 0.0, "availability": 0.0, "security": 0.0},
+        "1": {"composite": 1.0, "reliability": 0.8},
+        "2": {"composite": 0.5, "reliability": 0.4},
+        "3": {"composite": 0.1, "reliability": 0.1},
     }
-    
-    # 1. Test Bridge (Line Graph)
+
     conv = networkx_to_hetero_data(G, simulation_results=simulation)
-    data = conv.hetero_data
-    
-    # rel (Application, DEPENDS_ON, Application) [1->2]
-    # In my code, for Apps it uses DEPENDS_ON ? 
-    # Actually networkx_to_hetero_data uses the edge structure from G.
-    # Let's check which relation it created.
-    # By default edges in G are treated as DEPENDS_ON if not specified? 
-    # No, it uses graph.edges(data=True) and checks 'type'.
-    
-    # Let's add explicit types
-    G.edges["1", "2"]["type"] = "DEPENDS_ON"
-    G.edges["2", "3"]["type"] = "PUBLISHES_TO"
-    
-    conv = networkx_to_hetero_data(G, simulation_results=simulation)
-    data = conv.hetero_data
-    
-    # Edge 1->2 is a bridge. Multiplier should be 1.0.
-    # Label should be sim["1"]["composite"] * 1.0 = 1.0
-    rel_12 = ("Application", "DEPENDS_ON", "Application")
-    assert data[rel_12].y_edge[0, 0] == pytest.approx(1.0)
-    
-    # 2. Test Non-Bridge (Cycle or Parallel)
-    G.add_edge("1", "3", type="DEPENDS_ON")
-    # Now 1->2 and 1->3 and 2->3 are not bridges individually for connectivity 1-3?
-    # Actually undirected bridges: losing 1->2 still allows 1-3-2? Wait, 2->3 is directed.
-    # Undirected: 1-2, 2-3, 1-3 forms a triangle. No bridges.
-    
-    conv = networkx_to_hetero_data(G, simulation_results=simulation)
-    data = conv.hetero_data
-    
-    # Multiplier should be 0.1
-    # Label should be sim["1"]["composite"] * 0.1 = 0.1
-    assert data[rel_12].y_edge[0, 0] == pytest.approx(0.1)
+    assert conv.num_labelled_edges == 0
+    for rel in conv.hetero_data.edge_types:
+        assert not hasattr(conv.hetero_data[rel], "y_edge"), (
+            f"{rel} carries a fabricated edge label"
+        )
+
 
 def test_consistency_loss_logic():
     """GNN-G2: Verify that consistency loss applies only to unlabeled nodes."""

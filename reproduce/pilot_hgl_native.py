@@ -24,14 +24,18 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("HGL-Native-Pilot")
 
+import argparse
 from reproduce.main_table import _load_scenario_data
 from saag.prediction.gnn_service import GNNService
 
-def run_pilot():
+def run_pilot(device: str = "auto"):
     scenarios = ["av_system", "atm_system"]
     seed = 42
 
-    logger.info("Starting HGL-native G1 Pilot...")
+    target_device = torch.device(
+        "cuda" if (device == "cuda" or (device in ("auto", None) and torch.cuda.is_available())) else "cpu"
+    )
+    logger.info("Starting HGL-native G1 Pilot on device: %s", target_device)
 
     for scenario in scenarios:
         logger.info(f"=== Sanity check scenario: {scenario} ===")
@@ -52,6 +56,7 @@ def run_pilot():
             dropout=0.1,
             predict_edges=False,
             checkpoint_dir=f"output/gnn_checkpoints/pilot_{scenario}",
+            device=target_device,
         )
 
         # 3. Train HGL-native
@@ -90,4 +95,10 @@ def run_pilot():
     logger.info("G1 HGL-native Pilot Completed Successfully! Gate G1 is a GO.")
 
 if __name__ == "__main__":
-    run_pilot()
+    parser = argparse.ArgumentParser(description="HGL-native Pilot (Go / No-Go Gate G1)")
+    parser.add_argument(
+        "--device", default="auto", choices=["auto", "cuda", "cpu"],
+        help="Device to use for pilot training (default: auto)",
+    )
+    args = parser.parse_args()
+    run_pilot(device=args.device)

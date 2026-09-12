@@ -70,7 +70,7 @@ def _counts_for(n_target: int) -> Dict[str, int]:
     return counts
 
 
-def measure(n_target: int, repeats: int, hidden: int, heads: int, layers: int) -> Dict[str, Any]:
+def measure(n_target: int, repeats: int, hidden: int, heads: int, layers: int, device: str = "cpu") -> Dict[str, Any]:
     import torch
 
     from cli.loso_evaluate import _build_graph_from_json
@@ -80,6 +80,10 @@ def measure(n_target: int, repeats: int, hidden: int, heads: int, layers: int) -
     from saag.prediction.models.core import build_node_gnn
     from tools.generation.service import generate_graph
     from tools.generation.models import GraphConfig
+
+    target_device = torch.device(
+        "cuda" if (device == "cuda" or (device in ("auto", None) and torch.cuda.is_available())) else "cpu"
+    )
 
     counts = _counts_for(n_target)
     cfg = GraphConfig.from_yaml({"graph": {"seed": 42, "counts": counts}})
@@ -112,22 +116,30 @@ def measure(n_target: int, repeats: int, hidden: int, heads: int, layers: int) -
     model = build_node_gnn(
         data.metadata(), hidden_channels=hidden, num_heads=heads,
         num_layers=layers, dropout=0.0,
-    )
+    ).to(target_device)
     model.eval()
 
-    x_dict = {nt: data[nt].x for nt in data.node_types}
-    edge_index_dict = {et: data[et].edge_index for et in data.edge_types}
+    x_dict = {nt: data[nt].x.to(target_device) for nt in data.node_types}
+    edge_index_dict = {et: data[et].edge_index.to(target_device) for et in data.edge_types}
     edge_attr_dict = {
-        et: data[et].edge_attr for et in data.edge_types
+        et: data[et].edge_attr.to(target_device) for et in data.edge_types
         if hasattr(data[et], "edge_attr")
     }
 
     with torch.no_grad():
+        if target_device.type == "cuda":
+            torch.cuda.synchronize()
         model(x_dict, edge_index_dict, edge_attr_dict)   # warm-up, excluded
+        if target_device.type == "cuda":
+            torch.cuda.synchronize()
         forward_samples = []
         for _ in range(max(repeats, 5)):
+            if target_device.type == "cuda":
+                torch.cuda.synchronize()
             t0 = time.perf_counter()
             model(x_dict, edge_index_dict, edge_attr_dict)
+            if target_device.type == "cuda":
+                torch.cuda.synchronize()
             forward_samples.append((time.perf_counter() - t0) * 1000.0)
 
     return {
@@ -139,7 +151,7 @@ def measure(n_target: int, repeats: int, hidden: int, heads: int, layers: int) -
         "analyze_s": _spread(analyze_samples),
         "convert_s": _spread(convert_samples),
         "forward_ms": _spread(forward_samples),
-        "device": "cpu",
+        "device": target_device.type,
     }
 
 
@@ -150,6 +162,8 @@ def parse_args():
     p.add_argument("--hidden", type=int, default=64)
     p.add_argument("--heads", type=int, default=4)
     p.add_argument("--layers", type=int, default=3)
+    p.add_argument("--device", default="cpu", choices=["auto", "cuda", "cpu"],
+                   help="Device to measure inference on (default: cpu)")
     p.add_argument("--output", type=Path, default=RESULTS_DIR / "inference_latency.json")
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
@@ -159,11 +173,11 @@ def main():
     args = parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.ERROR)
 
-    print(f"Per-stage latency: sizes {args.sizes}, {args.repeats} repeats each")
+    print(f"Per-stage latency (device={args.device}): sizes {args.sizes}, {args.repeats} repeats each")
     rows = []
     for n in args.sizes:
         try:
-            row = measure(n, args.repeats, args.hidden, args.heads, args.layers)
+            row = measure(n, args.repeats, args.hidden, args.heads, args.layers, device=args.device)
         except Exception as exc:      # noqa: BLE001 - one bad size must not kill the sweep
             logger.warning("size %d failed: %s", n, exc)
             print(f"  n={n}: FAILED ({exc})")
@@ -179,8 +193,9 @@ def main():
 
     largest = max(rows, key=lambda r: r["n_actual"])
     ratio = largest["analyze_s"]["median"] / (largest["forward_ms"]["median"] / 1000.0)
+    dev_str = rows[0]["device"] if rows else args.device
     report = {
-        "device": "cpu",
+        "device": dev_str,
         "hyperparameters": {"hidden": args.hidden, "heads": args.heads,
                             "layers": args.layers, "dropout": 0.0},
         "sizes": rows,

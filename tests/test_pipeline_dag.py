@@ -4,7 +4,7 @@ import pytest
 from saag import Pipeline
 from saag.infrastructure.memory_repo import MemoryRepository
 
-def test_pipeline_fail_fast_no_checkpoint_no_simulate():
+def test_pipeline_fail_fast_no_checkpoint_no_simulate(monkeypatch):
     """
     Verifies that calling predict() in a pipeline without a GNN checkpoint
     and without simulate() fails fast with RuntimeError.
@@ -16,6 +16,9 @@ def test_pipeline_fail_fast_no_checkpoint_no_simulate():
         "relationships": {}
     })
     
+    from saag.prediction.service import PredictionService
+    monkeypatch.setattr(PredictionService, "_has_checkpoint", staticmethod(lambda directory: False))
+
     pipeline = Pipeline(repo=repo)
     pipeline.analyze().predict()  # predict requested, no simulate, no checkpoint
     

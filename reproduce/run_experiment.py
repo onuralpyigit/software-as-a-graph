@@ -534,8 +534,14 @@ def run_single_arm(
     train_ratio: float,
     val_ratio: float,
     checkpoint_root: Path,
+    device: Optional[str] = "auto",
 ) -> ArmResult:
     """Train one model and return its test-set metrics."""
+    import torch
+
+    target_device = torch.device(
+        "cuda" if (device == "cuda" or (device in ("auto", None) and torch.cuda.is_available())) else "cpu"
+    )
 
     arm_label = "qosT" if qos_enabled else "qosF"
     ckpt_dir = checkpoint_root / scenario / f"{arm_label}_seed{seed}"
@@ -562,6 +568,7 @@ def run_single_arm(
         dropout=dropout,
         predict_edges=False,        # node criticality only for the headline
         checkpoint_dir=str(ckpt_dir),
+        device=target_device,
     )
 
     train_kwargs: Dict[str, Any] = dict(
@@ -635,6 +642,7 @@ def run_scenario_ablation(
     checkpoint_root: Path,
     cache_dir: Path,
     skip_existing: bool,
+    device: Optional[str] = "auto",
 ) -> Optional[AblationReport]:
     """Run both arms × all seeds for one scenario; return AblationReport."""
 
@@ -703,6 +711,7 @@ def run_scenario_ablation(
                     train_ratio=train_ratio,
                     val_ratio=val_ratio,
                     checkpoint_root=checkpoint_root,
+                    device=device,
                 )
             except Exception as e:
                 logger.error("[%s] %s seed=%d FAILED: %s", paths.name, label, seed, e)
@@ -1004,6 +1013,13 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip scenarios with a cached report under <output-dir>/cache/.",
     )
+    p.add_argument(
+        "--device",
+        type=str,
+        default="auto",
+        choices=["auto", "cuda", "cpu"],
+        help="Device to use for training (default: auto).",
+    )
     return p.parse_args()
 
 
@@ -1023,6 +1039,7 @@ def main() -> int:
     logger.info("Configuration:")
     logger.info("  scenarios   = %s", scenarios)
     logger.info("  seeds       = %s", seeds)
+    logger.info("  device      = %s", args.device)
     logger.info("  layer       = %s", args.layer)
     logger.info("  epochs      = %d  patience = %d", args.epochs, args.patience)
     logger.info("  arch        = hidden=%d heads=%d layers=%d dropout=%.2f",
@@ -1048,6 +1065,7 @@ def main() -> int:
             checkpoint_root=checkpoint_root,
             cache_dir=cache_dir,
             skip_existing=args.skip_existing,
+            device=args.device,
         )
         if report is not None:
             reports.append(report)
