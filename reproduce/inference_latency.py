@@ -43,6 +43,8 @@ from typing import Any, Dict, List
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from reproduce._provenance import stamp  # noqa: E402
+
 logger = logging.getLogger("inference_latency")
 
 RESULTS_DIR = Path("results")
@@ -211,6 +213,11 @@ def main():
         ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    # Stamp the corpus this artifact describes, by content. Without it
+    # reconcile_manuscript.py can only compare timestamps, which the
+    # byte-identical corpus regeneration routinely invalidates in both
+    # directions.
+    report["provenance"] = stamp()
     args.output.write_text(json.dumps(report, indent=2))
     print(f"\nWrote {args.output}")
     print(f"  analyse/forward ratio at largest size: {ratio:.1f}x")

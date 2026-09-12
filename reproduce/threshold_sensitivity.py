@@ -44,6 +44,8 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np
+
+from reproduce._provenance import stamp
 from scipy.stats import spearmanr
 
 logger = logging.getLogger("threshold_sensitivity")
@@ -246,6 +248,11 @@ def main():
     }
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    # Stamp the corpus this artifact describes, by content. Without it
+    # reconcile_manuscript.py can only compare timestamps, which the
+    # byte-identical corpus regeneration routinely invalidates in both
+    # directions.
+    report["provenance"] = stamp()
     args.output.write_text(json.dumps(report, indent=2))
     print(f"\nWrote {args.output}")
     for k, v in report["interpretation"].items():

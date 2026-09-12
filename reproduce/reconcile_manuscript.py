@@ -43,6 +43,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from reproduce._provenance import corpus_digest  # noqa: E402
 from saag.evaluation import variant_registry as _registry  # noqa: E402
 
 SECTIONS = ROOT / "docs/research/jss/latex/sections"
@@ -324,27 +325,82 @@ def check_realworld(rep: Report) -> None:
                 rep.findings.append(Finding("tab:9b", label, nm, got, round(truth, 4)))
 
 
-def check_freshness(rep: Report) -> None:
-    """Flag any backing artifact older than the corpus it describes.
+#: Artifacts whose freshness is checked, and what each one backs. Only artifacts
+#: that are actually consumed belong here: a superseded version left on disk
+#: (``*_v3`` once ``*_v4`` is in use) describes a corpus nobody reads it against,
+#: so flagging it trains the reader to ignore the warning list.
+FRESHNESS_TARGETS = {
+    "loso_all_variants_v5.json": "Tables 7/7c",
+    "controls_main_table_v5.json": "RQ2 controls",
+    "main_table_v5.json": "Table 5",
+    "loso_noqos_v5.json": "7.3.1 QoS ablation",
+    "loso_all_variants_v4.json": "Tables 7/7c",
+    "inference_latency_v3.json": "scale/latency table",
+    "realworld_zeroshot_v4.json": "Table 9b",
+    "detection_validation_v3.json": "7.3 stratification",
+    "convergent_validity.json": "Table 8c",
+    "topic_weight_sensitivity_v3.json": "Supplementary S1",
+    "weight_global_sensitivity_v3.json": "Supplementary S1",
+    "ahp_shrinkage_sweep_v3.json": "Supplementary S1",
+    "threshold_sensitivity_v3.json": "Supplementary S3",
+    "atm_scale_sweep_v3.json": "Supplementary S6",
+    "qos_label_ablation.json": "Section 4.3",
+}
 
-    This is the staleness check proper. An artifact that predates the newest
-    committed topology was computed against a corpus that no longer exists.
+#: Wall-clock artifacts, deliberately outside FRESHNESS_TARGETS.
+#:
+#: The corpus-freshness rule does not apply to them and applying it is actively
+#: harmful. ``oracle_timing_v4.json`` measures how long the labeler takes over a
+#: node population the corpus change left identical (39/104/360/... before and
+#: after), so it is not corpus-stale in any meaningful sense; what its numbers
+#: depend on is the machine and its load. Worse, its ratio pairs an oracle time
+#: it measures itself against a gate time it reads from
+#: ``detection_validation_timed_v3.json``. Refreshing one half alone silently
+#: produces a ratio from two different measurement sessions --- doing exactly
+#: that moved it from 11.45x to 15.35x with no change to the work being timed.
+#: Re-measure the pair together, on an idle machine, or leave both.
+PAIRED_TIMING_ARTIFACTS = {
+    "oracle_timing_v4.json": "detection_validation_timed_v3.json",
+}
+
+
+def check_freshness(rep: Report) -> None:
+    """Flag any backing artifact that does not describe the corpus on disk.
+
+    Content first, mtime only as a fallback. mtime was the original test and it
+    is wrong in both directions: the corpus regenerates byte-identically (CI
+    asserts it), so a routine regeneration bumps every mtime and ages artifacts
+    that are still perfectly valid, while a corpus restored from an older
+    checkout carries mtimes newer than its content. An artifact stamped with
+    ``provenance.corpus_digest`` is judged on that digest and its timestamp is
+    irrelevant; one without a stamp falls back to the timestamp test and says
+    so, because an unstamped artifact genuinely cannot prove what it described.
     """
+    current = corpus_digest()
     newest_corpus = max(p.stat().st_mtime for p in CORPUS.glob("*_system.json"))
-    for name in ("loso_all_variants_v5.json", "controls_main_table_v5.json",
-                 "main_table_v5.json", "loso_noqos_v5.json",
-                 "loso_all_variants_v4.json", "loso_all_variants_v3.json",
-                 "main_table_v3.json", "inference_latency_v3.json",
-                 "realworld_zeroshot_v4.json", "detection_validation_v3.json",
-                 "convergent_validity.json", "topic_weight_sensitivity_v3.json",
-                 "weight_global_sensitivity_v3.json", "ahp_shrinkage_sweep_v3.json",
-                 "threshold_sensitivity_v3.json", "atm_scale_sweep_v3.json",
-                 "oracle_timing_v4.json", "qos_label_ablation.json"):
+    for name, backs in FRESHNESS_TARGETS.items():
         p = RESULTS / name
         if not p.exists():
             continue
+        stamped = None
+        try:
+            stamped = (json.loads(p.read_text())
+                       .get("provenance", {})
+                       .get("corpus_digest"))
+        except (OSError, ValueError, AttributeError):
+            pass
+
+        if current and stamped:
+            if stamped != current:
+                rep.stale.append(
+                    f"{name} ({backs}) describes a different corpus "
+                    f"[{stamped[:12]} != {current[:12]}]")
+            continue
+
         if p.stat().st_mtime < newest_corpus:
-            rep.stale.append(f"{name} predates the committed corpus")
+            rep.stale.append(
+                f"{name} ({backs}) predates the corpus files; unstamped, so "
+                "this is the weaker timestamp test — re-run to stamp it")
 
 
 def check_oracle_timing(rep: Report) -> None:

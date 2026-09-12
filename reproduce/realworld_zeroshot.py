@@ -48,6 +48,8 @@ from typing import Any, Dict, List
 
 import numpy as np
 
+from reproduce._provenance import stamp
+
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -446,6 +448,11 @@ def main() -> int:
     }
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    # Stamp the corpus this artifact describes, by content. Without it
+    # reconcile_manuscript.py can only compare timestamps, which the
+    # byte-identical corpus regeneration routinely invalidates in both
+    # directions.
+    payload["provenance"] = stamp()
     args.output.write_text(json.dumps(payload, indent=2) + "\n")
 
     print(f"\n  {payload['label']} zero-shot on real systems "

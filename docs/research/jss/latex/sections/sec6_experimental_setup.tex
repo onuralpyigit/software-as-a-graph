@@ -17,20 +17,20 @@ The evaluation corpus comprises 2{,}812 components across seventeen system archi
 \textbf{Dataset / Architecture} & \textbf{System Paradigm} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{Topics} & \textbf{Brokers} & \textbf{Hosts} & \textbf{Libs} & \textbf{$|E|$} \\
 \midrule
 \multicolumn{9}{l}{\textit{Synthetic evaluation scenarios (\texttt{evaluation} role in the manifest)}} \\
-\textbf{Autonomous Vehicle (AV)} & ROS~2 Cyber-Physical & 152 & 80 & 40 & 4 & 8 & 20 & 773 \\
-\textbf{Enterprise Pub-Sub} & Kafka Event Mesh & 520 & 300 & 120 & 10 & 40 & 50 & 3{,}389 \\
-\textbf{Financial Trading} & Low-Latency Pub-Sub & 124 & 60 & 35 & 5 & 6 & 18 & 583 \\
-\textbf{Healthcare Integration} & HL7/FHIR Event Mesh & 98 & 50 & 25 & 3 & 8 & 12 & 428 \\
-\textbf{Hub-and-Spoke Enterprise} & Broker-Centric Messaging & 139 & 70 & 30 & 2 & 12 & 25 & 751 \\
-\textbf{IoT Smart City} & MQTT Telemetry Mesh & 326 & 200 & 80 & 6 & 30 & 10 & 1{,}331 \\
-\textbf{Microservices Mesh} & Cloud-Native Services & 186 & 90 & 45 & 6 & 15 & 30 & 680 \\
-\textbf{Telecom RAN} & 5G Radio Access Network & 225 & 120 & 55 & 8 & 20 & 22 & 858 \\
-\textbf{Industrial SCADA} & Plant Control Telemetry & 254 & 140 & 70 & 4 & 25 & 15 & 818 \\
-\textbf{Real-Time Gaming} & Multiplayer State Sync & 158 & 75 & 38 & 5 & 12 & 28 & 643 \\
-\textbf{Logistics Fleet} & Vehicle Telematics Mesh & 205 & 110 & 50 & 7 & 18 & 20 & 792 \\
+\textbf{Autonomous Vehicle (AV)} & ROS~2 Cyber-Physical & 152 & 80 & 40 & 4 & 8 & 20 & 774 \\
+\textbf{Enterprise Pub-Sub} & Kafka Event Mesh & 520 & 300 & 120 & 10 & 40 & 50 & 3{,}216 \\
+\textbf{Financial Trading} & Low-Latency Pub-Sub & 124 & 60 & 35 & 5 & 6 & 18 & 631 \\
+\textbf{Healthcare Integration} & HL7/FHIR Event Mesh & 98 & 50 & 25 & 3 & 8 & 12 & 389 \\
+\textbf{Hub-and-Spoke Enterprise} & Broker-Centric Messaging & 139 & 70 & 30 & 2 & 12 & 25 & 691 \\
+\textbf{IoT Smart City} & MQTT Telemetry Mesh & 326 & 200 & 80 & 6 & 30 & 10 & 1{,}188 \\
+\textbf{Microservices Mesh} & Cloud-Native Services & 186 & 90 & 45 & 6 & 15 & 30 & 678 \\
+\textbf{Telecom RAN} & 5G Radio Access Network & 225 & 120 & 55 & 8 & 20 & 22 & 881 \\
+\textbf{Industrial SCADA} & Plant Control Telemetry & 254 & 140 & 70 & 4 & 25 & 15 & 824 \\
+\textbf{Real-Time Gaming} & Multiplayer State Sync & 158 & 75 & 38 & 5 & 12 & 28 & 630 \\
+\textbf{Logistics Fleet} & Vehicle Telematics Mesh & 205 & 110 & 50 & 7 & 18 & 20 & 755 \\
 \midrule
 \multicolumn{9}{l}{\textit{Synthetic case study (LOSO fold; \texttt{case\_study} role in the manifest)}} \\
-\textbf{Air Traffic Management (ATM)} & ICAO Global ATM Concept & 74 & 26 & 27 & 5 & 8 & 8 & 271 \\
+\textbf{Air Traffic Management (ATM)} & ICAO Global ATM Concept & 74 & 26 & 27 & 5 & 8 & 8 & 261 \\
 \midrule
 \multicolumn{9}{l}{\textit{Real-world reference systems (never used as training folds)}} \\
 \textbf{Autoware.universe \cite{kato2018autoware}} & Real-World ROS~2 Autoware & 75 & 32 & 24 & 3 & 6 & 10 & 179 \\
@@ -39,9 +39,9 @@ The evaluation corpus comprises 2{,}812 components across seventeen system archi
 \textbf{Home Assistant \cite{homeassistant2024}} & Real-World Smart Home & 63 & 24 & 22 & 3 & 6 & 8 & 119 \\
 \textbf{EdgeX Foundry \cite{edgexfoundry2024}} & Real-World Industrial IoT & 63 & 22 & 24 & 3 & 6 & 8 & 112 \\
 \midrule
-\textbf{Synthetic subtotal (12 LOSO folds)} & & \textbf{2{,}461} & 1{,}321 & 615 & 65 & 202 & 258 & \textbf{11{,}317} \\
+\textbf{Synthetic subtotal (12 LOSO folds)} & & \textbf{2{,}461} & 1{,}321 & 615 & 65 & 202 & 258 & \textbf{10{,}918} \\
 \textbf{Real-world subtotal (5 systems)} & & \textbf{351} & 141 & 120 & 16 & 32 & 42 & \textbf{700} \\
-\textbf{Total} & & \textbf{2{,}812} & & & & & & \textbf{12{,}017} \\
+\textbf{Total} & & \textbf{2{,}812} & & & & & & \textbf{11{,}618} \\
 \bottomrule
 \end{tabular}%
 }

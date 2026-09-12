@@ -14,8 +14,14 @@ a question and a reader trusting a stale figure.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import subprocess
+from pathlib import Path
 from typing import Any, Dict, Optional
+
+#: Committed corpus manifest, which carries a SHA-256 per scenario file.
+_MANIFEST = Path(__file__).resolve().parent.parent / "data/scenarios/MANIFEST.json"
 
 
 def _git(*args: str) -> Optional[str]:
@@ -27,6 +33,34 @@ def _git(*args: str) -> Optional[str]:
     except (OSError, subprocess.SubprocessError):
         return None
     return out.stdout.strip() if out.returncode == 0 else None
+
+
+def corpus_digest() -> Optional[str]:
+    """One fingerprint over the committed corpus, from the manifest's SHA-256s.
+
+    Staleness was previously judged by comparing an artifact's mtime to the
+    corpus files' mtimes. That is wrong in both directions: regenerating the
+    corpus byte-identically (which CI asserts is possible, and which happens
+    routinely) bumps every mtime and ages every artifact that is in fact still
+    valid, while restoring an older corpus from a checkout leaves mtimes newer
+    than the content they carry. Content answers the question mtime was standing
+    in for: was this artifact computed against the corpus now on disk.
+
+    Returns None when the manifest is missing or unreadable, which leaves the
+    caller on the mtime fallback rather than silently asserting freshness.
+    """
+    try:
+        datasets = json.loads(_MANIFEST.read_text())["datasets"]
+    except (OSError, ValueError, KeyError):
+        return None
+    digests = sorted(
+        f"{name}:{meta['sha256']}"
+        for name, meta in datasets.items()
+        if isinstance(meta, dict) and "sha256" in meta
+    )
+    if not digests:
+        return None
+    return hashlib.sha256("\n".join(digests).encode("utf-8")).hexdigest()
 
 
 def stamp(**config: Any) -> Dict[str, Any]:
@@ -44,5 +78,10 @@ def stamp(**config: Any) -> Dict[str, Any]:
     return {
         "commit": commit,
         "dirty": bool(status) if status is not None else None,
+        # Which corpus this artifact describes, by content rather than by
+        # timestamp. reproduce/reconcile_manuscript.py compares it against the
+        # corpus on disk; an artifact without one falls back to the weaker
+        # mtime test.
+        "corpus_digest": corpus_digest(),
         "config": dict(config),
     }

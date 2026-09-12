@@ -80,6 +80,8 @@ if __name__ == "__main__" and __package__ is None:
 
 import numpy as np
 
+from reproduce._provenance import stamp
+
 logger = logging.getLogger("detection_validation")
 
 RESULTS_DIR = Path("results")
@@ -643,6 +645,11 @@ def main():
     }
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    # Stamp the corpus this artifact describes, by content. Without it
+    # reconcile_manuscript.py can only compare timestamps, which the
+    # byte-identical corpus regeneration routinely invalidates in both
+    # directions.
+    report["provenance"] = stamp()
     args.output.write_text(json.dumps(report, indent=2))
     print(f"\nWrote {args.output}")
 
