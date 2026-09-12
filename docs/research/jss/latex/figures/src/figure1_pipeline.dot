@@ -3,13 +3,41 @@
 // Render: dot -Tpdf figure1_pipeline.dot -o ../Figure_1.pdf
 //         dot -Tpng -Gdpi=300 figure1_pipeline.dot -o ../Figure_1.png
 //
-// TWO LANES, DELIBERATELY NOT MERGED. §1.2 formulates pre-deployment analysis as
-// two distinct tasks, and the figure has to show that: the diagnostic path emits
-// a quality profile and the remediation it implies, the predictive path emits a
-// ranked critical set, and only the latter is validated against the simulation
-// oracle — the oracle scores rankings, and a quality profile is not one. The one
-// link between the lanes is a triage relation, not a data dependency: the paths
-// share no parameters and neither is fitted to the other's output (§4.4).
+// ONE CENTRE LINE, ONE BRANCH. §1.2 makes the predictive pathway the primary
+// task and the explanation layer a characterisation of what the predictor
+// flagged, and the figure carries that asymmetry through geometry rather than
+// through a label: the centre line runs straight down
+//   manifest -> G_struct -> G_analysis -> HGT -> Top-K -> ground-truth oracle,
+// and the explanation layer is the only thing that leaves it, branching right
+// out of the Analysis Multigraph. Do not re-add a "PRIMARY" tag to the
+// predictive cluster — the straight trunk is what states the primacy.
+//
+// The oracle sits at the foot of the centre line because it closes the
+// predictive pathway's training-and-validation loop, NOT because it is a stage
+// of inference (§4.4). Two things in the drawing carry that distinction and
+// must survive any edit: the Top-K -> oracle edge stays dashed, and the oracle
+// box keeps its "Offline: training & validation only" line.
+//
+// The one link between trunk and explanation layer is a triage relation, not a
+// data dependency: the two share no parameters and neither is fitted to the
+// other's output (§4.4), which is why the explanation layer re-enters from
+// G_analysis rather than from the predictor's outputs.
+//
+// SECTION REFERENCES ARE PART OF THE FIGURE'S CONTRACT. Every box and every
+// long edge that some section actually defines carries its §-number, so a
+// reader can jump from the picture into the text. Keep them in sync when
+// sections move, and do not invent one: the counterfactual re-simulation loop
+// carries no §-number because no JSS section defines the EditVerifier (it
+// belongs to the companion prescriptive paper), and the manifest is an input
+// artefact rather than the contribution of a section. Note also that §4.2.1 and
+// §4.2.2 are the dimension-masked loss and the domain reweighting — NOT the
+// blast-radius and relationship heads, which the Top-K box's own (§4.2) covers.
+//
+// LEFT-TO-RIGHT LANE ORDER COMES FROM CLUSTER DECLARATION ORDER, NOTHING ELSE.
+// cluster_b (predictive) is declared before cluster_a (explanation), which is
+// what puts the explanation layer on the right. What does NOT work, all tried:
+// `ordering=out`, a flat `rank=same` edge, `dir=back` on it, and wrapping a
+// node in its own cluster.
 //
 // KEEP THE NATURAL WIDTH NEAR THE TEXT BLOCK (~468pt at \textwidth).
 // The manuscript includes this at width=\linewidth, so a canvas twice the text
@@ -18,6 +46,9 @@
 // the float cannot fix that — it is already full width. The lever is this canvas:
 // keep labels short, and re-measure the MediaBox after editing
 // (`pdfinfo ../Figure_1.pdf`) rather than judging by eye.
+//
+// The weight=100 edges are what keep the centre line straight; lowering them
+// lets dot bend the trunk to shorten the branch.
 
 digraph Figure1 {
   rankdir=TB;
@@ -25,7 +56,7 @@ digraph Figure1 {
   fontname="Helvetica";
   compound=true;
   newrank=true;
-  nodesep=0.28;
+  nodesep=0.45;
   ranksep=0.32;
 
   node [
@@ -44,7 +75,7 @@ digraph Figure1 {
     arrowsize=0.8
   ];
 
-  // ── Trunk: manifest → structural graph → analysis multigraph ──────────────
+  // ── Centre line, part 1: shared front end ─────────────────────────────────
   manifest [
     label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
       <tr><td><b>Architecture Descriptor / Manifest</b></td></tr>
@@ -64,45 +95,57 @@ digraph Figure1 {
   graph_a [
     label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
       <tr><td><b>Analysis Multigraph (<i>G</i><sub>analysis</sub>)</b> (§3.2, §3.3)</td></tr>
-      <tr><td><font point-size="9.5" color="#312E81">Derived <font face="Courier-Bold">DEPENDS_ON</font> edges<br/>&amp; QoS-weighted logical flows</font></td></tr>
+      <tr><td><font point-size="9.5" color="#312E81">Derived <font face="Courier-Bold">DEPENDS_ON</font> edges &amp; QoS-weighted<br/>logical flows; typed node features (§3.4)</font></td></tr>
     </table>>,
     fillcolor="#E0E7FF", color="#3730A3"
   ];
 
-  // ── Predictive pathway ────────────────────────────────────────────────────
+  // ── Centre line, part 2: the predictive pathway ───────────────────────────
   subgraph cluster_b {
     label = "PREDICTIVE PATHWAY (§4)";
     fontname = "Helvetica-Bold";
     fontsize = 10.5;
     fontcolor = "#4C1D95";
-    style = "dashed,rounded";
+    style = "rounded,filled";
+    fillcolor = "#FBFAFF";
     color = "#6D28D9";
-    penwidth = 1.4;
+    penwidth = 2.0;
     margin = 10;
 
     hgl [
       label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-        <tr><td><b>Heterogeneous Graph Transformer</b></td></tr>
+        <tr><td><b>Heterogeneous Graph Transformer</b> (§4.1)</td></tr>
         <tr><td align="left"><font point-size="9.5" color="#312E81">• Relation-specific attention</font></td></tr>
         <tr><td align="left"><font point-size="9.5" color="#312E81">• 16-D QoS edge embedding</font></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Multi-task risk &amp; ranking heads</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Multi-task risk &amp; ranking heads (§4.2)</font></td></tr>
       </table>>,
       fillcolor="#EDE9FE", color="#6D28D9"
     ];
 
     topk [
       label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-        <tr><td><b>Top-<i>K</i> Critical Component Set</b></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Blast radius <i>Ĉ</i>(<i>v</i>) (§4.2)</font></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Out-of-distribution ranking</font></td></tr>
+        <tr><td><b>Top-<i>K</i> Critical Component Set</b> (§4.2)</td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Blast radius <i>Ĉ</i>(<i>v</i>)</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Per-relationship criticality</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Out-of-distribution ranking (§7.2)</font></td></tr>
       </table>>,
       fillcolor="#F5F3FF", color="#6D28D9"
     ];
 
-    hgl -> topk;
+    hgl -> topk [penwidth=2.2, weight=100];
   }
 
-  // ── Explanation layer ─────────────────────────────────────────────────────
+  // ── Centre line, foot: the offline oracle that closes the training loop ───
+  oracle [
+    label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
+      <tr><td><b>Ground-Truth Simulation Oracle (<i>I*</i>(<i>v</i>))</b> (§4.3)</td></tr>
+      <tr><td><font point-size="9.5" color="#7C2D12">FaultInjector on raw <i>G</i><sub>structural</sub></font></td></tr>
+      <tr><td><font point-size="9.5" color="#7C2D12">Offline: training &amp; validation only (§4.4)</font></td></tr>
+    </table>>,
+    fillcolor="#FFEDD5", color="#C2410C"
+  ];
+
+  // ── The branch: explanation layer, right of the centre line ───────────────
   subgraph cluster_a {
     label = "EXPLANATION LAYER (§5)";
     fontname = "Helvetica-Bold";
@@ -115,7 +158,7 @@ digraph Figure1 {
 
     rm [
       label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-        <tr><td><b>Explainable Quality Attribution</b></td></tr>
+        <tr><td><b>Explainable Quality Attribution</b> (§5.1, §5.2)</td></tr>
         <tr><td align="left"><font point-size="9.5" color="#14532D">• Reliability = &#945;&#183;FT + (1&#8722;&#945;)&#183;A</font></td></tr>
         <tr><td align="left"><font point-size="9.5" color="#14532D">&#160;&#160;&#8226; Fault Tolerance: cascade depth</font></td></tr>
         <tr><td align="left"><font point-size="9.5" color="#14532D">&#160;&#160;&#8226; Availability: SPOF / articulation</font></td></tr>
@@ -126,7 +169,7 @@ digraph Figure1 {
 
     diag [
       label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-        <tr><td><b>Root-Cause Diagnostic Profile</b></td></tr>
+        <tr><td><b>Root-Cause Diagnostic Profile</b> (§5.2)</td></tr>
         <tr><td align="left"><font point-size="9.5" color="#14532D">• SPOF exposure (high <i>A</i>)</font></td></tr>
         <tr><td align="left"><font point-size="9.5" color="#14532D">• Cascade hub (high <i>FT</i>)</font></td></tr>
       </table>>,
@@ -147,49 +190,52 @@ digraph Figure1 {
     diag -> remediate;
   }
 
-  // ── Ground truth, reached only by the predictive lane ─────────────────────
-  oracle [
-    label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-      <tr><td><b>Ground-Truth Simulation Oracle (<i>I*</i>(<i>v</i>))</b> (§4.3)</td></tr>
-      <tr><td><font point-size="9.5" color="#7C2D12">FaultInjector on raw <i>G</i><sub>structural</sub></font></td></tr>
-      <tr><td><font point-size="9.5" color="#7C2D12">Offline: training &amp; validation only</font></td></tr>
-    </table>>,
-    fillcolor="#FFEDD5", color="#C2410C"
-  ];
+  // ── Centre-line flow (heavy, straight) ────────────────────────────────────
+  manifest -> graph_s [label=" Ingestion", penwidth=2.2, weight=100];
+  graph_s -> graph_a  [label=" Typed projection\l &amp; QoS weights (§3.2)\l", penwidth=2.2, weight=100];
+  graph_a -> hgl      [lhead=cluster_b, penwidth=2.2, weight=100];
 
-  // ── Flow ──────────────────────────────────────────────────────────────────
-  manifest -> graph_s [label=" Ingestion", weight=10];
-  graph_s -> graph_a [label=" Typed projection\l &amp; QoS weights (§3.2)\l", weight=10];
-  graph_a -> hgl  [lhead=cluster_b];
-  graph_a -> rm   [lhead=cluster_a];
-
+  // Dashed, and on the trunk only because it closes the training-and-validation
+  // loop — see the header note before restyling it as a solid pipeline stage.
   topk -> oracle [
     label=" Validated against\l ground truth (§6.3)\l",
-    style="dashed", color="#C2410C", fontcolor="#9A3412", penwidth=1.4, weight=10
+    style="dashed", color="#C2410C", fontcolor="#9A3412", penwidth=1.6, weight=100
   ];
 
-  // Independence guarantee: the oracle never sees G_analysis (§4.4).
+  // ── Branch off the centre line into the explanation layer ─────────────────
+  // Same typed node features (§3.4), no shared parameters (§4.4).
+  graph_a -> rm [
+    lhead=cluster_a,
+    label=" Branch: same\l features, no shared\l parameters (§4.4)\l",
+    style="dashed", color="#15803D", fontcolor="#166534", penwidth=1.3, weight=1
+  ];
+
+  // Independence guarantee: the oracle never sees G_analysis (§4.4). Routed out
+  // of G_structural's west side into the empty left margin so it does not cut
+  // across the trunk.
   graph_s -> oracle [
     label=" Independent run\l on G_struct (§4.4)\l",
     style="dotted", color="#9A3412", fontcolor="#9A3412", penwidth=1.2,
     constraint=false
   ];
 
-  // Triage, not a data dependency: the lanes share no parameters and neither is
-  // fitted to the other's output. The architect explains what B flagged.
+  // Triage, not a data dependency: the architect applies the explanation to
+  // whatever the centre line ranked.
   topk -> diag [
-    label=" Triage ",
+    label=<<table border="0" cellborder="0" cellpadding="1" cellspacing="0" bgcolor="white"><tr><td><font point-size="9" color="#5B21B6">Triage (§5)</font></td></tr></table>>,
     style="dashed", color="#6D28D9", fontcolor="#5B21B6", penwidth=1.1,
     constraint=false
   ];
 
   // Prescribe's per-edit acceptance filter re-simulates each candidate on its
   // own mutated copy of G_structural before accepting it (EditVerifier) — a
-  // closed loop back into the trunk, not a second call into the oracle above.
-  // xlabel (not label): an inline label on a back-edge this long re-reserves
-  // canvas width the MediaBox budget doesn't have room for (§ header note).
+  // closed loop back into the centre line's front end, not a second call into
+  // the oracle. headlabel (not label, not xlabel): an inline label widens the
+  // canvas, and an xlabel lands on top of the diag -> remediate arrow.
   remediate -> graph_s [
-    xlabel="Counterfactual\nre-simulation",
+    headlabel="Counterfactual\lre-simulation\l",
+    labeldistance=5.5, labelangle=-28, labelfontsize=9, labelfontcolor="#166534",
+    labelfontname="Helvetica",
     style="dashed", color="#166534", fontcolor="#166534", penwidth=1.1,
     constraint=false
   ];
