@@ -93,7 +93,117 @@ class PredictionService:
         """Summarize detected problems."""
         return ProblemDetector().summarize(problems)
 
-    # ── Unified Predict step ──────────────────────────────────────────────────
+    def predict_structural(
+        self,
+        structural_result: StructuralAnalysisResult,
+        graph=None,
+        use_qos: bool = True,
+        layer: str = "system",
+        active_patterns: Optional[List[str]] = None,
+        run_sensitivity: bool = False,
+        diagnose: bool = True,
+    ) -> Any:
+        """Execute training-free topological prediction (Topo or Topo-QoS)."""
+        from .structural_predictor import TopoPredictor, TopoQoSPredictor
+        from .gnn_service import GNNAnalysisResult, GNNCriticalityScore
+        from .data_preparation import extract_structural_metrics_dict
+
+        rm_result = self.predict_quality(structural_result, run_sensitivity=run_sensitivity)
+        rm_result.prediction_mode = "rm"
+        if diagnose:
+            problems, problem_summary, explanation = self._attach_problems_and_explanation(
+                rm_result, layer=layer, active_patterns=active_patterns
+            )
+        else:
+            problems, problem_summary, explanation = None, None, None
+
+        predictor = TopoQoSPredictor() if use_qos else TopoPredictor()
+        struct_metrics = extract_structural_metrics_dict(structural_result)
+        target_graph = graph if graph is not None else getattr(structural_result, "graph", None)
+        scores = predictor.predict(target_graph, struct_metrics)
+
+        mode_name = "topo_qos" if use_qos else "topo"
+        source_name = "Topo-QoS" if use_qos else "Topo"
+
+        from saag.analysis.classifier import BoxPlotClassifier
+        box_clf = BoxPlotClassifier(k_factor=1.5)
+        raw_vals = [scores[nid] for nid in scores] if scores else [0.0]
+        stats = box_clf.compute_stats(raw_vals)
+
+        node_scores = {}
+        for nid, val in scores.items():
+            lvl = box_clf.classify_score(val, stats)
+            node_scores[nid] = GNNCriticalityScore(
+                component=nid,
+                composite_score=float(val),
+                reliability_score=float(val),
+                maintainability_score=float(val),
+                source=source_name,
+                criticality_level=lvl.name,
+            )
+
+        res = GNNAnalysisResult(
+            node_scores=node_scores,
+            prediction_mode=mode_name,
+            layer=layer,
+            rm_result=rm_result,
+        )
+        res.problems = problems
+        res.problem_summary = problem_summary
+        res.explanation = explanation
+        res.failed_patterns = getattr(rm_result, "failed_patterns", [])
+        return res
+
+    def predict_dual(
+        self,
+        structural_result: StructuralAnalysisResult,
+        graph,
+        simulation_results=None,
+        layer: str = "system",
+        active_patterns: Optional[List[str]] = None,
+        run_sensitivity: bool = False,
+        diagnose: bool = True,
+        k: int = 10,
+        divergence_threshold: int = 5,
+    ) -> Any:
+        """Operationalizes JSS Section 8.1: runs HGT-QoS and Topo-QoS concurrently."""
+        from .structural_predictor import DualEnginePredictor, TopoQoSPredictor
+        from .data_preparation import extract_structural_metrics_dict
+
+        # 1. Run GNN prediction
+        gnn_res = self.predict_quality_with_gnn(
+            structural_result=structural_result,
+            graph=graph,
+            simulation_results=simulation_results,
+            layer=layer,
+            active_patterns=active_patterns,
+            run_sensitivity=run_sensitivity,
+            diagnose=diagnose,
+            predictor_mode="gnn",
+        )
+
+        # 2. Extract GNN scores
+        if hasattr(gnn_res, "node_scores") and gnn_res.node_scores:
+            gnn_scores = {nid: float(ns.composite_score) for nid, ns in gnn_res.node_scores.items()}
+        else:
+            gnn_scores = {c.id: float(c.scores.overall) for c in getattr(gnn_res, "components", [])}
+
+        # 3. Run Dual-Engine evaluation
+        dual_predictor = DualEnginePredictor(
+            topo_predictor=TopoQoSPredictor(),
+            divergence_threshold=divergence_threshold,
+        )
+        struct_metrics = extract_structural_metrics_dict(structural_result)
+        dual_res = dual_predictor.evaluate_dual(
+            gnn_scores=gnn_scores,
+            graph_or_flow=graph,
+            structural_metrics=struct_metrics,
+            k=k,
+        )
+
+        gnn_res.prediction_mode = "dual"
+        gnn_res.dual_result = dual_res
+        return gnn_res
 
     def predict_quality_with_gnn(
         self,
@@ -104,18 +214,35 @@ class PredictionService:
         active_patterns: Optional[List[str]] = None,
         run_sensitivity: bool = False,
         diagnose: bool = True,
+        predictor_mode: str = "gnn",
     ) -> Union[QualityAnalysisResult, Any]:
-        """Return GNN predictions when a checkpoint exists, else fall back to RM.
+        """Return predictions according to predictor_mode ('gnn', 'rm', 'topo', 'topo_qos', 'dual').
 
         RM scores are always computed — they serve as the consistency
         regularisation target for the GNN and as a fallback when no
         checkpoint is present. When ``diagnose`` is True (default), Step 4's
         anti-pattern detection and explanation are also run on the RM scores
-        and attached to whichever result (GNN or RM) is ultimately returned.
-        Set ``diagnose=False`` for a Step-3-only (Pathway B ranking) call —
-        the RM pass still runs and is kept as ``.rm_result`` for the Diagnose
-        stage to reuse later without recomputing it.
+        and attached to whichever result is ultimately returned.
         """
+        if predictor_mode == "topo":
+            return self.predict_structural(
+                structural_result, graph=graph, use_qos=False,
+                layer=layer, active_patterns=active_patterns,
+                run_sensitivity=run_sensitivity, diagnose=diagnose,
+            )
+        elif predictor_mode == "topo_qos":
+            return self.predict_structural(
+                structural_result, graph=graph, use_qos=True,
+                layer=layer, active_patterns=active_patterns,
+                run_sensitivity=run_sensitivity, diagnose=diagnose,
+            )
+        elif predictor_mode == "dual":
+            return self.predict_dual(
+                structural_result, graph=graph, simulation_results=simulation_results,
+                layer=layer, active_patterns=active_patterns,
+                run_sensitivity=run_sensitivity, diagnose=diagnose,
+            )
+
         rm_result = self.predict_quality(structural_result, run_sensitivity=run_sensitivity)
         rm_result.prediction_mode = "rm"
         if diagnose:
@@ -125,7 +252,7 @@ class PredictionService:
         else:
             problems, problem_summary, explanation = None, None, None
 
-        if not self.prefer_gnn:
+        if predictor_mode == "rm" or not self.prefer_gnn:
             logger.debug("RM scoring requested (mode='rm'); returning RM scores.")
             return rm_result
 

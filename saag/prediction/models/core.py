@@ -497,12 +497,16 @@ class CriticalityLoss(nn.Module):
         rm_consistency_weight: float = 0.0,
         ranking_weight: float = 0.3,
         pairwise_ranking_weight: float = 0.1,
+        temperature: float = 1.0,
+        pairwise_margin: float = 0.05,
     ):
         super().__init__()
         self.multitask_weight = multitask_weight
         self.rm_consistency_weight = rm_consistency_weight
         self.ranking_weight = ranking_weight
         self.pairwise_ranking_weight = pairwise_ranking_weight
+        self.temperature = max(float(temperature), 1e-4)
+        self.pairwise_margin = pairwise_margin
         self.mse = nn.MSELoss(reduction="mean")
 
     def forward(
@@ -523,8 +527,8 @@ class CriticalityLoss(nn.Module):
 
         loss_composite = self.mse(labeled_pred[:, 0], labeled_target[:, 0])
         loss_multitask = self._multitask_loss(labeled_pred, labeled_target, dim_weights)
-        loss_ranking = self._listmle_loss(labeled_pred[:, 0], labeled_target[:, 0])
-        loss_pairwise = self._pairwise_margin_loss(labeled_pred[:, 0], labeled_target[:, 0])
+        loss_ranking = self._listmle_loss(labeled_pred[:, 0], labeled_target[:, 0], temperature=self.temperature)
+        loss_pairwise = self._pairwise_margin_loss(labeled_pred[:, 0], labeled_target[:, 0], margin=self.pairwise_margin)
 
         supervised_loss = (
             loss_composite
@@ -578,9 +582,16 @@ class CriticalityLoss(nn.Module):
         return (sq_err * w).sum() / (total_w * labeled_pred.shape[0])
 
     @staticmethod
-    def _listmle_loss(scores: Tensor, targets: Tensor) -> Tensor:
+    def _listmle_loss(scores: Tensor, targets: Tensor, temperature: float = 1.0) -> Tensor:
+        """ListMLE listwise ranking loss under Plackett-Luce model with temperature scaling.
+
+        When scores are sigmoid-bounded in [0, 1], temperature tau < 1.0 sharpens
+        the Plackett-Luce distribution, preventing gradient saturation from bounded
+        odds ratios (exp(1)/exp(0) ≈ 2.718).
+        """
         _, idx = torch.sort(targets, descending=True)
-        sorted_scores = scores[idx]
+        tau = max(float(temperature), 1e-4)
+        sorted_scores = scores[idx] / tau
         n = sorted_scores.shape[0]
         cumulative_log_sum_exp = []
         running = torch.tensor(-float("inf"), device=scores.device)

@@ -47,11 +47,13 @@ class PredictiveUseCase:
         k: int = 10,
         active_patterns: Optional[List[str]] = None,
         run_sensitivity: bool = False,
+        predictor_mode: str = "gnn",
         **kwargs,
     ) -> Any:
         """
         Execute Pathway B predictive inference to obtain quantitative blast radius predictions.
         
+        Supports predictor_mode in ('gnn', 'rm', 'topo', 'topo_qos', 'dual').
         When a GNN checkpoint is present and prefer_gnn=True, executes HGT inference.
         Otherwise falls back cleanly to deterministic RM scores (Zero-GNN cold-start mode).
         
@@ -68,6 +70,8 @@ class PredictiveUseCase:
             layer=layer,
             active_patterns=active_patterns,
             run_sensitivity=run_sensitivity,
+            predictor_mode=predictor_mode,
+            **kwargs,
         )
         return result
 

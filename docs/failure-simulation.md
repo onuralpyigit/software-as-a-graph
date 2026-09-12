@@ -64,9 +64,9 @@ flowchart TD
         FI --> IMP["impact_scores.json<br>Ground-Truth Labels I*(v)"]
     end
 
-    subgraph Mode2["Mode 2: Structural Failure (Multi-Dimensional)"]
+    subgraph Mode2["Mode 2: Structural Failure & Explanation (Multi-Dimensional)"]
         SIM --> FS["FailureSimulator<br>(saag/simulation/failure_simulator.py)"]
-        FS --> FSR["ImpactMetrics<br>Composite I_comp + IR / IM Sub-Metrics"]
+        FS --> FSR["ImpactMetrics<br>Composite I_comp + IR / IM / IA / IS Sub-Metrics"]
     end
 
     subgraph Mode3["Mode 3: Message Flow (Discrete-Event)"]
@@ -74,10 +74,18 @@ flowchart TD
         MFS --> MFR["message_flow_results.json<br>Timing, Queues, Latency & I_dyn(v)"]
     end
 
-    IMP --> GNN["Step 3: GNN Training<br>(Supervised Training Target)"]
-    IMP --> VAL["Step 6: Validation<br>(Spearman Correlation Gate)"]
-    FSR --> VAL
-    MFR --> VAL
+    subgraph Mode4["Mode 4: Change Propagation (Maintainability)"]
+        SIM --> CPS["ChangePropagationSimulator<br>(saag/simulation/change_propagation.py)"]
+        CPS --> CPR["ChangePropagationResult<br>Change Reach & Depth IM(v)"]
+    end
+
+    IMP --> GNN["Step 3: Predict Stage<br>(Supervised Training Target)"]
+    IMP --> VAL1["Step 6: Validate Stage (Tier-1)<br>(Core Blocking Gate: ρ ≥ 0.70, F1@K)"]
+    MFR --> VAL2["Step 6: Validate Stage (Tier-2)<br>(Targeted Behavioral Gate on Top-K)"]
+    CPR --> VAL3["Step 6: Validate Stage<br>(Maintainability Reference)"]
+    FSR --> EXP["Step 4: Explanatory Layer<br>(ISO/IEC 25010 Quality Gates)"]
+    FSR --> PRE["Step 7: Prescribe Stage<br>(EditVerifier Counterfactual Verification)"]
+    CPR --> EXP
 ```
 
 > [!IMPORTANT]
@@ -87,33 +95,35 @@ flowchart TD
 
 ## 2. Simulation Architecture & Engine Taxonomy
 
-The `saag/simulation/` package provides three specialized simulation engines tailored for distinct pipeline stages:
+The `saag/simulation/` package provides four specialized simulation engines tailored for distinct pipeline stages:
 
 ```mermaid
 flowchart LR
-    subgraph PredictStage["1. Predict Stage (Training Labels)"]
+    subgraph PredictValidate["1. Predict & Validate (Tier-1)"]
         FI["FaultInjector<br>(Raw NetworkX Graph)"] --> LBL["impact_scores.json<br>Deterministic Multi-Seed Labels I*(v)"]
     end
 
-    subgraph ValidateStage["2. Validate Stage (Evaluation Oracle)"]
-        FS["FailureSimulator<br>(SimulationGraph Stack)"] --> ORC["ImpactMetrics<br>Composite I_comp + IR/IM Decompositions"]
+    subgraph ValidateTier2["2. Validate (Tier-2 Behavioral)"]
+        MFS["MessageFlowSimulator<br>(SimPy Discrete-Event)"] --> DYN["message_flow_results.json<br>Targeted Top-K Delivery Drop I_dyn(v)"]
     end
 
-    subgraph DynamicStage["3. Runtime Flow Stage (Behavioral Oracle)"]
-        MFS["MessageFlowSimulator<br>(SimPy Discrete-Event)"] --> DYN["message_flow_results.json<br>Delivery Rates, Latencies & I_dyn(v)"]
+    subgraph ExplainPrescribe["3. Explanatory & Prescribe Stages"]
+        FS["FailureSimulator<br>(SimulationGraph Stack)"] --> ORC["ImpactMetrics<br>Composite I_comp + IR/IM/IA/IS & EditVerifier"]
+        CPS["ChangePropagationSimulator<br>(Transposed G^T BFS)"] --> MR["IM(v) Maintainability Reference"]
     end
 ```
 
 ### 2.1 Canonical Engine Roles & Responsibilities
 
-| Engine | Canonical Scope | Primary Output | Consumed By |
+| Engine | Canonical Scope & Stage | Primary Output | Consumed By |
 |:---|:---|:---|:---|
-| **`FaultInjector`** | **Predict Stage** (Supervised labels) | `impact_scores.json` $\to I^*(v)$ scalar | GNN training (`cli/train_graph.py`), $k$-fold & LOSO evaluations |
-| **`FailureSimulator`** | **Validate Stage** (Quality oracle) | `ImpactMetrics` $\to$ Composite $I_{\text{comp}}(v) + IR/IM$ sub-metrics | Validation gates (`saag/validation/service.py`), remediation verification |
-| **`MessageFlowSimulator`** | **Dynamic Runtime Flow** (Behavioral oracle) | `message_flow_results.json` $\to I_{\text{dyn}}(v)$ | Convergent validity analysis (`reproduce/convergent_validity.py`) |
+| **`FaultInjector`** | **Predict Stage** (Supervised labels)<br>**Validate Stage (Tier-1)** (Core blocking gate) | `impact_scores.json` $\to I^*(v)$ scalar | GNN training (`cli/train_graph.py`), LOSO evaluations, CI/CD blocking gate ($\rho \ge 0.70, F_1@K$) |
+| **`MessageFlowSimulator`** | **Validate Stage (Tier-2)** (Targeted behavioral gate)<br>**Runtime Flow Stage** (Behavioral oracle) | `message_flow_results.json` $\to I_{\text{dyn}}(v)$ | Targeted Top-$K$ dynamic SLA/overflow validation, convergent validity probe (`reproduce/convergent_validity.py`) |
+| **`FailureSimulator`** | **Explanatory Layer** (ISO/IEC 25010 quality gates)<br>**Prescribe / Explain Stage** (Remediation verifier) | `ImpactMetrics` $\to$ Composite $I_{\text{comp}}(v) + IR/IM/IA/IS$ sub-metrics, $I_{\text{edge}}(u,v)$ | Root-cause attribution profiles, `EditVerifier` counterfactual mutation sweeps (`saag/prescription/evaluator.py`) |
+| **`ChangePropagationSimulator`** | **Explanatory Layer** (Maintainability profiling)<br>**Validate Stage** (Maintainability reference) | `ChangePropagationResult` $\to IM(v)$ | ISO/IEC maintainability quality decomposition, structural change consistency check |
 
 > [!CAUTION]
-> **Never mix engines within the same stage**: `FaultInjector` outputs variance-tracked training labels ($I^*$); `FailureSimulator` provides multi-dimensional RM decompositions ($I_{\text{comp}}$). They are maintained separately by contract ([`tests/test_groundtruth_contract.py`](../tests/test_groundtruth_contract.py)).
+> **Stage-Specific Separation of Engines**: `FaultInjector` outputs variance-tracked cascade training and Tier-1 validation labels ($I^*$); `MessageFlowSimulator` provides runtime behavioral flow validation ($I_{\text{dyn}}$); `FailureSimulator` provides multi-dimensional explanatory attribution and prescriptive edit verification ($I_{\text{comp}}$); and `ChangePropagationSimulator` provides maintainability change ripple ($I_M$). They are maintained separately by contract ([`tests/test_groundtruth_contract.py`](../tests/test_groundtruth_contract.py)).
 
 ---
 

@@ -191,17 +191,17 @@ Computes structural metrics only on the layer subgraph. No RM/Q scores or anti-p
 ### `simulation/` — Step 5 Simulation Engine
 A discrete-event and BFS cascade failure simulation suite evaluating propagation boundaries on raw structural edges.
 - `SimulationGraph` — Wraps the structural topology projection for traversal operations.
-- `FaultInjector` — **Canonical Predict-stage labeler.** Pub-sub BFS cascade producing the scalar $I^*(v)$ written to `impact_scores.json`, which supplies the supervised training labels for the GNN. Deterministic and multi-seed, and emits its own provenance (`labeler`, `labeled_node_types`, `labeled_dimensions`, `unlabeled_node_ids`) plus a `label_stability` block giving the ceiling on any correlation reported against it.
-- `FailureSimulator` — **Canonical Validate-stage oracle.** Runs the main BFS cascade simulation under different scenarios (CRASH, DEGRADED, etc.) across physical, logical, network, and library pathways, producing the composite and IR/IM/IA/IS decomposition the validation gates are written against.
+- `FaultInjector` — **Predict-stage labeler & Validate-stage Tier-1 Core Blocking Gate.** Pub-sub BFS cascade producing the scalar $I^*(v)$ written to `impact_scores.json`, which supplies the supervised training labels for the GNN and powers the fast, blocking CI/CD validation gate ($\rho \ge 0.70$, $F_1@K$). Deterministic and multi-seed, with explicit `label_stability` provenance.
+- `FailureSimulator` — **Explanatory Layer oracle & Prescribe-stage Remediation Verifier.** Runs the multi-layer BFS cascade simulation across physical, logical, network, and library pathways, producing the composite $I_{\text{comp}}$ and ISO/IEC 25010 $IR/IM/IA/IS$ decompositions, and counterfactually verifying candidate architectural refactorings via `EditVerifier`.
 - `EventSimulator` — Models transient message flow to estimate throughput degradation and queue delays.
-- `MessageFlowSimulator` — SimPy-based discrete-event flow simulation with QoS-aware message queues.
+- `MessageFlowSimulator` — **Validate-stage Tier-2 Dynamic Behavioral Gate.** SimPy-based discrete-event flow simulation targeting Top-$K$ critical components to verify SLA deadline compliance, buffer drops, and delivery rate drops ($I_{\text{dyn}}$).
 - `TrafficSimulator` — Analytical (non-discrete-event) load estimator.
-- `ChangePropagationSimulator` — Propagates code-level modifications against $G^T$ to evaluate change-reach bounds.
+- `ChangePropagationSimulator` — **Explanatory Layer maintainability engine & Validate-stage Maintainability Reference.** Propagates code-level modifications against $G^T$ to evaluate change-reach bounds ($I_M$).
 - `CompromisePropagationSimulator` — Propagates cyber-breach scenarios along trust-weighted dependency paths.
 - `ComplexityProcessor` — Converts component complexity into processing-latency estimates for flow simulation.
 - `SimulationService` — Orchestrates all of the above for use-case consumption.
 
-> **`FaultInjector` and `FailureSimulator` both emit a quantity called "impact", and the two are not interchangeable.** Each owns exactly one pipeline stage — labels vs. validation oracle — and mixing them within a stage is a correctness error, enforced by `tests/test_groundtruth_contract.py`. See [docs/failure-simulation.md §2.1](docs/failure-simulation.md#21-which-engine-is-canonical-for-what).
+> **Separation of Concerns Across Stages**: `FaultInjector` produces variance-tracked training labels and Tier-1 core blocking gates ($I^*$); `MessageFlowSimulator` acts as the Tier-2 targeted dynamic behavioral gate ($I_{\text{dyn}}$); `FailureSimulator` powers the explanatory ISO/IEC attribution profiles and prescriptive edit verification ($I_{\text{comp}}$); and `ChangePropagationSimulator` provides maintainability change ripple ($I_M$). Enforced by `tests/test_groundtruth_contract.py`. See [docs/failure-simulation.md §2.1](docs/failure-simulation.md#21-canonical-engine-roles--responsibilities).
 
 ### `validation/` — Step 6 Validation Engine
 Correlates predictions against simulation ground-truth metrics to verify thesis validation gates.

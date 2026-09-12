@@ -32,6 +32,13 @@ _LAZY_MODULES = {
         "extract_simulation_dict",
         "networkx_to_hetero_data",
     ),
+    ".structural_predictor": (
+        "TopoPredictor",
+        "TopoQoSPredictor",
+        "DualEnginePredictor",
+        "DualEngineResult",
+        "derive_flow_projection",
+    ),
 }
 _LAZY = {name: mod for mod, names in _LAZY_MODULES.items() for name in names}
 

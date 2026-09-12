@@ -107,10 +107,12 @@ For each unordered pair the script reports Spearman ρ (with $p$), Kendall τ, a
 **over the node set the two oracles share** — the three differ in coverage, so `n_common` is
 reported per pair and is not the scenario size. Scales differ, so only rank agreement is meaningful.
 
-$I^*$ and $I_{\text{comp}}$ are both topological cascade engines over the same substrate, so their
-agreement cannot rule out a shared construction artifact. $I_{\text{dyn}}$ is the one that can:
-it reaches the same ranking by simulating traffic rather than by traversing edges. It is
-delivery-based and QoS-agnostic on this corpus, produces no training labels, and gates nothing.
+$I^*$ and $I_{\text{comp}}$ are both topological cascade engines over the graph substrate.
+$I_{\text{dyn}}$ is behavioral: it observes dynamic message delivery under discrete-event traffic load rather than static edge traversal.
+In the reorganized evaluation framework:
+- $I^*$ (`FaultInjector`) powers the **Predict Stage** (supervised labels) and **Validate Stage (Tier-1 Primary Static & Structural Validation Gate / Core Blocking Gate)**.
+- $I_{\text{dyn}}$ (`MessageFlowSimulator`) powers the **Validate Stage (Tier-2 Dynamic Behavioral Gate / Targeted Behavioral Gate)** on candidate Top-$K$ components and serves as a construct-validity / convergent-validity probe.
+- $I_{\text{comp}}$ (`FailureSimulator`) powers the **Explanatory Layer** (ISO/IEC 25010 Quality Gates) and **Prescribe Stage** (`EditVerifier` counterfactual remediation verifier).
 
 ```bash
 make -f reproduce/Makefile convergent-validity
@@ -121,3 +123,4 @@ python reproduce/convergent_validity.py --max-candidates 100
 $I_{\text{dyn}}$ costs one discrete-event run per candidate component, so runtime scales with
 corpus size rather than with epochs; `enterprise_system` dominates. `--skip-message-flow` falls
 back to the two topological oracles. Output is `results/convergent_validity.json`.
+

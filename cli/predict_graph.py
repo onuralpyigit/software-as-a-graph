@@ -109,9 +109,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run Kendall τ weight sensitivity analysis after scoring",
     )
 
-    # ── GNN inference ─────────────────────────────────────────────────────────
-    gnn_grp = parser.add_argument_group("GNN inference (Predict, optional)")
-    gnn_grp.add_argument(
+    # ── Predictor selection ───────────────────────────────────────────────────
+    pred_grp = parser.add_argument_group("Predictor engine (Step 3)")
+    pred_grp.add_argument(
+        "--predictor-mode", type=str, choices=["rm", "gnn", "topo", "topo_qos", "dual"], default=None,
+        help="Predictor engine to use: 'rm' (ISO/IEC quality attribution), "
+             "'gnn' (HGT-QoS learned model, requires --gnn-model), "
+             "'topo' (unweighted structural centrality), "
+             "'topo_qos' (QoS-weighted structural centrality), or "
+             "'dual' (concurrent HGT-QoS + Topo-QoS consensus & divergence check, per JSS Section 8.1). "
+             "Defaults to 'gnn' if --gnn-model is set, else 'rm'.",
+    )
+    pred_grp.add_argument(
+        "--divergence-threshold", type=int, default=5,
+        help="Rank difference threshold |rank_gnn - rank_topo| to trigger divergence triage escalation in dual mode (default: 5).",
+    )
+    pred_grp.add_argument(
         "--gnn-model", metavar="PATH", default=None,
         help="Path to a trained GNN checkpoint directory. "
              "When provided, runs HGT/HGTConv inference and reports GNN scores.",
@@ -400,9 +413,123 @@ def main() -> None:
             display.print_step(f"[{layer.upper()}] Failure propagation (blast radius / cascade depth):")
             display_propagation_metrics(components, prop_metrics, top_n=10)
 
-        # ── GNN inference (Step 3b, optional) ────────────────────────────────
+        # ── Predictor inference (Step 3b, optional) ───────────────────────────
+        effective_mode = args.predictor_mode
+        if effective_mode is None:
+            effective_mode = "gnn" if args.gnn_model else "rm"
+
         gnn_result = None
-        if args.gnn_model:
+        if effective_mode in ("topo", "topo_qos"):
+            from saag.prediction.structural_predictor import TopoPredictor, TopoQoSPredictor
+            from saag.prediction.gnn_service import GNNAnalysisResult, GNNCriticalityScore
+            from saag.analysis.classifier import BoxPlotClassifier
+
+            is_qos = (effective_mode == "topo_qos")
+            pred_name = "Topo-QoS" if is_qos else "Topo"
+            display.print_step(f"[{layer.upper()}] Running {pred_name} structural centrality prediction…")
+            predictor = TopoQoSPredictor() if is_qos else TopoPredictor()
+
+            sm_dict = getattr(analysis.raw, "components_dict", {})
+            struct_metrics = {c["id"]: c.get("structural", {}) for c in sm_dict.values()} if isinstance(sm_dict, dict) else {}
+            scores = predictor.predict(nx_graph, struct_metrics)
+
+            if scores:
+                box_clf = BoxPlotClassifier(k_factor=1.5)
+                stats = box_clf.compute_stats(list(scores.values()))
+                node_scores = {}
+                for nid, val in scores.items():
+                    lvl = box_clf.classify_score(val, stats)
+                    node_scores[nid] = GNNCriticalityScore(
+                        component=nid,
+                        composite_score=float(val),
+                        reliability_score=float(val),
+                        maintainability_score=float(val),
+                        source=pred_name,
+                        criticality_level=lvl.name,
+                    )
+                gnn_result = GNNAnalysisResult(
+                    node_scores=node_scores,
+                    prediction_mode=effective_mode,
+                    layer=layer,
+                    rm_result=prediction.raw,
+                )
+                top_nodes = sorted(node_scores.values(), key=lambda ns: ns.composite_score, reverse=True)[:10]
+                print()
+                print(f"  {pred_name} top-10 components:")
+                print(f"  {'Rank':<4} {'Component':<32} {'Score':>6}  {'Level':<10} {'Source'}")
+                print(f"  {'─'*4} {'─'*32} {'─'*6}  {'─'*10} {'─'*10}")
+                for rank, ns in enumerate(top_nodes, 1):
+                    print(
+                        f"  {rank:<4} {str(ns.component)[:31]:<32} "
+                        f"{ns.composite_score:>6.3f}  {ns.criticality_level:<10} {ns.source}"
+                    )
+                print()
+
+        elif effective_mode == "dual":
+            from saag.prediction.structural_predictor import DualEnginePredictor, TopoQoSPredictor
+            display.print_step(f"[{layer.upper()}] Running Dual-Engine prediction (HGT-QoS + Topo-QoS) per JSS Section 8.1…")
+
+            # 1. GNN pass
+            if args.gnn_model:
+                gnn_result = run_gnn_inference(nx_graph, analysis, prediction, args.gnn_model, display)
+            if not gnn_result:
+                display.print_warning(
+                    f"[{layer.upper()}] No GNN model available; using RM scores as learned proxy for dual comparison."
+                )
+                from saag.prediction.gnn_service import GNNAnalysisResult, GNNCriticalityScore
+                node_scores = {
+                    c.id: GNNCriticalityScore(
+                        component=c.id,
+                        composite_score=float(c.scores.overall),
+                        reliability_score=float(c.scores.reliability),
+                        maintainability_score=float(c.scores.maintainability),
+                        source="RM",
+                        criticality_level=c.levels.overall.name,
+                    )
+                    for c in components
+                }
+                gnn_result = GNNAnalysisResult(
+                    node_scores=node_scores,
+                    prediction_mode="rm_proxy",
+                    layer=layer,
+                    rm_result=prediction.raw,
+                )
+
+            # 2. Dual Engine evaluation
+            gnn_scores = {nid: float(ns.composite_score) for nid, ns in gnn_result.node_scores.items()}
+            sm_dict = getattr(analysis.raw, "components_dict", {})
+            struct_metrics = {c["id"]: c.get("structural", {}) for c in sm_dict.values()} if isinstance(sm_dict, dict) else {}
+            dual_pred = DualEnginePredictor(
+                topo_predictor=TopoQoSPredictor(),
+                divergence_threshold=args.divergence_threshold,
+            )
+            dual_res = dual_pred.evaluate_dual(
+                gnn_scores=gnn_scores,
+                graph_or_flow=nx_graph,
+                structural_metrics=struct_metrics,
+                k=args.triage_k or 10,
+            )
+            gnn_result.prediction_mode = "dual"
+            gnn_result.dual_result = dual_res
+
+            print()
+            print("  Dual-Engine Evaluation Summary (JSS §8.1 Consensus Protocol):")
+            print(f"  • Consensus Top-{args.triage_k or 10} Critical Components (GNN ∩ Topo-QoS):")
+            if dual_res.consensus_top_k:
+                for c_node in dual_res.consensus_top_k:
+                    print(f"      ✔ {c_node} (GNN rank #{dual_res.gnn_ranks[c_node]}, Topo rank #{dual_res.topo_ranks[c_node]})")
+            else:
+                print("      (No components in common between top-K)")
+
+            print(f"  • Divergence Escalation Set (|Δrank| ≥ {args.divergence_threshold}, flagged for architectural review):")
+            if dual_res.divergence_escalations:
+                for e_node in dual_res.divergence_escalations:
+                    print(f"      ⚠ {e_node}: GNN rank #{dual_res.gnn_ranks[e_node]} vs Topo-QoS rank #{dual_res.topo_ranks[e_node]} (Δ={dual_res.rank_divergences[e_node]})")
+            else:
+                print("      ✔ No high-divergence components detected (models agree on top tier).")
+            print()
+
+        elif args.gnn_model:
             display.print_step(f"[{layer.upper()}] GNN inference from checkpoint: {args.gnn_model}")
             gnn_result = run_gnn_inference(nx_graph, analysis, prediction, args.gnn_model, display)
             if gnn_result:

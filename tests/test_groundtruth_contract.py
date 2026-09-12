@@ -43,20 +43,17 @@ def test_impact_scores_schema(tmp_path):
         )
 
 
-#: The engine that labels nodes for the Predict stage. FaultInjector, because it
-#: is what every cached artifact and published result cell actually consumed, and
-#: because it is already deterministic and multi-seed with per-node variance.
-#:
-#: The earlier claim that only FailureSimulator's USES cascade could produce the
-#: ICAOMessageLib library blast radius is obsolete: FaultInjector derives
-#: DEPENDS_ON(app_to_lib) from USES edges (fault_injector.py:222-224) and
-#: cascades them at prob 1.0 (:409-411). Libraries simply are not in its default
-#: node_types, which is a configuration choice, not an engine limitation.
+#: The engine that labels nodes for the Predict stage and powers Tier-1 Validation.
+#: FaultInjector produces deterministic, multi-seed I*(v) labels with variance.
 CANONICAL_LABELER = "FaultInjector"
+CANONICAL_PREDICT_LABELER = "FaultInjector"
+CANONICAL_TIER1_VALIDATION_ORACLE = "FaultInjector"
+CANONICAL_TIER2_VALIDATION_ORACLE = "MessageFlowSimulator"
+CANONICAL_EXPLANATION_ORACLE = "FailureSimulator"
+CANONICAL_PRESCRIBE_VERIFIER = "FailureSimulator"
+CANONICAL_MAINTAINABILITY_REFERENCE = "ChangePropagationSimulator"
 
-#: The engine that supplies the Validate stage's RM oracle. These two measure
-#: DIFFERENT quantities (see saag/simulation/models.py:336-350) and must never be
-#: mixed within a single stage.
+#: The engine that supplies the Explanatory Layer and Prescribe verification.
 CANONICAL_VALIDATION_ORACLE = "FailureSimulator"
 
 
@@ -183,3 +180,23 @@ def test_validation_oracle_is_the_other_engine():
     assert CANONICAL_VALIDATION_ORACLE != CANONICAL_LABELER, (
         "labeler and validation oracle must stay distinct engines"
     )
+
+
+def test_reorganized_stage_engine_contracts():
+    """Pin the reorganized stage-to-engine taxonomy contract.
+    
+    - Predict Stage: FaultInjector (supervised labels I*(v))
+    - Validate Stage Tier-1: FaultInjector (core blocking gate)
+    - Validate Stage Tier-2: MessageFlowSimulator (targeted behavioral gate)
+    - Explanatory Layer: FailureSimulator (ISO/IEC quality gates)
+    - Prescribe Stage: FailureSimulator (remediation verifier)
+    - Maintainability Reference: ChangePropagationSimulator (IM(v) on G^T)
+    """
+    assert CANONICAL_PREDICT_LABELER == "FaultInjector"
+    assert CANONICAL_TIER1_VALIDATION_ORACLE == "FaultInjector"
+    assert CANONICAL_TIER2_VALIDATION_ORACLE == "MessageFlowSimulator"
+    assert CANONICAL_EXPLANATION_ORACLE == "FailureSimulator"
+    assert CANONICAL_PRESCRIBE_VERIFIER == "FailureSimulator"
+    assert CANONICAL_MAINTAINABILITY_REFERENCE == "ChangePropagationSimulator"
+    assert CANONICAL_TIER1_VALIDATION_ORACLE != CANONICAL_TIER2_VALIDATION_ORACLE
+
