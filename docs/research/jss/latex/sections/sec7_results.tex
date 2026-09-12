@@ -12,12 +12,12 @@ Table~\ref{tab:5} presents in-distribution held-out Spearman rank correlation ($
 \begin{table}[htbp]
 \centering
 \small
-\caption{In-distribution held-out Spearman $\rho$ against simulated cascade impact $I^*(v)$: mean over five seeds with bootstrap 95\% CI in brackets; $n$ = held-out Application count. All four learned variants use the identical native multigraph, differing only in typing and edge channel (Section~\ref{sec:6.2}); topological baselines use the flow projection. Each seed redraws the 60/20/20 split as well as the initialization. Read with Table~\ref{tab:6}.}
+\caption{In-distribution held-out Spearman $\rho$ against simulated cascade impact $I^*(v)$: mean over five seeds with bootstrap 95\% CI in brackets; $n$ = held-out Application count. Substrates differ and the comparison is confounded in-distribution: HGT/HGT-QoS consume the native typed multigraph, while GAT/GAT-QoS and the topological baselines consume the Application--Library \texttt{DEPENDS\_ON} flow projection (Section~\ref{sec:6.2}). The typed--untyped contrast below therefore mixes typing with multi-entity visibility here; the substrate-matched comparison is the LOSO one in Table~\ref{tab:7}, where both architectures read the same graph. Each seed redraws the 60/20/20 split as well as the initialization. Read with Table~\ref{tab:6}.}
 \label{tab:5}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lrcccccc}
 \toprule
-\textbf{Scenario} & \textbf{$n$} & \textbf{Topo} & \textbf{Topo-QoS} & \textbf{GAT-N} & \textbf{GAT-N-QoS} & \textbf{HGT} & \textbf{HGT-QoS} \\
+\textbf{Scenario} & \textbf{$n$} & \textbf{Topo} & \textbf{Topo-QoS} & \textbf{GAT} & \textbf{GAT-QoS} & \textbf{HGT} & \textbf{HGT-QoS} \\
 \midrule
 \textbf{ATM System} & 5 & 0.538 {\scriptsize [0.302, 0.800]} & \textbf{0.557} {\scriptsize [0.340, 0.797]} & $-$0.361 {\scriptsize [$-$0.743, 0.073]} & $-$0.058 {\scriptsize [$-$0.436, 0.279]} & 0.492 {\scriptsize [0.233, 0.718]} & 0.348 {\scriptsize [$-$0.001, 0.675]} \\
 \textbf{AV System} & 16 & 0.188 {\scriptsize [$-$0.003, 0.405]} & 0.797 {\scriptsize [0.627, 0.937]} & \textbf{0.809} {\scriptsize [0.772, 0.855]} & 0.503 {\scriptsize [$-$0.033, 0.823]} & 0.637 {\scriptsize [0.299, 0.832]} & 0.558 {\scriptsize [0.119, 0.820]} \\
@@ -50,13 +50,13 @@ Table~\ref{tab:5} presents in-distribution held-out Spearman rank correlation ($
 \midrule
 \textbf{HGT-QoS vs. Topo} & \textbf{+0.291} & 11/12 & 2.0 & \textbf{0.0015} & \textbf{Significant} ($p < 0.01$) \\
 \textbf{Topo-QoS vs. Topo} & \textbf{+0.198} & 12/12 & 0.0 & \textbf{0.0005} & \textbf{Significant} ($p < 0.001$) \\
-\textbf{HGT-QoS vs. GAT-N-QoS} & \textbf{+0.222} & 11/12 & 3.0 & \textbf{0.0024} & \textbf{Significant} ($p < 0.01$) \\
+\textbf{HGT-QoS vs. GAT-QoS} & \textbf{+0.222} & 11/12 & 3.0 & \textbf{0.0024} & \textbf{Significant} ($p < 0.01$) \\
 \midrule
-\textbf{HGT-QoS vs. GAT-N} & $+0.118$ & 9/12 & 21.0 & 0.1763 & Not significant \\
+\textbf{HGT-QoS vs. GAT} & $+0.118$ & 9/12 & 21.0 & 0.1763 & Not significant \\
 \textbf{HGT-QoS vs. Topo-QoS} & $+0.093$ & 9/12 & 23.0 & 0.2334 & Not significant \\
-\textbf{HGT vs. GAT-N} & $+0.082$ & 8/12 & 29.0 & 0.4697 & Not significant \\
+\textbf{HGT vs. GAT} & $+0.082$ & 8/12 & 29.0 & 0.4697 & Not significant \\
 \textbf{HGT-QoS vs. HGT} & $+0.037$ & 8/12 & 32.0 & 0.6221 & Not significant \\
-\textbf{GAT-N-QoS vs. Topo-QoS} & $-0.129$ & 4/12 & 21.0 & 0.1763 & Not significant \\
+\textbf{GAT-QoS vs. Topo-QoS} & $-0.129$ & 4/12 & 21.0 & 0.1763 & Not significant \\
 \bottomrule
 \end{tabular}%
 }
@@ -150,13 +150,13 @@ Three consequences follow, and they do not all favor the proposed model.
 \subsection{RQ2: Value of Typed Heterogeneity}
 \label{sec:7.2}
 
-To evaluate the specific contribution of node and edge typing, we contrast the relation-specific Heterogeneous Graph Transformer against the homogeneous Graph Attention Network on the shared native multigraph substrate, with the identical training set, depth, and model-selection rule:
+To evaluate the specific contribution of node and edge typing, we contrast the relation-specific Heterogeneous Graph Transformer against the homogeneous Graph Attention Network under the identical training set, depth, and model-selection rule. The two regimes differ in one respect that governs how each should be read: under LOSO both architectures consume the same native multigraph, whereas in-distribution the homogeneous pair consumes the \texttt{DEPENDS\_ON} projection, so only the LOSO contrast isolates typing:
 \begin{itemize}
-    \item \textbf{In-Distribution Fitting (Table~\ref{tab:5}):} Across the full twelve-scenario benchmark, typed message passing demonstrates a decisive advantage when paired with QoS edge encodings. HGT-QoS achieves the highest overall rank correlation ($\rho = 0.661$) against GAT-N-QoS's $0.439$ ($\Delta\rho = +0.222$, won in 11 of 12 scenarios, $W = 3.0$, $p = 0.0024$), establishing a statistically significant lead ($p < 0.01$). In the unweighted ablation, HGT similarly leads homogeneous GAT-N ($\rho = 0.624$ vs.\ $0.543$, $\Delta\rho = +0.082$, won in 8 of 12 scenarios, $W = 29.0$, $p = 0.4697$), though the unweighted gap does not reach statistical significance. HGT-QoS achieves the best individual rank correlation in 7 of the 12 scenarios.
+    \item \textbf{In-Distribution Fitting (Table~\ref{tab:5}):} Across the full twelve-scenario benchmark, typed message passing demonstrates a decisive advantage when paired with QoS edge encodings. HGT-QoS achieves the highest overall rank correlation ($\rho = 0.661$) against GAT-QoS's $0.439$ ($\Delta\rho = +0.222$, won in 11 of 12 scenarios, $W = 3.0$, $p = 0.0024$), establishing a statistically significant lead ($p < 0.01$). In the unweighted ablation, HGT similarly leads homogeneous GAT ($\rho = 0.624$ vs.\ $0.543$, $\Delta\rho = +0.082$, won in 8 of 12 scenarios, $W = 29.0$, $p = 0.4697$), though the unweighted gap does not reach statistical significance. HGT-QoS achieves the best individual rank correlation in 7 of the 12 scenarios. \emph{This margin is not evidence for typing.} The homogeneous pair reads the Application--Library projection while the typed pair reads the native multigraph, so the in-distribution contrast confounds typed message passing with multi-entity visibility, and we report it as a fitting result only. The substrate-matched test is the LOSO one below.
     \item \textbf{Out-of-Distribution Generalization (LOSO, Table~\ref{tab:7}):} Under inductive distribution shift, the typed advantage remains consistent and robust. HGT-QoS outperforms GAT-N-QoS by $+0.114$ ($\rho = 0.695$ vs.\ $0.581$), winning 11 of 12 folds ($W = 8.0$, $p = 0.0122$; 95\% CI $[+0.048, +0.170]$). The unweighted pair replicates it and slightly exceeds it: HGT over GAT-N by $+0.147$, 11 of 12 folds, $W = 1.0$, $p = 0.0010$, CI $[+0.101, +0.185]$.
 \end{itemize}
 
-\noindent\textbf{Relational typing reinforces representation across both regimes.} Heterogeneous message passing maintains high predictive accuracy both when training and testing within the same topology ($\rho = 0.661$) and when transferring zero-shot to entirely unseen architectures ($\rho = 0.695$, a further gain of $+0.034$). By contrast, untyped GAT exhibits wider variance and lower stability across diverse topographies when edge weights are incorporated ($0.439$ in-distribution vs.\ $0.581$ under LOSO multi-scenario training). Distinguishing \texttt{PUBLISHES\_TO} dissemination from \texttt{RUNS\_ON} placement is an inductive constraint that prevents relational conflation, paying dividends both in local ranking fidelity and under distribution shift.
+\noindent\textbf{Typing is an inductive bias, demonstrated out of distribution.} Heterogeneous message passing holds up in both regimes --- $\rho = 0.661$ fitting within a topology and $\rho = 0.695$ transferring zero-shot to unseen architectures --- but only the second is a clean test of typing. In-distribution the typed model also gains the native substrate, and a homogeneous model given that same substrate closed almost the entire gap when the two were measured side by side. Read the $+0.222$ as what a typed model on a richer graph achieves, and the $+0.114$ as what typing itself buys.
 
 The single fold typed learning loses is the same in both contrasts: ATM, the smallest graph in the corpus (26 Applications) and the only one designated a case study. Excluding it, both contrasts win every remaining fold ($+0.139$ and $+0.161$, 11/11, $p = 0.0010$). We report the twelve-fold figure as the headline regardless, because excluding an inconvenient fold to recover unanimity is precisely the move a reader should distrust.
 
