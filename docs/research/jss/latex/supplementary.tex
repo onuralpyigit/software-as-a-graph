@@ -49,25 +49,25 @@ The RM composite of Section~5 of the main manuscript declares ten weight constan
 \toprule
 \textbf{Constant} & \textbf{One-factor sweep (OFAT)} & \textbf{Morris $\mu^*$} & \textbf{Morris $\sigma$} \\
 \midrule
-$r_\alpha$ (Fault Tolerance / Availability blend) & not swept individually & $\mathbf{0.144}$ & $0.042$ \\
-$\lambda$ (AHP shrinkage, uniform $\to$ raw) & $\rho = 0.319 \to 0.200$, monotone (spread $0.119$) & $\mathbf{0.117}$ & $0.080$ \\
+$r_\alpha$ (Fault Tolerance / Availability blend) & not swept individually & $\mathbf{0.132}$ & $0.040$ \\
+$\lambda$ (AHP shrinkage, uniform $\to$ raw) & $\rho = 0.319 \to 0.200$, monotone (spread $0.119$) & $\mathbf{0.134}$ & $0.090$ \\
 \midrule
-$w_{\text{dur}}$ (QoS durability) & \multirow{3}{*}{\parbox{5.2cm}{part of the AHP-derived QoS vector $(0.24, 0.62, 0.14)$; not swept separately}} & $0.023$ & $0.023$ \\
-$w_{\text{prio}}$ (QoS priority) & & $0.023$ & $0.025$ \\
-$w_{\text{rel}}$ (QoS reliability) & & $0.008$ & $0.012$ \\
+$w_{\text{dur}}$ (QoS durability) & \multirow{3}{*}{\parbox{5.2cm}{part of the AHP-derived QoS vector $(0.24, 0.62, 0.14)$; not swept separately}} & $0.013$ & $0.016$ \\
+$w_{\text{prio}}$ (QoS priority) & & $0.022$ & $0.024$ \\
+$w_{\text{rel}}$ (QoS reliability) & & $0.012$ & $0.018$ \\
 \midrule
-$\alpha$ (topic payload size) & \multirow{3}{*}{\parbox{5.2cm}{swept jointly over the full $(\beta, \alpha, \psi)$ simplex, 7 points: $w(t)$ ordering never falls below $\rho = 0.919$ against the shipped split; downstream spread $0.031$ (Topo-QoS), $0.007$ (RM)}} & $0.018$ & $0.021$ \\
-$\beta$ (topic QoS term) & & $0.016$ & $0.017$ \\
-$\psi$ (topic frequency) & & $0.013$ & $0.016$ \\
+$\alpha$ (topic payload size) & \multirow{3}{*}{\parbox{5.2cm}{swept jointly over the full $(\beta, \alpha, \psi)$ simplex, 7 points: $w(t)$ ordering never falls below $\rho = 0.919$ against the shipped split; downstream spread $0.031$ (Topo-QoS), $0.007$ (RM)}} & $0.019$ & $0.026$ \\
+$\beta$ (topic QoS term) & & $0.025$ & $0.028$ \\
+$\psi$ (topic frequency) & & $0.011$ & $0.011$ \\
 \midrule
-$p$ (power-mean exponent) & not swept individually & $0.003$ & $0.005$ \\
-$\gamma$ (library fan-out) & not swept individually & $0.000$ & $0.001$ \\
+$p$ (power-mean exponent) & not swept individually & $0.005$ & $0.007$ \\
+$\gamma$ (library fan-out) & not swept individually & $0.001$ & $0.001$ \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-\noindent Three things follow. First, the parameter risk of the explanation layer is concentrated in two constants, both internal to the RM composite; the QoS-derived weights on which the framework's architectural story rests are not load-bearing for its output. Second, the topic-weight split $(\beta, \alpha, \psi) = (0.75, 0.15, 0.10)$ is a documented convention rather than a tuned parameter --- no choice within its simplex, including uniform weighting, would meaningfully change any result in this paper. Third, Dirichlet sampling over 100 draws of the whole weight vector confirms that the parameterization is stable as a whole: mean $\rho = 0.176$ (sd $0.011$, 90\% interval $[0.157, 0.194]$), with mean Kendall $\tau = 0.838$ and mean top-20\% Jaccard $0.763$ against the shipped ranking.
+\noindent Three things follow. First, the parameter risk of the explanation layer is concentrated in two constants, both internal to the RM composite; the QoS-derived weights on which the framework's architectural story rests are not load-bearing for its output. Second, the topic-weight split $(\beta, \alpha, \psi) = (0.75, 0.15, 0.10)$ is a documented convention rather than a tuned parameter --- no choice within its simplex, including uniform weighting, would meaningfully change any result in this paper. Third, Dirichlet sampling over 100 draws of the whole weight vector confirms that the parameterization is stable as a whole: mean $\rho = 0.200$ (sd $0.010$, 90\% interval $[0.185, 0.218]$), with mean Kendall $\tau = 0.826$ and mean top-20\% Jaccard $0.739$ against the shipped ranking.
 
 \paragraph{The elicited weights are anti-predictive, and we keep them anyway}
 The $\lambda$ row deserves separate comment because its direction is unfavorable. Rank correlation falls monotonically as the intra-dimension weights move from a uniform prior toward the raw AHP judgment ($0.319 \to 0.200$, Figure~\ref{fig:S1}): expert elicitation makes the ranking worse, by $0.119$. We retain $\lambda = 0.70$ regardless, and the reasoning should be explicit rather than assumed. RM is an attribution instrument, not a ranking model (Section~6.2 of the main manuscript); its purpose is to say \emph{why} a component is fragile in auditable, standards-referenced terms, and rank correlation against a cascade oracle is not the quantity it is built to maximize. Tuning $\lambda$ toward zero would improve a number we do not claim at the cost of the traceability we do. What this sweep establishes is nonetheless a genuine limitation: we have evidence that the elicited weights produce worse rankings and none that they produce better attributions. Validating the attribution itself --- against practitioner judgment, or against the outcome of applying the repairs it recommends --- is outside this study and is the explanation layer's principal open question (Section~8.4 of the main manuscript).

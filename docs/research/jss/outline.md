@@ -66,7 +66,7 @@ if an edit ever softens one back into a claim, that is a regression.
 | **Cost** — HGT forward vs structural analysis at 2,000 components | 56.2 ms vs 239.34 s (**4,259×**) | §7.5 (Table 12) |
 | Gate vs its own oracle | gate 0.04–82.7 s, oracle 0.14–7.2 s → **gate ~11× dearer** | §7.5.1 |
 | AHP shrinkage, uniform → raw | 0.319 → 0.200 (elicited weights are anti-predictive) | Supp. S1 |
-| Morris screening, only load-bearing constants | r_α (μ\* 0.144), λ (0.117); other eight ≤ 0.023 | Supp. S1 |
+| Morris screening, only load-bearing constants | λ (μ\* 0.134), r_α (0.132); other eight ≤ 0.025 | Supp. S1 |
 | Corpus | 2,812 components, 17 architectures (12 synthetic + 5 real-world) | §6.1 (Table 4) |
 
 ### Four standing caveats that travel with every figure above
