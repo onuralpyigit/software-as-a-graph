@@ -339,7 +339,7 @@ def check_freshness(rep: Report) -> None:
                  "convergent_validity.json", "topic_weight_sensitivity_v3.json",
                  "weight_global_sensitivity_v3.json", "ahp_shrinkage_sweep_v3.json",
                  "threshold_sensitivity_v3.json", "atm_scale_sweep_v3.json",
-                 "oracle_timing_v4.json"):
+                 "oracle_timing_v4.json", "qos_label_ablation.json"):
         p = RESULTS / name
         if not p.exists():
             continue
@@ -384,6 +384,69 @@ def check_oracle_timing(rep: Report) -> None:
                                         "see text", f"{ratio}x -> 'roughly {expected} times'"))
 
 
+def check_qos_label_ablation(rep: Report) -> None:
+    """Check Section 4.3's claim about how much QoS the primary label carries.
+
+    Prose, and checked for the same reason as the oracle timing above: it is
+    load-bearing. It states that I*(v)'s ordering is almost entirely recoverable
+    without any QoS term, which is what bounds the QoS-encoding gain reported in
+    7.3.1. An unbacked figure here would let a corpus change quietly invalidate
+    the bound while the ablation number it qualifies stayed put.
+    """
+    art = _load("qos_label_ablation.json")
+    if art is None:
+        rep.skipped.append("qos_label_ablation.json absent; 4.3 QoS bound unchecked")
+        return
+
+    blocks = [
+        s["label_rank_agreement_application"]
+        for s in art.get("scenarios", [])
+        if "label_rank_agreement_application" in s
+    ]
+    if not blocks:
+        rep.skipped.append(
+            "qos_label_ablation.json predates label_rank_agreement_application; "
+            "re-run reproduce/qos_label_ablation.py"
+        )
+        return
+
+    def _mean(arm: str, key: str) -> Optional[float]:
+        vals = [b[arm][key] for b in blocks if key in b.get(arm, {})]
+        return sum(vals) / len(vals) if vals else None
+
+    tex = _tex("sec4_failure_impact_prediction.tex")
+    for arm, key, pattern, tol in (
+        ("ladder", "spearman_rho_vs_none",
+         r"mean Spearman \$\\rho = ([\d.]+)\$ against the ladder", 0.002),
+        ("wt", "spearman_rho_vs_none",
+         r"durability-aware \$w\(t\)\$ scaling moves it less still \(\$\\rho = ([\d.]+)\$\)", 0.002),
+        ("ladder", "topk_jaccard_vs_none",
+         r"agree at mean Jaccard \$([\d.]+)\$", 0.002),
+    ):
+        expected = _mean(arm, key)
+        if expected is None:
+            continue
+        rep.checked += 1
+        m = re.search(pattern, tex)
+        if not m:
+            rep.findings.append(Finding("sec:4.3", f"{arm} {key}", "value",
+                                        "not found", round(expected, 4)))
+        elif abs(float(m.group(1)) - expected) > tol:
+            rep.findings.append(Finding("sec:4.3", f"{arm} {key}", "value",
+                                        float(m.group(1)), round(expected, 4)))
+
+    lo = min(b["ladder"]["spearman_rho_vs_none"] for b in blocks)
+    hi = max(b["ladder"]["spearman_rho_vs_none"] for b in blocks)
+    rep.checked += 1
+    m = re.search(r"\(range \$([\d.]+)\$--\$([\d.]+)\$\)", tex)
+    if not m:
+        rep.findings.append(Finding("sec:4.3", "ladder rho", "range",
+                                    "not found", f"{lo:.3f}-{hi:.3f}"))
+    elif abs(float(m.group(1)) - lo) > 0.002 or abs(float(m.group(2)) - hi) > 0.002:
+        rep.findings.append(Finding("sec:4.3", "ladder rho", "range",
+                                    f"{m.group(1)}-{m.group(2)}", f"{lo:.3f}-{hi:.3f}"))
+
+
 PROSE_NOTES = [
     "Wilcoxon contrasts in 7.1/7.2 <- results/loso_significance_v*.json",
     "QoS ablation deltas in 7.3.1 <- loso_all_variants_v*.json",
@@ -409,6 +472,7 @@ def main() -> int:
     check_scale_table(rep)
     check_realworld(rep)
     check_oracle_timing(rep)
+    check_qos_label_ablation(rep)
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts.\n")
 

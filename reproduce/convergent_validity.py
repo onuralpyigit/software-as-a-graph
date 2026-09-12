@@ -96,7 +96,7 @@ def _fault_injector_labels(
 
 
 def _failure_simulator_labels(
-    scenario: str, layer: str = "system", qos: bool = True
+    scenario: str, layer: str = "system", qos: bool = True, seed: int = 42
 ) -> Dict[str, float]:
     """I_comp(v) — the composite that backs the validation gates.
 
@@ -136,7 +136,7 @@ def _failure_simulator_labels(
     SimulationService._prime_baseline_flows(graph, sim)
     return {
         r.target_id: float(r.impact.composite_impact)
-        for r in sim.simulate_exhaustive(layer=layer, seed=42)
+        for r in sim.simulate_exhaustive(layer=layer, seed=seed)
     }
 
 
@@ -318,6 +318,86 @@ def _pairwise(a_scores: Dict[str, float], b_scores: Dict[str, float]) -> Dict[st
     return block
 
 
+def _self_agreement(
+    scenario: str,
+    stability_seeds: List[int],
+    population: str,
+    qos: bool,
+    duration: float,
+    max_candidates: Optional[int],
+    skip_message_flow: bool,
+    qos_mode: str,
+    target_utilization: Optional[float],
+) -> Dict[str, Any]:
+    """Each oracle's agreement with itself across seeds — its own noise floor.
+
+    Without this the cross-oracle rho below has only one stated ceiling
+    (I*'s, from reproduce/label_stability_check.py), so a shortfall reads as
+    construct divergence when part of it may be the *other* oracle's dispersion.
+    I_dyn is a stochastic discrete-event simulation and had no measured floor at
+    all; I_comp draws Bernoulli cascade edges and turns out to be effectively
+    deterministic, which is itself worth recording rather than assuming.
+
+    Cost: one full oracle run per seed per scenario, and I_dyn costs one
+    discrete-event simulation per candidate component. Off unless
+    ``--stability-seeds`` is given, and intended for a stated subset rather than
+    the whole corpus.
+    """
+    if len(stability_seeds) < 2:
+        return {}
+
+    per_oracle: Dict[str, Dict[int, Dict[str, float]]] = {"i_comp": {}}
+    for seed in stability_seeds:
+        per_oracle["i_comp"][seed] = _failure_simulator_labels(
+            scenario, qos=qos, seed=seed)
+    if not skip_message_flow:
+        per_oracle["i_dyn"] = {}
+        effective_mode = qos_mode if qos else "none"
+        for seed in stability_seeds:
+            per_oracle["i_dyn"][seed] = _message_flow_labels(
+                scenario, duration=duration, seed=seed,
+                max_candidates=max_candidates, qos_mode=effective_mode,
+                target_utilization=target_utilization,
+            )
+
+    out: Dict[str, Any] = {}
+    for name, by_seed in per_oracle.items():
+        restricted = _restrict(
+            {str(s): scores for s, scores in by_seed.items()}, scenario, population)
+        seeds_sorted = sorted(by_seed)
+        rhos: List[float] = []
+        jaccards: List[float] = []
+        for i in range(len(seeds_sorted)):
+            for j in range(i + 1, len(seeds_sorted)):
+                a_map = restricted[str(seeds_sorted[i])]
+                b_map = restricted[str(seeds_sorted[j])]
+                common = sorted(set(a_map) & set(b_map))
+                if len(common) < 3:
+                    continue
+                a = np.array([a_map[k] for k in common])
+                b = np.array([b_map[k] for k in common])
+                if np.ptp(a) == 0 or np.ptp(b) == 0:
+                    continue
+                rho, _ = spearmanr(a, b)
+                if not np.isnan(rho):
+                    rhos.append(float(rho))
+                k = max(1, int(round(len(common) * 0.20)))
+                top_a = set(np.argsort(-a)[:k].tolist())
+                top_b = set(np.argsort(-b)[:k].tolist())
+                jaccards.append(len(top_a & top_b) / len(top_a | top_b))
+        out[name] = {
+            "seeds": seeds_sorted,
+            # The worst pair, not the mean: a ceiling is set by the weakest
+            # agreement, and averaging hides it. Same convention as
+            # FaultInjector._compute_label_stability.
+            "test_retest_spearman_min": round(min(rhos), 4) if rhos else None,
+            "test_retest_spearman_max": round(max(rhos), 4) if rhos else None,
+            "topk_jaccard_min": round(min(jaccards), 4) if jaccards else None,
+            "n_pairs": len(rhos),
+        }
+    return out
+
+
 def compare(
     scenario: str,
     seeds: List[int],
@@ -328,6 +408,7 @@ def compare(
     population: str = "application",
     qos_mode: str = "legacy",
     target_utilization: Optional[float] = 0.65,
+    stability_seeds: Optional[List[int]] = None,
 ) -> Dict[str, Any]:
     """Pairwise agreement across the available oracles.
 
@@ -355,11 +436,28 @@ def compare(
         "eval_population": population,
         "n_per_oracle": {name: len(scores) for name, scores in oracles.items()},
         "n_per_oracle_unrestricted": n_before,
+        # Which seeds each oracle actually consumed. Recorded per row because
+        # the top-level `seeds` list reaches only FaultInjector, which averages
+        # across them into one I* value; I_comp and I_dyn each run at a single
+        # seed. Reporting the run as "five seeds" without this distinction
+        # overstates the replication in every pair involving them.
+        "oracle_seeding": {
+            "i_star": {"seeds": list(seeds), "combination": "mean across seeds"},
+            "i_comp": {"seeds": [42], "combination": "single run"},
+            **({} if skip_message_flow else
+               {"i_dyn": {"seeds": [42], "combination": "single run"}}),
+        },
         "pairs": {},
     }
     for name_a, name_b in combinations(sorted(oracles), 2):
         row["pairs"][f"{name_a}__{name_b}"] = _pairwise(
             oracles[name_a], oracles[name_b])
+
+    if stability_seeds:
+        row["oracle_self_agreement"] = _self_agreement(
+            scenario, stability_seeds, population, qos, duration,
+            max_candidates, skip_message_flow, qos_mode, target_utilization,
+        )
     return row
 
 
@@ -412,6 +510,14 @@ def parse_args():
              "on; 'labeled' pools all node types, which is what this script did "
              "before the flag existed.",
     )
+    p.add_argument(
+        "--stability-seeds", nargs="*", type=int, default=None,
+        help="Measure each oracle's agreement with itself across these seeds, "
+             "giving I_comp and I_dyn the stated noise floor that only I* has "
+             "had. Costs one full oracle run per seed per scenario (and one "
+             "discrete-event simulation per candidate for I_dyn), so pair it "
+             "with a reduced --scenarios list. Off by default.",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
@@ -438,6 +544,7 @@ def main():
                 population=args.eval_population,
                 qos_mode=args.qos_mode,
                 target_utilization=args.target_utilization,
+                stability_seeds=args.stability_seeds,
             )
         except Exception as exc:      # noqa: BLE001
             logger.warning("%s failed: %s", scenario, exc)
@@ -452,6 +559,12 @@ def main():
                   f"topK-Jaccard={block.get('topk_jaccard', '—'):>7}  "
                   f"tie-robust={block.get('topk_jaccard_tie_robust', '—'):>7}  "
                   f"n={block.get('n_common', 0)}")
+        for name, blk in row.get("oracle_self_agreement", {}).items():
+            print(f"    {name + ' self':22} test-retest rho="
+                  f"{blk.get('test_retest_spearman_min')}–"
+                  f"{blk.get('test_retest_spearman_max')}  "
+                  f"topK-Jaccard>={blk.get('topk_jaccard_min')}  "
+                  f"({blk.get('n_pairs')} seed pairs)")
 
     # Summarise each pair across scenarios; a pair is only as strong as the
     # scenarios it was actually measurable on.
@@ -525,6 +638,14 @@ def main():
             i_comp_baseline_flows_primed=True,
             max_candidates=args.max_candidates,
             skip_message_flow=args.skip_message_flow,
+            # `seeds` above reaches FaultInjector only, which averages I* across
+            # them; I_comp and I_dyn each run once at seed 42. Stated here so a
+            # caption cannot describe the run as five-seeded across all three.
+            seeded_oracles=["i_star"],
+            single_seed_oracles=(
+                ["i_comp"] if args.skip_message_flow else ["i_comp", "i_dyn"]
+            ),
+            stability_seeds=args.stability_seeds,
         ),
         "per_scenario": rows,
         "summary": summary,
