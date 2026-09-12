@@ -35,6 +35,117 @@ import networkx as nx
 logger = logging.getLogger(__name__)
 
 
+def derive_depends_on_edges(topology: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Derive DEPENDS_ON edges from pub-sub topology relationships.
+
+    Implements Rules 1 and 5 from CLAUDE.md (app_to_app, app_to_lib) without
+    Neo4j. These edges are required so that StructuralAnalyzer can compute
+    meaningful betweenness, bridge_ratio, and reverse_pagerank for Application
+    and Library nodes.
+
+    Direction: dependent -> dependency (subscriber depends on publisher, app depends on lib).
+    """
+    rels = topology.get("relationships", {})
+
+    # Collect topic -> {publishers}, topic -> {subscribers}
+    topic_publishers: Dict[str, Set[str]] = {}
+    for r in rels.get("publishes_to", []):
+        src = r.get("source") or r.get("application_id") or r.get("from")
+        dst = r.get("target") or r.get("topic_id") or r.get("to")
+        if src and dst:
+            topic_publishers.setdefault(str(dst), set()).add(str(src))
+
+    topic_subscribers: Dict[str, Set[str]] = {}
+    for r in rels.get("subscribes_to", []):
+        src = r.get("source") or r.get("application_id") or r.get("from")
+        dst = r.get("target") or r.get("topic_id") or r.get("to")
+        if src and dst:
+            topic_subscribers.setdefault(str(dst), set()).add(str(src))
+
+    from saag.core.models import topic_weight_from_node_attrs, compute_effective_edge_weight
+    import statistics as _stats
+
+    topic_attrs: Dict[str, Dict] = {
+        str(t["id"]): t for t in topology.get("topics", []) if t.get("id") is not None
+    }
+    topic_weight: Dict[str, float] = {}
+    for tid, attrs in topic_attrs.items():
+        existing = attrs.get("weight")
+        if isinstance(existing, (int, float)) and existing > 0:
+            topic_weight[tid] = float(existing)
+        else:
+            topic_weight[tid] = float(topic_weight_from_node_attrs(attrs))
+
+    neutral_weight = _stats.median(topic_weight.values()) if topic_weight else 1.0
+
+    # Per-relationship qos_profile when a topology does supply one; otherwise the
+    # Topic's own qos block is the authority.
+    pub_qos: Dict[Tuple[str, str], Dict] = {}
+    for r in rels.get("publishes_to", []):
+        src = r.get("source") or r.get("application_id") or r.get("from")
+        dst = r.get("target") or r.get("topic_id") or r.get("to")
+        if src and dst and "qos_profile" in r:
+            pub_qos[(str(src), str(dst))] = r["qos_profile"]
+
+    sub_qos: Dict[Tuple[str, str], Dict] = {}
+    for r in rels.get("subscribes_to", []):
+        src = r.get("source") or r.get("application_id") or r.get("from")
+        dst = r.get("target") or r.get("topic_id") or r.get("to")
+        if src and dst and "qos_profile" in r:
+            sub_qos[(str(src), str(dst))] = r["qos_profile"]
+
+    edges: List[Dict[str, Any]] = []
+    seen: Set[Tuple[str, str]] = set()
+
+    # Rule 1 -- app_to_app: subscriber depends on publisher (via shared topic)
+    pair_topics: Dict[Tuple[str, str], List[str]] = {}
+    for topic_id, publishers in topic_publishers.items():
+        for subscriber in topic_subscribers.get(topic_id, set()):
+            for publisher in publishers:
+                if subscriber == publisher:
+                    continue
+                pair_topics.setdefault((subscriber, publisher), []).append(topic_id)
+
+    for (subscriber, publisher), topic_ids in pair_topics.items():
+        seen.add((subscriber, publisher))
+        weights = [topic_weight.get(tid, 1.0) for tid in topic_ids]
+        via_topic = max(topic_ids, key=lambda tid: topic_weight.get(tid, 1.0))
+        qp = (pub_qos.get((publisher, via_topic))
+              or sub_qos.get((subscriber, via_topic))
+              or (topic_attrs.get(via_topic, {}).get("qos") or {}))
+        edges.append({
+            "source": subscriber,
+            "target": publisher,
+            "type": "app_to_app",
+            "weight": 1.0,
+            "qos_weight": compute_effective_edge_weight(weights),
+            "qos_profile": qp,
+            "via_topic": via_topic,
+            "path_count": len(topic_ids),
+        })
+
+    # Rule 5 -- app_to_lib: application depends on library (USES edge)
+    for r in rels.get("uses", []):
+        src = r.get("source") or r.get("application_id") or r.get("from")
+        dst = r.get("target") or r.get("library_id") or r.get("to")
+        if src and dst:
+            key = (str(src), str(dst))
+            if key not in seen:
+                seen.add(key)
+                qp = r.get("qos_profile") or {}
+                edges.append({
+                    "source": str(src),
+                    "target": str(dst),
+                    "type": "app_to_lib",
+                    "weight": 1.0,
+                    "qos_weight": neutral_weight,
+                    "qos_profile": qp,
+                    "path_count": 1,
+                })
+
+    return edges
+
+
 def derive_flow_projection(
     graph_or_topology: Union[nx.DiGraph, nx.MultiDiGraph, Dict[str, Any]],
 ) -> nx.DiGraph:
@@ -58,77 +169,28 @@ def derive_flow_projection(
 
 def _derive_from_topology_dict(topology: Dict[str, Any]) -> nx.DiGraph:
     """Build G_flow from a scenario JSON/YAML topology structure."""
-    from saag.core.models import compute_effective_edge_weight, topic_weight_from_node_attrs
-
-    rels = topology.get("relationships", {})
-    topic_publishers: Dict[str, Set[str]] = {}
-    for r in rels.get("publishes_to", []):
-        src = r.get("source") or r.get("application_id") or r.get("from")
-        dst = r.get("target") or r.get("topic_id") or r.get("to")
-        if src and dst:
-            topic_publishers.setdefault(str(dst), set()).add(str(src))
-
-    topic_subscribers: Dict[str, Set[str]] = {}
-    for r in rels.get("subscribes_to", []):
-        src = r.get("source") or r.get("application_id") or r.get("from")
-        dst = r.get("target") or r.get("topic_id") or r.get("to")
-        if src and dst:
-            topic_subscribers.setdefault(str(dst), set()).add(str(src))
-
-    topic_attrs: Dict[str, Dict] = {
-        str(t["id"]): t for t in topology.get("topics", []) if t.get("id") is not None
-    }
-    topic_weight: Dict[str, float] = {}
-    for tid, attrs in topic_attrs.items():
-        existing = attrs.get("weight")
-        if isinstance(existing, (int, float)) and existing > 0:
-            topic_weight[tid] = float(existing)
-        else:
-            topic_weight[tid] = float(topic_weight_from_node_attrs(attrs))
+    deps = derive_depends_on_edges(topology)
+    app_ids = {str(a["id"]) for a in topology.get("applications", []) if a.get("id") is not None}
+    lib_ids = {str(lb["id"]) for lb in topology.get("libraries", []) if lb.get("id") is not None}
+    allowed = app_ids | lib_ids
 
     dep_graph = nx.DiGraph()
-    app_ids = {str(a["id"]) for a in topology.get("applications", [])}
-    lib_ids = {str(lb["id"]) for lb in topology.get("libraries", [])}
-
     for nid in app_ids:
         dep_graph.add_node(nid, type="Application")
     for nid in lib_ids:
         dep_graph.add_node(nid, type="Library")
 
-    # Rule 1: app_to_app
-    pair_topics: Dict[Tuple[str, str], List[str]] = {}
-    for topic_id, publishers in topic_publishers.items():
-        for subscriber in topic_subscribers.get(topic_id, set()):
-            for publisher in publishers:
-                if subscriber == publisher:
-                    continue
-                pair_topics.setdefault((subscriber, publisher), []).append(topic_id)
-
-    for (subscriber, publisher), topic_ids in pair_topics.items():
-        if subscriber in app_ids and publisher in app_ids:
-            weights = [topic_weight.get(tid, 1.0) for tid in topic_ids]
-            eff_w = compute_effective_edge_weight(weights)
-            dep_graph.add_edge(
-                subscriber,
-                publisher,
-                weight=1.0,
-                qos_weight=float(eff_w),
-                type="DEPENDS_ON",
-                dependency_type="app_to_app",
-            )
-
-    # Rule 5: app_to_lib
-    for r in rels.get("uses", []):
-        src = str(r.get("source") or r.get("application_id") or r.get("from"))
-        dst = str(r.get("target") or r.get("library_id") or r.get("to"))
-        if src in app_ids and dst in lib_ids:
+    for e in deps:
+        src, dst = str(e["source"]), str(e["target"])
+        if src in allowed and dst in allowed:
             dep_graph.add_edge(
                 src,
                 dst,
-                weight=1.0,
-                qos_weight=float(r.get("weight", 1.0)),
+                weight=float(e.get("weight", 1.0)),
+                qos_weight=float(e.get("qos_weight", 1.0)),
                 type="DEPENDS_ON",
-                dependency_type="app_to_lib",
+                dependency_type=e.get("type", "app_to_app"),
+                path_count=e.get("path_count", 1),
             )
 
     return dep_graph
@@ -148,10 +210,21 @@ def _derive_from_nx_graph(graph: Union[nx.DiGraph, nx.MultiDiGraph]) -> nx.DiGra
     existing_depends = [
         (u, v, d)
         for u, v, d in graph.edges(data=True)
-        if d.get("type") == "DEPENDS_ON"
+        if d.get("type") in ("DEPENDS_ON", "app_to_app", "app_to_lib")
     ]
     if existing_depends:
         for u, v, d in existing_depends:
+            if u in dep_graph and v in dep_graph:
+                dep_graph.add_edge(u, v, **d)
+        return dep_graph
+
+    has_pubsub = any(
+        d.get("type") in ("PUBLISHES_TO", "SUBSCRIBES_TO")
+        for _, _, d in graph.edges(data=True)
+    )
+    if not has_pubsub and graph.number_of_edges() > 0:
+        # Pre-derived dependency or custom graph
+        for u, v, d in graph.edges(data=True):
             if u in dep_graph and v in dep_graph:
                 dep_graph.add_edge(u, v, **d)
         return dep_graph
@@ -203,6 +276,22 @@ def _derive_from_nx_graph(graph: Union[nx.DiGraph, nx.MultiDiGraph]) -> nx.DiGra
     return dep_graph
 
 
+def qos_weighted_betweenness(flow_graph: nx.DiGraph, eps: float = 1e-6) -> Dict[str, float]:
+    """Compute betweenness on a graph where edge distance = 1 / (qos_weight + eps)."""
+    dist_g = nx.DiGraph()
+    dist_g.add_nodes_from(flow_graph.nodes(data=True))
+    n_qos_edges = 0
+    for u, v, data in flow_graph.edges(data=True):
+        w = float(data.get("qos_weight", data.get("weight", 1.0)))
+        if abs(w - 1.0) > 1e-9:
+            n_qos_edges += 1
+        dist_g.add_edge(u, v, distance=1.0 / (w + eps))
+    if n_qos_edges == 0:
+        return {}
+    bc = nx.betweenness_centrality(dist_g, weight="distance")
+    return {str(k): float(v) for k, v in bc.items()}
+
+
 class TopoPredictor:
     """Unweighted topological baseline: 0.6 * Betweenness + 0.4 * Articulation Score."""
 
@@ -220,19 +309,19 @@ class TopoPredictor:
         if flow_graph.number_of_nodes() == 0:
             return {}
 
-        ap = {}
-        if structural_metrics:
-            ap = {
-                nid: float(m.get("articulation_point", m.get("ap_c_score", 0.0)))
+        ap = {
+            str(nid): float(m.get("articulation_point", m.get("ap_c_score", m.get("ap_c_directed", 0.0))))
+            for nid, m in (structural_metrics or {}).items()
+        }
+
+        if structural_metrics and any("betweenness" in m or "betweenness_centrality" in m for m in structural_metrics.values()):
+            bt = {
+                str(nid): float(m.get("betweenness", m.get("betweenness_centrality", 0.0)))
                 for nid, m in structural_metrics.items()
             }
         else:
-            # Undirected view for articulation points
-            undir = flow_graph.to_undirected()
-            art_points = set(nx.articulation_points(undir))
-            ap = {n: 1.0 if n in art_points else 0.0 for n in flow_graph.nodes()}
+            bt = {str(n): float(v) for n, v in nx.betweenness_centrality(flow_graph).items()}
 
-        bt = {str(n): float(v) for n, v in nx.betweenness_centrality(flow_graph).items()}
         nodes = set(bt) | set(ap)
         return {
             nid: self.bt_weight * bt.get(nid, 0.0) + self.ap_weight * ap.get(nid, 0.0)
@@ -263,35 +352,18 @@ class TopoQoSPredictor:
         if flow_graph.number_of_nodes() == 0:
             return {}
 
-        ap = {}
-        if structural_metrics:
-            ap = {
-                nid: float(m.get("articulation_point", m.get("ap_c_score", 0.0)))
-                for nid, m in structural_metrics.items()
-            }
-        else:
-            undir = flow_graph.to_undirected()
-            art_points = set(nx.articulation_points(undir))
-            ap = {n: 1.0 if n in art_points else 0.0 for n in flow_graph.nodes()}
+        ap = {
+            str(nid): float(m.get("articulation_point", m.get("ap_c_score", m.get("ap_c_directed", 0.0))))
+            for nid, m in (structural_metrics or {}).items()
+        }
 
-        # Build weighted distance graph
-        dist_g = nx.DiGraph()
-        dist_g.add_nodes_from(flow_graph.nodes(data=True))
-        n_qos_edges = 0
-        for u, v, data in flow_graph.edges(data=True):
-            w = float(data.get("qos_weight", data.get("weight", 1.0)))
-            if abs(w - 1.0) > 1e-9:
-                n_qos_edges += 1
-            dist_g.add_edge(u, v, distance=1.0 / (w + self.eps))
-
-        if n_qos_edges == 0:
-            logger.debug("Topo-QoS: no non-unit QoS edge weights found; using unweighted betweenness.")
+        bt = qos_weighted_betweenness(flow_graph, eps=self.eps)
+        if not bt:
+            logger.warning(
+                "Topo-QoS: no QoS weights on graph; falling back to "
+                "topology betweenness (Topo-QoS equivalent to Topo for this cell)."
+            )
             bt = {str(n): float(v) for n, v in nx.betweenness_centrality(flow_graph).items()}
-        else:
-            bt = {
-                str(k): float(v)
-                for k, v in nx.betweenness_centrality(dist_g, weight="distance").items()
-            }
 
         nodes = set(bt) | set(ap)
         return {

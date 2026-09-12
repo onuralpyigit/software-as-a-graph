@@ -21,7 +21,7 @@ The results do not support a simple recommendation of the learned model over the
 An earlier version of this work proposed a tiered gate: run the learned model by default and fall back to \texttt{Topo-QoS} when the model's prediction dispersion $\hat{\sigma}$ fell below a threshold. That heuristic does not replicate: across twelve folds, $\hat{\sigma}$ correlates with the margin over \texttt{Topo-QoS} at $\rho_s = -0.126$ for HGT-QoS (the wrong sign, Section~\ref{sec:7.2.3}). We therefore withdraw the automated fallback recommendation. Instead, because both engines run in seconds, our results support running both concurrently and escalating ranking disagreements to human architectural review.
 
 \paragraph{Dual-Engine Consensus Protocol}
-To operationalize this concurrent deployment, SaG implements a \emph{Dual-Engine Consensus Protocol} (available via \path{saag predict --dual}) that runs \texttt{HGT-QoS} and \texttt{Topo-QoS} in parallel over each candidate manifest. The protocol partitions evaluated components into two actionable operational sets:
+To operationalize this concurrent deployment, SaG implements a \emph{Dual-Engine Consensus Protocol} (available via \path{saag-predict --predictor-mode dual}) that runs \texttt{HGT-QoS} and \texttt{Topo-QoS} in parallel over each candidate manifest. The protocol partitions evaluated components into two actionable operational sets:
 \begin{align}
 S_{\text{consensus}} &= \text{Top}_K(\text{HGT-QoS}) \cap \text{Top}_K(\text{Topo-QoS}) \\
 S_{\text{diverge}} &= \big\{ v \in V_{\text{app}} \;\big|\; |\text{rank}_{\text{HGT-QoS}}(v) - \text{rank}_{\text{Topo-QoS}}(v)| \ge \Delta_{\text{thresh}} \land (v \in \text{Top}_K(\text{HGT}) \lor v \in \text{Top}_K(\text{Topo})) \big\}

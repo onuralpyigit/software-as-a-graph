@@ -497,8 +497,22 @@ def main() -> None:
 
             # 2. Dual Engine evaluation
             gnn_scores = {nid: float(ns.composite_score) for nid, ns in gnn_result.node_scores.items()}
-            sm_dict = getattr(analysis.raw, "components_dict", {})
-            struct_metrics = {c["id"]: c.get("structural", {}) for c in sm_dict.values()} if isinstance(sm_dict, dict) else {}
+            struct_metrics = {}
+            if analysis and getattr(analysis, "raw", None):
+                raw_comps = getattr(analysis.raw, "components", {})
+                if isinstance(raw_comps, dict):
+                    for cid, cm in raw_comps.items():
+                        if isinstance(cm, dict):
+                            bt = float(cm.get("betweenness", cm.get("betweenness_centrality", 0.0)))
+                            ap = float(cm.get("ap_c_directed", cm.get("ap_c_score", cm.get("articulation_point", 0.0))))
+                        else:
+                            bt = float(getattr(cm, "betweenness", getattr(cm, "betweenness_centrality", 0.0)))
+                            ap = float(getattr(cm, "ap_c_directed", getattr(cm, "ap_c_score", 0.0)))
+                        struct_metrics[str(cid)] = {
+                            "betweenness": bt,
+                            "articulation_point": ap,
+                            "ap_c_score": ap,
+                        }
             dual_pred = DualEnginePredictor(
                 topo_predictor=TopoQoSPredictor(),
                 divergence_threshold=args.divergence_threshold,

@@ -238,141 +238,12 @@ def _load_cache_dicts(cache_dir: Path, graph_nodes: set,
     return structural_dict, simulation_dict, rm_dict, gt_source
 
 
-def _derive_depends_on_edges(topology: Dict) -> List[Dict]:
-    """Derive DEPENDS_ON edges from pub-sub topology relationships.
-
-    Implements Rules 1 and 5 from CLAUDE.md (app_to_app, app_to_lib) without
-    Neo4j.  These edges are required so that StructuralAnalyzer can compute
-    meaningful betweenness, bridge_ratio, and reverse_pagerank for Application
-    and Library nodes.  Without them, all structural metrics are 0 or constant,
-    making the GNN feature matrix degenerate (pred_std = 0).
-
-    Direction: dependent → dependency  (subscriber depends on publisher).
-    """
-    rels = topology.get("relationships", {})
-
-    # Collect topic → {publishers}, topic → {subscribers}
-    topic_publishers: Dict[str, set] = {}
-    for r in rels.get("publishes_to", []):
-        src = r.get("source") or r.get("application_id") or r.get("from")
-        dst = r.get("target") or r.get("topic_id") or r.get("to")
-        if src and dst:
-            topic_publishers.setdefault(str(dst), set()).add(str(src))
-
-    topic_subscribers: Dict[str, set] = {}
-    for r in rels.get("subscribes_to", []):
-        src = r.get("source") or r.get("application_id") or r.get("from")
-        dst = r.get("target") or r.get("topic_id") or r.get("to")
-        if src and dst:
-            topic_subscribers.setdefault(str(dst), set()).add(str(src))
-
-    # QoS lives on the Topic node, not on the pub/sub relationship — the committed
-    # topologies emit publishes_to/subscribes_to as bare {from, to}. Reading
-    # r["qos_profile"] therefore never matched, every derived edge kept weight 1.0,
-    # and _qos_weighted_betweenness fell back to unweighted betweenness on every
-    # scenario, silently making Topo-QoS identical to Topo. Resolve w(t) from the
-    # shared Topic with the same helper the rest of the codebase uses
-    # (saag.evaluation.metrics._topic_qos_weights).
-    from saag.core.models import topic_weight_from_node_attrs
-
-    topic_attrs: Dict[str, Dict] = {
-        str(t["id"]): t for t in topology.get("topics", []) if t.get("id") is not None
-    }
-    topic_weight: Dict[str, float] = {}
-    for tid, attrs in topic_attrs.items():
-        existing = attrs.get("weight")
-        if isinstance(existing, (int, float)) and existing > 0:
-            topic_weight[tid] = float(existing)
-        else:
-            topic_weight[tid] = float(topic_weight_from_node_attrs(attrs))
-
-    import statistics as _stats
-    neutral_weight = _stats.median(topic_weight.values()) if topic_weight else 1.0
-
-    # Per-relationship qos_profile when a topology does supply one; otherwise the
-    # Topic's own qos block is the authority.
-    pub_qos: Dict[Tuple[str, str], Dict] = {}
-    for r in rels.get("publishes_to", []):
-        src = r.get("source") or r.get("application_id") or r.get("from")
-        dst = r.get("target") or r.get("topic_id") or r.get("to")
-        if src and dst and "qos_profile" in r:
-            pub_qos[(str(src), str(dst))] = r["qos_profile"]
-
-    sub_qos: Dict[Tuple[str, str], Dict] = {}
-    for r in rels.get("subscribes_to", []):
-        src = r.get("source") or r.get("application_id") or r.get("from")
-        dst = r.get("target") or r.get("topic_id") or r.get("to")
-        if src and dst and "qos_profile" in r:
-            sub_qos[(str(src), str(dst))] = r["qos_profile"]
-
-    from saag.core.models import compute_effective_edge_weight
-
-    edges: List[Dict] = []
-    seen: set = set()
-
-    # Rule 1 — app_to_app: subscriber depends on publisher (via shared topic).
-    # One pair may share several topics; docs/graph-model.md §4.4 and both
-    # repositories (Neo4jRepository, MemoryRepository) combine them via the
-    # probabilistic union w_E = 1 - prod(1 - w(t)), not the strongest single
-    # contract. Collect every mediating topic's weight per pair first, then
-    # apply the same operator, so this research path cannot diverge from the
-    # documented one — the earlier "keep the max" merge was a fourth,
-    # disagreeing implementation of the same formula.
-    pair_topics: Dict[Tuple[str, str], List[str]] = {}
-    for topic_id, publishers in topic_publishers.items():
-        for subscriber in topic_subscribers.get(topic_id, set()):
-            for publisher in publishers:
-                if subscriber == publisher:
-                    continue
-                pair_topics.setdefault((subscriber, publisher), []).append(topic_id)
-
-    for (subscriber, publisher), topic_ids in pair_topics.items():
-        seen.add((subscriber, publisher))
-        weights = [topic_weight.get(tid, 1.0) for tid in topic_ids]
-        # Representative profile/via_topic: the mediating topic with the
-        # single strongest contract, matching the prior "max" tie-break for
-        # these descriptive-only fields (the numeric weight is now a union).
-        via_topic = max(topic_ids, key=lambda tid: topic_weight.get(tid, 1.0))
-        qp = (pub_qos.get((publisher, via_topic))
-              or sub_qos.get((subscriber, via_topic))
-              or (topic_attrs.get(via_topic, {}).get("qos") or {}))
-        edges.append({
-            "source": subscriber,
-            "target": publisher,
-            "type": "app_to_app",
-            "weight": 1.0,
-            "qos_weight": compute_effective_edge_weight(weights),
-            "qos_profile": qp,
-            "via_topic": via_topic,
-            "path_count": len(topic_ids),
-        })
-
-    # Rule 5 — app_to_lib: application depends on library (USES edge)
-    for r in rels.get("uses", []):
-        src = r.get("source") or r.get("application_id") or r.get("from")
-        dst = r.get("target") or r.get("library_id") or r.get("to")
-        if src and dst:
-            key = (str(src), str(dst))
-            if key not in seen:
-                seen.add(key)
-                qp = r.get("qos_profile") or {}
-                edges.append({
-                    "source": str(src),
-                    "target": str(dst),
-                    "type": "app_to_lib",
-                    "weight": 1.0,
-                    # No topic mediates a USES edge, so there is no QoS contract to
-                    # weight it by. Use the scenario's median w(t): a fixed 1.0 sits
-                    # above every observed topic weight (max ≈ 0.68), which would
-                    # silently make library dependencies the most critical edges in
-                    # the graph. The median keeps them neutral against the QoS-bearing
-                    # edges instead of privileging or suppressing them.
-                    "qos_weight": neutral_weight,
-                    "qos_profile": qp,
-                    "path_count": 1,
-                })
-
-    return edges
+from saag.prediction.structural_predictor import (
+    derive_depends_on_edges as _derive_depends_on_edges,
+    qos_weighted_betweenness as _qos_weighted_betweenness,
+    TopoPredictor,
+    TopoQoSPredictor,
+)
 
 
 def _saag_structural_features(topology: Dict) -> Dict:
@@ -1028,32 +899,6 @@ def _mask_qos_in_graph(nx_graph):
 
 # ── Topo-QoS: QoS-weighted betweenness ───────────────────────────────────────
 
-def _qos_weighted_betweenness(nx_graph) -> Dict[str, float]:
-    """Compute betweenness with QoS-weighted edges.
-
-    NetworkX interprets edge weight as distance, so a *higher* QoS weight
-    (more critical contract) must yield a *shorter* distance.  We invert:
-    distance(e) = 1 / (qos_weight(e) + eps).
-
-    Returns {} when no QoS weights are present, so the caller can fall back
-    to topology betweenness rather than emit a degenerate zero column.
-    """
-    import networkx as _nx
-    eps = 1e-6
-    g = _nx.DiGraph()
-    g.add_nodes_from(nx_graph.nodes(data=True))
-    n_qos_edges = 0
-    for u, v, data in nx_graph.edges(data=True):
-        w = float(data.get("qos_weight", data.get("weight", 1.0)))
-        if w > 1.0 + 1e-9 or w < 1.0 - 1e-9:
-            n_qos_edges += 1
-        g.add_edge(u, v, distance=1.0 / (w + eps))
-    if n_qos_edges == 0:
-        return {}
-    bc = _nx.betweenness_centrality(g, weight="distance")
-    return {str(k): float(v) for k, v in bc.items()}
-
-
 def _compute_topo_baseline_scores(
     nx_graph,
     structural_dict: Dict,
@@ -1065,35 +910,12 @@ def _compute_topo_baseline_scores(
     Returns None when neither structural_dict nor the graph yields a usable
     signal — caller emits an 'insufficient_signal' cell.
     """
-    import networkx as _nx
-
-    # Articulation-point scores come from structural_dict in both arms.
-    ap = {nid: float(m.get("articulation_point", 0.0))
-          for nid, m in (structural_dict or {}).items()}
-
-    if use_qos:
-        bt = _qos_weighted_betweenness(nx_graph)
-        if not bt:
-            logger.warning(
-                "Topo-QoS: no QoS weights on graph; falling back to "
-                "topology betweenness (Topo-QoS equivalent to Topo for this cell)."
-            )
-            bt = {str(n): float(v) for n, v
-                  in _nx.betweenness_centrality(nx_graph).items()}
-    else:
-        if structural_dict and any("betweenness" in m for m in structural_dict.values()):
-            return {
-                nid: 0.6 * m.get("betweenness", 0.0)
-                   + 0.4 * m.get("articulation_point", 0.0)
-                for nid, m in structural_dict.items()
-            }
-        bt = {str(n): float(v) for n, v
-              in _nx.betweenness_centrality(nx_graph).items()}
-
-    nodes = set(bt) | set(ap)
-    if not nodes:
+    if nx_graph is None or (hasattr(nx_graph, "number_of_nodes") and nx_graph.number_of_nodes() == 0):
         return None
-    return {nid: 0.6 * bt.get(nid, 0.0) + 0.4 * ap.get(nid, 0.0) for nid in nodes}
+
+    predictor = TopoQoSPredictor() if use_qos else TopoPredictor()
+    pred = predictor.predict(nx_graph, structural_dict)
+    return pred if pred else None
 
 
 def _get_per_type_rho(keys, y_pred, y_true, nx_graph):
