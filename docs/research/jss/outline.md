@@ -47,12 +47,12 @@ if an edit ever softens one back into a claim, that is a regression.
 
 | Quantity | Value | Where |
 |---|---|---|
-| In-distribution mean ρ — Topo / Topo-QoS / GAT-N / GAT-N-QoS / HGT / HGT-QoS | 0.166 / 0.629 / **0.691** / 0.653 / 0.624 / 0.630 | §7.1 (Table 6) |
-| **LOSO mean ρ** — Topo / Topo-QoS / GAT-N / GAT-N-QoS / HGT / HGT-QoS / RM | 0.250 / 0.568 / 0.493 / 0.581 / 0.640 / **0.695** / 0.133 | §7.1 (Table 8) |
-| LOSO F₁@K — same order | 0.306 / 0.353 / 0.417 / 0.474 / 0.466 / **0.507** / 0.258 | §7.1 (Table 8) |
+| In-distribution mean ρ — Topo / Topo-QoS / GAT-N / GAT-N-QoS / HGT / HGT-QoS | 0.370 / 0.568 / 0.543 / 0.439 / 0.624 / **0.661** | §7.1 (Table 5) |
+| **LOSO mean ρ** — Topo / Topo-QoS / GAT-N / GAT-N-QoS / HGT / HGT-QoS / RM | 0.250 / 0.568 / 0.493 / 0.581 / 0.640 / **0.695** / 0.133 | §7.1 (Table 7) |
+| LOSO F₁@K — same order | 0.306 / 0.353 / 0.417 / 0.474 / 0.466 / **0.507** / 0.258 | §7.1 (Table 7) |
 | **Typing, LOSO** (HGT-QoS vs GAT-N-QoS) | **+0.114**, 11/12, p = 0.0122, CI [+0.048, +0.170] | §7.2 |
 | Typing, unweighted pair (HGT vs GAT-N) | +0.147, 11/12, p = 0.0010 | §7.2 |
-| Typing, **in-distribution** | −0.023, 3/7, p = 0.813 — no benefit | §7.2 |
+| Typing, **in-distribution** (HGT-QoS vs GAT-N-QoS) | **+0.222**, 11/12, p = 0.0024 | §7.2 |
 | QoS edge encoding, LOSO | +0.054, 11/12, p = 0.0093 | §7.3.1 |
 | QoS encoding, **active stratum** | +0.025, p = 0.151 — gain does not survive | §7.1.2, §7.3.1 |
 | **vs Topo-QoS (LOSO)** | +0.127, 9/12, p = 0.077; **+0.078 without the ATM fold** | §7.1 |

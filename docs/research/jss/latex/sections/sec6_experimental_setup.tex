@@ -55,7 +55,7 @@ Five real-world architectures were transcribed from authentic open-source reposi
 \noindent\textbf{Corpus Composition across Experimental Regimes.} 
 The experimental evaluation spans three complementary regimes with precisely bounded corpora:
 \begin{enumerate}
-    \item \emph{In-Distribution Evaluation (Table~\ref{tab:5}):} Evaluated on the seven core synthetic domains from Table~\ref{tab:4} using stratified 60\% train / 20\% validation / 20\% test node splits over five random seeds. This regime is deliberately the narrower of the two: it exists to establish the contrast against the inductive setting --- what typing buys when train and test are drawn from one architecture --- and not to support a generalization claim. The extended domains and the ATM scenario therefore enter only through LOSO, which is where the paper's generalization results are made.
+    \item \emph{In-Distribution Evaluation (Table~\ref{tab:5}):} Evaluated across all twelve distributed architecture scenarios ($n = 12$) from Table~\ref{tab:4} using stratified 60\% train / 20\% validation / 20\% test node splits over five random seeds. This regime establishes the baseline fitting performance of each predictor when training and testing are drawn from the same underlying architectural distribution, complementing the inductive out-of-distribution evaluation.
     \item \emph{Inductive Leave-One-Scenario-Out (LOSO) Cross-Validation (Table~\ref{tab:7}):} Evaluated across twelve distinct inductive folds totaling 2{,}461 components: the seven core synthetic scenarios, four extended domain topologies (Telecom RAN, Industrial SCADA, Real-Time Gaming, and Logistics Fleet) --- 2{,}387 components between them --- and an Air Traffic Management (ATM) network scenario contributing the remaining 74. In each fold, models are trained on eleven graphs and tested zero-shot on the held-out twelfth graph.
     \item \emph{Real-World Architectural Transfer (Table~\ref{tab:9b}; Supplementary Section~S7):} The five open-source real-world systems (Autoware.universe, Cloud Microservices, Train-Ticket, Home Assistant, EdgeX Foundry) are never used as training folds; they are withheld entirely and used strictly for zero-shot architectural transfer validation.
 \end{enumerate}
@@ -72,7 +72,7 @@ Not every analysis in Section~\ref{sec:7} runs on the full corpus: the sensitivi
 \toprule
 \textbf{Analysis} & \textbf{Scenario subset} & \textbf{$n$} & \textbf{Reported in} \\
 \midrule
-In-distribution ranking & Seven core synthetic domains & 7 & Tables~\ref{tab:5}--\ref{tab:6} \\
+In-distribution ranking & Eleven evaluation scenarios $+$ ATM & 12 & Tables~\ref{tab:5}--\ref{tab:6} \\
 Inductive LOSO & Eleven evaluation scenarios $+$ ATM & 12 & Table~\ref{tab:7}, Sections~\ref{sec:7.1}--\ref{sec:7.2} \\
 QoS edge-feature ablation & Same twelve LOSO folds & 12 & Section~\ref{sec:7.3.1} \\
 Weight sweeps and Morris screening & Six--seven core synthetic domains & 6--7 & Supplementary S1 \\

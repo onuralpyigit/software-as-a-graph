@@ -168,9 +168,16 @@ kfold:
 # Use --max-candidates to bound it on the larger scenarios.
 # ─────────────────────────────────────────────────────────────────────────────
 
+# --qos-mode MUST be passed explicitly. The script's own default is `legacy`,
+# the pre-QoS arm, so this target used to regenerate the WRONG arm straight over
+# the published artifact. The paper reports `full`: it is the arm that enforces
+# the QoS semantics the paper describes, it has the higher minimum per-scenario
+# rho, and under `legacy` financial_trading returns -0.17 as a pure noise-floor
+# artifact (scale_max 0.037, almost no measurable delivery loss to correlate).
 convergent-validity:
 	$(PYTHON) reproduce/convergent_validity.py \
 	    --seeds $(SEEDS_LIST) \
+	    --qos-mode full \
 	    --output $(RESULTS_DIR)/convergent_validity.json \
 	    --verbose
 	@echo "✓ Oracle agreement ready: $(RESULTS_DIR)/convergent_validity.json"

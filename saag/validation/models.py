@@ -22,11 +22,34 @@ class ValidationTargets:
     top_5_overlap: float = 0.60         # G4: Top-5 overlap ≥ 0.60
 
     # Tier 2 — secondary gates (reported, not part of `passed`)
-    # TODO(Phase 7 regeneration): PG now maxes over 2 candidate dims (R, M)
-    # instead of 4 (R, M, A, S retired), which mechanically raises PG with no
-    # code change. This threshold is calibrated against the old 4-dim max and
-    # must be re-derived from re-measured data, not carried over as-is.
-    predictive_gain: float = 0.03       # G5: PG > 0.03
+    #
+    # PG = rho(Q*, I*) - max over dimensions of rho(dim, I*). A former TODO here
+    # worried that dropping from 4 candidate dimensions (R, M, A, S) to 2 (R, M)
+    # would mechanically RAISE PG by shrinking the max being subtracted, leaving
+    # 0.03 too easy to clear. Measured on the current corpus, that is refuted:
+    # PG is negative on every scenario tested.
+    #
+    #   atm_tiny -0.057  atm -0.202  av -0.510  healthcare -0.675
+    #   hub_and_spoke -0.377  microservices -0.435  financial_trading -0.477
+    #   iot_smart_city -0.206  enterprise -0.412
+    #   n=9, median -0.412, range [-0.675, -0.057]
+    #
+    # (Reproduce: import each data/scenarios/*_system.json into a
+    # MemoryRepository via saag.Client and read `predictive_gain` off
+    # validate(layers=["system"]).layers["system"].raw.)
+    #
+    # So the composite scores I*(v) WORSE than its own best single dimension,
+    # everywhere, by a wide margin. 0.03 is therefore left as written: it is a
+    # specification of what a composite would have to add to earn its place, not
+    # a value fitted to observed data, and re-deriving it downward from these
+    # measurements would only be fitting the threshold to the failure. G5 reads
+    # false on every scenario, which is the correct signal.
+    #
+    # This does not affect any pass/fail decision: `LayerValidationResult.passed`
+    # is G1 AND G2 AND G3 AND G4 (see _evaluate_gates), and G5 is reported only.
+    # It is consistent with the manuscript, which presents RM as an attribution
+    # instrument rather than a ranker.
+    predictive_gain: float = 0.03       # G5: PG > 0.03 (reported; currently false everywhere)
     weighted_kappa_cta: float = 0.70    # G6: κ_CTA ≥ 0.70
     # G7 (CDCC, security-vs-availability contamination) and G9 (FTR, security
     # false-target-rate) were retired with the Vulnerability/Security

@@ -268,7 +268,7 @@ def check_table5_indist(rep: Report, artifact: str = "main_table.json") -> None:
         if scen is None:
             continue
         seen[scen] = True
-        for idx, vid in enumerate(TABLE5_VARIANTS, start=2):
+        for idx, vid in enumerate(variants, start=2):
             blk = agg.get(f"{scen}|{vid}")
             if blk is None:
                 rep.skipped.append(f"tab:5: no aggregate for {scen}|{vid}")
@@ -291,7 +291,7 @@ def check_table5_indist(rep: Report, artifact: str = "main_table.json") -> None:
         rep.skipped.append("tab:5: Mean row not found")
         return
     cells = _cells(mean_rows[0])
-    for idx, vid in enumerate(TABLE5_VARIANTS, start=2):
+    for idx, vid in enumerate(variants, start=2):
         vals = [agg[f"{sc}|{vid}"]["mean_rho"] for sc in scenarios
                 if f"{sc}|{vid}" in agg and agg[f"{sc}|{vid}"].get("mean_rho") is not None]
         if not vals:
@@ -726,7 +726,7 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--loso", default="loso_all_variants_v4.json",
                     help="LOSO artifact backing Tables 7/7c")
-    ap.add_argument("--main-table", default="main_table_v3.json",
+    ap.add_argument("--main-table", default="main_table.json",
                     help="in-distribution artifact backing Table 5")
     ap.add_argument("--allow-missing", action="store_true",
                     help="do not fail when a declared artifact is absent from "

@@ -203,7 +203,25 @@ Predictive Gain verifies that the multi-dimensional composite $Q(v)$ adds predic
 
 $$PG = \rho(Q(v), \; I_{\text{RM}}(v)) - \max\left( \rho(R, IR), \; \rho(M, IM) \right)$$
 
-- **Gate Requirement**: $PG > 0.03$ confirms multi-dimensional synthesis lift.
+- **Gate Requirement**: $PG > 0.03$ would confirm multi-dimensional synthesis lift.
+
+> **Measured: $PG$ is negative on every scenario, so G5 reads false everywhere.**
+> Across nine scenarios on the current corpus it ranges $[-0.675, -0.057]$ with a
+> median of $-0.412$ (ATM-tiny $-0.057$, ATM $-0.202$, IoT Smart City $-0.206$,
+> Hub-and-Spoke $-0.377$, Enterprise $-0.412$, Microservices $-0.435$, Financial
+> Trading $-0.477$, AV $-0.510$, Healthcare $-0.675$). The composite therefore
+> ranks $I^*(v)$ *worse* than its own strongest single dimension, by a wide
+> margin.
+>
+> The $0.03$ threshold is left as written. It is a specification of what a
+> composite would have to add to earn its place, not a value fitted to observed
+> data, and re-deriving it downward from these measurements would be fitting the
+> threshold to the failure. This costs nothing operationally: G5 is Tier 2 and
+> `LayerValidationResult.passed` is $G1 \land G2 \land G3 \land G4$ only. It is
+> also consistent with how the manuscript positions RM — as a
+> standards-grounded *attribution* layer, not a ranker (which is why the
+> learned predictors and the training-free centrality baselines, not $Q(v)$,
+> carry the ranking results).
 
 ---
 
@@ -241,11 +259,21 @@ Evaluated per layer in `ValidationService`. **All Tier 1 gates must pass** for `
 | **G2** | **$F_1\text{@}K$** | **$\ge 0.75$** | **Tier 1 (Primary)** | Top-$K$ critical set classification overlap |
 | **G3** | **Precision@$K$** | **$\ge 0.80$** | **Tier 1 (Primary)** | Precision in top-$K$ identification |
 | **G4** | **Top-5 Overlap** | **$\ge 0.60$** | **Tier 1 (Primary)** | Capture rate of top 5 critical components |
-| **G5** | **Predictive Gain ($PG$)** | **$> 0.03$** | Tier 2 (Secondary) | Composite lift over individual dimensions |
+| **G5** | **Predictive Gain ($PG$)** | **$> 0.03$** | Tier 2 (Secondary) | Composite lift over individual dimensions — **currently false on every scenario**, see §4.6 |
 | **G6** | **$\kappa_{\text{CTA}}$** | **$\ge 0.70$** | Tier 2 (Secondary) | Weighted Cohen's $\kappa$ over 3 coupling tiers |
 | **G8** | **Bottleneck Precision** | **$\ge 0.70$** | Tier 3 (Specialist) | Maintainability bottleneck identification |
 
 *(Note: Gates G7 and G9 were retired when the Vulnerability dimension was removed).*
+
+> **These thresholds are deliberately stricter than measured performance, and are
+> not a description of it.** The Tier-1 bar ($\rho \ge 0.70$, and $\ge 0.85$ for
+> the composite targets in `ValidationTargets`) sits above anything the
+> evaluation reports — the strongest learned predictor reaches a LOSO mean of
+> $\rho = 0.695$ and the training-free QoS-weighted baseline $0.568$. So the gate
+> returning FAIL, including on all of the real-world systems, is the gate doing
+> its job on a system that has not met the bar; it is not a regression and not a
+> mis-wired check. Read a failing gate as "do not ship this ranking unreviewed",
+> and read the reported metrics beside it for how far off it is.
 
 ---
 
