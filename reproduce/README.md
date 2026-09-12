@@ -204,6 +204,44 @@ python reproduce/render_table.py \
 
 ---
 
+## Reproducible GPU Rerun Protocol
+
+`main_table.py`, `loso_all_variants.py`, and `kfold_all_variants.py` stamp every result JSON with a
+`"provenance"` block (`reproduce/_provenance.py`: commit SHA, working-tree dirty flag, run config) —
+this project has previously shipped a table that "reproduced from no commit"; the stamp exists so
+that failure shows up in the artifact instead of only on the next rerun. Follow this sequence for a
+rerun whose results can be trusted and diffed against the manuscript, e.g. on a Colab GPU runtime
+(`notebooks/train_gnn_colab.ipynb`):
+
+1. **Pin the commit.** `git status --porcelain` must be empty; record `git rev-parse HEAD`. A dirty
+   tree makes every result's `provenance.dirty` come back `true`, which defeats the point.
+2. **Regenerate the corpus.** `make -f reproduce/Makefile scenarios`, then verify with
+   `pytest tests/test_scenario_corpus.py`.
+3. **Rebuild the LOSO cache locally** (needs a live Neo4j — this step cannot run on Colab):
+   `make -f reproduce/Makefile cache`.
+4. **Package and upload the cache** for the GPU runtime to fetch:
+   `tar -czf output/loso_cache.tar.gz -C output loso_cache`, then upload it to wherever the runtime's
+   setup cell reads it from (e.g. Google Drive).
+5. **Pin the remote clone to the same commit** — after cloning on the GPU runtime, run
+   `git checkout <the SHA from step 1>` before installing dependencies or running anything.
+6. **Run the experiments** (Block-0 gate → smoke test → `table3` → `table4` → `kfold`) on the GPU
+   runtime.
+7. **Bring the results back** — copy `results/` and `output/gnn_checkpoints/` from the GPU runtime
+   back to a local machine (or durable storage).
+8. **Reconcile.** `python reproduce/reconcile_manuscript.py --verbose` against the restored
+   `results/` — each JSON's `provenance.commit` should match the step-1 SHA, and the tool's
+   freshness/value checks compare those results against the numbers currently hardcoded in
+   `docs/research/jss/latex/sections/sec7_results.tex`.
+9. **Hand-edit the manuscript** only for the deltas `reconcile_manuscript.py` reports — table numbers
+   in `sec7_results.tex` are hand-copied, not `\input`-ed from `results/*.tex`, so this stays a manual
+   step. The tool does not check prose-only numbers, so also skim the prose around the tables it
+   flags.
+
+Durably archiving the resulting `results/` + `output/gnn_checkpoints/` bundle (e.g. to Zenodo) is a
+manual step performed outside this repo — there is no in-repo tooling or git-tag convention for it.
+
+---
+
 ## File Structure
 
 ```

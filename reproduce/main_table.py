@@ -56,6 +56,8 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from reproduce._provenance import stamp
+
 logger = logging.getLogger(__name__)
 
 # ── Capability detection ─────────────────────────────────────────────────────
@@ -1970,6 +1972,7 @@ def main():
             "metric_contract": "saag.evaluation.metrics.compute_inductive_metrics",
         },
     }
+    output["provenance"] = stamp(**output["config"])
     output.update(meta_passthrough)
     args.output.write_text(json.dumps(output, indent=2))
 

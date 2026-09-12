@@ -39,6 +39,7 @@ from typing import Dict, List, Optional
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from reproduce._provenance import stamp
 from saag.evaluation import variant_registry as _registry
 
 # Structural baselines first: training-free, so their score is the bar a
@@ -335,6 +336,10 @@ def main():
     output = {
         "comparison_table": table,
         "per_variant_results": {k: v for k, v in results_by_variant.items()},
+        "provenance": stamp(
+            variants=list(results_by_variant), seeds=args.seeds, k=args.k, epochs=args.epochs,
+            cache_dir=str(args.cache_dir), eval_population=args.eval_population,
+        ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(output, indent=2))

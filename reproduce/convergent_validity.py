@@ -140,12 +140,29 @@ def _failure_simulator_labels(
     }
 
 
+def _calibration_active(qos_mode: str, target_utilization: Optional[float]) -> Optional[bool]:
+    """Whether the requested operating point was actually honoured.
+
+    None when MessageFlowSimulator is unavailable — an unknown is not a False.
+    The import is deferred like the oracle's own, so --skip-message-flow still
+    runs without simpy installed.
+    """
+    if target_utilization is None:
+        return False
+    try:
+        from saag.simulation.message_flow_simulator import _CALIBRATED_MODES
+    except Exception:      # noqa: BLE001
+        return None
+    return qos_mode in _CALIBRATED_MODES
+
+
 def _message_flow_labels(
     scenario: str,
     duration: float = 60.0,
     seed: int = 42,
     max_candidates: Optional[int] = None,
     qos_mode: str = "legacy",
+    target_utilization: Optional[float] = 0.65,
 ) -> Dict[str, float]:
     """I_dyn(v) — the delivery-rate loss surviving consumers actually suffer.
 
@@ -162,6 +179,7 @@ def _message_flow_labels(
 
     probe = MessageFlowSimulator(
         graph=graph, duration=duration, seed=seed, qos_mode=qos_mode,
+        target_utilization=target_utilization,
     ).run()
     candidates = list(probe.labeled_node_ids)
     if max_candidates is not None:
@@ -176,6 +194,7 @@ def _message_flow_labels(
             fault_time=duration / 2.0,
             seed=seed,
             qos_mode=qos_mode,
+            target_utilization=target_utilization,
         ).run()
         event = result.fault_event
         if event is None:
@@ -308,6 +327,7 @@ def compare(
     skip_message_flow: bool = False,
     population: str = "application",
     qos_mode: str = "legacy",
+    target_utilization: Optional[float] = 0.65,
 ) -> Dict[str, Any]:
     """Pairwise agreement across the available oracles.
 
@@ -323,7 +343,8 @@ def compare(
     if not skip_message_flow:
         effective_mode = qos_mode if qos else "none"
         oracles["i_dyn"] = _message_flow_labels(
-            scenario, duration=duration, max_candidates=max_candidates, qos_mode=effective_mode,
+            scenario, duration=duration, max_candidates=max_candidates,
+            qos_mode=effective_mode, target_utilization=target_utilization,
         )
 
     n_before = {name: len(scores) for name, scores in oracles.items()}
@@ -364,6 +385,13 @@ def parse_args():
     p.add_argument(
         "--duration", type=float, default=60.0,
         help="Simulated seconds per message-flow run (default: 60).",
+    )
+    p.add_argument(
+        "--target-utilization", type=float, default=0.65,
+        help="Operating point for MessageFlowSimulator (default: 0.65). Honoured "
+             "only by calibrated qos_modes; 'legacy' ignores it by definition, so "
+             "check calibration_active in the artifact's provenance rather than "
+             "assuming the requested value was realised.",
     )
     p.add_argument(
         "--max-candidates", type=int, default=None,
@@ -409,6 +437,7 @@ def main():
                 skip_message_flow=args.skip_message_flow,
                 population=args.eval_population,
                 qos_mode=args.qos_mode,
+                target_utilization=args.target_utilization,
             )
         except Exception as exc:      # noqa: BLE001
             logger.warning("%s failed: %s", scenario, exc)
@@ -482,6 +511,15 @@ def main():
             seeds=args.seeds,
             qos_weighting=not args.no_qos,
             qos_mode=effective_qos_mode,
+            target_utilization=args.target_utilization,
+            # `target_utilization` alone is the requested value, not the realised
+            # one: `legacy` is excluded from _CALIBRATED_MODES, so it silently
+            # ignores the knob and every station falls back to a flat service
+            # time. Recording the request without this flag would state an
+            # operating point the run never ran at.
+            calibration_active=_calibration_active(
+                effective_qos_mode, args.target_utilization
+            ),
             duration=args.duration,
             eval_population=args.eval_population,
             i_comp_baseline_flows_primed=True,
