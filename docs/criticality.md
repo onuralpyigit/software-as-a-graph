@@ -520,7 +520,7 @@ flowchart LR
     RealExt -->|"Link 3: UNMEASURED<br>(Telemetry vs. User Perception)"| QiU["Quality-in-Use Loss<br>(D1/D2 Construct)"]
 ```
 
-- **Link 1 (Internal $\to$ Simulated External)**: **Rigorously Measured**. Verified by statistical batteries against simulation oracles (mean $\rho(I_{\text{dyn}}, I^*) = 0.907$, against $I^*$'s own $0.807$–$1.0$ reproducibility ceiling).
+- **Link 1 (Internal $\to$ Simulated External)**: **Rigorously Measured**. Verified by statistical batteries against simulation oracles (mean $\rho(I_{\text{dyn}}, I^*) = 0.620$ over the twelve LOSO folds, against $I^*$'s own $0.817$–$1.0$ reproducibility ceiling).
 - **Link 2 (Simulated $\to$ Real System)**: **Unmeasured**. Simulator acts as a discrete-event model of runtime behavior.
 - **Link 3 (Real System $\to$ Stakeholder Perception)**: **Unmeasured**. Assumes service degradation translates to stakeholder harm without human survey studies.
 
@@ -542,7 +542,7 @@ for four reasons, none of which is "simulation is inaccurate":
 |:--|:---|:---|:---|
 | 1 | **Cost falls on counterfactual search**, not on scoring a fixed graph | Remediation is structured as cheap proposal + expensive simulated verification, rather than search-by-simulation. Note the honest bound: a GNN forward pass is 254 ms at \|V\|=2000 but its features cost 56.72 s of Analyse, so there is *no* end-to-end speedup for a single query | [`results/inference_latency.json`](../results/inference_latency.json); [prescription.md](prescription.md) |
 | 2 | **It is a parameter choice, not a fact** | `propagation_threshold` is a free parameter *of the ground truth*; per-node label σ reaches 0.416 on a [0,1] target, and the exhaustive sweep runs `n_trials=1`. A model fitted across systems/seeds/thresholds estimates a better-posed quantity than one sweep | [`results/label_stability.json`](../results/label_stability.json); [`reproduce/threshold_sensitivity.py`](../reproduce/threshold_sensitivity.py) |
-| 3 | **The oracles disagree** | ρ(I_dyn, I\*) = 0.907, ρ(I_comp, I_dyn) = 0.427, ρ(I_comp, I\*) = 0.425 (minima 0.748 / −0.037 / −0.044). Mean top-K Jaccard is 0.24–0.28 for *every* pair — the oracles corroborate ordering far better than they corroborate the critical set itself, and the two I_comp pairings barely corroborate ordering at all | [`results/convergent_validity.json`](../results/convergent_validity.json) |
+| 3 | **The oracles disagree** | ρ(I_dyn, I\*) = 0.620, ρ(I_comp, I_dyn) = 0.366, ρ(I_comp, I\*) = 0.395 (minima 0.290 / 0.069 / 0.083). Mean top-K Jaccard is 0.27–0.37 across pairs — the oracles corroborate ordering better than they corroborate the critical set itself, and the two I_comp pairings barely corroborate ordering at all | [`results/convergent_validity.json`](../results/convergent_validity.json) |
 | 4 | **It is silent on ~a third of the system** | The cascade cannot express direct `Topic`/`Node` failure; those types are excluded deliberately rather than scored zero, leaving 30–47% of components per scenario unlabelled | [`saag/simulation/fault_injector.py`](../saag/simulation/fault_injector.py); §7.3 above; [validation.md](validation.md) L3 |
 
 Separately, **attribution is not a weaker form of ranking** — it answers a different question.

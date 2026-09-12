@@ -24,9 +24,12 @@ each scenario's cache directory.
 Usage
 -----
     PYTHONPATH=. python reproduce/label_stability_check.py
+    PYTHONPATH=. python reproduce/label_stability_check.py \
+        --scenarios av_system microservices_system --output results/foo.json
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -63,9 +66,29 @@ CACHE_DIR = Path("output/loso_cache")
 OUTPUT_PATH = Path("results/label_stability.json")
 
 
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        description="Re-measure I*(v) label stability across seeds."
+    )
+    p.add_argument(
+        "--scenarios", nargs="+", default=SCENARIOS,
+        help="Scenarios to measure (default: the seven of ALL_SCENARIOS). Each "
+             "must have a cached topology under output/loso_cache/. Widen this "
+             "when the artifact has to describe a different cohort — a ceiling "
+             "measured on one scenario set does not bound a result computed on "
+             "another.",
+    )
+    p.add_argument(
+        "--output", type=Path, default=OUTPUT_PATH,
+        help=f"Artifact path (default: {OUTPUT_PATH}).",
+    )
+    return p.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
     results: dict = {}
-    for scenario in SCENARIOS:
+    for scenario in args.scenarios:
         topology_path = CACHE_DIR / scenario / "topology.json"
         if not topology_path.exists():
             print(f"  [skip] {scenario}: no cached topology at {topology_path}")
@@ -95,6 +118,7 @@ def main() -> None:
         "test_retest_spearman_range": [round(min(rhos), 4), round(max(rhos), 4)] if rhos else None,
         "topk_jaccard_range": [round(min(jacs), 4), round(max(jacs), 4)] if jacs else None,
         "n_scenarios": len(results),
+        "scenarios_requested": list(args.scenarios),
         "seeds": list(RECOMMENDED_SEEDS),
         "node_types": NODE_TYPES,
         "note": (
@@ -104,12 +128,12 @@ def main() -> None:
         ),
     }
 
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text(json.dumps({"summary": summary, "scenarios": results}, indent=2))
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps({"summary": summary, "scenarios": results}, indent=2))
     print(f"\nRange across {len(rhos)} scenarios: "
           f"test_retest_rho {summary['test_retest_spearman_range']}, "
           f"topk_jaccard {summary['topk_jaccard_range']}")
-    print(f"Wrote {OUTPUT_PATH}")
+    print(f"Wrote {args.output}")
 
 
 if __name__ == "__main__":

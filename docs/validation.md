@@ -127,11 +127,11 @@ $$I_{\text{dyn}}(v) = \text{DeliveryRate}_{\text{pre-fault}} - \text{DeliveryRat
 
 ```mermaid
 flowchart LR
-    I_Star["FaultInjector I*(v)<br>(Graph Cascade Feed Loss)"] <-->|Mean ρ = 0.907<br>(at I*'s own 0.807–1.0 noise ceiling)| I_Dyn["MessageFlow I_dyn(v)<br>(SimPy Dynamic Traffic Drop)"]
+    I_Star["FaultInjector I*(v)<br>(Graph Cascade Feed Loss)"] <-->|Mean ρ = 0.620<br>(below I*'s own 0.817–1.0 noise ceiling)| I_Dyn["MessageFlow I_dyn(v)<br>(SimPy Dynamic Traffic Drop)"]
     I_Star <-->|Mean ρ = 0.394<br>(Moderate Agreement)| I_Comp["FailureSimulator I_comp(v)<br>(4-Component Structural Loss)"]
 ```
 
-- **Cross-Method Convergent Validity**: $I_{\text{dyn}}$ agrees with $I^*(v)$ at mean $\rho = 0.907$ (minimum $0.748$ on Microservices). Read against its ceiling: $I^*$'s own seed-to-seed test-retest is $0.807$–$1.0$, so $I_{\text{dyn}}$ tracks $I^*$ about as closely as $I^*$ tracks itself. That is convergent evidence for the *labels* — two differently-constructed engines rank components alike — and simultaneously the reason $I_{\text{dyn}}$ cannot serve as independent validation of a prediction: a near-ceiling agreement leaves it almost no room to falsify anything $I^*$ would not. Enforcing Topic QoS under a calibrated load does not change this (see [failure-simulation.md §11 L7](failure-simulation.md)).
+- **Cross-Method Convergent Validity**: $I_{\text{dyn}}$ agrees with $I^*(v)$ at mean $\rho = 0.620$ over the twelve LOSO folds (minimum $0.290$ on Microservices, maximum $0.924$ on Financial Trading). Read against its ceiling: $I^*$'s own seed-to-seed test-retest across the same folds is $0.817$–$1.0$, so $I_{\text{dyn}}$ tracks $I^*$ *less* closely than $I^*$ tracks itself. That is convergent evidence for the *labels* — two differently-constructed engines rank components alike, far above the $0.111$ chance baseline — while leaving genuine room for disagreement. Restricted to components both oracles score non-zero the agreement is weaker still ($\rho^{+} = 0.441$), so a substantial share of the headline figure is the two engines concurring on which components are harmless. $I_{\text{dyn}}$ is nonetheless still **not** independent predictive validation, for a structural reason rather than a numerical one: it traverses the same graph as $I^*$ (see [failure-simulation.md §11 L7](failure-simulation.md)).
 
 ---
 

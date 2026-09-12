@@ -105,7 +105,7 @@ In inductive Leave-One-Scenario-Out (LOSO) cross-validation, models are evaluate
 
 Twelve LOSO folds are reported, comprising the eleven synthetic evaluation scenarios and the ATM case study, all specified in Table~\ref{tab:4} (Section~\ref{sec:6.1}). In each fold, one scenario is held out for zero-shot testing while the model is trained exclusively on the remaining eleven. All variants are evaluated on the identical Application node set per fold (Section~\ref{sec:6.3}); paired Wilcoxon tests are conducted across the twelve folds, where the smallest attainable two-sided $p$ is $0.00049$. Per-fold evaluated populations range from 26 to 300 Application nodes, so $K = \text{round}(0.20\,|V_{\text{app}}|)$ ranges from 5 to 60. On $F_1@K$, HGT-QoS beats Topo-QoS in 8 of 12 folds ($\Delta = +0.154$, $W = 12.0$, $p = 0.034$) but separates from untyped GAT-N-QoS in 8 of 12 without reaching significance ($\Delta = +0.034$, $W = 25.0$, $p = 0.301$): critical-set identification distinguishes the typed learned model from the training-free baseline, but not from untyped learning.
 
-\noindent\textbf{Label-noise ceiling.} These correlations are bounded by the reproducibility of the target they are scored against. Re-running the ground-truth oracle across the five seeds gives a test--retest rank correlation between $0.880$ and $1.000$ across the twelve folds (median $0.979$; ten of twelve at or above $0.95$), with Microservices the least reproducible at $0.880$. HGT-QoS's $\rho = 0.695$ therefore recovers roughly $71\%$ of the attainable signal against the median ceiling, and no predictor in Table~\ref{tab:7} can exceed the reproducibility of its own labels. Top-$K$ critical sets are the noisier construct by a wide margin: their cross-seed Jaccard has a median of $0.709$ and falls to $0.400$ (Microservices), $0.467$ (Telecom RAN), and $0.481$ (Logistics Fleet). That instability is the main reason the $F_1@K$ margins are less stable than the ranking margins, and it bounds how much weight any single critical-set comparison can carry. Notably, Microservices is both the least reproducible fold and one of the two on which typed learning loses (Section~\ref{sec:7.2.3}) --- part of that deficit may be label noise rather than model failure.
+\noindent\textbf{Label-noise ceiling.} These correlations are bounded by the reproducibility of the target they are scored against. Re-running the ground-truth oracle across the five seeds gives a test--retest rank correlation between $0.817$ and $1.000$ across the twelve folds (median $0.979$; nine of twelve at or above $0.95$), with Microservices the least reproducible at $0.817$. HGT-QoS's $\rho = 0.695$ therefore recovers roughly $71\%$ of the attainable signal against the median ceiling, and no predictor in Table~\ref{tab:7} can exceed the reproducibility of its own labels. Top-$K$ critical sets are the noisier construct by a wide margin: their cross-seed Jaccard has a median of $0.778$ and falls to $0.481$ (Logistics Fleet), $0.500$ (Industrial SCADA), and $0.533$ (Telecom RAN). That instability is the main reason the $F_1@K$ margins are less stable than the ranking margins, and it bounds how much weight any single critical-set comparison can carry. Notably, Microservices is both the least reproducible fold and one of the two on which typed learning loses (Section~\ref{sec:7.2.3}) --- part of that deficit may be label noise rather than model failure.
 
 Figure~\ref{fig:3} summarizes these results alongside critical-set identification and inter-oracle agreement.
 
@@ -205,25 +205,27 @@ The encodings also improve optimization reproducibility, though less symmetrical
 
 \subsubsection{Convergent Validity Over Simulation Oracles}
 
-We evaluated inter-oracle agreement across $I^*(v)$ (\texttt{FaultInjector}), $I_{\text{comp}}(v)$ (\texttt{FailureSimulator}), and $I_{\text{dyn}}(v)$ (\texttt{MessageFlowSimulator}) over seven scenarios, summarized in Table~\ref{tab:8c}:
+We evaluated inter-oracle agreement across $I^*(v)$ (\texttt{FaultInjector}), $I_{\text{comp}}(v)$ (\texttt{FailureSimulator}), and $I_{\text{dyn}}(v)$ (\texttt{MessageFlowSimulator}) over the twelve inductive folds of Table~\ref{tab:2}, summarized in Table~\ref{tab:8c}:
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Inter-oracle agreement across simulation paradigms (chance top-$K$ Jaccard is $0.111$) over 7 diverse benchmark topologies. $I_{\text{dyn}}$ denotes the queue-flow discrete-event simulation oracle, $I^*$ denotes the graph topological cascade injection oracle, and $I_{\text{comp}}$ denotes the multi-criteria composite oracle. The negative lower bounds on $I_{\text{comp}}$ reflect a single scenario (\texttt{hub\_and\_spoke}) driven by tied zero-inflation rather than directional inversion (Supplementary Section~S2).}
+\caption{Inter-oracle agreement across simulation paradigms (chance top-$K$ Jaccard is $0.111$) over the twelve LOSO topologies, Application population, five seeds. $I_{\text{dyn}}$ denotes the queue-flow discrete-event simulation oracle, $I^*$ denotes the graph topological cascade injection oracle, and $I_{\text{comp}}$ denotes the multi-criteria composite oracle. $\rho^{+}$ restricts the correlation to components both oracles score non-zero, separating directional agreement from agreement on which components are harmless. $I_{\text{dyn}}$ was measured under enforced QoS contracts at a calibrated per-subscriber operating point ($\rho_{\text{util}} = 0.65$); the run is reproducible from the commit its artifact names.}
 \label{tab:8c}
-\begin{tabular}{lcccc}
+\begin{tabular}{lccccc}
 \toprule
-\textbf{Oracle pair} & \textbf{Mean $\rho$ (range)} & \textbf{Mean $\tau$} & \textbf{Jaccard@$K$} & \textbf{Tie-robust} \\
+\textbf{Oracle pair} & \textbf{Mean $\rho$ (range)} & \textbf{Mean $\rho^{+}$} & \textbf{Mean $\tau$} & \textbf{Jaccard@$K$} & \textbf{Tie-robust} \\
 \midrule
-$I_{\text{dyn}}$ vs.\ $I^*$ & $\mathbf{0.907}$ ($0.748$--$0.985$) & $0.788$ & $0.486$ & $0.509$ \\
-$I_{\text{comp}}$ vs.\ $I^*$ & $0.425$ ($-0.044$--$0.654$) & $0.311$ & $0.240$ & $0.258$ \\
-$I_{\text{comp}}$ vs.\ $I_{\text{dyn}}$ & $0.427$ ($-0.037$--$0.654$) & $0.312$ & $0.276$ & $0.275$ \\
+$I_{\text{dyn}}$ vs.\ $I^*$ & $\mathbf{0.620}$ ($0.290$--$0.924$) & $0.441$ & $0.478$ & $0.365$ & $0.361$ \\
+$I_{\text{comp}}$ vs.\ $I^*$ & $0.395$ ($0.083$--$0.653$) & $0.353$ & $0.290$ & $0.266$ & $0.261$ \\
+$I_{\text{comp}}$ vs.\ $I_{\text{dyn}}$ & $0.366$ ($0.069$--$0.564$) & $0.343$ & $0.253$ & $0.276$ & $0.276$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\noindent Ordering converges strongly between the queue-flow simulator and topological cascade oracle ($\rho = 0.907$). Top-$K$ set agreement is more conservative (Jaccard $0.486$), bounded by discrete threshold sensitivity in non-linear cascades.
+\noindent The queue-flow simulator and the topological cascade oracle agree substantially but not interchangeably ($\rho = 0.620$, Jaccard $0.365$ against $0.111$ expected by chance). \textbf{This is the reading the ceiling supports.} $I^*$'s own seed-to-seed test--retest across these same twelve folds runs $0.817$--$1.000$ (median $0.979$; Section~\ref{sec:7.2.1}), so $I_{\text{dyn}}$ agrees with $I^*$ distinctly \emph{less} closely than $I^*$ agrees with itself. The gap is the point: a behavioural oracle that reproduced the topological one to within label noise would be re-measuring the topology rather than corroborating it. Ranking over discrete-event queueing traffic recovers most of the topological ordering while retaining content the cascade abstraction does not express.
+
+\noindent Two boundaries qualify this. First, $\rho^{+} = 0.441$ against $\rho = 0.620$ shows that a substantial share of the agreement is the two oracles concurring on which components are \emph{harmless}; restricted to components both score non-zero, agreement is weak in five of twelve folds (Autonomous Vehicle $0.101$, Microservices $0.099$, Hub-and-Spoke $0.113$). Second, Microservices is simultaneously the weakest fold ($\rho = 0.290$) and the least reproducible label in the corpus (test--retest $0.817$, top-$K$ Jaccard $0.680$), so part of that deficit is label noise rather than construct divergence.
 
 \subsubsection{Node-Type Stratification}
 \label{sec:7.3.6}
