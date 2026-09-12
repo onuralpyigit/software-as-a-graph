@@ -59,9 +59,40 @@ _IN_DIST_VARIANTS = _registry.order(
     include=["topo_baseline", "topo_qos", "gl", "gl_qos", "hgl", "hgl_qos"]
 )
 
+#: The same table with the native-substrate homogeneous controls in the GAT
+#: slots. The manuscript's Table 5 is this one: the RQ2 confound work replaced
+#: the projection-substrate gl/gl_qos with gl_full/gl_full_qos so that every
+#: learned variant consumes the identical native multigraph, and the registry
+#: reports that pair as GAT-N / GAT-N-QoS. results/main_table_v3.json -- the
+#: artifact the manuscript is reconciled against -- carries this set.
+_IN_DIST_VARIANTS_NATIVE = _registry.order(
+    include=["topo_baseline", "topo_qos", "gl_full", "gl_full_qos", "hgl", "hgl_qos"]
+)
+
 _VARIANT_LABELS = {v: _registry.label(v, latex=True) for v in _IN_DIST_VARIANTS}
 _VARIANT_LABELS_PLAIN = {v: _registry.label(v) for v in _IN_DIST_VARIANTS}
 _VARIANT_ORDER = list(_IN_DIST_VARIANTS)
+
+
+def _bind_in_dist_variants(data: Dict) -> None:
+    """Point the module's in-distribution column set at what the artifact ran.
+
+    Rendering a fixed variant list against an artifact that ran a different one
+    silently produces a table of em-dashes and a column mean of 0.000 -- which
+    is what results/table3_main_results.* held: every GAT cell blank because the
+    renderer looked for gl/gl_qos while main_table_v3.json carries
+    gl_full/gl_full_qos. A blank column reads as "this variant scored nothing",
+    not as "this renderer was asking the wrong question".
+    """
+    global _VARIANT_ORDER, _VARIANT_LABELS, _VARIANT_LABELS_PLAIN
+    present = {k.split("|")[1] for k in (data.get("aggregate") or {})
+               if not k.startswith("_") and "|" in k}
+    order = list(_IN_DIST_VARIANTS)
+    if present and not ({"gl", "gl_qos"} & present) and ({"gl_full", "gl_full_qos"} & present):
+        order = list(_IN_DIST_VARIANTS_NATIVE)
+    _VARIANT_ORDER = order
+    _VARIANT_LABELS = {v: _registry.label(v, latex=True) for v in order}
+    _VARIANT_LABELS_PLAIN = {v: _registry.label(v) for v in order}
 # Table 3 has no `topology_rm` cells (it is only computed by the LOSO/k-fold
 # harnesses), so it stays out of _VARIANT_ORDER — adding it there would render
 # an empty column. LOSO's comparison_table does carry it (see
@@ -156,6 +187,7 @@ def _fmt_f1_md(stats: Dict) -> str:
 
 def render_table3_tex(data: Dict, output: Path):
     """LaTeX booktabs Table 3: Spearman ρ per scenario × variant."""
+    _bind_in_dist_variants(data)
     agg = data["aggregate"]
     scenarios = sorted({
         k.split("|")[0] for k in agg.keys()
@@ -255,6 +287,7 @@ def render_table3_tex(data: Dict, output: Path):
 
 
 def render_table3_csv(data: Dict, output: Path):
+    _bind_in_dist_variants(data)
     agg = data["aggregate"]
     scenarios = sorted({k.split("|")[0] for k in agg if not k.startswith("_")})
     rows = []
@@ -283,6 +316,7 @@ def render_table3_csv(data: Dict, output: Path):
 
 
 def render_table3_md(data: Dict, output: Path):
+    _bind_in_dist_variants(data)
     agg = data["aggregate"]
     scenarios = sorted({k.split("|")[0] for k in agg if not k.startswith("_")})
     
@@ -823,13 +857,13 @@ def render_table4kfold_md(kfold_data: Dict, output: Path):
 
 def parse_args():
     p = argparse.ArgumentParser(description="Block C/E: Render LaTeX/CSV/MD tables.")
-    p.add_argument("--table3", type=Path, default=_RESULTS_DIR / "main_table.json",
+    p.add_argument("--table3", type=Path, default=_RESULTS_DIR / "main_table_v3.json",
                    help="Path to main_table.json (Block C output)")
     p.add_argument("--table-controls", type=Path, default=None,
                    help="LOSO artifact to render the Section 7.2.1 RQ2 controls "
                         "table from (results/table_rq2_controls.md). Skipped "
                         "when the artifact carries no control arms.")
-    p.add_argument("--table4", type=Path, default=_RESULTS_DIR / "loso_all_variants.json",
+    p.add_argument("--table4", type=Path, default=_RESULTS_DIR / "loso_all_variants_v4.json",
                    help="Path to loso_all_variants.json (Block E output)")
     p.add_argument("--table-kfold", type=Path, default=_RESULTS_DIR / "kfold_all_variants.json",
                    help="Path to kfold_all_variants.json (per-domain k-fold output)")

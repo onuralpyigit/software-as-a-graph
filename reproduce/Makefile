@@ -85,14 +85,19 @@ block0:
 # Block C: Table 3 — 8 × 4 variants × 5 seeds
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Writes the VERSIONED artifact the manuscript is reconciled against. It used
+# to write results/main_table.json, an unversioned working file that an
+# interrupted run left holding two smoke-test cells -- which render_table.py
+# then turned into an all-0.500 "results" table. --resume makes this idempotent.
 table3: block0
 	$(PYTHON) reproduce/main_table.py \
-	    --output $(RESULTS_DIR)/main_table.json \
+	    --output $(RESULTS_DIR)/main_table_v3.json \
 	    --seeds $(SEEDS_LIST) \
 	    --epochs $(EPOCHS) \
 	    --resume
 	$(PYTHON) reproduce/render_table.py \
-	    --table3 $(RESULTS_DIR)/main_table.json \
+	    --table3 $(RESULTS_DIR)/main_table_v3.json \
+	    --table4 $(RESULTS_DIR)/loso_all_variants_v4.json \
 	    --output-dir $(RESULTS_DIR)
 	@echo "✓ Table 3 ready: $(RESULTS_DIR)/table3_main_results.tex"
 

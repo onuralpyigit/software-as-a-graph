@@ -47,6 +47,7 @@ from reproduce._provenance import corpus_digest  # noqa: E402
 from saag.evaluation import variant_registry as _registry  # noqa: E402
 
 SECTIONS = ROOT / "docs/research/jss/latex/sections"
+LATEX = ROOT / "docs/research/jss/latex"
 RESULTS = ROOT / "results"
 CORPUS = ROOT / "data/scenarios"
 
@@ -90,6 +91,8 @@ class Finding:
 class Report:
     findings: List[Finding] = field(default_factory=list)
     stale: List[str] = field(default_factory=list)
+    dirty: List[str] = field(default_factory=list)
+    missing: List[str] = field(default_factory=list)
     checked: int = 0
     skipped: List[str] = field(default_factory=list)
 
@@ -103,6 +106,16 @@ def _load(name: str) -> Optional[dict]:
 
 def _tex(name: str) -> str:
     return (SECTIONS / name).read_text()
+
+
+def _supp() -> str:
+    """The supplement, which is a separate document beside ``sections/``.
+
+    It carries its own copies of body figures (S6 restates 7.3.6's
+    stratification numbers, S7 restates the degree comparison). Those copies
+    went stale once while the body was corrected, because nothing checked them.
+    """
+    return (LATEX / "supplementary.tex").read_text()
 
 
 def _rows(tex: str, start_marker: str, end_marker: str = r"\bottomrule",
@@ -197,6 +210,142 @@ def check_table4_corpus(rep: Report) -> None:
             rep.checked += 1
             if got is None or int(got) != truth:
                 rep.findings.append(Finding("tab:4", label, fieldname, got, truth))
+
+
+#: Table 5 row label -> scenario id. Only the display spelling differs; the
+#: artifact keys its aggregate as "<scenario>|<variant>".
+TABLE5_SCENARIOS = {
+    "AV System": "av_system",
+    "Enterprise": "enterprise_system",
+    "Financial Trading": "financial_trading_system",
+    "Healthcare": "healthcare_system",
+    "Hub-and-Spoke": "hub_and_spoke_system",
+    "IoT Smart City": "iot_smart_city_system",
+    "Microservices": "microservices_system",
+}
+
+#: Table 5's column order, as variant ids. Labels come from the registry under
+#: the in-distribution harness rather than being hand-copied, for the same
+#: reason LOSO_LABELS does: a hand-written mirror going stale is how a table
+#: gets reconciled against the wrong column while still reporting clean.
+TABLE5_VARIANTS = ["topo_baseline", "topo_qos", "gl_full", "gl_full_qos", "hgl", "hgl_qos"]
+
+
+def check_table5_indist(rep: Report, artifact: str = "main_table_v3.json") -> None:
+    """Table 5's in-distribution cells and column means.
+
+    This table had no check at all: the only artifact declared for it was
+    ``main_table_v5.json``, which does not exist, and an absent target was
+    silently skipped. Forty-two cells and six means therefore rode on the
+    summary line "every checked figure matches its artifact". They were in fact
+    correct, which is luck rather than verification.
+
+    ``results/main_table.json`` is NOT the backing artifact and must not be used
+    here: it is a two-cell smoke run (one scenario, one seed, two epochs), and
+    rendering a table from it is what produced the all-0.500 debris in results/.
+    """
+    d = _load(artifact)
+    if d is None:
+        rep.skipped.append(f"tab:5: {artifact} absent")
+        return
+    agg = d.get("aggregate") or {}
+    cfg = d.get("config") or {}
+    # Guard against being pointed at a smoke run.
+    if len(d.get("cells") or []) < 42:
+        rep.skipped.append(
+            f"tab:5: {artifact} holds {len(d.get('cells') or [])} cells — too few to "
+            "back a 7x6 table; refusing to reconcile against a smoke run")
+        return
+    labels = {v: _registry.label(v, harness="in_distribution") for v in TABLE5_VARIANTS}
+
+    tex = _tex("sec7_results.tex")
+    rows = _rows(tex, r"\textbf{Scenario} & \textbf{$n$}")
+    seen = {}
+    for row in rows:
+        cells = _cells(row)
+        if len(cells) < 8:
+            continue
+        label = _label(cells[0])
+        scen = TABLE5_SCENARIOS.get(label)
+        if scen is None:
+            continue
+        seen[scen] = True
+        for idx, vid in enumerate(TABLE5_VARIANTS, start=2):
+            blk = agg.get(f"{scen}|{vid}")
+            if blk is None:
+                rep.skipped.append(f"tab:5: no aggregate for {scen}|{vid}")
+                continue
+            got, truth = _num(cells[idx]), blk.get("mean_rho")
+            rep.checked += 1
+            if truth is not None and (got is None or abs(got - truth) > 0.001):
+                rep.findings.append(
+                    Finding("tab:5", f"{label} / {labels[vid]}", "mean_rho",
+                            got, round(truth, 4)))
+
+    missing = set(TABLE5_SCENARIOS.values()) - set(seen)
+    if missing:
+        rep.skipped.append(f"tab:5: rows not found in the tex for {sorted(missing)}")
+
+    # Column means, recomputed over exactly the scenarios the artifact ran.
+    scenarios = cfg.get("scenarios") or sorted(TABLE5_SCENARIOS.values())
+    mean_rows = _rows(tex, r"\textbf{Mean} & ---")
+    if not mean_rows:
+        rep.skipped.append("tab:5: Mean row not found")
+        return
+    cells = _cells(mean_rows[0])
+    for idx, vid in enumerate(TABLE5_VARIANTS, start=2):
+        vals = [agg[f"{sc}|{vid}"]["mean_rho"] for sc in scenarios
+                if f"{sc}|{vid}" in agg and agg[f"{sc}|{vid}"].get("mean_rho") is not None]
+        if not vals:
+            continue
+        truth = sum(vals) / len(vals)
+        got = _num(cells[idx]) if idx < len(cells) else None
+        rep.checked += 1
+        if got is None or abs(got - truth) > 0.001:
+            rep.findings.append(
+                Finding("tab:5", f"Mean / {labels[vid]}", "mean_rho", got, round(truth, 4)))
+
+
+def check_supplement_stratification(rep: Report) -> None:
+    """Supplement S6/S7's copies of the 7.3.6 stratification figures.
+
+    The supplement restates body numbers as literal text -- it cannot \ref into
+    the body, since the two documents do not share an .aux. Nothing checked it,
+    and when detection_validation was refreshed the body was corrected while
+    both supplement copies kept the superseded pooled rho and degree comparison.
+    """
+    art = _load("detection_validation_v3.json")
+    if art is None:
+        rep.skipped.append("detection_validation_v3.json absent; S6/S7 unchecked")
+        return
+    summ = art.get("summary") or {}
+    pooled = (summ.get("pooling_check") or {}).get("pooled_mean_rho")
+    by_type = summ.get("q_by_type") or {}
+    degree = summ.get("degree") or {}
+    composite = summ.get("q_composite") or {}
+    tex = _supp()
+
+    expected = [("Application", (by_type.get("Application") or {}).get("mean_spearman_rho")),
+                ("Broker", (by_type.get("Broker") or {}).get("mean_spearman_rho")),
+                ("Node", (by_type.get("Node") or {}).get("mean_spearman_rho")),
+                ("pooled", pooled),
+                ("degree rho", degree.get("mean_spearman_rho")),
+                ("degree F1", degree.get("mean_f1")),
+                ("RM rho", composite.get("mean_spearman_rho")),
+                ("RM F1", composite.get("mean_f1"))]
+    for name, truth in expected:
+        if truth is None:
+            continue
+        rep.checked += 1
+        # Presence of the 3-decimal literal as a standalone number. The
+        # supplement writes these variously as "$0.566$" and "$\rho = 0.566$",
+        # so match the token, not a fixed wrapper. This is a weaker test than
+        # the table checks above -- it catches a figure that was updated in the
+        # body and not here, which is the defect that actually occurred.
+        if not re.search(rf"(?<![\d.]){re.escape(f'{truth:.3f}')}(?![\d])", tex):
+            rep.findings.append(
+                Finding("supp:S6", name, "value", "not present in supplementary.tex",
+                        f"{truth:.3f}"))
 
 
 def check_table7_loso(rep: Report, artifact: str) -> None:
@@ -329,13 +478,15 @@ def check_realworld(rep: Report) -> None:
 #: that are actually consumed belong here: a superseded version left on disk
 #: (``*_v3`` once ``*_v4`` is in use) describes a corpus nobody reads it against,
 #: so flagging it trains the reader to ignore the warning list.
+#: The ``*_v5`` family was previously declared here before it existed. Absent
+#: targets are ``continue``d, so declaring an artifact nobody produces bought
+#: nothing and cost something: ``main_table_v5.json`` was the only declared
+#: check on Table 5's forty-two cells, and because it is absent those cells went
+#: unchecked while the summary line still read "every checked figure matches".
+#: Declare an artifact here only once it is consumed; Table 5 is now checked
+#: against the artifact that actually backs it (``check_table5_indist``).
 FRESHNESS_TARGETS = {
-    "loso_all_variants_v5.json": "Tables 7/7c",
-    "controls_main_table_v5.json": "RQ2 controls",
-    "main_table_v5.json": "Table 5",
-    "loso_noqos_v5.json": "7.3.1 QoS ablation",
     "loso_all_variants_v4.json": "Tables 7/7c",
-    "inference_latency_v3.json": "scale/latency table",
     "realworld_zeroshot_v4.json": "Table 9b",
     "detection_validation_v3.json": "7.3 stratification",
     "convergent_validity.json": "Table 8c",
@@ -345,6 +496,21 @@ FRESHNESS_TARGETS = {
     "threshold_sensitivity_v3.json": "Supplementary S3",
     "atm_scale_sweep_v3.json": "Supplementary S6",
     "qos_label_ablation.json": "Section 4.3",
+}
+
+#: Artifacts that never read the corpus, so the corpus-freshness rule cannot
+#: apply to them and applying it produces a permanent false positive.
+#:
+#: ``inference_latency_v3.json`` times generate/analyse/forward over topologies
+#: it synthesises itself (``tools.generation.service.generate_graph`` at fixed
+#: sizes, seed 42); it contains no reference to ``data/scenarios`` at all. It
+#: was flagged stale on every run because its mtime predates a corpus it does
+#: not read. Re-running to clear that flag would silently re-time Table 12, 7.5,
+#: 1.5 and the abstract on whatever machine and load happened to be current,
+#: which is a real cost paid for no epistemic gain. What its numbers depend on
+#: is the machine, so re-measure it deliberately, not to quiet a warning.
+CORPUS_INDEPENDENT_ARTIFACTS = {
+    "inference_latency_v3.json": "scale/latency table (self-generated topologies)",
 }
 
 #: Wall-clock artifacts, deliberately outside FRESHNESS_TARGETS.
@@ -381,15 +547,29 @@ def check_freshness(rep: Report) -> None:
     for name, backs in FRESHNESS_TARGETS.items():
         p = RESULTS / name
         if not p.exists():
+            # An artifact this script declares as backing a table, that is not
+            # on disk, is a hole in the verification -- not a pass. results/ is
+            # gitignored, so on a fresh clone this is EVERY artifact, and the
+            # old `continue` let that report as a clean run.
+            rep.missing.append(f"{name} ({backs}) is not in results/")
             continue
-        stamped = None
+        prov = {}
         try:
-            stamped = (json.loads(p.read_text())
-                       .get("provenance", {})
-                       .get("corpus_digest"))
+            prov = json.loads(p.read_text()).get("provenance") or {}
         except (OSError, ValueError, AttributeError):
-            pass
+            prov = {}
 
+        # A figure produced from a modified working tree cannot be regenerated
+        # from the commit it names. _provenance.py records this as the failure
+        # that already cost this project a published table, and stamps `dirty`
+        # for exactly this check -- which nothing was making.
+        if prov.get("dirty"):
+            commit = str(prov.get("commit") or "unknown")[:8]
+            rep.dirty.append(
+                f"{name} ({backs}) was produced from a dirty tree at {commit}; "
+                "it does not reproduce from any commit — re-run from a clean tree")
+
+        stamped = prov.get("corpus_digest")
         if current and stamped:
             if stamped != current:
                 rep.stale.append(
@@ -516,13 +696,22 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--loso", default="loso_all_variants_v4.json",
-                    help="LOSO artifact backing Table 7 (default: v3)")
+                    help="LOSO artifact backing Tables 7/7c")
+    ap.add_argument("--main-table", default="main_table_v3.json",
+                    help="in-distribution artifact backing Table 5")
+    ap.add_argument("--allow-missing", action="store_true",
+                    help="do not fail when a declared artifact is absent from "
+                         "results/ (results/ is gitignored, so a fresh clone has "
+                         "none of them and would otherwise report a clean run "
+                         "having verified almost nothing)")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
     rep = Report()
     check_freshness(rep)
     check_table4_corpus(rep)
+    check_table5_indist(rep, args.main_table)
+    check_supplement_stratification(rep)
     check_table7_loso(rep, args.loso)
     check_table7c_active(rep, args.loso)
     check_scale_table(rep)
@@ -530,7 +719,21 @@ def main() -> int:
     check_oracle_timing(rep)
     check_qos_label_ablation(rep)
 
-    print(f"\n  Reconciled {rep.checked} table figures against committed artifacts.\n")
+    print(f"\n  Reconciled {rep.checked} table figures against committed artifacts "
+          f"({len(rep.skipped)} check(s) skipped).\n")
+
+    if rep.missing:
+        print("  MISSING ARTIFACTS (declared as backing a table, not on disk):")
+        for m in rep.missing:
+            print(f"    ? {m}")
+        print("    results/ is gitignored — regenerate with reproduce/Makefile, "
+              "or pass --allow-missing to treat this as non-fatal.\n")
+
+    if rep.dirty:
+        print("  DIRTY PROVENANCE (produced from a modified working tree):")
+        for d in rep.dirty:
+            print(f"    ! {d}")
+        print()
 
     if rep.stale:
         print("  STALE ARTIFACTS (older than the corpus they describe):")
@@ -558,9 +761,13 @@ def main() -> int:
             print(f"    - {n}")
         print()
 
-    ok = not rep.findings and not rep.stale
-    print("  OK — every checked figure matches its artifact.\n" if ok
-          else f"  {len(rep.findings)} mismatch(es), {len(rep.stale)} stale artifact(s).\n")
+    missing_fatal = rep.missing and not args.allow_missing
+    ok = not rep.findings and not rep.stale and not rep.dirty and not missing_fatal
+    if ok:
+        print(f"  OK — {rep.checked} figures match their artifacts.\n")
+    else:
+        print(f"  {len(rep.findings)} mismatch(es), {len(rep.stale)} stale, "
+              f"{len(rep.dirty)} dirty, {len(rep.missing)} missing artifact(s).\n")
     return 0 if ok else 1
 
 
