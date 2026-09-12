@@ -326,53 +326,76 @@ class DualEnginePredictor:
     def __init__(
         self,
         topo_predictor: Optional[TopoQoSPredictor] = None,
-        divergence_threshold: int = 5,
+        divergence_threshold: Optional[int] = None,
+        divergence_fraction: float = 0.25,
     ):
         self.topo_predictor = topo_predictor or TopoQoSPredictor()
         self.divergence_threshold = divergence_threshold
+        self.divergence_fraction = divergence_fraction
 
     def evaluate_dual(
         self,
         gnn_scores: Dict[str, float],
         graph_or_flow: Union[nx.DiGraph, nx.MultiDiGraph, Dict[str, Any]],
         structural_metrics: Optional[Dict[str, Dict[str, Any]]] = None,
-        k: int = 10,
+        k: Optional[int] = None,
+        top_k_fraction: float = 0.20,
     ) -> DualEngineResult:
-        """Combine GNN predictions with Topo-QoS scores into consensus and divergence triage."""
+        """Combine GNN predictions with Topo-QoS scores into consensus and divergence triage.
+        
+        Evaluates rank divergence strictly over components scored by both models to
+        avoid fabricating spurious divergences on nodes missing from either input.
+        """
+        import math
+
         topo_scores = self.topo_predictor.predict(graph_or_flow, structural_metrics)
 
-        all_nodes = list(set(gnn_scores) | set(topo_scores))
-        if not all_nodes:
+        # Restrict rank divergence to the intersection of components both engines scored
+        common_nodes = sorted(set(gnn_scores) & set(topo_scores))
+        if not common_nodes:
             return DualEngineResult({}, {}, {}, {}, {}, {}, [], [])
 
-        # Normalization
-        max_g = max((gnn_scores.get(n, 0.0) for n in all_nodes), default=1.0)
-        max_t = max((topo_scores.get(n, 0.0) for n in all_nodes), default=1.0)
-        norm_g = {n: (gnn_scores.get(n, 0.0) / max_g) if max_g > 0 else 0.0 for n in all_nodes}
-        norm_t = {n: (topo_scores.get(n, 0.0) / max_t) if max_t > 0 else 0.0 for n in all_nodes}
+        # Determine effective K (critical set size) and divergence threshold
+        eff_k = k if k is not None else max(1, int(math.ceil(top_k_fraction * len(common_nodes))))
+        eff_k = min(eff_k, len(common_nodes))
+
+        if self.divergence_threshold is not None:
+            eff_div = self.divergence_threshold
+        else:
+            eff_div = max(1, int(math.ceil(self.divergence_fraction * len(common_nodes))))
+
+        # Normalization over common nodes
+        max_g = max((gnn_scores[n] for n in common_nodes), default=1.0)
+        max_t = max((topo_scores[n] for n in common_nodes), default=1.0)
+        norm_g = {n: (gnn_scores[n] / max_g) if max_g > 0 else 0.0 for n in common_nodes}
+        norm_t = {n: (topo_scores[n] / max_t) if max_t > 0 else 0.0 for n in common_nodes}
 
         # Rankings (1-based, 1 is most critical)
-        sorted_g = sorted(all_nodes, key=lambda n: norm_g.get(n, 0.0), reverse=True)
-        sorted_t = sorted(all_nodes, key=lambda n: norm_t.get(n, 0.0), reverse=True)
+        sorted_g = sorted(common_nodes, key=lambda n: norm_g[n], reverse=True)
+        sorted_t = sorted(common_nodes, key=lambda n: norm_t[n], reverse=True)
         gnn_ranks = {n: i + 1 for i, n in enumerate(sorted_g)}
         topo_ranks = {n: i + 1 for i, n in enumerate(sorted_t)}
 
-        # Rank divergences
-        rank_divs = {n: abs(gnn_ranks[n] - topo_ranks[n]) for n in all_nodes}
+        # Rank divergences over common nodes
+        rank_divs = {n: abs(gnn_ranks[n] - topo_ranks[n]) for n in common_nodes}
 
-        # Consensus Top-K (intersection)
-        top_k_g = set(sorted_g[:k])
-        top_k_t = set(sorted_t[:k])
-        consensus = [n for n in sorted_g[:k] if n in top_k_t]
+        # Consensus Top-K (intersection of top-k sets)
+        top_k_g = set(sorted_g[:eff_k])
+        top_k_t = set(sorted_t[:eff_k])
+        consensus = [n for n in sorted_g[:eff_k] if n in top_k_t]
 
         # Divergence escalations
         escalations = [
-            n for n in all_nodes
-            if rank_divs[n] >= self.divergence_threshold and (n in top_k_g or n in top_k_t)
+            n for n in common_nodes
+            if rank_divs[n] >= eff_div and (n in top_k_g or n in top_k_t)
         ]
         escalations.sort(key=lambda n: rank_divs[n], reverse=True)
 
-        combined = {n: 0.5 * norm_g[n] + 0.5 * norm_t[n] for n in all_nodes}
+        combined = {n: 0.5 * norm_g[n] + 0.5 * norm_t[n] for n in common_nodes}
+
+        # Track any nodes present in only one engine's output
+        unscored_by_topo = sorted(set(gnn_scores) - set(topo_scores))
+        unscored_by_gnn = sorted(set(topo_scores) - set(gnn_scores))
 
         return DualEngineResult(
             gnn_scores=gnn_scores,
@@ -383,5 +406,12 @@ class DualEnginePredictor:
             rank_divergences=rank_divs,
             consensus_top_k=consensus,
             divergence_escalations=escalations,
-            metadata={"k": k, "divergence_threshold": self.divergence_threshold},
+            metadata={
+                "k": eff_k,
+                "divergence_threshold": eff_div,
+                "n_common": len(common_nodes),
+                "unscored_by_topo": unscored_by_topo,
+                "unscored_by_gnn": unscored_by_gnn,
+            },
         )
+

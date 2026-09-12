@@ -93,6 +93,17 @@ def test_dual_engine_consensus_and_divergence(sample_pubsub_graph):
     assert isinstance(res.divergence_escalations, list)
 
 
+def test_dual_engine_no_fabricated_divergence_on_disjoint_nodes(sample_pubsub_graph):
+    """Missing nodes must not fabricate spurious rank divergences."""
+    gnn_scores = {"AppA": 0.9, "AppB": 0.8, "ExtraApp": 0.95}
+    dual_pred = DualEnginePredictor(divergence_threshold=2)
+    res = dual_pred.evaluate_dual(gnn_scores, sample_pubsub_graph, k=2)
+    assert "ExtraApp" not in res.rank_divergences
+    assert "ExtraApp" in res.metadata["unscored_by_topo"]
+    assert len(res.rank_divergences) == 2  # Only AppA and AppB common
+    assert "ExtraApp" not in res.divergence_escalations
+
+
 def test_criticality_loss_temperature_scaling():
     pred = torch.tensor([[0.8, 0.5, 0.3], [0.4, 0.2, 0.1]], requires_grad=True)
     target = torch.tensor([[0.9, 0.5, 0.3], [0.1, 0.2, 0.1]])

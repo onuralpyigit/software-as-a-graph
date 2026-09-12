@@ -71,70 +71,56 @@ flowchart TD
 
 ---
 
-## 2. Tiered Validation Pipeline Architecture
+## 2. Dual Validation Pathways
 
-The framework provides a tiered validation execution architecture that decouples fast structural cascade gates from targeted runtime queueing validation and multi-dimensional explanation:
+The framework provides two distinct validation execution paths designed for different operational contexts:
 
 ```mermaid
 flowchart TD
-    subgraph Tier1["Tier-1: Primary Static & Structural Validation Gate (Core Blocking Gate)"]
+    subgraph LibPath["1. Library Production Pipeline (ValidationService)"]
         direction TB
-        T1_CMD["FaultInjector Sweep<br>cli/validate_graph.py / saag --validate"] --> T1_ORC["FaultInjector I*(v)<br>(Exhaustive Multi-Seed Cascade)"]
-        T1_ORC --> T1_GATES["Core Blocking Gates<br>(Spearman ρ ≥ 0.70, F1@K, Noise Ceiling)"]
-        T1_GATES --> T1_OUT["BLOCKING PASS / FAIL Verdict"]
+        L_CMD["pipeline.validate()<br>saag --validate"] --> L_ORC["FailureSimulator<br>(Exhaustive Sweep)"]
+        L_ORC --> L_GATES["7 Quality Gates (G1–G6, G8)<br>(Fixed Targets: ρ ≥ 0.70, τ ≥ 0.50)"]
+        L_GATES --> L_OUT["PipelineResult / LayerValidationResult"]
     end
 
-    subgraph Tier2["Tier-2: Targeted Dynamic Behavioral Gate (Runtime Verification)"]
+    subgraph CliPath["2. CLI Research Harness (saag-validate)"]
         direction TB
-        T2_CMD["MessageFlowSimulator<br>on Top-K Critical Components"] --> T2_ORC["MessageFlowSimulator I_dyn(v)<br>(SimPy Queueing at ρ_util = 0.65)"]
-        T2_ORC --> T2_GATES["Dynamic Behavioral Checks<br>(Zero SLA/Deadline Violations, Overflow Bounds)"]
-        T2_GATES --> T2_OUT["NON-BLOCKING WARNING / STAGING AUDIT"]
+        C_CMD["saag-validate<br>cli/validate_graph.py"] --> C_ORC["FaultInjector<br>(I*(v) Multi-Seed)"]
+        C_ORC --> C_GATES["5 Adaptive Gates<br>(Adjusted by Graph Topology Class)"]
+        C_GATES --> C_OUT["ValidationResult / SweepReport"]
     end
-
-    subgraph MaintRef["Maintainability Consistency Reference"]
-        direction TB
-        MR_CMD["ChangePropagationSimulator<br>on Transposed G^T"] --> MR_ORC["IM(v) Structural Change Ripple"]
-        MR_ORC --> MR_CHECK["Consistency Check: ρ(M, IM) ≥ 0.65"]
-    end
-
-    subgraph ExplanatoryPrescribe["Explanatory Layer & Prescribe Stage"]
-        direction TB
-        EP_CMD["FailureSimulator Sweep<br>saag/prescription/evaluator.py"] --> EP_ORC["FailureSimulator (I_comp, IR, IM, IA, IS, I_edge)"]
-        EP_ORC --> EP_GATES["ISO/IEC 25010 Attribution Gates & EditVerifier Verification"]
-    end
-
-    T1_OUT -->|Passes Tier 1| Tier2
 ```
 
-### Feature & Role Comparison
+### Feature Comparison
 
-| Attribute | Tier-1 Core Blocking Gate | Tier-2 Dynamic Behavioral Gate | Explanatory Layer & Prescribe |
-|:---|:---|:---|:---|
-| **Primary Engine** | **`FaultInjector`** ($I^*(v)$) | **`MessageFlowSimulator`** ($I_{\text{dyn}}(v)$) | **`FailureSimulator`** ($I_{\text{comp}}, IR, IA$) + **`ChangePropagation`** ($IM$) |
-| **Pipeline Stage** | **Validate Stage (Tier-1)** | **Validate Stage (Tier-2)** | **Explanatory Layer & Prescribe Stage** |
-| **Execution Scope** | Exhaustive ($100\%$ of components) | Targeted (Top-$K$ critical components) | Diagnostic decomposition & candidate edit sweeps |
-| **Execution Budget** | $< 10\text{ seconds}$ (Fast CI/CD hook) | $\approx 25\text{--}45\text{ seconds}$ | Sub-minute per candidate refactoring |
-| **Gate Policy** | **BLOCKING**: Rejects PR if $\rho < 0.70$ | **NON-BLOCKING WARNING / AUDIT** | Remediation Acceptance ($\Delta \bar{I}_{\text{comp}} > \sigma_{\text{seed}}$) |
-| **Primary Output** | Ranking correlation ($\rho, \tau$), $F_1@K$ | Drop in delivered rate, deadline misses | Multi-dimensional quality profile, repair diffs |
+| Attribute | Library Pathway (`ValidationService`) | CLI Research Pathway (`saag-validate`) |
+|:---|:---|:---|
+| **Invocation** | `saag --validate`, Python API, REST API | `cli/validate_graph.py` |
+| **Ground-Truth Engine** | `FailureSimulator` $\to I_{\text{comp}}(v) + IR / IM$ | `FaultInjector` $\to I^*(v)$ multi-seed |
+| **Gate Structure** | 7 Fixed Gates (G1–G6, G8) | 5 Adaptive Topology-Class Gates |
+| **Scope** | Layer-stratified (`app`, `infra`, `mw`, `system`), full RM sub-dimensions | Whole-graph, composite impact, multi-seed sweeps |
+| **Primary Use Case** | Production CI/CD gates, interactive UI dashboards | Research benchmarks, QoS ablation, LaTeX tables |
 
 ---
 
 ## 3. Ground-Truth Oracles & Taxonomy
 
-### 3.1 Formal Taxonomy of Simulation Oracles
+### 3.1 The Simulation Oracles
 
 Different simulation engines generate distinct ground-truth formulations across the pipeline:
 
-| Symbol | Generating Engine | Mathematical Definition | Canonical Role & Stage |
+| Symbol | Generating Engine | Mathematical Definition | Consumed By |
 |:---:|:---|:---|:---|
-| **$I^*(v)$** | `FaultInjector` | Mean subscriber feed-loss across seeds | **Predict Stage** (Supervised labels) & **Validate Stage Tier-1** (Core blocking gate) |
-| **$I_{\text{dyn}}(v)$** | `MessageFlowSimulator` | $\text{DeliveryRate}_{\text{pre}} - \text{DeliveryRate}_{\text{post}}$ | **Validate Stage Tier-2** (Targeted behavioral gate) & Runtime flow probe |
-| **$I_{\text{comp}}(v)$** | `FailureSimulator` | $0.35\cdot\text{reach} + 0.25\cdot\text{frag} + 0.25\cdot\text{tp} + 0.15\cdot\text{flow}$ | **Explanatory Layer** & **Prescribe Stage** (`EditVerifier` counterfactual verifier) |
-| **$I_M(v)$** | `ChangePropagationSimulator` | $0.45\,\text{Reach} + 0.35\,\text{Impact} + 0.20\,\text{Depth}$ | **Explanatory Layer** (Maintainability) & **Validate Stage** (Maintainability reference) |
-| **$I_{\text{edge}}(u,v)$** | `FailureSimulator` | $\bar{I}_{\text{comp}}(G \setminus \{e\}) - \bar{I}_{\text{comp}}(G)$ | **Prescribe / Explain Stage** (Dependency severance verification) |
+| **$I^*(v)$** | `FaultInjector` | Mean subscriber feed-loss across seeds | GNN training labels, LOSO benchmarks, CLI validation gates |
+| **$I_{\text{comp}}(v)$** | `FailureSimulator` | $0.35\cdot\text{reach} + 0.25\cdot\text{frag} + 0.25\cdot\text{tp} + 0.15\cdot\text{flow}$ | Library validation gates G1–G6, G8, prescriptive `EditVerifier` |
+| **$I_{\text{dyn}}(v)$** | `MessageFlowSimulator` | $\text{DeliveryRate}_{\text{pre}} - \text{DeliveryRate}_{\text{post}}$ | Independent convergent-validity probe (Table 13) |
+| **$I_M(v)$** | `ChangePropagationSimulator` | $0.45\,\text{Reach} + 0.35\,\text{Impact} + 0.20\,\text{Depth}$ | Structural maintainability reference on $G^\top$ |
+| **$I_{\text{edge}}(u,v)$** | `FailureSimulator` | $\bar{I}_{\text{comp}}(G \setminus \{e\}) - \bar{I}_{\text{comp}}(G)$ | Prescribe stage edge severance verification |
 
 - **Dimension Coverage**: $I^*(v)$ is an external observable metric covering Reliability ($IR$). Maintainability ($IM$) is assessed via change-propagation BFS over $G^{\mathsf T}$ as an internal structural consistency check.
-- **Engine Separation**: The engines are strictly separated by contract ([`tests/test_groundtruth_contract.py`](../tests/test_groundtruth_contract.py)) and maintain distinct canonical responsibilities across pipeline stages.
+- **Engine Separation**: The two engines are strictly separated by contract ([`tests/test_groundtruth_contract.py`](../tests/test_groundtruth_contract.py)) and must not be mixed within the same evaluation stage.
+
 
 ### 3.2 Oracle Convergence & The Behavioral Oracle ($I_{\text{dyn}}(v)$)
 

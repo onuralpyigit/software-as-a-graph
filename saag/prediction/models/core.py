@@ -607,7 +607,7 @@ class CriticalityLoss(nn.Module):
     def _pairwise_margin_loss(
         scores: Tensor, targets: Tensor, margin: float = 0.05
     ) -> Tensor:
-        """For all pairs (i,j) where target_i > target_j, penalize score_i < score_j + margin."""
+        """For all pairs (i,j) where target_i - target_j > margin, penalize score_i < score_j + margin."""
         n = scores.shape[0]
         if n < 2:
             return torch.tensor(0.0, device=scores.device)

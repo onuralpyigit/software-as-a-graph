@@ -43,18 +43,15 @@ def test_impact_scores_schema(tmp_path):
         )
 
 
-#: The engine that labels nodes for the Predict stage and powers Tier-1 Validation.
+#: The engine that labels nodes for the Predict stage and CLI validation harness.
 #: FaultInjector produces deterministic, multi-seed I*(v) labels with variance.
 CANONICAL_LABELER = "FaultInjector"
 CANONICAL_PREDICT_LABELER = "FaultInjector"
-CANONICAL_TIER1_VALIDATION_ORACLE = "FaultInjector"
-CANONICAL_TIER2_VALIDATION_ORACLE = "MessageFlowSimulator"
-CANONICAL_EXPLANATION_ORACLE = "FailureSimulator"
-CANONICAL_PRESCRIBE_VERIFIER = "FailureSimulator"
-CANONICAL_MAINTAINABILITY_REFERENCE = "ChangePropagationSimulator"
 
-#: The engine that supplies the Explanatory Layer and Prescribe verification.
+#: The engine that supplies the Library Validation stage (ValidationService)
+#: and Prescribe-stage counterfactual verification (EditVerifier).
 CANONICAL_VALIDATION_ORACLE = "FailureSimulator"
+
 
 
 def _build_labeled_artifact(tmp_path):
@@ -177,26 +174,51 @@ def test_validation_oracle_is_the_other_engine():
     assert "run_failure_simulation_exhaustive" in src, (
         "validation must source its oracle from FailureSimulator's exhaustive sweep"
     )
+    assert "FaultInjector" not in src, (
+        "ValidationService must not import or use FaultInjector directly"
+    )
     assert CANONICAL_VALIDATION_ORACLE != CANONICAL_LABELER, (
         "labeler and validation oracle must stay distinct engines"
     )
 
 
-def test_reorganized_stage_engine_contracts():
-    """Pin the reorganized stage-to-engine taxonomy contract.
-    
-    - Predict Stage: FaultInjector (supervised labels I*(v))
-    - Validate Stage Tier-1: FaultInjector (core blocking gate)
-    - Validate Stage Tier-2: MessageFlowSimulator (targeted behavioral gate)
-    - Explanatory Layer: FailureSimulator (ISO/IEC quality gates)
-    - Prescribe Stage: FailureSimulator (remediation verifier)
-    - Maintainability Reference: ChangePropagationSimulator (IM(v) on G^T)
+def test_input_label_independence_guarantee():
+    """Pathway A (DiagnosticUseCase & Triage) must NEVER import saag.simulation.
+
+    Enforces the core methodological invariant that the Explanation Layer
+    operates strictly deterministically on graph topology and declared QoS contracts
+    without runtime access to simulation data.
     """
-    assert CANONICAL_PREDICT_LABELER == "FaultInjector"
-    assert CANONICAL_TIER1_VALIDATION_ORACLE == "FaultInjector"
-    assert CANONICAL_TIER2_VALIDATION_ORACLE == "MessageFlowSimulator"
-    assert CANONICAL_EXPLANATION_ORACLE == "FailureSimulator"
-    assert CANONICAL_PRESCRIBE_VERIFIER == "FailureSimulator"
-    assert CANONICAL_MAINTAINABILITY_REFERENCE == "ChangePropagationSimulator"
-    assert CANONICAL_TIER1_VALIDATION_ORACLE != CANONICAL_TIER2_VALIDATION_ORACLE
+    import ast
+
+    def check_no_simulation_imports(module_path: str):
+        with open(module_path, "r") as f:
+            tree = ast.parse(f.read(), filename=module_path)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    assert not alias.name.startswith("saag.simulation"), (
+                        f"{module_path} violates independence guarantee: imports {alias.name}"
+                    )
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    assert not node.module.startswith("saag.simulation"), (
+                        f"{module_path} violates independence guarantee: imports from {node.module}"
+                    )
+
+    check_no_simulation_imports("saag/usecases/diagnostic.py")
+    check_no_simulation_imports("saag/analysis/triage.py")
+
+
+def test_prescription_evaluator_uses_failure_simulator():
+    """GraphEvaluator in prescription must invoke FailureSimulator for counterfactual sweeps."""
+    import inspect
+
+    from saag.prescription import evaluator
+
+    src = inspect.getsource(evaluator.GraphEvaluator)
+    assert "run_failure_simulation_exhaustive" in src, (
+        "Prescription verification must be grounded in FailureSimulator sweeps"
+    )
+
 

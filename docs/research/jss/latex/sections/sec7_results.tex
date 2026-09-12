@@ -6,7 +6,24 @@ This section presents empirical results for RQ1--RQ5 across the twelve-fold indu
 \subsection{RQ1: Graph Learning vs.\ Structural Baselines}
 \label{sec:7.1}
 
+% ── EDITORIAL NOTE (internal, remove once resolved) ──────────────────────────
+% Table 6/7 (tab:5/tab:6) below reports the original 7-scenario in-distribution
+% matrix. notebooks/train_gnn_colab.ipynb (commit d4a2ca1) now runs all 12
+% scenarios (these 7 plus atm_system, telecom_ran_system,
+% industrial_scada_system, realtime_gaming_system, logistics_fleet_system) for
+% a 360-cell matrix, matching LOSO's existing 12-fold coverage. Once that GPU
+% run completes, reconcile results/main_table.json against this section via
+% reproduce/reconcile_manuscript.py and update Table 6/7, the Mean/Wilcoxon
+% statistics, and the RQ2 in-distribution prose below (which quotes numbers
+% computed over exactly these 7 scenarios, e.g. "HGT-QoS reaches rho = 0.630
+% against GAT-N-QoS's 0.653") together -- they would otherwise go stale
+% independently of the table itself. Do not edit "seven" to "twelve" anywhere
+% in this subsection until that reconciliation happens; doing so without the
+% real 12-scenario numbers would leave prose and table internally
+% inconsistent.
+% ──────────────────────────────────────────────────────────────────────────
 Table~\ref{tab:5} presents in-distribution held-out Spearman rank correlation ($\rho$) against simulated cascade impact $I^*(v)$ across seven representative distributed architecture domains.
+
 
 \begin{table}[htbp]
 \centering
@@ -190,6 +207,7 @@ The encodings also improve optimization reproducibility, though less symmetrical
 \paragraph{QoS Parameter Variance} Modal QoS shares range from 29\% to 89\% across the twelve scenarios (Supplementary Section~S5), ensuring that every fold carries genuine variation in declared reliability, durability, and priority. As noted in Section~\ref{sec:4.1.1}, three schema dimensions (\texttt{has\_deadline}, \texttt{deadline\_ns\_log}, \texttt{max\_blocking\_ms\_log}) remain zero throughout the corpus as reserved extension points; reported gains stem from the four active dimensions alone.
 
 \subsubsection{Convergent Validity Over Simulation Oracles}
+\label{sec:7.3.convergent}
 
 We evaluated inter-oracle agreement across $I^*(v)$ (\texttt{FaultInjector}), $I_{\text{comp}}(v)$ (\texttt{FailureSimulator}), and $I_{\text{dyn}}(v)$ (\texttt{MessageFlowSimulator}) over the twelve inductive folds of Table~\ref{tab:2}, summarized in Table~\ref{tab:8c}:
 
