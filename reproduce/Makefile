@@ -277,6 +277,15 @@ jss-figS1:
 	$(PYTHON) reproduce/render_shrinkage_figure.py
 	@echo "✓ Figure S1 (AHP shrinkage sensitivity) ready."
 
+# NOTE: no --checkpoint is passed, and that is not an oversight -- it is what
+# Supplementary S8 now documents. extract_attention.py falls back to training a
+# fresh 3-layer, 100-epoch model on atm_system alone (seed 42); the LOSO
+# checkpoints cannot be loaded here (40-relation schema vs this topology's 32,
+# 2 layers vs 3, and Library publish/subscribe relations the ATM graph lacks).
+# The extraction is deterministic, but its output tracks the corpus: the Sep-10
+# regeneration moved USES (Lib->Lib) from 0.225 to 0.169 on an unchanged model
+# recipe. Re-run this target whenever data/scenarios/atm_system.json changes,
+# and re-check the relation-type figures quoted in S8.
 jss-figS2:
 	$(PYTHON) reproduce/extract_attention.py \
 	    --scenario atm_system \

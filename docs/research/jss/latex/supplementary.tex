@@ -236,19 +236,22 @@ We evaluated the framework on five open-source distributed systems transcribed f
 \section{HGT Relational Attention Weight Analysis}
 \label{supp:attention}
 
-Figure~\ref{fig:S2} visualizes the relational mutual attention distributions extracted from the trained Heterogeneous Graph Transformer on the ATM case study architecture across one random seed.
+Figure~\ref{fig:S2} visualizes the relational mutual attention distributions of a Heterogeneous Graph Transformer on the ATM case study architecture. \emph{The model is not the predictor evaluated elsewhere in this paper.} It is a three-layer, four-head HGT trained for 100 epochs on the ATM scenario alone at seed 42, built by \texttt{reproduce/extract\_attention.py} for this figure and discarded afterwards. The LOSO-evaluated checkpoints cannot stand in: they are trained over the full corpus, carry a 40-relation schema against this topology's 32, include \texttt{Library} publish and subscribe relations the ATM graph does not contain, and are two layers deep rather than three. Nothing below therefore speaks to what the evaluated predictor attends to; it speaks to whether typed attention differentiates at all.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.75\linewidth]{figures/Figure_S2}
-\caption{Relational attention from the trained HGT on the ATM case study (seed 42). Mean $\alpha$ spans $0.15$--$0.23$ across relation types and is driven substantially by in-degree artifacts. This serves as a qualitative illustration on one topology rather than evidence of general relation prioritization.}
+\caption{Relational attention on the ATM case study, from a three-layer HGT trained for 100 epochs on this scenario alone (seed 42) --- not the predictor evaluated in Sections 7.1--7.4 of the main manuscript. Mean $\alpha$ spans $0.113$--$0.222$ across the eight relation types and is governed substantially by destination in-degree. A qualitative illustration on one topology, not evidence of general relation prioritization.}
 \label{fig:S2}
 \end{figure}
 
-Aggregated by relation type over the ATM case study, first-layer mean attention orders \texttt{USES} into libraries ($0.227$, $0.215$) above \texttt{ROUTES} ($0.194$), \texttt{SUBSCRIBES\_TO} ($0.176$), \texttt{PUBLISHES\_TO} ($0.163$) and \texttt{RUNS\_ON} ($0.153$), with the same ordering to within $0.02$ in layers two and three. Two methodological cautions bound what this visualization supports:
+\begin{sloppypar}
+Aggregated by relation type, first-layer mean attention across all eight relations runs: \texttt{USES} (App$\to$Lib) $0.220$; \texttt{ROUTES} $0.187$; \texttt{SUBSCRIBES\_TO} $0.172$; \texttt{USES} (Lib$\to$Lib) $0.169$; \texttt{PUBLISHES\_TO} $0.160$; \texttt{RUNS\_ON} (App$\to$Node) $0.156$; \texttt{CONNECTS\_TO} $0.135$; and \texttt{RUNS\_ON} (Broker$\to$Node) $0.113$. Across the three layers no relation-type mean moves by more than $0.019$, but the rank order is \emph{not} stable: the four relations between $0.15$ and $0.18$ are spaced more closely than that drift, and they permute between layers. Three methodological cautions bound what this visualization supports:
+\end{sloppypar}
 \begin{enumerate}
-    \item The spread across all eight relation types is narrow ($0.15$--$0.23$), indicating a mild distributional tendency rather than a clear-cut structural separation.
-    \item Because $\alpha$ is computed as a softmax over each destination node's incoming neighborhood $\mathcal{N}(v)$, the mean attention weight $\alpha$ is substantially governed by local in-degree. For instance, the top-ranked \texttt{Library}$\to$\texttt{Library} relation carries only 4 edges in total, and the maximum attention weight ($\alpha_{uv} = 1.00$) occurs at a destination node of in-degree one, where $\alpha = 1.0$ holds by mathematical necessity.
+    \item The spread across all eight relation types is narrow ($0.113$--$0.222$, and only $0.156$--$0.220$ among the five carrying more than nine edges), indicating a mild distributional tendency rather than a clear-cut structural separation.
+    \item Because $\alpha$ is computed as a softmax over each destination node's incoming neighborhood $\mathcal{N}(v)$, the mean attention weight $\alpha$ is substantially governed by local in-degree. The single largest weight in the whole extraction ($\alpha_{uv} = 1.00$, on a \texttt{USES} edge into a library) lands on a destination of in-degree one, where $\alpha = 1.0$ holds by arithmetic and carries no information. The thinnest relations sit at the extremes of the ordering: \texttt{USES} (Lib$\to$Lib) carries 3 edges and \texttt{RUNS\_ON} (Broker$\to$Node) carries 5, against 85 for \texttt{SUBSCRIBES\_TO}.
+    \item The figure is a function of the corpus snapshot, not a stable property of the architecture. Regenerating the ATM topology changed its edge set without changing any entity count (\texttt{PUBLISHES\_TO} $56 \to 48$, \texttt{SUBSCRIBES\_TO} $90 \to 85$, \texttt{ROUTES} $36 \to 37$, \texttt{CONNECTS\_TO} $7 \to 9$), and that alone moved \texttt{USES} (Lib$\to$Lib) from $0.225$ to $0.169$ --- from above \texttt{ROUTES} to below it. The extraction itself is deterministic, so the whole of that shift is input sensitivity on a 74-node graph.
 \end{enumerate}
 Consequently, Figure~\ref{fig:S2} serves as an illustrative artifact confirming that multi-head heterogeneous attention remains active across relation types, rather than a statistical proof of general relational importance.
 
