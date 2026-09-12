@@ -861,7 +861,7 @@ def render_table4kfold_md(kfold_data: Dict, output: Path):
 
 def parse_args():
     p = argparse.ArgumentParser(description="Block C/E: Render LaTeX/CSV/MD tables.")
-    p.add_argument("--table3", type=Path, default=_RESULTS_DIR / "main_table_v3.json",
+    p.add_argument("--table3", type=Path, default=_RESULTS_DIR / "main_table.json",
                    help="Path to main_table.json (Block C output)")
     p.add_argument("--table-controls", type=Path, default=None,
                    help="LOSO artifact to render the Section 7.2.1 RQ2 controls "

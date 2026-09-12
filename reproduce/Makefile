@@ -85,18 +85,21 @@ block0:
 # Block C: Table 3 (JSS Table 5) — 7 core domains × 6 variants × 5 seeds = 210 runs
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Writes the VERSIONED artifact the manuscript is reconciled against. It used
-# to write results/main_table.json, an unversioned working file that an
-# interrupted run left holding two smoke-test cells -- which render_table.py
-# then turned into an all-0.500 "results" table. --resume makes this idempotent.
+# Writes results/main_table.json, which reconcile_manuscript.py reads as the
+# backing artifact for Table 5. Keep the three in sync: this target's --output,
+# render_table.py's --table3 default, and reconcile_manuscript.py's --main-table
+# default. An interrupted run once left two smoke-test cells in this file and
+# render_table.py turned them into an all-0.500 "results" table (quarantined in
+# results/superseded/); the reconciler now refuses any artifact under 42 cells,
+# and --resume makes this target idempotent.
 table3: block0
 	$(PYTHON) reproduce/main_table.py \
-	    --output $(RESULTS_DIR)/main_table_v3.json \
+	    --output $(RESULTS_DIR)/main_table.json \
 	    --seeds $(SEEDS_LIST) \
 	    --epochs $(EPOCHS) \
 	    --resume
 	$(PYTHON) reproduce/render_table.py \
-	    --table3 $(RESULTS_DIR)/main_table_v3.json \
+	    --table3 $(RESULTS_DIR)/main_table.json \
 	    --table4 $(RESULTS_DIR)/loso_all_variants_v4.json \
 	    --output-dir $(RESULTS_DIR)
 	@echo "✓ Table 3 ready: $(RESULTS_DIR)/table3_main_results.tex"
