@@ -46,6 +46,19 @@ BASELINE = "topo_qos"
 PRIMARY = ("hgl_qos", BASELINE)
 SECONDARY = ("hgl", BASELINE)
 
+#: RQ2 confound controls, each pairing HGT-QoS against an arm that differs from
+#: it in exactly one respect (PREREGISTRATION.md, Amendment 2). Post-hoc and so
+#: Holm-corrected inside their own family -- pooling them with the two
+#: pre-registered contrasts would penalise those for questions asked later.
+#: Each is skipped silently when the artifact lacks the arm, so a sweep that
+#: ran only the manuscript variants produces exactly its previous output.
+CONTROL_CONTRASTS = (
+    ("hgl_qos", "gl_full_qos_cap", "capacity"),
+    ("hgl_qos", "gl_full_qos16_cap", "edge_channel"),
+    ("hgl_qos", "hgl_qos_uni", "directionality"),
+    ("hgl", "gl_full_cap", "capacity_qos_off"),
+)
+
 
 def attainable_floor(n: int) -> float:
     """Smallest two-sided p a signed-rank test on ``n`` pairs can produce."""
@@ -223,6 +236,21 @@ def main() -> int:
     for r in exploratory:
         r["role"] = "exploratory"
 
+    controls = []
+    for a, b, what in CONTROL_CONTRASTS:
+        if a not in table or b not in table:
+            continue
+        r = compare(table, a, b)
+        if not r:
+            continue
+        r["role"] = "control"
+        r["controls_for"] = what
+        r["not_preregistered"] = True
+        controls.append(r)
+    # Corrected within the control family only, per Amendment 2.
+    if controls:
+        holm(controls)
+
     n = family[0]["n_folds"]
     print(f"\n  Pre-registered LOSO comparisons vs "
           f"{family[0]['baseline_label']}   (n = {n} folds)")
@@ -232,7 +260,7 @@ def main() -> int:
     print("  " + "─" * 78)
     print(f"  {'variant':<12}{'role':<13}{'d rho':>9}{'wins':>7}{'W':>7}"
           f"{'p':>9}{'p_holm':>9}")
-    for r in family + exploratory:
+    for r in family + exploratory + controls:
         holm_s = f"{r['p_holm']:.4f}" if "p_holm" in r else "—"
         print(f"  {r['label']:<12}{r['role']:<13}{r['mean_delta']:>+9.4f}"
               f"{r['wins']:>4}/{r['n_folds']:<2}{r['W']:>7.1f}"
@@ -273,6 +301,8 @@ def main() -> int:
         "loss_budget_at_alpha": loss_budget(n, args.alpha),
         "preregistered": family,
         "exploratory": exploratory,
+        # Post-hoc RQ2 confound controls; Holm-corrected within this list only.
+        "rq2_controls": controls,
         "qos_stratified_ablation": stratified,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

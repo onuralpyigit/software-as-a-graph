@@ -297,3 +297,176 @@ class TestBaselineTraining:
         assert len(history["train_loss"]) > 0
         assert not any(torch.isnan(torch.tensor(l)) for l in history["train_loss"]), \
             f"NaN loss detected in {variant} training"
+
+
+# ── RQ2 confound controls ────────────────────────────────────────────────────
+# Section 7.2 of the JSS manuscript attributed the typed-vs-untyped LOSO margin
+# to "relational typing rather than to substrate, training set, depth, or
+# selection rule". That list omitted parameter count, and the gap was 15.4x:
+# HGT carried 434,620 parameters against GAT-N-QoS's 28,168. These tests pin the
+# control arms that close it, and pin the gap itself so the omission cannot
+# quietly return.
+
+#: Relation triples of the LOSO primary training graph (enterprise_system in 11
+#: of 12 folds, iot_smart_city_system in the twelfth -- both 10-triple). HGTConv
+#: allocates per-relation parameters, so HGT's size depends on this set and the
+#: control widths are only correct for it. test_corpus_relations_unchanged
+#: fails if the corpus drifts away from it.
+_NATIVE_RELATIONS = [
+    ("Application", "SUBSCRIBES_TO", "Topic"),
+    ("Application", "RUNS_ON", "Node"),
+    ("Application", "USES", "Library"),
+    ("Application", "PUBLISHES_TO", "Topic"),
+    ("Broker", "ROUTES", "Topic"),
+    ("Broker", "RUNS_ON", "Node"),
+    ("Node", "CONNECTS_TO", "Node"),
+    ("Library", "PUBLISHES_TO", "Topic"),
+    ("Library", "SUBSCRIBES_TO", "Topic"),
+    ("Library", "USES", "Library"),
+]
+_NODE_TYPES = ["Application", "Library", "Broker", "Topic", "Node"]
+
+#: HGT's parameter count on that metadata at the shipped hyperparameters
+#: (D=64, H=4, 3 layers, bidirectional). A declared constant of the experiment.
+_HGT_PARAMS = 434_620
+
+
+def _n_params(model) -> int:
+    return sum(p.numel() for p in model.parameters())
+
+
+def _build_hgt(**kwargs):
+    from saag.prediction.models.core import NodeCriticalityGNN
+    return NodeCriticalityGNN((_NODE_TYPES, _NATIVE_RELATIONS), **kwargs)
+
+
+class TestControlArmCapacityParity:
+    """The control arms must actually match HGT's parameter budget."""
+
+    def test_hgt_parameter_count_is_the_declared_constant(self):
+        assert _n_params(_build_hgt()) == _HGT_PARAMS, (
+            "HGT's parameter count moved. Every control-arm width in "
+            "saag/evaluation/variant_registry.py was derived from it and must "
+            "be re-derived."
+        )
+
+    def test_published_untyped_arm_is_a_fraction_of_the_typed_one(self):
+        """The confound this whole control set exists to remove.
+
+        Not a regression guard -- a record. If this ratio ever approaches 1 the
+        published comparison was capacity-matched after all and Section 7.2
+        needs rewriting in the opposite direction.
+        """
+        from saag.prediction.models.baselines import build_baseline
+        published = _n_params(build_baseline("homo_scalar", hidden_channels=64))
+        assert published == 28_168
+        assert _HGT_PARAMS / published > 10, (
+            "The published GAT-N-QoS/HGT comparison was not capacity-matched; "
+            f"ratio is {_HGT_PARAMS / published:.1f}x."
+        )
+
+    @pytest.mark.parametrize("variant_id", [
+        "gl_full_cap", "gl_full_qos_cap", "gl_full_qos16_cap",
+    ])
+    def test_control_arms_match_hgt_within_five_percent(self, variant_id):
+        from saag.prediction.models.baselines import build_baseline
+        from saag.evaluation import variant_registry as registry
+
+        edge_dim = registry.edge_dim(variant_id)
+        name = "homo_unweighted" if edge_dim is None else "homo_scalar"
+        model = build_baseline(
+            name,
+            hidden_channels=registry.hidden_for(variant_id, 64),
+            edge_dim=edge_dim,
+        )
+        ratio = _n_params(model) / _HGT_PARAMS
+        assert 0.95 <= ratio <= 1.05, (
+            f"{variant_id} is {ratio:.3f}x HGT ({_n_params(model):,} params); "
+            "it is supposed to be a capacity-matched control."
+        )
+
+    def test_directionality_control_drops_only_the_reverse_pass(self):
+        uni = _build_hgt(use_bidirectional=False)
+        assert uni.rev_conv is None
+        delta = _HGT_PARAMS - _n_params(uni)
+        assert delta == 103_725, (
+            "The reverse pass's parameter cost changed; the directionality "
+            "control no longer isolates what it claims to."
+        )
+
+    def test_registry_overrides_are_no_ops_for_reported_variants(self):
+        """Threading the registry through the harnesses must not move a number.
+
+        Every variant the manuscript reports has to resolve to the harness's own
+        --hidden and to a bidirectional HGT, or wiring these accessors into
+        main_table/loso_evaluate/kfold_evaluate would silently re-baseline
+        published results.
+        """
+        from saag.evaluation import variant_registry as registry
+        reported = [
+            v for v, spec in registry.VARIANTS.items() if spec.family != "control"
+        ]
+        assert len(reported) == 9
+        for v in reported:
+            assert registry.hidden_for(v, 64) == 64, v
+            assert registry.hidden_for(v, 128) == 128, v
+            assert registry.bidirectional_for(v) is True, v
+
+    def test_corpus_relations_unchanged(self):
+        """Guards the widths against corpus drift.
+
+        Skipped without a populated cache, because it reads the real corpus
+        rather than a fixture -- that is the point.
+        """
+        from pathlib import Path
+        cache = Path("output/loso_cache/enterprise_system")
+        if not cache.exists():
+            pytest.skip("output/loso_cache not populated")
+        from cli.loso_evaluate import load_scenario_bundle
+        bundle = load_scenario_bundle(cache)
+        if bundle is None:
+            pytest.skip("enterprise_system bundle unavailable")
+        node_types, edge_types = bundle.hetero_data.metadata()
+        assert set(node_types) == set(_NODE_TYPES)
+        assert set(edge_types) == set(_NATIVE_RELATIONS), (
+            "The corpus's relation set changed. HGT's parameter count depends "
+            "on it, so the control-arm widths in variant_registry.py must be "
+            "re-derived before the comparison means anything."
+        )
+
+
+class TestEdgeChannelWidth:
+    """edge_dim must actually change what the model reads, not just allocate."""
+
+    @staticmethod
+    def _probe(edge_dim):
+        import torch
+        from saag.prediction.models.baselines import build_baseline
+        from saag.prediction.data_preparation import EDGE_FEATURE_DIM
+        rel = ("Application", "PUBLISHES_TO", "Topic")
+        x = {"Application": torch.randn(6, 23), "Topic": torch.randn(4, 22)}
+        # Four publishers into ONE topic: GATConv softmax-normalises attention
+        # over incoming edges, so with a single incoming edge the edge features
+        # cancel out entirely and this probe would pass vacuously.
+        ei = {rel: torch.tensor([[0, 1, 2, 3], [0, 0, 0, 0]])}
+        torch.manual_seed(1)
+        full = torch.rand(4, EDGE_FEATURE_DIM)
+        blanked = full.clone()
+        blanked[:, 9:] = 0.0          # the QoS block
+        torch.manual_seed(0)
+        model = build_baseline(
+            "homo_scalar", hidden_channels=16, num_heads=4, edge_dim=edge_dim
+        ).eval()
+        with torch.no_grad():
+            a = model(x, ei, {rel: full})["Topic"]
+            b = model(x, ei, {rel: blanked})["Topic"]
+        return (a - b).abs().max().item()
+
+    def test_scalar_channel_ignores_the_qos_block(self):
+        assert self._probe(1) == 0.0
+
+    def test_sixteen_dim_channel_reads_the_qos_block(self):
+        assert self._probe(16) > 1e-6, (
+            "edge_dim=16 does not respond to QoS dims 9-15, so the RQ2 "
+            "edge-channel control is not controlling anything."
+        )

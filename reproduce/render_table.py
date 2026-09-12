@@ -637,6 +637,108 @@ def render_table4_md(loso_data: Dict, output: Path):
     print(f"  Saved Markdown Table 4: {output}")
 
 
+
+# ── Table: RQ2 confound controls ─────────────────────────────────────────────
+# A separate table rather than extra columns on Table 4, because these arms are
+# not manuscript columns and because the column that matters here -- parameter
+# count -- has no place in Table 4. The absence of that column is precisely
+# what let the capacity confound survive internal review, so it is mandatory
+# here: a controls table without it does not answer the question it was built
+# to answer.
+
+#: The RQ2 comparison order: the proposed model first, then the arm it was
+#: originally compared against, then one control per confound.
+_CONTROL_TABLE_ORDER = [
+    "hgl_qos", "gl_full_qos", "gl_full_qos_cap", "gl_full_qos16_cap",
+    "hgl_qos_uni", "hgl", "gl_full_cap",
+]
+
+
+def _variant_param_count(variant_id: str) -> Optional[int]:
+    """Parameters this variant trains with, or None if it cannot be built here.
+
+    Counted against the LOSO primary graph's relation set, which is what
+    tests/test_baselines.py::TestControlArmCapacityParity pins.
+    """
+    try:
+        from saag.prediction.models.baselines import build_baseline
+        from saag.prediction.models.core import NodeCriticalityGNN
+        from saag.prediction.data_preparation import NODE_TYPE_TO_DIM
+    except Exception:
+        return None
+
+    node_types = ["Application", "Library", "Broker", "Topic", "Node"]
+    relations = [
+        ("Application", "SUBSCRIBES_TO", "Topic"), ("Application", "RUNS_ON", "Node"),
+        ("Application", "USES", "Library"), ("Application", "PUBLISHES_TO", "Topic"),
+        ("Broker", "ROUTES", "Topic"), ("Broker", "RUNS_ON", "Node"),
+        ("Node", "CONNECTS_TO", "Node"), ("Library", "PUBLISHES_TO", "Topic"),
+        ("Library", "SUBSCRIBES_TO", "Topic"), ("Library", "USES", "Library"),
+    ]
+    spec = _registry.VARIANTS.get(variant_id)
+    if spec is None or spec.substrate == "none":
+        return None
+    try:
+        if spec.family == "heterogeneous" or variant_id.startswith("hgl"):
+            model = NodeCriticalityGNN(
+                (node_types, relations),
+                use_bidirectional=_registry.bidirectional_for(variant_id),
+            )
+        else:
+            edge_dim = _registry.edge_dim(variant_id, "loso")
+            model = build_baseline(
+                "homo_unweighted" if edge_dim is None else "homo_scalar",
+                node_type_dims=NODE_TYPE_TO_DIM,
+                hidden_channels=_registry.hidden_for(variant_id, 64, "loso"),
+                edge_dim=edge_dim,
+            )
+        return sum(q.numel() for q in model.parameters())
+    except Exception:
+        return None
+
+
+def render_rq2_controls_md(loso_data: Dict, output: Path):
+    """Section 7.2.1 controls table: one row per arm, with its parameter count."""
+    table = loso_data.get("comparison_table", {})
+    present = [v for v in _CONTROL_TABLE_ORDER if v in table]
+    if not present:
+        print("  [RQ2 controls] no control arms in this artifact; skipping")
+        return
+
+    rows = [
+        "| Arm | Controls for | Params | Mean ρ | Fold σ | F1@K |",
+        "|---|---|---|---|---|---|",
+    ]
+    def _fmt(value, spec_fmt):
+        return format(value, spec_fmt) if value is not None else "—"
+
+    for var in present:
+        r = table[var]
+        cells = [
+            _registry.label(var, harness="loso"),
+            _registry.VARIANTS[var].control_for or "—",
+            _fmt(_variant_param_count(var), ","),
+            _fmt(r.get("mean_rho"), ".4f"),
+            _fmt(r.get("std_rho"), ".4f"),
+            _fmt(r.get("mean_f1"), ".4f"),
+        ]
+        rows.append("| " + " | ".join(cells) + " |")
+
+    missing = [v for v in _CONTROL_TABLE_ORDER if v not in table]
+    if missing:
+        rows.append("")
+        rows.append(
+            "Arms not present in this artifact: "
+            + ", ".join(_registry.label(v, harness="loso") for v in missing)
+            + ". Absent arms were not run; none was dropped for its result "
+            "(PREREGISTRATION.md, Amendment 2)."
+        )
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("\n".join(rows) + "\n")
+    print(f"  Saved RQ2 controls table: {output}")
+
+
 # ── Table: per-domain k-fold results (5 variants) ────────────────────────────
 
 def render_table4kfold_tex(kfold_data: Dict, output: Path):
@@ -723,6 +825,10 @@ def parse_args():
     p = argparse.ArgumentParser(description="Block C/E: Render LaTeX/CSV/MD tables.")
     p.add_argument("--table3", type=Path, default=_RESULTS_DIR / "main_table.json",
                    help="Path to main_table.json (Block C output)")
+    p.add_argument("--table-controls", type=Path, default=None,
+                   help="LOSO artifact to render the Section 7.2.1 RQ2 controls "
+                        "table from (results/table_rq2_controls.md). Skipped "
+                        "when the artifact carries no control arms.")
     p.add_argument("--table4", type=Path, default=_RESULTS_DIR / "loso_all_variants.json",
                    help="Path to loso_all_variants.json (Block E output)")
     p.add_argument("--table-kfold", type=Path, default=_RESULTS_DIR / "kfold_all_variants.json",
@@ -787,6 +893,13 @@ def main():
         print("  Run: python reproduce/main_table.py")
 
     # ── Table 4 ───────────────────────────────────────────────────────────────
+    if args.table_controls is not None and args.table_controls.exists():
+        print(f"\n  [RQ2 controls] {args.table_controls}")
+        render_rq2_controls_md(
+            json.loads(args.table_controls.read_text()),
+            args.output_dir / "table_rq2_controls.md",
+        )
+
     if args.table4.exists():
         print(f"\n  [Table 4] {args.table4}")
         loso_data = json.loads(args.table4.read_text())

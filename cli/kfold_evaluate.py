@@ -73,6 +73,7 @@ import torch
 
 # ── SaG SDK imports ──────────────────────────────────────────────────────────
 from saag.prediction.gnn_service import GNNService
+from saag.evaluation import variant_registry as _registry
 from saag.prediction.data_preparation import (
     networkx_to_hetero_data,
     create_kfold_masks,
@@ -133,6 +134,17 @@ class KFoldReport:
 # Single-scenario k-fold execution
 # ──────────────────────────────────────────────────────────────────────────────
 
+#: Dispatch membership, mirroring cli/loso_evaluate.py. See that module's
+#: comment for why the final branch is not a bare ``else`` and why
+#: ``topology_rm`` sits with the HGT ids.
+_STRUCTURAL_VARIANTS = ("topo_baseline", "topo_qos")
+_HOMOGENEOUS_VARIANTS = (
+    "gl", "gl_qos", "gl_full_cap", "gl_full_qos_cap", "gl_full_qos16_cap",
+)
+_HGT_VARIANTS = ("hgl", "hgl_qos", "hgl_qos_uni", "topology_rm")
+KNOWN_VARIANTS = _STRUCTURAL_VARIANTS + _HOMOGENEOUS_VARIANTS + _HGT_VARIANTS
+
+
 def _test_node_ids(data, node_id_map: Dict[str, List[str]]) -> set:
     """Node ids whose test_mask is True across all node stores."""
     ids = set()
@@ -174,6 +186,15 @@ def run_one_scenario(
     device: Optional[str] = "auto",
 ) -> ScenarioResult:
     """Repeated stratified k-fold within a single scenario's own graph."""
+    # Pre-flight, before any state is touched: the dispatch below sits inside a
+    # per-seed try/except that logs and continues, so an unknown id would
+    # otherwise surface as a full set of nan folds and a plausible artifact.
+    if variant not in KNOWN_VARIANTS:
+        raise ValueError(
+            f"unrecognised variant {variant!r}; expected one of "
+            f"{sorted(KNOWN_VARIANTS)}"
+        )
+
     if device == "cuda" or (device in ("auto", None) and torch.cuda.is_available()):
         target_device = torch.device("cuda")
     else:
@@ -182,8 +203,12 @@ def run_one_scenario(
     scenario_dir = workdir / bundle.scenario_id
     scenario_dir.mkdir(parents=True, exist_ok=True)
 
-    use_qos = variant in ("hgl_qos", "gl_qos", "topo_qos")
-    if variant in ("hgl", "gl", "topo_baseline"):
+    use_qos = _registry.VARIANTS[variant].qos != "none"
+    # Mask QoS off the graph for the unweighted arms. topology_rm is the one
+    # exception and always has been: it is scored from Q(v), not from the
+    # graph's QoS, and masking would change a published baseline. Preserving
+    # that exemption is why this is not simply `if not use_qos`.
+    if not use_qos and variant != "topology_rm":
         from reproduce.main_table import _mask_qos_in_graph, _mask_qos_in_structural
         train_graph = _mask_qos_in_graph(bundle.graph)
         train_sm = _mask_qos_in_structural(bundle.structural)
@@ -209,7 +234,7 @@ def run_one_scenario(
             ckpt_dir.mkdir(parents=True, exist_ok=True)
 
             try:
-                if variant in ("topo_baseline", "topo_qos"):
+                if variant in _STRUCTURAL_VARIANTS:
                     # Training-free structural centrality: no fit, so the
                     # fold split only selects which nodes are scored. Present
                     # in the table because a learned variant has to beat it.
@@ -254,7 +279,7 @@ def run_one_scenario(
                         if nid in _test_ids
                     }
 
-                elif variant in ("gl", "gl_qos"):
+                elif variant in _HOMOGENEOUS_VARIANTS:
                     from saag.prediction.models.baselines import build_baseline
                     from saag.prediction.trainer import GNNTrainer
 
@@ -265,10 +290,14 @@ def run_one_scenario(
                     data = conv.hetero_data
                     create_kfold_masks(data, k=k, fold_idx=fold_idx, seed=split_seed)
 
-                    baseline_name = "homo_scalar" if variant == "gl_qos" else "homo_unweighted"
+                    # Registry-resolved; identity for every reported variant.
+                    edge_dim = _registry.edge_dim(variant, "kfold")
+                    baseline_name = "homo_unweighted" if edge_dim is None else "homo_scalar"
                     model = build_baseline(
-                        baseline_name, hidden_channels=hidden, num_heads=heads,
-                        num_layers=layers, dropout=dropout,
+                        baseline_name,
+                        hidden_channels=_registry.hidden_for(variant, hidden, "kfold"),
+                        num_heads=heads,
+                        num_layers=layers, dropout=dropout, edge_dim=edge_dim,
                     )
                     model.to(target_device)
                     trainer = GNNTrainer(
@@ -297,8 +326,8 @@ def run_one_scenario(
                             if nid in test_ids and local_idx < preds.shape[0]:
                                 pred_scores[nid] = float(preds[local_idx, 0])
 
-                else:
-                    # hgl_qos (default), hgl, or topology_rm → GNNService path.
+                elif variant in _HGT_VARIANTS:
+                    # hgl_qos (default), hgl, hgl_qos_uni or topology_rm → GNNService.
                     # GNNService.train() always calls (module-level) create_node_splits
                     # internally; monkeypatch it to our fixed k-fold split for the
                     # duration of this call so the rest of GNNService's training/
@@ -324,6 +353,7 @@ def run_one_scenario(
                             predict_edges=False,
                             qos_injection=qos_injection,
                             device=target_device,
+                            use_bidirectional=_registry.bidirectional_for(variant),
                         )
                         service.train(
                             graph=train_graph,
@@ -356,6 +386,13 @@ def run_one_scenario(
                         }
                     finally:
                         gnn_service_mod.create_node_splits = original_splitter
+
+                else:
+                    # Unreachable via the CLI; see cli/loso_evaluate.py.
+                    raise ValueError(
+                        f"unrecognised variant {variant!r}; expected one of "
+                        f"{sorted(KNOWN_VARIANTS)}"
+                    )
 
             except Exception as e:
                 logger.error(
@@ -673,8 +710,7 @@ def parse_args() -> argparse.Namespace:
                    help="Prediction mode for evaluation (default: gnn)")
     p.add_argument(
         "--variant",
-        choices=["hgl_qos", "hgl", "gl_qos", "gl", "topology_rm",
-                 "topo_baseline", "topo_qos"],
+        choices=list(KNOWN_VARIANTS),
         default="hgl_qos",
         help=(
             "Model architecture variant (default: hgl_qos). Display names come "

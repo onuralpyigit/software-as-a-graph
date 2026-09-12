@@ -299,6 +299,7 @@ class GNNService:
         checkpoint_dir: str = "output/gnn_checkpoints",
         device: Optional[torch.device] = None,
         qos_injection: str = "pooled",
+        use_bidirectional: bool = True,
     ):
         self.hidden_channels = hidden_channels
         self.num_heads = num_heads
@@ -306,6 +307,11 @@ class GNNService:
         self.dropout = dropout
         self.predict_edges = predict_edges
         self.qos_injection = qos_injection
+        # Kept as an attribute rather than left to NodeCriticalityGNN's default
+        # so that it round-trips through service_config.json. Without that a
+        # resumed checkpoint silently rebuilds the *other* architecture and
+        # leaves rev_conv.* at random initialisation -- see _load_model_weights.
+        self.use_bidirectional = use_bidirectional
         self.checkpoint_dir = Path(checkpoint_dir)
         self.device = device if device else torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -342,6 +348,7 @@ class GNNService:
             self._edge_model = build_edge_gnn(
                 metadata, self.hidden_channels, self.num_heads, self.num_layers, self.dropout,
                 qos_injection=self.qos_injection,
+                use_bidirectional=self.use_bidirectional,
             )
             self._node_model = self._edge_model.node_gnn
             self._edge_model.to(self.device)
@@ -350,6 +357,7 @@ class GNNService:
             self._node_model = build_node_gnn(
                 metadata, self.hidden_channels, self.num_heads, self.num_layers, self.dropout,
                 qos_injection=self.qos_injection,
+                use_bidirectional=self.use_bidirectional,
             )
             self._node_model.to(self.device)
 
@@ -957,6 +965,11 @@ class GNNService:
                     "num_layers": self.num_layers,
                     "dropout": self.dropout,
                     "predict_edges": self.predict_edges,
+                    # Architecture switches: both change the parameter set, so
+                    # a checkpoint that does not record them cannot be reloaded
+                    # into the model that produced it.
+                    "use_bidirectional": self.use_bidirectional,
+                    "qos_injection": self.qos_injection,
                     "node_feature_dims": NODE_TYPE_TO_DIM,
                     "best_seed": self._best_seed,
                     "layer": self.layer,
@@ -1056,7 +1069,27 @@ class GNNService:
                 if not path.exists():
                     continue
                 sd = torch.load(path, map_location=self.device)
-                model.load_state_dict(sd, strict=False)
+                incompatible = model.load_state_dict(sd, strict=False)
+                # strict=False is deliberate -- it is what lets a checkpoint
+                # survive a node-feature-width change (see _validate_feature_dims).
+                # But it also swallows an architecture mismatch: restoring a
+                # unidirectional checkpoint into a bidirectional model leaves
+                # every rev_conv.* tensor at random initialisation and reports
+                # the result as trained. Missing keys on the node model mean the
+                # config and the weights disagree about what was built.
+                if key == "node" and incompatible.missing_keys:
+                    shown = ", ".join(incompatible.missing_keys[:5])
+                    more = "" if len(incompatible.missing_keys) <= 5 else (
+                        f" (and {len(incompatible.missing_keys) - 5} more)"
+                    )
+                    raise ValueError(
+                        f"Checkpoint '{path}' is missing {len(incompatible.missing_keys)} "
+                        f"parameter(s) the model expects: {shown}{more}. The "
+                        "architecture recorded in service_config.json does not match "
+                        "the saved weights -- check 'use_bidirectional' and "
+                        "'qos_injection'. Loading anyway would score a partly "
+                        "random model and report it as trained."
+                    )
                 logger.info("Loaded %s model from '%s'.", key, path)
                 loaded.append(key)
                 break
@@ -1103,6 +1136,11 @@ class GNNService:
             predict_edges=cfg.get("predict_edges", True),
             checkpoint_dir=str(ckpt_dir),
             device=device,
+            # Defaults match the values in force before these were persisted, so
+            # a pre-existing config without them rebuilds the same architecture
+            # it always did.
+            use_bidirectional=cfg.get("use_bidirectional", True),
+            qos_injection=cfg.get("qos_injection", "pooled"),
         )
         service._best_seed = cfg.get("best_seed", 42)
         service._rank_normalize_features = cfg.get("rank_normalize_features", False)

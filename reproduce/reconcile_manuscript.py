@@ -40,20 +40,39 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from saag.evaluation import variant_registry as _registry  # noqa: E402
+
 SECTIONS = ROOT / "docs/research/jss/latex/sections"
 RESULTS = ROOT / "results"
 CORPUS = ROOT / "data/scenarios"
 
-#: Variant id -> display label, mirroring saag/evaluation/variant_registry.py.
+#: Variant id -> display label under the LOSO harness.
+#:
+#: Derived from saag/evaluation/variant_registry.py rather than hand-copied.
+#: A row whose label is missing here is *skipped* by check_table7_loso, so a
+#: stale hand-written mirror made the reconciler silently report a clean run
+#: over rows it never checked -- the one failure mode this script exists to
+#: prevent. RM keeps its manuscript spelling, which carries maths the registry
+#: label does not.
+#: ``gl_full``/``gl_full_qos`` are excluded: they are in-distribution-only ids,
+#: and under LOSO the registry resolves ``gl``/``gl_qos`` to the same two
+#: labels, so including both sides would put two ids under one label and let
+#: whichever came last win a lookup silently.
 LOSO_LABELS = {
-    "topo_baseline": "Topo",
-    "topo_qos": "Topo-QoS",
-    "topology_rm": "RM / $Q(v)$",
-    "gl": "GAT-N",
-    "gl_qos": "GAT-N-QoS",
-    "hgl": "HGT",
-    "hgl_qos": "HGT-QoS",
+    v: _registry.label(v, harness="loso")
+    for v in _registry.VARIANTS
+    if v not in ("gl_full", "gl_full_qos")
 }
+LOSO_LABELS["topology_rm"] = "RM / $Q(v)$"
+
+if len(set(LOSO_LABELS.values())) != len(LOSO_LABELS):
+    raise RuntimeError(
+        "LOSO_LABELS maps two variant ids to one label; a table row would be "
+        "reconciled against the wrong artifact column."
+    )
 
 
 @dataclass
@@ -312,13 +331,15 @@ def check_freshness(rep: Report) -> None:
     committed topology was computed against a corpus that no longer exists.
     """
     newest_corpus = max(p.stat().st_mtime for p in CORPUS.glob("*_system.json"))
-    for name in ("loso_all_variants_v4.json", "loso_all_variants_v3.json",
+    for name in ("loso_all_variants_v5.json", "controls_main_table_v5.json",
+                 "main_table_v5.json", "loso_noqos_v5.json",
+                 "loso_all_variants_v4.json", "loso_all_variants_v3.json",
                  "main_table_v3.json", "inference_latency_v3.json",
                  "realworld_zeroshot_v4.json", "detection_validation_v3.json",
                  "convergent_validity.json", "topic_weight_sensitivity_v3.json",
                  "weight_global_sensitivity_v3.json", "ahp_shrinkage_sweep_v3.json",
                  "threshold_sensitivity_v3.json", "atm_scale_sweep_v3.json",
-                 "oracle_timing_v4.json"):
+                 "oracle_timing_v4.json", "qos_label_ablation.json"):
         p = RESULTS / name
         if not p.exists():
             continue
@@ -363,6 +384,69 @@ def check_oracle_timing(rep: Report) -> None:
                                         "see text", f"{ratio}x -> 'roughly {expected} times'"))
 
 
+def check_qos_label_ablation(rep: Report) -> None:
+    """Check Section 4.3's claim about how much QoS the primary label carries.
+
+    Prose, and checked for the same reason as the oracle timing above: it is
+    load-bearing. It states that I*(v)'s ordering is almost entirely recoverable
+    without any QoS term, which is what bounds the QoS-encoding gain reported in
+    7.3.1. An unbacked figure here would let a corpus change quietly invalidate
+    the bound while the ablation number it qualifies stayed put.
+    """
+    art = _load("qos_label_ablation.json")
+    if art is None:
+        rep.skipped.append("qos_label_ablation.json absent; 4.3 QoS bound unchecked")
+        return
+
+    blocks = [
+        s["label_rank_agreement_application"]
+        for s in art.get("scenarios", [])
+        if "label_rank_agreement_application" in s
+    ]
+    if not blocks:
+        rep.skipped.append(
+            "qos_label_ablation.json predates label_rank_agreement_application; "
+            "re-run reproduce/qos_label_ablation.py"
+        )
+        return
+
+    def _mean(arm: str, key: str) -> Optional[float]:
+        vals = [b[arm][key] for b in blocks if key in b.get(arm, {})]
+        return sum(vals) / len(vals) if vals else None
+
+    tex = _tex("sec4_failure_impact_prediction.tex")
+    for arm, key, pattern, tol in (
+        ("ladder", "spearman_rho_vs_none",
+         r"mean Spearman \$\\rho = ([\d.]+)\$ against the ladder", 0.002),
+        ("wt", "spearman_rho_vs_none",
+         r"durability-aware \$w\(t\)\$ scaling moves it less still \(\$\\rho = ([\d.]+)\$\)", 0.002),
+        ("ladder", "topk_jaccard_vs_none",
+         r"agree at mean Jaccard \$([\d.]+)\$", 0.002),
+    ):
+        expected = _mean(arm, key)
+        if expected is None:
+            continue
+        rep.checked += 1
+        m = re.search(pattern, tex)
+        if not m:
+            rep.findings.append(Finding("sec:4.3", f"{arm} {key}", "value",
+                                        "not found", round(expected, 4)))
+        elif abs(float(m.group(1)) - expected) > tol:
+            rep.findings.append(Finding("sec:4.3", f"{arm} {key}", "value",
+                                        float(m.group(1)), round(expected, 4)))
+
+    lo = min(b["ladder"]["spearman_rho_vs_none"] for b in blocks)
+    hi = max(b["ladder"]["spearman_rho_vs_none"] for b in blocks)
+    rep.checked += 1
+    m = re.search(r"\(range \$([\d.]+)\$--\$([\d.]+)\$\)", tex)
+    if not m:
+        rep.findings.append(Finding("sec:4.3", "ladder rho", "range",
+                                    "not found", f"{lo:.3f}-{hi:.3f}"))
+    elif abs(float(m.group(1)) - lo) > 0.002 or abs(float(m.group(2)) - hi) > 0.002:
+        rep.findings.append(Finding("sec:4.3", "ladder rho", "range",
+                                    f"{m.group(1)}-{m.group(2)}", f"{lo:.3f}-{hi:.3f}"))
+
+
 PROSE_NOTES = [
     "Wilcoxon contrasts in 7.1/7.2 <- results/loso_significance_v*.json",
     "QoS ablation deltas in 7.3.1 <- loso_all_variants_v*.json",
@@ -388,6 +472,7 @@ def main() -> int:
     check_scale_table(rep)
     check_realworld(rep)
     check_oracle_timing(rep)
+    check_qos_label_ablation(rep)
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts.\n")
 

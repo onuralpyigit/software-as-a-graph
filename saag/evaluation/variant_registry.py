@@ -13,16 +13,25 @@ published number. Only the printed string is owned by this module.
 
 Naming scheme
 -------------
-Three families, with the substrate made explicit because RQ2's parity argument
+Four families, with the substrate made explicit because RQ2's parity argument
 rests on it:
 
     Structural baselines (training-free)   Topo | Topo-QoS | RM
     Homogeneous graph learning (GAT)       GAT  | GAT-QoS  | GAT-N | GAT-N-QoS
     Heterogeneous graph learning (HGT)     HGT  | HGT-QoS
+    RQ2 confound controls                  GAT-N-C | GAT-N-QoS-C |
+                                           GAT-N-QoS16-C | HGT-QoS-U
 
 The ``-N`` infix marks the native multigraph; its absence marks the derived
 Application--Library ``DEPENDS_ON`` projection. ``SaG`` is reserved for the
 framework and is never a variant name.
+
+The ``control`` family is deliberately separate rather than folded into the
+homogeneous and heterogeneous ones. Its members are not manuscript columns: they
+exist to hold one confound at a time constant so Section 7.2's attribution claim
+can be tested, and every renderer selects columns by explicit ``include=`` list
+or by family, so controls cannot leak into a published table by accident. The
+:attr:`Variant.control_for` field records which confound each one isolates.
 
 Harness-dependent substrate
 ---------------------------
@@ -49,6 +58,9 @@ __all__ = [
     "label",
     "blurb",
     "order",
+    "edge_dim",
+    "hidden_for",
+    "bidirectional_for",
 ]
 
 
@@ -68,14 +80,26 @@ class Variant:
     label: str
     #: One-line description, reused by ``--help`` text and docstrings.
     blurb: str
+    #: Model width override. ``None`` means "whatever the harness's ``--hidden``
+    #: says", which is what every reported variant uses. Only the RQ2 capacity
+    #: controls set it, because matching HGT's parameter budget is the whole
+    #: point of those arms.
+    hidden_channels: Optional[int] = None
+    #: HGT reverse-pass flag. ``None`` defers to ``NodeCriticalityGNN``'s own
+    #: default (``True``). Only the directionality control sets it.
+    use_bidirectional: Optional[bool] = None
+    #: Which Section 7.2 confound this arm controls for, or ``None`` for the
+    #: variants the manuscript actually reports as columns.
+    control_for: Optional[str] = None
 
 
-FAMILY_ORDER = ["structural", "homogeneous", "heterogeneous"]
+FAMILY_ORDER = ["structural", "homogeneous", "heterogeneous", "control"]
 
 FAMILY_LABELS = {
     "structural": "Structural baselines (training-free)",
     "homogeneous": "Homogeneous graph learning (untyped GAT)",
     "heterogeneous": "Heterogeneous graph learning (typed HGT)",
+    "control": "RQ2 confound controls (not manuscript columns)",
 }
 
 #: Harnesses that report variants. They differ in the substrate they give
@@ -155,6 +179,62 @@ _VARIANT_LIST = [
         label="HGT-QoS",
         blurb="HGT with the full 16-D QoS edge encoding on the native multigraph",
     ),
+    # ── RQ2 confound controls ────────────────────────────────────────────────
+    # Section 7.2 attributed the typed-vs-untyped LOSO margin to "relational
+    # typing rather than to substrate, training set, depth, or selection rule".
+    # That list omitted three things the comparison did not hold constant, and
+    # these arms hold each of them constant one at a time. Parameter counts are
+    # measured against the LOSO primary graph (enterprise_system: 5 node types,
+    # 10 relation triples), where HGT is 434,620; they are corpus-specific
+    # because HGTConv's size depends on the relation set. See
+    # tests/test_baselines.py::TestControlArmCapacityParity.
+    Variant(
+        variant_id="gl_full_cap",
+        family="control",
+        substrate="native",
+        qos="none",
+        label="GAT-N-C",
+        blurb="GAT-N widened to 296 channels (437,496 params, 1.01x HGT); "
+              "capacity control for the QoS-off replication of RQ2",
+        hidden_channels=296,
+        control_for="capacity",
+    ),
+    Variant(
+        variant_id="gl_full_qos_cap",
+        family="control",
+        substrate="native",
+        qos="scalar",
+        label="GAT-N-QoS-C",
+        blurb="GAT-N-QoS widened to 296 channels (439,272 params, 1.01x HGT's "
+              "434,620, against 28,168 as published); capacity control for RQ2",
+        hidden_channels=296,
+        control_for="capacity",
+    ),
+    Variant(
+        variant_id="gl_full_qos16_cap",
+        family="control",
+        substrate="native",
+        qos="full16",
+        label="GAT-N-QoS16-C",
+        blurb="capacity-matched GAT-N reading all 16 edge-feature dims, the "
+              "same channel HGT-QoS gets (429,992 params); edge-channel "
+              "control for RQ2",
+        hidden_channels=288,
+        control_for="edge_channel",
+    ),
+    Variant(
+        # qos stays "full16": this *is* a full-QoS HGT. The arm varies
+        # directionality alone, and `qos` describes the edge channel.
+        variant_id="hgl_qos_uni",
+        family="control",
+        substrate="native",
+        qos="full16",
+        label="HGT-QoS-U",
+        blurb="HGT-QoS with the reverse HGTConv removed (330,895 params, so "
+              "103,725 fewer); directionality control for RQ2",
+        use_bidirectional=False,
+        control_for="directionality",
+    ),
 ]
 
 VARIANTS: Dict[str, Variant] = {v.variant_id: v for v in _VARIANT_LIST}
@@ -211,6 +291,54 @@ def label(
 def blurb(variant_id: str, harness: str = "in_distribution") -> str:
     """One-line description of ``variant_id`` as reported by ``harness``."""
     return _lookup(variant_id, harness).blurb
+
+
+#: ``qos`` field -> the ``edge_dim`` a homogeneous GAT should be built with.
+#: Consulted only on the homogeneous branch; HGT reads ``EDGE_FEATURE_DIM``
+#: through its own encoder and ignores this. ``"weighted"`` maps to ``None``
+#: because it describes the training-free Topo-QoS score, which builds no model.
+_EDGE_DIM_BY_QOS = {"none": None, "weighted": None, "scalar": 1, "full16": 16}
+
+
+def edge_dim(variant_id: str, harness: str = "in_distribution") -> Optional[int]:
+    """GATConv ``edge_dim`` for ``variant_id``, or ``None`` for no edge channel.
+
+    ``None`` also selects the ``"homo_unweighted"`` baseline class, so callers
+    can branch on this one value instead of re-listing variant ids.
+    """
+    return _EDGE_DIM_BY_QOS[_lookup(variant_id, harness).qos]
+
+
+def hidden_for(
+    variant_id: str,
+    default: int,
+    harness: str = "in_distribution",
+) -> int:
+    """Model width for ``variant_id``, falling back to the harness's ``--hidden``.
+
+    Returns ``default`` unchanged for every variant the manuscript reports, so
+    threading this through a harness cannot move a published number. Only the
+    capacity controls override it, and only because a matched parameter budget
+    is what those arms exist to provide.
+    """
+    override = _lookup(variant_id, harness).hidden_channels
+    return default if override is None else override
+
+
+def bidirectional_for(variant_id: str, default: bool = True) -> bool:
+    """Whether ``variant_id``'s HGT keeps its reverse pass.
+
+    ``True`` for everything except the directionality control. The default is
+    stated here as well as in ``NodeCriticalityGNN`` so that a flip in either
+    place is visible as a disagreement rather than a silent change of model;
+    ``tests/test_gnn_refactor.py`` pins both.
+    """
+    # Unknown ids (the structural scores) never build an HGT; tolerate them so
+    # callers need no membership test before asking.
+    variant = VARIANTS.get(resolve(variant_id, "loso"), None)
+    if variant is None or variant.use_bidirectional is None:
+        return default
+    return variant.use_bidirectional
 
 
 def order(

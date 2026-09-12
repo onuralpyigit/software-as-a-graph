@@ -127,6 +127,54 @@ def _rho(pred: Dict[str, float], labels: Dict[str, float]) -> float:
     return float(rho)
 
 
+def _application_ids(topology: Dict[str, Any]) -> set:
+    """The Application stratum, read from the topology rather than the labels.
+
+    Every evaluation in the paper is reported on a single stratum (pooling node
+    types shifts rho outside the envelope of the per-type values), so the label
+    agreement below is measured on Applications alone rather than on the pooled
+    Application/Broker/Library label set.
+    """
+    return {str(a["id"]) for a in topology.get("applications", []) if "id" in a}
+
+
+def _label_rank_agreement(
+    labels: Dict[str, Dict[str, float]], app_ids: set
+) -> Dict[str, Any]:
+    """How much the QoS factor reorders the label, against the topology-only arm.
+
+    The predictor deltas above answer "does a QoS-enriched label flatter a
+    QoS-aware predictor". This answers the prior question: how much QoS is in
+    the label at all. A rho near 1.0 against the ``none`` arm means the primary
+    target is very nearly a pure topology ranking, which bounds what any
+    QoS-encoding result can be crediting.
+    """
+    out: Dict[str, Any] = {}
+    base = labels["none"]
+    for arm in LABEL_ARMS:
+        if arm == "none":
+            continue
+        keys = sorted(app_ids & set(base) & set(labels[arm]))
+        if len(keys) < 3:
+            out[arm] = {"n": len(keys), "note": "stratum too small"}
+            continue
+        a = np.array([base[k] for k in keys], dtype=np.float64)
+        b = np.array([labels[arm][k] for k in keys], dtype=np.float64)
+        if np.ptp(a) == 0.0 or np.ptp(b) == 0.0:
+            out[arm] = {"n": len(keys), "note": "constant arm"}
+            continue
+        rho, _ = spearmanr(a, b)
+        k = max(1, int(round(len(keys) * 0.20)))
+        top_a = set(np.argsort(-a)[:k].tolist())
+        top_b = set(np.argsort(-b)[:k].tolist())
+        out[arm] = {
+            "n": len(keys),
+            "spearman_rho_vs_none": round(float(rho), 4),
+            "topk_jaccard_vs_none": round(len(top_a & top_b) / len(top_a | top_b), 4),
+        }
+    return out
+
+
 def run_scenario(path: Path) -> Dict[str, Any]:
     topology = _load_topology(path)
     predictors = _predictors(topology)
@@ -176,6 +224,9 @@ def run_scenario(path: Path) -> Dict[str, Any]:
     return {
         "scenario": path.stem,
         "n_labeled": len(labels["none"]),
+        "label_rank_agreement_application": _label_rank_agreement(
+            labels, _application_ids(topology)
+        ),
         "spearman_by_predictor_and_label_arm": rho,
         "delta_vs_topology_only_label": deltas,
         "delta_spread_across_predictors": spread,

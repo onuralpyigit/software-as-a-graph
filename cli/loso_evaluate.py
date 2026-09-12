@@ -120,6 +120,7 @@ from saag.prediction.data_preparation import (
     extract_edge_simulation_dict,
 )
 from saag.core.models import QoSPolicy, topic_weight_from_node_attrs
+from saag.evaluation import variant_registry as _registry
 
 logger = logging.getLogger("loso_evaluate")
 
@@ -127,6 +128,23 @@ logger = logging.getLogger("loso_evaluate")
 # ──────────────────────────────────────────────────────────────────────────────
 # Data structures
 # ──────────────────────────────────────────────────────────────────────────────
+
+#: Which dispatch branch each variant id takes. Declared here rather than
+#: inline so the branches and the ``--variant`` choices list can be checked
+#: against each other by tests/test_variant_dispatch.py. Before these existed
+#: the final branch was a bare ``else``, so a typo'd or newly-added id ran
+#: silently as an HGT and reported the result under its own name.
+#:
+#: ``topology_rm`` belongs with the HGT ids: it reaches the GNNService branch
+#: only to be forced to ``mode="rm"`` and one epoch, and moving it would change
+#: a published baseline.
+_STRUCTURAL_VARIANTS = ("topo_baseline", "topo_qos")
+_HOMOGENEOUS_VARIANTS = (
+    "gl", "gl_qos", "gl_full_cap", "gl_full_qos_cap", "gl_full_qos16_cap",
+)
+_HGT_VARIANTS = ("hgl", "hgl_qos", "hgl_qos_uni", "topology_rm")
+KNOWN_VARIANTS = _STRUCTURAL_VARIANTS + _HOMOGENEOUS_VARIANTS + _HGT_VARIANTS
+
 
 @dataclass
 class ScenarioBundle:
@@ -550,6 +568,15 @@ def run_one_fold(
       - holdout's structural/rm are passed at predict() time (needed for features)
       - holdout's simulation is passed only for evaluation, never for training
     """
+    # Pre-flight, before any work: the dispatch below sits inside a per-seed
+    # try/except that logs and continues, so an unknown id would otherwise show
+    # up as twelve folds of nan rather than as an error.
+    if variant not in KNOWN_VARIANTS:
+        raise ValueError(
+            f"unrecognised variant {variant!r}; expected one of "
+            f"{sorted(KNOWN_VARIANTS)}"
+        )
+
     if device == "cuda" or (device in ("auto", None) and torch.cuda.is_available()):
         target_device = torch.device("cuda")
     else:
@@ -611,7 +638,7 @@ def run_one_fold(
         ckpt_dir.mkdir(parents=True, exist_ok=True)
 
         try:
-            if variant in ("topo_baseline", "topo_qos"):
+            if variant in _STRUCTURAL_VARIANTS:
                 # Training-free structural centrality. It has no notion of a
                 # train set, so its held-out score is simply its score — which
                 # is exactly why it belongs in the LOSO table: an out-of-domain
@@ -649,13 +676,15 @@ def run_one_fold(
                     for k, v in pred_scores.items()
                 }
 
-            elif variant in ("gl", "gl_qos"):
+            elif variant in _HOMOGENEOUS_VARIANTS:
                 # Baseline variants use GNNTrainer directly
                 from saag.prediction.models.baselines import build_baseline
                 from saag.prediction.data_preparation import create_node_splits
                 from saag.prediction.trainer import GNNTrainer, evaluate
 
-                use_qos = (variant == "gl_qos")
+                # Any arm with an edge channel needs QoS on the graph; the
+                # registry owns which those are.
+                use_qos = _registry.edge_dim(variant, "loso") is not None
                 train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
                 holdout_graph, holdout_sm = _prepare_bundle_graph(holdout, use_qos)
 
@@ -703,9 +732,16 @@ def run_one_fold(
                 else:
                     training_input = data
 
-                baseline_name = "homo_unweighted" if variant == "gl" else "homo_scalar"
-                model = build_baseline(baseline_name, hidden_channels=hidden, num_heads=heads,
-                                       num_layers=layers, dropout=dropout)
+                # Width and edge-channel width come from the registry: they are
+                # identity for every reported variant and differ only for the
+                # RQ2 capacity / edge-channel controls.
+                edge_dim = _registry.edge_dim(variant, "loso")
+                baseline_name = "homo_unweighted" if edge_dim is None else "homo_scalar"
+                model = build_baseline(baseline_name,
+                                       hidden_channels=_registry.hidden_for(variant, hidden, "loso"),
+                                       num_heads=heads,
+                                       num_layers=layers, dropout=dropout,
+                                       edge_dim=edge_dim)
                 model.to(target_device)
                 best_path = ckpt_dir / "best_model.pt"
                 if best_path.exists():
@@ -764,10 +800,10 @@ def run_one_fold(
                                 "maintainability": float(preds[local_idx, 2]),
                             }
 
-            else:
-                # hgl_qos (default) or hgl or topology_rm → GNNService path
+            elif variant in _HGT_VARIANTS:
+                # hgl_qos (default), hgl, hgl_qos_uni or topology_rm → GNNService
                 effective_mode = "rm" if variant == "topology_rm" else mode
-                use_qos = (variant == "hgl_qos")
+                use_qos = variant in ("hgl_qos", "hgl_qos_uni")
                 train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
                 holdout_graph, holdout_sm = _prepare_bundle_graph(holdout, use_qos)
 
@@ -789,6 +825,10 @@ def run_one_fold(
                         dropout=dropout,
                         predict_edges=False,
                         device=target_device,
+                        # Variant-derived, unlike --qos-injection, which is a
+                        # cross-cutting CLI ablation. The directionality control
+                        # is the only arm that turns this off.
+                        use_bidirectional=_registry.bidirectional_for(variant),
                     )
                     service.train(
                         graph=train_graph,
@@ -844,6 +884,15 @@ def run_one_fold(
                     for nid, ns in result.node_scores.items()
                 }
 
+            else:
+                # Unreachable via the CLI (argparse `choices` is checked against
+                # KNOWN_VARIANTS by tests/test_variant_dispatch.py) and via the
+                # pre-flight check at the top of run_one_fold. Kept so a direct
+                # programmatic call cannot silently get the HGT branch.
+                raise ValueError(
+                    f"unrecognised variant {variant!r}; expected one of "
+                    f"{sorted(KNOWN_VARIANTS)}"
+                )
 
         except Exception as e:
             logger.error("  Fold seed %d failed: %s", seed, e, exc_info=True)
@@ -1311,7 +1360,7 @@ def parse_args() -> argparse.Namespace:
                    help="Prediction mode for evaluation (default: gnn)")
     p.add_argument(
         "--variant",
-        choices=["hgl_qos", "hgl", "gl_qos", "gl", "topology_rm", "topo_baseline", "topo_qos"],
+        choices=list(KNOWN_VARIANTS),
         default="hgl_qos",
         help=(
             "Model architecture variant (default: hgl_qos). Display names come "

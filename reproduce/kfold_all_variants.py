@@ -45,6 +45,15 @@ from saag.evaluation import variant_registry as _registry
 # Structural baselines first: training-free, so their score is the bar a
 # learned variant must clear to justify being trained at all.
 ALL_VARIANTS = ["topo_baseline", "topo_qos", "topology_rm", "gl", "gl_qos", "hgl", "hgl_qos"]
+#: RQ2 confound controls (Section 7.2). Held apart from ALL_VARIANTS so a plain
+#: sweep still produces exactly the manuscript's variant set; pass them
+#: explicitly via --variants to run the controls. They must be run in the SAME
+#: invocation as the arms they are compared against, because the Wilcoxon tests
+#: downstream are paired over folds.
+CONTROL_VARIANTS = [
+    "gl_full_cap", "gl_full_qos_cap", "gl_full_qos16_cap", "hgl_qos_uni",
+]
+
 DEFAULT_SEEDS = "42,123,456,789,2024"
 DEFAULT_K     = 5
 OUTPUT_BASE   = Path("output/kfold")
@@ -122,7 +131,7 @@ def _run_variant(
 # harness gl/gl_qos run on the native graph, so they report as GAT-N / GAT-N-QoS.
 _VARIANT_LABELS = {
     v: _registry.label(v, harness="kfold")
-    for v in ("topology_rm", "gl", "gl_qos", "hgl", "hgl_qos")
+    for v in ("topology_rm", "gl", "gl_qos", "hgl", "hgl_qos", *CONTROL_VARIANTS)
 }
 
 
@@ -264,7 +273,7 @@ def _print_comparison_table(table: Dict):
 
 def parse_args():
     p = argparse.ArgumentParser(description="Per-domain k-fold × all variants.")
-    p.add_argument("--variants", nargs="+", default=None, choices=ALL_VARIANTS,
+    p.add_argument("--variants", nargs="+", default=None, choices=ALL_VARIANTS + CONTROL_VARIANTS,
                    help="Variants to run (default: all 5)")
     p.add_argument("--seeds", default=DEFAULT_SEEDS,
                    help="Comma-separated seeds (default: 5 seeds)")
@@ -349,6 +358,10 @@ def main():
         "provenance": stamp(
             variants=list(results_by_variant), seeds=args.seeds, k=args.k, epochs=args.epochs,
             cache_dir=str(args.cache_dir), eval_population=args.eval_population,
+            # Recorded because the CPU->GPU re-baseline makes rows from
+            # different devices non-comparable, and nothing else on disk
+            # distinguishes them.
+            device=getattr(args, "device", None),
         ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
