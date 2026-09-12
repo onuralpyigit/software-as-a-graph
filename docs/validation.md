@@ -127,11 +127,11 @@ $$I_{\text{dyn}}(v) = \text{DeliveryRate}_{\text{pre-fault}} - \text{DeliveryRat
 
 ```mermaid
 flowchart LR
-    I_Star["FaultInjector I*(v)<br>(Graph Cascade Feed Loss)"] <-->|Mean ρ = 0.765<br>(Strong Convergent Validity)| I_Dyn["MessageFlow I_dyn(v)<br>(SimPy Dynamic Traffic Drop)"]
+    I_Star["FaultInjector I*(v)<br>(Graph Cascade Feed Loss)"] <-->|Mean ρ = 0.907<br>(at I*'s own 0.807–1.0 noise ceiling)| I_Dyn["MessageFlow I_dyn(v)<br>(SimPy Dynamic Traffic Drop)"]
     I_Star <-->|Mean ρ = 0.394<br>(Moderate Agreement)| I_Comp["FailureSimulator I_comp(v)<br>(4-Component Structural Loss)"]
 ```
 
-- **Cross-Method Convergent Validity**: $I_{\text{dyn}}$ exhibits strong agreement with $I^*(v)$ (mean $\rho = 0.765$, minimum $0.548$ on Hub-and-Spoke), proving that discrete-event traffic drops under load closely mirror topological feed-loss cascades.
+- **Cross-Method Convergent Validity**: $I_{\text{dyn}}$ agrees with $I^*(v)$ at mean $\rho = 0.907$ (minimum $0.748$ on Microservices). Read against its ceiling: $I^*$'s own seed-to-seed test-retest is $0.807$–$1.0$, so $I_{\text{dyn}}$ tracks $I^*$ about as closely as $I^*$ tracks itself. That is convergent evidence for the *labels* — two differently-constructed engines rank components alike — and simultaneously the reason $I_{\text{dyn}}$ cannot serve as independent validation of a prediction: a near-ceiling agreement leaves it almost no room to falsify anything $I^*$ would not. Enforcing Topic QoS under a calibrated load does not change this (see [failure-simulation.md §11 L7](failure-simulation.md)).
 
 ---
 

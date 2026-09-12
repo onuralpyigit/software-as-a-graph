@@ -218,7 +218,9 @@ flowchart LR
 
 ### 4.2 Two-Level Fan-Out Queue Architecture
 
-To preserve true pub-sub semantics, `TopicFanout` maintains private `SubscriberQueue` instances for each subscriber, preventing first-come-first-served queue contention.
+To preserve true pub-sub semantics, `TopicFanout` maintains private `SubscriberQueue` instances for each subscriber, so one topic's backlog cannot block another's at the *queue* (BUG-MFS-1).
+
+Each subscriber's *compute*, by contrast, is deliberately shared: every topic a subscriber reads queues for the same `ServiceStation`. This is not a regression of BUG-MFS-1 — a blocked low-priority topic accumulates in its own bounded queue rather than stalling a high-priority one — but it is the engine's only contended resource, and without it nothing in the simulation ever waits for anything else. The earlier design spawned one server per `SUBSCRIBES_TO` edge, which left utilization below ~0.2 on every corpus scenario; no QoS contract was ever binding, fault-free delivery was exactly 1.0000 everywhere, and `transport_priority` had nowhere to apply. See §4.5.
 
 System delivery rate is normalized by total subscriber demand:
 
@@ -226,13 +228,33 @@ $$\text{Delivery Rate} = \frac{\text{Total Messages Delivered}}{\sum_{t \in \tex
 
 ### 4.3 Runtime QoS Contract Enforcement
 
+Which policies are enforced is selected by `--qos-mode` (`MessageFlowSimulator.QOS_MODES`), mirroring `--qos-factor` on `fault-inject` so both oracles' QoS arms are named the same way:
+
+| Mode | Queue capacity | Deadlines | Service order | Durability replay | Load calibration |
+|:---|:---|:---|:---|:---|:---|
+| `none` | flat default | off | FIFO | off | **on** |
+| `contracts` | `history_depth` | on | FIFO | off | on |
+| `recovery` | flat default | off | FIFO | on | on |
+| `full` *(default)* | `history_depth` | on | priority | on | on |
+| `legacy` | flat default | on | FIFO | off | off |
+
+`none` keeps the load and neutralises only the policies: it is the QoS-off ablation arm, and dropping the load there would confound "QoS does nothing" with "nothing was contended".
+
 | QoS Policy | Enforcement Mechanism in Simulation |
 |:---|:---|
-| **Reliability (`RELIABLE`)** | Queue overflow triggers **head-drop** (drops oldest sample to retain fresh data, matching DDS `KEEP_LAST`). |
-| **Reliability (`BEST_EFFORT`)** | Queue overflow triggers **tail-drop** (incoming sample is dropped). |
-| **History Depth (`history_depth`)** | Subscriber queue capacity limit under DDS `KEEP_LAST` policy; governs queue overflow trigger thresholds. |
-| **Deadline (`deadline_ms`)** | End-to-end check: $(\text{time}_{\text{processed}} - \text{time}_{\text{created}}) > \text{deadline} \to \text{Violation}$. |
-| **Lifespan (`lifespan_ms`)** | Expired samples are silently discarded upon dequeue. |
+| **Reliability (`RELIABLE`)** | Queue overflow triggers **head-drop** (drops oldest sample to retain fresh data, matching DDS `KEEP_LAST`). The dropped sample is charged to the subscriber that lost it, so a RELIABLE topic's loss is measurable — head-drop is its *only* loss mode. |
+| **Reliability (`BEST_EFFORT`)** | Queue overflow triggers **tail-drop** (incoming sample is dropped). Under contention this is strictly worse than head-drop: the server goes on to process a stale head that then misses its deadline, losing twice. |
+| **History Depth (`history_depth`)** | Subscriber queue capacity under DDS `KEEP_LAST`, in `contracts` and `full`. Applied only where the depth was *declared*: an absent value stays an unconstrained reader cache rather than being forced to `DEFAULT_HISTORY_DEPTH`, because the resolver cannot distinguish "asked for 10" from "asked for nothing". An explicit `queue_size` outranks it. |
+| **Durability (`durability`)** | After a fault, retained samples are replayed to surviving readers, bounded by $\min(\text{history\_depth}, \text{messages lost})$. `VOLATILE` retains nothing; `TRANSIENT_LOCAL` recovers only while a co-publisher survives (its history died with the writer); `TRANSIENT` and `PERSISTENT` recover even from an orphaned topic. The effect is monotone in `QoSPolicy.DURABILITY_SCORES`. |
+| **Transport Priority (`transport_priority`)** | Orders service at the subscriber's `ServiceStation` in `full` mode, via `simpy.PriorityResource`. Lowest-value-first and stable within a class, so every other mode degenerates cleanly to FIFO. |
+| **Deadline (`deadline_ms`)** | End-to-end check: $(\text{time}_{\text{processed}} - \text{time}_{\text{created}}) > \text{deadline} \to \text{Violation}$. A replayed sample keeps its original timestamp under `--replay-deadline original`, so a declared deadline rejects it: **durability recovers state, not timeliness.** `reset` is the sensitivity arm. |
+| **Lifespan (`lifespan_ms`)** | Expired samples are silently discarded upon dequeue. Note this path is **unexercised**: `lifespan_ms` appears on none of the 970 corpus topics, and it is read only from the nested `qos` dict, so a flat `qos_lifespan_ms` would be missed. |
+
+### 4.5 Operating Point
+
+No QoS contract can bind on an idle system, and the corpus is idle: subscriber arrival rates span 1–2600 Hz across scenarios while service was a flat 1 ms, leaving utilization below ~0.2 everywhere. `--target-utilization` (default 0.65) sizes each subscriber's service rate to its own offered load, $E[S_s] = \rho / \Lambda_s$, so $\rho$ means the same operational state on a 1 Hz scenario as on a 700 Hz one — the property a swept parameter needs for a cross-scenario table to mean anything. `measured_utilization` on the result reports what was actually realised; a target that does not show up there is a requested number, not a measured one.
+
+Above $\rho \approx 0.8$ run-to-run variance grows faster than the signal ($I_{\text{dyn}}$'s own test-retest falls from 0.93 at $\rho = 0.65$ to 0.89 at $\rho = 0.8$), and below $\rho \approx 0.5$ nothing is contended. Deadline-violation rates follow $\exp(-3(1-\rho)/(\rho f_t))$ as a **conservative upper bound** — that closed form is M/M/1 and corpus workloads are periodic, so observed rates run 2–4× below it.
 
 ### 4.4 Dynamic Behavioral Oracle ($I_{\text{dyn}}(v)$)
 
@@ -240,7 +262,9 @@ $I_{\text{dyn}}(v)$ measures the empirical delivery loss inflicted on **survivin
 
 $$I_{\text{dyn}}(v) = \text{DeliveryRate}_{\text{pre-fault}} - \text{DeliveryRate}_{\text{post-fault}}$$
 
-*(Computed with surviving node receipts in the numerator and continuous demand in the denominator, achieving mean $\rho(I_{\text{dyn}}, I^*) = 0.765$ across the scenario cohort).*
+Computed with surviving node receipts in the numerator and continuous demand in the denominator. Both windows bucket on a message's *creation* time, so numerator and denominator describe the same population; the result is deliberately **not** clamped to $[0, 1]$, because under contention removing a chatty publisher can relieve more load than it removes feeds, and a negative $I_{\text{dyn}}$ there is a real measurement.
+
+Mean $\rho(I_{\text{dyn}}, I^*) = 0.907$ across the scenario cohort (`results/convergent_validity.json`, seven scenarios, Application population). **Read that number with its ceiling**: $I^*$'s own seed-to-seed test-retest is 0.807–1.0, so $I_{\text{dyn}}$ agrees with $I^*$ about as closely as $I^*$ agrees with itself. Enforcing QoS under load does not change this — correcting both oracles for measurement error leaves the correlation between 0.97 and 0.94 in every arm (`none`/`contracts`/`recovery`/`full`). $I_{\text{dyn}}$ is a convergent-validity probe on the labels, not an independent validation oracle; see §11 L7.
 
 ---
 
@@ -662,6 +686,8 @@ print(f"Top Critical: {sweep_result.top_k_by_impact[0]['node_id']} "
 | **L3** | **Single Fault per Simulation** | Simulators evaluate one component failure per run; multi-failure cascades model cascading effects rather than concurrent disjoint failures. |
 | **L4** | **Discrete-Event Latency Saturation** | In low-utilization scenarios (~1 Hz), queue build-up is negligible. $I_{\text{dyn}}(v)$ uses empirical delivery rates rather than latency jitter. |
 | **L5** | **Edge Ground Truth Scope** | Edge impact is evaluated via single-edge removal sweeps ($\Delta \text{Impact}$) with unmeasured edges marked `evaluated: false`. |
+| **L7** | **$I_{\text{dyn}}$ is not an independent oracle** | It is behavioural where $I^*$ is topological, but both traverse the same graph. Measured across the `qos_mode` ladder, correcting each arm for its own measurement error, enforcing QoS under a calibrated load moves the disattenuated $\rho(I_{\text{dyn}}, I^*)$ by 0–3% (0.966 on `healthcare`, 0.974→0.942 on `iot_smart_city`). Subscriber-side dynamics cannot make a behavioural oracle over the same topology independent of the topological one; that would require a different substrate or observed rather than simulated failures. Report $I_{\text{dyn}}$ as a convergent-validity probe, never as independent validation of a prediction. |
+| **L8** | **Broker and host Nodes are unobservable to $I_{\text{dyn}}$** | The engine models publisher, topic and subscriber only; faulting a Broker (`ROUTES`) or a `Node` (`RUNS_ON`) is a no-op. Such components are reported in `unlabeled_node_ids` rather than scored 0.0 — unmeasured is not measured-as-harmless. |
 | **L6** | **Counterfactual Search Cost** | Sweeps score the graph *as it stands* cheaply, but evaluating a space of candidate architectural repairs costs one exhaustive sweep per (edit × threshold × seed). This is why remediation is structured as cheap proposal followed by simulated verification rather than search-by-simulation — see [criticality.md §7.2.1](criticality.md#721-why-a-predictor-rather-than-the-oracle). |
 
 ---

@@ -1657,10 +1657,10 @@ apply the resulting constraint to our own analyses: a result established against
 evidence for a claim measured against the other. §8.2 flags where this bites.
 
 **$I_{\text{dyn}}$ agrees with $I^*$ far more strongly, and — crucially — does not share its worst
-case.** Mean Spearman $\rho(I_{\text{dyn}}, I^*) = 0.765$, minimum $0.548$ (Hub-and-Spoke) — against
-mean $0.394$, minimum $0.092$ for the two topological oracles above. Hub-and-Spoke is precisely where
-$I^*$ and $I_{\text{comp}}$ collapse to near-independence; $I_{\text{dyn}}$ still agrees with $I^*$
-there at $\rho = 0.548$, its lowest agreement in the cohort but far from uncorrelated. Because
+case.** Mean Spearman $\rho(I_{\text{dyn}}, I^*) = 0.907$, minimum $0.748$ (Microservices) — against
+mean $0.425$, minimum $-0.044$ for the two topological oracles above. Hub-and-Spoke is precisely where
+$I^*$ and $I_{\text{comp}}$ collapse to near-independence ($\rho = -0.044$); $I_{\text{dyn}}$ still
+agrees with $I^*$ there at $\rho = 0.883$, well above its cohort minimum. Because
 $I_{\text{dyn}}$ reaches this ranking by simulating traffic through queues rather than by traversing
 `DEPENDS_ON`, the result is evidence of a different kind than §7.5's first finding: it rules out the
 cascade *algorithm* as the source of $I^*$'s ranking, which the $I_{\text{comp}}$ comparison alone

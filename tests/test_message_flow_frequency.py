@@ -7,7 +7,12 @@ from saag.simulation.message_flow_simulator import MessageFlowSimulator
 def test_simulator_honors_topic_frequency_periodic():
     """
     Test that the simulator honors topic.frequency as the periodic publish rate
-    and matches frequency * duration within ±5% over a 60-s simulated window.
+    and matches frequency * duration within ±1% over a 60-s simulated window.
+
+    The tolerance was ±5% until BUG-MFS-7 was fixed, and this test passed only
+    because 50 Hz against the 1 ms default processing time gives a 4.8% shortfall
+    -- just inside the old bound. At 200 Hz the same defect cost 16.7%, so the
+    tolerance was wide enough to hide the very thing the test exists to pin.
     """
     g = nx.DiGraph()
     # Topic frequency is 50.0 Hz
@@ -32,8 +37,9 @@ def test_simulator_honors_topic_frequency_periodic():
     expected_count = 50.0 * 60.0  # 3000
     actual_count = stats.total_published
 
-    # Acceptance check: ±5% tolerance
-    assert abs(actual_count - expected_count) <= 0.05 * expected_count, (
+    # Acceptance check: ±1% tolerance. A periodic publisher is deterministic, so
+    # the only legitimate error is the one-message boundary effect.
+    assert abs(actual_count - expected_count) <= 0.01 * expected_count, (
         f"Expected periodic message count around {expected_count}, got {actual_count}"
     )
 
@@ -65,7 +71,9 @@ def test_simulator_honors_topic_frequency_poisson():
     expected_count = 50.0 * 60.0  # 3000
     actual_count = stats.total_published
 
-    # Acceptance check: ±5% tolerance
+    # Acceptance check: ±5% tolerance. Deliberately looser than the periodic case
+    # -- a Poisson count with mean 3000 has sd ~55, so +/-5% is ~2.7 sd. Tightening
+    # this to +/-1% would be ~0.5 sd and flaky for reasons unrelated to the rate.
     assert abs(actual_count - expected_count) <= 0.05 * expected_count, (
         f"Expected Poisson message count around {expected_count}, got {actual_count}"
     )
@@ -102,6 +110,6 @@ def test_multiple_publishers_share_frequency():
     expected_count = 60.0 * 60.0  # 3600
     actual_count = stats.total_published
 
-    assert abs(actual_count - expected_count) <= 0.05 * expected_count, (
+    assert abs(actual_count - expected_count) <= 0.01 * expected_count, (
         f"Expected aggregate message count around {expected_count}, got {actual_count}"
     )

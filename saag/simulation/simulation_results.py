@@ -205,18 +205,82 @@ class TopicFlowStats:
     deadline_ms: Optional[float]        # None means no deadline enforced
     durability_policy: str              # VOLATILE | TRANSIENT_LOCAL
     history_depth: int = 10
+    #: Fan-out width: how many subscribers this topic feeds. Needed because
+    #: `total_published` and `total_delivered` are counted on different units.
+    n_subscribers: int = 0
 
     total_published: int = 0            # Messages injected by all publishers
-    total_delivered: int = 0            # Messages received by ≥1 subscriber
+    total_delivered: int = 0            # (subscriber, message) pairs delivered
     total_dropped_queue_full: int = 0   # Dropped due to queue overflow
     total_dropped_deadline: int = 0     # Dropped due to deadline violation
     total_dropped_best_effort: int = 0  # Dropped because policy = BEST_EFFORT under load
 
     latency_samples: List[float] = field(default_factory=list)  # ms, sampled
 
+    # ── Fault-windowed counters ──────────────────────────────────────────────
+    # Split on the message's *creation* time, so demand and delivery describe the
+    # same population. The run used to hold these as locals and collapse them to
+    # one system-wide scalar pair, which made a per-topic decomposition of
+    # I_dyn(v) impossible to recover from the result object.
+    published_pre: int = 0
+    published_post: int = 0
+    delivered_pre: int = 0
+    delivered_post: int = 0
+    deadline_violations_pre: int = 0
+    deadline_violations_post: int = 0
+    queue_overflows_pre: int = 0
+    queue_overflows_post: int = 0
+    #: Durability replay, at three stages: offered by the writer, accepted into
+    #: a reader queue, and actually handed to the application. offered-minus-
+    #: enqueued is replay lost to the queue pressure it created itself;
+    #: enqueued-minus-delivered is replay that arrived too stale to be useful,
+    #: which is how "durability recovers state, not timeliness" becomes a number.
+    replayed_total: int = 0
+    replayed_enqueued: int = 0
+    replayed_delivered: int = 0
+
+    def _window_rate(self, delivered: int, published: int) -> Optional[float]:
+        """Delivered share of one window's demand, or None if nothing was due."""
+        expected = published * self.n_subscribers
+        return delivered / expected if expected else None
+
+    @property
+    def delivery_rate_pre(self) -> Optional[float]:
+        return self._window_rate(self.delivered_pre, self.published_pre)
+
+    @property
+    def delivery_rate_post(self) -> Optional[float]:
+        return self._window_rate(self.delivered_post, self.published_post)
+
+    @property
+    def i_dyn_topic(self) -> Optional[float]:
+        """This topic's contribution to I_dyn(v): its own pre/post delivery drop.
+
+        None when either window carried no demand — an unmeasured topic, which
+        must stay distinguishable from one measured at zero loss.
+        """
+        pre, post = self.delivery_rate_pre, self.delivery_rate_post
+        if pre is None or post is None:
+            return None
+        return pre - post
+
+    @property
+    def total_expected(self) -> int:
+        """Delivery demand: one copy per (published message, subscriber)."""
+        return self.total_published * self.n_subscribers
+
     @property
     def delivery_rate(self) -> float:
-        return self.total_delivered / self.total_published if self.total_published else 0.0
+        """Delivered share of demand, in [0, 1].
+
+        The denominator has to be `total_expected`, not `total_published`:
+        `total_delivered` counts one unit per (subscriber, message) copy while
+        `total_published` counts one per message, so dividing by the latter
+        returned N on a fault-free topic with N subscribers — and a matching
+        negative `drop_rate`. This is the per-topic form of the system-wide
+        normalisation `MessageFlowSimulator.run` already applied correctly.
+        """
+        return self.total_delivered / self.total_expected if self.total_expected else 0.0
 
     @property
     def drop_rate(self) -> float:
@@ -242,13 +306,37 @@ class TopicFlowStats:
             "deadline_ms": self.deadline_ms,
             "durability_policy": self.durability_policy,
             "history_depth": self.history_depth,
+            "n_subscribers": self.n_subscribers,
             "total_published": self.total_published,
+            "total_expected": self.total_expected,
             "total_delivered": self.total_delivered,
             "total_dropped_queue_full": self.total_dropped_queue_full,
             "total_dropped_deadline": self.total_dropped_deadline,
             "total_dropped_best_effort": self.total_dropped_best_effort,
             "delivery_rate": round(self.delivery_rate, 4),
             "drop_rate": round(self.drop_rate, 4),
+            "published_pre": self.published_pre,
+            "published_post": self.published_post,
+            "delivered_pre": self.delivered_pre,
+            "delivered_post": self.delivered_post,
+            "deadline_violations_pre": self.deadline_violations_pre,
+            "deadline_violations_post": self.deadline_violations_post,
+            "queue_overflows_pre": self.queue_overflows_pre,
+            "queue_overflows_post": self.queue_overflows_post,
+            "replayed_total": self.replayed_total,
+            "replayed_enqueued": self.replayed_enqueued,
+            "replayed_delivered": self.replayed_delivered,
+            "delivery_rate_pre": (
+                round(self.delivery_rate_pre, 4)
+                if self.delivery_rate_pre is not None else None
+            ),
+            "delivery_rate_post": (
+                round(self.delivery_rate_post, 4)
+                if self.delivery_rate_post is not None else None
+            ),
+            "i_dyn_topic": (
+                round(self.i_dyn_topic, 4) if self.i_dyn_topic is not None else None
+            ),
             "latency_p50_ms": round(self.latency_p50, 3) if self.latency_p50 is not None else None,
             "latency_p95_ms": round(self.latency_p95, 3) if self.latency_p95 is not None else None,
             "latency_p99_ms": round(self.latency_p99, 3) if self.latency_p99 is not None else None,
@@ -319,8 +407,37 @@ class FaultEventRecord:
     latency_p95_before: Optional[float] = None
     latency_p95_after: Optional[float] = None
 
+    #: Per-topic decomposition of I_dyn(v): topic_id -> delivery_rate drop.
+    #: Topics with no demand in one of the windows are omitted, not zeroed.
+    per_topic_i_dyn: Dict[str, float] = field(default_factory=dict)
+
+    #: QoS-contract violations attributable to each window.
+    deadline_violations_before: int = 0
+    deadline_violations_after: int = 0
+    queue_overflows_before: int = 0
+    queue_overflows_after: int = 0
+
+    #: Measurement geometry, recorded so a reader can tell which part of the run
+    #: each window covers without re-deriving it from the run parameters.
+    warmup_s: float = 0.0
+    guard_band_s: float = 0.0
+    pre_window_s: float = 0.0
+    post_window_s: float = 0.0
+
+    @property
+    def i_dyn(self) -> float:
+        """I_dyn(v): the delivery-rate loss surviving consumers suffer.
+
+        Not clamped to [0, 1]: once the subscriber's compute is contended,
+        removing a chatty publisher can relieve more load than it removes feeds,
+        and a negative value there is a real measurement.
+        """
+        return self.delivery_rate_before - self.delivery_rate_after
+
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        out = asdict(self)
+        out["i_dyn"] = round(self.i_dyn, 6)
+        return out
 
 
 @dataclass
@@ -341,6 +458,25 @@ class MessageFlowResult:
     total_messages_delivered: int = 0
     total_deadline_violations: int = 0
     total_queue_overflows: int = 0
+
+    #: Which QoS policies this run enforced (see MessageFlowSimulator.QOS_MODES).
+    #: Recorded so a result file states its own ablation arm rather than relying
+    #: on the caller to remember which one produced it.
+    qos_mode: str = "legacy"
+
+    # ── Operating point ──────────────────────────────────────────────────────
+    #: Requested baseline utilization, or None when service times were not
+    #: calibrated.
+    target_utilization: Optional[float] = None
+    utilization_mode: str = "per_subscriber"
+    service_distribution: str = "exponential"
+    #: Realised busy fraction per calibrated subscriber. The check that the
+    #: operating point actually landed: a `target_utilization` that does not
+    #: show up here is a requested number, not a measured one, and no result
+    #: derived from it should be trusted until the two agree.
+    measured_utilization: Dict[str, float] = field(default_factory=dict)
+    #: Mean service time per subscriber, in seconds.
+    service_time_s: Dict[str, float] = field(default_factory=dict)
 
     # Per-topic and per-subscriber breakdowns
     topic_stats: Dict[str, TopicFlowStats] = field(default_factory=dict)

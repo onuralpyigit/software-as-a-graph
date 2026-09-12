@@ -158,7 +158,18 @@ def _message_flow_labels(
 
     graph = _build_graph_from_json(_load_topology(scenario))
 
-    probe = MessageFlowSimulator(graph=graph, duration=duration, seed=seed).run()
+    # Pinned to `legacy` deliberately. The engine now defaults to enforcing
+    # declared QoS under a calibrated load, which changes what I_dyn measures;
+    # `results/convergent_validity.json` and the Table backed by it were produced
+    # by the pre-QoS engine, and a silent default change would make the committed
+    # artifact irreproducible from its own script. Switch this to "full" (with a
+    # target_utilization) as a deliberate act, together with regenerating the
+    # artifact and the manuscript numbers that quote it.
+    qos_mode = "legacy"
+
+    probe = MessageFlowSimulator(
+        graph=graph, duration=duration, seed=seed, qos_mode=qos_mode,
+    ).run()
     candidates = list(probe.labeled_node_ids)
     if max_candidates is not None:
         candidates = candidates[:max_candidates]
@@ -171,6 +182,7 @@ def _message_flow_labels(
             fault_node=node,
             fault_time=duration / 2.0,
             seed=seed,
+            qos_mode=qos_mode,
         ).run()
         event = result.fault_event
         if event is None:

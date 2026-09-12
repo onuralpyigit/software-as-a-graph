@@ -79,6 +79,15 @@ from typing import Any, Dict, List, Optional
 from cli.common.arguments import setup_logging
 from cli.loso_evaluate import _project_topic_qos_onto_edges
 from saag.simulation.fault_injector import FaultInjector
+# Choice tuples only -- this module guards its own `import simpy` in a
+# try/except, so importing it costs nothing where SimPy is absent. The engine
+# itself is still constructed lazily inside _run_message_flow.
+from saag.simulation.message_flow_simulator import (
+    QOS_MODES,
+    REPLAY_DEADLINE_POLICIES,
+    SERVICE_DISTRIBUTIONS,
+    UTILIZATION_MODES,
+)
 
 logger = logging.getLogger("simulate_graph")
 
@@ -333,6 +342,15 @@ def _run_message_flow(args: argparse.Namespace) -> None:
     logger.info("  Output     : %s", output_dir)
     logger.info("  Duration   : %.1f s", args.duration)
     logger.info("  Seed       : %d", args.seed)
+    qos_mode = getattr(args, "qos_mode", "full")
+    rho = getattr(args, "target_utilization", 0.65)
+    logger.info("  QoS mode   : %s", qos_mode)
+    logger.info(
+        "  Target rho : %s",
+        # `legacy` ignores the target by definition; printing it there would
+        # report a setting the run does not honour.
+        rho if (rho and qos_mode != "legacy") else "uncalibrated",
+    )
     logger.info("  Fault node : %s", fault_node or "none")
     if fault_node:
         logger.info("  Fault time : %.1f s", fault_time or (args.duration / 2))
@@ -340,6 +358,12 @@ def _run_message_flow(args: argparse.Namespace) -> None:
 
     t0 = time.perf_counter()
     g = _load_graph(input_path)
+
+    # 0 means "leave service times uncalibrated"; argparse cannot express None
+    # on a float flag without a sentinel, and the constructor rejects 0.0 as a
+    # utilization because rho <= 0 is not a load.
+    target_u = getattr(args, "target_utilization", 0.65)
+    target_u = None if not target_u else float(target_u)
 
     sim = MessageFlowSimulator(
         graph=g,
@@ -349,6 +373,13 @@ def _run_message_flow(args: argparse.Namespace) -> None:
         seed=args.seed,
         default_queue_size=getattr(args, "default_queue_size", 100),
         default_publish_rate_hz=getattr(args, "default_rate", 10.0),
+        qos_mode=getattr(args, "qos_mode", "full"),
+        target_utilization=target_u,
+        utilization_mode=getattr(args, "utilization_mode", "per_subscriber"),
+        service_distribution=getattr(args, "service_distribution", "exponential"),
+        durability_replay_deadline=getattr(args, "replay_deadline", "original"),
+        warmup_s=float(getattr(args, "warmup", 0.0)),
+        guard_band_s=float(getattr(args, "guard_band", 0.0)),
     )
     result = sim.run()
     elapsed = time.perf_counter() - t0
@@ -677,6 +708,70 @@ def _build_parser() -> argparse.ArgumentParser:
         default=100,
         metavar="N",
         help="Fallback broker queue capacity.  Default: 100",
+    )
+
+    # ── QoS enforcement ──────────────────────────────────────────────────
+    # Mirrors --qos-factor on fault-inject: the two engines' QoS arms are
+    # selected the same way so an ablation can name its arm consistently.
+    mf.add_argument(
+        "--qos-mode",
+        choices=QOS_MODES,
+        default="full",
+        help="Which declared QoS policies to enforce.  'contracts' = deadlines "
+             "and history-depth queue capacity; 'recovery' = durability replay; "
+             "'full' = both plus priority-ordered service; 'none' = policies "
+             "neutralised but load kept (the QoS-off ablation arm); 'legacy' = "
+             "the pre-QoS engine, uncalibrated.  Default: full",
+    )
+    mf.add_argument(
+        "--target-utilization",
+        type=float,
+        default=0.65,
+        metavar="RHO",
+        help="Baseline load each subscriber is calibrated to, in (0, 1).  Pass 0 "
+             "to leave service times uncalibrated.  Below ~0.5 nothing is "
+             "contended and no QoS contract can bind; above ~0.8 run-to-run "
+             "variance grows faster than the signal.  Default: 0.65",
+    )
+    mf.add_argument(
+        "--utilization-mode",
+        choices=UTILIZATION_MODES,
+        default="per_subscriber",
+        help="'per_subscriber' sizes each subscriber's service rate to its own "
+             "offered load, so RHO means the same thing on a 1 Hz and a 700 Hz "
+             "scenario.  'global' uses one rate per scenario.  "
+             "Default: per_subscriber",
+    )
+    mf.add_argument(
+        "--service-distribution",
+        choices=SERVICE_DISTRIBUTIONS,
+        default="exponential",
+        help="Service-time distribution at each subscriber.  Default: exponential",
+    )
+    mf.add_argument(
+        "--replay-deadline",
+        choices=REPLAY_DEADLINE_POLICIES,
+        default="original",
+        help="Whether a durability-replayed sample keeps its original timestamp "
+             "('original': a declared deadline drops it, since durability "
+             "recovers state rather than timeliness) or is treated as a fresh "
+             "snapshot ('reset').  Default: original",
+    )
+    mf.add_argument(
+        "--warmup",
+        type=float,
+        default=0.0,
+        metavar="SECONDS",
+        help="Messages created before this time are counted in neither fault "
+             "window, letting queues reach steady state first.  Default: 0.0",
+    )
+    mf.add_argument(
+        "--guard-band",
+        type=float,
+        default=0.0,
+        metavar="SECONDS",
+        help="Messages created within this distance of --fault-time are counted "
+             "in neither window.  Default: 0.0",
     )
 
     # ── combined ──────────────────────────────────────────────────────────

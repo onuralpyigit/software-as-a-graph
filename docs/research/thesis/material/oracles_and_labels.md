@@ -4,7 +4,7 @@
 > below are the ground-truth sections these depend on, included for self-containedness) and §7.5, as
 > they stood at commit `f0cba41822820a79ebdab123d54a76072b8f1689`. The condensed JSS `draft.md` keeps
 > §5.1 in full (the three-oracle definitions are core dependability content and are not cut) and
-> §7.5's headline agreement figures (ρ = 0.394, ρ = 0.765, the 30–47% unlabelled bound), but
+> §7.5's headline agreement figures (ρ = 0.425, ρ = 0.907, the 30–47% unlabelled bound), but
 > compresses §5.4 and §5.5 to one paragraph each — both were already restated nearly in full in §8.2,
 > so the condensation removes ~700 words of duplication rather than removing a finding. This file
 > preserves the full original treatment, including Figure 3 and the per-scenario walkthroughs that
@@ -177,10 +177,10 @@ apply the resulting constraint to our own analyses: a result established against
 evidence for a claim measured against the other. §8.2 flags where this bites.
 
 **$I_{\text{dyn}}$ agrees with $I^*$ far more strongly, and — crucially — does not share its worst
-case.** Mean Spearman $\rho(I_{\text{dyn}}, I^*) = 0.765$, minimum $0.548$ (Hub-and-Spoke) — against
-mean $0.394$, minimum $0.092$ for the two topological oracles above. Hub-and-Spoke is precisely where
-$I^*$ and $I_{\text{comp}}$ collapse to near-independence; $I_{\text{dyn}}$ still agrees with $I^*$
-there at $\rho = 0.548$, its lowest agreement in the cohort but far from uncorrelated. Because
+case.** Mean Spearman $\rho(I_{\text{dyn}}, I^*) = 0.907$, minimum $0.748$ (Microservices) — against
+mean $0.425$, minimum $-0.044$ for the two topological oracles above. Hub-and-Spoke is precisely where
+$I^*$ and $I_{\text{comp}}$ collapse to near-independence ($\rho = -0.044$); $I_{\text{dyn}}$ still
+agrees with $I^*$ there at $\rho = 0.883$, well above its cohort minimum. Because
 $I_{\text{dyn}}$ reaches this ranking by simulating traffic through queues rather than by traversing
 `DEPENDS_ON`, the result is evidence of a different kind than §7.5's first finding: it rules out the
 cascade *algorithm* as the source of $I^*$'s ranking, which the $I_{\text{comp}}$ comparison alone
