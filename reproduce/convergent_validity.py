@@ -31,8 +31,9 @@ I_dyn is behavioural: it observes message delivery under load rather than
 reachability over edges. Agreement between I_dyn and I* is therefore evidence of
 a different kind from agreement between I* and I_comp.
 
-I_dyn is a **delivery-based, QoS-agnostic** measure in this study; see the
-limitations in ``docs/failure-simulation.md`` for what it does not capture.
+I_dyn is a **delivery-based** measure whose QoS contract enforcement
+mode is configurable via ``--qos-mode`` (default: ``legacy`` to maintain
+reproducibility of published results); see ``docs/failure-simulation.md``.
 
 Interpretation
 --------------
@@ -144,6 +145,7 @@ def _message_flow_labels(
     duration: float = 60.0,
     seed: int = 42,
     max_candidates: Optional[int] = None,
+    qos_mode: str = "legacy",
 ) -> Dict[str, float]:
     """I_dyn(v) — the delivery-rate loss surviving consumers actually suffer.
 
@@ -157,15 +159,6 @@ def _message_flow_labels(
     from reproduce.ahp_sensitivity import _load_topology
 
     graph = _build_graph_from_json(_load_topology(scenario))
-
-    # Pinned to `legacy` deliberately. The engine now defaults to enforcing
-    # declared QoS under a calibrated load, which changes what I_dyn measures;
-    # `results/convergent_validity.json` and the Table backed by it were produced
-    # by the pre-QoS engine, and a silent default change would make the committed
-    # artifact irreproducible from its own script. Switch this to "full" (with a
-    # target_utilization) as a deliberate act, together with regenerating the
-    # artifact and the manuscript numbers that quote it.
-    qos_mode = "legacy"
 
     probe = MessageFlowSimulator(
         graph=graph, duration=duration, seed=seed, qos_mode=qos_mode,
@@ -314,21 +307,24 @@ def compare(
     max_candidates: Optional[int] = None,
     skip_message_flow: bool = False,
     population: str = "application",
+    qos_mode: str = "legacy",
 ) -> Dict[str, Any]:
     """Pairwise agreement across the available oracles.
 
     ``qos=False`` reproduces the pre-QoS behaviour of the two topological
-    engines, so the convergence claim — that weighting both oracles by the same
-    w(t) should make them agree more — is testable rather than asserted. It does
-    not apply to I_dyn, which is QoS-agnostic in this study.
+    engines, and maps to ``qos_mode='none'`` for MessageFlowSimulator, so the
+    convergence claim — that weighting both oracles by the same w(t) should make
+    them agree more — is testable rather than asserted.
     """
     oracles: Dict[str, Dict[str, float]] = {
         "i_star": _fault_injector_labels(scenario, seeds, qos=qos),
         "i_comp": _failure_simulator_labels(scenario, qos=qos),
     }
     if not skip_message_flow:
+        effective_mode = qos_mode if qos else "none"
         oracles["i_dyn"] = _message_flow_labels(
-            scenario, duration=duration, max_candidates=max_candidates)
+            scenario, duration=duration, max_candidates=max_candidates, qos_mode=effective_mode,
+        )
 
     n_before = {name: len(scores) for name, scores in oracles.items()}
     oracles = _restrict(oracles, scenario, population)
@@ -355,7 +351,15 @@ def parse_args():
         "--no-qos", action="store_true",
         help="Disable QoS weighting in both oracles, reproducing their pre-QoS "
              "behaviour. Run with and without to measure whether weighting both "
-             "by the same w(t) actually makes them converge.",
+             "by the same w(t) actually makes them converge. Automatically sets "
+             "MessageFlowSimulator qos_mode to 'none'.",
+    )
+    p.add_argument(
+        "--qos-mode",
+        choices=["legacy", "full", "none", "contracts", "recovery"],
+        default="legacy",
+        help="QoS mode for MessageFlowSimulator (default: legacy). When --no-qos is set, "
+             "qos_mode='none' is used automatically.",
     )
     p.add_argument(
         "--duration", type=float, default=60.0,
@@ -404,6 +408,7 @@ def main():
                 duration=args.duration, max_candidates=args.max_candidates,
                 skip_message_flow=args.skip_message_flow,
                 population=args.eval_population,
+                qos_mode=args.qos_mode,
             )
         except Exception as exc:      # noqa: BLE001
             logger.warning("%s failed: %s", scenario, exc)
@@ -465,6 +470,7 @@ def main():
         except Exception as exc:      # noqa: BLE001
             logger.warning("could not read %s: %s", stability_path, exc)
 
+    effective_qos_mode = args.qos_mode if not args.no_qos else "none"
     report = {
         "seeds": args.seeds,
         "duration": args.duration,
@@ -475,6 +481,7 @@ def main():
         "provenance": stamp(
             seeds=args.seeds,
             qos_weighting=not args.no_qos,
+            qos_mode=effective_qos_mode,
             duration=args.duration,
             eval_population=args.eval_population,
             i_comp_baseline_flows_primed=True,

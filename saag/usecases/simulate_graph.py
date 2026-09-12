@@ -39,11 +39,6 @@ class SimulateGraphUseCase:
             if edges:
                 return self.service.classify_edges(layer=layer, **kwargs)
             return self.service.classify_components(layer=layer, **kwargs)
-        elif mode == SimulationMode.TELEMETRY:
-            fault_node = target_id or (target_ids[0] if target_ids else None)
-            return self.service.run_telemetry_simulation(fault_node=fault_node, layer=layer, **kwargs)
-        elif mode == SimulationMode.TELEMETRY_SWEEP:
-            return self.service.run_telemetry_sweep(layer=layer, **kwargs)
             
         # Default to exhaustive
         return self.service.run_failure_simulation_exhaustive(layer=layer, **kwargs)

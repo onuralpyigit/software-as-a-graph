@@ -434,9 +434,45 @@ class FaultEventRecord:
         """
         return self.delivery_rate_before - self.delivery_rate_after
 
+    @property
+    def delta_latency_p95(self) -> Optional[float]:
+        """Change in p95 latency: post-fault minus pre-fault.
+
+        Note: can be negative when removing a chatty publisher relieves
+        contention for surviving consumers.
+        """
+        if self.latency_p95_after is not None and self.latency_p95_before is not None:
+            return round(self.latency_p95_after - self.latency_p95_before, 6)
+        return None
+
+    @property
+    def latency_inflation_factor(self) -> Optional[float]:
+        """LIF: latency_p95_after / latency_p95_before."""
+        if (
+            self.latency_p95_after is not None
+            and self.latency_p95_before is not None
+            and self.latency_p95_before > 0
+        ):
+            return round(self.latency_p95_after / self.latency_p95_before, 6)
+        return None
+
+    @property
+    def delta_deadline_violations(self) -> int:
+        """Post-fault minus pre-fault deadline violations."""
+        return self.deadline_violations_after - self.deadline_violations_before
+
+    @property
+    def delta_queue_overflows(self) -> int:
+        """Post-fault minus pre-fault queue overflows."""
+        return self.queue_overflows_after - self.queue_overflows_before
+
     def to_dict(self) -> Dict[str, Any]:
         out = asdict(self)
         out["i_dyn"] = round(self.i_dyn, 6)
+        out["delta_latency_p95"] = self.delta_latency_p95
+        out["latency_inflation_factor"] = self.latency_inflation_factor
+        out["delta_deadline_violations"] = self.delta_deadline_violations
+        out["delta_queue_overflows"] = self.delta_queue_overflows
         return out
 
 

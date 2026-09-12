@@ -56,16 +56,6 @@ from .simulation_results import (
     CascadeWave,
 )
 
-# Unified Telemetry Engine
-from .runtime_telemetry_simulator import RuntimeTelemetrySimulator
-from .telemetry import (
-    SystemTelemetry,
-    ComponentTelemetry,
-    TopicTelemetry,
-    NodeTelemetry,
-    TelemetryScenario,
-    TelemetryImpactCalculator,
-)
 
 
 def __getattr__(name: str):
@@ -109,14 +99,6 @@ __all__ = [
     # Engines — Predict stage
     "FaultInjector",
     "MessageFlowSimulator",
-    # Unified Telemetry Engine
-    "RuntimeTelemetrySimulator",
-    "SystemTelemetry",
-    "ComponentTelemetry",
-    "TopicTelemetry",
-    "NodeTelemetry",
-    "TelemetryScenario",
-    "TelemetryImpactCalculator",
     # Results — Validate stage
     "EventScenario",
     "EventResult",

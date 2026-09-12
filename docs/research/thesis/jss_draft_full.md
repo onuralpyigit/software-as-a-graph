@@ -2406,16 +2406,17 @@ determinism fix above; these are now stable across `PYTHONHASHSEED`, unlike the 
 draft reported). A model scoring near the former has saturated the labels rather than underperformed,
 and every top-$K$ metric inherits the latter's churn.
 
-*The behavioural oracle is delivery-based, not QoS-aware.* $I_{\text{dyn}}$ carries the
-construct-validity argument of §7.5, so the limits of what it measures bound that argument too. Its
-discrete-event engine implements deadline, lifespan, and reliability enforcement, but resolves topic
-QoS from an attribute key the generated corpus does not write, so every run in this evaluation falls
-back to defaults and the deadline and best-effort drop paths are structurally zero rather than
-measured as zero. Latency is likewise uninformative here: at the corpus's publication rates,
-utilisation stays far below saturation and queues never build, leaving $p95$ latency flat to within
-run-to-run jitter across faulted components. $I_{\text{dyn}}$ should therefore be read as a
-*throughput* oracle — it corroborates that the cascade ranking tracks lost message delivery, and it
-makes no claim about QoS contract conformance under load.
+*The behavioural oracle evaluates delivery drop under calibrated contention.* $I_{\text{dyn}}$ carries the
+construct-validity argument of §7.5, so the limits of what it measures bound that argument too. The discrete-event
+engine resolves declared topic QoS policies (DDS reliability, history depth, durability replay, and transport priority)
+and sizes each subscriber's `ServiceStation` to target operational utilization ($\rho = 0.65$, via $E[S_s] = \rho / \Lambda_s$)
+so queue contention is active rather than underloaded. However, tail-latency degradation ($\Delta L_{p95}$) cannot serve
+as an architectural criticality signal: empirical multi-seed measurements show that within-node seed variance
+($\sigma_{\text{seed}} \approx 79.4\text{ ms}$) dwarfs across-node spread ($\sigma_{\text{across}} \approx 20.9\text{ ms}$),
+yielding an uninformative signal-to-noise ratio ($\text{SNR} = 0.26$), compounded by the fact that dropping a chatty publisher
+relieves contention and produces negative latency deltas. $I_{\text{dyn}}$ is therefore formulated strictly as unweighted
+delivery rate loss ($\text{SNR} = 1.46$). It corroborates that the cascade ranking tracks surviving message delivery
+($\rho = 0.907$ with $I^*$), serving as a convergent-validity probe rather than an independent multidimensional oracle.
 
 **Internal validity.** The chief internal risk is circular validation — a predictor scoring well
 because its inputs leaked from its labels. The framework addresses this by *view* separation:

@@ -34,8 +34,6 @@ class SimulationMode(Enum):
     EVENT = "event"
     REPORT = "report"
     CLASSIFY = "classify"
-    TELEMETRY = "telemetry"
-    TELEMETRY_SWEEP = "telemetry_sweep"
 
 @dataclass
 class VisOptions:

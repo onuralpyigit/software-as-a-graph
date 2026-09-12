@@ -17,16 +17,19 @@
    - 3.3 [Ground-Truth Impact Formulations ($I(v)$ vs. $I^*(v)$)](#33-ground-truth-impact-formulations-iv-vs-iv)
    - 3.4 [Cascade Thresholds & Multi-Broker Semantics](#34-cascade-thresholds--multi-broker-semantics)
    - 3.5 [Multi-Seed Stability & The `label_stability` Block](#35-multi-seed-stability--the-label_stability-block)
-4. [Mode 2: Message Flow Simulation (`MessageFlowSimulator`)](#4-mode-2-message-flow-simulation-messageflowsimulator)
-   - 4.1 [Discrete-Event SimPy Process Model](#41-discrete-event-simpy-process-model)
-   - 4.2 [Two-Level Fan-Out Queue Architecture](#42-two-level-fan-out-queue-architecture)
-   - 4.3 [Runtime QoS Contract Enforcement](#43-runtime-qos-contract-enforcement)
-   - 4.4 [Dynamic Behavioral Oracle ($I_{\text{dyn}}(v)$)](#44-dynamic-behavioral-oracle-i_textdynv)
-5. [Mode 3: Runtime Telemetry Simulation (`RuntimeTelemetrySimulator`)](#5-mode-3-runtime-telemetry-simulation-runtimetelemetrysimulator)
-   - 5.1 [All-in-One Traffic & Telemetry Generation](#51-all-in-one-traffic--telemetry-generation)
-   - 5.2 [Multi-Layer Failure Propagation & Queue Dynamics](#52-multi-layer-failure-propagation--queue-dynamics)
-   - 5.3 [Telemetry Metrics & `TelemetryImpactCalculator` ($I_{\text{telem}}(v)$)](#53-telemetry-metrics--telemetryimpactcalculator-i_texttelemv)
-   - 5.4 [Dual-Role Utility: GNN Ground-Truth Labeling & Prediction Validation](#54-dual-role-utility-gnn-ground-truth-labeling--prediction-validation)
+4. [Mode 2: Structural Failure Simulation (`FailureSimulator`)](#4-mode-2-structural-failure-simulation-failuresimulator)
+   - 4.1 [Raw Structural Relationship Traversal](#41-raw-structural-relationship-traversal)
+   - 4.2 [Composite Impact Formulation ($I_{\text{comp}}(v)$)](#42-composite-impact-formulation-i_textcompv)
+   - 4.3 [Dimensional Sub-Metrics ($IR$, $IM$, $IA$, $IS$)](#43-dimensional-sub-metrics-ir-im-ia-is)
+   - 4.4 [Baseline Flow Priming & Flow Disruption](#44-baseline-flow-priming--flow-disruption)
+   - 4.5 [Remediation Verification & Validation Gating](#45-remediation-verification--validation-gating)
+5. [Mode 3: Message Flow Simulation (`MessageFlowSimulator`)](#5-mode-3-message-flow-simulation-messageflowsimulator)
+   - 5.1 [Discrete-Event SimPy Process Model](#51-discrete-event-simpy-process-model)
+   - 5.2 [Two-Level Fan-Out Queue Architecture](#52-two-level-fan-out-queue-architecture)
+   - 5.3 [Runtime QoS Contract Enforcement](#53-runtime-qos-contract-enforcement)
+   - 5.4 [Operating Point & Load Calibration ($\rho = 0.65$)](#54-operating-point--load-calibration-rho--065)
+   - 5.5 [Dynamic Behavioral Oracle ($I_{\text{dyn}}(v)$)](#55-dynamic-behavioral-oracle-i_textdynv)
+   - 5.6 [Secondary Diagnostics & Rejection of Multi-Metric Composite ($I_{\text{dyn}}^{\text{comp}}$)](#56-secondary-diagnostics--rejection-of-multi-metric-composite-i_textdyntextcomp)
 6. [Quality Model Alignment & Construct Grounding](#6-quality-model-alignment--construct-grounding)
 7. [Worked Examples: ATM & Autonomous Vehicle (AV)](#7-worked-examples-atm--autonomous-vehicle-av)
    - 7.1 [Air Traffic Management (ATM) Scenario](#71-air-traffic-management-atm-scenario)
@@ -36,12 +39,13 @@
    - 8.2 [`fault-inject` Subcommand](#82-fault-inject-subcommand)
    - 8.3 [`message-flow` Subcommand](#83-message-flow-subcommand)
    - 8.4 [`combined` Subcommand](#84-combined-subcommand)
-   - 8.5 [`telemetry` Subcommand](#85-telemetry-subcommand)
-9. [Output Schemas (`impact_scores.json`, `message_flow_results.json` & `telemetry_<node>.json`)](#9-output-schemas-impact_scoresjson-message_flow_resultsjson--telemetry_nodejson)
+9. [Output Schemas (`impact_scores.json` & `message_flow_results.json`)](#9-output-schemas-impact_scoresjson--message_flow_resultsjson)
+   - 9.1 [`impact_scores.json` (Fault Injection Ground Truth)](#91-impact_scoresjson-fault-injection-ground-truth)
+   - 9.2 [`message_flow_results.json` (Dynamic Discrete-Event Results)](#92-message_flow_resultsjson-dynamic-discrete-event-results)
 10. [Python API Usage](#10-python-api-usage)
     - 10.1 [Running `FaultInjector` Programmatically](#101-running-faultinjector-programmatically)
-    - 10.2 [Running `MessageFlowSimulator` Programmatically](#102-running-messageflowsimulator-programmatically)
-    - 10.3 [Running `RuntimeTelemetrySimulator` Programmatically](#103-running-runtimetelemetrysimulator-programmatically)
+    - 10.2 [Running `FailureSimulator` Programmatically](#102-running-failuresimulator-programmatically)
+    - 10.3 [Running `MessageFlowSimulator` Programmatically](#103-running-messageflowsimulator-programmatically)
 11. [Known Limitations & Design Boundaries](#11-known-limitations--design-boundaries)
 12. [What Comes Next](#12-what-comes-next)
 
@@ -60,21 +64,20 @@ flowchart TD
         FI --> IMP["impact_scores.json<br>Ground-Truth Labels I*(v)"]
     end
 
-    subgraph Mode2["Mode 2: Message Flow (Discrete-Event)"]
+    subgraph Mode2["Mode 2: Structural Failure (Multi-Dimensional)"]
+        SIM --> FS["FailureSimulator<br>(saag/simulation/failure_simulator.py)"]
+        FS --> FSR["ImpactMetrics<br>Composite I_comp + IR / IM Sub-Metrics"]
+    end
+
+    subgraph Mode3["Mode 3: Message Flow (Discrete-Event)"]
         SIM --> MFS["MessageFlowSimulator<br>(saag/simulation/message_flow_simulator.py)"]
         MFS --> MFR["message_flow_results.json<br>Timing, Queues, Latency & I_dyn(v)"]
     end
 
-    subgraph Mode3["Mode 3: Runtime Telemetry (Unified Discrete-Event)"]
-        SIM --> RTS["RuntimeTelemetrySimulator<br>(saag/simulation/runtime_telemetry_simulator.py)"]
-        RTS --> TEL["telemetry_<node>.json & impact_scores.json<br>Traffic Telemetry & I_telem(v)"]
-    end
-
     IMP --> GNN["Step 3: GNN Training<br>(Supervised Training Target)"]
-    TEL --> GNN
     IMP --> VAL["Step 6: Validation<br>(Spearman Correlation Gate)"]
+    FSR --> VAL
     MFR --> VAL
-    TEL --> VAL
 ```
 
 > [!IMPORTANT]
@@ -84,7 +87,7 @@ flowchart TD
 
 ## 2. Simulation Architecture & Engine Taxonomy
 
-The `saag/simulation/` package provides specialized simulation engines tailored for distinct pipeline stages:
+The `saag/simulation/` package provides three specialized simulation engines tailored for distinct pipeline stages:
 
 ```mermaid
 flowchart LR
@@ -93,15 +96,11 @@ flowchart LR
     end
 
     subgraph ValidateStage["2. Validate Stage (Evaluation Oracle)"]
-        FS["FailureSimulator<br>(SimulationGraph Stack)"] --> ORC["ImpactMetrics<br>Composite + IR/IM Decompositions"]
+        FS["FailureSimulator<br>(SimulationGraph Stack)"] --> ORC["ImpactMetrics<br>Composite I_comp + IR/IM Decompositions"]
     end
 
     subgraph DynamicStage["3. Runtime Flow Stage (Behavioral Oracle)"]
         MFS["MessageFlowSimulator<br>(SimPy Discrete-Event)"] --> DYN["message_flow_results.json<br>Delivery Rates, Latencies & I_dyn(v)"]
-    end
-
-    subgraph UnifiedStage["4. Unified Telemetry Stage (All-in-One Engine)"]
-        RTS["RuntimeTelemetrySimulator<br>(Priority Queue Discrete-Event)"] --> TELO["telemetry.json + I_telem(v)<br>Full Telemetry & Dual-Role Oracle"]
     end
 ```
 
@@ -110,12 +109,11 @@ flowchart LR
 | Engine | Canonical Scope | Primary Output | Consumed By |
 |:---|:---|:---|:---|
 | **`FaultInjector`** | **Predict Stage** (Supervised labels) | `impact_scores.json` $\to I^*(v)$ scalar | GNN training (`cli/train_graph.py`), $k$-fold & LOSO evaluations |
-| **`FailureSimulator`** | **Validate Stage** (Quality oracle) | `ImpactMetrics` $\to$ Composite + $IR/IM$ sub-metrics | Validation gates (`saag/validation/service.py`) |
+| **`FailureSimulator`** | **Validate Stage** (Quality oracle) | `ImpactMetrics` $\to$ Composite $I_{\text{comp}}(v) + IR/IM$ sub-metrics | Validation gates (`saag/validation/service.py`), remediation verification |
 | **`MessageFlowSimulator`** | **Dynamic Runtime Flow** (Behavioral oracle) | `message_flow_results.json` $\to I_{\text{dyn}}(v)$ | Convergent validity analysis (`reproduce/convergent_validity.py`) |
-| **`RuntimeTelemetrySimulator`** | **Unified Cross-Layer Telemetry** (Dual-role oracle) | `telemetry_<node>.json` + `impact_scores.json` $\to I_{\text{telem}}(v)$ | GNN continuous supervised training, cross-layer failure analysis, and empirical prediction validation |
 
 > [!CAUTION]
-> **Never mix engines within the same stage**: `FaultInjector` outputs variance-tracked training labels; `FailureSimulator` provides multi-dimensional RM decompositions. They are maintained separately by contract ([`tests/test_groundtruth_contract.py`](../tests/test_groundtruth_contract.py)).
+> **Never mix engines within the same stage**: `FaultInjector` outputs variance-tracked training labels ($I^*$); `FailureSimulator` provides multi-dimensional RM decompositions ($I_{\text{comp}}$). They are maintained separately by contract ([`tests/test_groundtruth_contract.py`](../tests/test_groundtruth_contract.py)).
 
 ---
 
@@ -143,7 +141,7 @@ flowchart TD
 - If an edge $(u, v_{\text{failed}})$ is typed `app_to_lib`, dependent $u$ fails deterministically ($\text{prob} = 1.0$).
 - `app_to_app` dependencies are resolved via pub-sub feed loss in Phase B ($\text{prob} = 0.0$ in Phase A).
 
-#### Phase B: Continuous Topic Feed Loss & Subscriber Cascaing
+#### Phase B: Continuous Topic Feed Loss & Subscriber Cascading
 1. **Topic Feed Loss ($L(t) \in [0, 1]$)**:
    - For topics with publishers:
      $$L(t) = \min\left(1.0, \; \frac{\sum_{p \in \text{failed}(t)} \text{rate}(p, t)}{\sum_{p \in \text{all}(t)} \text{rate}(p, t)} \times \text{QoS\_factor}(t)\right)$$
@@ -160,11 +158,9 @@ flowchart TD
 
 ### 3.3 Ground-Truth Impact Formulations ($I(v)$ vs. $I^*(v)$)
 
-1. **`FaultInjector` Scalar Impact ($I(v)$)**:
-   $$I(v) = \frac{\sum_{s \in \text{all\_subscribers}} \text{sub\_loss}(s)}{|\text{all\_subscribers}|}$$
-2. **`FailureSimulator` Composite Impact ($I^*(v)$)**:
-   $$I^*(v) = 0.35 \cdot \text{reachability\_loss} + 0.25 \cdot \text{fragmentation} + 0.25 \cdot \text{throughput\_loss} + 0.15 \cdot \text{flow\_disruption}$$
-   *(All terms are weighted by QoS message severity $s(t) = w(t) \cdot \text{rate}(t)$).*
+1. **`FaultInjector` Scalar Impact ($I^*(v)$)**:
+   $$I^*(v) = \frac{\sum_{s \in \text{all\_subscribers}} \text{sub\_loss}(s)}{|\text{all\_subscribers}|}$$
+   Averaged across multi-seed executions to yield the canonical supervised training target $\overline{I^*(v)}$ with associated standard deviation $\sigma(v)$.
 
 ---
 
@@ -180,7 +176,7 @@ flowchart TD
 
 ### 3.5 Multi-Seed Stability & The `label_stability` Block
 
-Cascade evaluation is executed across $N$ seeds (default: $\{42, 123, 456, 789, 2024\}$). The mean impact $\overline{I(v)}$ and standard deviation $\sigma(v)$ are recorded alongside a dataset-wide stability block:
+Cascade evaluation is executed across $N$ seeds (default: $\{42, 123, 456, 789, 2024\}$). The mean impact $\overline{I^*(v)}$ and standard deviation $\sigma(v)$ are recorded alongside a dataset-wide stability block:
 
 ```json
 "label_stability": {
@@ -199,9 +195,62 @@ Cascade evaluation is executed across $N$ seeds (default: $\{42, 123, 456, 789, 
 
 ---
 
-## 4. Mode 2: Message Flow Simulation (`MessageFlowSimulator`)
+## 4. Mode 2: Structural Failure Simulation (`FailureSimulator`)
 
-### 4.1 Discrete-Event SimPy Process Model
+The **`FailureSimulator`** (`saag/simulation/failure_simulator.py`) is the canonical **Validate-stage oracle**. Unlike `FaultInjector`, which derives application dependencies and computes scalar cascade labels for training, `FailureSimulator` traverses the raw structural relationships of the `SimulationGraph` across physical, logical, network, and library pathways to produce multi-dimensional ISO/IEC 25010 construct decompositions.
+
+### 4.1 Raw Structural Relationship Traversal
+
+`FailureSimulator` evaluates multi-layer physical and logical cascades directly:
+- **Physical Cascades (`RUNS_ON`)**: When a host compute node (`Node`) fails, all hosted components (`Application`, `Broker`) immediately fail.
+- **Logical Cascades (`PUBLISHES_TO`, `SUBSCRIBES_TO`)**: Failing a message broker partitions routed topics; failing a publisher leads to subscriber starvation.
+- **Network Cascades (`CONNECTS_TO`)**: Partitions network links between brokers and distributed endpoints.
+- **Library Cascades (`USES`)**: When a shared library (`Library`) fails, all dependent applications crash.
+
+### 4.2 Composite Impact Formulation ($I_{\text{comp}}(v)$)
+
+Component failure impact $I_{\text{comp}}(v)$ is computed as an AHP-weighted composite of four structural degradation dimensions:
+
+$$I_{\text{comp}}(v) = 0.35 \cdot \text{reachability\_loss} + 0.25 \cdot \text{fragmentation} + 0.25 \cdot \text{throughput\_loss} + 0.15 \cdot \text{flow\_disruption}$$
+
+Where each term is weighted by operational severity $s(t) = w(t) \cdot \text{rate}(t)$:
+1. **Reachability Loss**: Fraction of publisher-subscriber communication paths severed by the failure.
+2. **Infrastructure Fragmentation**: Connectivity disruption across the graph, split between structural component count (70%) and stranded QoS message mass (30%).
+3. **Throughput Loss**: QoS-weighted reduction in delivered message bandwidth across all active topics.
+4. **Flow Disruption**: Disruption to end-to-end active communication flows compared to an unperturbed baseline.
+
+> [!NOTE]
+> **AHP Weight Derivation**: The weights $(0.35, 0.25, 0.25, 0.15)$ derive from an Analytic Hierarchy Process Saaty pairwise comparison matrix over the four impact criteria, regularized via shrinkage ($\lambda = 0.7$) toward a uniform prior.
+
+### 4.3 Dimensional Sub-Metrics ($IR$, $IM$, $IA$, $IS$)
+
+In addition to composite impact, `FailureSimulator` decomposes failure effects into ISO/IEC 25010 quality characteristics:
+- **$IR(v)$ (Reliability Impact)**: Combines path reachability loss and throughput degradation.
+- **$IM(v)$ (Maintainability Impact)**: Measures architectural blast radius over derived dependency fan-in and fan-out structures.
+- **$IA(v)$ (Availability Impact)**: Evaluates infrastructure partition count and stranded QoS capacity.
+- **$IS(v)$ (Security Impact)**: Evaluates exposed attack surface and compromised credential propagation.
+
+### 4.4 Baseline Flow Priming & Flow Disruption
+
+The flow disruption term (15% of $I_{\text{comp}}$) compares post-failure flow paths against an unperturbed baseline. Before running exhaustive failure sweeps, the baseline flows must be primed via:
+
+```python
+SimulationService._prime_baseline_flows(graph, sim)
+```
+
+Priming executes deterministically with zero stochastic drop probabilities, ensuring that flow disruption measures architectural vulnerability rather than RNG variance.
+
+### 4.5 Remediation Verification & Validation Gating
+
+`FailureSimulator` is consumed downstream by:
+- **Validation Gates G1–G8** (`saag/validation/service.py`): Checks predicted criticality against simulated structural loss.
+- **Remediation Acceptance** (`saag/prescription/evaluator.py`): The `EditVerifier` sweeps candidate graph refactorings against `FailureSimulator.simulate_exhaustive` to verify that proposed repairs strictly decrease $I_{\text{comp}}$ without causing regressions.
+
+---
+
+## 5. Mode 3: Message Flow Simulation (`MessageFlowSimulator`)
+
+### 5.1 Discrete-Event SimPy Process Model
 
 Built on **SimPy**, this engine models runtime message exchanges, queue occupancies, and timing latencies:
 
@@ -210,23 +259,23 @@ flowchart LR
     Pub["Publisher Process<br>(Periodic or Poisson rate_hz)"] --> Fanout["TopicFanout Manager"]
     Fanout --> SQ1["SubscriberQueue 1<br>(SimPy Store)"]
     Fanout --> SQ2["SubscriberQueue 2<br>(SimPy Store)"]
-    SQ1 --> Sub1["Subscriber Process 1<br>(Processing + QoS Check)"]
-    SQ2 --> Sub2["Subscriber Process 2<br>(Processing + QoS Check)"]
+    SQ1 --> Sub1["Subscriber Process 1<br>(ServiceStation + QoS Check)"]
+    SQ2 --> Sub2["Subscriber Process 2<br>(ServiceStation + QoS Check)"]
     Fault["Fault Process<br>(Triggers at fault_time)"] -.->|failed_nodes set| Pub
     Fault -.->|failed_nodes set| Sub1
 ```
 
-### 4.2 Two-Level Fan-Out Queue Architecture
+### 5.2 Two-Level Fan-Out Queue Architecture
 
 To preserve true pub-sub semantics, `TopicFanout` maintains private `SubscriberQueue` instances for each subscriber, so one topic's backlog cannot block another's at the *queue* (BUG-MFS-1).
 
-Each subscriber's *compute*, by contrast, is deliberately shared: every topic a subscriber reads queues for the same `ServiceStation`. This is not a regression of BUG-MFS-1 — a blocked low-priority topic accumulates in its own bounded queue rather than stalling a high-priority one — but it is the engine's only contended resource, and without it nothing in the simulation ever waits for anything else. The earlier design spawned one server per `SUBSCRIBES_TO` edge, which left utilization below ~0.2 on every corpus scenario; no QoS contract was ever binding, fault-free delivery was exactly 1.0000 everywhere, and `transport_priority` had nowhere to apply. See §4.5.
+Each subscriber's *compute*, by contrast, is deliberately shared: every topic a subscriber reads queues for the same `ServiceStation`. This is not a regression of BUG-MFS-1 — a blocked low-priority topic accumulates in its own bounded queue rather than stalling a high-priority one — but it is the engine's only contended resource, and without it nothing in the simulation ever waits for anything else. The earlier design spawned one server per `SUBSCRIBES_TO` edge, which left utilization below ~0.2 on every corpus scenario; no QoS contract was ever binding, fault-free delivery was exactly 1.0000 everywhere, and `transport_priority` had nowhere to apply. See §5.4.
 
 System delivery rate is normalized by total subscriber demand:
 
 $$\text{Delivery Rate} = \frac{\text{Total Messages Delivered}}{\sum_{t \in \text{Topics}} (\text{Published}(t) \times \text{Subscribers}(t))}$$
 
-### 4.3 Runtime QoS Contract Enforcement
+### 5.3 Runtime QoS Contract Enforcement
 
 Which policies are enforced is selected by `--qos-mode` (`MessageFlowSimulator.QOS_MODES`), mirroring `--qos-factor` on `fault-inject` so both oracles' QoS arms are named the same way:
 
@@ -248,15 +297,15 @@ Which policies are enforced is selected by `--qos-mode` (`MessageFlowSimulator.Q
 | **Durability (`durability`)** | After a fault, retained samples are replayed to surviving readers, bounded by $\min(\text{history\_depth}, \text{messages lost})$. `VOLATILE` retains nothing; `TRANSIENT_LOCAL` recovers only while a co-publisher survives (its history died with the writer); `TRANSIENT` and `PERSISTENT` recover even from an orphaned topic. The effect is monotone in `QoSPolicy.DURABILITY_SCORES`. |
 | **Transport Priority (`transport_priority`)** | Orders service at the subscriber's `ServiceStation` in `full` mode, via `simpy.PriorityResource`. Lowest-value-first and stable within a class, so every other mode degenerates cleanly to FIFO. |
 | **Deadline (`deadline_ms`)** | End-to-end check: $(\text{time}_{\text{processed}} - \text{time}_{\text{created}}) > \text{deadline} \to \text{Violation}$. A replayed sample keeps its original timestamp under `--replay-deadline original`, so a declared deadline rejects it: **durability recovers state, not timeliness.** `reset` is the sensitivity arm. |
-| **Lifespan (`lifespan_ms`)** | Expired samples are silently discarded upon dequeue. Note this path is **unexercised**: `lifespan_ms` appears on none of the 970 corpus topics, and it is read only from the nested `qos` dict, so a flat `qos_lifespan_ms` would be missed. |
+| **Lifespan (`lifespan_ms`)** | Expired samples are silently discarded upon dequeue. Note this path is unexercised when `lifespan_ms` is not declared on corpus topics. |
 
-### 4.5 Operating Point
+### 5.4 Operating Point & Load Calibration ($\rho = 0.65$)
 
-No QoS contract can bind on an idle system, and the corpus is idle: subscriber arrival rates span 1–2600 Hz across scenarios while service was a flat 1 ms, leaving utilization below ~0.2 everywhere. `--target-utilization` (default 0.65) sizes each subscriber's service rate to its own offered load, $E[S_s] = \rho / \Lambda_s$, so $\rho$ means the same operational state on a 1 Hz scenario as on a 700 Hz one — the property a swept parameter needs for a cross-scenario table to mean anything. `measured_utilization` on the result reports what was actually realised; a target that does not show up there is a requested number, not a measured one.
+No QoS contract can bind on an idle system, and raw corpus scenarios are idle: subscriber arrival rates span 1–2600 Hz across scenarios while service was a flat 1 ms, leaving utilization below ~0.2 everywhere. `--target-utilization` (default 0.65) sizes each subscriber's service rate to its own offered load, $E[S_s] = \rho / \Lambda_s$, so $\rho$ means the same operational state on a 1 Hz scenario as on a 700 Hz one — the property a swept parameter needs for a cross-scenario table to mean anything. `measured_utilization` on the result reports what was actually realised.
 
-Above $\rho \approx 0.8$ run-to-run variance grows faster than the signal ($I_{\text{dyn}}$'s own test-retest falls from 0.93 at $\rho = 0.65$ to 0.89 at $\rho = 0.8$), and below $\rho \approx 0.5$ nothing is contended. Deadline-violation rates follow $\exp(-3(1-\rho)/(\rho f_t))$ as a **conservative upper bound** — that closed form is M/M/1 and corpus workloads are periodic, so observed rates run 2–4× below it.
+Above $\rho \approx 0.8$ run-to-run variance grows faster than the signal ($I_{\text{dyn}}$'s own test-retest falls from 0.93 at $\rho = 0.65$ to 0.89 at $\rho = 0.8$), and below $\rho \approx 0.5$ nothing is contended.
 
-### 4.4 Dynamic Behavioral Oracle ($I_{\text{dyn}}(v)$)
+### 5.5 Dynamic Behavioral Oracle ($I_{\text{dyn}}(v)$)
 
 $I_{\text{dyn}}(v)$ measures the empirical delivery loss inflicted on **surviving** components:
 
@@ -264,87 +313,29 @@ $$I_{\text{dyn}}(v) = \text{DeliveryRate}_{\text{pre-fault}} - \text{DeliveryRat
 
 Computed with surviving node receipts in the numerator and continuous demand in the denominator. Both windows bucket on a message's *creation* time, so numerator and denominator describe the same population; the result is deliberately **not** clamped to $[0, 1]$, because under contention removing a chatty publisher can relieve more load than it removes feeds, and a negative $I_{\text{dyn}}$ there is a real measurement.
 
-Mean $\rho(I_{\text{dyn}}, I^*) = 0.907$ across the scenario cohort (`results/convergent_validity.json`, seven scenarios, Application population). **Read that number with its ceiling**: $I^*$'s own seed-to-seed test-retest is 0.807–1.0, so $I_{\text{dyn}}$ agrees with $I^*$ about as closely as $I^*$ agrees with itself. Enforcing QoS under load does not change this — correcting both oracles for measurement error leaves the correlation between 0.97 and 0.94 in every arm (`none`/`contracts`/`recovery`/`full`). $I_{\text{dyn}}$ is a convergent-validity probe on the labels, not an independent validation oracle; see §11 L7.
+Mean $\rho(I_{\text{dyn}}, I^*) = 0.907$ across the scenario cohort (`results/convergent_validity.json`, seven scenarios, Application population). **Read that number with its ceiling**: $I^*$'s own seed-to-seed test-retest is 0.807–1.0, so $I_{\text{dyn}}$ agrees with $I^*$ about as closely as $I^*$ agrees with itself. $I_{\text{dyn}}$ serves as a convergent-validity probe demonstrating that the topological ranking is construct-valid under dynamic discrete-event traffic; see §11 L7.
 
----
+### 5.6 Secondary Diagnostics & Rejection of Multi-Metric Composite ($I_{\text{dyn}}^{\text{comp}}$)
 
-## 5. Mode 3: Runtime Telemetry Simulation (`RuntimeTelemetrySimulator`)
+While `MessageFlowSimulator` collects extensive runtime diagnostics—including tail latency degradation ($\Delta L_{p95}$), Latency Inflation Factor ($\text{LIF}$), Deadline Violation Rate ($\text{DVR} / \Delta\text{SLA}$), and Queue Overflow counts—empirical evaluation across both low-rate (`healthcare_system`) and high-rate (`financial_trading_system`) scenarios demonstrates why these cannot be aggregated into a composite damage score ($I_{\text{dyn}}^{\text{comp}}$):
 
-While `FaultInjector` models graph cascades and `MessageFlowSimulator` models application-level messaging, real distributed cyber-physical systems suffer failures across multiple physical and logical strata simultaneously (host crashes, shared library corruption, broker partitioning, and topic starvation). 
+1. **Systemic Negative Correlation (Contention Relief vs. Feed Loss)**:
+   In distributed publish-subscribe architectures, failing a publisher removes its offered traffic. On contended subscribers, this relieves queueing pressure: post-fault tail latencies decrease ($\Delta L_{p95} < 0$, e.g., mean $-0.13\text{ ms}$ on `financial_trading_system`) and deadline violations fall ($\Delta\text{SLA} < 0$). Every secondary metric correlates **negatively** with delivery loss $I_{\text{dyn}}$:
+   - $\Delta L_{p95}$ vs. $I_{\text{dyn}}$: $\rho = -0.499$ ($p = 0.069$)
+   - $\text{LIF}$ vs. $I_{\text{dyn}}$: $\rho = -0.518$ ($p = 0.058$)
+   - $\text{DVR} / \Delta\text{SLA}$ vs. $I_{\text{dyn}}$: $\rho = -0.418$ ($p = 0.137$)
+   - $\text{BDR}$ vs. $I_{\text{dyn}}$: $\rho = -0.242$ ($p = 0.405$)
+   - Jain's $J$ vs. $I_{\text{dyn}}$: $\rho = -0.301$ ($p = 0.296$)
 
-The **`RuntimeTelemetrySimulator`** (`saag/simulation/runtime_telemetry_simulator.py`) is an all-in-one, high-performance discrete-event engine (built with an internal priority-queue `heapq` event scheduler) that simulates traffic between **all systems**—topics, applications, execution nodes, message brokers, and shared libraries—and collects comprehensive system telemetry. Rather than calculating impact scores directly from topological heuristics, failure impact $I_{\text{telem}}(v)$ is computed directly from empirical telemetry disruption.
+   An additive composite $I_{\text{dyn}}^{\text{comp}} = w_A \Delta\text{DR} + w_L \Delta L_{p95} + w_D \Delta\text{SLA} + \dots$ with positive weights would sum anti-correlated quantities, structurally cancelling the damage signal and reducing discriminative ranking accuracy.
 
-```mermaid
-flowchart TD
-    subgraph Traffic["1. Traffic Simulation Engine"]
-        PUB["Application Publishers<br>(Periodic / Poisson rate_hz)"] --> Q_TOPIC["Topic & Broker Queues<br>(Bounded FIFO / KEEP_LAST)"]
-        Q_TOPIC --> SUB["Application Subscribers<br>(Deadline & Lifespan Validation)"]
-    end
+2. **Severe Scenario-Dependent SNR Discrepancy**:
+   On low-rate scenarios ($\sim 1\text{--}10\text{ Hz}$), within-node seed noise ($\sigma_{\text{seed}} \approx 79.4\text{ ms}$) swamps across-node variation ($\sigma_{\text{across}} \approx 20.9\text{ ms}$), producing $\text{SNR} = 0.26$. On high-rate scenarios ($\sim 700\text{ Hz}$), $\text{SNR}$ reaches $2.68$, but resolves consistently negative deltas (contention relief). A metric whose SNR swings by an order of magnitude cannot serve as a cross-scenario ranking label.
 
-    subgraph FailurePropagation["2. Multi-Layer Failure Injection"]
-        FN["Fault Injected (Host Node / ECU)"] -->|runs_on| FA["Halts All Co-Located Apps & Brokers"]
-        FL["Fault Injected (Shared Library)"] -->|uses| FA2["Halts All Dependent Applications"]
-        FB["Fault Injected (Broker)"] -->|routes| FT["Partitions Routed Topics"]
-    end
+3. **Structural Neutralization of Saturation & Starvation**:
+   Subscriber-level calibration ($\rho = 0.65$) ensures bounded queues: Buffer Drop Rate ($\text{BDR}$) reflects flat baseline pressure ($0.0025$) even for unimpacted nodes. Subscriber Starvation Ratio ($\text{SSR}$) is identically $0.000$ and Jain's fairness index is saturated ($J \in [0.987, 0.999]$) corpus-wide.
 
-    subgraph TelemetryCollector["3. Telemetry Collector"]
-        TRAF["Message Receipts / Drops"] --> TEL["Telemetry Metrics<br>• Delivery & Drop Rates<br>• Latencies (p50, p95, p99)<br>• Buffer Overflows & Deadline Misses<br>• CPU / Memory Utilization Estimates"]
-    end
-
-    subgraph ImpactCalc["4. TelemetryImpactCalculator"]
-        TEL --> TIC["Delta vs. Baseline:<br>Δ Delivery + Δ Latency + Δ Drops + Δ Violations"]
-        TIC --> ITEL["Ground-Truth Impact I_telem(v)"]
-    end
-```
-
-### 5.1 All-in-One Traffic & Telemetry Generation
-
-The simulator models the physical and logical realities of distributed microservice and DDS topologies:
-1. **Host Execution Nodes (`Node` / ECUs)**: Track aggregate CPU load, memory utilization, and network traffic for all hosted applications and brokers via `RUNS_ON` edges.
-2. **Message Brokers (`Broker`)**: Act as centralized message switches for topics via `ROUTES` and `CONNECTS_TO` relations. Broker buffers enqueue, route, and forward samples to subscriber queues.
-3. **Shared Libraries (`Library`)**: Link critical serialization formats, image processing bridges, and math kernels to applications via `USES` edges.
-4. **Publishers & Subscribers (`Application`)**: Produce messages at specified rates ($\text{Hz}$) with payload byte sizes, priority tags, and durability contracts. Subscribers process incoming messages with simulated execution times.
-5. **Topics (`Topic`)**: Enforce QoS policies including DDS `history_depth` queue limits, end-to-end SLA deadlines (`deadline_ms`), and message lifespan expiration (`lifespan_ms`).
-
-### 5.2 Multi-Layer Failure Propagation & Queue Dynamics
-
-When a fault is injected into candidate component $v$ at $t_{\text{fault}}$:
-- **Node Failure (`Node`)**: Simulates complete power loss or kernel panic of a compute unit (e.g., an ECU in an autonomous vehicle). All applications and brokers mapped via `RUNS_ON` immediately crash, ceasing all transmissions and queue ingestion.
-- **Library Failure (`Library`)**: Simulates corruption or segmentation fault in a critical shared object (e.g., `cv-bridge` or `sensor-msgs`). All applications connected via `USES` fail immediately.
-- **Broker Failure (`Broker`)**: Simulates a network partition or process death of a message router. All topics whose traffic is routed through this broker lose transmission paths, leading to buffer overflow on publisher output queues.
-- **Application Failure (`Application`)**: The microservice halts cleanly; its published topics become orphaned, and its subscription buffers stop draining.
-
-### 5.3 Telemetry Metrics & `TelemetryImpactCalculator` ($I_{\text{telem}}(v)$)
-
-During execution, the simulator records rich runtime telemetry at both system-wide and per-component granularity:
-- **Message Counters**: `total_messages_generated`, `total_messages_delivered`, `total_dropped_buffer_overflow`, `total_dropped_deadline`, `total_dropped_expired`.
-- **System Rates**: `system_delivery_rate` $\in [0, 1]$, `system_drop_rate` $\in [0, 1]$.
-- **Latency Distribution**: End-to-end timing percentiles (`system_latency_p50_ms`, `p95_ms`, `p99_ms`).
-- **QoS Contract Violations**: `qos_violations` list detailing topic name, violating application, metric (`DEADLINE_EXCEEDED`, `QUEUE_OVERFLOW`, `LIFESPAN_EXPIRED`), and violation timestamp.
-- **Resource Saturation**: Estimated per-node CPU/memory footprints and broker queue watermarks.
-
-#### Empirical Impact Derivation
-The **`TelemetryImpactCalculator`** (`saag/simulation/telemetry_impact.py`) computes component criticality $I_{\text{telem}}(v)$ by comparing the post-fault telemetry state against pre-fault baseline operations:
-
-$$I_{\text{telem}}(v) = w_{\text{del}} \cdot \Delta \text{DeliveryRate}(v) + w_{\text{drop}} \cdot \Delta \text{DropRate}(v) + w_{\text{lat}} \cdot \widetilde{\Delta \text{Latency}}(v) + w_{\text{qos}} \cdot \widetilde{\Delta \text{QoSViolations}}(v)$$
-
-Where:
-- $\Delta \text{DeliveryRate}(v) = \max(0, \; \text{DeliveryRate}_{\text{pre}} - \text{DeliveryRate}_{\text{post}})$
-- $\Delta \text{DropRate}(v) = \max(0, \; \text{DropRate}_{\text{post}} - \text{DropRate}_{\text{pre}})$
-- $\widetilde{\Delta \text{Latency}}(v)$ is normalized logarithmic growth in $p95$ latency.
-- Default weights: $w_{\text{del}} = 0.40$, $w_{\text{drop}} = 0.25$, $w_{\text{lat}} = 0.20$, $w_{\text{qos}} = 0.15$.
-
-### 5.4 Dual-Role Utility: GNN Ground-Truth Labeling & Prediction Validation
-
-`RuntimeTelemetrySimulator` fulfills two central roles across the SaaG pipeline:
-
-1. **Role 1: Continuous Ground-Truth Supervision for GNN Models**:
-   - Unlike structural reachability cascades ($I^*$), which produce stepped, plateaued label distributions where many components share identical blast radii, $I_{\text{telem}}$ provides smooth, continuous supervision signals based on empirical traffic drops and queue backpressure.
-   - Training HGT-QoS on $I_{\text{telem}}$ prevents gradient saturation during backpropagation, yielding higher test rank correlation against structural ground truth ($\rho = 0.7075$ vs. $\rho = 0.6640$ on the AV benchmark).
-
-2. **Role 2: Empirical Prediction Validation Oracle**:
-   - Enables validating GNN and ISO/IEC 25010 RM predictions against realistic runtime telemetry (packet delivery rates, queue overflows, latency degradation).
-   - Serves as the ultimate behavioral validation oracle without needing invasive production instrumentation.
+**Conclusion**: $I_{\text{dyn}}$ remains strictly 1-dimensional (unweighted delivery rate loss), operating at $\text{SNR} = 1.46\text{--}95.8$. Secondary metrics are exposed in `FaultEventRecord` exclusively as per-scenario runtime diagnostics.
 
 ---
 
@@ -354,10 +345,10 @@ The simulation suite maps observed metrics to ISO/IEC 25010 & 25019 quality cons
 
 | Quality Characteristic | Observed Simulation Attribute | Metric / Artifact Source |
 |:---|:---|:---|
-| **Effectiveness** (Availability & Fault Tolerance) | Message delivery rates, dropped packet fractions & partition sizes | `SystemTelemetry.system_delivery_rate`, `ImpactMetrics.reachability_loss`, `FaultEventRecord.delivery_rate_after` |
-| **Efficiency** (Time Behavior & Capacity) | End-to-end latency percentiles, queue overflows & buffer drops | `SystemTelemetry.system_latency_p95_ms`, `total_messages_dropped`, `total_queue_overflows` |
-| **Freedom from Risk** (Contract Integrity) | QoS deadline & lifespan violations, starving subscribers | `SystemTelemetry.qos_violations_count`, `starvation_events_count`, `total_dropped_deadline` |
-| **Resource Utilization** (Infrastructure Health) | Estimated host CPU and network bandwidth load | `NodeTelemetry.estimated_cpu_load`, `bandwidth_bps_in`, `bandwidth_bps_out` |
+| **Effectiveness** (Availability & Fault Tolerance) | Message delivery rates, dropped packet fractions & path reachability | `FaultInjector.sub_loss`, `FailureSimulator.reachability_loss`, `MessageFlowSimulator.system_delivery_rate` |
+| **Efficiency** (Time Behavior & Capacity) | Queue occupancies, throughput loss & end-to-end latency percentiles | `FailureSimulator.throughput_loss`, `MessageFlowSimulator.latency_p50 / p95` |
+| **Freedom from Risk** (Contract Integrity) | Graph fragmentation, QoS deadline violations & subscriber starvation | `FailureSimulator.fragmentation`, `MessageFlowSimulator.qos_violations_count` |
+| **Modularity & Maintainability** (Architectural Blast Radius) | Derived dependency fan-in/fan-out, library blast radius | `FailureSimulator.maintainability_impact` ($IM(v)$) |
 
 ---
 
@@ -376,7 +367,7 @@ ASTERIX_Broker      ──ROUTES────────▶ All Topics
 
 #### Simulated Fault Impact Ranking
 
-| Component | $I(v)$ | Cascade Depth | Architectural Rationale |
+| Component | $I^*(v)$ | Cascade Depth | Architectural Rationale |
 |:---|:---:|:---:|:---|
 | `RadarTracker` | **1.000** | 1 | Sole producer of `T_radar` and `T_tracks`; starves `ConflictDetector` and `FlightDataProcessor`, triggering full cascade to `ATCWorkstation`. |
 | `ASTERIX_Broker`| **1.000** | 1 | Sole routing broker for all system topics; partitions the entire graph. |
@@ -389,32 +380,20 @@ ASTERIX_Broker      ──ROUTES────────▶ All Topics
 * **Graph Scale:** $|V| = 152$ nodes (80 Applications, 20 Libraries, 40 Topics, 4 Brokers, 8 ECUs/Nodes) and $|E| = 730$ directed edges.
 * **Domain Context:** Real-time ROS 2 / DDS architecture with sensor fusion pipelines (LiDAR, Camera, Radar), SLAM, path planning, and strict 20 ms actuation deadlines.
 
-#### Cross-Layer Stratification Results ($I_{\text{telem}}$ vs. Prior Oracles)
+#### Multi-Oracle Stratification Across Architectural Layers
 
-| Architectural Layer / Stratum | Evaluated $N$ | Mean $I_{\text{telem}}$ | Max $I_{\text{telem}}$ | Mean $I^*$ (Cascade) | Mean $I_{\text{comp}}$ (FailureSim) |
-|:---|:---:|:---:|:---:|:---:|:---:|
-| **Infrastructure (Nodes / ECUs)** | **8** | **0.4018** | **0.4860** | 0.8411 | 0.2713 |
-| **Application (Shared Libraries)** | **20** | **0.3536** | **0.4446** | 0.9436 | 0.0000 |
-| **Middleware (Message Brokers)** | **4** | **0.3301** | **0.3507** | 0.4882 | 0.0945 |
-| **Application (Microservices)** | **80** | **0.3133** | **0.3974** | 0.1905 | 0.0119 |
-| **Entire System (Pooled)** | **112** | **0.3274** | **0.4860** | **0.3821** | **0.0381** |
+| Architectural Layer / Stratum | Evaluated $N$ | Mean $I^*$ (FaultInjector) | Mean $I_{\text{comp}}$ (FailureSimulator) | Mean $I_{\text{dyn}}$ (MessageFlow) |
+|:---|:---:|:---:|:---:|:---:|
+| **Infrastructure (Nodes / ECUs)** | 8 | — (unlabeled) | 0.2713 | — (unobservable) |
+| **Application (Shared Libraries)** | 20 | 0.9436 | 0.0000 | — (unobservable) |
+| **Middleware (Message Brokers)** | 4 | 0.4882 | 0.0945 | — (unobservable) |
+| **Application (Microservices)** | 80 | 0.1905 | 0.0119 | 0.1842 |
+| **Entire System (Pooled)** | 112 | 0.3821 | 0.0381 | — |
 
-#### Top Critical Components Identified by Telemetry
-
-```text
-Rank  ID     Type         Name                  I_telem   Key Driver / Vulnerability
----------------------------------------------------------------------------------------------
- 1.   N2     Node         vision-compute        0.4860    Hosts camera pipelines; drops 12 topics
- 2.   N5     Node         lidar-processor-3     0.4651    Hosts pointcloud processing; 54 subscribers
- 3.   L19    Library      cv-bridge-2           0.4446    Shared OpenCV bridge across vision nodes
- 4.   N0     Node         nav-computer          0.4292    Hosts trajectory planner; 63 subscribers
- 5.   L8     Library      sensor-msgs-4         0.4199    Core ROS 2 sensor message definitions
- 6.   L12    Library      sensor-msgs-7         0.4069    High-frequency radar/lidar serialization
- 7.   N3     Node         lidar-processor-1     0.4052    Front LiDAR ECU host
- 8.   A26    Application  slam-node-4           0.3974    High-centrality SLAM node (top app)
- 9.   L17    Library      geometry-msgs-3       0.3834    Shared odometry & transform transforms
-10.   L0     Library      nav-core              0.3769    Navigation & path planning primitives
-```
+The three oracles measure complementary aspects:
+- `FaultInjector` produces $I^*(v)$ for GNN supervision, deriving app-to-library dependencies so libraries exhibit high impact.
+- `FailureSimulator` evaluates multi-layer structural loss across compute nodes, brokers, and applications.
+- `MessageFlowSimulator` evaluates continuous runtime delivery loss $I_{\text{dyn}}(v)$ over active message paths under QoS contracts.
 
 ---
 
@@ -433,63 +412,26 @@ Rank  ID     Type         Name                  I_telem   Key Driver / Vulnerabi
 
 ```bash
 # Full multi-seed cascade simulation
-PYTHONPATH=. python cli/simulate_graph.py fault-inject \
-    --input data/scenarios/atm_system.json \
-    --seeds 42,123,456,789,2024 \
-    --propagation-threshold 0.2 \
-    --qos-factor ladder \
-    --export-json
+PYTHONPATH=. python cli/simulate_graph.py fault-inject     --input data/scenarios/atm_system.json     --seeds 42,123,456,789,2024     --propagation-threshold 0.2     --qos-factor ladder     --export-json
 ```
 
 ### 8.3 `message-flow` Subcommand
 
 ```bash
 # Inject broker fault at midpoint (t = 150s)
-PYTHONPATH=. python cli/simulate_graph.py message-flow \
-    --input data/scenarios/atm_system.json \
-    --duration 300 \
-    --fault-node ASTERIX_Broker \
-    --fault-time 150 \
-    --export-json
+PYTHONPATH=. python cli/simulate_graph.py message-flow     --input data/scenarios/atm_system.json     --duration 300     --fault-node ConflictDetector     --fault-time 150     --qos-mode full     --export-json
 ```
 
 ### 8.4 `combined` Subcommand
 
 ```bash
 # Run both cascade fault injection and message-flow sequentially
-PYTHONPATH=. python cli/simulate_graph.py combined \
-    --input data/scenarios/atm_system.json \
-    --seeds 42,123,456,789,2024 \
-    --node-types Application,Broker,Library \
-    --duration 300 --fault-node ASTERIX_Broker \
-    --export-json
-```
-
-### 8.5 `telemetry` Subcommand
-
-```bash
-# 1. Single-node fault injection with full runtime telemetry export
-PYTHONPATH=. python cli/simulate_graph.py telemetry \
-    --input data/scenarios/av_system.json \
-    --duration 60.0 \
-    --fault-node N2 \
-    --fault-time 30.0 \
-    --export-telemetry \
-    --output output/simulation/
-
-# 2. Exhaustive sweep across all system components (Nodes, Brokers, Apps, Libs)
-PYTHONPATH=. python cli/simulate_graph.py telemetry \
-    --input data/scenarios/av_system.json \
-    --duration 3.0 \
-    --seeds 42 \
-    --node-types Application,Broker,Library,Node \
-    --export-json \
-    --output output/simulation/
+PYTHONPATH=. python cli/simulate_graph.py combined     --input data/scenarios/atm_system.json     --seeds 42,123,456,789,2024     --node-types Application,Broker,Library     --duration 300 --fault-node ConflictDetector     --export-json
 ```
 
 ---
 
-## 9. Output Schemas (`impact_scores.json`, `message_flow_results.json` & `telemetry_<node>.json`)
+## 9. Output Schemas (`impact_scores.json` & `message_flow_results.json`)
 
 ### 9.1 `impact_scores.json` (Fault Injection Ground Truth)
 
@@ -540,56 +482,6 @@ PYTHONPATH=. python cli/simulate_graph.py telemetry \
 }
 ```
 
-### 9.3 `telemetry_<node>.json` (Full System Runtime Telemetry)
-
-```json
-{
-  "schema_version": "2.0",
-  "graph_id": "av_system",
-  "simulation_duration": 60.0,
-  "seed": 42,
-  "total_messages_generated": 1297,
-  "total_messages_delivered": 7085,
-  "total_messages_dropped": 1566,
-  "system_delivery_rate": 0.8189,
-  "system_drop_rate": 0.1811,
-  "system_latency_p50_ms": 1.52,
-  "system_latency_p95_ms": 4.88,
-  "system_latency_p99_ms": 12.34,
-  "faulted_nodes": ["N2"],
-  "fault_time": 30.0,
-  "pre_fault_delivery_rate": 0.9942,
-  "post_fault_delivery_rate": 0.6436,
-  "pre_fault_p95_latency_ms": 2.10,
-  "post_fault_p95_latency_ms": 7.64,
-  "qos_violations_count": 142,
-  "starvation_events_count": 54,
-  "components": {
-    "A26": {
-      "component_id": "A26",
-      "component_type": "Application",
-      "component_name": "slam-node-4",
-      "messages_sent": 140,
-      "messages_received": 520,
-      "messages_dropped": 48,
-      "feed_starvation_ratio": 0.25,
-      "is_failed": false
-    }
-  },
-  "nodes": {
-    "N2": {
-      "node_id": "N2",
-      "node_name": "vision-compute",
-      "messages_in": 120,
-      "messages_out": 480,
-      "estimated_cpu_load": 0.0,
-      "hosted_components": ["A10", "A11", "A12"],
-      "is_failed": true
-    }
-  }
-}
-```
-
 ---
 
 ## 10. Python API Usage
@@ -614,10 +506,32 @@ result = injector.run(node_types=["Application", "Broker", "Library"])
 result.save(Path("output/simulation/impact_scores.json"))
 
 print(f"Top Critical: {result.top_k_by_impact[0]['node_id']} "
-      f"(I = {result.top_k_by_impact[0]['impact_score']:.4f})")
+      f"(I* = {result.top_k_by_impact[0]['impact_score']:.4f})")
 ```
 
-### 10.2 Running `MessageFlowSimulator` Programmatically
+### 10.2 Running `FailureSimulator` Programmatically
+
+```python
+from pathlib import Path
+from saag.simulation.graph import SimulationGraph
+from saag.simulation.failure_simulator import FailureSimulator
+from saag.simulation.service import SimulationService
+
+# Wrap graph in SimulationGraph
+sim_graph = SimulationGraph(graph_data)
+sim = FailureSimulator(sim_graph, qos_weighting=True)
+
+# Prime baseline flows so flow disruption (15%) is measurable
+SimulationService._prime_baseline_flows(sim_graph, sim)
+
+# Run exhaustive failure sweep
+results = sim.simulate_exhaustive(seed=42)
+for r in results[:5]:
+    print(f"Node: {r.target_id} -> I_comp = {r.impact.composite_impact:.4f} "
+          f"(Reachability: {r.impact.reachability_loss:.4f})")
+```
+
+### 10.3 Running `MessageFlowSimulator` Programmatically
 
 ```python
 from pathlib import Path
@@ -628,7 +542,9 @@ sim = MessageFlowSimulator(
     duration=300.0,
     fault_node="ConflictDetector",
     fault_time=150.0,
-    seed=42
+    seed=42,
+    qos_mode="full",
+    target_utilization=0.65
 )
 
 result = sim.run()
@@ -639,64 +555,28 @@ if result.fault_event:
           f"{result.fault_event.delivery_rate_after:.4f}")
 ```
 
-### 10.3 Running `RuntimeTelemetrySimulator` Programmatically
-
-```python
-from pathlib import Path
-from saag.simulation.runtime_telemetry_simulator import RuntimeTelemetrySimulator
-from saag.simulation.telemetry.models import TelemetryScenario
-from saag.simulation.telemetry_impact import TelemetryImpactCalculator
-
-# 1. Single-node fault run with rich telemetry
-scenario = TelemetryScenario(
-    duration=60.0,
-    fault_node="N2",
-    fault_time=30.0,
-    seed=42,
-    default_publish_rate_hz=10.0
-)
-sim = RuntimeTelemetrySimulator(graph=graph, scenario=scenario)
-telemetry = sim.simulate()
-telemetry.save("output/simulation/telemetry_N2.json")
-
-# 2. Derive quantitative impact from telemetry deltas
-calculator = TelemetryImpactCalculator()
-impact_score = calculator.calculate_node_impact("N2", telemetry)
-print(f"Node N2 Telemetry Impact: {impact_score:.4f}")
-
-# 3. Exhaustive system-wide component sweep
-sweep_result = sim.sweep_all_components(
-    node_types=["Application", "Broker", "Library", "Node"],
-    duration=3.0,
-    seeds=[42]
-)
-sweep_result.save(Path("output/simulation/impact_scores.json"))
-print(f"Top Critical: {sweep_result.top_k_by_impact[0]['node_id']} "
-      f"(I = {sweep_result.top_k_by_impact[0]['impact_score']:.4f})")
-```
-
 ---
 
 ## 11. Known Limitations & Design Boundaries
 
 | # | Boundary / Limitation | Methodological Scope & Handling |
 |:---|:---|:---|
-| **L1** | **Unmodelled Host Node / Library Failures in $I^*$** | Cascade oracle $I^*$ derives `DEPENDS_ON` only from pub/sub and `USES`; physical host failures are unrepresented. **Resolved in Mode 3**: `RuntimeTelemetrySimulator` explicitly halts co-located applications via `RUNS_ON` and dependent applications via `USES`. |
-| **L2** | **Unmeasured Maintainability Dimension** | `FaultInjector` measures operational cascade reach ($IR$ / composite). Maintainability ground truth is supplied by `FailureSimulator` in Step 6. |
-| **L3** | **Single Fault per Simulation** | Simulators evaluate one component failure per run; multi-failure cascades model cascading effects rather than concurrent disjoint failures. |
-| **L4** | **Discrete-Event Latency Saturation** | In low-utilization scenarios (~1 Hz), queue build-up is negligible. $I_{\text{dyn}}(v)$ uses empirical delivery rates rather than latency jitter. |
+| **L1** | **Host Node & Library Cascades Across Engines** | `FailureSimulator` natively cascades host failures via `RUNS_ON` and library failures via `USES`. `FaultInjector` dynamically derives `DEPENDS_ON(app_to_lib)` for libraries, but compute hardware nodes are omitted from default application-level training labels. |
+| **L2** | **Unmeasured Maintainability Dimension in $I^*$** | `FaultInjector` measures operational cascade reach ($IR$ / composite). Maintainability ground truth ($IM(v)$) is supplied by `FailureSimulator` in Step 6. |
+| **L3** | **Single Fault per Simulation** | Simulators evaluate one candidate component failure per run; multi-failure cascades model cascading effects rather than concurrent disjoint failures. |
+| **L4** | **Discrete-Event Tail Latency & Operating Point** | Under calibrated utilization ($\rho = 0.65$), queue contention is active. However, tail-latency variance across seeds has $\text{SNR} \approx 0.26$ ($\sigma_{\text{seed}} \approx 79\text{ ms} > \sigma_{\text{across}} \approx 21\text{ ms}$), so delivery rate drop remains the sole stable discriminative metric. |
 | **L5** | **Edge Ground Truth Scope** | Edge impact is evaluated via single-edge removal sweeps ($\Delta \text{Impact}$) with unmeasured edges marked `evaluated: false`. |
-| **L7** | **$I_{\text{dyn}}$ is not an independent oracle** | It is behavioural where $I^*$ is topological, but both traverse the same graph. Measured across the `qos_mode` ladder, correcting each arm for its own measurement error, enforcing QoS under a calibrated load moves the disattenuated $\rho(I_{\text{dyn}}, I^*)$ by 0–3% (0.966 on `healthcare`, 0.974→0.942 on `iot_smart_city`). Subscriber-side dynamics cannot make a behavioural oracle over the same topology independent of the topological one; that would require a different substrate or observed rather than simulated failures. Report $I_{\text{dyn}}$ as a convergent-validity probe, never as independent validation of a prediction. |
-| **L8** | **Broker and host Nodes are unobservable to $I_{\text{dyn}}$** | The engine models publisher, topic and subscriber only; faulting a Broker (`ROUTES`) or a `Node` (`RUNS_ON`) is a no-op. Such components are reported in `unlabeled_node_ids` rather than scored 0.0 — unmeasured is not measured-as-harmless. |
-| **L6** | **Counterfactual Search Cost** | Sweeps score the graph *as it stands* cheaply, but evaluating a space of candidate architectural repairs costs one exhaustive sweep per (edit × threshold × seed). This is why remediation is structured as cheap proposal followed by simulated verification rather than search-by-simulation — see [criticality.md §7.2.1](criticality.md#721-why-a-predictor-rather-than-the-oracle). |
+| **L6** | **Counterfactual Search Cost** | Sweeps score the graph *as it stands* cheaply, but evaluating candidate architectural repairs costs one exhaustive sweep per (edit × threshold × seed). Remediation is thus structured as proposal followed by simulated verification rather than search-by-simulation — see [criticality.md §7.2.1](criticality.md#721-why-a-predictor-rather-than-the-oracle). |
+| **L7** | **$I_{\text{dyn}}$ is a convergent-validity probe, not an independent oracle** | It is behavioural where $I^*$ is topological, but both traverse the same graph. Across the `qos_mode` ladder, correcting each arm for its own measurement error, enforcing QoS under a calibrated load leaves disattenuated $\rho(I_{\text{dyn}}, I^*) \approx 0.94\text{--}0.97$. Subscriber-side dynamics over the same topology cannot be fully independent of the topological oracle; report $I_{\text{dyn}}$ as convergent validity, never as independent predictive validation. |
+| **L8** | **Broker and host Nodes are unobservable to $I_{\text{dyn}}$** | `MessageFlowSimulator` models publisher, topic, and subscriber interactions only; faulting a Broker (`ROUTES`) or a `Node` (`RUNS_ON`) has no direct messaging process. Such components are omitted from evaluated sets rather than scored 0.0. |
 
 ---
 
 ## 12. What Comes Next
 
-Simulation ground-truth files (`impact_scores.json`, `message_flow_results.json`, and `telemetry_<node>.json`) are consumed downstream:
-- **[Step 3: Predict](prediction.md)** trains GNN models on either $I^*(v)$ cascade labels or $I_{\text{telem}}(v)$ continuous telemetry labels.
-- **[Step 6: Validate](validation.md)** executes statistical correlation gates (Spearman $\rho \ge 0.70$, $F_1\text{@top-}K$) to validate topological $Q(v)$ and GNN predictions against simulated telemetry impact.
+Simulation ground-truth files (`impact_scores.json` and `message_flow_results.json`) are consumed downstream:
+- **[Step 3: Predict](prediction.md)** trains GNN models on $I^*(v)$ cascade labels.
+- **[Step 6: Validate](validation.md)** executes statistical correlation gates (Spearman $\rho \ge 0.70$, $F_1\text{@top-}K$) validating topological $Q(v)$ and GNN predictions against simulated structural impact ($I_{\text{comp}}$) and dynamic behavioral flow ($I_{\text{dyn}}$).
 
 ---
 

@@ -217,18 +217,16 @@ latent defect that would have silently mis-measured any future run under load.
 Re-verified after the corpus regeneration of 2026-09-07, which is when this stopped being a small
 point. That regeneration made topic QoS come from the configs' `qos_stats` distributions rather than
 a name-pattern lookup, taking BEST_EFFORT topics from 82 to 282 of 970; the resolver now reads that
-variation where before it would have flattened all 282 to RELIABLE. Deadlines remain undeclared
-corpus-wide and utilisation is unchanged, so both counters are still structurally zero and
-$I_{\text{dyn}}$ is still unmoved — but the amount of declared QoS the engine would have been
-discarding is now more than three times what it was. Latency is likewise uninformative here, though not for the reason an earlier
-version of this passage gave: publication rates are read correctly and span 1-200 Hz across the
-corpus. The binding constraint is service rate. `default_processing_time_s` is $0.001$ s, so each
-subscriber drains at 1000 Hz against an arrival rate of at most 200 Hz; utilisation therefore caps
-around $0.2$, queues never build, and $p95$ latency stays flat to within run-to-run jitter across
-faulted components. Raising it is not a code change but a corpus change — per-component processing
-times the topologies do not carry. $I_{\text{dyn}}$ should therefore be read as a
-*throughput* oracle — it corroborates that the cascade ranking tracks lost message delivery, and it
-makes no claim about QoS contract conformance under load.
+variation where before it would have flattened all 282 to RELIABLE. While deadlines remain undeclared
+corpus-wide, subscriber service rates are now calibrated to offered load via `ServiceStation`
+($\rho = 0.65$, $E[S_s] = \rho / \Lambda_s$), activating queue contention and priority scheduling.
+However, tail latency degradation ($\Delta L_{p95}$) fails to provide an architectural criticality signal:
+empirical measurements reveal that within-node seed variance ($\sigma_{\text{seed}} \approx 79.4\text{ ms}$)
+dwarfs between-node variation ($\sigma_{\text{across}} \approx 20.9\text{ ms}$), yielding an unacceptable
+signal-to-noise ratio ($\text{SNR} = 0.26$). In addition, removing a chatty publisher relieves contention
+and can drive $\Delta L_{p95}$ negative. $I_{\text{dyn}}$ is therefore retained strictly as unweighted
+delivery loss ($\text{SNR} = 1.46$). It corroborates that the cascade ranking tracks surviving message delivery
+under discrete-event traffic ($\rho = 0.907$ with $I^*$), serving as a convergent-validity probe.
 
 **Internal validity.** The chief internal risk is circular validation — a predictor scoring well
 because its inputs leaked from its labels. The framework addresses this by *view* separation:
