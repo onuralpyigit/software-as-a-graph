@@ -348,6 +348,37 @@ def check_supplement_stratification(rep: Report) -> None:
                         f"{truth:.3f}"))
 
 
+def check_supplement_shrinkage(rep: Report) -> None:
+    """Supplement S1's AHP shrinkage endpoints, in the table AND in the prose.
+
+    S1 states the same sweep twice, once in the sensitivity table and once in
+    the paragraph below it. They disagreed: the table said 0.262 -> 0.166 with
+    spread 0.096 while the prose two paragraphs later said 0.319 -> 0.200 with
+    spread 0.119, which is what the artifact says. A figure restated in two
+    places in one document is exactly what goes half-stale.
+    """
+    art = _load("ahp_shrinkage_sweep_v3.json")
+    if art is None:
+        rep.skipped.append("ahp_shrinkage_sweep_v3.json absent; S1 shrinkage unchecked")
+        return
+    rows = {r.get("lambda"): r.get("mean_rho") for r in art.get("rows", [])}
+    lo, hi = rows.get(0.0), rows.get(1.0)
+    if lo is None or hi is None:
+        rep.skipped.append("ahp_shrinkage_sweep_v3.json has no lambda 0.0/1.0 row")
+        return
+    tex = _supp()
+    for name, truth in (("lambda=0 rho", lo), ("lambda=1 rho", hi), ("spread", lo - hi)):
+        rep.checked += 1
+        # Both the table row and the prose must carry the same value, so a
+        # count of at least two is the real expectation; one means the other
+        # copy has drifted.
+        hits = len(re.findall(rf"(?<![\d.]){re.escape(f'{truth:.3f}')}(?![\d])", tex))
+        if hits < 2:
+            rep.findings.append(
+                Finding("supp:S1", name, "occurrences",
+                        f"{hits} (table and prose must agree)", f"{truth:.3f} x2"))
+
+
 def check_table7_loso(rep: Report, artifact: str) -> None:
     """Table 7 LOSO means and F1 against the variants artifact."""
     d = _load(artifact)
@@ -712,6 +743,7 @@ def main() -> int:
     check_table4_corpus(rep)
     check_table5_indist(rep, args.main_table)
     check_supplement_stratification(rep)
+    check_supplement_shrinkage(rep)
     check_table7_loso(rep, args.loso)
     check_table7c_active(rep, args.loso)
     check_scale_table(rep)

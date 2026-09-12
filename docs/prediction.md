@@ -262,7 +262,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{di
 
 ### 6.1 Pipeline Integration
 
-The high-level `Pipeline` builder configures and executes Step 3 (Predict) on its own, or chained into Step 4 (Diagnose) — see [diagnosis.md §6.1](diagnosis.md#61-pipeline-integration) for the full chain including the Triage Bridge:
+The high-level `Pipeline` builder configures and executes Step 3 (Predict) on its own, or chained into Step 4 (Diagnose) — see [diagnosis.md §6.1](diagnosis.md#71-pipeline-integration) for the full chain including the Triage Bridge:
 
 ```python
 import saag
@@ -295,7 +295,7 @@ pred_uc = PredictiveUseCase(gnn_checkpoint_dir="output/gnn_checkpoints/best_mode
 gnn_result = pred_uc.execute(structural_result=struct_result, graph=nx_graph)
 ```
 
-See [diagnosis.md §6.2](diagnosis.md#62-direct-use-case-execution-saagusecases) for `DiagnosticUseCase` and `TriageUseCase`.
+See [diagnosis.md §6.2](diagnosis.md#72-direct-use-case-execution-saagusecases) for `DiagnosticUseCase` and `TriageUseCase`.
 
 ---
 

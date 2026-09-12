@@ -9,14 +9,14 @@
 ## Table of Contents
 
 1. [Overview & Core Thesis](#1-overview--core-thesis)
-2. [Dual Validation Paths & Architectures](#2-dual-validation-paths--architectures)
+2. [Dual Validation Paths & Architectures](#2-dual-validation-pathways)
 3. [Ground-Truth Oracles & Taxonomy](#3-ground-truth-oracles--taxonomy)
-   - 3.1 [The Three Ground-Truth Symbols](#31-the-three-ground-truth-symbols)
+   - 3.1 [The Three Ground-Truth Symbols](#31-the-simulation-oracles)
    - 3.2 [Oracle Convergence & The Behavioral Oracle ($I_{\text{dyn}}(v)$)](#32-oracle-convergence--the-behavioral-oracle-i_textdynv)
 4. [Statistical Evaluation Battery](#4-statistical-evaluation-battery)
    - 4.1 [The One-Population Evaluation Contract](#41-the-one-population-evaluation-contract)
    - 4.2 [Rank Correlation & The Label Noise Ceiling](#42-rank-correlation--the-label-noise-ceiling)
-   - 4.3 [Bootstrap Confidence Intervals ($95\%\text{ CI}$)](#43-bootstrap-confidence-intervals-95-ci)
+   - 4.3 [Bootstrap Confidence Intervals ($95\%\text{ CI}$)](#43-bootstrap-confidence-intervals-95text-ci)
    - 4.4 [Classification & Top-$K$ Metrics](#44-classification--top-k-metrics)
    - 4.5 [Per-Dimension Validation & Specialist Metrics](#45-per-dimension-validation--specialist-metrics)
    - 4.6 [Composite Validation & Predictive Gain ($PG$)](#46-composite-validation--predictive-gain-pg)

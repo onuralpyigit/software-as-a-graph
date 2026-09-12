@@ -1250,16 +1250,16 @@ A component with high M(v) is a structural bottleneck that has many tightly-cont
 `A(v)` is Reliability's second sub-characteristic (§6.22) — not a peer dimension. Its formula is unchanged from the retired 4-D "RMAV" model; only its role changed.
 
 ```
-A(v) = 0.35 × AP_c_directed(v) + 0.25 × QSPOF(v) + 0.25 × BR(v) + 0.10 × CDI(v) + 0.05 × w(v)
+A(v) = 0.2563 × AP_c_directed(v) + 0.1998 × QSPOF(v) + 0.1998 × BR(v) + 0.2563 × CDI(v) + 0.0878 × w(v)
 ```
 
 | Term | Weight | Rationale |
 |------|--------|-----------|
-| AP_c_directed(v) | 0.35 | Directed articulation score — primary structural SPOF baseline; identifies bottlenecks regardless of operational priority |
-| QSPOF(v) | 0.25 | QoS-weighted SPOF severity — `AP_c_directed × w(v)`; highlights high-priority structural SPOFs |
-| BR(v) | 0.25 | Bridge ratio — fraction of incident edges that are bridges; identifies irreplaceable structural foundations |
-| CDI(v) | 0.10 | Connectivity degradation — path elongation upon removal catches non-SPOF availability risk |
-| w(v) | 0.05 | Component QoS weight — direct operational priority focus for availability focus |
+| AP_c_directed(v) | 0.2563 | Directed articulation score — primary structural SPOF baseline; identifies bottlenecks regardless of operational priority |
+| QSPOF(v) | 0.1998 | QoS-weighted SPOF severity — `AP_c_directed × w(v)`; highlights high-priority structural SPOFs |
+| BR(v) | 0.1998 | Bridge ratio — fraction of incident edges that are bridges; identifies irreplaceable structural foundations |
+| CDI(v) | 0.2563 | Connectivity degradation — path elongation upon removal catches non-SPOF availability risk. v4 promoted this to parity with `AP_c_directed`: CDI is now computed for every node in the main component rather than only articulation points, so it carries continuous SPOF-adjacent signal |
+| w(v) | 0.0878 | Component QoS weight — direct operational priority focus for availability focus |
 
 ### 6.22 Reliability Score R(v) (Hierarchical Composite)
 

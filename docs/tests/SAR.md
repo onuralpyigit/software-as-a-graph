@@ -220,7 +220,7 @@ Evaluating the reported RM predictions (TODO(needs re-measurement) — see §4 n
 | **Tier 2** | **G6 (Weighted $\kappa_{CTA}$)** | $\ge 0.70$ | Not claimed in this SAR | — |
 | **Tier 3** | **G8 (Bottleneck Precision)** | $\ge 0.70$ | Not claimed in this SAR | — |
 
-> **RETIRED — Vulnerability/Security dimension deleted, see [structural-analysis.md §11](../structural-analysis.md#11):** G7 (CDCC Max, formerly $\rho$(Security, Availability) cross-dimensional contamination) and G9 (FTR Max, False Top Rate, formerly security-only) no longer exist as gates. No successor gate replaces them; the gap in numbering above (no G7, no G9) is intentional.
+> **RETIRED — Vulnerability/Security dimension deleted, see [structural-analysis.md §11](../structural-analysis.md#11-worked-example-5-node-distributed-architecture):** G7 (CDCC Max, formerly $\rho$(Security, Availability) cross-dimensional contamination) and G9 (FTR Max, False Top Rate, formerly security-only) no longer exist as gates. No successor gate replaces them; the gap in numbering above (no G7, no G9) is intentional.
 
 ### 6.1 Conclusions
 The validation gate checks demonstrate that the Software-as-a-Graph framework satisfies the reported RM primary accuracy constraints on the **Application layer** and **System layer**, though those constraints are figures TODO(needs re-measurement) — see §4 note — carried forward from the retired RMAV model rather than freshly measured under RM. The SAR does not claim current ensemble validation; GNN evidence is limited to the external Middleware HGL-QoS LOSO reference and cross-seed training stability, with best-seed restoration treated as a deployment convenience.

@@ -6,7 +6,8 @@
 #
 # Usage:
 #   make            — full build (pdflatex -> bibtex -> pdflatex x2)
-#   make figures    — regenerate all 4 figures (delegates to reproduce/Makefile)
+#   make figures    — regenerate all 5 figures, 3 body + 2 supplementary
+#                     (delegates to reproduce/Makefile jss-figures)
 #   make flat       — single-file manuscript_flat.tex, if a submission portal
 #                     rejects \input
 #   make clean      — remove build artifacts (keeps the PDF)

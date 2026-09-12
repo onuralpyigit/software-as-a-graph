@@ -392,7 +392,7 @@ Tests that the RM formula inputs are correctly resolved, derived terms are compu
 
 **RM formula inputs reference (SDD v3.1 §6.19–§6.23):**
 - FT(v) = 0.45 × RPR + 0.30 × DG_in + 0.25 × CDPot_enh          (Fault Tolerance, Reliability sub-characteristic)
-- A(v)  = 0.35 × AP_c_directed + 0.25 × QSPOF + 0.25 × BR + 0.10 × CDI + 0.05 × w(v)   (Availability, Reliability sub-characteristic)
+- A(v)  = 0.2563 × AP_c_directed + 0.1998 × QSPOF + 0.1998 × BR + 0.2563 × CDI + 0.0878 × w(v)   (Availability, Reliability sub-characteristic)
 - R(v)  = α × FT(v) + (1 − α) × A(v)             α = 0.36        (Reliability, hierarchical)
 - M(v)  = 0.35 × BT + 0.30 × w_out + 0.15 × CQP + 0.12 × CouplingRisk + 0.08 × (1 − CC)
 
@@ -1159,7 +1159,7 @@ Each SRS v3.0 requirement maps to one or more test cases. Requirements without e
 | REQ-QS-01 | Compute Fault Tolerance FT(v) (Reliability sub-characteristic) | UT-ANAL-20, UT-ANAL-21, UT-ANAL-33, UT-ANAL-34, UT-ANAL-35 |
 | REQ-QS-02 | Compute Maintainability M(v) | UT-ANAL-20, UT-ANAL-23, UT-ANAL-36, UT-ANAL-37, UT-ANAL-38 |
 | REQ-QS-03 | Compute Availability A(v) (Reliability sub-characteristic) | UT-ANAL-20, UT-ANAL-22, UT-ANAL-39, UT-ANAL-40, UT-ANAL-41 |
-| REQ-QS-04 | RETIRED — Vulnerability/Security dimension deleted, see [structural-analysis.md §11](../structural-analysis.md#11) | — |
+| REQ-QS-04 | RETIRED — Vulnerability/Security dimension deleted, see [structural-analysis.md §11](../structural-analysis.md#11-worked-example-5-node-distributed-architecture) | — |
 | REQ-QS-05 | Compute composite Q(v) = w_R·R(v) + w_M·M(v) | UT-ANAL-20, IT-ANAL-01 |
 | REQ-QS-06 | Classify into 5 criticality levels | UT-ANAL-27, AC-14 |
 | REQ-QS-07 | Support AHP weights | UT-ANAL-24 |

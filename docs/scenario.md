@@ -252,7 +252,7 @@ any scenario's statistical distributions. **Always reproduce the corpus with `--
 
 Measured on the corpus and caches described above, seed set `{42, 123, 456, 789, 2024}`, 300 epochs.
 These are results, not targets — the pass/fail gates the paper applies are G1 ρ ≥ 0.70, G2 F1@K ≥ 0.75,
-and G3 Precision@K ≥ 0.80 (see [validation.md §6.1](validation.md#61-library-gates-g1g6-g8) for the
+and G3 Precision@K ≥ 0.80 (see [validation.md §6.1](validation.md#51-library-gate-suite-g1g6-g8) for the
 full gate table), and several scenarios do not clear them. Regenerate with
 `make -f reproduce/Makefile table3 table4 kfold`.
 

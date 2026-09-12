@@ -381,7 +381,7 @@ flowchart TD
     subgraph Reliability["Reliability R(v) = 0.36·FT(v) + 0.64·A(v)"]
         direction TB
         FT["Fault Tolerance FT(v)<br>0.45·RPR + 0.30·DG_in + 0.25·CDPot_enh"]
-        AV["Availability A(v)<br>0.35·AP_c^dir + 0.25·QSPOF + 0.25·BR + 0.10·CDI + 0.05·w(v)"]
+        AV["Availability A(v)<br>0.2563·AP_c^dir + 0.1998·QSPOF + 0.1998·BR + 0.2563·CDI + 0.0878·w(v)"]
         FT -->|alpha = 0.36| Reliability
         AV -->|1 - alpha = 0.64| Reliability
     end
@@ -407,7 +407,7 @@ flowchart TD
   \end{aligned}$$
 
 #### 2. Availability ($A$)
-$$A(v) = 0.35 \cdot AP_c^{\text{dir}}(v) + 0.25 \cdot QSPOF(v) + 0.25 \cdot BR(v) + 0.10 \cdot CDI(v) + 0.05 \cdot w(v)$$
+$$A(v) = 0.2563 \cdot AP_c^{\text{dir}}(v) + 0.1998 \cdot QSPOF(v) + 0.1998 \cdot BR(v) + 0.2563 \cdot CDI(v) + 0.0878 \cdot w(v)$$
 
 #### 3. Hierarchical Reliability ($R$)
 $$R(v) = r_\alpha \cdot FT(v) + (1 - r_\alpha) \cdot A(v) \qquad (r_\alpha = 0.36)$$
@@ -452,7 +452,7 @@ $$\text{Geometric Mean: } GM_i = \left( \prod_{j=1}^n A_{ij} \right)^{1/n}, \qua
 
 - **Fault Tolerance ($3 \times 3$)**: RPR, $DG_{in}$, CDPot $\to (0.45, 0.30, 0.25)$ with $CR = 0.001$.
 - **Maintainability ($5 \times 5$)**: BT, $w_{out}$, CQP, CR, $(1-CC) \to (0.35, 0.30, 0.15, 0.12, 0.08)$ with $CR = 0.000$.
-- **Availability ($5 \times 5$)**: $AP_c^{\text{dir}}$, QSPOF, BR, CDI, $w \to (0.35, 0.25, 0.25, 0.10, 0.05)$ with $CR = 0.001$.
+- **Availability ($5 \times 5$)**: $AP_c^{\text{dir}}$, QSPOF, BR, CDI, $w$. The matrix's raw geometric-mean priority vector is $(0.2804, 0.1998, 0.1998, 0.2804, 0.0397)$; after the framework's $\lambda = 0.7$ shrinkage toward a uniform prior ($0.2$) the **shipped** vector is $(0.2563, 0.1998, 0.1998, 0.2563, 0.0878)$. In the v4 rebalance CDI was promoted to parity with $AP_c^{\text{dir}}$, because CDI now fires for every node in the main component rather than only articulation points — under the old AP-gated CDI the Application population had no articulation points in 6 of 8 corpus scenarios, so $A(v)$ collapsed to $\approx 0.05 \cdot w(v)$. The matrix is symmetric by row-pair construction, so its $CR \approx 0$ carries no information.
 
 *(All matrices have $CR < 0.003$, well below Saaty's $0.10$ threshold).*
 
@@ -466,7 +466,7 @@ $$w_{\text{final}} = \lambda \cdot w_{\text{AHP}} + (1 - \lambda) \cdot \frac{1}
 |:---|:---:|:---:|
 | **Fault Tolerance ($FT$)** | $(0.450, 0.300, 0.250)$ | $(0.422, 0.323, 0.255)$ |
 | **Maintainability ($M$)** | $(0.350, 0.300, 0.150, 0.120, 0.080)$ | $(0.305, 0.270, 0.165, 0.144, 0.116)$ |
-| **Availability ($A$)** | $(0.350, 0.250, 0.250, 0.100, 0.050)$ | $(0.305, 0.235, 0.235, 0.130, 0.095)$ |
+| **Availability ($A$)** | $(0.2804, 0.1998, 0.1998, 0.2804, 0.0397)$ | $(0.2563, 0.1998, 0.1998, 0.2563, 0.0878)$ |
 
 *(Note: Composite weights $w_R=0.80, w_M=0.20$ and blend $r_\alpha=0.36$ are declared constants and remain $\lambda$-invariant).*
 

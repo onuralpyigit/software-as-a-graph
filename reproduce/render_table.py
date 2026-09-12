@@ -46,6 +46,10 @@ _SCENARIO_LABELS = {
     "hub_and_spoke_system":   "Hub-and-Spoke",
     "microservices_system":   "Microservices",
     "enterprise_system":      "Enterprise",
+    "industrial_scada_system": "Industrial SCADA",
+    "logistics_fleet_system": "Logistics Fleet",
+    "realtime_gaming_system": "Real-Time Gaming",
+    "telecom_ran_system":     "Telecom RAN",
 }
 
 # Display labels and family-grouped ordering come from the registry, so this

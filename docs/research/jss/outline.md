@@ -18,10 +18,13 @@
   (primary); *Explainable, Interpretable, and Robust AI* (secondary, §5 and §7.3); *AI for Automated
   Performance Tasks* (RQ5, §7.5)
 * **Review model:** single-anonymised (confirmed against the Elsevier Guide for Authors, September 2026); authors are named in the manuscript, `title_page.tex` uploaded separately
-* **Scale:** 43 pages, 9 sections, 12 tables, 4 figures, 91 references, plus a 7-page supplement
-  (S1–S7)
-* **Build:** zero LaTeX errors, zero undefined references or citations; 177 reported table figures
-  reconcile against their artifacts via `reproduce/reconcile_manuscript.py`
+* **Scale:** 39 pages, 9 sections, 12 tables, 3 figures, 91 references, plus an 8-page supplement
+  (S1–S8, 6 tables, 2 figures). Take these from the build, not from this line:
+  `pdfinfo latex/manuscript.pdf`, `grep -c 'begin{table' latex/sections/*.tex`.
+* **Build:** zero LaTeX errors, zero undefined references or citations, zero overfull boxes; 240
+  reported table figures reconcile against their artifacts via
+  `reproduce/reconcile_manuscript.py`, which now also covers `supplementary.tex` and fails on a
+  missing or dirty-provenance artifact
 
 ---
 
@@ -58,11 +61,11 @@ if an edit ever softens one back into a claim, that is a regression.
 | Real-world zero-shot, full population / active stratum | 0.680 / **+0.160**, negative on 2 of 5 | §7.4.1 (Table 11) |
 | Real-world training-free references — RM / Topo | 0.516 / 0.511 (Topo-QoS not computable) | §7.4.1, §8.4 |
 | Oracle agreement — I_dyn·I\* / I_comp·I\* / I_comp·I_dyn | 0.620 / 0.395 / 0.366 (12 folds) | §7.3 (Table 10) |
-| Stratified vs pooled RM ρ | 0.515 / 0.183 / 0.149 vs pooled **0.057** (Simpson's) | §7.3.6 |
-| Label-noise ceiling | test–retest 0.880–1.000, median 0.979 | §7.1 |
+| Stratified vs pooled RM ρ | 0.566 (App) / 0.119 (Broker) / 0.244 (Node) vs pooled **0.098** (Simpson's) | §7.3.6 |
+| Label-noise ceiling | test–retest **0.817**–1.000, median 0.979, 9/12 ≥ 0.95 | §7.1 |
 | **Cost** — HGT forward vs structural analysis at 2,000 components | 56.2 ms vs 239.34 s (**4,259×**) | §7.5 (Table 12) |
 | Gate vs its own oracle | gate 0.04–82.7 s, oracle 0.14–7.2 s → **gate ~11× dearer** | §7.5.1 |
-| AHP shrinkage, uniform → raw | 0.262 → 0.166 (elicited weights are anti-predictive) | Supp. S1 |
+| AHP shrinkage, uniform → raw | 0.319 → 0.200 (elicited weights are anti-predictive) | Supp. S1 |
 | Morris screening, only load-bearing constants | r_α (μ\* 0.144), λ (0.117); other eight ≤ 0.023 | Supp. S1 |
 | Corpus | 2,812 components, 17 architectures (12 synthetic + 5 real-world) | §6.1 (Table 4) |
 
@@ -104,10 +107,11 @@ if an edit ever softens one back into a claim, that is a regression.
 | **8** | Discussion, threats, limitations | When to use which engine; the withdrawn fallback gate; sustainability restated honestly; four limitations | §8.4's four paragraphs are the paper's own strongest critique |
 | **9** | Conclusion | What is established, what is not | — |
 
-## Supplement (S1–S7)
+## Supplement (S1–S8)
 
 Parameter sensitivity (S1, with Figure S1), zero-inflation bounds on oracle agreement (S2), domain
 weighting and thresholds (S3), the AHP matrices and their rank-one diagnostic (S4), generative
-parameters of the corpus (S5), the anti-pattern detection benchmark (S6), and the explanation
-layer's real-world evaluation against I_comp (S7). Cross-references from the supplement into the
+parameters of the corpus (S5), the anti-pattern detection benchmark (S6), the explanation
+layer's real-world evaluation against I_comp (S7), and the HGT relational attention-weight
+analysis (S8, with Figure S2). Cross-references from the supplement into the
 body are literal text, never `\ref` — the two documents do not share an `.aux`.

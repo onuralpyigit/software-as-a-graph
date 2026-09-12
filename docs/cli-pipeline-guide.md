@@ -144,7 +144,7 @@ PYTHONPATH=. python cli/export_graph.py --output output/exported_graph.json --fo
 ## Step 2: Analyze
 
 **Script:** `cli/analyze_graph.py`  
-**Purpose:** Compute structural metrics M(v) and the graph summary S(G) only — no RM/Q scoring, no anti-pattern detection. RM/Q scoring and anti-pattern detection belong to Step 4 (Diagnose); GNN ranking belongs to Step 3 (Predict). `analyze_graph.py` takes no RM-weighting flags because scoring is not this stage's job. See [structural-analysis.md §1](structural-analysis.md#1-what-this-step-does).
+**Purpose:** Compute structural metrics M(v) and the graph summary S(G) only — no RM/Q scoring, no anti-pattern detection. RM/Q scoring and anti-pattern detection belong to Step 4 (Diagnose); GNN ranking belongs to Step 3 (Predict). `analyze_graph.py` takes no RM-weighting flags because scoring is not this stage's job. See [structural-analysis.md §1](structural-analysis.md#1-overview).
 
 ```bash
 PYTHONPATH=. python cli/analyze_graph.py --layer system
@@ -335,7 +335,7 @@ Systematic BFS cascade fault injection → `impact_scores.json`.
 The emitted `impact_scores.json` is schema 2.1: it names its `labeler`, declares
 `labeled_node_types` / `labeled_dimensions` / `unlabeled_node_ids`, and carries a
 `label_stability` block giving the ceiling on any correlation computed against it. See
-[failure-simulation.md §6.1](failure-simulation.md#61-impact_scoresjson).
+[failure-simulation.md §6.1](failure-simulation.md#91-impact_scoresjson-fault-injection-ground-truth).
 
 #### `message-flow`
 
