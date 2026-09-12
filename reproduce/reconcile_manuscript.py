@@ -304,6 +304,57 @@ def check_table5_indist(rep: Report, artifact: str = "main_table.json") -> None:
                 Finding("tab:5", f"Mean / {labels[vid]}", "mean_rho", got, round(truth, 4)))
 
 
+def check_table5_columns(rep: Report, artifact: str = "main_table.json") -> None:
+    """Table 5's printed column headers against the variants the artifact ran.
+
+    Position-wise cell checks cannot catch a mislabelled column: every value
+    matches, because the checker reads column 3 and the artifact's third variant
+    and they agree -- on the wrong variant. That is not hypothetical. Table 5 was
+    once regenerated from a run of ``gl``/``gl_qos`` (which
+    ``reproduce/main_table.py`` puts on the DEPENDS_ON projection) while the
+    headers still read GAT-N / GAT-N-QoS, the native-substrate pair. The table
+    reconciled cleanly and its caption asserted substrate parity that did not
+    hold, which silently reopened the RQ2 in-distribution confound.
+
+    So: read the variant ids out of the artifact's own ``config``, ask the
+    registry what those are called under the in-distribution harness, and require
+    the header row to say exactly that.
+    """
+    d = _load(artifact)
+    if d is None:
+        rep.skipped.append(f"tab:5 columns: {artifact} absent")
+        return
+    ran = (d.get("config") or {}).get("variants") or []
+    if not ran:
+        rep.skipped.append(f"tab:5 columns: {artifact} records no variant list")
+        return
+
+    tex = _tex("sec7_results.tex")
+    header = _rows(tex, r"\toprule", after_label="tab:5")
+    if not header:
+        m = re.search(r"\\textbf\{Scenario\} & \\textbf\{\$n\$\}([^\\]*(?:\\(?!\\)[^\\]*)*)",
+                      tex)
+        header = [m.group(0)] if m else []
+    if not header:
+        rep.skipped.append("tab:5 columns: header row not found")
+        return
+    printed = [_label(c) for c in _cells(header[0])][2:]
+
+    expected = []
+    for v in ran:
+        try:
+            expected.append(_registry.label(v, harness="in_distribution"))
+        except Exception:
+            expected.append(v)
+
+    rep.checked += 1
+    if printed[:len(expected)] != expected:
+        rep.findings.append(
+            Finding("tab:5", "column headers", "variant labels",
+                    " | ".join(printed[:len(expected)]) or "(none)",
+                    " | ".join(expected)))
+
+
 def check_supplement_stratification(rep: Report) -> None:
     """Supplement S6/S7's copies of the 7.3.6 stratification figures.
 
@@ -740,6 +791,7 @@ def main() -> int:
     check_freshness(rep)
     check_table4_corpus(rep)
     check_table5_indist(rep, args.main_table)
+    check_table5_columns(rep, args.main_table)
     check_supplement_stratification(rep)
     check_supplement_shrinkage(rep)
     check_table7_loso(rep, args.loso)
