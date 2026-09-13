@@ -47,19 +47,19 @@ if an edit ever softens one back into a claim, that is a regression.
 
 | Quantity | Value | Where |
 |---|---|---|
-| In-distribution mean ρ — Topo / Topo-QoS / GAT-N / GAT-N-QoS / HGT / HGT-QoS | 0.370 / 0.568 / 0.543 / 0.439 / 0.624 / **0.661** | §7.1 (Table 5) |
-| **LOSO mean ρ** — Topo / Topo-QoS / GAT-N / GAT-N-QoS / HGT / HGT-QoS / RM | 0.250 / 0.568 / 0.493 / 0.581 / 0.640 / **0.695** / 0.133 | §7.1 (Table 7) |
-| LOSO F₁@K — same order | 0.306 / 0.353 / 0.417 / 0.474 / 0.466 / **0.507** / 0.258 | §7.1 (Table 7) |
-| **Typing, LOSO** (HGT-QoS vs GAT-N-QoS) | **+0.114**, 11/12, p = 0.0122, CI [+0.048, +0.170] | §7.2 |
-| Typing, unweighted pair (HGT vs GAT-N) | +0.147, 11/12, p = 0.0010 | §7.2 |
-| Typing, **in-distribution** (HGT-QoS vs GAT-N-QoS) | **+0.222**, 11/12, p = 0.0024 | §7.2 |
-| QoS edge encoding, LOSO | +0.054, 11/12, p = 0.0093 | §7.3.1 |
-| QoS encoding, **active stratum** | +0.025, p = 0.151 — gain does not survive | §7.1.2, §7.3.1 |
-| **vs Topo-QoS (LOSO)** | +0.127, 9/12, p = 0.077; **+0.078 without the ATM fold** | §7.1 |
-| vs Topo-QoS, critical set | F₁@K +0.154, 8/12, p = 0.034 | §7.1 |
-| Active-stratum retention — Topo-QoS / HGT-QoS | 32% / 59% | §7.1.2 (Table 9) |
-| Real-world zero-shot, full population / active stratum | 0.680 / **+0.160**, negative on 2 of 5 | §7.4.1 (Table 11) |
-| Real-world training-free references — RM / Topo | 0.516 / 0.511 (Topo-QoS not computable) | §7.4.1, §8.4 |
+| In-distribution mean ρ — Topo / Topo-QoS / GAT / GAT-QoS / HGT / HGT-QoS | 0.370 / 0.568 / 0.522 / 0.411 / 0.624 / **0.661** | §7.1 (Table 5) |
+| **LOSO mean ρ** — Topo / Topo-QoS / GAT-N / GAT-N-QoS / HGT / HGT-QoS / RM | 0.349 / 0.553 / 0.317 / 0.604 / 0.551 / **0.638** / 0.205 | §7.1 (Table 7) |
+| LOSO F₁@K — same order | 0.366 / 0.388 / 0.328 / 0.431 / 0.427 / 0.425 / 0.322 | §7.1 (Table 7) |
+| **Typing, main effect** | **+0.134**, 12/12, p = 0.0005, Holm p = 0.0015 | §7.2 |
+| **QoS channel, main effect** | **+0.187**, 11/12, p = 0.0015, Holm p = 0.0015 | §7.2 |
+| **Typing × QoS interaction** | **-0.199**, 0/12, p = 0.0005, Holm p = 0.0015 | §7.2 |
+| Typing, QoS absent (HGT vs GAT-N) | +0.234, 12/12, p = 0.0005 | §7.2 |
+| Typing, QoS present (HGT-QoS vs GAT-N-QoS) | +0.035, 9/12, p = 0.1294 | §7.2 |
+| **vs Topo-QoS (LOSO)** | +0.085, 9/12, p = 0.151 | §7.1 |
+| vs Topo-QoS, critical set | F₁@K +0.037, 7/12, p = 0.470 | §7.1 |
+| Active-stratum retention — Topo-QoS / HGT-QoS | 51% / 56% | §7.1.2 (Table 7c) |
+| Real-world zero-shot, full population / active stratum | 0.767 / **+0.265**, negative on 2 of 5 | §7.4.1 (Table 9b) |
+| Real-world training-free references — RM / Topo / Topo-QoS | 0.516 / 0.511 / 0.526 | §7.4.1, §8.4 |
 | Oracle agreement — I_dyn·I\* / I_comp·I\* / I_comp·I_dyn | 0.620 / 0.395 / 0.366 (12 folds) | §7.3 (Table 10) |
 | Stratified vs pooled RM ρ | 0.566 (App) / 0.119 (Broker) / 0.244 (Node) vs pooled **0.098** (Simpson's) | §7.3.6 |
 | Label-noise ceiling | test–retest **0.817**–1.000, median 0.979, 9/12 ≥ 0.95 | §7.1 |

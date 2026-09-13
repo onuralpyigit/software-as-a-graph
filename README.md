@@ -262,17 +262,16 @@ twelfth, `results/table4_loso_results.md`).
 | Mean ρ vs. $I^*(v)$ | Topo | Topo-QoS | GAT-N | GAT-N-QoS | HGT | HGT-QoS |
 |:---|---:|---:|---:|---:|---:|---:|
 | In-distribution (7 domains) | 0.166 | 0.629 | **0.691** | 0.653 | 0.624 | 0.630 |
-| LOSO (12 folds) | 0.250 | 0.568 | 0.493 | 0.581 | 0.640 | **0.695** |
+| LOSO (12 folds) | 0.349 | 0.553 | 0.317 | 0.604 | 0.551 | **0.638** |
 
-**Read these together, not separately.** Relation typing wins under distribution
-shift (HGT-QoS vs GAT-N-QoS: +0.114, 11 of 12 folds, *p* = 0.0122) and gives no
-in-distribution benefit at all (−0.023, 3 of 7, *p* = 0.813); it is an inductive
-bias, not extra capacity. And the learned model does **not** establish a
-significant ranking advantage over training-free QoS-weighted centrality
-(+0.127, *p* = 0.077, and +0.078 with the ATM fold excluded), so a team that
-wants a scalar ranking and nothing more can reasonably run `Topo-QoS` and stop.
-What the learned model adds is per-relationship edge criticalities and attention
-maps a centrality score cannot produce.
+**Read these together, not separately.** Relation typing and QoS edge encoding
+substitute for one another: typing alone adds +0.234 over GAT-N ($p = 0.0005$),
+but when QoS edge encoding is present (HGT-QoS vs GAT-N-QoS) it adds only +0.035
+($p = 0.129$). And the learned model does **not** establish a statistically
+significant ranking advantage over training-free QoS-weighted centrality (+0.085,
+$p = 0.151$), so a team that wants a scalar ranking and nothing more can
+reasonably run `Topo-QoS` and stop. What the learned model adds is per-relationship
+edge criticalities and attention maps a centrality score cannot produce.
 
 The validation gates in [`saag/validation/models.py`](saag/validation/models.py)
 (ρ ≥ 0.70, F1@K ≥ 0.75, composite ρ ≥ 0.85) are deliberately stricter than
