@@ -259,4 +259,75 @@ Consequently, Figure~\ref{fig:S2} serves as an illustrative artifact confirming 
 \bibliographystyle{elsarticle-num}
 \bibliography{refs}
 
+\section{Convergent Validity Over Simulation Oracles}
+\label{supp:convergent}
+
+We evaluated inter-oracle agreement across $I^*(v)$ (\texttt{FaultInjector}), $I_{\text{comp}}(v)$ (\texttt{FailureSimulator}), and $I_{\text{dyn}}(v)$ (\texttt{MessageFlowSimulator}) over the twelve inductive folds of Table 4 of the main manuscript, summarized in Table~S3.1:
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Inter-oracle agreement across simulation paradigms (chance top-$K$ Jaccard is $0.111$) over the twelve LOSO topologies, Application population. One comparison per topology: the five seeds enter $I^*$ only, averaged into a single label per component, while $I_{\text{comp}}$ and $I_{\text{dyn}}$ each run once at seed $42$. $I_{\text{dyn}}$ denotes the queue-flow discrete-event simulation oracle, $I^*$ denotes the graph topological cascade injection oracle, and $I_{\text{comp}}$ denotes the multi-criteria composite oracle. $\rho^{+}$ restricts the correlation to components both oracles score non-zero, separating directional agreement from agreement on which components are harmless. $I_{\text{dyn}}$ was measured under enforced QoS contracts at a calibrated per-subscriber operating point ($\rho_{\text{util}} = 0.65$); the run is reproducible from the commit its artifact names.}
+\label{tab:supp-oracles}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Oracle pair} & \textbf{Mean $\rho$ (range)} & \textbf{Mean $\rho^{+}$} & \textbf{Mean $\tau$} & \textbf{Jaccard@$K$} & \textbf{Tie-robust} \\
+\midrule
+$I_{\text{dyn}}$ vs.\ $I^*$ & $\mathbf{0.620}$ ($0.290$--$0.924$) & $0.441$ & $0.478$ & $0.365$ & $0.361$ \\
+$I_{\text{comp}}$ vs.\ $I^*$ & $0.395$ ($0.083$--$0.653$) & $0.353$ & $0.290$ & $0.266$ & $0.261$ \\
+$I_{\text{comp}}$ vs.\ $I_{\text{dyn}}$ & $0.366$ ($0.069$--$0.564$) & $0.343$ & $0.253$ & $0.276$ & $0.276$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent The queue-flow simulator and the topological cascade oracle agree substantially but not interchangeably ($\rho = 0.620$, Jaccard $0.365$ against $0.111$ expected by chance). \textbf{This is the reading the ceiling supports.} $I^*$'s own seed-to-seed test--retest across these same twelve folds runs $0.811$--$1.000$ (median $0.982$; Section 7.1 of the main manuscript), so $I_{\text{dyn}}$ agrees with $I^*$ distinctly \emph{less} closely than $I^*$ agrees with itself. The gap is the point: a behavioural oracle that reproduced the topological one to within label noise would be re-measuring the topology rather than corroborating it. Ranking over discrete-event queueing traffic recovers most of the topological ordering while retaining content the cascade abstraction does not express.
+
+\noindent Two boundaries qualify this. First, $\rho^{+} = 0.441$ against $\rho = 0.620$ shows that a substantial share of the agreement is the two oracles concurring on which components are \emph{harmless}; restricted to components both score non-zero, agreement is weak in five of twelve folds (Autonomous Vehicle $0.101$, Microservices $0.099$, Hub-and-Spoke $0.113$). Second, Microservices is simultaneously the weakest fold ($\rho = 0.290$) and the least reproducible label in the corpus (test--retest $0.811$, top-$K$ Jaccard $0.720$), so part of that deficit is label noise rather than construct divergence.
+
+\noindent\textbf{Both oracles have a floor, and only one of them had been measured.} The reading above is stated against $I^*$'s test--retest alone, which silently treats $I_{\text{dyn}}$ as noiseless. It is not: it is a stochastic discrete-event simulation run here at a single seed. Re-running both non-primary oracles across seeds $\{42, 123, 456\}$ on three folds spanning the corpus --- ATM, Healthcare Integration, and Microservices Mesh, the last being the weakest fold above --- gives $I_{\text{comp}}$ a test--retest of $1.000$ everywhere (its Bernoulli cascade draws are effectively deterministic at the shipped edge weights, so its single seed costs nothing), and $I_{\text{dyn}}$ a test--retest of $0.958$--$0.972$ on ATM, $0.828$--$0.867$ on Healthcare, and $0.741$--$0.821$ on Microservices. The subset is three folds rather than twelve because $I_{\text{dyn}}$ costs one discrete-event run per component per seed; it is chosen to bracket the corpus rather than to average over it.
+
+\noindent The consequence is specific. On Microservices, $I_{\text{dyn}}$ agrees with \emph{itself} at $0.741$--$0.821$ --- at or below $I^*$'s own $0.811$ on that same fold --- so the $\rho = 0.290$ reported there is bounded by two dispersions, not one, and attributing the shortfall primarily to $I^*$'s label noise overstates what can be separated. Elsewhere the $0.620$ headline is less affected: on ATM and Healthcare $I_{\text{dyn}}$ reproduces itself at $0.83$--$0.97$, well above the cross-oracle agreement, so the construct-divergence reading of the gap survives on those folds. We report the floors rather than correcting the headline for them, because a noise-corrected correlation would require the twelve-fold multi-seed run this subset stands in for.
+
+\section{In-Distribution Significance Tests}
+\label{supp:indist}
+
+Paired tests over the twelve in-distribution scenarios of Table 5 of the main manuscript. They are reported here rather than in the body because Section 7.2 declines to read the in-distribution typed--untyped contrast as evidence about typing: the typed pair consumes the native multigraph while the homogeneous pair consumes the Application--Library projection, so the margin mixes typed message passing with multi-entity visibility. The tests are given for completeness, not as support for a claim.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Paired Wilcoxon signed-rank tests across in-distribution scenarios ($n = 12$, two-sided).}
+\label{tab:supp-indist-wilcoxon}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrcrcl}
+\toprule
+\textbf{Comparison} & \textbf{$\Delta\rho$} & \textbf{Won} & \textbf{Wilcoxon $W$} & \textbf{$p$-value} & \textbf{Significance} \\
+\midrule
+\textbf{HGT-QoS vs. Topo} & \textbf{+0.291} & 11/12 & 2.0 & \textbf{0.0015} & \textbf{Significant} ($p < 0.01$) \\
+\textbf{Topo-QoS vs. Topo} & \textbf{+0.198} & 12/12 & 0.0 & \textbf{0.0005} & \textbf{Significant} ($p < 0.001$) \\
+\textbf{HGT-QoS vs. GAT-QoS} & \textbf{+0.222} & 11/12 & 3.0 & \textbf{0.0024} & \textbf{Significant} ($p < 0.01$) \\
+\midrule
+\textbf{HGT-QoS vs. GAT} & $+0.118$ & 9/12 & 21.0 & 0.1763 & Not significant \\
+\textbf{HGT-QoS vs. Topo-QoS} & $+0.093$ & 9/12 & 23.0 & 0.2334 & Not significant \\
+\textbf{HGT vs. GAT} & $+0.082$ & 8/12 & 29.0 & 0.4697 & Not significant \\
+\textbf{HGT-QoS vs. HGT} & $+0.037$ & 8/12 & 32.0 & 0.6221 & Not significant \\
+\textbf{GAT-QoS vs. Topo-QoS} & $-0.129$ & 4/12 & 21.0 & 0.1763 & Not significant \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section{Typed Node Feature Schema}
+\label{supp:features}
+
+Both pathways read the same typed node properties from $G_{\text{analysis}}$: the predictive pathway (Section 4 of the main manuscript) projects them per entity type before heterogeneous message passing, and the explanation layer (Section 5 of the main manuscript) aggregates them into its quality profile. All five entity types share indices 0--17, a common block of topological metrics (in/out degree, betweenness, closeness, reverse PageRank, clustering coefficient, articulation score, bridge load) produced by the deterministic analysis stage whose cost is characterized in Section 7.5 of the main manuscript. Type-specific features extend that block:
+
+\begin{itemize}
+    \item \textbf{Application (23 dims):} indices 18--22 add source-code metrics from SCA --- lines of code, cyclomatic complexity, Martin's instability $I_{\text{code}} = C_e/(C_a + C_e)$ \cite{martin2003agile}, Lack of Cohesion in Methods, and the composite Code Quality Penalty (CQP).
+    \item \textbf{Library (25 dims):} the Application block plus two library-specific blast-radius drivers (23--24): the normalized size of the transitive reverse-\texttt{USES} closure, and the normalized count of distinct subscribers reachable from topics published within that closure.
+    \item \textbf{Broker (19 dims):} index 18 is normalized queue buffer capacity.
+    \item \textbf{Topic (22 dims):} indices 18--21 are publisher count, subscriber count, log message frequency $\log(1 + \text{freq})$, and ordinal QoS criticality.
+    \item \textbf{Infrastructure Node (20 dims):} indices 18--19 are normalized CPU core allocation and physical memory.
+\end{itemize}
+
 \end{document}
