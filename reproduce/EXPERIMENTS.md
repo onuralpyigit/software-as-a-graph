@@ -38,18 +38,14 @@ The primary metric is the **Spearman Rank Correlation Coefficient (ρ)**.
 - It measures the monotonic relationship between the predicted criticality $Q^*(v)$ and the ground-truth impact $I^*(v)$.
 - A high ρ indicates that the system correctly identifies the relative priority of components for architectural hardening.
 
-### B. Identification Performance (F1, Precision, Recall)
-While Spearman measures ordering, identification:
-- **Spearman ρ**: Measures global ranking quality.
-- **Accuracy Score**: Overall fraction of correct predictions (Threshold = 0.5).
-- **Precision / Recall / F1**: Binary classification quality metrics.
-- **Top-5/10 Overlap**: Top-K identification quality.
-- **NDCG@10**: Normalized Discounted Cumulative Gain for ranking stability.
-
-### C. Top-K Overlap (Top-5, Top-10)
-Measures the intersection between the top $K$ most critical components in the ground truth vs. the top $K$ in the predictions.
-- $\text{Overlap}@K = \frac{| \text{Top}_K(\text{Pred}) \cap \text{Top}_K(\text{Truth}) |}{K}$
-- This metric is particularly useful for manual architectural reviews where only a handful of components can be refactored at a time.
+### B. Identification Performance (Overlap@K / F1, Top-5 Overlap)
+While Spearman measures ordering monotonicity, identification assesses operational critical-set detection:
+- **Spearman ρ**: Global rank-order monotonicity against ground-truth cascade impact $I^*(v)$.
+- **Active-Stratum Spearman ρ (ρ_{>0})**: Rank correlation restricted to components with non-zero true impact ($I^*(v) > 0$), isolating ranking quality from inertness detection.
+- **Critical-Set Overlap@K (reported as F1@K)**: Set agreement on the top 20% critical services ($K = \text{round}(0.20 \cdot |V_{\text{app}}|)$). At equal set cardinality $K$, Precision, Recall, and $F_1$ are mathematically identical:
+  $$\text{Overlap}@K = \frac{| \text{Top}_K(\text{Pred}) \cap \text{Top}_K(\text{Truth}) |}{K}$$
+- **Top-5 Overlap**: Direct capture rate of the top 5 most catastrophic system components.
+- **NDCG@10**: Normalized Discounted Cumulative Gain with logarithmic position discounting for the top 10 ranked entities.
 
 ### D. Statistical Rigor
 - **Bootstrap 95% Confidence Intervals**: Computed using $B=2,000$ resamples for each mean Spearman ρ.

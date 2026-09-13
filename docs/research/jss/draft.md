@@ -113,8 +113,8 @@ Figure 1 shows how the two pathways relate. The predictive pathway is the primar
                    v                                         v                 |
 +-------------------------------------+   +-------------------------------------+
 | Ground-Truth Simulation Oracles     |<-+|  Remediation Verifier (§5.3, §8.1)  |
-|  - Tier 1: FaultInjector (I*)       |   |  (FailureSimulator counterfactuals: |
-|  - Tier 2: MessageFlow (I_dyn)      |   |   Replication / Circuit Breakers)   |
+|  - Primary: FaultInjector (I*)      |   |  (FailureSimulator counterfactuals: |
+|  - Behavioral: MessageFlow (I_dyn)  |   |   Replication / Circuit Breakers)   |
 +-------------------------------------+   +-------------------------------------+
         [scores B's ranking only]
 ```
@@ -622,7 +622,7 @@ Regardless of substrate, all variants are scored on an identical, independently 
 
 -   **Ranking Precision:** Evaluated via Spearman rank correlation ($\rho$) and Kendall’s rank correlation ($\tau$) between predicted component rankings and ground-truth simulated impact $I^*(v)$ from the primary oracle (§4.3).
 
--   **Critical-Set Identification:** Measured via $F_1@K$, Precision@$K$, and Recall@$K$ for top-$K$ critical components, where $K = \text{round}(0.20 \cdot |V_{\text{app}}|)$. Because predicted and ground-truth sets both contain exactly $K$ elements, Precision, Recall, and $F_1$ coincide identically as the top-$K$ set overlap.
+-   **Critical-Set Identification:** Measured via top-$K$ critical-set overlap ($\text{Overlap}@K$, reported as $F_1@K$) for top-$K$ critical components, where $K = \text{round}(0.20 \cdot |V_{\text{app}}|)$. Because predicted and ground-truth sets both contain exactly $K$ elements, Precision, Recall, and $F_1$ coincide identically as this single set-overlap fraction; separate Precision@$K$ and Recall@$K$ gates are retired to prevent collinearity across criteria.
 
 -   **Statistical Significance:** Assessed through paired Wilcoxon signed-rank tests [84] ($p < 0.05$) and non-parametric bootstrap 95% confidence intervals ($B = 2{,}000$) over folds [85, 86]. In the 12-fold LOSO design, power floor is $p = 0.00049$. Applying Holm’s step-down correction across the ten full-population rank contrasts in §§7.1–7.3.1, three survive: Topo-QoS over Topo ($p = 0.0010$), Topo over RM ($p = 0.0005$), and unweighted typing HGT over GAT-N ($p = 0.0010$), while QoS-weighted typing ($p = 0.0122$) and QoS edge ablation ($p = 0.0093$) remain nominally significant with 11/12 directional fold consistency.
 
