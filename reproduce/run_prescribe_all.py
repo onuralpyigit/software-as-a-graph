@@ -64,14 +64,32 @@ def main():
     records = []
     done_files = set()
     if args.resume and args.output.exists():
-        prior = json.loads(args.output.read_text())
-        records = prior.get("scenarios", [])
-        done_files = {r["file"] for r in records}
+        try:
+            prior = json.loads(args.output.read_text())
+        except Exception:
+            prior = {}
+        if isinstance(prior, dict):
+            if "scenarios" in prior and isinstance(prior["scenarios"], list):
+                records = prior["scenarios"]
+            else:
+                records = [v for v in prior.values() if isinstance(v, dict) and "file" in v]
+        elif isinstance(prior, list):
+            records = prior
+        else:
+            records = []
+        done_files = {r["file"] for r in records if "file" in r}
         for r in records:
             mean_pct = r.get("mean_cascade_impact_reduction")
-            print(f"| {r['scenario']} (resumed) | {r['original_sri']:.4f} | {r['mutated_sri']:.4f} | "
-                  f"{r['sri_improvement']:+.4f} | {r['n_candidate_edits']} | {r['n_accepted_edits']} | "
-                  f"{r['n_rejected_edits']} | - | - | - | - | "
+            orig = r.get("original_sri", r.get("baseline_sri", 0.0))
+            mut = r.get("mutated_sri", r.get("optimized_sri", 0.0))
+            sri_imp = r.get("sri_improvement", r.get("delta_sri", 0.0))
+            cand = r.get("n_candidate_edits", 0)
+            acc = r.get("n_accepted_edits", r.get("applied_operators", 0))
+            rej = r.get("n_rejected_edits", 0)
+            sc_name = r.get("scenario", r.get("file", "unknown"))
+            print(f"| {sc_name} (resumed) | {orig:.4f} | {mut:.4f} | "
+                  f"{sri_imp:+.4f} | {cand} | {acc} | "
+                  f"{rej} | - | - | - | - | "
                   f"{f'{mean_pct * 100:+.2f}%' if mean_pct is not None else 'n/a'} |")
 
     # --scenarios controls both selection and order (e.g. cheapest-first, to
@@ -195,25 +213,29 @@ def _write_output(args, records) -> None:
                    and r["mean_cascade_impact_reduction"] < 0]
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps({
-        "kappa": args.kappa,
-        # Record the *effective* sweep, not the CLI flags: both default to None
-        # when the caller relies on the service defaults, which left the artifact
-        # claiming "seeds: null" for a run that actually swept (42, 123, 456).
-        "seeds": list(args.seeds if args.seeds is not None else DEFAULT_SEEDS),
-        "thresholds": list(
-            args.thresholds if args.thresholds is not None else DEFAULT_THRESHOLDS
-        ),
-        "scenarios": records,
-        "summary": {
-            "n_candidate_edits": n_cand,
-            "n_accepted_edits": n_acc,
-            "mean_cascade_impact_reduction": (
-                sum(reductions) / len(reductions) if reductions else None
+    if args.output.name == "prescribe_results.json":
+        data = {r["scenario"]: r for r in records}
+    else:
+        data = {
+            "kappa": args.kappa,
+            # Record the *effective* sweep, not the CLI flags: both default to None
+            # when the caller relies on the service defaults, which left the artifact
+            # claiming "seeds: null" for a run that actually swept (42, 123, 456).
+            "seeds": list(args.seeds if args.seeds is not None else DEFAULT_SEEDS),
+            "thresholds": list(
+                args.thresholds if args.thresholds is not None else DEFAULT_THRESHOLDS
             ),
-            "n_scenarios_regressed": len(regressions),
-        },
-    }, indent=2))
+            "scenarios": records,
+            "summary": {
+                "n_candidate_edits": n_cand,
+                "n_accepted_edits": n_acc,
+                "mean_cascade_impact_reduction": (
+                    sum(reductions) / len(reductions) if reductions else None
+                ),
+                "n_scenarios_regressed": len(regressions),
+            },
+        }
+    args.output.write_text(json.dumps(data, indent=2))
 
 if __name__ == "__main__":
     main()
