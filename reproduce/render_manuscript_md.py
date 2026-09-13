@@ -65,6 +65,15 @@ def preprocess(tex: str, labels: dict, cites: dict) -> str:
 
     tex = re.sub(r"\\(section|subsection|subsubsection)\{([^}]*)\}\s*\n\\label\{([^}]+)\}",
                  head, tex)
+
+    def eq_label(m):
+        lbl = m.group(1)
+        if lbl.startswith("eq:"):
+            num = labels.get(lbl, "")
+            return f"\\tag{{{num}}}" if num else ""
+        return m.group(0)
+
+    tex = re.sub(r"\\label\{([^}]+)\}", eq_label, tex)
     tex = re.sub(r"\\(?:ref|eqref)\{([^}]+)\}", lambda m: labels.get(m.group(1), "??"), tex)
     tex = re.sub(r"\\cite\{([^}]+)\}",
                  lambda m: "[" + ", ".join(str(cites.get(k.strip(), "?"))
