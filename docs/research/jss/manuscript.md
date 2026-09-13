@@ -2,22 +2,17 @@
 
 **Authors.** Ibrahim Onuralp Yigit, Feza Buzluca
 
-**Affiliation.** Department of Computer Engineering, Istanbul Technical University, 34469 Maslak, Istanbul, Turkey
+**Affiliation.** Department of Computer Engineering, Istanbul Technical University, 34469 Istanbul, Turkey
 
 **Corresponding author.** Ibrahim Onuralp Yigit — yigiti@itu.edu.tr
-
-> **Review model.** JSS uses a **single-anonymised** review process (confirmed against the
-> Elsevier Guide for Authors, September 2026), so the manuscript body names its authors and
-> `latex/title_page.tex` is uploaded as a separate Editorial Manager file. An earlier version
-> of `outline.md` claimed double-anonymised review; that was wrong and has been corrected.
 
 ---
 
 # Abstract
 
-Modern asynchronous publish--subscribe and microservice architectures introduce a significant pre-deployment visibility barrier: even bug-free service code may contain catastrophic outages due to hidden single points of failure or mismatched middleware contracts, a disconnect referred to as the Architecture--Code Gap. To address reliability assessment prior to deployment without relying on runtime telemetry, this work introduces Software-as-a-Graph (SaG), a static framework that converts Architecture-as-Code manifests into typed multigraphs spanning five core entity types. SaG functions through two independent pathways: a relation-specific Heterogeneous Graph Transformer with Quality-of-Service edge encodings (HGT-QoS) for forecasting cascade blast radii, and an interpretable ISO/IEC 25010 attribution layer to guide repairs.
+Modern asynchronous publish–subscribe and microservice architectures introduce a significant pre-deployment visibility barrier: even bug-free service code may suffer catastrophic outages due to hidden single points of failure or mismatched middleware contracts, a disconnect referred to as the Architecture–Code Gap. To address reliability assessment prior to deployment without relying on runtime telemetry, this work introduces Software-as-a-Graph (SaG), a static framework that converts Architecture-as-Code manifests into typed multigraphs spanning five core entity types. SaG operates through two independent pathways: a relation-specific Heterogeneous Graph Transformer with Quality-of-Service edge encodings (HGT-QoS) for forecasting cascade blast radii, and an unvalidated, interpretable ISO/IEC 25010/25019 attribution layer providing diagnostic remediation profiles.
 
-Evaluation across twelve inductive scenarios and five open-source systems using simulation oracles demonstrates that relation typing and Quality-of-Service edge encodings each carry significant main effects under distribution shift ($\Delta\rho = +0.134$ and $+0.187$, Holm-corrected $p = 0.0015$), but interact sub-additively (difference of differences $-0.199$, $p = 0.0005$): typing contributes $+0.234$ without QoS edge channels ($p = 0.0005$) but only $+0.035$ when present ($p = 0.129$), acting as substitutes rather than independent complements. Compared with training-free QoS-weighted centrality, the learned model does not achieve a statistically significant ranking advantage ($+0.085$, $p = 0.151$), suggesting that teams requiring only scalar rankings may rely on topological heuristics. Zero-shot transfer attains $\rho = 0.767$ overall, but decreases to $+0.265$ for active failure-propagating components. Forward inference requires $56\,\text{ms}$, though deterministic structural extraction makes the static gate $11\times$ slower than direct in-process simulation. Therefore, the justification for training a deep heterogeneous model lies not in scalar ranking alone, but in its relational inductive bias under distribution shift, per-relationship edge criticalities, and attention maps across heterogeneous schemas.
+Evaluation across twelve inductive scenarios and five open-source systems using simulation oracles demonstrates that relation typing (jointly with bidirectional reachability and capacity) and Quality-of-Service edge encodings each carry significant main effects under distribution shift ($\Delta\rho = +0.134$ and $+0.187$, Holm-corrected $p = 0.0015$), but interact sub-additively (difference of differences $-0.199$, $p = 0.0005$): typing contributes $+0.234$ without QoS edge channels ($p = 0.0005$) but only $+0.035$ when present ($p = 0.129$), acting as substitutes rather than independent complements. Compared with training-free QoS-weighted centrality, the learned model does not achieve a statistically significant ranking advantage ($+0.085$, $p = 0.151$), suggesting that teams requiring only scalar rankings may rely on topological heuristics. Zero-shot transfer attains $\rho = 0.767$ overall, but decreases to $+0.265$ for active failure-propagating components, inverting on synchronous microservice call trees. Forward inference requires $56\,\text{ms}$, though deterministic structural extraction makes the from-scratch static gate $11\times$ slower than direct in-process simulation. Therefore, the practical justification for training a deep heterogeneous model lies not in raw scalar speed or ranking alone, but in avoiding physical cluster provisioning, exposing per-relationship edge criticalities, and surfacing typed attention maps across heterogeneous schemas.
 
 **Keywords:** Heterogeneous graph neural networks; Distributed systems dependability; Publish–subscribe architecture; Cascading failures; Static system analysis; Explainable AI.
 
@@ -65,61 +60,13 @@ To ensure methodological rigor, SaG enforces a strict **input–label independen
 
 Figure 1 illustrates the relationship between the two pathways. The predictive pathway serves as the primary mechanism and is the only pathway validated against the simulation oracle; the oracle scores rankings, whereas a quality profile does not. The oracle functions exclusively as an offline training and validation component and is never a dependency of online inference. The explanation layer subsequently characterizes the components flagged by the predictor and the corresponding remediation. The sole connection between the two pathways is triage rather than data flow: the architect applies the explanation to the components ranked by the predictor. Remediation guidance is further refined in the Prescribe stage (§5.3), where candidate edits are counterfactually re-simulated on modified copies of $G_{\text{structural}}$ and retained only if they outperform the simulator’s seed-to-seed noise.
 
-```
-+-----------------------------------------------------------------------------------+
-|                            Software-as-a-Graph (SaG)                              |
-+-----------------------------------------------------------------------------------+
-|  Architecture Descriptor (Apps, Topics, Brokers, Hosts, Libraries, QoS Policies)   |
-+------------------------------------------+----------------------------------------+
-                                           |
-                                           v
-                  +----------------------------------------------+ ------+
-                  |     Raw Structural Graph (G_structural)      |       | (Independent
-                  +----------------------+-----------------------+       |  simulation,
-                                         |                               |   §4.4)
-                     [Typed projection & QoS weighting, §3.2]            |
-                                         v                               |
-                  +----------------------------------------------+       |
-                  |       Analysis Multigraph (G_analysis)       |       |
-                  |   (Derived DEPENDS_ON edges + typed node     |       |
-                  |    features, §3.4)                           |       |
-                  +----------------------+-----------------------+       |
-                                         |                               |
-            +----------------------------+----------------------------+  |
-            |                                                         |  |
-            v  PREDICTIVE PATHWAY (§4)            EXPLANATION LAYER (§5)  |
-+-------------------------------------+   +-------------------------------------+
-|  Heterogeneous Graph Transformer    |   |   Explainable Quality Attribution   |
-|  - Relation-specific attention      |   |  - Fault Tolerance (cascade depth)  |
-|  - 16-D QoS edge embedding          |   |  - Availability (SPOF/articulation) |
-|  - Multi-task risk & ranking heads  |   |  - Maintainability (coupling + SCA) |
-+------------------+------------------+   +------------------+------------------+
-                   |                                         |                 |
-                   v                                         v                 |
-+-------------------------------------+   +-------------------------------------+
-|  Top-K Critical Component Set       |-->|  Root-Cause Diagnostic Profile      |
-|  - Blast radius C-hat(v) (§4.2)     |   |  - SPOF exposure (high A)           |
-|  - Out-of-distribution ranking      |   |  - Cascade hub (high FT)            |
-+------------------+------------------+   +------------------+------------------+
-                   |  (Triage: A explains what B flagged)     |                 |
-                   v                                         v                 |
-+-------------------------------------+   +-------------------------------------+
-| Ground-Truth Simulation Oracles     |<-+|  Remediation Verifier (§5.3, §8.1)  |
-|  - Primary: FaultInjector (I*)      |   |  (FailureSimulator counterfactuals: |
-|  - Behavioral: MessageFlow (I_dyn)  |   |   Replication / Circuit Breakers)   |
-+-------------------------------------+   +-------------------------------------+
-        [scores B's ranking only]
-```
-
 ![Figure 1](latex/figures/Figure_1.png)
-
-> **Figure numbering.** Figure files are named for the order in which they print, per the JSS Guide for Authors: Figure 1 pipeline (`Figure_1`), Figure 2 running example (`Figure_2`), Figure 3 results at a glance (`Figure_3`). The supplement's two figures are `Figure_S1` (AHP shrinkage) and `Figure_S2` (HGT attention). The ASCII schematics and Figure M1 are specific to this document. Supplementary Sections S1–S8 live in `latex/supplementary.tex` and are not reproduced here.
 
 *Figure 1. End-to-end architecture of the SaG framework. The predictive pathway (§4) is the centre line: manifest ingestion → typed multigraph → QoS-weighted DEPENDS_ON projection → typed node features → heterogeneous graph learning → a ranked critical set with per-relationship criticality → the ground-truth simulation oracle (§4.3) that scores it. The oracle closes the predictive pathway’s training loop and runs on Gstructural alone; it is strictly offline and never part of inference (§4.4), as indicated by the dashed edge. The explanation layer (§5) branches off that line: it re-enters from the analysis multigraph, emits a standards-grounded quality profile from the same typed features while sharing no parameters with the predictor, and is reached by triage rather than by data flow.*
 
 #### Rationale for Graph Learning vs. Direct Simulation
 
-Although discrete-event simulation $I^*(v)$ defines ground-truth criticality and completes in $0.14$–$7.2\,\text{s}$, it is important to clarify the rationale for training a graph model. Two practical capabilities motivate the learning pipeline. First, message passing generalizes across both labeled and unlabeled entities, enabling the scoring of entity types (such as unsimulated shared libraries or physical hosts) and relationship-level criticalities ($I_{\text{edge}}$, Eq. 8) that node-level simulation sweeps cannot capture. Second, once topological features are extracted or incrementally cached across commits, neural inference executes in $56\,\text{ms}$, facilitating sub-second checks in local development workflows where running full stochastic simulation sweeps on every save is impractical. Two additional rationales are not supported by empirical measurements: cascade simulation exhibits negligible stochasticity on this corpus (median test–retest $0.982$), and the assertion that simulation requires runnable containers is incorrect for `FaultInjector`, which processes raw manifests directly. §7.1 evaluates whether graph learning offers ranking advantages over closed-form baselines.
+Although discrete-event simulation $I^*(v)$ defines ground-truth criticality and completes in $0.14$–$7.2\,\text{s}$, it is important to clarify the rationale for training a graph model. First, from an environmental sustainability perspective, pre-deployment static manifest analysis eliminates the substantial carbon footprint of provisioning physical staging clusters, container fleets, and live chaos injection harnesses. However, as measured in §7.5.1, cold static feature extraction ($82.7\,\text{s}$) on CPU does not provide a speed advantage over lightweight in-process simulation ($7.2\,\text{s}$). In continuous integration (CI/CD) pipelines, static graph learning achieves practical speedup through deterministic topology caching: by caching base graph metrics across commits and extracting feature deltas only for pull-request-modified subgraphs, the sub-second neural forward pass ($56\,\text{ms}$) delivers instantaneous feedback on every code commit without re-running global simulation sweeps. Second, message passing generalizes across both labeled and unlabeled entities, enabling the scoring of entity types (such as unsimulated shared libraries or physical hosts) and relationship-level criticalities ($I_{\text{edge}}$, Eq. 8) that node-level simulation sweeps cannot evaluate without combinatorial edge-severing passes. Two additional rationales are not supported by empirical measurements: cascade simulation exhibits negligible stochasticity on this corpus (median test–retest $0.982$), and the assertion that simulation requires runnable containers is incorrect for `FaultInjector`, which processes raw manifests directly. §7.1 evaluates whether graph learning offers ranking advantages over closed-form baselines.
 
 ## 1.4 Research Questions
 
@@ -139,7 +86,7 @@ This empirical study addresses five research questions:
 
 This paper makes four principal contributions:
 
-1.  **Heterogeneous Graph Learning for Pre-Deployment Dependability, and Its Limits:** A relation-specific Heterogeneous Graph Transformer that forecasts cascading blast radii from Architecture-as-Code manifests, with a 16-D edge feature vector carrying 7 QoS dimensions and auxiliary multi-task heads for component and relationship criticality (§4). Ablated separately under inductive distribution shift across twelve architectures, relation typing is worth $\Delta\rho = +0.234$ over an untyped baseline ($p = 0.0005$) and QoS edge encoding $+0.287$ ($p = 0.0010$) — but the two do not compose: each contributes little once the other is present ($+0.035$, $p = 0.129$; and $+0.087$, $p = 0.204$). Against an unparameterized QoS-weighted centrality baseline, learned ranking is not significantly better ($+0.085$, $p = 0.151$). We report the non-composition as the finding (§§7.1–7.2).
+1.  **Heterogeneous Graph Learning for Pre-Deployment Dependability, and Its Limits:** A relation-specific Heterogeneous Graph Transformer that forecasts cascading blast radii from Architecture-as-Code manifests, with a 16-D edge feature vector carrying 7 QoS dimensions and auxiliary multi-task heads for component and relationship criticality (§4). Ablated separately under inductive distribution shift across twelve architectures, the architectural transition to relation-specific HGT is worth $\Delta\rho = +0.234$ over an untyped baseline ($p = 0.0005$), though this margin reflects the joint package of relational parameterization, a $15.4\times$ capacity expansion, and backward message passing (§7.2), while QoS edge encoding adds $+0.287$ ($p = 0.0010$) — but the two do not compose: each contributes little once the other is present ($+0.035$, $p = 0.129$; and $+0.087$, $p = 0.204$). Against an unparameterized QoS-weighted centrality baseline, learned ranking is not significantly better ($+0.085$, $p = 0.151$). We report the non-composition as the finding (§§7.1–7.2).
 
 2.  **A Formal Typed Architecture Model:** A multigraph representation that derives logical dependencies from physical pub-sub linkages and distinguishes sequential cascade propagation from simultaneous multi-consumer library failures (§3).
 
@@ -298,40 +245,6 @@ This section details the Heterogeneous Graph Transformer (HGT) architecture and 
 
 Because distributed systems comprise heterogeneous entity types (Applications, Libraries, Brokers, Topics, Infrastructure Nodes) and diverse interaction semantics (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`, `RUNS_ON`, `CONNECTS_TO`, `USES`, `DEPENDS_ON`), we employ a three-layer **Heterogeneous Graph Transformer (HGT)** architecture [68], implemented within PyTorch Geometric [78], with hidden dimension $D = 64$ and $H = 4$ attention heads. This architecture ensures that typed relations, rather than simple adjacency, govern failure-impact forecasting.
 
-```
-+-----------------------------------------------------------------------------------+
-|               Heterogeneous Graph Transformer (HGT) Architecture                  |
-+-----------------------------------------------------------------------------------+
-|  Node Features (19-25 dims) + 16-dim QoS Edge Encodings injected into destinations|
-+------------------------------------------+----------------------------------------+
-                                           |
-                                           v
-+-----------------------------------------------------------------------------------+
-| 1. Type-Specific Input Projection:                                               |
-|    h_v^(0) = LayerNorm( GELU( W_tau(v) * x_v ) )                                 |
-+------------------------------------------+----------------------------------------+
-                                           |
-                                           v
-+-----------------------------------------------------------------------------------+
-| 2. Relational Mutual Attention & Edge Feature Ingestion (L Layers):               |
-|    e_uv' = W_edge * e_uv,   h_tilde_v = h_v + e_uv'                               |
-|    Attention(u, e, v) = Softmax_u ( ( K(u) * W_att,phi(e) * Q(h_tilde_v)^T ) / d )|
-|    Message(u, e, v)   = V(u) * W_msg,phi(e)                                       |
-|    h_v^(l) = LayerNorm( h_v^(l-1) + Dropout( Sum_u Attention(u,e,v)*Message(u,e,v) ) )|
-+------------------------------------------+----------------------------------------+
-                                           |
-                                           v
-+-----------------------------------------------------------------------------------+
-| 3. Multi-Task Residual Output Heads:                                              |
-|    - Reliability Head (R):       y_R(v) = Sigmoid( MLP_R( h_v^(L) ) )             |
-|    - Maintainability Head (M):   y_M(v) = Sigmoid( MLP_M( h_v^(L) ) )             |
-|    - Global Cascade Impact Head: I_pred(v) = Sigmoid( MLP_C( h_v || y_R || y_M ) )|
-|    - Edge Criticality Head:      Q(u,v) = Sigmoid( TypedEdgeEncoder(h_u, h_v, e) )|
-+-----------------------------------------------------------------------------------+
-```
-
-*Figure M1 (this document only). Layered architecture of the Heterogeneous Graph Transformer predictor. The LaTeX sources carry no counterpart; the equations it summarises are those of §4.1.2 and §4.2.*
-
 ### 4.1.1 Continuous-Categorical Edge Feature Encoding (16-D)
 
 To capture continuous QoS constraints and channel semantics, SaG encodes each directed edge $e = (u,v)$ as a 16-dimensional continuous-categorical vector $e_{uv} \in \mathbb{R}^{16}$. Index 0 is the scalar coupling weight $w_E(e) \in (0,1]$ of §3.2; index 1 is the normalized count of simple paths through $e$; indices 2–8 one-hot encode the seven structural and derived relations; and indices 9–15 carry middleware QoS parameters on `PUBLISHES_TO` and `SUBSCRIBES_TO` edges, zeroed elsewhere. Six QoS dimensions are active in our corpus — reliability, durability, message priority, a heterogeneity flag raised when an edge’s QoS triple departs from its scenario’s modal profile, and the deadline pair (an active flag and $\log_{10}(1 + \text{deadline\_ns}/10^6)$, populated on $463$ of $615$ topics, $75\%$). The seventh, $\log_{10}(1 + \text{max\_blocking\_ms})$, is a schema provision for hard real-time DDS and ROS 2 profiles and is zero throughout.
@@ -389,13 +302,13 @@ To evaluate predictive accuracy prior to deployment without relying on productio
 -   **Change-Propagation Oracle ($I_M(v)$)**, via `ChangePropagationSimulator`: a deterministic reverse-dependency traversal over the transpose of the six-rule `DEPENDS_ON` projection, blending change reach, weighted change impact and normalized depth. It is a structural maintainability reference and is never used as a training label, which would make the supervision circular.
 
 -   **Relationship (Edge) Removal Oracle ($I_{\text{edge}}(u,v)$):** the systemic impact of severing one dependency while both endpoints stay operational. Writing $\bar{I}_{\text{comp}}(G)$ for the mean composite impact over $G$: $$\label{eq:edge_crit}
-        I_{\text{edge}}(u,v) = \bar{I}_{\text{comp}}\big(G \setminus \{(u,v)\}\big) - \bar{I}_{\text{comp}}(G)$$
+        I_{\text{edge}}(u,v) = \bar{I}_{\text{comp}}\big(G \setminus \{(u,v)\}\big) - \bar{I}_{\text{comp}}(G)$$ While Eq. 8 is formulated using $\bar{I}_{\text{comp}}$ in the multi-metric quality suite, $I_{\text{edge}}$ can equivalently be defined with respect to the primary reachability oracle $I^*(v)$, measuring the change in mean subscriber feed loss when dependency $(u,v)$ is severed.
 
 #### Topic Criticality Label Masking
 
 `FailureSimulator` can blend a declared `Topic.criticality` into its severity term; this is disabled, because that field is a GNN input feature () and consuming it would score the predictor against a transformation of its own input.
 
-**Primary Oracle Declaration and Role Assignment.** Because the three reliability-facing oracles ($I^*$, $I_{\text{comp}}$, $I_{\text{dyn}}$) measure distinct operational constructs, we designate **$I^*(v)$ (`FaultInjector`) as the primary oracle** for all predictive ranking results (Tables 4–5, RQ1–RQ3). $I_{\text{comp}}(v)$ is reserved for Validate-stage quality gates and prescriptive remediation verification, $I_{\text{dyn}}(v)$ serves as an independent convergent-validity probe (§7.3.2 and Supplementary §S9), and $I_M(v)$ serves as a structural maintainability reference.
+**Primary Oracle Declaration and Role Assignment.** Because the three reliability-facing oracles ($I^*$, $I_{\text{comp}}$, $I_{\text{dyn}}$) measure distinct operational constructs, we designate **$I^*(v)$ (`FaultInjector`) as the primary continuous target oracle** for all predictive ranking results (Tables 4–5, RQ1–RQ3). We select $I^*(v)$ over $I_{\text{dyn}}(v)$ for two methodological reasons: first, deterministic cascade reachability isolates structural dependency propagation with zero seed-to-seed variance, providing the reproducible ground truth required for deterministic CI/CD regression gating; second, discrete-event queue simulation ($I_{\text{dyn}}$) introduces stochastic message latencies, bursty arrival distributions, and synthetic buffer limits that introduce queuing noise and workload assumptions, obscuring intrinsic architectural topology. $I_{\text{comp}}(v)$ is reserved for Validate-stage quality gates and prescriptive remediation verification, $I_{\text{dyn}}(v)$ serves as an independent convergent-validity probe (§7.3.2 and Supplementary §S9), and $I_M(v)$ serves as a structural maintainability reference.
 
 **Cross-Oracle Convergent Validity.** As detailed in §7.3.2 and Supplementary §S9, the three reliability oracles exhibit substantial but sub-ceiling agreement on Applications ($\rho = 0.620$ for $(I_{\text{dyn}}, I^*)$ against a $0.811$–$1.000$ label noise floor), confirming distinct constructs. Consequently, results established against one oracle are never transferred to another; every evaluation explicitly references its underlying simulation oracle.
 
@@ -427,14 +340,14 @@ Criticality is evaluated across two orthogonal characteristics: **Reliability ($
 
 All raw metrics are rank-normalized to $[0, 1]$ within the graph. Quality sub-characteristics are formulated hierarchically using the Analytic Hierarchy Process (AHP) [59]:
 
-1.  **Fault Tolerance ($FT(v)$):** Evaluates error cascade potential on transpose graph $G_{\text{analysis}}^\top$: $FT(v) = 0.45 \cdot \text{RPR}(v) + 0.30 \cdot \text{Deg}_{\text{in}}(v) + 0.25 \cdot \text{CDPot}_{\text{enh}}(v)$, where $\text{RPR}(v)$ is Reverse PageRank, $\text{Deg}_{\text{in}}(v) = d_{\text{in}}(v)/(|V|-1)$, and $\text{CDPot}_{\text{enh}}(v)$ is normalized cascade depth potential.
+1.  **Fault Tolerance ($FT(v)$):** Evaluates error cascade potential on transpose graph $G_{\text{analysis}}^\top$: $FT(v) = 0.45 \cdot \text{RPR}(v) + 0.30 \cdot \text{Deg}_{\text{in}}(v) + 0.25 \cdot \text{CDPot}_{\text{enh}}(v)$, where $\text{RPR}(v)$ is Reverse PageRank (RPR), $\text{Deg}_{\text{in}}(v) = d_{\text{in}}(v)/(|V|-1)$ is normalized in-degree, and $\text{CDPot}_{\text{enh}}(v)$ is normalized cascade depth potential.
 
 2.  **Availability ($A(v)$):** Identifies structural single points of failure across five terms: $$\label{eq:availability}
-        A(v) = 0.2563 \cdot \text{AP}_c^{\text{dir}}(v) + 0.1998 \cdot \text{QSPOF}(v) + 0.1998 \cdot \text{BR}(v) + 0.2563 \cdot \text{CDI}(v) + 0.0878 \cdot w(v)$$ where $\text{AP}_c^{\text{dir}}(v)$ is Directed Articulation Point severity, $\text{QSPOF}(v)$ is QoS-weighted SPOF severity, $\text{BR}(v)$ is Bridge Ratio, $\text{CDI}(v)$ is Connectivity Degradation Index, and $w(v)$ is intrinsic QoS weight.
+        A(v) = 0.2563 \cdot \text{AP}_c^{\text{dir}}(v) + 0.1998 \cdot \text{QSPOF}(v) + 0.1998 \cdot \text{BR}(v) + 0.2563 \cdot \text{CDI}(v) + 0.0878 \cdot w(v)$$ where $\text{AP}_c^{\text{dir}}(v)$ is Directed Articulation Point (AP) severity, $\text{QSPOF}(v)$ is QoS-weighted Single Point of Failure (QSPOF) severity, $\text{BR}(v)$ is Bridge Ratio (BR), $\text{CDI}(v)$ is Connectivity Degradation Index (CDI), and $w(v)$ is intrinsic QoS weight.
 
 3.  **Reliability ($R(v)$):** Blends Fault Tolerance and Availability: $R(v) = r_\alpha \cdot FT(v) + (1 - r_\alpha) \cdot A(v)$, with $r_\alpha = 0.36$. The intra-dimension weights apply $\lambda = 0.70$ shrinkage blending with a uniform prior. Because comparison matrices are rank-one by construction (Supplementary §S4), these weights represent documented conventions rather than independently elicited consensus.
 
-4.  **Maintainability ($M(v)$):** Blends structural coupling with static code analysis: $M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))$, where $\text{BT}(v)$ is Betweenness Centrality, $w_{\text{out}}(v)$ is QoS-weighted efferent coupling, $\text{CQP}(v)$ is Code Quality Penalty, and $\text{CC}(v)$ is local Clustering Coefficient.
+4.  **Maintainability ($M(v)$):** Blends structural coupling with static code analysis: $M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))$, where $\text{BT}(v)$ is Betweenness Centrality (BT), $w_{\text{out}}(v)$ is QoS-weighted efferent coupling, $\text{CQP}(v)$ is Code Quality Penalty (CQP), and $\text{CC}(v)$ is local Clustering Coefficient (CC).
 
 The baseline composite quality score combines both dimensions: $Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)$. When evaluating under an ISO/IEC 25019 Context of Use vector $\vec{\omega} = [q_R, q_M]^\top$, the score is reweighted dynamically: $Q_{\text{domain}}(v) = q_R \cdot R(v) + q_M \cdot M_{\text{static}}(v)$. Components are partitioned into Tukey tiers: **CRITICAL** ($Q > Q_3 + 1.5 \cdot \text{IQR}$), **HIGH**, **MEDIUM**, and **MINIMAL**. High $A$ with low $FT$ indicates a single point of failure calling for replication, whereas high $FT$ denotes an error cascade hub requiring circuit breakers (§8.4).
 
@@ -583,13 +496,13 @@ Figure 2 summarizes these results alongside critical-set identification and inte
 
 ![Figure 2](latex/figures/Figure_3.png)
 
-*Figure 2. Results at a glance, Application population. (A) Out-of-distribution rank correlation per predictor across the twelve LOSO folds. (B) Critical-set identification at K = 20%, where the typed model does not separate from untyped learning. (C) Pairwise rank agreement between the three simulation oracles, against the chance baseline. (D) The typing × QoS interaction per fold — how much relation typing buys when the QoS edge channel is present, minus how much it buys when it is absent. Every one of the twelve folds is negative, which is what the substitution claim of §7.2 predicts and the evidence it rests on; the dashed line is the mean and the band its bootstrap 95% CI. Panels A and B are read from the same artifact as Table 5, C from the convergent-validity artifact, and D from the significance artifact behind Table 7.*
+*Figure 2. Results at a glance, Application population. (A) Out-of-distribution rank correlation per predictor across the twelve LOSO folds. (B) Critical-set identification at K = 20%, where the typed model does not separate from untyped learning. (C) Pairwise rank agreement between the three simulation oracles, against the chance baseline. (D) The typing × QoS interaction per fold — how much relation typing buys when the QoS edge channel is present, minus how much it buys when it is absent. Every one of the twelve folds is negative, which is what the substitution claim of §7.2 predicts and the evidence it rests on; the dashed line is the mean and the band its bootstrap 95% CI. Panels A and B are read from the same artifact as Table 5, C from the convergent-validity artifact, and D from the significance artifact behind Table 7.*
 
 ### 7.1.2 The Active Stratum: Ranking Quality Separated From Inertness Detection
 
 Every LOSO figure above is a correlation over the full held-out Application population, and between $21\%$ (Microservices) and $52\%$ (Healthcare) of that population carries exactly zero simulated impact depending on the fold. A predictor can therefore score well by separating components that can propagate a failure from those that cannot, without ordering the propagating ones correctly. Because these are different capabilities with different operational value, we re-score all twelve folds on the *active stratum* — the $n_{>0}$ components with strictly positive ground-truth impact — using the same predictions, folds, and seeds. Table 6 reports both.
 
-**Table 6.** LOSO means over twelve folds on the full Application population ($\rho$) and restricted to components with strictly positive ground-truth impact ($\rho_{>0}$). Same predictions, folds, and seeds; only the evaluated subset differs. Training-free baselines lose most of their apparent accuracy under the restriction; learned models lose far less.
+**Table 6.** LOSO means over twelve folds on the full Application population ($\rho$) and restricted to components with strictly positive ground-truth impact ($\rho_{>0}$). Same predictions, folds, and seeds; only the evaluated subset differs. Retained is defined as the active-stratum ratio $\rho_{>0}/\rho$ (percentage of full-population correlation preserved). Across all predictors, roughly half of the correlation is retained under this restriction.
 
 | **Predictor**   | **$\rho$ (full)** | **$\rho_{>0}$ (active)** | **Retained** |
 |:----------------|:-----------------:|:------------------------:|:------------:|
@@ -611,7 +524,7 @@ Two consequences follow, and the first reverses a claim earlier versions of this
 
 RQ2 asks whether relation typing improves prediction over homogeneous message passing. Answering it requires ablating typing against a matched comparator, and the answer depends entirely on which comparator is chosen:
 
--   **Both factors have a real main effect.** Averaged over the other factor’s levels, relation typing is worth $\Delta\rho = +0.134$ (12 of 12 folds, $W = 0.0$, $p = 0.0005$, Holm $0.0015$) and the QoS edge channel $+0.187$ (11 of 12, $p = 0.0015$, Holm $0.0015$).
+-   **Both factors have a real main effect.** Averaged over the other factor’s levels, relation typing is worth $\Delta\rho = +0.134$ (12 of 12 folds, $W = 0.0$, $p = 0.0005$, Holm $0.0015$) and the QoS edge channel $+0.187$ (11 of 12, $p = 0.0015$, Holm $0.0015$). We qualify this: because the HGT and GAT architectures differ in parameter count ($15.4\times$) and message directionality alongside typing, this $+0.134$ margin reflects the joint architectural transition to HGT rather than isolated relational typing alone.
 
 -   **But they interact, strongly and sub-additively.** The difference of differences — how much typing buys with the QoS channel present, minus how much it buys without it — is $-0.199$, *negative on all twelve folds* ($W = 0.0$, $p = 0.0005$, Holm $0.0015$, 95% CI $[-0.258, -0.147]$).
 
@@ -712,6 +625,8 @@ To test generalization to architectures outside our generator, we trained HGT-Qo
 
 4.  **What the full-population number does support.** Separating propagating components from non-propagating ones narrows the review surface effectively, reflected in the $F_1@K$ column ($0.517$ mean, $0.633$ on Autoware).
 
+5.  **Architectural Ingestion Boundary.** The active-stratum inversion on microservices highlights a fundamental domain mismatch: synchronous RPC architectures propagate cascading failures backward along invocation trees via timeout accumulation and thread pool starvation [45], whereas asynchronous pub-sub architectures cascade forward via queue saturation and topic starvation. Because HGT-QoS was trained exclusively on pub-sub communication semantics, its relational inductive bias inverts when applied to synchronous call trees. We therefore recommend a strict ingestion boundary: practitioners should deploy SaG’s learned GNN pipeline on asynchronous and event-driven architectures (ROS 2, Kafka, DDS, MQTT), and rely on closed-form structural baselines (`Topo-QoS`, $\rho = 0.888$) or dedicated static call-graph analyzers for synchronous RPC/REST microservice meshes.
+
 ## 7.5 RQ5: Analysis Cost and Its Comparison Against Simulation
 
 RQ5 quantifies computational overhead and sustainability during CI/CD evaluation, with per-stage latencies reported in Table 9:
@@ -761,11 +676,11 @@ The RM attribution profile ($Q(v)$, §5) provides transparent, standards-complia
 
 #### What sustainability means for a pre-deployment gate
 
-Green software engineering accounts for the energy of development and assurance alongside execution [29, 84, 85, 86, 87, 30, 31]. Chaos engineering and staging fault injections consume cluster-hours per sweep. Within SaG’s pipeline, the neural forward pass is negligible: $56\,\text{ms}$ on a 2,000-component system vs. $239\,\text{s}$ for deterministic feature extraction ($4{,}259\times$ ratio, §7.5). Manifest-time analysis eliminates provisioned cluster infrastructure entirely, though settling total energy requires hardware counters [30].
+Green software engineering accounts for the energy of development and assurance alongside execution [29, 84, 85, 86, 87, 30, 31]. Chaos engineering and staging fault injections consume cluster-hours per sweep, requiring provisioned virtual machines, container runtimes, and network emulators. Pre-deployment static manifest analysis eliminates the substantial carbon and monetary footprint of provisioning physical cloud staging clusters and live chaos harnesses entirely, though settling exact energy reductions requires empirical hardware counters [30].
 
 #### The efficiency claim we withdraw, and where the cost actually sits
 
-Static analysis does not reduce computation relative to in-process simulation: global connectivity degradation ($82.7\,\text{s}$ on Enterprise) is roughly eleven times slower than BFS cascade traversal ($7.2\,\text{s}$). We withdraw any general claim of computational efficiency relative to simulation. The expense stems from computing CDI across all connected nodes rather than articulation points alone to prevent degenerate Availability scores. Static gate sustainability is a question of graph algorithm optimization rather than machine learning overhead.
+Within local developer environments or in-process CI runners, however, static analysis does not reduce raw CPU computation relative to simulation: global connectivity degradation ($82.7\,\text{s}$ on Enterprise) is roughly eleven times slower than BFS cascade traversal ($7.2\,\text{s}$). We withdraw any general claim of in-process computational efficiency relative to simulation. The expense stems from computing CDI across all connected nodes rather than articulation points alone to prevent degenerate Availability scores. In continuous integration, achieving practical computational sustainability requires deterministic graph caching: by caching base graph metrics across git commits and re-extracting features only for pull-request delta subgraphs, gating latency reduces to the sub-second neural forward pass ($56\,\text{ms}$). Static gate sustainability is thus a question of graph algorithm optimization and caching rather than machine learning overhead.
 
 ## 8.3 Threats to Validity
 
@@ -797,7 +712,7 @@ SaG separates Availability from Fault Tolerance, but practitioner actionability 
 
 #### Uncontrolled Confounds in Typing
 
-Table 7 holds substrate, training set, depth, and early stopping constant, but parameter budget ($434{,}620$ vs. $28{,}168$) and reverse message-passing directionality ($103{,}725$ parameters in HGTConv) remain unmatched. Because $I^*(v)$ is a downstream-reachability functional, upstream visibility confers an advantage unrelated to typing. Running capacity-matched and forward-only control arms remains the most informative extension.
+Table 7 holds substrate, training set, depth, and early stopping constant, but parameter budget ($434{,}620$ vs. $28{,}168$) and reverse message-passing directionality ($103{,}725$ parameters in HGTConv) remain unmatched. Because $I^*(v)$ is a downstream-reachability functional, upstream visibility confers an advantage unrelated to typing. To rigorously disentangle these factors, we have registered three specific control variants in the SaG benchmark suite (`saag/evaluation/variant_registry.py`): `GAT-N-C` (capacity-matched homogeneous baseline expanded to $\approx 434\text{k}$ parameters), `GAT-N-QoS-C` (capacity-matched homogeneous with QoS edge encoding), and `HGT-QoS-U` (unidirectional HGT with forward message passing only). Executing these registered control arms across all twelve LOSO folds represents the primary empirical priority for subsequent benchmark iterations.
 
 #### Model Selection and Caching
 
@@ -821,376 +736,198 @@ What the work contributes is therefore a reproducible typed-multigraph formulati
 
 ---
 
-# References
-
-[1] S. Macenski, T. Foote, B. Gerkey, C. Lalancette, W. Woodall, Robot operating
-  system 2: Design, architecture, and uses in the wild, Science Robotics 7 (66)
-  (2022) eabm6074.
-
-[2] J. Kreps, N. Narkhede, J. Rao, Kafka: A distributed messaging system for log
-  processing, in: Proc. 6th Int. Workshop on Networking Meets Databases
-  (NetDB), 2011.
-
-[3] Object Management Group, Data distribution service (dds), Tech. Rep.
-  formal/2015-04-10, version 1.4, Object Management Group (2015).
-
-[4] OASIS, MQTT version 5.0, OASIS Standard,
-  <https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html> (accessed 9
-  September 2026) (2019).
-
-[5] N. Dragoni, S. Giallorenzo, A. L. Lafuente, M. Mazzara, F. Montesi,
-  R. Mustafin, L. Safina, Microservices: Yesterday, today, and tomorrow, in:
-  Present and Ulterior Software Engineering, Springer, 2017, pp. 195--216.
-
-[6] S. Newman, Building Microservices: Designing Fine-Grained Systems, O'Reilly
-  Media, 2015.
-
-[7] P. T. Eugster, P. A. Felber, R. Guerraoui, A.-M. Kermarrec, The many faces of
-  publish/subscribe, ACM Computing Surveys 35 (2) (2003) 114--131.
-
-[8] A. E. Motter, Y.-C. Lai, Cascade-based attacks on complex networks, Physical
-  Review E 66 (2002) 065102(R).
-
-[9] S. V. Buldyrev, R. Parshani, G. Paul, H. E. Stanley, S. Havlin, Catastrophic
-  cascade of failures in interdependent networks, Nature 464 (2010) 1025--1028.
-
-[10] R. Albert, H. Jeong, A.-L. Barab\'asi, Error and attack tolerance of complex
-  networks, Nature 406 (2000) 378--382.
-
-[11] A. Avizienis, J.-C. Laprie, B. Randell, C. Landwehr, Basic concepts and
-  taxonomy of dependable and secure computing, IEEE Transactions on Dependable
-  and Secure Computing 1 (1) (2004) 11--33.
-
-[12] L. Bass, P. Clements, R. Kazman, Software Architecture in Practice, 3rd
-  Edition, Addison-Wesley, 2012.
-
-[13] International Organization for Standardization, ISO/IEC 25010:2023 ---
-  systems and software engineering --- systems and software quality
-  requirements and evaluation (square) --- product quality model, Tech. rep.,
-  International Organization for Standardization (2023).
-
-[14] International Organization for Standardization, ISO/IEC 25019:2023 ---
-  systems and software engineering --- systems and software quality
-  requirements and evaluation (square) --- quality-in-use model, Tech. rep.,
-  International Organization for Standardization (2023).
-
-[15] D. E. Perry, A. L. Wolf, Foundations for the study of software architecture,
-  ACM SIGSOFT Software Engineering Notes 17 (4) (1992) 40--52.
-
-[16] R. Kazman, M. Klein, M. Barbacci, T. Longstaff, H. Lipson, J. Carriere, The
-  architecture tradeoff analysis method, in: Proc. 4th IEEE Int. Conf. on
-  Engineering of Complex Computer Systems (ICECCS), 1998, pp. 68--78.
-
-[17] W. Cunningham, The WyCash portfolio management system, in: Addendum to the
-  Proc. Conf. on Object-Oriented Programming Systems, Languages, and
-  Applications (OOPSLA), 1992, pp. 29--30.
-
-[18] J. Garcia, D. Popescu, G. Edwards, N. Medvidovic, Identifying architectural bad
-  smells, in: Proc. 13th European Conf. on Software Maintenance and
-  Reengineering (CSMR), 2009, pp. 255--258.
-
-[19] SonarSource, Clean as you code, SonarQube documentation,
-  <https://docs.sonarsource.com/sonarqube-server/latest/core-concepts/clean-as-you-code/introduction/>
-  (accessed 9 September 2026) (2024).
-
-[20] T. J. McCabe, A complexity measure, IEEE Transactions on Software Engineering
-  SE-2 (4) (1976) 308--320.
-
-[21] S. R. Chidamber, C. F. Kemerer, A metrics suite for object oriented design,
-  IEEE Transactions on Software Engineering 20 (6) (1994) 476--493.
-
-[22] N. Fenton, J. Bieman, Software Metrics: A Rigorous and Practical Approach, 3rd
-  Edition, CRC Press, 2014.
-
-[23] A. Basiri, N. Behnam, R. de Rooij, L. Hochstein, L. Kosewski, J. Reynolds,
-  C. Rosenthal, Chaos engineering, IEEE Software 33 (3) (2016) 35--41.
-
-[24] L. C. Freeman, A set of measures of centrality based on betweenness, Sociometry
-  40 (1) (1977) 35--41.
-
-[25] S. Brin, L. Page, The anatomy of a large-scale hypertextual web search engine,
-  Computer Networks and ISDN Systems 30 (1--7) (1998) 107--117.
-
-[26] U. Brandes, A faster algorithm for betweenness centrality, Journal of
-  Mathematical Sociology 25 (2) (2001) 163--177.
-
-[27] M. E. J. Newman, Networks: An Introduction, Oxford University Press, 2010.
-
-[28] I. O. Yigit, F. Buzluca, A graph-based dependency analysis method for
-  identifying critical components in distributed publish--subscribe systems,
-  in: Proc. IEEE Int. Conf. on Recent Advances in Systems Science and
-  Engineering (RASSE), 2025, pp. 1--8.
-https://doi.org/10.1109/RASSE64831.2025.11315354
-  `doi:10.1109/RASSE64831.2025.11315354`.
-
-[29] C. Calero, M. Piattini (Eds.), Green in Software Engineering, Springer, Cham,
-  Switzerland, 2015.
-https://doi.org/10.1007/978-3-319-08581-4
-  `doi:10.1007/978-3-319-08581-4`.
-
-[30] L. Lannelongue, J. Grealey, M. Inouye, Green algorithms: Quantifying the carbon
-  footprint of computation, Advanced Science 8 (12) (2021) 2100707.
-https://doi.org/10.1002/advs.202100707
-  `doi:10.1002/advs.202100707`.
-
-[31] R. Verdecchia, J. Sallou, L. Cruz, A systematic review of Green AI, WIREs
-  Data Mining and Knowledge Discovery 13 (4) (2023) e1507.
-https://doi.org/10.1002/widm.1507
-  `doi:10.1002/widm.1507`.
-
-[32] R. C. Cheung, A user-oriented software reliability model, IEEE Transactions on
-  Software Engineering SE-6 (2) (1980) 118--125.
-
-[33] K. Goseva-Popstojanova, K. S. Trivedi, Architecture-based approach to
-  reliability assessment of software systems, Performance Evaluation 45 (2--3)
-  (2001) 179--204.
-
-[34] A. Immonen, E. Niemel\"a, Survey of reliability and availability prediction
-  methods from the architectural perspective, Software and Systems Modeling
-  7 (1) (2008) 49--65.
-
-[35] S. Becker, H. Koziolek, R. Reussner, The Palladio component model for
-  model-driven performance prediction, Journal of Systems and Software 82 (1)
-  (2009) 3--22.
-
-[36] G. Franks, T. Al-Omari, M. Woodside, O. Das, S. Derisavi, Enhanced modeling and
-  solution of layered queueing networks, IEEE Transactions on Software
-  Engineering 35 (2) (2009) 148--161.
-
-[37] J. Delange, P. H. Feiler, Architecture fault modeling with the AADL
-  error-model annex, in: 2014 40th EUROMICRO Conference on Software Engineering
-  and Advanced Applications (SEAA), IEEE, 2014, pp. 361--368.
-https://doi.org/10.1109/SEAA.2014.20
-  `doi:10.1109/SEAA.2014.20`.
-
-[38] Y. Gan, Y. Zhang, K. Hu, D. Cheng, Y. He, M. Pancholi, C. Delimitrou, Seer:
-  Leveraging big data to navigate the complexity of performance debugging in
-  cloud microservices, in: Proc. ACM Int. Conf. on Architectural Support for
-  Programming Languages and Operating Systems (ASPLOS), 2019.
-
-[39] Y. Gan, M. Liang, S. Dev, D. Lo, C. Delimitrou, Sage: Practical and scalable
-  ML-driven performance debugging in microservices, in: Proc. ACM Int. Conf.
-  on Architectural Support for Programming Languages and Operating Systems
-  (ASPLOS), 2021.
-
-[40] L. Wu, J. Tordsson, E. Elmroth, O. Kao, MicroRCA: Root cause localization of
-  performance issues in microservices, in: Proc. IEEE/IFIP Network Operations
-  and Management Symposium (NOMS), 2020.
-
-[41] Z. Li, J. Chen, R. Jiao, N. Zhao, Z. Wang, S. Zhang, Y. Wu, L. Jiang, L. Yan,
-  Z. Wang, Z. Chen, W. Zhang, X. Nie, K. Sui, D. Pei, Practical root cause
-  localization for microservice systems via trace analysis, in: Proc. IEEE/ACM
-  Int. Symposium on Quality of Service (IWQoS), 2021.
-
-[42] C. Zhang, X. Peng, C. Sha, K. Zhang, Z. Fu, X. Wu, Q. Lin, D. Zhang,
-  DeepTraLog: Trace-log combined microservice anomaly detection through
-  graph-based deep learning, in: Proc. IEEE/ACM Int. Conf. on Software
-  Engineering (ICSE), 2022.
-
-[43] C. Lee, T. Yang, Z. Chen, Y. Su, Y. Yang, M. R. Lyu, Eadro: An end-to-end
-  troubleshooting framework for microservices on multi-source data, in: Proc.
-  IEEE/ACM Int. Conf. on Software Engineering (ICSE), 2023.
-
-[44] S. Zhang, S. Xia, W. Fan, B. Shi, X. Xiong, Z. Zhong, M. Ma, Y. Sun, D. Pei,
-  Failure diagnosis in microservice systems: A comprehensive survey and
-  analysis, arXiv preprint arXiv:2407.01710 (2024).
-
-[45] X. Zhou, X. Peng, T. Xie, J. Sun, C. Ji, W. Li, D. Ding, Fault analysis and
-  debugging of microservice systems: Industrial survey, benchmark system, and
-  empirical study, IEEE Transactions on Software Engineering 47 (2) (2021)
-  243--260.
-
-[46] V. R. Basili, L. C. Briand, W. L. Melo, A validation of object-oriented design
-  metrics as quality indicators, IEEE Transactions on Software Engineering
-  22 (10) (1996) 751--761.
-
-[47] N. Nagappan, T. Ball, Static analysis tools as early indicators of pre-release
-  defect density, in: Proc. 27th Int. Conf. on Software Engineering (ICSE),
-  2005, pp. 580--586.
-
-[48] T. Zimmermann, R. Premraj, A. Zeller, Predicting defects for Eclipse, in:
-  Proc. 3rd Int. Workshop on Predictor Models in Software Engineering
-  (PROMISE), 2007.
-
-[49] T. Menzies, J. Greenwald, A. Frank, Data mining static code attributes to learn
-  defect predictors, IEEE Transactions on Software Engineering 33 (1) (2007)
-  2--13.
-
-[50] V. Bushong, D. Das, A. Al Maruf, T. Cerny, Using static analysis to address
-  microservice architecture reconstruction, in: 2021 36th IEEE/ACM
-  International Conference on Automated Software Engineering (ASE), IEEE, 2021.
-https://doi.org/10.1109/ASE51524.2021.9678749
-  `doi:10.1109/ASE51524.2021.9678749`.
-
-[51] S. Schneider, A. Bakhtin, X. Li, J. Soldani, A. Brogi, T. Cerny,
-  R. Scandariato, D. Taibi, Comparison of static analysis architecture recovery
-  tools for microservice applications, arXiv preprint (2024).
-http://arxiv.org/abs/2412.08352 `arXiv:2412.08352`,
-  https://doi.org/10.48550/arXiv.2412.08352
-  `doi:10.48550/arXiv.2412.08352`.
-
-[52] J. Garcia, D. Popescu, G. Edwards, N. Medvidovic, Toward a catalogue of
-  architectural bad smells, in: Proc. 5th Int. Conf. on the Quality of Software
-  Architectures (QoSA), LNCS 5581, 2009, pp. 146--162.
-
-[53] D. Taibi, V. Lenarduzzi, On the definition of microservice bad smells, IEEE
-  Software 35 (3) (2018) 56--62.
-
-[54] Z. Li, P. Avgeriou, P. Liang, A systematic mapping study on technical debt and
-  its management, Journal of Systems and Software 101 (2015) 193--220.
-
-[55] J. Humble, D. Farley, Continuous Delivery: Reliable Software Releases through
-  Build, Test, and Deployment Automation, Addison-Wesley, 2010.
-
-[56] L. Chen, Continuous delivery: Huge benefits, but challenges too, IEEE Software
-  32 (2) (2015) 50--54.
-
-[57] International Organization for Standardization, ISO/IEC 25023:2016 ---
-  systems and software engineering --- systems and software quality
-  requirements and evaluation (square) --- measurement of system and software
-  product quality, Tech. rep., International Organization for Standardization
-  (2016).
-
-[58] International Organization for Standardization, ISO/IEC 25021:2012 ---
-  systems and software engineering --- systems and software quality
-  requirements and evaluation (square) --- quality measure elements, Tech.
-  rep., International Organization for Standardization (2012).
-
-[59] T. L. Saaty, The Analytic Hierarchy Process: Planning, Priority Setting,
-  Resource Allocation, McGraw-Hill, 1980.
-
-[60] C. Fan, L. Zeng, Y. Sun, Y.-Y. Liu, Finding key players in complex networks
-  through deep reinforcement learning, Nature Machine Intelligence 2 (2020)
-  317--324.
-
-[61] C. Fan, L. Zeng, Y. Ding, M. Chen, Y. Sun, Z. Liu, Learning to identify high
-  betweenness centrality nodes from scratch: A novel graph neural network
-  approach, in: Proc. 28th ACM Int. Conf. on Information and Knowledge
-  Management (CIKM), 2019, pp. 559--568.
-
-[62] A. Varbella, K. Amara, M. El-Assady, B. Gjorgiev, G. Sansavini, PowerGraph: A
-  power grid benchmark dataset for graph neural networks, in: Advances in
-  Neural Information Processing Systems 37 (NeurIPS 2024), Datasets and
-  Benchmarks Track, 2024, arXiv:2402.02827.
-
-[63] T. N. Kipf, M. Welling, Semi-supervised classification with graph convolutional
-  networks, in: Proc. Int. Conf. on Learning Representations (ICLR), 2017.
-
-[64] W. L. Hamilton, R. Ying, J. Leskovec, Inductive representation learning on
-  large graphs, in: Advances in Neural Information Processing Systems 30
-  (NeurIPS), 2017, pp. 1024--1034.
-
-[65] P. Velickovi\'c, G. Cucurull, A. Casanova, A. Romero, P. Li\`o,
-  Y. Bengio, Graph attention networks, in: Proc. Int. Conf. on Learning
-  Representations (ICLR), 2018.
-
-[66] M. Schlichtkrull, T. N. Kipf, P. Bloem, R. van den Berg, I. Titov, M. Welling,
-  Modeling relational data with graph convolutional networks, in: Proc.
-  European Semantic Web Conference (ESWC), 2018, pp. 593--607.
-
-[67] X. Wang, H. Ji, C. Shi, B. Wang, Y. Ye, P. Cui, P. S. Yu, Heterogeneous graph
-  attention network, in: Proc. The Web Conference (WWW), 2019, pp. 2022--2032.
-
-[68] Z. Hu, Y. Dong, K. Wang, Y. Sun, Heterogeneous graph transformer, in: Proc. The
-  Web Conference (WWW), 2020, pp. 2704--2710.
-
-[69] X. Fu, J. Zhang, Z. Meng, I. King, MAGNN: Metapath aggregated graph neural
-  network for heterogeneous graph embedding, in: Proc. The Web Conference
-  (WWW), 2020, pp. 2331--2341.
-
-[70] G. Khodabandeh, A. Ezaz, M. Babaei, N. Ezzati-Jivan, Utilizing graph neural
-  networks for effective link prediction in microservice architectures, in:
-  Proceedings of the 16th ACM/SPEC International Conference on Performance
-  Engineering (ICPE), 2025.
-
-[71] Z. Ying, D. Bourgeois, J. You, M. Zitnik, J. Leskovec, GNNExplainer:
-  Generating explanations for graph neural networks, in: Advances in Neural
-  Information Processing Systems (NeurIPS), Vol. 32, 2019, pp. 9244--9255.
-
-[72] D. Luo, W. Cheng, D. Xu, W. Yu, B. Zong, H. Chen, X. Zhang, Parameterized
-  explainer for graph neural network, in: Advances in Neural Information
-  Processing Systems (NeurIPS), Vol. 33, 2020, pp. 19620--19631.
-
-[73] J. Pearl, Probabilistic Reasoning in Intelligent Systems: Networks of Plausible
-  Inference, Morgan Kaufmann, 1988.
-
-[74] G. Beliakov, A. Pradera, T. Calvo, Aggregation functions: A guide for
-  practitioners, Studies in Fuzziness and Soft Computing 221 (2007).
-
-[75] R. R. Yager, On ordered weighted averaging aggregation operators in
-  multicriteria decisionmaking, IEEE Transactions on Systems, Man, and
-  Cybernetics 18 (1) (1988) 183--190.
-
-[76] G. H. Hardy, J. E. Littlewood, G. P\'olya, Inequalities, 2nd Edition,
-  Cambridge University Press, 1952.
-
-[77] U.S. Department of Defense, MIL-STD-498: Software development and
-  documentation, Military standard, U.S. Department of Defense (1994).
-
-[78] M. Fey, J. E. Lenssen, Fast graph representation learning with PyTorch
-  geometric, in: ICLR Workshop on Representation Learning on Graphs and
-  Manifolds, 2019.
-
-[79] F. Xia, T.-Y. Liu, J. Wang, W.-S. Zhang, H. Li, Listwise approach to learning
-  to rank: Theory and algorithm, in: Proc. 25th Int. Conf. on Machine Learning
-  (ICML), 2008, pp. 1192--1199.
-
-[80] Team SimPy, Simpy: Discrete event simulation for Python, Software,
-  <https://simpy.readthedocs.io> (accessed 9 September 2026) (2020).
-
-[81] F. Wilcoxon, Individual comparisons by ranking methods, Biometrics Bulletin
-  1 (6) (1945) 80--83.
-
-[82] B. Efron, R. J. Tibshirani, An Introduction to the Bootstrap, Chapman \& Hall,
-  1993.
-
-[83] C. Spearman, The proof and measurement of association between two things,
-  American Journal of Psychology 15 (1) (1904) 72--101.
-
-[84] R. Schwartz, J. Dodge, N. A. Smith, O. Etzioni, Green AI, Communications of
-  the ACM 63 (12) (2020) 54--63.
-https://doi.org/10.1145/3381831 `doi:10.1145/3381831`.
-
-[85] E. Strubell, A. Ganesh, A. McCallum, Energy and policy considerations for deep
-  learning in NLP, in: Proceedings of the 57th Annual Meeting of the
-  Association for Computational Linguistics (ACL), Florence, Italy, 2019, pp.
-  3645--3650.
-https://doi.org/10.18653/v1/P19-1355
-  `doi:10.18653/v1/P19-1355`.
-
-[86] D. Patterson, J. Gonzalez, Q. Le, C. Liang, L.-M. Munguia, D. Rothchild, D. So,
-  M. Texier, J. Dean, Carbon emissions and large neural network training, arXiv
-  preprint arXiv:2104.10350 (2021).
-https://doi.org/10.48550/arXiv.2104.10350
-  `doi:10.48550/arXiv.2104.10350`.
-
-[87] S. Georgiou, M. Kechagia, T. Sharma, F. Sarro, Y. Zou, Green AI: Do deep
-  learning frameworks have different costs?, in: Proceedings of the 44th
-  International Conference on Software Engineering (ICSE), 2022, pp.
-  1082--1094.
-https://doi.org/10.1145/3510003.3510221
-  `doi:10.1145/3510003.3510221`.
-
-[88] H. Zeng, H. Zhou, A. Srivastava, R. Kannan, V. Prasanna, GraphSAINT: Graph
-  sampling based inductive engine, in: Proc. International Conference on
-  Learning Representations (ICLR), 2020.
-
-[89] I. O. Yigit, F. Buzluca, [dataset] software-as-a-graph: Replication package
-  (datasets, generator configurations, simulation harnesses, model checkpoints,
-  and analysis scripts), <https://doi.org/10.5281/zenodo.14922108> (2026).
-https://doi.org/10.5281/zenodo.14922108
-  `doi:10.5281/zenodo.14922108`.
-
----
-
 # Declarations
 
-**CRediT authorship contribution statement.** **Ibrahim Onuralp Yigit:** Conceptualization, Methodology, Software, Validation, Formal analysis, Investigation, Data curation, Writing — original draft, Visualization. **Feza Buzluca:** Conceptualization, Methodology, Validation, Writing — review and editing, Supervision, Project administration.
+**CRediT Authorship Contribution Statement.** **Ibrahim Onuralp Yigit:** Conceptualization, Methodology, Software, Validation, Formal analysis, Investigation, Data curation, Writing – original draft, Visualization. **Feza Buzluca:** Conceptualization, Methodology, Validation, Writing – review and editing, Supervision.
 
-**Declaration of competing interest.** The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+**Declaration of Competing Interest.** The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
 
 **Funding.** This research did not receive any specific grant from funding agencies in the public, commercial, or not-for-profit sectors.
 
-**Data availability.** The complete replication package — including synthetic scenario datasets, generator configurations, simulation harnesses, real-world architecture adapters, trained model checkpoints, and all analysis scripts — is openly available on Zenodo under DOI [10.5281/zenodo.14922108](https://doi.org/10.5281/zenodo.14922108) and cited as [91] in compliance with Option C of the Elsevier research data policy. The synthetic corpus is regenerable: each dataset carries its random seed and SHA-256 cryptographic digest in a committed manifest, with automated tests asserting byte-identical regeneration from configuration files (§6.1). Every table and figure is produced deterministically from committed artifacts by reproducible scripts; none of the reported values is transcribed manually.
+**Supplementary Material.** Parameter sensitivity analyses (OFAT, Morris screening, threshold and normalization sweeps, zero-inflation diagnostics, and HGT attention distributions) are provided in the online supplementary document (Sections S1–S8).
 
-**Declaration of generative AI and AI-assisted technologies in the manuscript preparation process.** During the preparation of this work, the authors used AI-assisted language tools to check grammar, improve readability, and support LaTeX typesetting. After using these tools, the authors reviewed and edited the content as needed and take full responsibility for the content of the published article.
+**Data Availability.** The complete replication package—datasets, configurations, simulation harnesses, adapters, checkpoints, and scripts—is available on Zenodo under DOI [10.5281/zenodo.14922108](https://doi.org/10.5281/zenodo.14922108) [89], complete with virtual environment specifications (`uv` and `pip`/`requirements.txt`) for zero-friction reproduction. Synthetic datasets regenerate byte-identically. All 295 reported table values are deterministically verified against backing JSON artifacts via `reproduce/reconcile_manuscript.py`, which asserts clean git trees for declared artifacts across table cells and named prose quantities.
+
+**Declaration of Generative AI and AI-Assisted Technologies.** During preparation, the authors used Anthropic’s Claude to assist with LaTeX typesetting and readability. The authors reviewed and edited all content and take full responsibility. No generative AI was used to design the study, analyze research data, or generate experimental results; all figures and tables are rendered deterministically.
+
+---
+
+# References
+
+[1] S. Macenski, T. Foote, B. Gerkey, C. Lalancette, W. Woodall, Robot operating system 2: Design, architecture, and uses in the wild, Science Robotics 7 (66) (2022) eabm6074.
+
+[2] J. Kreps, N. Narkhede, J. Rao, Kafka: A distributed messaging system for log processing, in: Proc. 6th Int. Workshop on Networking Meets Databases (NetDB), 2011.
+
+[3] Object Management Group, Data distribution service (dds), Tech. Rep. formal/2015-04-10, version 1.4, Object Management Group (2015).
+
+[4] OASIS, MQTT version 5.0, OASIS Standard, <https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html> (accessed 9 September 2026) (2019).
+
+[5] N. Dragoni, S. Giallorenzo, A. L. Lafuente, M. Mazzara, F. Montesi, R. Mustafin, L. Safina, Microservices: Yesterday, today, and tomorrow, in: Present and Ulterior Software Engineering, Springer, 2017, pp. 195--216.
+
+[6] S. Newman, Building Microservices: Designing Fine-Grained Systems, O'Reilly Media, 2015.
+
+[7] P. T. Eugster, P. A. Felber, R. Guerraoui, A.-M. Kermarrec, The many faces of publish/subscribe, ACM Computing Surveys 35 (2) (2003) 114--131.
+
+[8] A. E. Motter, Y.-C. Lai, Cascade-based attacks on complex networks, Physical Review E 66 (2002) 065102(R).
+
+[9] S. V. Buldyrev, R. Parshani, G. Paul, H. E. Stanley, S. Havlin, Catastrophic cascade of failures in interdependent networks, Nature 464 (2010) 1025--1028.
+
+[10] R. Albert, H. Jeong, A.-L. Barab\'asi, Error and attack tolerance of complex networks, Nature 406 (2000) 378--382.
+
+[11] A. Avizienis, J.-C. Laprie, B. Randell, C. Landwehr, Basic concepts and taxonomy of dependable and secure computing, IEEE Transactions on Dependable and Secure Computing 1 (1) (2004) 11--33.
+
+[12] L. Bass, P. Clements, R. Kazman, Software Architecture in Practice, 3rd Edition, Addison-Wesley, 2012.
+
+[13] International Organization for Standardization, ISO/IEC 25010:2023 --- systems and software engineering --- systems and software quality requirements and evaluation (square) --- product quality model, Tech. rep., International Organization for Standardization (2023).
+
+[14] International Organization for Standardization, ISO/IEC 25019:2023 --- systems and software engineering --- systems and software quality requirements and evaluation (square) --- quality-in-use model, Tech. rep., International Organization for Standardization (2023).
+
+[15] D. E. Perry, A. L. Wolf, Foundations for the study of software architecture, ACM SIGSOFT Software Engineering Notes 17 (4) (1992) 40--52.
+
+[16] R. Kazman, M. Klein, M. Barbacci, T. Longstaff, H. Lipson, J. Carriere, The architecture tradeoff analysis method, in: Proc. 4th IEEE Int. Conf. on Engineering of Complex Computer Systems (ICECCS), 1998, pp. 68--78.
+
+[17] W. Cunningham, The WyCash portfolio management system, in: Addendum to the Proc. Conf. on Object-Oriented Programming Systems, Languages, and Applications (OOPSLA), 1992, pp. 29--30.
+
+[18] J. Garcia, D. Popescu, G. Edwards, N. Medvidovic, Identifying architectural bad smells, in: Proc. 13th European Conf. on Software Maintenance and Reengineering (CSMR), 2009, pp. 255--258.
+
+[19] SonarSource, Clean as you code, SonarQube documentation, <https://docs.sonarsource.com/sonarqube-server/latest/core-concepts/clean-as-you-code/introduction/> (accessed 9 September 2026) (2024).
+
+[20] T. J. McCabe, A complexity measure, IEEE Transactions on Software Engineering SE-2 (4) (1976) 308--320.
+
+[21] S. R. Chidamber, C. F. Kemerer, A metrics suite for object oriented design, IEEE Transactions on Software Engineering 20 (6) (1994) 476--493.
+
+[22] N. Fenton, J. Bieman, Software Metrics: A Rigorous and Practical Approach, 3rd Edition, CRC Press, 2014.
+
+[23] A. Basiri, N. Behnam, R. de Rooij, L. Hochstein, L. Kosewski, J. Reynolds, C. Rosenthal, Chaos engineering, IEEE Software 33 (3) (2016) 35--41.
+
+[24] L. C. Freeman, A set of measures of centrality based on betweenness, Sociometry 40 (1) (1977) 35--41.
+
+[25] S. Brin, L. Page, The anatomy of a large-scale hypertextual web search engine, Computer Networks and ISDN Systems 30 (1--7) (1998) 107--117.
+
+[26] U. Brandes, A faster algorithm for betweenness centrality, Journal of Mathematical Sociology 25 (2) (2001) 163--177.
+
+[27] M. E. J. Newman, Networks: An Introduction, Oxford University Press, 2010.
+
+[28] I. O. Yigit, F. Buzluca, A graph-based dependency analysis method for identifying critical components in distributed publish--subscribe systems, in: Proc. IEEE Int. Conf. on Recent Advances in Systems Science and Engineering (RASSE), 2025, pp. 1--8. https://doi.org/10.1109/RASSE64831.2025.11315354 `doi:10.1109/RASSE64831.2025.11315354`.
+
+[29] C. Calero, M. Piattini (Eds.), Green in Software Engineering, Springer, Cham, Switzerland, 2015. https://doi.org/10.1007/978-3-319-08581-4 `doi:10.1007/978-3-319-08581-4`.
+
+[30] L. Lannelongue, J. Grealey, M. Inouye, Green algorithms: Quantifying the carbon footprint of computation, Advanced Science 8 (12) (2021) 2100707. https://doi.org/10.1002/advs.202100707 `doi:10.1002/advs.202100707`.
+
+[31] R. Verdecchia, J. Sallou, L. Cruz, A systematic review of Green AI, WIREs Data Mining and Knowledge Discovery 13 (4) (2023) e1507. https://doi.org/10.1002/widm.1507 `doi:10.1002/widm.1507`.
+
+[32] R. C. Cheung, A user-oriented software reliability model, IEEE Transactions on Software Engineering SE-6 (2) (1980) 118--125.
+
+[33] K. Goseva-Popstojanova, K. S. Trivedi, Architecture-based approach to reliability assessment of software systems, Performance Evaluation 45 (2--3) (2001) 179--204.
+
+[34] A. Immonen, E. Niemel\"a, Survey of reliability and availability prediction methods from the architectural perspective, Software and Systems Modeling 7 (1) (2008) 49--65.
+
+[35] S. Becker, H. Koziolek, R. Reussner, The Palladio component model for model-driven performance prediction, Journal of Systems and Software 82 (1) (2009) 3--22.
+
+[36] G. Franks, T. Al-Omari, M. Woodside, O. Das, S. Derisavi, Enhanced modeling and solution of layered queueing networks, IEEE Transactions on Software Engineering 35 (2) (2009) 148--161.
+
+[37] J. Delange, P. H. Feiler, Architecture fault modeling with the AADL error-model annex, in: 2014 40th EUROMICRO Conference on Software Engineering and Advanced Applications (SEAA), IEEE, 2014, pp. 361--368. https://doi.org/10.1109/SEAA.2014.20 `doi:10.1109/SEAA.2014.20`.
+
+[38] Y. Gan, Y. Zhang, K. Hu, D. Cheng, Y. He, M. Pancholi, C. Delimitrou, Seer: Leveraging big data to navigate the complexity of performance debugging in cloud microservices, in: Proc. ACM Int. Conf. on Architectural Support for Programming Languages and Operating Systems (ASPLOS), 2019.
+
+[39] Y. Gan, M. Liang, S. Dev, D. Lo, C. Delimitrou, Sage: Practical and scalable ML-driven performance debugging in microservices, in: Proc. ACM Int. Conf. on Architectural Support for Programming Languages and Operating Systems (ASPLOS), 2021.
+
+[40] L. Wu, J. Tordsson, E. Elmroth, O. Kao, MicroRCA: Root cause localization of performance issues in microservices, in: Proc. IEEE/IFIP Network Operations and Management Symposium (NOMS), 2020.
+
+[41] Z. Li, J. Chen, R. Jiao, N. Zhao, Z. Wang, S. Zhang, Y. Wu, L. Jiang, L. Yan, Z. Wang, Z. Chen, W. Zhang, X. Nie, K. Sui, D. Pei, Practical root cause localization for microservice systems via trace analysis, in: Proc. IEEE/ACM Int. Symposium on Quality of Service (IWQoS), 2021.
+
+[42] C. Zhang, X. Peng, C. Sha, K. Zhang, Z. Fu, X. Wu, Q. Lin, D. Zhang, DeepTraLog: Trace-log combined microservice anomaly detection through graph-based deep learning, in: Proc. IEEE/ACM Int. Conf. on Software Engineering (ICSE), 2022.
+
+[43] C. Lee, T. Yang, Z. Chen, Y. Su, Y. Yang, M. R. Lyu, Eadro: An end-to-end troubleshooting framework for microservices on multi-source data, in: Proc. IEEE/ACM Int. Conf. on Software Engineering (ICSE), 2023.
+
+[44] S. Zhang, S. Xia, W. Fan, B. Shi, X. Xiong, Z. Zhong, M. Ma, Y. Sun, D. Pei, Failure diagnosis in microservice systems: A comprehensive survey and analysis, arXiv preprint arXiv:2407.01710 (2024).
+
+[45] X. Zhou, X. Peng, T. Xie, J. Sun, C. Ji, W. Li, D. Ding, Fault analysis and debugging of microservice systems: Industrial survey, benchmark system, and empirical study, IEEE Transactions on Software Engineering 47 (2) (2021) 243--260.
+
+[46] V. R. Basili, L. C. Briand, W. L. Melo, A validation of object-oriented design metrics as quality indicators, IEEE Transactions on Software Engineering 22 (10) (1996) 751--761.
+
+[47] N. Nagappan, T. Ball, Static analysis tools as early indicators of pre-release defect density, in: Proc. 27th Int. Conf. on Software Engineering (ICSE), 2005, pp. 580--586.
+
+[48] T. Zimmermann, R. Premraj, A. Zeller, Predicting defects for Eclipse, in: Proc. 3rd Int. Workshop on Predictor Models in Software Engineering (PROMISE), 2007.
+
+[49] T. Menzies, J. Greenwald, A. Frank, Data mining static code attributes to learn defect predictors, IEEE Transactions on Software Engineering 33 (1) (2007) 2--13.
+
+[50] V. Bushong, D. Das, A. Al Maruf, T. Cerny, Using static analysis to address microservice architecture reconstruction, in: 2021 36th IEEE/ACM International Conference on Automated Software Engineering (ASE), IEEE, 2021. https://doi.org/10.1109/ASE51524.2021.9678749 `doi:10.1109/ASE51524.2021.9678749`.
+
+[51] S. Schneider, A. Bakhtin, X. Li, J. Soldani, A. Brogi, T. Cerny, R. Scandariato, D. Taibi, Comparison of static analysis architecture recovery tools for microservice applications, arXiv preprint (2024). http://arxiv.org/abs/2412.08352 `arXiv:2412.08352`, https://doi.org/10.48550/arXiv.2412.08352 `doi:10.48550/arXiv.2412.08352`.
+
+[52] J. Garcia, D. Popescu, G. Edwards, N. Medvidovic, Toward a catalogue of architectural bad smells, in: Proc. 5th Int. Conf. on the Quality of Software Architectures (QoSA), LNCS 5581, 2009, pp. 146--162.
+
+[53] D. Taibi, V. Lenarduzzi, On the definition of microservice bad smells, IEEE Software 35 (3) (2018) 56--62.
+
+[54] Z. Li, P. Avgeriou, P. Liang, A systematic mapping study on technical debt and its management, Journal of Systems and Software 101 (2015) 193--220.
+
+[55] J. Humble, D. Farley, Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation, Addison-Wesley, 2010.
+
+[56] L. Chen, Continuous delivery: Huge benefits, but challenges too, IEEE Software 32 (2) (2015) 50--54.
+
+[57] International Organization for Standardization, ISO/IEC 25023:2016 --- systems and software engineering --- systems and software quality requirements and evaluation (square) --- measurement of system and software product quality, Tech. rep., International Organization for Standardization (2016).
+
+[58] International Organization for Standardization, ISO/IEC 25021:2012 --- systems and software engineering --- systems and software quality requirements and evaluation (square) --- quality measure elements, Tech. rep., International Organization for Standardization (2012).
+
+[59] T. L. Saaty, The Analytic Hierarchy Process: Planning, Priority Setting, Resource Allocation, McGraw-Hill, 1980.
+
+[60] C. Fan, L. Zeng, Y. Sun, Y.-Y. Liu, Finding key players in complex networks through deep reinforcement learning, Nature Machine Intelligence 2 (2020) 317--324.
+
+[61] C. Fan, L. Zeng, Y. Ding, M. Chen, Y. Sun, Z. Liu, Learning to identify high betweenness centrality nodes from scratch: A novel graph neural network approach, in: Proc. 28th ACM Int. Conf. on Information and Knowledge Management (CIKM), 2019, pp. 559--568.
+
+[62] A. Varbella, K. Amara, M. El-Assady, B. Gjorgiev, G. Sansavini, PowerGraph: A power grid benchmark dataset for graph neural networks, in: Advances in Neural Information Processing Systems 37 (NeurIPS 2024), Datasets and Benchmarks Track, 2024, arXiv:2402.02827.
+
+[63] T. N. Kipf, M. Welling, Semi-supervised classification with graph convolutional networks, in: Proc. Int. Conf. on Learning Representations (ICLR), 2017.
+
+[64] W. L. Hamilton, R. Ying, J. Leskovec, Inductive representation learning on large graphs, in: Advances in Neural Information Processing Systems 30 (NeurIPS), 2017, pp. 1024--1034.
+
+[65] P. Velickovi\'c, G. Cucurull, A. Casanova, A. Romero, P. Li\`o, Y. Bengio, Graph attention networks, in: Proc. Int. Conf. on Learning Representations (ICLR), 2018.
+
+[66] M. Schlichtkrull, T. N. Kipf, P. Bloem, R. van den Berg, I. Titov, M. Welling, Modeling relational data with graph convolutional networks, in: Proc. European Semantic Web Conference (ESWC), 2018, pp. 593--607.
+
+[67] X. Wang, H. Ji, C. Shi, B. Wang, Y. Ye, P. Cui, P. S. Yu, Heterogeneous graph attention network, in: Proc. The Web Conference (WWW), 2019, pp. 2022--2032.
+
+[68] Z. Hu, Y. Dong, K. Wang, Y. Sun, Heterogeneous graph transformer, in: Proc. The Web Conference (WWW), 2020, pp. 2704--2710.
+
+[69] X. Fu, J. Zhang, Z. Meng, I. King, MAGNN: Metapath aggregated graph neural network for heterogeneous graph embedding, in: Proc. The Web Conference (WWW), 2020, pp. 2331--2341.
+
+[70] G. Khodabandeh, A. Ezaz, M. Babaei, N. Ezzati-Jivan, Utilizing graph neural networks for effective link prediction in microservice architectures, in: Proceedings of the 16th ACM/SPEC International Conference on Performance Engineering (ICPE), 2025.
+
+[71] Z. Ying, D. Bourgeois, J. You, M. Zitnik, J. Leskovec, GNNExplainer: Generating explanations for graph neural networks, in: Advances in Neural Information Processing Systems (NeurIPS), Vol. 32, 2019, pp. 9244--9255.
+
+[72] D. Luo, W. Cheng, D. Xu, W. Yu, B. Zong, H. Chen, X. Zhang, Parameterized explainer for graph neural network, in: Advances in Neural Information Processing Systems (NeurIPS), Vol. 33, 2020, pp. 19620--19631.
+
+[73] J. Pearl, Probabilistic Reasoning in Intelligent Systems: Networks of Plausible Inference, Morgan Kaufmann, 1988.
+
+[74] G. Beliakov, A. Pradera, T. Calvo, Aggregation functions: A guide for practitioners, Studies in Fuzziness and Soft Computing 221 (2007).
+
+[75] R. R. Yager, On ordered weighted averaging aggregation operators in multicriteria decisionmaking, IEEE Transactions on Systems, Man, and Cybernetics 18 (1) (1988) 183--190.
+
+[76] G. H. Hardy, J. E. Littlewood, G. P\'olya, Inequalities, 2nd Edition, Cambridge University Press, 1952.
+
+[77] U.S. Department of Defense, MIL-STD-498: Software development and documentation, Military standard, U.S. Department of Defense (1994).
+
+[78] M. Fey, J. E. Lenssen, Fast graph representation learning with PyTorch geometric, in: ICLR Workshop on Representation Learning on Graphs and Manifolds, 2019.
+
+[79] F. Xia, T.-Y. Liu, J. Wang, W.-S. Zhang, H. Li, Listwise approach to learning to rank: Theory and algorithm, in: Proc. 25th Int. Conf. on Machine Learning (ICML), 2008, pp. 1192--1199.
+
+[80] Team SimPy, Simpy: Discrete event simulation for Python, Software, <https://simpy.readthedocs.io> (accessed 9 September 2026) (2020).
+
+[81] F. Wilcoxon, Individual comparisons by ranking methods, Biometrics Bulletin 1 (6) (1945) 80--83.
+
+[82] B. Efron, R. J. Tibshirani, An Introduction to the Bootstrap, Chapman \& Hall, 1993.
+
+[83] C. Spearman, The proof and measurement of association between two things, American Journal of Psychology 15 (1) (1904) 72--101.
+
+[84] R. Schwartz, J. Dodge, N. A. Smith, O. Etzioni, Green AI, Communications of the ACM 63 (12) (2020) 54--63. https://doi.org/10.1145/3381831 `doi:10.1145/3381831`.
+
+[85] E. Strubell, A. Ganesh, A. McCallum, Energy and policy considerations for deep learning in NLP, in: Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics (ACL), Florence, Italy, 2019, pp. 3645--3650. https://doi.org/10.18653/v1/P19-1355 `doi:10.18653/v1/P19-1355`.
+
+[86] D. Patterson, J. Gonzalez, Q. Le, C. Liang, L.-M. Munguia, D. Rothchild, D. So, M. Texier, J. Dean, Carbon emissions and large neural network training, arXiv preprint arXiv:2104.10350 (2021). https://doi.org/10.48550/arXiv.2104.10350 `doi:10.48550/arXiv.2104.10350`.
+
+[87] S. Georgiou, M. Kechagia, T. Sharma, F. Sarro, Y. Zou, Green AI: Do deep learning frameworks have different costs?, in: Proceedings of the 44th International Conference on Software Engineering (ICSE), 2022, pp. 1082--1094. https://doi.org/10.1145/3510003.3510221 `doi:10.1145/3510003.3510221`.
+
+[88] H. Zeng, H. Zhou, A. Srivastava, R. Kannan, V. Prasanna, GraphSAINT: Graph sampling based inductive engine, in: Proc. International Conference on Learning Representations (ICLR), 2020.
+
+[89] I. O. Yigit, F. Buzluca, [dataset] software-as-a-graph: Replication package (datasets, generator configurations, simulation harnesses, model checkpoints, and analysis scripts), <https://doi.org/10.5281/zenodo.14922108> (2026). https://doi.org/10.5281/zenodo.14922108 `doi:10.5281/zenodo.14922108`.

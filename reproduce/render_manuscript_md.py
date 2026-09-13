@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+"""Regenerate docs/research/jss/manuscript.md from the authoritative LaTeX sources.
+
+``latex/`` is the manuscript of record; ``manuscript.md`` is a faithful Markdown
+rendering of ``manuscript.tex`` kept for review and diffing.
+
+Numbering is not re-derived. Section, table, figure and citation numbers are read
+out of the compiled ``manuscript.aux`` and ``manuscript.bbl``, so the Markdown
+carries exactly the numbers the submitted PDF carries. **Build the manuscript
+first**; a stale .aux yields stale numbering here.
+
+Usage
+-----
+    cd docs/research/jss/latex && make          # refresh .aux/.bbl first
+    python reproduce/render_manuscript_md.py
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+JSS = ROOT / "docs/research/jss"
+LATEX = JSS / "latex"
+SEC = LATEX / "sections"
+MANUSCRIPT_MD = JSS / "manuscript.md"
+
+SECTIONS = [
+    "sec1_introduction",
+    "sec2_related_work",
+    "sec3_sag_model",
+    "sec4_failure_impact_prediction",
+    "sec5_explanation_layer",
+    "sec6_experimental_setup",
+    "sec7_results",
+    "sec8_discussion",
+    "sec9_conclusion",
+]
+
+
+def load_numbering() -> tuple[dict, dict]:
+    aux = (LATEX / "manuscript.aux").read_text(encoding="utf8")
+    labels: dict[str, str] = {}
+    for m in re.finditer(r"\\newlabel\{([^}]+)\}\{\{([^}]*)\}", aux):
+        labels.setdefault(m.group(1), re.sub(r"\\[a-zA-Z]+\s*", "", m.group(2)).strip())
+    bbl = (LATEX / "manuscript.bbl").read_text(encoding="utf8")
+    cites = {k: i + 1 for i, k in enumerate(re.findall(r"\\bibitem\{([^}]+)\}", bbl))}
+    return labels, cites
+
+
+def preprocess(tex: str, labels: dict, cites: dict) -> str:
+    # resizebox wrappers hide whole tables from pandoc; unwrap them.
+    tex = re.sub(r"\\resizebox\{[^}]*\}\{[^}]*\}\{%?\n", "", tex)
+    tex = re.sub(r"\n\}%?\n(\\end\{table\})", r"\n\1", tex)
+
+    def head(m):
+        cmd, title, lbl = m.group(1), m.group(2), m.group(3)
+        num = labels.get(lbl, "")
+        prefix = f"{num}. " if num else ""
+        return f"\\{cmd}{{{prefix}{title}}}"
+
+    tex = re.sub(r"\\(section|subsection|subsubsection)\{([^}]*)\}\s*\n\\label\{([^}]+)\}",
+                 head, tex)
+    tex = re.sub(r"\\(?:ref|eqref)\{([^}]+)\}", lambda m: labels.get(m.group(1), "??"), tex)
+    tex = re.sub(r"\\cite\{([^}]+)\}",
+                 lambda m: "[" + ", ".join(str(cites.get(k.strip(), "?"))
+                                           for k in m.group(1).split(",")) + "]", tex)
+    for a, b in (("Sections~", "§§"), ("Section~", "§"), ("Table~", "Table "),
+                 ("Figure~", "Figure "), ("Equation~", "Equation "), ("Eq.~", "Eq. ")):
+        tex = tex.replace(a, b)
+    return tex.replace("~", " ")
+
+
+def to_markdown(tex: str, name: str = "") -> str:
+    r = subprocess.run(["pandoc", "-f", "latex", "-t", "gfm+tex_math_dollars", "--wrap=none"],
+                       input=tex, capture_output=True, text=True)
+    if r.returncode:
+        sys.exit(f"pandoc failed on {name}:\n{r.stderr[:800]}")
+    md = r.stdout.replace(r"\[", "[").replace(r"\]", "]")
+    return md.strip()
+
+
+def render_declarations(cites: dict) -> str:
+    tex = (SEC / "declarations.tex").read_text(encoding="utf8")
+    tex = re.sub(r"\\section\*\{([^}]+)\}", r"\\section{\1}", tex)
+    tex = re.sub(r"\\(?:smallskip|noindent)\s*", "", tex)
+    tex = re.sub(r"\\cite\{([^}]+)\}",
+                 lambda m: "[" + ", ".join(str(cites.get(k.strip(), "?"))
+                                           for k in m.group(1).split(",")) + "]", tex)
+    tex = tex.replace("---", "—").replace("--", "–").replace("~", " ")
+    md = to_markdown(tex, "declarations")
+    return md.strip()
+
+
+def render_references(cites: dict) -> str:
+    bbl = (LATEX / "manuscript.bbl").read_text(encoding="utf8")
+    body = bbl.split(r"\begin{thebibliography}", 1)[1].split(r"\end{thebibliography}")[0]
+    out = []
+    for i, e in enumerate(re.split(r"\\bibitem\{[^}]*\}", body)[1:], 1):
+        t = e.strip()
+        t = re.sub(r"\\newblock\s*", "", t)
+        t = re.sub(r"\\urlprefix\s*", "URL ", t)
+        t = re.sub(r"\\href\{([^}]*)\}\{([^}]*)\}", r"[\2](\1)", t)
+        t = re.sub(r"\\url\{([^}]*)\}", r"<\1>", t)
+        t = re.sub(r"\\(?:path|texttt)\{([^}]*)\}", r"`\1`", t)
+        t = re.sub(r"\\emph\{([^}]*)\}", r"*\1*", t)
+        t = re.sub(r"\\[a-zA-Z]+\s*", "", t)
+        t = t.replace("~", " ").replace("{", "").replace("}", "")
+        t = re.sub(r"\s+", " ", t).strip()
+        out.append(f"[{i}] {t}")
+    return "\n\n".join(out)
+
+
+def render_frontmatter() -> tuple[str, str, str]:
+    tex = (LATEX / "manuscript.tex").read_text(encoding="utf8")
+
+    m_title = re.search(r"\\title\{([^}]+)\}", tex, re.S)
+    title = re.sub(r"\s+", " ", m_title.group(1)).strip() if m_title else "Software-as-a-Graph"
+
+    header = (
+        f"# {title}\n\n"
+        f"**Authors.** Ibrahim Onuralp Yigit, Feza Buzluca\n\n"
+        f"**Affiliation.** Department of Computer Engineering, Istanbul Technical University, "
+        f"34469 Istanbul, Turkey\n\n"
+        f"**Corresponding author.** Ibrahim Onuralp Yigit — yigiti@itu.edu.tr\n"
+    )
+
+    abstract_tex = (SEC / "abstract.tex").read_text(encoding="utf8")
+    abstract_tex = re.sub(r"\\(?:emph|textit)\{([^}]+)\}", r"*\1*", abstract_tex)
+    abstract_tex = abstract_tex.replace("---", "—").replace("--", "–").replace("~", " ")
+    abstract_md = to_markdown(abstract_tex, "abstract")
+
+    m_kw = re.search(r"\\begin\{keyword\}(.*?)\\end\{keyword\}", tex, re.S)
+    if m_kw:
+        kw_list = [k.strip() for k in m_kw.group(1).split(r"\sep") if k.strip()]
+        keywords = "; ".join(kw_list)
+        keywords = re.sub(r"\s+", " ", keywords).replace("--", "–")
+    else:
+        keywords = ""
+    keywords_md = f"**Keywords:** {keywords}."
+
+    return header, abstract_md, keywords_md
+
+
+def render_body(labels: dict, cites: dict) -> str:
+    body = "\n\n".join(
+        to_markdown(preprocess((SEC / f"{n}.tex").read_text(encoding="utf8"), labels, cites), n)
+        for n in SECTIONS
+    )
+
+    body = re.sub(r"^(#{2,}) (\d+\.\d[\d.]*)\. ", r"\1 \2 ", body, flags=re.M)
+
+    def fig(m):
+        block = m.group(0)
+        src = re.search(r'src="([^"]+)"', block).group(1)
+        fid = re.search(r'id="([^"]+)"', block)
+        num = labels.get(fid.group(1), "?") if fid else "?"
+        cap = re.search(r"<figcaption[^>]*>(.*?)</figcaption>", block, re.S)
+        cap = re.sub(r"<[^>]+>", "", cap.group(1)) if cap else ""
+        cap = re.sub(r"\s+", " ", cap).strip()
+        return f"![Figure {num}](latex/{src}.png)\n\n*Figure {num}. {cap}*"
+
+    body = re.sub(r"<figure>.*?</figure>", fig, body, flags=re.S)
+    body = body.replace("<!-- -->", "").replace("$-$", "-")
+
+    def table_block(m):
+        tid, inner = m.group(1), m.group(2).strip()
+        lines = inner.split("\n")
+        rows = [l for l in lines if l.lstrip().startswith("|")]
+        cap = " ".join(l.strip() for l in lines if not l.lstrip().startswith("|")).strip()
+        tab_num = labels.get(tid, "?")
+        return f"**Table {tab_num}.** {cap}\n\n" + "\n".join(rows)
+
+    body = re.sub(r'<div id="(tab:[^"]+)">\n(.*?)\n</div>', table_block, body, flags=re.S)
+    return body.strip()
+
+
+def build_manuscript() -> str:
+    if not (LATEX / "manuscript.aux").exists():
+        sys.exit("manuscript.aux missing — run `make` in docs/research/jss/latex first")
+
+    labels, cites = load_numbering()
+    header, abstract_md, keywords_md = render_frontmatter()
+    body = render_body(labels, cites)
+    declarations_md = render_declarations(cites)
+    references_md = render_references(cites)
+
+    rendered = (
+        f"{header}\n"
+        f"---\n\n"
+        f"# Abstract\n\n"
+        f"{abstract_md}\n\n"
+        f"{keywords_md}\n\n"
+        f"---\n\n"
+        f"{body}\n\n"
+        f"---\n\n"
+        f"{declarations_md}\n\n"
+        f"---\n\n"
+        f"# References\n\n"
+        f"{references_md}\n"
+    )
+    return rendered
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument(
+        "--check", action="store_true",
+        help="do not write; exit 1 if regenerating would change manuscript.md")
+    args = ap.parse_args()
+
+    rendered = build_manuscript()
+
+    if args.check:
+        if not MANUSCRIPT_MD.exists():
+            print("manuscript.md does not exist.")
+            return 1
+        old = MANUSCRIPT_MD.read_text(encoding="utf8")
+        if rendered == old:
+            print("manuscript.md is up to date.")
+            return 0
+        import difflib
+        diff = list(difflib.unified_diff(
+            old.splitlines(), rendered.splitlines(),
+            fromfile="manuscript.md (on disk)", tofile="manuscript.md (regenerated)", lineterm="", n=1))
+        print(f"manuscript.md is STALE against the LaTeX — {len(diff)} diff line(s).")
+        return 1
+
+    MANUSCRIPT_MD.write_text(rendered, encoding="utf8")
+    print(f"manuscript.md generated successfully at {MANUSCRIPT_MD}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -98,7 +98,7 @@ Every LOSO figure above is a correlation over the full held-out Application popu
 \begin{table}[htbp]
 \centering
 \small
-\caption{LOSO means over twelve folds on the full Application population ($\rho$) and restricted to components with strictly positive ground-truth impact ($\rho_{>0}$). Same predictions, folds, and seeds; only the evaluated subset differs. Training-free baselines lose most of their apparent accuracy under the restriction; learned models lose far less.}
+\caption{LOSO means over twelve folds on the full Application population ($\rho$) and restricted to components with strictly positive ground-truth impact ($\rho_{>0}$). Same predictions, folds, and seeds; only the evaluated subset differs. Retained is defined as the active-stratum ratio $\rho_{>0}/\rho$ (percentage of full-population correlation preserved). Across all predictors, roughly half of the correlation is retained under this restriction.}
 \label{tab:7c}
 \begin{tabular}{lccc}
 \toprule
@@ -128,7 +128,7 @@ Two consequences follow, and the first reverses a claim earlier versions of this
 RQ2 asks whether relation typing improves prediction over homogeneous message passing. Answering it requires ablating typing against a matched comparator, and the answer depends entirely on which comparator is chosen:
 
 \begin{itemize}\tightlist
-    \item \textbf{Both factors have a real main effect.} Averaged over the other factor's levels, relation typing is worth $\Delta\rho = +0.134$ (12 of 12 folds, $W = 0.0$, $p = 0.0005$, Holm $0.0015$) and the QoS edge channel $+0.187$ (11 of 12, $p = 0.0015$, Holm $0.0015$).
+    \item \textbf{Both factors have a real main effect.} Averaged over the other factor's levels, relation typing is worth $\Delta\rho = +0.134$ (12 of 12 folds, $W = 0.0$, $p = 0.0005$, Holm $0.0015$) and the QoS edge channel $+0.187$ (11 of 12, $p = 0.0015$, Holm $0.0015$). We qualify this: because the HGT and GAT architectures differ in parameter count ($15.4\times$) and message directionality alongside typing, this $+0.134$ margin reflects the joint architectural transition to HGT rather than isolated relational typing alone.
     \item \textbf{But they interact, strongly and sub-additively.} The difference of differences --- how much typing buys with the QoS channel present, minus how much it buys without it --- is $-0.199$, \emph{negative on all twelve folds} ($W = 0.0$, $p = 0.0005$, Holm $0.0015$, 95\% CI $[-0.258, -0.147]$).
     \item \textbf{The simple effects show the same fact from either side.} Typing is worth $+0.234$ when the QoS channel is absent (12/12, $p = 0.0005$) and $+0.035$ when it is present ($p = 0.1294$); the QoS channel is worth $+0.287$ without typing ($p = 0.0010$) and $+0.087$ with it ($p = 0.2036$).
     \item \textbf{In-distribution fitting (Table~\ref{tab:5}) is not evidence either way.} The homogeneous pair reads the Application--Library projection while the typed pair reads the native multigraph, confounding message passing with multi-entity visibility.
@@ -249,6 +249,7 @@ To test generalization to architectures outside our generator, we trained HGT-Qo
     \item \textbf{Restricted to components that actually propagate failures, transfer is not established.} On the active stratum the mean drops to $+0.265$, and both microservice call trees invert: Cloud Microservices ($\rho_{>0} = -0.029$, $n = 18$) and Train-Ticket ($-0.213$, $n = 22$). The three pub-sub systems hold up ($+0.559$ Autoware, $+0.704$ Home Assistant, $+0.304$ EdgeX). \textbf{We therefore report RQ4 as a negative result:} learned relational transfer to authentic open-source architectures is not established.
     \item \textbf{The QoS-weighted baseline is now scored, and it sharpens one comparison.} \texttt{Topo-QoS} reaches $\rho = 0.888$ on Cloud Microservices, where the learned model scores worst ($0.649$) and inverts on active components, sharpening the deficit on synchronous call trees.
     \item \textbf{What the full-population number does support.} Separating propagating components from non-propagating ones narrows the review surface effectively, reflected in the $F_1@K$ column ($0.517$ mean, $0.633$ on Autoware).
+    \item \textbf{Architectural Ingestion Boundary.} The active-stratum inversion on microservices highlights a fundamental domain mismatch: synchronous RPC architectures propagate cascading failures backward along invocation trees via timeout accumulation and thread pool starvation \cite{zhou2021fault}, whereas asynchronous pub-sub architectures cascade forward via queue saturation and topic starvation. Because HGT-QoS was trained exclusively on pub-sub communication semantics, its relational inductive bias inverts when applied to synchronous call trees. We therefore recommend a strict ingestion boundary: practitioners should deploy SaG's learned GNN pipeline on asynchronous and event-driven architectures (ROS~2, Kafka, DDS, MQTT), and rely on closed-form structural baselines (\texttt{Topo-QoS}, $\rho = 0.888$) or dedicated static call-graph analyzers for synchronous RPC/REST microservice meshes.
 \end{enumerate}
 
 \subsection{RQ5: Analysis Cost and Its Comparison Against Simulation}
