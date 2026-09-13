@@ -286,8 +286,8 @@ To ensure that topological predictions are not circular graph artifacts, SaG val
 
 ```mermaid
 flowchart LR
-    I_Star["FaultInjector I*(v)<br>(Graph Cascade Feed Loss)"] <-->|Mean ρ = 0.620<br>(Strong Cross-Method Convergence)| I_Dyn["MessageFlow I_dyn(v)<br>(SimPy Dynamic Traffic Drop)"]
-    I_Star <-->|Mean ρ = 0.395<br>(Moderate Structural Concordance)| I_Comp["FailureSimulator I_comp(v)<br>(4-Layer Structural Loss)"]
+    I_Star["FaultInjector I*(v)<br>(Graph Cascade Feed Loss)"] <-->|"Mean ρ = 0.620<br>(Strong Cross-Method Convergence)"| I_Dyn["MessageFlow I_dyn(v)<br>(SimPy Dynamic Traffic Drop)"]
+    I_Star <-->|"Mean ρ = 0.395<br>(Moderate Structural Concordance)"| I_Comp["FailureSimulator I_comp(v)<br>(4-Layer Structural Loss)"]
 ```
 
 - **Convergent Validity (JSS §7.3.2 and Supplementary §S9)**: Across twelve benchmark scenarios, $I_{\text{dyn}}$ correlates with $I^*(v)$ at **mean Spearman $\rho = 0.620$** (ranging from $0.290$ on microservices to $0.924$ on financial trading).

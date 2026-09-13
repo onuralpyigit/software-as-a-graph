@@ -236,13 +236,13 @@ flowchart LR
         EV["EditVerifier (Mutation Sweeps)"]
     end
 
-    FI -->|I*(v) Labels| HGT
-    FI -->|I*(v) Ground Truth| VAL_CLI
-    ES -.->|Baseline Flow Priming| FS
-    FS -->|I_comp(v) Quality Metrics| VAL_LIB
-    FS -->|Risk Delta ΔI_comp| EV
-    MFS -->|I_dyn(v) Probe| CONV
-    CPS -->|I_M(v) Metrics| FS
+    FI -->|"I*(v) Labels"| HGT
+    FI -->|"I*(v) Ground Truth"| VAL_CLI
+    ES -.->|"Baseline Flow Priming"| FS
+    FS -->|"I_comp(v) Quality Metrics"| VAL_LIB
+    FS -->|"Risk Delta ΔI_comp"| EV
+    MFS -->|"I_dyn(v) Probe"| CONV
+    CPS -->|"I_M(v) Metrics"| FS
 ```
 
 ### Stage Summary & Engine Contracts
