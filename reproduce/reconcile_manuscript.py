@@ -340,8 +340,20 @@ def check_table5_columns(rep: Report, artifact: str = "main_table.json") -> None
         return
     printed = [_label(c) for c in _cells(header[0])][2:]
 
+    # Order comes from TABLE5_VARIANTS -- the same constant the cell check reads
+    # columns by -- restricted to the variants this artifact actually ran. Taking
+    # it from `config.variants` instead made this check fail whenever the sweep
+    # happened to dispatch in a different order than the table prints, which is a
+    # presentation choice and not a mislabelling. Membership is still enforced:
+    # a variant that ran but is not printed, or vice versa, still fails below.
+    if set(ran) != set(v for v in TABLE5_VARIANTS if v in ran):
+        rep.findings.append(
+            Finding("tab:5", "column set", "variants run vs printable",
+                    " | ".join(sorted(ran)), " | ".join(TABLE5_VARIANTS)))
     expected = []
-    for v in ran:
+    for v in TABLE5_VARIANTS:
+        if v not in ran:
+            continue
         try:
             expected.append(_registry.label(v, harness="in_distribution"))
         except Exception:
@@ -521,7 +533,7 @@ def check_scale_table(rep: Report) -> None:
 
 def check_realworld(rep: Report) -> None:
     """Table 9b full-population and active-stratum correlations."""
-    d = _load("realworld_zeroshot_v4.json") or _load("realworld_zeroshot.json")
+    d = _load("realworld_zeroshot_v5.json") or _load("realworld_zeroshot.json")
     if d is None:
         rep.skipped.append("tab:9b: realworld_zeroshot.json absent")
         return
@@ -537,17 +549,20 @@ def check_realworld(rep: Report) -> None:
     rows = _rows(tex, r"\textbf{Cloud Microservices Mesh}", after_label=r"\label{tab:9b}")
     for row in rows:
         cells = _cells(row)
-        if len(cells) < 8:
+        if len(cells) < 9:
             continue
         label = _label(cells[0])
         key = next((v for k, v in name_to_key.items() if label.startswith(k.split(" (")[0])), None)
         if key is None or key not in per:
             continue
         s = per[key]
-        for idx, k, tol, nm in ((4, "mean_rho", 0.002, "rho"),
-                                (5, "mean_rho_positive", 0.002, "rho_positive"),
-                                (6, "n_positive", 0.5, "n_positive"),
-                                (7, "mean_f1_at_k", 0.002, "f1_at_k")):
+        # Column order: name | |V_app| | RM | Topo | Topo-QoS | HGT rho | rho_>0 | n_>0 | F1@K.
+        # The Topo-QoS column was added once the projection-guard defect that made
+        # it degenerate was fixed, shifting every learned-model cell right by one.
+        for idx, k, tol, nm in ((5, "mean_rho", 0.002, "rho"),
+                                (6, "mean_rho_positive", 0.002, "rho_positive"),
+                                (7, "n_positive", 0.5, "n_positive"),
+                                (8, "mean_f1_at_k", 0.002, "f1_at_k")):
             got, truth = _num(cells[idx]), s.get(k)
             rep.checked += 1
             if truth is not None and (got is None or abs(got - truth) > tol):
@@ -566,8 +581,8 @@ def check_realworld(rep: Report) -> None:
 #: Declare an artifact here only once it is consumed; Table 5 is now checked
 #: against the artifact that actually backs it (``check_table5_indist``).
 FRESHNESS_TARGETS = {
-    "loso_all_variants_v4.json": "Tables 7/7c",
-    "realworld_zeroshot_v4.json": "Table 9b",
+    "loso_all_variants_v5.json": "Tables 7/7c",
+    "realworld_zeroshot_v5.json": "Table 9b",
     "detection_validation_v3.json": "7.3 stratification",
     "convergent_validity.json": "Table 8c",
     "label_stability.json": "7.1 label-noise ceiling",
@@ -776,7 +791,7 @@ PROSE_NOTES = [
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--loso", default="loso_all_variants_v4.json",
+    ap.add_argument("--loso", default="loso_all_variants_v5.json",
                     help="LOSO artifact backing Tables 7/7c")
     ap.add_argument("--main-table", default="main_table.json",
                     help="in-distribution artifact backing Table 5")
