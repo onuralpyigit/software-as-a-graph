@@ -2,7 +2,7 @@
 
 **Statistically prove that pre-deployment architectural predictions $Q(v)$ agree with simulation-derived failure cascades $I(v)$, establishing empirical validity through Tier-1 release gates and Tier-2 diagnostic telemetry.**
 
-← [Step 5: Simulate](failure-simulation.md) | → [Step 7: Prescribe](prescription.md)
+← [Step 5: Simulate](failure-simulation.md) | [README](../README.md) | **Step 6: Validate** | → [Step 7: Prescribe](prescription.md)
 
 ---
 
@@ -12,7 +12,7 @@
 2. [Tier-1 vs. Tier-2: Concepts, Metrics & Gates Explained](#2-tier-1-vs-tier-2-concepts-metrics--gates-explained)
    - 2.1 [Architectural & Structural Metric Tiers ($M(v)$)](#21-architectural--structural-metric-tiers-mv)
    - 2.2 [Validation Gate Tiers (Release vs. Reported Gates)](#22-validation-gate-tiers-release-vs-reported-gates)
-3. [Dual Validation Pathways & Execution Modes](#3-dual-validation-pathways--execution-modes)
+3. [Two Validation Harnesses & Execution Modes](#3-two-validation-harnesses--execution-modes)
 4. [Ground-Truth Oracles & Simulation Taxonomy](#4-ground-truth-oracles--simulation-taxonomy)
    - 4.1 [The Simulation Oracles ($I^*, I_{\text{comp}}, I_{\text{dyn}}, IM$)](#41-the-simulation-oracles-i-i_textcomp-i_textdyn-im)
    - 4.2 [Oracle Convergence & Behavioral Validation ($I_{\text{dyn}}(v)$)](#42-oracle-convergence--behavioral-validation-i_textdynv)
@@ -34,6 +34,66 @@
 11. [Methodological Boundaries & Design Invariants](#11-methodological-boundaries--design-invariants)
 12. [What Comes Next](#12-what-comes-next)
 
+For the complete CLI command reference (`validate_graph.py`), see [cli-pipeline-guide.md — Step 6](cli-pipeline-guide.md#step-6-validate).
+
+---
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                             STEP 6 AT A GLANCE                              │
+├───────────────────┬─────────────────────────────────────────────────────────┤
+│ Primary Input     │ • A prediction Q(v): GNN ranks, Topo-QoS, or RM Q*(v).  │
+│                   │ • A ground-truth oracle I(v) from Step 5.               │
+│                   │ Both must name which oracle produced them.              │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Core Engine       │ ValidationService (library gates) or validate_graph.py  │
+│                   │ (research harness). See §3 for which to use.            │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Key Operations    │ 1. Align keys; filter to the evaluation population.     │
+│                   │ 2. Spearman ρ and Kendall τ, with bootstrap 95% CIs.    │
+│                   │ 3. Top-K capture rate and SPOF-F1.                      │
+│                   │ 4. Stratify by node type (Simpson's paradox is real     │
+│                   │    here — pooled ρ sits below every per-type value).    │
+│                   │ 5. Score the six gates; synthesize SRI/RCI.             │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Primary Outputs   │ • Correlations, CIs, capture rates, per-type breakdown. │
+│                   │ • Gate verdicts: PASSED or WEAK.                        │
+│                   │ • A gate value of None means NEVER MEASURED — which is  │
+│                   │   not the same as a failure. Never coerce it to 0.0.    │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ What This Does    │ It validates the RANKING pathway. Step 4's diagnosis is │
+│ Not Cover         │ deliberately out of scope — a quality profile is not a  │
+│                   │ ranking, so there is nothing to correlate it against.   │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Downstream Handoff│ • Step 7 (Prescribe): the baseline SRI each candidate   │
+│                   │   edit must improve on.                                 │
+└───────────────────┴─────────────────────────────────────────────────────────┘
+```
+
+### Where this sits in the JSS paper
+
+| | |
+|:---|:---|
+| **Manuscript section** | §6.3 (metrics, Holm correction, pre-registration, the three evaluation protocols), §5.3 (the Prescribe acceptance rule this stage feeds), §7.3.2 and Supplementary §S9 (oracle agreement) |
+| **Paper's name for this** | the **Validate stage** — used in §4.2.1 and §4.3 but never given a number in the paper's four-stage list |
+| **Symbols** | $\rho$, $\tau$, $F_1@K$ with $K = \text{round}(0.20 \cdot \lvert V_{\text{app}} \rvert)$, $\sigma_{\text{seed}}$, $\kappa$. Note the paper's $\hat{\sigma}$ is *prediction dispersion*, a label-free confidence signal it proposed and then **withdrew** (§7.2.3, §8.1) — not simulator noise. |
+| **Results** | §7.1–7.3. The numbers to hold onto: LOSO Spearman tops out at $0.638$ (HGT-QoS) against $0.553$ for a training-free baseline; precision, recall and $F_1$ coincide identically at top-$K$ because both sets are the top quartile; and LOSO folds are **not independent replicates**, so the $p$-values are optimistic by an unquantified amount. |
+
+> [!NOTE]
+> **Eight steps here, four stages in the paper.** This repository numbers the pipeline in eight
+> executable steps (Model, Analyze, Predict, Diagnose, Simulate, Validate, Prescribe, Visualize),
+> because that is what you run. The JSS manuscript describes a coarser **four-stage** pipeline —
+> Typed Multigraph Formulation → QoS-Aware Dependency Projection → Heterogeneous Graph Learning
+> (Predictive Pathway) → Explainable Quality Attribution (Explanation Layer) — because that is what
+> it evaluates. Steps 1 and 2 together are the paper's stages 1–2; Step 3 is stage 3; Step 4 is
+> stage 4. The paper also refers to a "Validate stage" and a "Prescribe stage" without numbering
+> them: those are Steps 6 and 7.
+>
+> The two arms are named differently too. This documentation says **Pathway B** for the learned
+> ranking arm and **Pathway A** for the deterministic diagnostic arm, matching `PredictiveUseCase`
+> and `DiagnosticUseCase` in the code. The paper calls them the **Predictive Pathway** (§4) and the
+> **Explanation Layer** (§5). They are the same two things.
+
 ---
 
 ## 1. Overview & The Validation Mental Model
@@ -45,7 +105,7 @@ Step 6 closes the scientific loop of the Software-as-a-Graph (SaG) methodology. 
 │   Step 3 / Step 4: Prediction Q(v)      │          │     Step 5: Simulation Ground Truth     │
 │  • Learned GNN: Q_GNN(v)                │          │  • FaultInjector: I*(v) (Feed Loss)     │
 │  • Topological: Topo-QoS(v)             │          │  • FailureSimulator: I_comp(v) (Struct) │
-│  • Rule-Based: ISO-RM Q*(v)             │          │  • ChangePropagation: IM(v) (Ripple)    │
+│  • Rule-Based: ISO-RM Q*(v)             │          │  • ChangePropagation: I_M(v) (Ripple)   │
 └─────────────────────────────────────────┘          └─────────────────────────────────────────┘
                      │                                                    │
                      └──────────────────────────┬─────────────────────────┘
@@ -81,7 +141,7 @@ In Software-as-a-Graph, the terms **Tier-1** and **Tier-2** appear in two distin
 ```mermaid
 graph TD
     subgraph ContextA["Context A: Structural Metric Tiers (saag/core/metric_registry.py)"]
-        M_ALL["StructuralMetrics M(v)<br>(~50 Graph & Code Metrics)"]
+        M_ALL["StructuralMetrics M(v)<br>(53 fields = 3 identity + 50 scored metrics)"]
         M_ALL --> T1_M["Tier-1 Scoring Metrics (19 Core Metrics)<br>Directly feed ISO-RM formulas: Q*(v) = q_R*R + q_M*M<br>(AP_c_dir, BT, RPR, BR, CDI, MPCI, CQP, etc.)"]
         M_ALL --> T2_M["Tier-2 Auxiliary Metrics (Remaining ~31 Metrics)<br>Anti-pattern detection, GNN feature vectors, dashboards<br>(PageRank, Closeness, In-Degree, CPU Cores, RAM, etc.)"]
     end
@@ -95,12 +155,27 @@ graph TD
 
 ### 2.1 Architectural & Structural Metric Tiers ($M(v)$)
 
-During Step 2 (Analyze), SaG extracts a comprehensive metric vector $M(v)$ of approximately 50 topological, resilience, pub-sub, infrastructure, and code-quality fields. These metrics are strictly partitioned into two tiers defined in [`saag/core/metric_registry.py`](../saag/core/metric_registry.py):
+During Step 2 (Analyze), SaG extracts a metric vector $M(v)$ covering topological, resilience,
+pub-sub, infrastructure, and code-quality properties. The `StructuralMetrics` dataclass has
+**53 fields**: three identity fields (`id`, `name`, `type`) plus **50 scored metrics**, which are
+exactly the 50 keys of `METRIC_ROLES`. [structural-analysis.md](structural-analysis.md) calls this
+"the 53-field vector" (counting the dataclass) and this document counts the 50 metrics — the same
+object, counted two ways. The 50 are strictly partitioned into two tiers in
+[`saag/core/metric_registry.py`](../saag/core/metric_registry.py):
+
+> [!NOTE]
+> **$M(v)$ is overloaded across these documents.** Here and in
+> [structural-analysis.md](structural-analysis.md) it is the whole metric vector; in the RM formulas
+> it is the scalar **Maintainability** score, $M(v) = 0.35 \cdot BT(v) + \dots$. The surrounding
+> sentence always disambiguates, but the collision is real and worth knowing before you read §5.
 
 #### Tier-1 Structural Metrics (19 Core Scoring Metrics)
 - **Definition**: The 19 foundational metrics that directly feed into the closed-form ISO-RM Quality Model formulas ($Q^*(v) = q_R R(v) + q_M M(v)$).
 - **Behavior**: They are normalized into $[0, 1]$ and directly change the component's calculated risk score.
-- **The 19 Tier-1 Metrics**:
+- **The 19 Tier-1 Metrics** — these are exactly the 19 keys carrying `MetricRole.SCORING` in
+  [`METRIC_ROLES`](../saag/core/metric_registry.py). They appear below as **15 numbered entries plus
+  the 4 sub-metrics of `code_quality_penalty`**, which is how they compose; the four are scoring
+  metrics in their own right, which is why 15 + 4 = 19.
   1. `reverse_pagerank`: Upstream dependency exposure (feeds Fault Tolerance, weight $0.45$).
   2. `in_degree_raw`: Number of incoming dependency channels (feeds Fault Tolerance, weight $0.30$).
   3. `fan_out_criticality`: Immediate subscriber blast radius (feeds Topic Fault Tolerance).
@@ -122,7 +197,7 @@ During Step 2 (Analyze), SaG extracts a comprehensive metric vector $M(v)$ of ap
       - `lcom_norm` (lack of cohesion in methods, weight $0.25$)
 
 #### Tier-2 Structural Metrics (Auxiliary & Context Metrics)
-- **Definition**: The remaining ~31 metrics in $M(v)$ that do *not* directly enter the ISO-RM composite formula.
+- **Definition**: The remaining 31 scored metrics that do *not* directly enter the ISO-RM composite formula.
 - **Roles**:
   - **Anti-Pattern Detection**: Metrics read by `AntiPatternDetector` (e.g., `pagerank` for Concentration Risk, `is_articulation_point` for SPOF, `topic_subscriber_count` for Topic Fanout).
   - **GNN Feature Vectors**: Metrics mapped into PyG node tensors (e.g., `closeness`, `eigenvector`, `in_degree`, `out_degree`).
@@ -151,9 +226,11 @@ When evaluating prediction performance against simulation ground truth, SaG eval
 
 ---
 
-## 3. Dual Validation Pathways & Execution Modes
+## 3. Two Validation Harnesses & Execution Modes
 
-SaG provides two execution pathways tailored for different engineering workflows:
+SaG ships two harnesses for different engineering workflows. Note that "harness" here has nothing
+to do with **Pathway A / Pathway B** (the diagnostic and predictive arms of Steps 3–4) — both
+harnesses validate whatever prediction they are given:
 
 ```mermaid
 flowchart TD
@@ -195,7 +272,7 @@ To validate predictions objectively, the simulation suite generates four special
 | **$I^*(v)$** | `FaultInjector` | Mean continuous subscriber feed loss across 5 seeds | Global GNN predictions (`HGT-QoS`, `GAT`), CLI benchmarks |
 | **$I_{\text{comp}}(v)$** | `FailureSimulator` | $0.35\cdot\text{reach} + 0.25\cdot\text{frag} + 0.25\cdot\text{tp} + 0.15\cdot\text{flow}$ | Multi-layer structural resilience, Tier-1 release gates, `EditVerifier` |
 | **$I_{\text{dyn}}(v)$** | `MessageFlowSimulator` | $\text{DeliveryRate}_{\text{pre-fault}} - \text{DeliveryRate}_{\text{post-fault}}$ | Continuous-time queuing and DDS QoS compliance (research probe) |
-| **$IM(v)$** | `ChangePropagationSimulator` | $0.45\cdot\text{Reach} + 0.35\cdot\text{Impact} + 0.20\cdot\text{Depth}$ | Maintainability blast radius on transposed dependency graph $G^\top$ |
+| **$I_M(v)$** | `ChangePropagationSimulator` | $0.45\cdot\text{Reach} + 0.35\cdot\text{Impact} + 0.20\cdot\text{Depth}$ | Maintainability blast radius on transposed dependency graph $G^\top$ |
 
 > [!CAUTION]
 > **Ground-Truth Non-Interchangeability Contract:**
@@ -213,7 +290,7 @@ flowchart LR
     I_Star <-->|Mean ρ = 0.395<br>(Moderate Structural Concordance)| I_Comp["FailureSimulator I_comp(v)<br>(4-Layer Structural Loss)"]
 ```
 
-- **Convergent Validity (JSS Section 7.3 & Table 13)**: Across twelve benchmark scenarios, $I_{\text{dyn}}$ correlates with $I^*(v)$ at **mean Spearman $\rho = 0.620$** (ranging from $0.290$ on microservices to $0.924$ on financial trading).
+- **Convergent Validity (JSS §7.3.2 and Supplementary §S9)**: Across twelve benchmark scenarios, $I_{\text{dyn}}$ correlates with $I^*(v)$ at **mean Spearman $\rho = 0.620$** (ranging from $0.290$ on microservices to $0.924$ on financial trading).
 - **Ceiling Interpretation**: $I^*$'s own test-retest reproducibility across seeds is $0.811$–$1.0$. Thus, $I_{\text{dyn}}$ tracks $I^*$ closely while providing independent behavioral evidence that static graph rankings reflect real-world packet delivery drops.
 
 ---
@@ -354,8 +431,10 @@ The library gate suite evaluates 3 Tier-1 Release Gates and 3 Tier-2 Reported Ga
 | `bottleneck_precision` | **Tier-2** | Bottleneck Precision | $\ge 0.70$ | Informational Only |
 
 > [!TIP]
-> **Why the Release Thresholds are Strict:**
-> The release threshold ($\rho \ge 0.70$) is deliberately set high. The strongest learned GNN models reach a LOSO cross-validation mean of $\rho = 0.695$, and training-free baselines reach $0.568$. A failing gate (`passed = False`) signals: *"Do not deploy this architecture without manual architectural review."*
+> **Why the Release Thresholds are Strict — and What That Implies:**
+> The release threshold ($\rho \ge 0.70$) is deliberately set above what any predictor in this framework currently achieves out of distribution. Under leave-one-system-out cross-validation the strongest learned model, HGT-QoS, reaches $\rho = 0.638$ and the strongest training-free baseline, Topo-QoS, reaches $0.553$ (JSS Table 7). **The gate therefore fails on the authors' own best model under LOSO, by design**: it encodes the correlation a practitioner should demand before trusting a ranking unreviewed, not the correlation the framework has demonstrated. A failing gate (`passed = False`) signals: *"Do not deploy this architecture without manual architectural review."*
+>
+> Do not confuse these figures with the in-distribution ones in JSS Table 5, which are higher because the held-out components come from a system the model trained on.
 
 ---
 
@@ -541,7 +620,7 @@ When executed via `Pipeline.validate()` or `cli/validate_graph.py report`, the r
 |:---|:---|:---|
 | **High $\rho$ but Low Top-$K$ Overlap** | Global rank order is accurate, but the top-$K$ threshold cut is slightly misaligned. | Inspect $Q(v)$ score histogram; evaluate continuous PR-AUC or adjust $K$. |
 | **Negative $\rho$ ($\rho < 0$)** | **Inverse Criticality**: Core architectural hubs are heavily hardened with multi-broker redundancy and failover paths, while leaf nodes are vulnerable. | Enable `--qos` weighting to account for publisher sole-ownership and critical deadlines. |
-| **Predictive Gain $PG \le 0$** | Maintainability predictor $M(v)$ has weak correlation with $IM(v)$, diluting the composite $Q^*$. | Normal and expected on most architectures (see §2.2). Focus on the Tier-1 release gates. |
+| **Predictive Gain $PG \le 0$** | Maintainability predictor $M(v)$ has weak correlation with $I_M(v)$, diluting the composite $Q^*$. | Normal and expected on most architectures (see §2.2). Focus on the Tier-1 release gates. |
 | **Topics/Brokers Show Zero Variance** | Expected behavior: Topics and brokers act as conduits; cascade impact accrues to endpoint publishers and subscribers. | Confirm that node-type stratification separates `Application` from `Topic`. |
 | **Large Gap $|\rho - \tau| > 0.15$** | Correlation is heavily driven by 1–2 extreme architectural outliers. | Inspect the top 3 critical nodes to verify non-trivial ranking across mid-tier components. |
 
@@ -554,7 +633,7 @@ When executed via `Pipeline.validate()` or `cli/validate_graph.py report`, the r
 | **I1** | **Methodological Independence** | $Q(v)$ and $I(v)$ share zero inputs. Static topology predicts dynamic simulation with zero circular data leakage. |
 | **I2** | **One-Population Rule** | Evaluations must use identical node sets. Cherry-picking sub-populations is strictly prohibited. |
 | **I3** | **Distinct Gate Tiers** | Tier-1 Release Gates decide `passed`; Tier-2 Reported Gates provide diagnostic telemetry and never fail a build. |
-| **B1** | **Maintainability Substrate** | $IM(v)$ ground truth is generated via change-propagation BFS over $G^\top$, functioning as an internal consistency check. |
+| **B1** | **Maintainability Substrate** | $I_M(v)$ ground truth is generated via change-propagation BFS over $G^\top$, functioning as an internal consistency check. |
 | **B2** | **Top-$K$ Churn across Seeds** | Identity of components in the top 20% exhibits $\approx 35\%$ churn across simulation seeds, while global rank order ($\rho \ge 0.90$) remains highly stable. |
 | **B3** | **Unmodelled Infrastructure Nodes** | Passive compute hosts without application workloads report `undefined` and are excluded from application-tier correlation calculations. |
 

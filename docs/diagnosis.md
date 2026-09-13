@@ -2,7 +2,7 @@
 
 **Transform complex architectural graph metrics and criticality predictions into deterministic, standards-grounded root-cause attributions, audit 19 structural anti-patterns, generate human-readable natural language explanations, and route prioritized remediations to engineering stakeholders via the Triage Bridge.**
 
-← [Step 3: Predict](prediction.md) | → [Step 5: Simulate](failure-simulation.md)
+← [Step 3: Predict](prediction.md) | [README](../README.md) | **Step 4: Diagnose** | → [Step 5: Simulate](failure-simulation.md)
 
 ---
 
@@ -58,13 +58,73 @@
 13. [Diagnostic Interpretation & Remediation Decision Tree](#13-diagnostic-interpretation--remediation-decision-tree)
 14. [What Comes Next](#14-what-comes-next)
 
+For the complete CLI command reference (`diagnose_graph.py`), see [cli-pipeline-guide.md — Step 4](cli-pipeline-guide.md#step-4-diagnose).
+
+---
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                             STEP 4 AT A GLANCE                              │
+├───────────────────┬─────────────────────────────────────────────────────────┤
+│ Primary Input     │ • M(v): 53-field StructuralMetrics vector from Step 2.  │
+│                   │ • Optional: Step 3's Top-K shortlist (for the Triage    │
+│                   │   Bridge only — absent, it ranks by RM Q*(v) instead).  │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Core Engine       │ DiagnosticUseCase + AntiPatternDetector +               │
+│                   │ ExplanationEngine. No ML, no GPU, no simulation access. │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Key Operations    │ 1. Score the closed-form RM dimensions FT, A, R, M.     │
+│                   │ 2. Composite Q*(v); classify via Tukey box-plot fences. │
+│                   │ 3. Audit 19 structural anti-patterns.                   │
+│                   │ 4. Synthesize natural-language root-cause explanations. │
+│                   │ 5. Route each finding to a stakeholder persona.         │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Primary Outputs   │ • RM dimension scores + Q*(v) and a 5-level tier.       │
+│                   │ • Anti-pattern report (5 CRITICAL, 5 HIGH, 9 MEDIUM).   │
+│                   │ • TriageResult: blast radius joined to root cause.      │
+│                   │ • CI/CD exit code (2 = a CRITICAL pattern was found).   │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Zero-GNN Cold     │ Runs standalone with no checkpoint and no simulation.   │
+│ Start             │ This is the property that makes it usable on day one.   │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Downstream Handoff│ • Step 7 (Prescribe): anti-pattern findings become      │
+│                   │   candidate architectural edits.                        │
+│                   │ • Not scored by Step 6 — a quality profile is not a     │
+│                   │   ranking, so there is nothing to correlate.            │
+└───────────────────┴─────────────────────────────────────────────────────────┘
+```
+
+### Where this sits in the JSS paper
+
+| | |
+|:---|:---|
+| **Manuscript section** | §5 (ISO/IEC grounding, the RM decomposition in Table 3, the composite in §5.2) and Supplementary §S7 (real-world evaluation of this layer) |
+| **Paper's name for this** | the **Explanation Layer** — "Explainable Criticality Attribution: what a rank alone cannot say". This document calls it **Pathway A**. The paper uses "diagnostic pathway" only once, in passing. |
+| **Symbols** | The paper writes the composite as $Q(v)$; this document writes $Q^*(v)$ for the same quantity. $FT$, $A$, $R$, $M$ are identical. |
+| **Results** | Supplementary §S6 is the honest reading of the anti-pattern catalog: precision $0.244$, recall $0.915$, but it flags $93.8\%$ of components, and Cohen's $\kappa$ reaches $-0.018$ at 444 components. The paper reports it as a *characterization*, not a working triage mechanism, and delegates critical-set identification to Step 3's rankers. |
+
+> [!NOTE]
+> **Eight steps here, four stages in the paper.** This repository numbers the pipeline in eight
+> executable steps (Model, Analyze, Predict, Diagnose, Simulate, Validate, Prescribe, Visualize),
+> because that is what you run. The JSS manuscript describes a coarser **four-stage** pipeline —
+> Typed Multigraph Formulation → QoS-Aware Dependency Projection → Heterogeneous Graph Learning
+> (Predictive Pathway) → Explainable Quality Attribution (Explanation Layer) — because that is what
+> it evaluates. Steps 1 and 2 together are the paper's stages 1–2; Step 3 is stage 3; Step 4 is
+> stage 4. The paper also refers to a "Validate stage" and a "Prescribe stage" without numbering
+> them: those are Steps 6 and 7.
+>
+> The two arms are named differently too. This documentation says **Pathway B** for the learned
+> ranking arm and **Pathway A** for the deterministic diagnostic arm, matching `PredictiveUseCase`
+> and `DiagnosticUseCase` in the code. The paper calls them the **Predictive Pathway** (§4) and the
+> **Explanation Layer** (§5). They are the same two things.
+
 ---
 
 ## 1. Overview & Dual-Pathway Architecture
 
 Modern distributed systems and microservices architectures suffer from a critical diagnostic gap: machine learning models can identify *which* components are statistically likely to trigger massive failure cascades, but neural weights cannot articulate *why* a component is fragile or *how* a software engineering team should refactor it.
 
-**Step 4 (Diagnose)** bridges this gap. It acts as the **deterministic root-cause attribution and explanation engine** of Software-as-a-Graph (SaaG). Grounded in the international software quality standards **ISO/IEC 25010:2023** and **ISO/IEC 25019:2023**, Step 4 evaluates structural graph topology, identifies the precise graph metric driving each vulnerability, audits the system against a formal catalog of 19 anti-patterns, generates natural-language explanations, and maps prioritized remediation actions directly to responsible engineering stakeholders.
+**Step 4 (Diagnose)** bridges this gap. It acts as the **deterministic root-cause attribution and explanation engine** of Software-as-a-Graph (SaG). Grounded in the international software quality standards **ISO/IEC 25010:2023** and **ISO/IEC 25019:2023**, Step 4 evaluates structural graph topology, identifies the precise graph metric driving each vulnerability, audits the system against a formal catalog of 19 anti-patterns, generates natural-language explanations, and maps prioritized remediation actions directly to responsible engineering stakeholders.
 
 ```mermaid
 flowchart TD
@@ -118,7 +178,7 @@ Step 4 answers four critical engineering questions that black-box predictive mod
 
 ### 1.2 Pathway A vs. Pathway B Separation
 
-SaaG establishes a strict conceptual and operational separation between its two analytical pathways:
+SaG establishes a strict conceptual and operational separation between its two analytical pathways:
 
 | Attribute | Pathway A: Diagnostic Attribution (Step 4) | Pathway B: Predictive Ranking (Step 3) |
 |:---|:---|:---|
@@ -143,7 +203,7 @@ The design of Step 4 is governed by three non-negotiable architectural guarantee
 
 > [!IMPORTANT]
 > **Invariant 3: No Hallucination in Root-Cause Attribution**  
-> Neural networks can rank components by estimated impact, but they are prone to hallucinating explanations. In SaaG, **neural models are never asked to generate root-cause explanations**. The Triage Bridge joins quantitative rankings to qualitative diagnostic profiles strictly on `component_id`. All explanations are synthesized deterministically from verifiable graph metrics.
+> Neural networks can rank components by estimated impact, but they are prone to hallucinating explanations. In SaG, **neural models are never asked to generate root-cause explanations**. The Triage Bridge joins quantitative rankings to qualitative diagnostic profiles strictly on `component_id`. All explanations are synthesized deterministically from verifiable graph metrics.
 
 ---
 
@@ -169,12 +229,16 @@ graph TD
     FT --> CDPOT["Cascade Depth Potential (CDPOT)"]
 
     A --> SPOF["Directed SPOF Score (AP_c^dir)"]
+    A --> QSPOF["QoS-Weighted SPOF (QSPOF)"]
     A --> BR["Bridge Ratio (BR)"]
     A --> CDI["Connectivity Degradation Index (CDI)"]
+    A --> WV["Intrinsic QoS Weight w(v)"]
 
-    M --> BTW["Betweenness Centrality"]
-    M --> WOUT["Weighted Out-Degree"]
+    M --> BTW["Betweenness Centrality (BT)"]
+    M --> WOUT["QoS-Weighted Efferent Coupling (w_out)"]
+    M --> CQP["Code Quality Penalty (CQP)"]
     M --> CR["Coupling Risk (CouplingRisk_enh)"]
+    M --> CC["Inverse Clustering Coefficient (1 - CC)"]
 
     style QIU fill:#eff6ff,stroke:#2563eb,stroke-width:2px
     style R fill:#fdf4ff,stroke:#c026d3,stroke-width:1.5px
@@ -198,11 +262,19 @@ The diagnostic Reference Model computes closed-form, deterministic quality score
 
 For each component $v \in V$, the Fault Tolerance ($FT$), Availability ($A$), and Maintainability ($M$) scores are evaluated as weighted sums of normalized structural metrics $\tilde{m}(v) \in [0, 1]$:
 
-$$\text{FT}(v) = w_{\text{rpr}} \cdot \widetilde{\text{RPR}}(v) + w_{\text{in}} \cdot \widetilde{\text{Deg}}_{\text{in}}(v) + w_{\text{cdpot}} \cdot \widetilde{\text{CDPOT}}(v)$$
+$$\text{FT}(v) = 0.45 \cdot \widetilde{\text{RPR}}(v) + 0.30 \cdot \widetilde{\text{Deg}}_{\text{in}}(v) + 0.25 \cdot \widetilde{\text{CDPot}}_{\text{enh}}(v)$$
 
-$$\text{A}(v) = w_{\text{spof}} \cdot \widetilde{\text{AP}}_c^{\text{dir}}(v) + w_{\text{br}} \cdot \widetilde{\text{BR}}(v) + w_{\text{cdi}} \cdot \widetilde{\text{CDI}}(v)$$
+$$\text{A}(v) = 0.2563 \cdot \widetilde{\text{AP}}_c^{\text{dir}}(v) + 0.1998 \cdot \widetilde{\text{QSPOF}}(v) + 0.1998 \cdot \widetilde{\text{BR}}(v) + 0.2563 \cdot \widetilde{\text{CDI}}(v) + 0.0878 \cdot w(v)$$
 
-$$\text{M}(v) = w_{\text{btw}} \cdot \widetilde{\text{BTW}}(v) + w_{\text{out}} \cdot \widetilde{\text{Deg}}_{\text{out}}(v) + w_{\text{cr}} \cdot \widetilde{\text{CR}}(v)$$
+$$\text{M}(v) = 0.35 \cdot \widetilde{\text{BT}}(v) + 0.30 \cdot \widetilde{w}_{\text{out}}(v) + 0.15 \cdot \widetilde{\text{CQP}}(v) + 0.12 \cdot \widetilde{\text{CouplingRisk}}_{\text{enh}}(v) + 0.08 \cdot (1 - \widetilde{\text{CC}}(v))$$
+
+> [!NOTE]
+> **These are the shipped coefficients, not placeholders.** Availability and Maintainability each
+> carry **five** terms. An earlier revision of this document showed three-term forms with symbolic
+> weights, which omitted `QSPOF` and `w(v)` from $A(v)$ and `CQP` and $(1 - CC)$ from $M(v)$.
+> The coefficients above match [structural-analysis.md §9.2](structural-analysis.md#92-exact-rm-scoring-formulas),
+> which is the definitional home, and JSS §5.2 term for term. The $A(v)$ weights are the
+> $\lambda = 0.70$ shrunk values; §9.4–9.5 of that document shows the raw AHP vector they came from.
 
 #### Step B: Reliability Synthesis
 
@@ -236,11 +308,19 @@ $$\text{Criticality Level}(v) = \begin{cases}
 
 This adaptive fence guarantees that classification automatically adjusts to the graph's size and density. If a population contains fewer than 12 components ($N < 12$), the engine automatically falls back to fixed percentile thresholds ($90^{\text{th}}$, $75^{\text{th}}$, $50^{\text{th}}$, $25^{\text{th}}$ percentiles) to prevent small-sample distortion.
 
+> [!NOTE]
+> **Five tiers here, four in the paper.** The five levels above are what
+> [`saag/analysis/classifier.py`](../saag/analysis/classifier.py#L108) ships and what every API
+> response and dashboard shows. JSS §5.2 lists four, folding `LOW` into `MEDIUM` at
+> $Q_1 < Q \le Q_3$ rather than splitting them at the median. The fences are otherwise identical,
+> so `CRITICAL` and `HIGH` mean exactly the same thing in both. Read this document, not the paper,
+> when interpreting a tier emitted by the tool.
+
 ---
 
 ## 3. The Explanation Layer Architecture
 
-The core implementation of the Explanation Layer resides in [`saag/explanation/engine.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/explanation/engine.py) and [`saag/explanation/templates.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/explanation/templates.py).
+The core implementation of the Explanation Layer resides in [`saag/explanation/engine.py`](../saag/explanation/engine.py) and [`saag/explanation/templates.py`](../saag/explanation/templates.py).
 
 ### 3.1 Why Numbers Alone Are Not Enough
 
@@ -306,14 +386,14 @@ classDiagram
     SystemReport "1" *-- "many" RemediationStep
 ```
 
-1. [`DimensionExplanation`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/explanation/engine.py#L20-L41): Explains why a specific ISO characteristic (Reliability, Maintainability, Availability) is elevated, highlighting the single dominant driving metric and translating its numerical value into a plain English risk statement.
-2. [`ComponentExplanation`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/explanation/engine.py#L43-L72): Aggregates all dimension explanations for a component, names its high-level architectural pattern (e.g., "Total Hub"), generates an executive one-line summary, details its primary risk, lists detected anti-pattern IDs, and provides a single priority remediation action.
-3. [`RemediationStep`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/explanation/engine.py#L74-L87): A deduplicated, system-level refactoring task grouping all affected components under an actionable priority (Priority 1 = CRITICAL, Priority 2 = HIGH).
-4. [`SystemReport`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/explanation/engine.py#L89-L114): An executive-level report covering the entire architecture, containing deployment gating status, top risk concentrations, role-routed stakeholder task lists, and an ordered remediation roadmap.
+1. [`DimensionExplanation`](../saag/explanation/engine.py#L20-L41): Explains why a specific ISO characteristic (Reliability, Maintainability, Availability) is elevated, highlighting the single dominant driving metric and translating its numerical value into a plain English risk statement.
+2. [`ComponentExplanation`](../saag/explanation/engine.py#L43-L72): Aggregates all dimension explanations for a component, names its high-level architectural pattern (e.g., "Total Hub"), generates an executive one-line summary, details its primary risk, lists detected anti-pattern IDs, and provides a single priority remediation action.
+3. [`RemediationStep`](../saag/explanation/engine.py#L74-L87): A deduplicated, system-level refactoring task grouping all affected components under an actionable priority (Priority 1 = CRITICAL, Priority 2 = HIGH).
+4. [`SystemReport`](../saag/explanation/engine.py#L89-L114): An executive-level report covering the entire architecture, containing deployment gating status, top risk concentrations, role-routed stakeholder task lists, and an ordered remediation roadmap.
 
 ### 3.3 The Explanation Synthesis Pipeline
 
-The [`ExplanationEngine`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/explanation/engine.py#L175-L256) follows a three-stage synthesis workflow:
+The [`ExplanationEngine`](../saag/explanation/engine.py#L175-L256) follows a three-stage synthesis workflow:
 
 ```
 [Raw ComponentQuality & DetectedProblems]
@@ -341,11 +421,11 @@ The [`ExplanationEngine`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/s
 
 ## 4. Dynamic Metric Driver Identification
 
-A common failure of automated diagnostic tools is generic feedback (e.g., "Reliability is low"). The Explanation Layer solves this through **Dynamic Metric Driver Identification** via [`identify_driver()`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/explanation/engine.py#L134-L143).
+A common failure of automated diagnostic tools is generic feedback (e.g., "Reliability is low"). The Explanation Layer solves this through **Dynamic Metric Driver Identification** via [`identify_driver()`](../saag/explanation/engine.py#L134-L143).
 
 ### 4.1 Attribution Mapping (`DIMENSION_DRIVERS`)
 
-For each ISO quality dimension, the engine tracks candidate structural drivers in [`DIMENSION_DRIVERS`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/explanation/engine.py#L116-L132). Each candidate defines its attribute accessor, human-readable name, and semantic operational meaning:
+For each ISO quality dimension, the engine tracks candidate structural drivers in [`DIMENSION_DRIVERS`](../saag/explanation/engine.py#L116-L132). Each candidate defines its attribute accessor, human-readable name, and semantic operational meaning:
 
 ```python
 DIMENSION_DRIVERS = {
@@ -405,11 +485,11 @@ The selected metric driver is formatted into the final explanation string:
 
 ## 5. Pattern-Specific Natural Language Synthesis
 
-In [`saag/analysis/analyzer.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/analysis/analyzer.py#L101-L115), components with elevated dimensions are mapped to a distinct architectural pattern tuple: `(ft_crit, a_crit, m_crit)`.
+In [`saag/analysis/analyzer.py`](../saag/analysis/analyzer.py#L101-L115), components with elevated dimensions are mapped to a distinct architectural pattern tuple: `(ft_crit, a_crit, m_crit)`.
 
 ### 5.1 The 7 Architectural Archetypes
 
-[`PATTERN_TEMPLATES`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/explanation/templates.py#L34-L79) maps these tuples to one of 7 archetypal pattern explanations:
+[`PATTERN_TEMPLATES`](../saag/explanation/templates.py#L34-L79) maps these tuples to one of 7 archetypal pattern explanations:
 
 | Archetype Pattern | Condition `(FT, A, M)` | Architectural Definition & Operational Meaning |
 |:---|:---|:---|
@@ -444,6 +524,12 @@ These parameters are interpolated into the chosen pattern's narrative template s
 Let us trace how a raw component with ID `"App_Controller"` is transformed:
 
 #### Raw Component Metrics
+
+> [!NOTE]
+> The figures in this walkthrough are **illustrative** — hand-chosen to show the transformation,
+> not measured on any scenario in [`data/scenarios/`](../data/scenarios/). For measured results, see
+> the JSS manuscript's §7 tables and the artifacts under `results/`.
+
 - In-degree: 8 direct dependents
 - Out-degree: 12 dependencies
 - Total degree: 20
@@ -499,7 +585,7 @@ Let us trace how a raw component with ID `"App_Controller"` is transformed:
 
 ## 6. Stakeholder Role Routing & Triage Presenter
 
-Architectural debt cannot be remediated if tickets are broadcast generically to "the engineering team." In [`saag/explanation/engine.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/explanation/engine.py#L145-L173) and [`api/presenters/triage_presenter.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/api/presenters/triage_presenter.py#L28-L105), SaaG routes each finding to specific engineering disciplines.
+Architectural debt cannot be remediated if tickets are broadcast generically to "the engineering team." In [`saag/explanation/engine.py`](../saag/explanation/engine.py#L145-L173) and [`api/presenters/triage_presenter.py`](../api/presenters/triage_presenter.py#L28-L105), SaG routes each finding to specific engineering disciplines.
 
 ### 6.1 The Three Engineering Personas
 
@@ -532,7 +618,7 @@ flowchart LR
 
 ### 6.2 Resolution Rules: Pattern Overrides & Dimension Fallbacks
 
-The function [`resolve_roles()`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/explanation/engine.py#L145-L173) applies a deterministic two-tier resolution strategy:
+The function [`resolve_roles()`](../saag/explanation/engine.py#L145-L173) applies a deterministic two-tier resolution strategy:
 
 ```python
 def resolve_roles(exp: "ComponentExplanation") -> List[str]:
@@ -561,7 +647,7 @@ def resolve_roles(exp: "ComponentExplanation") -> List[str]:
 
 ### 6.3 Executive Summaries & Action Deduplication
 
-In [`ExplanationEngine.explain_system()`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/explanation/engine.py#L257-L350), findings across all components are aggregated into a system-wide action plan:
+In [`ExplanationEngine.explain_system()`](../saag/explanation/engine.py#L257-L350), findings across all components are aggregated into a system-wide action plan:
 
 1. **Action Deduplication**: If five components all require circuit breakers (`"Introduce circuit breakers before deployment"`), they are merged into a single `RemediationStep` referencing all 5 component IDs.
 2. **Priority Ordering**: Remediation steps are sorted by priority ascending (Priority 1 for CRITICAL components, Priority 2 for HIGH), and then by the number of affected components descending.
@@ -571,7 +657,15 @@ In [`ExplanationEngine.explain_system()`](file:///home/onuralpyigit/Workspace/So
 
 ## 7. The 19 Anti-Pattern Auditing Engine
 
-In [`saag/analysis/antipattern_detector.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/analysis/antipattern_detector.py), SaaG audits the evaluated architecture against a formal catalog of **19 structural anti-patterns**.
+In [`saag/analysis/antipattern_detector.py`](../saag/analysis/antipattern_detector.py), SaG audits the evaluated architecture against a formal catalog of **19 structural anti-patterns**. All nineteen ship with a working detector.
+
+> [!NOTE]
+> **Why the JSS manuscript says "18 anti-pattern detectors."** The catalog is nineteen; the *timed
+> CI gate* the paper benchmarks in §7.5 runs eighteen of them. `DEEP_PIPELINE` enumerates every
+> simple source-to-sink path and explodes combinatorially (247,761 paths on a 29-component
+> fixture), so the benchmark excludes it in order to measure the rest at all — see
+> `DEFAULT_EXCLUDED_PATTERNS` in [`reproduce/detection_validation.py`](../reproduce/detection_validation.py#L117).
+> Nothing excludes it from a normal `saag-diagnose` run.
 
 ### 7.1 Comprehensive Catalog Specification
 
@@ -630,7 +724,7 @@ In automated pipelines, `cli/diagnose_graph.py` enforces these gates via standar
 
 ### 7.3 Detector Resilience & Fail-Safe Invariant
 
-If an anti-pattern detector encounters an unhandled exception (e.g., due to unexpected graph topology), SaaG records the crashed pattern in `detector.failed_patterns` and continues executing remaining detectors. 
+If an anti-pattern detector encounters an unhandled exception (e.g., due to unexpected graph topology), SaG records the crashed pattern in `detector.failed_patterns` and continues executing remaining detectors. 
 
 > [!WARNING]
 > **Crash Safety Invariant**: A crashed detector must **never** be interpreted as a clean scan. If any detector fails during an audit, `cli/diagnose_graph.py` logs the failure and **exits with code 2**, ensuring incomplete audits cannot silently slip into production.
@@ -639,7 +733,7 @@ If an anti-pattern detector encounters an unhandled exception (e.g., due to unex
 
 ## 8. The Triage Bridge: Joining Blast Radius with Root Cause
 
-The **Triage Bridge** ([`saag/analysis/triage.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/analysis/triage.py)) resolves the core operational tension between high-throughput predictive ranking and in-depth qualitative diagnosis.
+The **Triage Bridge** ([`saag/analysis/triage.py`](../saag/analysis/triage.py)) resolves the core operational tension between high-throughput predictive ranking and in-depth qualitative diagnosis.
 
 ### 8.1 The Blast-Radius Dilemma
 
@@ -678,7 +772,7 @@ The Triage Bridge solves this by:
 
 ### 8.2 Joining Strictly on `component_id`
 
-The function [`triage()`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/analysis/triage.py#L100-L160) performs an exact inner join on `component_id`:
+The function [`triage()`](../saag/analysis/triage.py#L100-L160) performs an exact inner join on `component_id`:
 
 ```python
 def triage(prediction_result: Any, k: int = 10, layer: str = "system", node_types: Optional[Sequence[str]] = None) -> TriageResult:
@@ -725,14 +819,14 @@ def triage(prediction_result: Any, k: int = 10, layer: str = "system", node_type
 A crucial safety guarantee is implemented in `triage()`:
 
 > [!CAUTION]
-> In [`GNNAnalysisResult`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/analysis/models.py), the `.components` attribute is a lightweight shim where `fault_tolerance` and `availability` are intentionally left at `0.0`, and `.profile` is `None` (as those are RM-only properties).  
+> In [`GNNAnalysisResult`](../saag/analysis/models.py), the `.components` attribute is a lightweight shim where `fault_tolerance` and `availability` are intentionally left at `0.0`, and `.profile` is `None` (as those are RM-only properties).  
 > **The Triage Bridge never reads root-cause attributes from the GNN result shim.** It accesses the underlying `rm_substrate` stored in `prediction_result.rm_result`. This guarantees that neural predictions cannot corrupt deterministic root-cause profiles.
 
 ---
 
 ## 9. Zero-GNN Cold-Start Independence
 
-A cornerstone of SaaG's production design is that **Step 4 has zero dependencies on machine learning frameworks or GPU hardware**.
+A cornerstone of SaG's production design is that **Step 4 has zero dependencies on machine learning frameworks or GPU hardware**.
 
 ### 9.1 Zero Machine Learning Dependency
 
@@ -760,7 +854,7 @@ Step 4 can be invoked programmatically through multiple interfaces depending on 
 
 ### 10.1 High-Level Fluent Pipeline API
 
-The [`Pipeline`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/pipeline.py#L127-L163) provides a fluent interface:
+The [`Pipeline`](../saag/pipeline.py#L127-L163) provides a fluent interface:
 
 ```python
 import saag
@@ -794,7 +888,7 @@ for entry in full_result.diagnosis.triage.entries:
 
 ### 10.2 Client API (`Client.diagnose` & `Client.triage`)
 
-Using [`Client`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/client.py#L131-L240) against an active Neo4j graph database:
+Using [`Client`](../saag/client.py#L131-L240) against an active Neo4j graph database:
 
 ```python
 from saag import Client
@@ -822,7 +916,7 @@ if diagnosis.triage:
 
 ### 10.3 Decoupled Clean Architecture Use Cases
 
-For unit tests or microservices without database connections, use [`DiagnosticUseCase`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/usecases/diagnostic.py#L22-L95) and [`TriageUseCase`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/usecases/triage.py#L12-L53):
+For unit tests or microservices without database connections, use [`DiagnosticUseCase`](../saag/usecases/diagnostic.py#L22-L95) and [`TriageUseCase`](../saag/usecases/triage.py#L12-L53):
 
 ```python
 from saag.usecases.diagnostic import DiagnosticUseCase
@@ -861,7 +955,7 @@ for dim in comp_exp.dimensions:
 
 ## 11. CLI Reference & CI/CD Workflows
 
-The CLI tool [`cli/diagnose_graph.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/cli/diagnose_graph.py) provides a complete operational command-line interface.
+The CLI tool [`cli/diagnose_graph.py`](../cli/diagnose_graph.py) provides a complete operational command-line interface.
 
 ### 11.1 Command Line Options & Arguments
 
@@ -933,10 +1027,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install SaaG Dependencies
+      - name: Install SaG Dependencies
         run: pip install -e .
 
-      - name: Run SaaG Step 4 Diagnostic Gate
+      - name: Run SaG Step 4 Diagnostic Gate
         run: |
           python cli/diagnose_graph.py \
             --layer system \
@@ -968,6 +1062,10 @@ When executed with `--output diagnosis.json`, the output dictionary contains:
   - `triage`: Top-$K$ shortlisted components annotated with patterns and stakeholder roles.
 
 ### 12.2 Annotated JSON Payload Example
+
+> [!NOTE]
+> A **synthetic** payload showing the shape of the artifact. Component names, scores and the
+> `traffic_share` figure are invented for the example and are not measurements.
 
 ```json
 {
@@ -1098,7 +1196,7 @@ flowchart TD
 ## 14. What Comes Next
 
 - **Simulation & Ground-Truth Verification**: Proceed to **[Step 5: Simulate](failure-simulation.md)** to execute discrete-event failure injection, empirical cascade propagation, and recoverability verification.
-- **Statistical Metric Validation**: See **[Step 6: Validate](validation.md)** to verify predicted scores against Tier-1 and Tier-2 validation gates ($G_1$–$G_6$, $G_8$).
+- **Statistical Metric Validation**: See **[Step 6: Validate](validation.md)** to verify predicted scores against the six shipped gates — three Tier-1 release gates (`spearman`, `overlap_at_q3`, `top5_overlap`) and three Tier-2 reported gates (`predictive_gain`, `kappa_cta`, `bottleneck_precision`), declared in [`saag/validation/models.py`](../saag/validation/models.py#L15).
 - **Automated Refactoring Prescriptions**: Proceed to **[Step 7: Prescribe](prescription.md)** to compile actionable refactoring blueprints directly from this stage's anti-pattern findings.
 - **Learned Ranking & GNN Prediction**: Review **[Step 3: Predict](prediction.md)** to explore how the Heterogeneous Graph Transformer (HGT) produces the quantitative blast-radius shortlist.
 

@@ -2,7 +2,7 @@
 
 **Forecast architectural component and relationship failure blast radius using learned and structural graph models, ranking components by systemic risk without requiring live fault injection at runtime.**
 
-← [Step 2: Analyze](structural-analysis.md) | → [Step 4: Diagnose](diagnosis.md)
+← [Step 2: Analyze](structural-analysis.md) | [README](../README.md) | **Step 3: Predict** | → [Step 4: Diagnose](diagnosis.md)
 
 ---
 
@@ -23,7 +23,7 @@
    - 4.5 [Relation-Specific Edge Criticality Head](#45-relation-specific-edge-criticality-head)
 5. [Ablation & Control Baseline Models](#5-ablation--control-baseline-models)
    - 5.1 [Homogeneous GAT Baselines (Unweighted & Scalar-Weighted)](#51-homogeneous-gat-baselines-unweighted--scalar-weighted)
-   - 5.2 [Non-Graph Tabular Baseline (Gradient Boosting / Ridge)](#52-non-graph-tabular-baseline-gradient-boosting--ridge)
+   - 5.2 [Non-Graph Tabular Baseline (`tab_gbm` / GBM-Feat)](#52-non-graph-tabular-baseline-tab_gbm--gbm-feat)
    - 5.3 [Training-Free Structural Baselines (`TopoPredictor` & `TopoQoSPredictor`)](#53-training-free-structural-baselines-topopredictor--topoqospredictor)
    - 5.4 [Deterministic ISO-RM Cold-Start Fallback](#54-deterministic-iso-rm-cold-start-fallback)
 6. [Dual-Engine Predictor: Consensus & Divergence Triage](#6-dual-engine-predictor-consensus--divergence-triage)
@@ -42,6 +42,66 @@
 10. [Output Schemas & Artifact Examples](#10-output-schemas--artifact-examples)
 11. [Known Methodological Invariants & Design Boundaries](#11-known-methodological-invariants--design-boundaries)
 12. [What Comes Next](#12-what-comes-next)
+
+For the complete CLI command reference (`predict_graph.py`, `train_graph.py`), see [cli-pipeline-guide.md — Step 3](cli-pipeline-guide.md#step-3-predict) and [Step 3b](cli-pipeline-guide.md#step-3b-train-gnn).
+
+---
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                             STEP 3 AT A GLANCE                              │
+├───────────────────┬─────────────────────────────────────────────────────────┤
+│ Primary Input     │ • M(v): 53-field StructuralMetrics vector from Step 2.  │
+│                   │ • The multigraph G (native) or its DEPENDS_ON flow      │
+│                   │   projection, depending on the variant.                 │
+│                   │ • Optional: a trained GNN checkpoint.                   │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Core Engine       │ PredictionService (saag/prediction/service.py) running  │
+│                   │ HGT-QoS, an ablation arm, a training-free baseline, or  │
+│                   │ the deterministic RM fallback.                          │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Key Operations    │ 1. Build HeteroData: 18-D base + type extensions,       │
+│                   │    16-D QoS edge encodings.                             │
+│                   │ 2. Forward pass -> multi-task heads Î*(v), R̂(v), M̂(v).  │
+│                   │ 3. Rank components; cut the Top-K shortlist.            │
+│                   │ 4. Optionally run Topo-QoS alongside for dual-engine    │
+│                   │    consensus/divergence triage.                         │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Primary Outputs   │ • Î*(v) blast-radius forecasts and a ranked ordering.   │
+│                   │ • Top-K critical shortlist (K = round(0.20·|V_app|)).   │
+│                   │ • Q̂(u,v): per-relationship edge criticality.            │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Zero-Checkpoint   │ With no trained model present, Step 3 falls back to the │
+│ Behavior          │ deterministic RM composite Q*(v). It never fails hard.  │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Downstream Handoff│ • Step 4 (Diagnose): Top-K enters the Triage Bridge.    │
+│                   │ • Step 6 (Validate): ranks scored against I*(v).        │
+└───────────────────┴─────────────────────────────────────────────────────────┘
+```
+
+### Where this sits in the JSS paper
+
+| | |
+|:---|:---|
+| **Manuscript section** | §4 (HGT architecture, 16-D edge encoding, multi-task heads, the loss) and §6.2 (baselines and the substrate-parity guarantee) |
+| **Paper's name for this** | the **Predictive Pathway** — "Failure-Impact Forecasting, the primary task". This document calls it **Pathway B**. |
+| **Symbols** | $\hat{I}^*(v)$, $\hat{R}(v)$, $\hat{M}(v)$, $\hat{Q}(u,v)$ — identical. Variant names follow §6.2's `-N` / `-QoS` grammar; see §2 below. |
+| **Results** | RQ1 (Table 7), RQ2 and RQ3 (Table `contrasts`), RQ4 zero-shot transfer (Table 9b), RQ5 cost (§7.5). **Read the headline honestly:** HGT-QoS leads at LOSO $\rho = 0.638$ but does not significantly beat the training-free Topo-QoS baseline at $0.553$ ($+0.085$, $p = 0.151$), and typing and QoS encoding turn out to be substitutes rather than complements. |
+
+> [!NOTE]
+> **Eight steps here, four stages in the paper.** This repository numbers the pipeline in eight
+> executable steps (Model, Analyze, Predict, Diagnose, Simulate, Validate, Prescribe, Visualize),
+> because that is what you run. The JSS manuscript describes a coarser **four-stage** pipeline —
+> Typed Multigraph Formulation → QoS-Aware Dependency Projection → Heterogeneous Graph Learning
+> (Predictive Pathway) → Explainable Quality Attribution (Explanation Layer) — because that is what
+> it evaluates. Steps 1 and 2 together are the paper's stages 1–2; Step 3 is stage 3; Step 4 is
+> stage 4. The paper also refers to a "Validate stage" and a "Prescribe stage" without numbering
+> them: those are Steps 6 and 7.
+>
+> The two arms are named differently too. This documentation says **Pathway B** for the learned
+> ranking arm and **Pathway A** for the deterministic diagnostic arm, matching `PredictiveUseCase`
+> and `DiagnosticUseCase` in the code. The paper calls them the **Predictive Pathway** (§4) and the
+> **Explanation Layer** (§5). They are the same two things.
 
 ---
 
@@ -92,25 +152,67 @@ flowchart TD
 
 ## 2. The Prediction Model Family at a Glance
 
-SaG does not treat prediction as a monolithic black-box. Instead, `saag/prediction/` provides a comprehensive suite of learned, ablation, and closed-form models designed to answer precise scientific and operational questions:
+SaG does not treat prediction as a monolithic black-box. `saag/prediction/` provides a suite of
+learned, ablation, and closed-form models, each answering a precise scientific or operational
+question.
 
-| Model Identifier | Model Class | Training Required? | Feature Scope | Research Question / Operational Purpose | Output |
-|:---|:---|:---:|:---|:---|:---|
-| **HGT-QoS** (`hetero_qos`) | Heterogeneous Graph Transformer (`NodeCriticalityGNN`) | **Yes** (Supervised) | Heterogeneous nodes (19–25D) + 16D edge QoS | **Primary model**: Evaluates whether typed relations, multi-hop attention, and QoS contracts accurately forecast multi-hop cascade blast radius. | $\hat{I}^*(v), \hat{R}(v), \hat{M}(v), Q(u,v)$ |
-| **HGT** (`hgl`) | Heterogeneous Graph Transformer (`NodeCriticalityGNN`) | **Yes** (Supervised) | Heterogeneous nodes + 9D edge topology (QoS masked) | **Ablation arm**: Tests whether multi-dimensional transport QoS profiles outperform pure topological connectivity. | $\hat{I}^*(v), \hat{R}(v), \hat{M}(v)$ |
-| **GAT-QoS** (`homo_scalar`) | Homogeneous Graph Attention (`HomogeneousGAT_ScalarWeighted`) | **Yes** (Supervised) | Homogeneous node projection + 1D scalar edge weight $w(e)$ | **Ablation arm**: Tests whether heterogeneous typing outperforms a flat graph with scalar QoS weights. | Criticality score $\in [0, 1]$ |
-| **GAT** (`homo_unweighted`) | Homogeneous Graph Attention (`HomogeneousGAT_Unweighted`) | **Yes** (Supervised) | Homogeneous node projection (topology only, no weights) | **Ablation arm**: Classic graph attention baseline testing topology-only message passing. | Criticality score $\in [0, 1]$ |
-| **Tabular GBDT** (`tabular.py`) | Gradient-Boosted Decision Trees (`GradientBoostingRegressor`) | **Yes** (Supervised) | Flat node vectors (indices 0–17 topological metrics + type features) | **Non-graph control**: Tests whether message passing provides value beyond a non-graph regressor reading already-computed structural metrics. | Criticality score $\in [0, 1]$ |
-| **Topo-QoS** (`TopoQoSPredictor`) | QoS-Weighted Structural Centrality | **No** (Training-Free) | $G_{\text{flow}}$ projection with inverted QoS distance $d = 1 / (w + \epsilon)$ | Closed-form baseline: $0.6 \cdot BT_{\text{QoS}} + 0.4 \cdot AP$. Out-of-the-box prediction without ground-truth training data. | Topological score $\in [0, 1]$ |
-| **Topo** (`TopoPredictor`) | Unweighted Structural Centrality | **No** (Training-Free) | $G_{\text{flow}}$ projection (unweighted) | Classical structural baseline: $0.6 \cdot BT + 0.4 \cdot AP$. | Topological score $\in [0, 1]$ |
-| **Dual-Engine** (`DualEnginePredictor`) | Ensemble & Consensus Evaluator | **Hybrid** | Concurrently runs HGT-QoS and Topo-QoS | **Operational triage**: Computes Consensus Critical Set (high confidence) and Divergence Escalation Set (human triage trigger). | Consensus & Divergence Sets |
-| **ISO-RM Composite** (`rm`) | Closed-Form Attribute Synthesis | **No** (Deterministic) | Step 2 Structural Metrics + AHP weights | **Cold-start fallback**: When no GNN checkpoint exists, Step 3 falls back gracefully to $Q^*(v)$. | $Q^*(v) \in [0, 1]$ |
+**Two things to know before reading the table.** First, there are two different identifier
+namespaces and it is easy to conflate them: the **variant id** (`hgl_qos`, `gl_full`, …) is the key
+of `results/*.json`, of `output/loso_cache/`, and of the `--variant` CLI flag, whereas the
+**model-class id** (`homo_unweighted`, `homo_scalar`) selects a Python class inside
+[`saag/prediction/models/baselines.py`](../saag/prediction/models/baselines.py). The table below is
+keyed on the variant id, because that is what the manuscript's tables are keyed on.
+
+Second, display names come from a single source of truth,
+[`saag/evaluation/variant_registry.py`](../saag/evaluation/variant_registry.py) — never hand-copy
+them. The manuscript's naming grammar is encoded there: a **`-N` infix marks the native
+multigraph**, its absence marks the derived Application–Library `DEPENDS_ON` flow projection, and a
+**`-QoS` suffix** marks a configuration that consumes declared QoS contracts. *SaG* denotes the
+framework and is never a variant name.
+
+| Variant id | Display name | Model Class | Training? | Substrate & Feature Scope | Research Question / Operational Purpose | Output |
+|:---|:---|:---|:---:|:---|:---|:---|
+| `hgl_qos` | **HGT-QoS** | Heterogeneous Graph Transformer (`NodeCriticalityGNN`) | **Yes** | Native multigraph; heterogeneous nodes (19–25D) + 16D edge QoS | **Primary model**: do typed relations, multi-hop attention, and QoS contracts forecast multi-hop cascade blast radius? | $\hat{I}^*(v), \hat{R}(v), \hat{M}(v), \hat{Q}(u,v)$ |
+| `hgl` | **HGT** | Heterogeneous Graph Transformer (`NodeCriticalityGNN`) | **Yes** | Native multigraph; heterogeneous nodes, QoS channel masked | **RQ3 ablation**: do multi-dimensional transport QoS profiles beat pure topological connectivity? | $\hat{I}^*(v), \hat{R}(v), \hat{M}(v)$ |
+| `gl_full_qos` | **GAT-N-QoS** | Homogeneous GAT (`homo_scalar`) | **Yes** | **Native multigraph**; flat nodes + 1D scalar edge weight $w(e)$ | **RQ2 substrate-matched control**: with QoS present, does heterogeneous typing still add anything? | Criticality score $\in [0, 1]$ |
+| `gl_full` | **GAT-N** | Homogeneous GAT (`homo_unweighted`) | **Yes** | **Native multigraph**; flat nodes, topology only | **RQ2 substrate-matched control**: the untyped, unweighted floor. | Criticality score $\in [0, 1]$ |
+| `gl_qos` | **GAT-QoS** | Homogeneous GAT (`homo_scalar`) | **Yes** | Flow **projection**; flat nodes + scalar $w(e)$ | In-distribution ablation arm (JSS Table 5 only). | Criticality score $\in [0, 1]$ |
+| `gl` | **GAT** | Homogeneous GAT (`homo_unweighted`) | **Yes** | Flow **projection**; topology only | Classic graph-attention baseline (JSS Table 5 only). | Criticality score $\in [0, 1]$ |
+| `tab_gbm` | **GBM-Feat** | Gradient-Boosted Trees (`GradientBoostingRegressor`) | **Yes** | Identical typed node features, no message passing | **Non-graph control**: is the gain the aggregation, or just the features? Not a manuscript column. | Criticality score $\in [0, 1]$ |
+| `topo_qos` | **Topo-QoS** | QoS-Weighted Structural Centrality (`TopoQoSPredictor`) | **No** | Flow projection with inverted QoS distance $d = 1/(w + \epsilon)$ | Training-free baseline $0.6 \cdot BT_{\text{QoS}} + 0.4 \cdot AP$. **The baseline every claim of learned superiority must clear.** | Topological score $\in [0, 1]$ |
+| `topo_baseline` | **Topo** | Unweighted Structural Centrality (`TopoPredictor`) | **No** | Flow projection, unweighted | Classical structural baseline $0.6 \cdot BT + 0.4 \cdot AP$. | Topological score $\in [0, 1]$ |
+| `topology_rm` | **RM** | Closed-Form Attribute Synthesis | **No** | Step 2 structural metrics + declared composite weights | **Cold-start fallback**: with no GNN checkpoint, Step 3 falls back to $Q^*(v)$. A *diagnostic reference*, not a ranking model. | $Q^*(v) \in [0, 1]$ |
+| — | **Dual-Engine** | Ensemble & Consensus Evaluator (`DualEnginePredictor`) | Hybrid | Runs HGT-QoS and Topo-QoS concurrently | **Operational triage**: Consensus Critical Set (high confidence) and Divergence Escalation Set (human triage trigger). | Consensus & Divergence Sets |
+
+The registry also carries four **RQ2 confound controls** (`gl_full_cap` / GAT-N-C,
+`gl_full_qos_cap` / GAT-N-QoS-C, `gl_full_qos16_cap` / GAT-N-QoS16-C, `hgl_qos_uni` / HGT-QoS-U).
+Each holds one confound — parameter budget, edge-channel width, message-passing directionality —
+constant. They are implemented and registered but **were not run for the manuscript**, which is why
+JSS §8.4 records the typing result as carrying two uncontrolled confounds.
+
+> [!IMPORTANT]
+> **`gl` and `gl_qos` do not denote one substrate.** `reproduce/main_table.py` runs them on the
+> flow projection, while `cli/loso_evaluate.py` and `cli/kfold_evaluate.py` route only the `topo_*`
+> variants through the projection and hand `gl`/`gl_qos` the **native** graph. That is why the same
+> stored variant id prints as **GAT-QoS** in the in-distribution table and **GAT-N-QoS** under LOSO
+> and k-fold. `variant_registry.resolve()` encodes the aliasing and `label()` takes a `harness`
+> argument for exactly this reason — never re-derive it in a caller, and never read a display name
+> across harnesses without checking which one produced it.
+
+> [!NOTE]
+> **The RM composite's weights are declared constants, not AHP output.** $r_\alpha = 0.36$ and
+> $(0.80, 0.20)$ were re-derived algebraically from the retired 4-D AHP vector (A=0.43, R=0.24,
+> M=0.17, V=0.16) by dropping Vulnerability and renormalising; the paper states the same hedge in
+> §5.2 ("declared constants with documented internal structure rather than independently elicited
+> expert judgments"). AHP *is* live for the Topic QoS sub-weights and the intra-dimension vectors,
+> with $\lambda = 0.70$ shrinkage. See
+> [structural-analysis.md §9.4–9.5](structural-analysis.md#94-ahp-weight-derivation--consistency).
 
 ---
 
 ## 3. Feature Representation & Data Preparation (`HeteroData`)
 
-The module [`saag/prediction/data_preparation.py`](../saag/prediction/data_preparation.py) converts the in-memory NetworkX multigraph into a PyTorch Geometric [`HeteroData`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/prediction/data_preparation.py) structure via `networkx_to_hetero_data()`.
+The module [`saag/prediction/data_preparation.py`](../saag/prediction/data_preparation.py) converts the in-memory NetworkX multigraph into a PyTorch Geometric [`HeteroData`](../saag/prediction/data_preparation.py) structure via `networkx_to_hetero_data()`.
 
 ```mermaid
 graph TD
@@ -155,6 +257,11 @@ Every node vector begins with an **18-dimensional shared topological base** (ind
 
 #### Shared Topological Base (Indices 0–17)
 
+These are read straight out of Step 2's $M(v)$ vector — this stage computes none of them.
+[structural-analysis.md §6](structural-analysis.md#6-the-7-phase-topological-analysis-engine) and
+[§8](structural-analysis.md#8-formal-metric-definitions-tier-1--tier-2) are the definitional home;
+the glosses below are one-line reminders, not independent definitions.
+
 | Index | Symbol / Metric | Description & Normalization |
 |:---:|:---|:---|
 | **0** | $PR(v)$ | PageRank (downstream authority, teleport $\alpha = 0.85$) |
@@ -165,14 +272,14 @@ Every node vector begins with an **18-dimensional shared topological base** (ind
 | **5** | $DG_{\text{in}}(v)$ | Normalized In-Degree ($\deg^-(v) / (N - 1)$) |
 | **6** | $DG_{\text{out}}(v)$ | Normalized Out-Degree ($\deg^+(v) / (N - 1)$) |
 | **7** | $CC(v)$ | Local Clustering Coefficient (transitivity among neighbors) |
-| **8** | $AP(v)$ | Undirected Articulation Score (biconnected component cut vertex indicator) |
+| **8** | $AP(v)$ | Undirected Articulation Score (biconnected-component cut-vertex indicator) — note indices 8 and 16 carry **two different** articulation metrics, undirected and directed |
 | **9** | $BR(v)$ | Bridge Ratio (fraction of incident edges that are structural bridges) |
 | **10** | $w(v)$ | Node QoS Weight (aggregate criticality of incident transport contracts) |
 | **11** | $w_{\text{in}}(v)$ | QoS-Weighted In-Degree ($\sum_{u} w(u, v)$) |
 | **12** | $w_{\text{out}}(v)$ | QoS-Weighted Out-Degree ($\sum_{u} w(v, u)$) |
-| **13** | $MPCI(v)$ | Multi-Path Coupling Index (alternative paths between dependent pairs) |
-| **14** | $PC(v)$ | Path Complexity (structural density of transitive reachability graph) |
-| **15** | $FOC(v)$ | Fan-Out Criticality (immediate dependent blast radius) |
+| **13** | $MPCI(v)$ | Multi-Path Coupling Index — *afferent* multi-topic channel density: $\sum_{e \in \text{In}(v)} \max(\text{path\_count}(e) - 1, 0) \,/\, (\lvert V \rvert - 1)$ |
+| **14** | $PC(v)$ | Path Complexity — mean *efferent* channel multiplicity: $\frac{1}{\lvert \text{Out}(v) \rvert}\sum_{e \in \text{Out}(v)} \log_2(1 + \text{path\_count}(e))$ |
+| **15** | $FOC(v)$ | Fan-Out Criticality — **Topic nodes only**; rate-modulated subscriber blast radius, $0$ for every other type |
 | **16** | $AP_c^{\text{dir}}(v)$ | Directed Articulation Point (strongly-connected component cut vertex) |
 | **17** | $CDI(v)$ | Connectivity Degradation Index (change in pair connectivity upon removing $v$) |
 
@@ -383,12 +490,13 @@ Located in [`saag/prediction/models/baselines.py`](../saag/prediction/models/bas
 
 ---
 
-### 5.2 Non-Graph Tabular Baseline (Gradient Boosting / Ridge)
+### 5.2 Non-Graph Tabular Baseline (`tab_gbm` / **GBM-Feat**)
 
 Located in [`saag/prediction/models/tabular.py`](../saag/prediction/models/tabular.py), this control trains a **Gradient-Boosted Decision Tree regressor (`GradientBoostingRegressor`)** directly on the node feature vectors without any graph message passing:
 
 - **The Core Scientific Question**: Indices 0–17 of every node vector already contain pre-computed structural metrics (betweenness, closeness, reverse PageRank, articulation scores). A tree ensemble can read these metrics directly. *Does GNN message passing add any predictive value over a standard regressor reading already-summarized graph metrics?*
 - **Exact Data Parity**: The tabular model trains on the exact same tensor rows as the GNNs, extracted from `networkx_to_hetero_data`, eliminating any feature-construction bias. One model is fitted per node type to avoid column-padding artifacts.
+- **Not a manuscript column.** JSS §6.2 enumerates four configurations from three families and does not report this arm. It is a repository control, kept because the question it answers is worth being able to answer on demand.
 
 ---
 
@@ -426,7 +534,7 @@ The system never crashes or refuses execution due to missing ML checkpoints.
 
 ## 6. Dual-Engine Predictor: Consensus & Divergence Triage
 
-Operationalizing Section 8.1 of the JSS manuscript, the [`DualEnginePredictor`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/prediction/structural_predictor.py) executes **learned relational forecasting (HGT-QoS)** and **closed-form structural centrality (Topo-QoS)** concurrently:
+Operationalizing Section 8.1 of the JSS manuscript, the [`DualEnginePredictor`](../saag/prediction/structural_predictor.py) executes **learned relational forecasting (HGT-QoS)** and **closed-form structural centrality (Topo-QoS)** concurrently:
 
 ```mermaid
 flowchart TD
@@ -459,7 +567,7 @@ flowchart TD
 
 ### 7.1 The Composite Criticality Loss Function
 
-The model is trained end-to-end using [`CriticalityLoss`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/prediction/models/core.py), a balanced multi-task objective combining point regression, global ranking, pairwise margin separation, and edge loss:
+The model is trained end-to-end using [`CriticalityLoss`](../saag/prediction/models/core.py), a balanced multi-task objective combining point regression, global ranking, pairwise margin separation, and edge loss:
 
 $$\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{dimension}} + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}} + \lambda_{\text{rm}} \cdot \mathcal{L}_{\text{consistency}} + 0.3 \cdot \mathcal{L}_{\text{edge}}$$
 
@@ -505,7 +613,7 @@ To rigorously evaluate **inductive generalization** (predicting failure critical
 
 ### 8.1 Unified `PredictionService` Orchestration
 
-The [`PredictionService`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/prediction/service.py) provides a single entry point for all prediction modes (`"gnn"`, `"rm"`, `"topo"`, `"topo_qos"`, and `"dual"`):
+The [`PredictionService`](../saag/prediction/service.py) provides a single entry point for all prediction modes (`"gnn"`, `"rm"`, `"topo"`, `"topo_qos"`, and `"dual"`):
 
 ```python
 from saag.prediction.service import PredictionService
@@ -668,6 +776,11 @@ python cli/predict_graph.py \
 ## 10. Output Schemas & Artifact Examples
 
 ### Standard GNN Prediction Output
+
+> [!NOTE]
+> An **illustrative** payload showing the artifact's shape. The component ids and the
+> `validation_metrics` block below are invented for the example — they are not measured results.
+> For measured numbers, see the JSS manuscript's §7 tables and the artifacts under `results/`.
 
 When executed via `cli/predict_graph.py --gnn-model <dir> --output prediction.json`, the output schema structure is:
 

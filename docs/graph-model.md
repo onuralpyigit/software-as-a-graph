@@ -2,7 +2,7 @@
 
 **Transform raw system architecture into a formal, weighted, directed multi-layer graph capturing physical topology and runtime failure dependencies.**
 
-[README](../README.md) | → [Step 2: Analyze](structural-analysis.md)
+[README](../README.md) | **Step 1: Model** | → [Step 2: Analyze](structural-analysis.md)
 
 For the complete CLI command reference (`import_graph.py`, `export_graph.py`), see [cli-pipeline-guide.md — Step 1](cli-pipeline-guide.md#step-1-model--import--export).
 
@@ -38,6 +38,32 @@ For the complete CLI command reference (`import_graph.py`, `export_graph.py`), s
 11. [Computational Complexity & Performance](#11-computational-complexity--performance)
 12. [CLI & Python SDK Usage](#12-cli--python-sdk-usage)
 13. [What Comes Next](#13-what-comes-next)
+
+---
+
+### Where this sits in the JSS paper
+
+| | |
+|:---|:---|
+| **Manuscript section** | §3.1 (formal multigraph), §3.2 (QoS weights + the six `DEPENDS_ON` rules), §3.3 (dual graph views and the four analytical layers) |
+| **Paper's name for this** | Stages 1–2 of the four-stage pipeline: *Typed Multigraph Formulation* and *QoS-Aware Logical Dependency Projection* |
+| **Symbols** | $\mathcal{G} = (V, E, \tau_V, \tau_E, w_V, w_E)$, $w(t)$, $w_V$/$w_E$, $G_{\text{structural}}$, $G_{\text{analysis}}$ — identical to this document's |
+| **Results** | No results section; this stage is construction, not measurement. Supplementary §S14 shows the running example's structural graph and its projection. |
+
+> [!NOTE]
+> **Eight steps here, four stages in the paper.** This repository numbers the pipeline in eight
+> executable steps (Model, Analyze, Predict, Diagnose, Simulate, Validate, Prescribe, Visualize),
+> because that is what you run. The JSS manuscript describes a coarser **four-stage** pipeline —
+> Typed Multigraph Formulation → QoS-Aware Dependency Projection → Heterogeneous Graph Learning
+> (Predictive Pathway) → Explainable Quality Attribution (Explanation Layer) — because that is what
+> it evaluates. Steps 1 and 2 together are the paper's stages 1–2; Step 3 is stage 3; Step 4 is
+> stage 4. The paper also refers to a "Validate stage" and a "Prescribe stage" without numbering
+> them: those are Steps 6 and 7.
+>
+> The two arms are named differently too. This documentation says **Pathway B** for the learned
+> ranking arm and **Pathway A** for the deterministic diagnostic arm, matching `PredictiveUseCase`
+> and `DiagnosticUseCase` in the code. The paper calls them the **Predictive Pathway** (§4) and the
+> **Explanation Layer** (§5). They are the same two things.
 
 ---
 
@@ -451,7 +477,7 @@ This guarantees that:
 - Every edge stores `path_count = |T|` recording the raw number of mediating channels.
 
 #### 2. Why Worst-Case Lift for Rules 3 & 4?
-Rules 3 and 4 lift component dependencies up to the physical compute node level. Applying the probabilistic union to node edges causes **severe saturation** (measured empirically at 91% to 100% of all `node_to_node` edges saturating to $\geq 0.95$).
+Rules 3 and 4 lift component dependencies up to the physical compute node level. Applying the probabilistic union to node edges causes **severe saturation** (measured on this repository's scenario corpus at 91% to 100% of all `node_to_node` edges saturating to $\geq 0.95$ — an internal observation from the corpus in [`data/scenarios/`](../data/scenarios/), not a published figure).
 
 Why does the union fail for nodes? The independence assumption fails. The dependencies a node lifts are already correlated aggregates over overlapping sets of hosted applications and shared topics. A compute node is exposed to the **single most critical service** it hosts, not the multiplicative union of all of them. Therefore, worst-case propagation is mathematically and architecturally sound:
 $$w_E(\text{Node } B \to \text{Node } A) = \max_{d \in D_{BA}} w(d)$$
@@ -734,7 +760,7 @@ Graph construction runs **once at design time** prior to deployment, introducing
 | **Phase 4** | Dependency Derivation | $\mathcal{O}(\|V_{\text{app}}\| \cdot \text{FanOut})$ | Indexed two-hop traversal over mediating topics; USES chains bounded at 3 hops. |
 | **Phase 5** | Weight Aggregations & Finalization | $\mathcal{O}(\|V\| + \|E\|)$ | Local neighbor power-mean and harmonic coupling evaluations. |
 
-Even on industrial topologies with 500+ microservices and thousands of topics, graph modeling completes in **under 200 milliseconds** in memory and under 1.5 seconds in Neo4j.
+Even on industrial topologies with 500+ microservices and thousands of topics, graph modeling completes in **under 200 milliseconds** in memory and under 1.5 seconds in Neo4j. These are indicative development-machine timings, not benchmarked results; the measured per-stage latencies the manuscript reports are in JSS §7.5, and structural analysis — not modeling — is the stage that dominates cost.
 
 ---
 

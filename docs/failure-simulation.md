@@ -1,8 +1,8 @@
 # Step 5: Simulate — Pre-Deployment Failure & Event Simulation
 
-**Generate empirical ground-truth impact metrics ($I^*(v)$, $I_{\text{comp}}(v)$, $I_{\text{dyn}}(v)$, $IM(v)$) through controlled cascade, structural, and discrete-event simulations to train, validate, and verify architectural dependability.**
+**Generate empirical ground-truth impact metrics ($I^*(v)$, $I_{\text{comp}}(v)$, $I_{\text{dyn}}(v)$, $I_M(v)$) through controlled cascade, structural, and discrete-event simulations to train, validate, and verify architectural dependability.**
 
-← [Step 4: Diagnose](diagnosis.md) | → [Step 6: Validate](validation.md)
+← [Step 4: Diagnose](diagnosis.md) | [README](../README.md) | **Step 5: Simulate** | → [Step 6: Validate](validation.md)
 
 ---
 
@@ -39,7 +39,7 @@
 8. [Engine 5: `ChangePropagationSimulator` (Maintainability Reference)](#8-engine-5-changepropagationsimulator-maintainability-reference)
    - 8.1 [Runtime Failure vs. Development-Time Interface Change](#81-runtime-failure-vs-development-time-interface-change)
    - 8.2 [Transposed Graph Traversal ($G^\top$) & Stop Conditions](#82-transposed-graph-traversal-gtop--stop-conditions)
-   - 8.3 [Maintainability Impact ($IM(v)$)](#83-maintainability-impact-imv)
+   - 8.3 [Maintainability Impact ($I_M(v)$)](#83-maintainability-impact-i_mv)
 9. [Quality Model Alignment (ISO/IEC 25010 & 25019)](#9-quality-model-alignment-isoiec-25010--25019)
 10. [Worked Examples](#10-worked-examples)
     - 10.1 [Air Traffic Management (ATM) Step-by-Step Cascade](#101-air-traffic-management-atm-step-by-step-cascade)
@@ -49,6 +49,67 @@
 13. [Output Schemas (`impact_scores.json` & `message_flow_results.json`)](#13-output-schemas-impact_scoresjson--message_flow_resultsjson)
 14. [Methodological Boundaries & Design Invariants](#14-methodological-boundaries--design-invariants)
 15. [What Comes Next](#15-what-comes-next)
+
+For the complete CLI command reference (`simulate_graph.py`), see [cli-pipeline-guide.md — Step 5](cli-pipeline-guide.md#step-5-simulate).
+
+---
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                             STEP 5 AT A GLANCE                              │
+├───────────────────┬─────────────────────────────────────────────────────────┤
+│ Primary Input     │ G_structural — the RAW physical multigraph only.        │
+│                   │ Never the derived DEPENDS_ON edges. This boundary is    │
+│                   │ what keeps labels independent of the features.          │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Core Engine       │ Five simulators in saag/simulation/, each answering a   │
+│                   │ different question at a different cost (see §2).        │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Key Operations    │ 1. Crash each component in turn.                        │
+│                   │ 2. Propagate the cascade across physical, network,      │
+│                   │    logical, and software layers.                        │
+│                   │ 3. Record the resulting operational damage.             │
+│                   │ 4. Average over 5 seeds; report the stability ceiling.  │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Primary Outputs   │ • I*(v)   — primary training label and ranking oracle.  │
+│                   │ • I_comp(v) — Validate gates and Prescribe verification.│
+│                   │ • I_dyn(v)  — convergent-validity probe only.           │
+│                   │ • I_M(v)    — maintainability reference, never a label. │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Read the Step     │ This is Step 5, but Step 3 CONSUMES its output. The     │
+│ Number Carefully  │ pipeline is a DAG, not a chain: Simulate produces       │
+│                   │ training labels offline, Predict reads them from disk.  │
+│                   │ There is no live import and no runtime dependency.      │
+├───────────────────┼─────────────────────────────────────────────────────────┤
+│ Downstream Handoff│ • Step 3 (Predict): I*(v) supervised labels.            │
+│                   │ • Step 6 (Validate): the ground-truth oracle.           │
+│                   │ • Step 7 (Prescribe): counterfactual edit verification. │
+└───────────────────┴─────────────────────────────────────────────────────────┘
+```
+
+### Where this sits in the JSS paper
+
+| | |
+|:---|:---|
+| **Manuscript section** | §4.3 (the five ground-truth oracles) and §4.4 (the input–label independence guarantee, and what it does *not* establish) |
+| **Paper's name for this** | the **Validate stage**'s oracle supply, plus the training labeler. The paper names each engine's output an *oracle*; §2 below maps class names to oracle names. |
+| **Symbols** | $I^*(v)$, $I_{\text{comp}}(v)$, $I_{\text{dyn}}(v)$, $I_M(v)$, $I_{\text{edge}}(u,v)$. The paper never writes a bare $I(v)$ — always say which oracle. |
+| **Results** | §7.3.2 and Supplementary §S9 report cross-oracle agreement: $\rho = 0.620$ for $(I_{\text{dyn}}, I^*)$, $0.395$ for $(I_{\text{comp}}, I^*)$, against a label test–retest ceiling of $0.811$–$1.000$. **No oracle is validated against a live outage** — every label in this framework is simulator-derived. |
+
+> [!NOTE]
+> **Eight steps here, four stages in the paper.** This repository numbers the pipeline in eight
+> executable steps (Model, Analyze, Predict, Diagnose, Simulate, Validate, Prescribe, Visualize),
+> because that is what you run. The JSS manuscript describes a coarser **four-stage** pipeline —
+> Typed Multigraph Formulation → QoS-Aware Dependency Projection → Heterogeneous Graph Learning
+> (Predictive Pathway) → Explainable Quality Attribution (Explanation Layer) — because that is what
+> it evaluates. Steps 1 and 2 together are the paper's stages 1–2; Step 3 is stage 3; Step 4 is
+> stage 4. The paper also refers to a "Validate stage" and a "Prescribe stage" without numbering
+> them: those are Steps 6 and 7.
+>
+> The two arms are named differently too. This documentation says **Pathway B** for the learned
+> ranking arm and **Pathway A** for the deterministic diagnostic arm, matching `PredictiveUseCase`
+> and `DiagnosticUseCase` in the code. The paper calls them the **Predictive Pathway** (§4) and the
+> **Explanation Layer** (§5). They are the same two things.
 
 ---
 
@@ -91,6 +152,23 @@ Why does SaG provide **five distinct simulation engines** instead of a single ca
 
 Because answering different engineering questions requires fundamentally different tradeoffs between **computational speed**, **granularity**, and **simulation fidelity**. An engine fast enough to generate training labels across thousands of nodes in seconds cannot simulate microsecond packet queues; conversely, a high-fidelity discrete-event queuing engine is far too computationally heavy for exhaustive training sweeps.
 
+**Each engine is one *oracle*, and the JSS manuscript names them.** Use these names when reading §4.3
+of the paper; this document's engine names are the class names that produce them.
+
+| This document's engine | JSS §4.3 oracle name | Symbol | What it may be used for |
+|:---|:---|:---:|:---|
+| `FaultInjector` | Cascade Reachability Oracle | $I^*(v)$ | **Primary oracle.** Every predictive-ranking result in the paper (Tables 5–7, RQ1–RQ3) is scored against it, and it is the continuous training label. |
+| `FailureSimulator` | Multi-Metric Composite Oracle | $I_{\text{comp}}(v)$ | Validate-stage quality gates and Prescribe-stage counterfactual verification **only** — never predictive ranking. |
+| `MessageFlowSimulator` | Dynamic Queue-Flow Oracle | $I_{\text{dyn}}(v)$ | An independent convergent-validity probe. Offline research use only. |
+| `ChangePropagationSimulator` | Change-Propagation Oracle | $I_M(v)$ | A structural maintainability reference. **Never a training label.** |
+| `FailureSimulator` (edge sweep) | Relationship (Edge) Removal Oracle | $I_{\text{edge}}(u,v)$ | Relationship-level criticality: $I_{\text{edge}}(u,v) = \bar{I}_{\text{comp}}(G \setminus \{(u,v)\}) - \bar{I}_{\text{comp}}(G)$. |
+
+> [!CAUTION]
+> **A result measured against one oracle is never transferred to another.** These are different
+> quantities on different scales; only their rank agreement is comparable, and that agreement is
+> substantial but well below label noise (§7.7). Every evaluation metric must state which oracle
+> produced it.
+
 ```mermaid
 flowchart TD
     G["Raw Structural Multigraph G"] --> ENGINES["Step 5: Simulation Suite"]
@@ -114,7 +192,7 @@ flowchart TD
 
     subgraph StackD["Stack 4: Software Evolution Reference (Maintainability)"]
         ENGINES --> CPS["ChangePropagationSimulator<br>(saag/simulation/change_propagation.py)"]
-        CPS --> IM["IM(v) Maintainability Impact<br>(Transposed Graph G^T Ripple)"]
+        CPS --> IM["I_M(v) Maintainability Impact<br>(Transposed Graph G^T Ripple)"]
     end
 ```
 
@@ -123,10 +201,10 @@ The table below summarizes the five specialized simulation engines:
 | Engine | Core Engineering Question | Underlying Paradigm | Primary Metric Output | Computational Speed | Primary Role in SaG |
 |:---|:---|:---|:---|:---:|:---|
 | **`FaultInjector`** | *"If a publisher or broker dies, which downstream subscribers lose their data feeds?"* | Graph cascade reachability ($O(V+E)$) | **$I^*(v)$**: Continuous subscriber feed-loss fraction | **Fast** (~10 ms/node) | **Predict Stage**: Ground-truth labels for GNN training.<br>**Validate Stage**: CLI benchmark gate ($\rho \ge 0.70$). |
-| **`FailureSimulator`** | *"What is the structural damage across physical hosts, network links, brokers, and shared libraries?"* | Multi-layer structural graph traversal | **$I_{\text{comp}}(v)$**: AHP composite structural loss ($IR, IM, IA, IFT$) | **Moderate** (~50 ms/node) | **Validate Stage**: `ValidationService` 7 quality gates.<br>**Prescribe Stage**: `EditVerifier` counterfactual mutation sweeps. |
+| **`FailureSimulator`** | *"What is the structural damage across physical hosts, network links, brokers, and shared libraries?"* | Multi-layer structural graph traversal | **$I_{\text{comp}}(v)$**: AHP composite structural loss ($IR, IM, IA, IFT$) | **Moderate** (~50 ms/node) | **Validate Stage**: `ValidationService` gate suite (3 release + 3 reported).<br>**Prescribe Stage**: `EditVerifier` counterfactual mutation sweeps. |
 | **`EventSimulator`** | *"How do messages flow through the topology under Poisson failure and recovery events?"* | Discrete-event priority queue simulation (Zero external dependencies) | **Flow Metrics**: Baseline message delivery paths, drop counts, queue lengths | **Fast** (~20 ms/run) | **Baseline Provider**: Primes unperturbed healthy flows for `FailureSimulator`'s flow disruption metric. |
-| **`MessageFlowSimulator`** | *"How do message queues, packet drops, and deadlines behave under real-time DDS traffic and QoS contracts?"* | Continuous-time discrete-event queuing simulation (SimPy) | **$I_{\text{dyn}}(v)$**: Dynamic traffic delivery rate drop | **Detailed** (~5–30 s/node) | **Research Probe**: Inter-oracle convergent validity analysis (JSS Section 7.3 and Table 13). |
-| **`ChangePropagationSimulator`** | *"If an engineer modifies an interface, how far does the change ripple upstream across the dependency graph?"* | Transposed dependency BFS on $G^\top$ with stop conditions | **$IM(v)$**: Development-time maintainability blast radius | **Instant** (<5 ms/node) | **Maintainability Reference**: Ground truth for evolutionary coupling and code ripple risk. |
+| **`MessageFlowSimulator`** | *"How do message queues, packet drops, and deadlines behave under real-time DDS traffic and QoS contracts?"* | Continuous-time discrete-event queuing simulation (SimPy) | **$I_{\text{dyn}}(v)$**: Dynamic traffic delivery rate drop | **Detailed** (~5–30 s/node) | **Research Probe**: Inter-oracle convergent validity analysis (JSS §7.3.2 and Supplementary §S9). |
+| **`ChangePropagationSimulator`** | *"If an engineer modifies an interface, how far does the change ripple upstream across the dependency graph?"* | Transposed dependency BFS on $G^\top$ with stop conditions | **$I_M(v)$**: Development-time maintainability blast radius | **Instant** (<5 ms/node) | **Maintainability Reference**: Ground truth for evolutionary coupling and code ripple risk. |
 
 ---
 
@@ -164,7 +242,7 @@ flowchart LR
     FS -->|I_comp(v) Quality Metrics| VAL_LIB
     FS -->|Risk Delta ΔI_comp| EV
     MFS -->|I_dyn(v) Probe| CONV
-    CPS -->|IM(v) Metrics| FS
+    CPS -->|I_M(v) Metrics| FS
 ```
 
 ### Stage Summary & Engine Contracts
@@ -173,7 +251,7 @@ flowchart LR
    `FaultInjector` produces the scalar labels $I^*(v)$ across multiple seeds. GNNs (`NodeCriticalityGNN`, `HomogeneousGAT_*`) use $I^*(v)$ as their supervised training target.
 2. **Step 6 (Validate Stage)**:
    - **CLI Benchmark (`cli/validate_graph.py`)**: Uses `FaultInjector` to test whether GNN or structural predictions match empirical cascade reachability with rank correlation $\rho \ge 0.70$.
-   - **Library Quality Gates (`ValidationService`)**: Uses `FailureSimulator` to verify 7 fixed quality gates (G1–G7) checking structural reachability, throughput, and cascade bounds.
+   - **Library Quality Gates (`ValidationService`)**: Uses `FailureSimulator` to evaluate the six shipped gates — three release gates (`spearman`, `overlap_at_q3`, `top5_overlap`) whose conjunction defines `passed`, and three reported gates (`predictive_gain`, `kappa_cta`, `bottleneck_precision`) that are informational only. The set is declared once, in [`RELEASE_GATES` / `REPORTED_GATES`](../saag/validation/models.py#L15); see [validation.md §6.1](validation.md#61-library-gate-suite-validationservice).
    - **Convergent Validity Probe**: Uses `MessageFlowSimulator` to verify that topological risk correlates with dynamic message loss ($I_{\text{dyn}}$ vs $I^*$, $\rho = 0.620$).
 3. **Step 7 (Prescribe Stage)**:
    `EditVerifier` uses `FailureSimulator` to execute counterfactual failure simulations on proposed architectural refactorings, verifying that candidate edits yield net risk reduction ($\Delta I_{\text{comp}} > 0, \Delta \text{SRI} > 0$).
@@ -277,15 +355,28 @@ The reported ground-truth impact $\overline{I^*(v)}$ is the arithmetic mean acro
 ```json
 "label_stability": {
   "n_seeds": 5,
-  "mean_std": 0.0267,
-  "max_std": 0.1856,
-  "test_retest_spearman": 0.9802,
-  "topk_jaccard": 0.6250
+  "mean_std": 0.020109,
+  "max_std": 0.129898,
+  "test_retest_spearman": 0.97169,
+  "topk_jaccard": 0.875
 }
 ```
 
-- **`test_retest_spearman` ($\ge 0.98$)**: The minimum pairwise rank correlation across any two seeds. This proves that the ground-truth ranking is stable and reproducible, establishing the theoretical upper performance bound for any predictive model.
-- **`topk_jaccard` ($\ge 0.60$)**: The overlap of the top 20% most critical components between seed runs.
+*(Values shown are the measured `atm_system` entry of `results/label_stability.json`, produced by
+`reproduce/label_stability_check.py`. They are one scenario's figures, not a corpus-wide summary.)*
+
+- **`test_retest_spearman`**: The pairwise rank correlation across any two seeds. This is the
+  **label-noise ceiling** — no predictor can exceed the reproducibility of the target it is scored
+  against. Across the twelve scenarios it ranges **$0.811$–$1.000$ (median $0.982$)**, with
+  Microservices the least reproducible at $0.811$ (JSS §7.1, "Label-noise ceiling").
+- **`topk_jaccard`**: The overlap of the top 20% most critical components between seed runs. This is
+  the **noisier construct by a wide margin** — corpus median $0.847$, falling to $0.370$ on
+  Logistics Fleet. It is why $F_1@K$ margins are less stable than ranking margins, and it bounds how
+  much weight any single critical-set comparison can carry.
+
+> [!IMPORTANT]
+> Do not read a single scenario's stability as the framework's. The ceiling is per-fold, and the
+> weakest fold — not the median — is what limits a claim made on that fold.
 
 ---
 
@@ -348,7 +439,7 @@ In addition to composite impact, `FailureSimulator` provides specific quality at
   $$IA(v) = 0.50 \cdot \text{Weighted Reachability Loss} + 0.35 \cdot \text{Weighted Fragmentation} + 0.15 \cdot \text{Path-Breaking Throughput Loss}$$
 - **$IR(v)$ (Reliability Impact)**: The balanced blend of Fault-Tolerance and Availability:
   $$IR(v) = r_\alpha \cdot IFT(v) + (1 - r_\alpha) \cdot IA(v) \quad (r_\alpha = 0.36)$$
-- **$IM(v)$ (Maintainability Impact)**: Evaluates architectural blast radius and ripple effects, populated via `ChangePropagationSimulator`.
+- **$I_M(v)$ (Maintainability Impact)**: Evaluates architectural blast radius and ripple effects, populated via `ChangePropagationSimulator`.
 
 ---
 
@@ -367,7 +458,7 @@ Priming executes a deterministically seeded run with `EventSimulator` under heal
 ### 5.6 Roles in Validation Gating & Prescriptive Verification
 
 `FailureSimulator` is consumed downstream in two critical stages:
-1. **Validate Stage (`ValidationService`)**: Evaluates 7 fixed structural quality gates (G1–G7) ensuring that critical components do not exceed acceptable reachability, throughput, or cascade thresholds.
+1. **Validate Stage (`ValidationService`)**: Evaluates the six shipped quality gates — three release, three reported — ensuring that critical components do not exceed acceptable reachability, throughput, or cascade thresholds. The gate set is declared in [`saag/validation/models.py`](../saag/validation/models.py#L15) and documented in [validation.md §6.1](validation.md#61-library-gate-suite-validationservice).
 2. **Prescribe Stage (`EditVerifier`)**: When automated refactoring generates candidate architectural repairs, `EditVerifier` runs counterfactual failure simulations using `FailureSimulator` to verify that proposed changes achieve net risk reduction ($\Delta I_{\text{comp}} > 0, \Delta \text{SRI} > 0$) without introducing secondary cascade regressions.
 
 ---
@@ -519,8 +610,8 @@ Therefore, $I_{\text{dyn}}$ is kept strictly 1-dimensional (delivery rate loss),
 
 `MessageFlowSimulator` is computationally demanding (taking minutes to simulate high-rate scenarios), making it unsuitable for live CI/CD gating.
 
-Instead, it serves as an **offline research probe for convergent validity** (JSS Section 7.3 and Table 13):
-- Across the twelve evaluation scenarios, $I_{\text{dyn}}$ correlates with $I^*$ (`FaultInjector`) at **Spearman $\rho = 0.620$**.
+Instead, it serves as an **offline research probe for convergent validity** (JSS §7.3.2 and Supplementary §S9):
+- Across the twelve evaluation scenarios, $I_{\text{dyn}}$ correlates with $I^*$ (`FaultInjector`) at **Spearman $\rho = 0.620$** (and $I_{\text{comp}}$ with $I^*$ at $0.395$). Provenance: `results/convergent_validity.json`, keys `i_dyn__i_star.mean_spearman_rho` and `i_comp__i_star.mean_spearman_rho`, regenerated by `reproduce/convergent_validity.py`. Re-check there rather than trusting this line.
 - This substantial correlation confirms that static topological graph rankings reflect real runtime communication bottlenecks, without requiring expensive discrete-event simulations in pre-deployment pipelines.
 
 ---
@@ -538,7 +629,7 @@ The first four simulation engines evaluate runtime dependability. **`ChangePropa
 | **Trigger** | Component $v$ crashes at runtime | Component $v$'s interface/code changes at development time |
 | **Direction** | Follows communication flow (downstream dataflow) | Follows dependency contracts (upstream ripple on $G^\top$) |
 | **Stop Conditions** | Queue absorption, broker redundancy | Loose coupling, stable interfaces |
-| **Output Metric** | Operational cascade damage ($I^*(v), I_{\text{comp}}(v)$) | Architectural blast radius / Maintainability ($IM(v)$) |
+| **Output Metric** | Operational cascade damage ($I^*(v), I_{\text{comp}}(v)$) | Architectural blast radius / Maintainability ($I_M(v)$) |
 
 ---
 
@@ -554,7 +645,7 @@ If component $u$ depends on component $v$ ($u \xrightarrow{\text{DEPENDS\_ON}} v
 
 ---
 
-### 8.3 Maintainability Impact ($IM(v)$)
+### 8.3 Maintainability Impact ($I_M(v)$)
 
 `ChangePropagationSimulator` outputs three normalized metrics for each component:
 - **`change_reach`**: Fraction of system components reached by the change.
@@ -562,7 +653,7 @@ If component $u$ depends on component $v$ ($u \xrightarrow{\text{DEPENDS\_ON}} v
 - **`normalized_change_depth`**: Maximum propagation depth reached.
 
 These are combined into the canonical Maintainability Impact score:
-$$IM(v) = 0.45 \cdot \text{Change Reach} + 0.35 \cdot \text{Weighted Change Impact} + 0.20 \cdot \text{Normalized Depth}$$
+$$I_M(v) = 0.45 \cdot \text{Change Reach} + 0.35 \cdot \text{Weighted Change Impact} + 0.20 \cdot \text{Normalized Depth}$$
 
 ---
 
@@ -577,7 +668,7 @@ The SaG simulation suite maps observed metrics directly to international softwar
 | **Availability & Fault Tolerance** | Infrastructure fragmentation & stranded message volume | $\text{fragmentation} = 0.70 \Delta\text{CC} + 0.30 \Delta\text{Mass}$ | `FailureSimulator` |
 | **Operational Capacity** | QoS-weighted lost message bandwidth | $\text{throughput\_loss} = 1 - \frac{\sum \text{rate}_{\text{post}}}{\sum \text{rate}_{\text{pre}}}$ | `FailureSimulator` |
 | **Time Behavior & Performance** | Real-time traffic delivery drop under contention | $I_{\text{dyn}}(v) = \text{DR}_{\text{before}} - \text{DR}_{\text{after}}$ | `MessageFlowSimulator` |
-| **Modularity & Maintainability** | Upstream code change ripple on transposed dependencies | $IM(v) = 0.45 \text{Reach} + 0.35 \text{Impact} + 0.20 \text{Depth}$ | `ChangePropagationSimulator` |
+| **Modularity & Maintainability** | Upstream code change ripple on transposed dependencies | $I_M(v) = 0.45 \text{Reach} + 0.35 \text{Impact} + 0.20 \text{Depth}$ | `ChangePropagationSimulator` |
 
 ---
 
@@ -610,7 +701,12 @@ ASTERIX_Broker      ──ROUTES────────► All Topics
 
 ### 10.2 Autonomous Vehicle (AV) Multi-Oracle Stratification
 
-Evaluating an Autonomous Vehicle system ($|V| = 152$ nodes, $|E| = 730$ edges) across the simulation engines demonstrates how each oracle reveals different architectural layers:
+Evaluating an Autonomous Vehicle system ($|V| = 152$ nodes, $|E| = 730$ edges) across the simulation engines demonstrates how each oracle reveals different architectural layers.
+
+> [!NOTE]
+> **Illustrative.** The figures below show the *shape* of multi-oracle stratification — which
+> strata each oracle can and cannot see — and are not the corpus measurements behind any published
+> table. For those, see JSS §7 and the artifacts under `results/`.
 
 | Architectural Layer / Stratum | Evaluated Count | Mean $I^*$ (`FaultInjector`) | Mean $I_{\text{comp}}$ (`FailureSimulator`) | Mean $I_{\text{dyn}}$ (`MessageFlow`) |
 |:---|:---:|:---:|:---:|:---:|
@@ -856,10 +952,10 @@ Generated by `FaultInjector`, this artifact supplies the $I^*(v)$ supervised tra
   "unlabeled_node_ids": ["N0", "N1", "T_radar", "T_tracks"],
   "label_stability": {
     "n_seeds": 5,
-    "mean_std": 0.0267,
-    "max_std": 0.1856,
-    "test_retest_spearman": 0.9802,
-    "topk_jaccard": 0.6250
+    "mean_std": 0.020109,
+    "max_std": 0.129898,
+    "test_retest_spearman": 0.97169,
+    "topk_jaccard": 0.875
   },
   "records": {
     "RadarTracker": {

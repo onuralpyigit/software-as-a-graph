@@ -2,7 +2,7 @@
 
 **Compute every component's topological fingerprint — the comprehensive set of structural metrics that reveal how failure propagates, how components resist change, and who they disrupt.**
 
-← [Step 1: Model](graph-model.md) | → [Step 3: Predict](prediction.md) | → [Step 4: Diagnose](diagnosis.md)
+← [Step 1: Model](graph-model.md) | [README](../README.md) | **Step 2: Analyze** | → [Step 3: Predict](prediction.md) · [Step 4: Diagnose](diagnosis.md)
 
 For the complete CLI reference (`analyze_graph.py`), see [cli-pipeline-guide.md — Step 2](cli-pipeline-guide.md#step-2-analyze).
 
@@ -53,9 +53,49 @@ For the complete CLI reference (`analyze_graph.py`), see [cli-pipeline-guide.md 
 
 ---
 
+### Where this sits in the JSS paper
+
+| | |
+|:---|:---|
+| **Manuscript section** | §3.4 (typed node feature encoding, indices 0–17) and §5.2 (the metrics the RM formulas consume) |
+| **Paper's name for this** | Not a named stage — the paper treats it as the feature-and-metric substrate both pathways read |
+| **Symbols** | The paper writes $\text{RPR}$, $\text{Deg}_{\text{in}}$, $\text{AP}_c^{\text{dir}}$, $\text{QSPOF}$, $\text{BR}$, $\text{CDI}$, $\text{BT}$, $w_{\text{out}}$, $\text{CQP}$, $\text{CC}$ — same names, same coefficients |
+| **Results** | §7.5 measures this stage's cost, and finds it dominates the pipeline: 239 s at 2,000 components, against 56 ms for the HGT forward pass |
+
+> [!NOTE]
+> **Eight steps here, four stages in the paper.** This repository numbers the pipeline in eight
+> executable steps (Model, Analyze, Predict, Diagnose, Simulate, Validate, Prescribe, Visualize),
+> because that is what you run. The JSS manuscript describes a coarser **four-stage** pipeline —
+> Typed Multigraph Formulation → QoS-Aware Dependency Projection → Heterogeneous Graph Learning
+> (Predictive Pathway) → Explainable Quality Attribution (Explanation Layer) — because that is what
+> it evaluates. Steps 1 and 2 together are the paper's stages 1–2; Step 3 is stage 3; Step 4 is
+> stage 4. The paper also refers to a "Validate stage" and a "Prescribe stage" without numbering
+> them: those are Steps 6 and 7.
+>
+> The two arms are named differently too. This documentation says **Pathway B** for the learned
+> ranking arm and **Pathway A** for the deterministic diagnostic arm, matching `PredictiveUseCase`
+> and `DiagnosticUseCase` in the code. The paper calls them the **Predictive Pathway** (§4) and the
+> **Explanation Layer** (§5). They are the same two things.
+
+---
+
 ## 1. Executive Summary & At a Glance
 
 Once the system graph $\mathcal{G}$ is constructed and causal dependencies are derived in Step 1, the **Analyze stage (Step 2)** evaluates the graph's structural properties. It transforms the layer-projected dependency graph $G_{\text{analysis}}(\ell)$ into a comprehensive **53-field structural metric vector $M(v)$** for every component, accompanied by edge metrics and graph-level topological summaries.
+
+The 53 fields of `StructuralMetrics` are three identity fields (`id`, `name`, `type`) plus
+**50 scored metrics**, which are exactly the 50 keys of `METRIC_ROLES` in
+[`saag/core/metric_registry.py`](../saag/core/metric_registry.py). Where
+[validation.md](validation.md) counts "50 metrics" and this document counts "53 fields", they are
+describing the same object.
+
+> [!IMPORTANT]
+> **$M(v)$ means two different things in these documents.** Here it is the whole 53-field metric
+> vector. In the RM formulas of §9 it is the scalar **Maintainability** score,
+> $M(v) = 0.35 \cdot BT(v) + \dots$ — one of the two characteristics that compose $Q^*(v)$. The
+> surrounding sentence always disambiguates, but the collision is genuine; when in doubt, a
+> subscripted or weighted $M$ inside a sum is the Maintainability score, and a bare $M(v)$ handed
+> between stages is the vector.
 
 Step 2 is **deterministic, closed-form, and purely graph-theoretic**. It requires zero machine-learning checkpoints, zero runtime monitoring instrumentation, and zero execution of fault-injection simulations.
 
@@ -345,7 +385,7 @@ Inspects raw pub/sub communication by constructing an undirected bipartite graph
 
 ### 6.7 Phase 7: Metric Assembly, CQP Normalization, and Summary
 
-1. **Assembly**: Combines all phase metrics into a typed [`StructuralMetrics`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/core/metrics.py) dataclass per component.
+1. **Assembly**: Combines all phase metrics into a typed [`StructuralMetrics`](../saag/core/metrics.py) dataclass per component.
 2. **Code Quality Penalty ($CQP$) Normalization**:
    Normalizes static code metrics independently for Applications and Libraries via population min-max scaling:
    $$CQP(v) = 0.10 \cdot \text{loc\_norm}(v) + 0.35 \cdot \text{complexity\_norm}(v) + 0.30 \cdot I_{\text{code}}(v) + 0.25 \cdot \text{lcom\_norm}(v)$$
