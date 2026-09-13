@@ -7,9 +7,9 @@ justified."*
 
 ---
 
-The manuscript runs to **38 single-column pages** in the `elsarticle` preprint class, of which
-**three are the reference list** (92 entries). The main text and declarations occupy 35 pages. We are
-two pages over the encouraged limit and offer this explanation as the Guide asks.
+The manuscript runs to **34 single-column pages** in the `elsarticle` preprint class, of which
+**3.5 pages are the reference list** (89 entries). The main text and declarations occupy 30.5 pages.
+The manuscript strictly conforms to the journal's recommended limit of less than 36 single-column pages.
 
 We have already moved substantial material out of the body. Fourteen supplementary sections now
 carry the parameter-sensitivity sweeps (OFAT and Morris screening), the AHP matrices and their
@@ -51,8 +51,8 @@ subsequent protocol change. Supporting these claims requires stating protocols �
 populations, oracle assignment, substrate parity, model-selection rules — that a shorter paper would
 leave implicit and a referee could not check.
 
-**If the editors prefer the manuscript at 36 pages**, the two further cuts we would make are the
-Reliability–Maintainability decomposition table (Section 5.1) and the heterogeneous message-passing
-equations (Section 4.1.2), both to the supplement. We have not made them pre-emptively because both
-are the definitions the rest of the paper reasons from, and we would rather the editors make that
-call than present a body that cannot be read without the supplement.
+**In alignment with the 36-page limit**, the manuscript incorporated the planned trims: the
+Reliability–Maintainability decomposition table (Section~5.1 $\to$ Table~S3) and the formal heterogeneous message-passing
+equations (Section~4.1.2 $\to$ Section~S1.1) now reside in the online supplementary material, alongside
+concise inline syntheses of repetitive experimental protocols, bringing the complete manuscript
+comfortably to **34 single-column pages** (including all declarations and 89 references).

@@ -10,25 +10,7 @@ We are explicit about the evidential status of this layer: it is an unvalidated 
 
 In accordance with \textbf{ISO/IEC 25010:2023} \cite{iso25010_2023} and \textbf{ISO/IEC 25019:2023} \cite{iso25019_2023}, SaG formalizes two primary criticality dimensions: \textbf{Component Criticality ($D_1$)} (service loss upon component failure) and \textbf{Relationship Criticality ($D_2$)} (service degradation upon channel severance).
 
-Criticality is evaluated across two orthogonal characteristics: \textbf{Reliability ($R$)} and \textbf{Maintainability ($M$)}. Table~\ref{tab:3} summarizes the mapping of ISO/IEC sub-characteristics to underlying graph metrics and targeted engineering remediations. Safety and security considerations requiring specialized hazard logs fall outside purely structural topology analysis.
-
-\begin{table}[htbp]
-\centering
-\small
-\caption{The Reliability--Maintainability (RM) quality decomposition.}
-\label{tab:3}
-\resizebox{\linewidth}{!}{%
-\begin{tabular}{lllll}
-\toprule
-\textbf{Dimension} & \textbf{Sub-Characteristic} & \textbf{Architectural Question} & \textbf{Underlying Graph Metrics} & \textbf{Role / Remediation} \\
-\midrule
-\textbf{Reliability ($R$)} & \textbf{Fault Tolerance ($FT$)} & How broadly does failure propagate? & Reverse PageRank on $G^\top$, in-degree, cascade depth & Reliability Eng.: add redundancy, circuit breakers \\
-& \textbf{Availability ($A$)} & Is this a single point of failure? & Directed articulation score (raw + QoS-weighted), bridge ratio, CDI & DevOps/SRE: replicate host/broker \\
-\textbf{Maintainability ($M$)} & \textbf{Modularity/Modifiability} & How complex and coupled is this? & Betweenness, QoS-weighted out-degree, Code Penalty, clustering & Architect: refactor code, decouple \\
-\bottomrule
-\end{tabular}%
-}
-\end{table}
+Criticality is evaluated across two orthogonal characteristics: \textbf{Reliability ($R$)} and \textbf{Maintainability ($M$)}. Reliability decomposes into \textbf{Fault Tolerance ($FT$)} (error-propagation reachability on $G^\top$, evaluated via Reverse PageRank, in-degree, and cascade depth potential to guide redundancy and circuit breakers) and \textbf{Availability ($A$)} (single-point-of-failure exposure, evaluated via directed articulation points, bridge ratios, and connectivity degradation to guide replication). Maintainability ($M$) evaluates structural coupling and code-level complexity (betweenness, QoS-weighted fan-out, code quality penalties, and clustering to guide decoupling and refactoring). Supplementary Table~S3 summarizes this decomposition, mapping each ISO/IEC sub-characteristic to its graph metrics and remediation roles. Safety and security considerations requiring specialized hazard logs fall outside purely structural topology analysis.
 
 \subsection{Composite Quality Score Formulation}
 \label{sec:5.2}
@@ -36,25 +18,17 @@ Criticality is evaluated across two orthogonal characteristics: \textbf{Reliabil
 All raw metrics are rank-normalized to $[0, 1]$ within the graph. Quality sub-characteristics are formulated hierarchically using the Analytic Hierarchy Process (AHP) \cite{saaty1980ahp}:
 \begin{enumerate}
     \item \textbf{Fault Tolerance ($FT(v)$):} Evaluates error cascade potential on transpose graph $G_{\text{analysis}}^\top$:
-    \begin{equation}
-    FT(v) = 0.45 \cdot \text{RPR}(v) + 0.30 \cdot \text{Deg}_{\text{in}}(v) + 0.25 \cdot \text{CDPot}_{\text{enh}}(v)
-    \end{equation}
-    where $\text{RPR}(v)$ is Reverse PageRank, $\text{Deg}_{\text{in}}(v) = d_{\text{in}}(v)/(|V|-1)$ is normalized in-degree on $G_{\text{analysis}}^\top$, and $\text{CDPot}_{\text{enh}}(v)$ is normalized cascade depth potential.
+    $FT(v) = 0.45 \cdot \text{RPR}(v) + 0.30 \cdot \text{Deg}_{\text{in}}(v) + 0.25 \cdot \text{CDPot}_{\text{enh}}(v)$,
+    where $\text{RPR}(v)$ is Reverse PageRank, $\text{Deg}_{\text{in}}(v) = d_{\text{in}}(v)/(|V|-1)$, and $\text{CDPot}_{\text{enh}}(v)$ is normalized cascade depth potential.
     \item \textbf{Availability ($A(v)$):} Identifies structural single points of failure across five terms:
     \begin{equation}
     \label{eq:availability}
     A(v) = 0.2563 \cdot \text{AP}_c^{\text{dir}}(v) + 0.1998 \cdot \text{QSPOF}(v) + 0.1998 \cdot \text{BR}(v) + 0.2563 \cdot \text{CDI}(v) + 0.0878 \cdot w(v)
     \end{equation}
     where $\text{AP}_c^{\text{dir}}(v)$ is Directed Articulation Point severity, $\text{QSPOF}(v)$ is QoS-weighted SPOF severity, $\text{BR}(v)$ is Bridge Ratio, $\text{CDI}(v)$ is Connectivity Degradation Index, and $w(v)$ is intrinsic QoS weight.
-    \item \textbf{Reliability ($R(v)$):} Blends Fault Tolerance and Availability hierarchically:
-    \begin{equation}
-    R(v) = r_\alpha \cdot FT(v) + (1 - r_\alpha) \cdot A(v), \quad r_\alpha = 0.36
-    \end{equation}
-    The intra-dimension weights apply $\lambda = 0.70$ shrinkage blending with a uniform prior. Because comparison matrices are rank-one by construction (Supplementary Section~S4), these weights represent documented conventions rather than independently elicited consensus.
+    \item \textbf{Reliability ($R(v)$):} Blends Fault Tolerance and Availability: $R(v) = r_\alpha \cdot FT(v) + (1 - r_\alpha) \cdot A(v)$, with $r_\alpha = 0.36$. The intra-dimension weights apply $\lambda = 0.70$ shrinkage blending with a uniform prior. Because comparison matrices are rank-one by construction (Supplementary Section~S4), these weights represent documented conventions rather than independently elicited consensus.
     \item \textbf{Maintainability ($M(v)$):} Blends structural coupling with static code analysis:
-    \begin{equation}
-    M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))
-    \end{equation}
+    $M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))$,
     where $\text{BT}(v)$ is Betweenness Centrality, $w_{\text{out}}(v)$ is QoS-weighted efferent coupling, $\text{CQP}(v)$ is Code Quality Penalty, and $\text{CC}(v)$ is local Clustering Coefficient.
 \end{enumerate}
 

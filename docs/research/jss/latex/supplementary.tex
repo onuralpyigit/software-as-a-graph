@@ -32,12 +32,31 @@
              city={Istanbul}, postcode={34469}, country={Turkey}}
 \end{frontmatter}
 
-\noindent This supplement reports the parameter-sensitivity analyses supporting RQ3 of the main manuscript. They are placed here rather than in the body because they establish \emph{robustness} of the reported orderings rather than any headline result: their collective finding is that the explanation layer's ten declared weight constants are not load-bearing, with the two exceptions identified below. Section and table numbers are prefixed \textbf{S}. All figures are regenerable from the committed artifacts listed in the replication package.
-
 \section{Parameter Sensitivity of the Explanation Layer}
 \label{supp:params}
 
-The RM composite of Section~5 of the main manuscript declares ten weight constants. We screen all of them, one factor at a time where a natural sweep range exists and jointly via Morris elementary effects \cite{morris1991factorial,campolongo2007effective} otherwise, and report both views in Table~\ref{tab:S1}. Morris is a screening design: $\mu^*$ ranks influence on mean $\rho$ without decomposing it, and a $\sigma$ comparable to a factor's own $\mu^*$ signals that its effect depends on where the other nine sit rather than being a fixed marginal slope. It is the computationally efficient alternative to variance-based global analysis \cite{saltelli2008global,sobol1993sensitivity}.
+\subsection{Heterogeneous Graph Transformer Message-Passing Formulation}
+\label{supp:hgt}
+
+For completeness, we record the layer-wise equations of the Heterogeneous Graph Transformer (HGT) \cite{hu2020hgt} implemented via PyTorch Geometric's \texttt{HGTConv} \cite{fey2019fast} and summarized in Section~4.1.2 of the main manuscript. For source node $u$ and target node $v$ connected by meta-relation $\tau(e) = (\tau(u), \phi(e), \tau(v))$:
+\begin{enumerate}
+    \item \textbf{Type-Specific Projection:} Raw node features $x_v$ (dimension 19--25) are mapped into hidden dimension $D$:
+    \begin{equation}
+    h_v^{(0)} = \text{LayerNorm}\big(\text{GELU}(W_{\tau(v)} x_v)\big)
+    \end{equation}
+    \item \textbf{Relational Mutual Attention:} For attention head $i \in \{1, \dots, H\}$, with incoming neighborhood $\mathcal{N}(v)$ and incorporated edge representation $\tilde{h}_v = h_v + e_{uv}'$:
+    \begin{equation}
+    \text{Attn}^{\,i}(u, e, v) = \underset{u \in \mathcal{N}(v)}{\text{Softmax}}\left( K^i(u)\, W^i_{\text{att},\phi(e)}\, Q^i(\tilde{h}_v)^\top \cdot \frac{\mu_{\langle \tau(u), \phi(e), \tau(v)\rangle}}{\sqrt{D/H}} \right)
+    \end{equation}
+    where $\mu_{\langle \tau(u), \phi(e), \tau(v)\rangle}$ is the learned per-meta-relation scaling prior (\texttt{p\_rel} in PyG), weighting entire relation triples independently of individual node embeddings.
+    \begin{equation}
+    \text{Msg}(u, e, v) = V(u) W_{\text{msg},\phi(e)}
+    \end{equation}
+    \item \textbf{Residual Aggregation and Layer Normalization:} For layers $l \in \{1, \dots, L\}$:
+    \begin{equation}
+    h_v^{(l)} = \text{LayerNorm}\left( h_v^{(l-1)} + \text{Dropout}\left(\sum_{u \in \mathcal{N}(v)} \text{Attn}(u, e, v) \cdot \text{Msg}(u, e, v)\right)\right)
+    \end{equation}
+\end{enumerate}
 
 \begin{table}[htbp]
 \centering
@@ -153,6 +172,24 @@ Availability & 5 & $-0.0029$ & $0.0006$ \\
 \textbf{FD} & $1/4$ & $2/5$ & $2/5$ & $1$ \\
 \bottomrule
 \end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{The Reliability--Maintainability (RM) quality decomposition (supporting Section~5 of the main manuscript).}
+\label{tab:S3-rm}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllll}
+\toprule
+\textbf{Dimension} & \textbf{Sub-Characteristic} & \textbf{Architectural Question} & \textbf{Underlying Graph Metrics} & \textbf{Role / Remediation} \\
+\midrule
+\textbf{Reliability ($R$)} & \textbf{Fault Tolerance ($FT$)} & How broadly does failure propagate? & Reverse PageRank on $G^\top$, in-degree, cascade depth & Reliability Eng.: add redundancy, circuit breakers \\
+& \textbf{Availability ($A$)} & Is this a single point of failure? & Directed articulation score (raw + QoS-weighted), bridge ratio, CDI & DevOps/SRE: replicate host/broker \\
+\textbf{Maintainability ($M$)} & \textbf{Modularity/Modifiability} & How complex and coupled is this? & Betweenness, QoS-weighted out-degree, Code Penalty, clustering & Architect: refactor code, decouple \\
+\bottomrule
+\end{tabular}%
+}
 \end{table}
 
 \section{Generative Parameters of the Synthetic Corpus}

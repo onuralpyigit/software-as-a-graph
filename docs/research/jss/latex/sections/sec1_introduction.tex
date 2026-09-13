@@ -44,7 +44,7 @@ Figure~\ref{fig:1} illustrates the relationship between the two pathways. The pr
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\linewidth]{figures/Figure_1}
+\includegraphics[width=0.80\linewidth]{figures/Figure_1}
 \caption{End-to-end architecture of the SaG framework. The predictive pathway (Section~\ref{sec:4}) is the centre line: manifest ingestion $\to$ typed multigraph $\to$ QoS-weighted \texttt{DEPENDS\_ON} projection $\to$ typed node features $\to$ heterogeneous graph learning $\to$ a ranked critical set with per-relationship criticality $\to$ the ground-truth simulation oracle (Section~\ref{sec:4.3}) that scores it. The oracle closes the predictive pathway's training loop and runs on $G_{\text{structural}}$ alone; it is strictly offline and never part of inference (Section~\ref{sec:4.4}), as indicated by the dashed edge. The explanation layer (Section~\ref{sec:5}) branches off that line: it re-enters from the analysis multigraph, emits a standards-grounded quality profile from the same typed features while sharing no parameters with the predictor, and is reached by triage rather than by data flow.}
 \label{fig:1}
 \end{figure}
