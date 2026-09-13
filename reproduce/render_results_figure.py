@@ -276,18 +276,50 @@ def render(variants, oracles, jac, population, output: Path, dpi: int = 300):
     plt.close()
 
 
+def _find_default_loso_path() -> Path:
+    candidates = [
+        RESULTS_DIR / "loso_all_variants_v5.json",
+        RESULTS_DIR / "loso_all_variants_v4.json",
+        RESULTS_DIR / "loso_all_variants_v3.json",
+        RESULTS_DIR / "loso_all_variants_v2.json",
+        RESULTS_DIR / "loso_all_variants.json",
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    found = sorted(RESULTS_DIR.glob("loso_all_variants*.json"), reverse=True)
+    if found:
+        return found[0]
+    return RESULTS_DIR / "loso_all_variants_v5.json"
+
+
 def parse_args():
     p = argparse.ArgumentParser(description="Three-panel results figure (Figure 5)")
-    p.add_argument("--loso", type=Path, default=RESULTS_DIR / "loso_all_variants_v4.json")
+    p.add_argument(
+        "--loso", type=Path, default=None,
+        help="Path to LOSO results JSON (default: latest found in results/loso_all_variants*.json)",
+    )
     p.add_argument("--oracles", type=Path, default=RESULTS_DIR / "convergent_validity.json")
     p.add_argument("--output", type=Path, default=_DEFAULT_OUTPUT)
     p.add_argument("--dpi", type=int, default=300)
     return p.parse_args()
 
 
-def main():
+def main() -> int:
     args = parse_args()
-    variants, pop_a = _load_variants(args.loso)
+    loso_path = args.loso if args.loso is not None else _find_default_loso_path()
+
+    if not loso_path.exists():
+        print(f"Error: LOSO results file not found: {loso_path}", file=sys.stderr)
+        print("Run reproduce/loso_all_variants.py first to generate the artifact.", file=sys.stderr)
+        return 1
+
+    if not args.oracles.exists():
+        print(f"Error: Convergent validity results file not found: {args.oracles}", file=sys.stderr)
+        print("Run reproduce/convergent_validity.py first to generate the artifact.", file=sys.stderr)
+        return 1
+
+    variants, pop_a = _load_variants(loso_path)
     oracles, jac, pop_c = _load_oracles(args.oracles)
 
     # Both panels must describe the same population or the figure is comparing
@@ -296,14 +328,15 @@ def main():
         print(f"  WARNING: panels A/B are '{pop_a}' but panel C is '{pop_c}'; "
               f"these are different populations.")
 
-    print(f"Figure 5 from {args.loso} and {args.oracles} (population: {pop_a})")
+    print(f"Figure 5 from {loso_path} and {args.oracles} (population: {pop_a})")
     for r in sorted(variants, key=lambda r: -r["rho"]):
         print(f"  {r['label']:28s} rho={r['rho']:.4f}  F1@K={r['f1']:.4f}")
     for r in oracles:
         print(f"  {r['key']:16s} rho={r['rho']:.4f}")
 
     render(variants, oracles, jac, pop_a, args.output, dpi=args.dpi)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

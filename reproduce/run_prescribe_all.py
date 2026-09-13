@@ -40,6 +40,8 @@ def parse_args():
     p.add_argument("--scenarios", nargs="+", default=None,
                    help=f"Scenario filenames to run (default: all {len(SCENARIOS)}).")
     p.add_argument("--output", type=Path, default=Path("results/prescribe_all.json"))
+    p.add_argument("--mode", default="rm", choices=["rm", "gnn"],
+                   help="Predictor mode for risk scores used in policy compilation (default: 'rm').")
     p.add_argument("--resume", action="store_true",
                    help="Skip scenarios already present in --output and append to it. "
                         "The per-edit sweep is the expensive step here, so this matters for "
@@ -109,7 +111,7 @@ def main():
         # and 3 (node reallocation, QoS upgrade) silently never trigger.
         # DEEP_PIPELINE is excluded: it enumerates every simple source-to-
         # sink path and does not terminate in practical time at these scales.
-        prediction = client.predict(analysis, active_patterns=[
+        prediction = client.predict(analysis, mode=args.mode, active_patterns=[
             pid for pid in CATALOG if pid not in DEFAULT_EXCLUDED_PATTERNS
         ])
 
@@ -147,10 +149,14 @@ def main():
             "scenario": name,
             "file": filename,
             "original_sri": res.original_sri,
+            "baseline_sri": res.original_sri,
             "mutated_sri": res.mutated_sri,
+            "optimized_sri": res.mutated_sri,
             "sri_improvement": res.sri_improvement,
+            "delta_sri": res.sri_improvement,
             "n_candidate_edits": len(res.edit_verdicts),
             "n_accepted_edits": res.n_accepted,
+            "applied_operators": res.n_accepted,
             "n_rejected_edits": res.n_rejected,
             "mean_cascade_impact_reduction": mean_pct,
             "edit_verdicts": [v.to_dict() for v in res.edit_verdicts],

@@ -182,6 +182,8 @@ def _extract_via_return_attention_weights(
 def _load_scenario(scenario: str) -> Tuple[Any, Dict, Dict, Dict]:
     """Load graph + metrics from cache or raw scenario JSON."""
     from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
+    from reproduce.main_table import _parse_failure_impact, _parse_quality_scores, _remap_node_ids
+    from saag.prediction.data_preparation import extract_structural_metrics_dict
 
     json_path = _SCENARIOS / f"{scenario}.json"
     if not json_path.exists():
@@ -192,12 +194,23 @@ def _load_scenario(scenario: str) -> Tuple[Any, Dict, Dict, Dict]:
     cache = _LOSO_CACHE / scenario
     struct, sim, rm = {}, {}, {}
     if cache.exists():
-        for fname, d in [("structural_metrics.json", struct),
-                         ("failure_impact.json", sim),
-                         ("quality_scores.json", rm)]:
-            p = cache / fname
-            if p.exists():
-                d.update(json.loads(p.read_text()))
+        p_struct = cache / "structural_metrics.json"
+        if p_struct.exists():
+            struct = extract_structural_metrics_dict(json.loads(p_struct.read_text()))
+
+        p_sim = cache / "failure_impact.json"
+        if p_sim.exists():
+            sim_raw = json.loads(p_sim.read_text())
+            sim = _parse_failure_impact(sim_raw)
+
+        p_rm = cache / "quality_scores.json"
+        if p_rm.exists():
+            rm_raw = json.loads(p_rm.read_text())
+            rm = _parse_quality_scores(rm_raw)
+
+        graph_nodes = set(str(n) for n in g.nodes())
+        sim = _remap_node_ids(sim, graph_nodes)
+        rm = _remap_node_ids(rm, graph_nodes)
 
     return g, struct, sim, rm
 

@@ -1,6 +1,6 @@
-# Step 5: Simulate — Failure Simulation
+# Step 5: Simulate — Pre-Deployment Failure Simulation
 
-**Generates simulation-derived ground-truth impact $I(v)$ to train and validate predicted architectural criticality $Q(v)$, using discrete-event and graph cascade failure engines.**
+**Generates simulation-derived ground-truth impact metrics ($I^*(v)$, $I_{\text{comp}}(v)$, $I_{\text{dyn}}(v)$, $IM(v)$) to train, validate, and verify architectural criticality across the software lifecycle.**
 
 ← [Step 4: Diagnose](diagnosis.md) | → [Step 6: Validate](validation.md)
 
@@ -8,194 +8,227 @@
 
 ## Table of Contents
 
-1. [Overview & Simulation Philosophy](#1-overview--simulation-philosophy)
-2. [Simulation Architecture & Engine Taxonomy](#2-simulation-architecture--engine-taxonomy)
-   - 2.1 [Canonical Engine Roles & Responsibilities](#21-canonical-engine-roles--responsibilities)
-3. [Mode 1: Fault Injection (`FaultInjector`)](#3-mode-1-fault-injection-faultinjector)
-   - 3.1 [Dynamic Dependency Derivation](#31-dynamic-dependency-derivation)
-   - 3.2 [Wave-Based Cascade Algorithm](#32-wave-based-cascade-algorithm)
-   - 3.3 [Ground-Truth Impact Formulations ($I(v)$ vs. $I^*(v)$)](#33-ground-truth-impact-formulations-iv-vs-iv)
-   - 3.4 [Cascade Thresholds & Multi-Broker Semantics](#34-cascade-thresholds--multi-broker-semantics)
-   - 3.5 [Multi-Seed Stability & The `label_stability` Block](#35-multi-seed-stability--the-label_stability-block)
-4. [Mode 2: Structural Failure Simulation (`FailureSimulator`)](#4-mode-2-structural-failure-simulation-failuresimulator)
-   - 4.1 [Raw Structural Relationship Traversal](#41-raw-structural-relationship-traversal)
-   - 4.2 [Composite Impact Formulation ($I_{\text{comp}}(v)$)](#42-composite-impact-formulation-i_textcompv)
-   - 4.3 [Dimensional Sub-Metrics ($IR$, $IM$, $IA$, $IS$)](#43-dimensional-sub-metrics-ir-im-ia-is)
-   - 4.4 [Baseline Flow Priming & Flow Disruption](#44-baseline-flow-priming--flow-disruption)
-   - 4.5 [Remediation Verification & Validation Gating](#45-remediation-verification--validation-gating)
-5. [Mode 3: Message Flow Simulation (`MessageFlowSimulator`)](#5-mode-3-message-flow-simulation-messageflowsimulator)
-   - 5.1 [Discrete-Event SimPy Process Model](#51-discrete-event-simpy-process-model)
-   - 5.2 [Two-Level Fan-Out Queue Architecture](#52-two-level-fan-out-queue-architecture)
-   - 5.3 [Runtime QoS Contract Enforcement](#53-runtime-qos-contract-enforcement)
-   - 5.4 [Operating Point & Load Calibration ($\rho = 0.65$)](#54-operating-point--load-calibration-rho--065)
-   - 5.5 [Dynamic Behavioral Oracle ($I_{\text{dyn}}(v)$)](#55-dynamic-behavioral-oracle-i_textdynv)
-   - 5.6 [Secondary Diagnostics & Rejection of Multi-Metric Composite ($I_{\text{dyn}}^{\text{comp}}$)](#56-secondary-diagnostics--rejection-of-multi-metric-composite-i_textdyntextcomp)
-6. [Quality Model Alignment & Construct Grounding](#6-quality-model-alignment--construct-grounding)
-7. [Worked Examples: ATM & Autonomous Vehicle (AV)](#7-worked-examples-atm--autonomous-vehicle-av)
-   - 7.1 [Air Traffic Management (ATM) Scenario](#71-air-traffic-management-atm-scenario)
-   - 7.2 [Autonomous Vehicle (AV) Cyber-Physical System](#72-autonomous-vehicle-av-cyber-physical-system)
-8. [CLI Reference (`cli/simulate_graph.py`)](#8-cli-reference-clisimulate_graphpy)
-   - 8.1 [Shared Arguments](#81-shared-arguments)
-   - 8.2 [`fault-inject` Subcommand](#82-fault-inject-subcommand)
-   - 8.3 [`message-flow` Subcommand](#83-message-flow-subcommand)
-   - 8.4 [`combined` Subcommand](#84-combined-subcommand)
-9. [Output Schemas (`impact_scores.json` & `message_flow_results.json`)](#9-output-schemas-impact_scoresjson--message_flow_resultsjson)
-   - 9.1 [`impact_scores.json` (Fault Injection Ground Truth)](#91-impact_scoresjson-fault-injection-ground-truth)
-   - 9.2 [`message_flow_results.json` (Dynamic Discrete-Event Results)](#92-message_flow_resultsjson-dynamic-discrete-event-results)
-10. [Python API Usage](#10-python-api-usage)
-    - 10.1 [Running `FaultInjector` Programmatically](#101-running-faultinjector-programmatically)
-    - 10.2 [Running `FailureSimulator` Programmatically](#102-running-failuresimulator-programmatically)
-    - 10.3 [Running `MessageFlowSimulator` Programmatically](#103-running-messageflowsimulator-programmatically)
-11. [Known Limitations & Design Boundaries](#11-known-limitations--design-boundaries)
-12. [What Comes Next](#12-what-comes-next)
+1. [Overview & The Intuitive Mental Model](#1-overview-the-intuitive-mental-model)
+2. [The Four Simulation Engines at a Glance](#2-the-four-simulation-engines-at-a-glance)
+3. [Lifecycle Integration: Where Simulators Fit in SaG](#3-lifecycle-integration-where-simulators-fit-in-sag)
+4. [Engine 1: FaultInjector (Fast Cascade Reachability)](#4-engine-1-faultinjector-fast-cascade-reachability)
+   - 4.1 [Core Purpose & Intuition](#41-core-purpose-intuition)
+   - 4.2 [Step-by-Step Wave Algorithm](#42-step-by-step-wave-algorithm)
+   - 4.3 [Mathematical Formulation ($I^*(v)$)](#43-mathematical-formulation-iv)
+   - 4.4 [Multi-Broker Redundancy & Cascade Thresholds](#44-multi-broker-redundancy-cascade-thresholds)
+   - 4.5 [Multi-Seed Stability & Test-Retest Ceilings](#45-multi-seed-stability-test-retest-ceilings)
+5. [Engine 2: FailureSimulator (Multi-Layer Structural & Quality Impact)](#5-engine-2-failuresimulator-multi-layer-structural-quality-impact)
+   - 5.1 [Core Purpose & Intuition](#51-core-purpose-intuition)
+   - 5.2 [Multi-Layer Structural Traversal](#52-multi-layer-structural-traversal)
+   - 5.3 [Composite Impact Formulation ($I_{\text{comp}}(v)$)](#53-composite-impact-formulation-i_textcompv)
+   - 5.4 [ISO/IEC 25010 Quality Decompositions ($IR$, $IM$, $IA$, $IFT$)](#54-isoiec-25010-quality-decompositions-ir-im-ia-ift)
+   - 5.5 [Baseline Flow Priming & Flow Disruption](#55-baseline-flow-priming-flow-disruption)
+   - 5.6 [Role in Validation Gating & Prescriptive Verification](#56-role-in-validation-gating-prescriptive-verification)
+6. [Engine 3: MessageFlowSimulator (High-Fidelity Discrete-Event Queuing)](#6-engine-3-messageflowsimulator-high-fidelity-discrete-event-queuing)
+   - 6.1 [Core Purpose & Intuition](#61-core-purpose-intuition)
+   - 6.2 [SimPy Architecture: Queues, Contention & Processes](#62-simpy-architecture-queues-contention-processes)
+   - 6.3 [Runtime QoS Contract Enforcement](#63-runtime-qos-contract-enforcement)
+   - 6.4 [Load Calibration ($\rho = 0.65$) & Operating Points](#64-load-calibration-rho-065-operating-points)
+   - 6.5 [Dynamic Delivery Loss ($I_{\text{dyn}}(v)$)](#65-dynamic-delivery-loss-i_textdynv)
+   - 6.6 [The Contention-Relief Phenomenon (Why $I_{\text{dyn}}$ is 1-Dimensional)](#66-the-contention-relief-phenomenon-why-i_textdyn-is-1-dimensional)
+   - 6.7 [Role as an Offline Convergent-Validity Research Probe](#67-role-as-an-offline-convergent-validity-research-probe)
+7. [Engine 4: ChangePropagationSimulator (Maintainability Reference)](#7-engine-4-changepropagationsimulator-maintainability-reference)
+   - 7.1 [Core Purpose: Runtime Failure vs. Development-Time Change](#71-core-purpose-runtime-failure-vs-development-time-change)
+   - 7.2 [Transposed Graph Traversal ($G^\top$) & Stop Conditions](#72-transposed-graph-traversal-gtop--stop-conditions)
+   - 7.3 [Maintainability Impact ($IM(v)$)](#73-maintainability-impact-imv)
+8. [Quality Model Alignment (ISO/IEC 25010 & 25019)](#8-quality-model-alignment-isoiec-25010-25019)
+9. [Worked Examples](#9-worked-examples)
+   - 9.1 [Air Traffic Management (ATM) Walkthrough](#91-air-traffic-management-atm-walkthrough)
+   - 9.2 [Autonomous Vehicle (AV) Multi-Oracle Stratification](#92-autonomous-vehicle-av-multi-oracle-stratification)
+10. [CLI Reference (`cli/simulate_graph.py`)](#10-cli-reference-clisimulate_graphpy)
+    - 10.1 [General Options](#101-general-options)
+    - 10.2 [`fault-inject` Subcommand](#102-fault-inject-subcommand)
+    - 10.3 [`message-flow` Subcommand](#103-message-flow-subcommand)
+    - 10.4 [`combined` Subcommand](#104-combined-subcommand)
+11. [Output Schemas (`impact_scores.json` & `message_flow_results.json`)](#11-output-schemas-impact_scoresjson-message_flow_resultsjson)
+12. [Python API Quickstart](#12-python-api-quickstart)
+13. [Methodological Boundaries & Design Invariants](#13-methodological-boundaries-design-invariants)
+14. [What Comes Next](#14-what-comes-next)
 
 ---
 
-## 1. Overview & Simulation Philosophy
+## 1. Overview & The Intuitive Mental Model
 
-The Software-as-a-Graph (SaaG) framework predicts architectural component criticality **prior to deployment** using topological graph metrics ($Q(v)$). Because real runtime failure logs do not exist pre-deployment, the framework generates objective ground-truth impact labels ($I(v)$) through **pre-deployment failure simulations**.
+When developing distributed, event-driven architectures (such as ROS 2 robotics, microservice meshes, or financial trading backbones), identifying critical components and architectural bottlenecks is essential **before deployment**.
 
-```mermaid
-flowchart TD
-    G["Input Graph Topology<br>(data/scenarios/*.json)"] --> SIM["Step 5: Simulation Suite"]
-    
-    subgraph Mode1["Mode 1: Cascade Reachability (Fast Topology)"]
-        SIM --> FI["FaultInjector<br>(saag/simulation/fault_injector.py)"]
-        FI --> IMP["impact_scores.json<br>Ground-Truth Labels I*(v)"]
-    end
+In an already deployed production system, engineers analyze historic crash logs and distributed traces. However, **prior to deployment, no outage logs exist**. 
 
-    subgraph Mode2["Mode 2: Structural Failure (Multi-Dimensional)"]
-        SIM --> FS["FailureSimulator<br>(saag/simulation/failure_simulator.py)"]
-        FS --> FSR["ImpactMetrics<br>Composite I_comp + IR / IM / IA / IFT Sub-Metrics"]
-    end
+To solve this cold-start challenge, Software-as-a-Graph (SaG) performs **pre-deployment failure simulations**:
+1. We take an architectural graph manifest (nodes, topics, brokers, libraries, and QoS policies).
+2. We systematically simulate component crashes.
+3. We observe and measure how failure cascades ripple through the system.
+4. The observed damage becomes an objective, empirical **ground-truth impact score** used to train predictive models (such as GNNs) and evaluate architectural safety gates.
 
-    subgraph Mode3["Mode 3: Message Flow (Discrete-Event)"]
-        SIM --> MFS["MessageFlowSimulator<br>(saag/simulation/message_flow_simulator.py)"]
-        MFS --> MFR["message_flow_results.json<br>Timing, Queues, Latency & I_dyn(v)"]
-    end
-
-    subgraph Mode4["Mode 4: Change Propagation (Maintainability Reference)"]
-        SIM --> CPS["ChangePropagationSimulator<br>(saag/simulation/change_propagation.py)"]
-        CPS --> CPR["ChangePropagationResult<br>Change Reach & Depth IM(v)"]
-    end
-
-    IMP --> GNN["Step 3: GNN Training<br>(Supervised Training Target)"]
-    IMP --> VAL_CLI["Step 6: CLI Validation<br>(Spearman Correlation Gates)"]
-    FSR --> VAL_LIB["Step 6: Library Validation<br>(ValidationService 7 Quality Gates)"]
-    FSR --> PRE["Step 7: Prescribe Stage<br>(EditVerifier Counterfactual Verification)"]
-    MFR --> CONV["Research: Convergent Validity<br>(reproduce/convergent_validity.py)"]
-    CPR --> MAINT_REF["Step 6: Maintainability Reference<br>(Consistency Check on G^T)"]
+```
++---------------------+       Controlled       +-----------------------+
+| Architectural Graph |   Failure Simulation   |  Ground-Truth Impact  |
+|  (Pre-Deployment)   | ---------------------> |      Scores I(v)      |
++---------------------+                        +-----------------------+
+                                                           |
+                                                           v
+                                            Used to train GNNs & validate
+                                            architectural resilience gates
 ```
 
 > [!IMPORTANT]
-> **Simulation Never Reads Derived Edges**: All simulation modes operate strictly on raw structural multi-graph topology ($G_{\text{structural}}$), completely isolated from derived logical dependencies (`DEPENDS_ON`), preserving the formal input-label independence guarantee.
+> **The Input–Label Independence Guarantee**:
+> All simulation engines operate strictly on the **raw structural multigraph** ($G_{\text{structural}}$). They never read the derived logical dependencies (`DEPENDS_ON`) that predictive and explanatory algorithms consume. This architectural barrier prevents circular logic and data leakage.
 
 ---
 
-## 2. Simulation Architecture & Engine Taxonomy
+## 2. The Four Simulation Engines at a Glance
 
-The `saag/simulation/` package provides four specialized simulation engines:
+Why does SaG provide **four distinct simulation engines** instead of just one?
 
-```mermaid
-flowchart LR
-    subgraph PredictStage["1. Predict Stage (Training Labels)"]
-        FI["FaultInjector<br>(Raw NetworkX Graph)"] --> LBL["impact_scores.json<br>Deterministic Multi-Seed Labels I*(v)"]
-    end
+Because answering different engineering questions requires different tradeoffs between **computational speed**, **granularity**, and **fidelity**. An engine fast enough to generate training labels across thousands of nodes cannot simulate microsecond packet queues; conversely, a high-fidelity discrete-event queuing engine is too computationally heavy for exhaustive training sweeps.
 
-    subgraph ValidateStage["2. Validate Stage (Evaluation Oracle)"]
-        FS["FailureSimulator<br>(SimulationGraph Stack)"] --> ORC["ImpactMetrics<br>Composite I_comp + IR/IM Decompositions"]
-    end
+The following table summarizes the four specialized engines:
 
-    subgraph DynamicStage["3. Runtime Flow Stage (Behavioral Oracle)"]
-        MFS["MessageFlowSimulator<br>(SimPy Discrete-Event)"] --> DYN["message_flow_results.json<br>Delivery Rates, Latencies & I_dyn(v)"]
-    end
-
-    subgraph MaintainabilityStage["4. Maintainability Reference"]
-        CPS["ChangePropagationSimulator<br>(Transposed G^T BFS)"] --> CPR_OUT["IM(v) Maintainability Reference"]
-    end
-```
-
-### 2.1 Canonical Engine Roles & Responsibilities
-
-| Engine | Canonical Scope | Primary Output | Consumed By |
-|:---|:---|:---|:---|
-| **`FaultInjector`** | **Predict Stage** (Supervised labels) & **CLI Validation** | `impact_scores.json` $\to I^*(v)$ scalar | GNN training (`cli/train_graph.py`), $k$-fold & LOSO evaluations, CLI validation |
-| **`FailureSimulator`** | **Validate Stage** (Quality oracle) & **Prescribe Stage** | `ImpactMetrics` $\to$ Composite $I_{\text{comp}}(v) + IR/IM/IA/IFT$ | Validation gates (`saag/validation/service.py`), `EditVerifier` remediation verification |
-| **`MessageFlowSimulator`** | **Dynamic Runtime Flow** (Behavioral oracle) | `message_flow_results.json` $\to I_{\text{dyn}}(v)$ | Convergent validity analysis (`reproduce/convergent_validity.py`) |
-| **`ChangePropagationSimulator`** | **Maintainability Reference** | `ChangePropagationResult` $\to IM(v)$ | Internal structural consistency check on $G^\top$ |
-
-> [!CAUTION]
-> **Never mix engines within the same stage**: `FaultInjector` outputs variance-tracked training labels ($I^*$); `FailureSimulator` provides multi-dimensional decompositions ($I_{\text{comp}}$). They are maintained separately by contract ([`tests/test_groundtruth_contract.py`](../tests/test_groundtruth_contract.py)).
-
+| Simulator Engine | Core Engineering Question | Underlying Paradigm | Primary Metric Output | Speed / Complexity | Primary Role in SaG |
+|:---|:---|:---|:---|:---|:---|
+| **`FaultInjector`** | *"If a publisher or broker dies, which downstream subscribers lose their data feeds?"* | Graph cascade reachability ($O(V+E)$) | **$I^*(v)$**: Continuous subscriber feed-loss fraction | **Fast** (~10 ms/node) | **Predict Stage**: Ground-truth labels for GNN training.<br>**Validate Stage**: CLI benchmark gate ($\rho \ge 0.70$). |
+| **`FailureSimulator`** | *"What is the structural damage across physical hosts, network links, brokers, and shared libraries?"* | Multi-layer structural graph traversal | **$I_{\text{comp}}(v)$**: AHP composite structural loss ($IR, IM, IA, IFT$) | **Moderate** (~50 ms/node) | **Validate Stage**: `ValidationService` 7 quality gates.<br>**Prescribe Stage**: `EditVerifier` counterfactual mutation sweeps. |
+| **`MessageFlowSimulator`** | *"How do message queues, packet drops, and deadlines behave under real-time DDS traffic and QoS contracts?"* | Discrete-event queuing simulation (SimPy) | **$I_{\text{dyn}}(v)$**: Dynamic traffic delivery rate drop | **Detailed** (~5–30 s/node) | **Research Probe**: Inter-oracle convergent validity analysis (JSS Table 13). |
+| **`ChangePropagationSimulator`** | *"If an engineer modifies an interface, how far does the change ripple upstream across the dependency graph?"* | Transposed dependency BFS on $G^\top$ with stop conditions | **$IM(v)$**: Development-time maintainability blast radius | **Instant** (<5 ms/node) | **Maintainability Reference**: Consistency checks for software evolution risk. |
 
 ---
 
-## 3. Mode 1: Fault Injection (`FaultInjector`)
+## 3. Lifecycle Integration: Where Simulators Fit in SaG
 
-### 3.1 Dynamic Dependency Derivation
-
-Before running failure cascades, `FaultInjector` builds an $O(1)$ pub-sub index and automatically derives missing `DEPENDS_ON` edges:
-1. **App-to-App (`app_to_app`)**: If Application $A_{\text{sub}}$ subscribes to Topic $T$ published by Application $A_{\text{pub}}$, a dependency $A_{\text{sub}} \xrightarrow{\text{DEPENDS\_ON}} A_{\text{pub}}$ is derived with inherited QoS attributes.
-2. **App-to-Library (`app_to_lib`)**: If Application $A$ uses Library $L$ (via `USES`), a dependency $A \xrightarrow{\text{DEPENDS\_ON}} L$ is derived with `weight = 1.0`.
-
-### 3.2 Wave-Based Cascade Algorithm
-
-Failure propagation executes in iterative breadth-first waves ($W_0, W_1, W_2, \dots$), starting with the injected candidate node $v \in W_0$:
+The SaG framework strictly decouples simulation engines across the architectural lifecycle:
 
 ```mermaid
 flowchart TD
-    W0["Wave 0: Injected Node v Fails"] --> PA["Phase A: Direct DEPENDS_ON Propagation<br>(app_to_lib: prob = 1.0; app_to_app: prob = 0.0)"]
-    PA --> PB["Phase B: Topic-Mediated Feed Loss<br>(Continuous publisher & router loss L(t))"]
-    PB --> STOCH["Stochastic Subscriber Cascade<br>P_fail(s) = (sub_loss / threshold) · depth_damp"]
-    STOCH -->|Next Wave Frontier| W1["Wave 1+: Cascaded Failures"]
+    G["Input Architectural Graph<br>(Components, Topics, Brokers, Libraries, QoS)"] --> SIM_SUITE["Step 5: Simulation Suite"]
+
+    subgraph FastLabels["1. Fast Topological Cascades"]
+        SIM_SUITE --> FI["FaultInjector<br>(saag/simulation/fault_injector.py)"]
+        FI --> LBL["impact_scores.json<br>Ground-Truth Labels I*(v)"]
+    end
+
+    subgraph MultiLayer["2. Multi-Layer Structural Cascades"]
+        SIM_SUITE --> FS["FailureSimulator<br>(saag/simulation/failure_simulator.py)"]
+        FS --> COMP["ImpactMetrics<br>Composite I_comp + IR / IM / IA / IFT"]
+    end
+
+    subgraph DiscreteEvent["3. Discrete-Event Traffic Simulation"]
+        SIM_SUITE --> MFS["MessageFlowSimulator<br>(saag/simulation/message_flow_simulator.py)"]
+        MFS --> DYN["message_flow_results.json<br>Delivery Rates, Queues & I_dyn(v)"]
+    end
+
+    subgraph Maintainability["4. Software Evolution Reference"]
+        SIM_SUITE --> CPS["ChangePropagationSimulator<br>(saag/simulation/change_propagation.py)"]
+        CPS --> MAINT["ChangePropagationResult<br>Change Reach & Depth IM(v)"]
+    end
+
+    LBL --> PREDICT["Predict Stage (Step 3)<br>Supervised GNN Training Target"]
+    LBL --> VAL_CLI["Validate Stage (Step 6 - CLI)<br>Spearman Rank Correlation Benchmark (ρ ≥ 0.70)"]
+    COMP --> VAL_LIB["Validate Stage (Step 6 - Library)<br>ValidationService (7 Structural Quality Gates)"]
+    COMP --> PRESCRIBE["Prescribe Stage (Step 7)<br>EditVerifier (Counterfactual Refactoring Sweeps)"]
+    DYN --> CONV_VAL["Offline Research Probe<br>Inter-Oracle Convergent Validity (JSS Table 13)"]
+    MAINT --> MAINT_REF["Maintainability Reference<br>Evolutionary Coupling & Ripple Verification"]
 ```
 
-#### Phase A: Direct Dependency Propagation
-- If an edge $(u, v_{\text{failed}})$ is typed `app_to_lib`, dependent $u$ fails deterministically ($\text{prob} = 1.0$).
-- `app_to_app` dependencies are resolved via pub-sub feed loss in Phase B ($\text{prob} = 0.0$ in Phase A).
-
-#### Phase B: Continuous Topic Feed Loss & Subscriber Cascading
-1. **Topic Feed Loss ($L(t) \in [0, 1]$)**:
-   - For topics with publishers:
-     $$L(t) = \min\left(1.0, \; \frac{\sum_{p \in \text{failed}(t)} \text{rate}(p, t)}{\sum_{p \in \text{all}(t)} \text{rate}(p, t)} \times \text{QoS\_factor}(t)\right)$$
-   - For topics routed solely by brokers:
-     $$L(t) = \min\left(1.0, \; \frac{|\text{failed\_routers}(t)|}{|\text{all\_routers}(t)|} \times \text{QoS\_factor}(t)\right)$$
-2. **Average Subscriber Feed Loss ($\text{sub\_loss}(s)$)**:
-   $$\text{sub\_loss}(s) = \frac{\sum_{t \in \text{subs}(s)} L(t)}{|\text{subs}(s)|}$$
-3. **Stochastic Cascade Probability ($P_{\text{fail}}(s)$)**:
-   If $\text{sub\_loss}(s) \ge \text{propagation\_threshold}$:
-   $$P_{\text{fail}}(s) = \min\left(1.0, \; \frac{\text{sub\_loss}(s)}{\text{propagation\_threshold}}\right) \times \text{depth\_damp}$$
-   $$\text{depth\_damp} = \max(0.25, \; 1.0 - \text{wave\_idx} \times 0.15)$$
+### Stage Summary
+1. **Predict Stage**: `FaultInjector` produces $I^*(v)$ labels used by GNNs (`HGT-QoS`, `GAT`, `Topo-QoS`) to learn relational failure patterns.
+2. **Validate Stage**:
+   - **Library Pathway (`ValidationService`)**: Uses `FailureSimulator` to verify 7 fixed quality gates checking structural blast-radius bounds.
+   - **CLI Benchmark Pathway (`cli/validate_graph.py`)**: Uses `FaultInjector` to evaluate model ranking ($\rho \ge 0.70$) and Top-$K$ critical component identification ($F_1@K$).
+3. **Prescribe Stage**: `FailureSimulator` powers `EditVerifier` counterfactual mutation sweeps, ensuring proposed refactoring edits achieve net risk reduction ($\Delta I_{\text{comp}} > 0, \Delta \text{SRI} > 0$) without triggering secondary regressions.
+4. **Explain Stage**: Deterministic structural analysis (`DiagnosticUseCase`) with **strictly zero simulation access**, adhering to the input–label independence guarantee.
+5. **Offline Research Probe**: `MessageFlowSimulator` evaluates inter-oracle convergent validity ($I_{\text{dyn}}$ vs $I^*$, JSS Table 13), confirming that static topological risk correlates with runtime discrete-event message loss.
 
 ---
 
-### 3.3 Ground-Truth Impact Formulations ($I(v)$ vs. $I^*(v)$)
+## 4. Engine 1: FaultInjector (Fast Cascade Reachability)
 
-1. **`FaultInjector` Scalar Impact ($I^*(v)$)**:
-   $$I^*(v) = \frac{\sum_{s \in \text{all\_subscribers}} \text{sub\_loss}(s)}{|\text{all\_subscribers}|}$$
-   Averaged across multi-seed executions to yield the canonical supervised training target $\overline{I^*(v)}$ with associated standard deviation $\sigma(v)$.
+### 4.1 Core Purpose & Intuition
 
----
+The **`FaultInjector`** is the primary workhorse for generating machine learning ground-truth labels ($I^*(v)$). 
 
-### 3.4 Cascade Thresholds & Multi-Broker Semantics
+**Intuition**: Imagine a network of distributed microservices communicating via publish-subscribe topics. When service $A$ fails, it stops publishing to topic $T$. All services subscribed to $T$ lose that incoming data feed. If a subscriber depends heavily on that feed, it may also fail, triggering a cascade that starves further downstream services.
 
-- **Propagation Threshold (`--propagation-threshold`)**: Controls cascade sensitivity:
-  - `0.2` (Default): Aggressive; subscriber cascades when losing $\ge 20\%$ of average feed.
-  - `0.5`: Moderate; models multi-input dependencies (e.g., ATM `ConflictDetector` requiring both radar and track feeds).
-  - `1.0`: Conservative; subscriber only cascades upon 100% total feed starvation.
-- **Multi-Broker Redundancy**: If a topic is routed across $k$ redundant brokers, failing 1 broker results in continuous loss $L(t) = 1/k$, preventing unrealistic binary all-or-nothing drops.
+`FaultInjector` executes an $O(V+E)$ breadth-first search (BFS) cascade to trace exactly how far feed starvation spreads.
 
----
+```
+[ Injected Failure: Publisher A ]
+               │
+               ▼ stops publishing
+       [ Topic T1 ]
+               │
+               ▼ feed lost
+      [ Subscriber B ]  ───(loses >20% feed)───► [ Subscriber B Crashes ]
+                                                          │
+                                                          ▼ stops publishing
+                                                  [ Topic T2 ]
+                                                          │
+                                                          ▼ feed lost
+                                                 [ Subscriber C ]
+```
 
-### 3.5 Multi-Seed Stability & The `label_stability` Block
+### 4.2 Step-by-Step Wave Algorithm
 
-Cascade evaluation is executed across $N$ seeds (default: $\{42, 123, 456, 789, 2024\}$). The mean impact $\overline{I^*(v)}$ and standard deviation $\sigma(v)$ are recorded alongside a dataset-wide stability block:
+The simulation begins with an injected candidate node $v$ and propagates in iterative waves ($W_0, W_1, W_2, \dots$):
+
+```mermaid
+flowchart TD
+    W0["Wave 0: Injected Component v Fails"] --> PA["Phase A: Direct Dependency Propagation<br>(Library USES: deterministic failure, prob = 1.0)"]
+    PA --> PB["Phase B: Topic Feed Loss Calculation<br>(Continuous publisher & router loss fraction L(t))"]
+    PB --> EVAL["Subscriber Starvation Evaluation<br>(sub_loss ≥ propagation_threshold?)"]
+    EVAL -- No --> STOP["Subscriber Survives<br>(Partial feed degradation recorded)"]
+    EVAL -- Yes --> PROB["Stochastic Failure Check<br>P_fail = min(1.0, sub_loss / threshold) × depth_damp"]
+    PROB -- Fails --> W1["Wave 1+: Cascaded Failure Added to Frontier"]
+    PROB -- Survives --> STOP
+```
+
+1. **Wave 0 (Direct Failure)**: Component $v$ is marked as failed and removed from the active topology.
+2. **Phase A (Direct Library Dependencies)**: If an application depends on a failed `Library` (`app_to_lib`), that application crashes deterministically ($\text{probability} = 1.0$), because software cannot run without its runtime libraries.
+3. **Phase B (Topic-Mediated Feed Loss)**:
+   - For every topic $t$, we compute its continuous feed loss $L(t) \in [0, 1]$ based on what fraction of its publishers and routing brokers are down:
+     $$L(t) = \max\left(\text{Publisher Loss}(t), \; \text{Router Loss}(t)\right) \times \text{QoS\_factor}(t)$$
+   - A subscriber $s$ calculates its average feed loss across all incoming topics:
+     $$\text{sub\_loss}(s) = \frac{\sum_{t \in \text{subs}(s)} L(t)}{|\text{subs}(s)|}$$
+4. **Stochastic Cascade & Depth Damping**:
+   - If $\text{sub\_loss}(s) \ge \text{propagation\_threshold}$ (default: `0.20`), the subscriber has a probability of cascading:
+     $$P_{\text{fail}}(s) = \min\left(1.0, \; \frac{\text{sub\_loss}(s)}{\text{propagation\_threshold}}\right) \times \text{depth\_damp}$$
+     $$\text{depth\_damp} = \max(0.25, \; 1.0 - \text{wave\_idx} \times 0.15)$$
+   - Depth damping prevents runaway artificial cascades in deep graphs by decreasing cascade likelihood at each successive wave.
+5. **Termination**: The algorithm repeats wave by wave until no new nodes fail or the depth limit is reached.
+
+### 4.3 Mathematical Formulation ($I^*(v)$)
+
+The ground-truth impact score $I^*(v)$ is defined as the **mean continuous feed loss inflicted across all subscribers in the system**:
+
+$$I^*(v) = \frac{\sum_{s \in \text{All Subscribers}} \text{sub\_loss}(s)}{|\text{All Subscribers}|}$$
+
+- If failing $v$ causes no feed loss anywhere, $I^*(v) = 0.0$.
+- If failing $v$ starves 100% of all feeds for every subscriber, $I^*(v) = 1.0$.
+- By measuring continuous feed loss rather than just a binary count of dead nodes, $I^*(v)$ captures partial operational degradation smoothly.
+
+### 4.4 Multi-Broker Redundancy & Cascade Thresholds
+
+- **Multi-Broker Redundancy**: If a topic is routed across $k$ redundant brokers, failing 1 broker results in fractional router loss:
+  $$\text{Router Loss}(t) = \frac{1}{k}$$
+  If $k=2$, losing one broker reduces feed by 50% rather than causing a 100% total collapse.
+- **Cascade Threshold (`--propagation-threshold`)**:
+  - `0.2` (Default): Realistic sensitivity; a service losing $\ge 20\%$ of its incoming data streams risks functional failure.
+  - `0.5`: Moderate tolerance; suitable for multi-sensor fusion systems where losing 1 out of 2 feeds causes degradation but not immediate shutdown.
+  - `1.0`: Extreme tolerance; a service only cascades if 100% of all its feeds are completely severed.
+
+### 4.5 Multi-Seed Stability & Test-Retest Ceilings
+
+Because cascade propagation includes stochastic tie-breaking and probabilistic cascading, `FaultInjector` executes across **5 random seeds** (default: `{42, 123, 456, 789, 2024}`).
+
+The reported ground-truth impact $\overline{I^*(v)}$ is the arithmetic mean across all seeds, recorded with its standard deviation $\sigma(v)$. Every generated artifact includes a dataset-wide stability block:
 
 ```json
 "label_stability": {
   "n_seeds": 5,
-  "n_nodes": 39,
-  "k_frac": 0.20,
   "mean_std": 0.0267,
   "max_std": 0.1856,
   "test_retest_spearman": 0.9802,
@@ -203,282 +236,393 @@ Cascade evaluation is executed across $N$ seeds (default: $\{42, 123, 456, 789, 
 }
 ```
 
-- **`test_retest_spearman`**: The minimum pairwise rank correlation across all seed pairs (establishes the theoretical correlation ceiling for $Q(v)$).
-- **`topk_jaccard`**: The minimum pairwise overlap of top-$K$ critical components across seeds.
+- **`test_retest_spearman` ($\ge 0.98$)**: The minimum pairwise rank correlation across any two seeds. This proves that the ground-truth ordering is stable and reproducible, establishing the theoretical upper performance bound for any predictive model.
+- **`topk_jaccard` ($\ge 0.60$)**: The overlap of the top 20% most critical components between seed runs.
 
 ---
 
-## 4. Mode 2: Structural Failure Simulation (`FailureSimulator`)
+## 5. Engine 2: FailureSimulator (Multi-Layer Structural & Quality Impact)
 
-The **`FailureSimulator`** (`saag/simulation/failure_simulator.py`) is the canonical **Validate-stage oracle**. Unlike `FaultInjector`, which derives application dependencies and computes scalar cascade labels for training, `FailureSimulator` traverses the raw structural relationships of the `SimulationGraph` across physical, logical, network, and library pathways to produce multi-dimensional ISO/IEC 25010 construct decompositions.
+### 5.1 Core Purpose & Intuition
 
-### 4.1 Raw Structural Relationship Traversal
+While `FaultInjector` focuses on pub-sub feed loss for machine learning labels, **`FailureSimulator`** evaluates the **entire physical, network, logical, and software architecture as an integrated multi-layer system**.
 
-`FailureSimulator` evaluates multi-layer physical and logical cascades directly:
-- **Physical Cascades (`RUNS_ON`)**: When a host compute node (`Node`) fails, all hosted components (`Application`, `Broker`) immediately fail.
-- **Logical Cascades (`PUBLISHES_TO`, `SUBSCRIBES_TO`)**: Failing a message broker partitions routed topics; failing a publisher leads to subscriber starvation.
-- **Network Cascades (`CONNECTS_TO`)**: Partitions network links between brokers and distributed endpoints.
-- **Library Cascades (`USES`)**: When a shared library (`Library`) fails, all dependent applications crash.
+**Intuition**: Real distributed systems do not fail in the application layer alone. An ECU host processor can overheat, a network link can drop, a message broker can crash, or a shared library can fail. `FailureSimulator` traces failures across all four architectural planes to compute multi-dimensional ISO/IEC 25010 quality impact.
 
-### 4.2 Composite Impact Formulation ($I_{\text{comp}}(v)$)
+```
+[ Physical Layer ]     Host Compute Node (ECU) fails
+                              │ (RUNS_ON)
+                              ▼
+[ Middleware Layer ]   Message Broker crashes
+                              │ (ROUTES)
+                              ▼
+[ Logical Layer ]      Topics become unreachable, subscribers starve
+                              │
+[ Software Layer ]     Shared Library fails ──(USES)──► Application crashes
+```
 
-Component failure impact $I_{\text{comp}}(v)$ is computed as an AHP-weighted composite of four structural degradation dimensions:
+### 5.2 Multi-Layer Structural Traversal
 
-$$I_{\text{comp}}(v) = 0.35 \cdot \text{reachability\_loss} + 0.25 \cdot \text{fragmentation} + 0.25 \cdot \text{throughput\_loss} + 0.15 \cdot \text{flow\_disruption}$$
+`FailureSimulator` models four distinct cascade pathways on the `SimulationGraph`:
+1. **Physical Cascades (`RUNS_ON`)**: When a compute host (`Node`) fails, all applications and brokers hosted on that machine immediately crash.
+2. **Network Cascades (`CONNECTS_TO`)**: When network links fail, communication between distributed brokers is partitioned.
+3. **Logical Cascades (`PUBLISHES_TO`, `SUBSCRIBES_TO`, `ROUTES`)**: When a broker crashes, its routed topics are orphaned; when a publisher crashes, subscriber paths are severed.
+4. **Software Library Cascades (`USES`)**: When a shared library (`Library`) fails, all applications that import or link to that library crash.
 
-Where each term is weighted by operational severity $s(t) = w(t) \cdot \text{rate}(t)$:
-1. **Reachability Loss**: Fraction of publisher-subscriber communication paths severed by the failure.
-2. **Infrastructure Fragmentation**: Connectivity disruption across the graph, split between structural component count (70%) and stranded QoS message mass (30%).
-3. **Throughput Loss**: QoS-weighted reduction in delivered message bandwidth across all active topics.
-4. **Flow Disruption**: Disruption to end-to-end active communication flows compared to an unperturbed baseline.
+### 5.3 Composite Impact Formulation ($I_{\text{comp}}(v)$)
+
+`FailureSimulator` computes an overall composite damage score $I_{\text{comp}}(v) \in [0, 1]$ using Analytic Hierarchy Process (AHP) weights over four fundamental structural degradation criteria:
+
+$$I_{\text{comp}}(v) = 0.35 \cdot \text{Reachability Loss} + 0.25 \cdot \text{Fragmentation} + 0.25 \cdot \text{Throughput Loss} + 0.15 \cdot \text{Flow Disruption}$$
+
+Each term captures a distinct physical or operational dimension:
+1. **Reachability Loss (35%)**: The fraction of end-to-end publisher-to-subscriber communication paths that are severed by the failure.
+2. **Infrastructure Fragmentation (25%)**: How severely the failure splits the system into disconnected graph components (split 70% by component count and 30% by stranded QoS message volume).
+3. **Throughput Loss (25%)**: The total QoS-weighted message bandwidth (messages/second) lost across all active topics.
+4. **Flow Disruption (15%)**: The fraction of end-to-end active communication flows broken compared to an unperturbed baseline.
+
+### 5.4 ISO/IEC 25010 Quality Decompositions ($IR$, $IM$, $IA$, $IFT$)
+
+In addition to composite impact, `FailureSimulator` provides specific quality attribute decompositions matching ISO/IEC 25010:
+
+- **$IFT(v)$ (Fault-Tolerance Impact)**: Directly measures dynamic cascade propagation:
+  $$IFT(v) = 0.45 \cdot \text{Cascade Reach} + 0.35 \cdot \text{Weighted Cascade Impact} + 0.20 \cdot \text{Normalized Depth}$$
+- **$IA(v)$ (Availability Impact)**: Evaluates infrastructure partition severity and stranded capacity:
+  $$IA(v) = 0.50 \cdot \text{Weighted Reachability Loss} + 0.35 \cdot \text{Weighted Fragmentation} + 0.15 \cdot \text{Path-Breaking Throughput Loss}$$
+- **$IR(v)$ (Reliability Impact)**: The balanced blend of Fault-Tolerance and Availability:
+  $$IR(v) = r_\alpha \cdot IFT(v) + (1 - r_\alpha) \cdot IA(v)$$
+- **$IM(v)$ (Maintainability Impact)**: Evaluates architectural blast radius and ripple effects, populated via `ChangePropagationSimulator`.
 
 > [!NOTE]
-> **AHP Weight Derivation**: The weights $(0.35, 0.25, 0.25, 0.15)$ derive from an Analytic Hierarchy Process Saaty pairwise comparison matrix over the four impact criteria, regularized via shrinkage ($\lambda = 0.7$) toward a uniform prior.
+> **No Security Dimension ($IS$)**:
+> SaG focuses strictly on reliability, dependability, and maintainability. A hypothetical security metric ($IS$) is not present in the framework or ISO-RM implementation.
 
-### 4.3 Dimensional Sub-Metrics ($IR$, $IM$, $IA$, $IS$)
+### 5.5 Baseline Flow Priming & Flow Disruption
 
-In addition to composite impact, `FailureSimulator` decomposes failure effects into ISO/IEC 25010 quality characteristics:
-- **$IR(v)$ (Reliability Impact)**: Combines path reachability loss and throughput degradation.
-- **$IM(v)$ (Maintainability Impact)**: Measures architectural blast radius over derived dependency fan-in and fan-out structures.
-- **$IA(v)$ (Availability Impact)**: Evaluates infrastructure partition count and stranded QoS capacity.
-- **$IS(v)$ (Security Impact)**: Evaluates exposed attack surface and compromised credential propagation.
-
-### 4.4 Baseline Flow Priming & Flow Disruption
-
-The flow disruption term (15% of $I_{\text{comp}}$) compares post-failure flow paths against an unperturbed baseline. Before running exhaustive failure sweeps, the baseline flows must be primed via:
+The **Flow Disruption** term (15% of $I_{\text{comp}}$) compares post-failure message paths against an unperturbed baseline. Before running failure sweeps, baseline flows must be primed:
 
 ```python
-SimulationService._prime_baseline_flows(graph, sim)
+SimulationService._prime_baseline_flows(sim_graph, failure_sim)
 ```
 
-Priming executes deterministically with zero stochastic drop probabilities, ensuring that flow disruption measures architectural vulnerability rather than RNG variance.
+Priming executes deterministically without random drops, ensuring that flow disruption measures genuine structural vulnerability rather than random noise.
 
-### 4.5 Remediation Verification & Validation Gating
+### 5.6 Role in Validation Gating & Prescriptive Verification
 
-`FailureSimulator` is consumed downstream by:
-- **Validation Gates G1–G8** (`saag/validation/service.py`): Checks predicted criticality against simulated structural loss.
-- **Remediation Acceptance** (`saag/prescription/evaluator.py`): The `EditVerifier` sweeps candidate graph refactorings against `FailureSimulator.simulate_exhaustive` to verify that proposed repairs strictly decrease $I_{\text{comp}}$ without causing regressions.
+`FailureSimulator` is consumed downstream in two critical stages:
+1. **Validate Stage (`ValidationService`)**: Evaluates 7 fixed structural quality gates (G1–G7) ensuring that critical components do not exceed acceptable reachability, throughput, or cascade thresholds.
+2. **Prescribe Stage (`EditVerifier`)**: When automated refactoring generates candidate architectural repairs, `EditVerifier` runs counterfactual failure simulations using `FailureSimulator` to verify that proposed changes achieve net risk reduction ($\Delta I_{\text{comp}} > 0, \Delta \text{SRI} > 0$) without introducing secondary cascade regressions.
 
 ---
 
-## 5. Mode 3: Message Flow Simulation (`MessageFlowSimulator`)
+## 6. Engine 3: MessageFlowSimulator (High-Fidelity Discrete-Event Queuing)
 
-### 5.1 Discrete-Event SimPy Process Model
+### 6.1 Core Purpose & Intuition
 
-Built on **SimPy**, this engine models runtime message exchanges, queue occupancies, and timing latencies:
+Static graph models evaluate connectivity, but they do not model **time**, **queue buffers**, or **message traffic rates**.
 
-```mermaid
-flowchart LR
-    Pub["Publisher Process<br>(Periodic or Poisson rate_hz)"] --> Fanout["TopicFanout Manager"]
-    Fanout --> SQ1["SubscriberQueue 1<br>(SimPy Store)"]
-    Fanout --> SQ2["SubscriberQueue 2<br>(SimPy Store)"]
-    SQ1 --> Sub1["Subscriber Process 1<br>(ServiceStation + QoS Check)"]
-    SQ2 --> Sub2["Subscriber Process 2<br>(ServiceStation + QoS Check)"]
-    Fault["Fault Process<br>(Triggers at fault_time)"] -.->|failed_nodes set| Pub
-    Fault -.->|failed_nodes set| Sub1
+**Intuition**: Consider an autonomous vehicle with an obstacle detection topic running at 50 Hz. Even if the network graph is intact, if a subscriber's input queue fills up, new obstacle messages will be dropped or delayed past their 20 ms deadline. 
+
+**`MessageFlowSimulator`** is a high-fidelity discrete-event simulator built on **SimPy**. It simulates a running virtual clock where publishers emit messages at specific frequencies, queues accumulate packets, and subscribers process messages subject to DDS QoS contracts.
+
+```
+[ Publisher Process ] ──(50 Hz)──► [ Topic Fanout ]
+                                           │
+                      ┌────────────────────┴────────────────────┐
+                      ▼                                         ▼
+            [ Subscriber 1 Queue ]                    [ Subscriber 2 Queue ]
+              (history_depth = 10)                      (history_depth = 5)
+                      │                                         │
+                      ▼                                         ▼
+            [ Subscriber 1 Server ]                   [ Subscriber 2 Server ]
+             (Service Rate μ = 65 Hz)                  (Service Rate μ = 65 Hz)
 ```
 
-### 5.2 Two-Level Fan-Out Queue Architecture
+### 6.2 SimPy Architecture: Queues, Contention & Processes
 
-To preserve true pub-sub semantics, `TopicFanout` maintains private `SubscriberQueue` instances for each subscriber, so one topic's backlog cannot block another's at the *queue* (BUG-MFS-1).
+To model distributed messaging accurately, the engine enforces two architectural design rules:
 
-Each subscriber's *compute*, by contrast, is deliberately shared: every topic a subscriber reads queues for the same `ServiceStation`. This is not a regression of BUG-MFS-1 — a blocked low-priority topic accumulates in its own bounded queue rather than stalling a high-priority one — but it is the engine's only contended resource, and without it nothing in the simulation ever waits for anything else. The earlier design spawned one server per `SUBSCRIBES_TO` edge, which left utilization below ~0.2 on every corpus scenario; no QoS contract was ever binding, fault-free delivery was exactly 1.0000 everywhere, and `transport_priority` had nowhere to apply. See §5.4.
+1. **Per-Subscriber Private Queues**:
+   Each subscriber gets an independent FIFO queue for each topic it reads. This prevents **cross-topic head-of-line blocking**: a high-volume sensor stream cannot monopolize or block the queue of a high-priority emergency stop topic.
+2. **Shared Compute ServiceStation**:
+   While input queues are separate, each subscriber application processes incoming messages through a single shared `ServiceStation` (representing its CPU/worker thread capacity). This creates realistic resource contention when multiple topics deliver messages simultaneously.
 
-System delivery rate is normalized by total subscriber demand:
+### 6.3 Runtime QoS Contract Enforcement
 
-$$\text{Delivery Rate} = \frac{\text{Total Messages Delivered}}{\sum_{t \in \text{Topics}} (\text{Published}(t) \times \text{Subscribers}(t))}$$
+The engine enforces five standard DDS QoS policies:
 
-### 5.3 Runtime QoS Contract Enforcement
-
-Which policies are enforced is selected by `--qos-mode` (`MessageFlowSimulator.QOS_MODES`), mirroring `--qos-factor` on `fault-inject` so both oracles' QoS arms are named the same way:
-
-| Mode | Queue capacity | Deadlines | Service order | Durability replay | Load calibration |
-|:---|:---|:---|:---|:---|:---|
-| `none` | flat default | off | FIFO | off | **on** |
-| `contracts` | `history_depth` | on | FIFO | off | on |
-| `recovery` | flat default | off | FIFO | on | on |
-| `full` *(default)* | `history_depth` | on | priority | on | on |
-| `legacy` | flat default | on | FIFO | off | off |
-
-`none` keeps the load and neutralises only the policies: it is the QoS-off ablation arm, and dropping the load there would confound "QoS does nothing" with "nothing was contended".
-
-| QoS Policy | Enforcement Mechanism in Simulation |
+| QoS Policy | Simulation Enforcement Mechanism |
 |:---|:---|
-| **Reliability (`RELIABLE`)** | Queue overflow triggers **head-drop** (drops oldest sample to retain fresh data, matching DDS `KEEP_LAST`). The dropped sample is charged to the subscriber that lost it, so a RELIABLE topic's loss is measurable — head-drop is its *only* loss mode. |
-| **Reliability (`BEST_EFFORT`)** | Queue overflow triggers **tail-drop** (incoming sample is dropped). Under contention this is strictly worse than head-drop: the server goes on to process a stale head that then misses its deadline, losing twice. |
-| **History Depth (`history_depth`)** | Subscriber queue capacity under DDS `KEEP_LAST`, in `contracts` and `full`. Applied only where the depth was *declared*: an absent value stays an unconstrained reader cache rather than being forced to `DEFAULT_HISTORY_DEPTH`, because the resolver cannot distinguish "asked for 10" from "asked for nothing". An explicit `queue_size` outranks it. |
-| **Durability (`durability`)** | After a fault, retained samples are replayed to surviving readers, bounded by $\min(\text{history\_depth}, \text{messages lost})$. `VOLATILE` retains nothing; `TRANSIENT_LOCAL` recovers only while a co-publisher survives (its history died with the writer); `TRANSIENT` and `PERSISTENT` recover even from an orphaned topic. The effect is monotone in `QoSPolicy.DURABILITY_SCORES`. |
-| **Transport Priority (`transport_priority`)** | Orders service at the subscriber's `ServiceStation` in `full` mode, via `simpy.PriorityResource`. Lowest-value-first and stable within a class, so every other mode degenerates cleanly to FIFO. |
-| **Deadline (`deadline_ms`)** | End-to-end check: $(\text{time}_{\text{processed}} - \text{time}_{\text{created}}) > \text{deadline} \to \text{Violation}$. A replayed sample keeps its original timestamp under `--replay-deadline original`, so a declared deadline rejects it: **durability recovers state, not timeliness.** `reset` is the sensitivity arm. |
-| **Lifespan (`lifespan_ms`)** | Expired samples are silently discarded upon dequeue. Note this path is unexercised when `lifespan_ms` is not declared on corpus topics. |
+| **Reliability (`RELIABLE`)** | Queue overflow triggers **head-drop** (drops oldest sample to keep the freshest data, matching DDS `KEEP_LAST`). |
+| **Reliability (`BEST_EFFORT`)** | Queue overflow triggers **tail-drop** (drops incoming message immediately). |
+| **History Depth (`history_depth`)** | Limits maximum queue buffer size. Excess messages trigger drop policies based on reliability setting. |
+| **Transport Priority (`transport_priority`)** | Orders message processing in `ServiceStation` via `simpy.PriorityResource`. High-priority messages jump ahead of normal traffic. |
+| **Deadline (`deadline_ms`)** | Measures end-to-end latency ($t_{\text{processed}} - t_{\text{created}}$). If latency exceeds deadline, a SLA violation is logged. |
 
-### 5.4 Operating Point & Load Calibration ($\rho = 0.65$)
+### 6.4 Load Calibration ($\rho = 0.65$) & Operating Points
 
-No QoS contract can bind on an idle system, and raw corpus scenarios are idle: subscriber arrival rates span 1–2600 Hz across scenarios while service was a flat 1 ms, leaving utilization below ~0.2 everywhere. `--target-utilization` (default 0.65) sizes each subscriber's service rate to its own offered load, $E[S_s] = \rho / \Lambda_s$, so $\rho$ means the same operational state on a 1 Hz scenario as on a 700 Hz one — the property a swept parameter needs for a cross-scenario table to mean anything. `measured_utilization` on the result reports what was actually realised.
+In real systems, QoS contracts only matter when there is **contention**:
+- If a system is nearly idle (utilization $\rho < 0.20$), queues never fill up, deadlines are never missed, and QoS policies never trigger.
+- If a system is completely saturated (utilization $\rho > 0.85$), queues explode, drop rates soar, and simulation results degrade into noise.
 
-Above $\rho \approx 0.8$ run-to-run variance grows faster than the signal ($I_{\text{dyn}}$'s own test-retest falls from 0.93 at $\rho = 0.65$ to 0.89 at $\rho = 0.8$), and below $\rho \approx 0.5$ nothing is contended.
+To ensure consistent, reproducible results across scenarios with widely varying message rates (from 1 Hz to 2,600 Hz), `MessageFlowSimulator` automatically calibrates each subscriber's service rate:
 
-### 5.5 Dynamic Behavioral Oracle ($I_{\text{dyn}}(v)$)
+$$E[S_s] = \frac{\rho}{\Lambda_s} \quad \text{where } \rho = 0.65$$
 
-$I_{\text{dyn}}(v)$ measures the empirical delivery loss inflicted on **surviving** components:
+This ensures every subscriber operates at a calibrated **65% target utilization**, allowing QoS policies to bind realistically while maintaining high test-retest reproducibility ($\rho_{\text{stability}} = 0.93$).
+
+### 6.5 Dynamic Delivery Loss ($I_{\text{dyn}}(v)$)
+
+When evaluating component criticality, `MessageFlowSimulator` injects a failure at simulation midpoint ($t = t_{\text{fault}}$) and measures the resulting drop in delivery rate:
 
 $$I_{\text{dyn}}(v) = \text{DeliveryRate}_{\text{pre-fault}} - \text{DeliveryRate}_{\text{post-fault}}$$
 
-Computed with surviving node receipts in the numerator and continuous demand in the denominator. Both windows bucket on a message's *creation* time, so numerator and denominator describe the same population; the result is deliberately **not** clamped to $[0, 1]$, because under contention removing a chatty publisher can relieve more load than it removes feeds, and a negative $I_{\text{dyn}}$ there is a real measurement.
+Where system delivery rate is normalized by total subscriber demand:
 
-Mean $\rho(I_{\text{dyn}}, I^*) = 0.620$ across the twelve LOSO folds (`results/convergent_validity.json`, Application population, five seeds, `qos_mode=full` at $\rho_{\text{util}} = 0.65$). **Read that number with its ceiling**: $I^*$'s own seed-to-seed test-retest across the same folds is 0.811–1.000 (median 0.982), so $I_{\text{dyn}}$ agrees with $I^*$ distinctly *less* closely than $I^*$ agrees with itself — which is what a corroborating oracle should do. An oracle that matched $I^*$ to within label noise would be re-measuring the topology, not testing it. $I_{\text{dyn}}$ serves as a convergent-validity probe demonstrating that the topological ranking survives dynamic discrete-event traffic; see §11 L7.
+$$\text{DeliveryRate} = \frac{\text{Total Messages Delivered}}{\sum_{t \in \text{Topics}} (\text{Published}(t) \times \text{Subscribers}(t))}$$
 
-Two qualifications travel with it. Restricted to components both oracles score non-zero, agreement falls to $\rho^{+} = 0.441$, so a substantial share of the headline figure is the two oracles concurring on which components are harmless. And the configuration is load-bearing. Measured on the seven core scenarios so the arms are paired on one population, the uncalibrated `legacy` policy returns $\rho = 0.686$ where `full` returns $0.638$ — the uncalibrated figure is the flattering one, and it is inflated rather than better: at high publication rates under a flat service time almost no delivery loss is measurable, so on `financial_trading_system` the maximum $I_{\text{dyn}}$ is 0.037 and the correlation degenerates to noise ($\rho^{+} = 0.003$). Any result quoted from this oracle must name its `qos_mode` and whether calibration was active; both are recorded in the artifact's provenance block.
+### 6.6 The Contention-Relief Phenomenon (Why $I_{\text{dyn}}$ is 1-Dimensional)
 
-### 5.6 Secondary Diagnostics & Rejection of Multi-Metric Composite ($I_{\text{dyn}}^{\text{comp}}$)
+Why does `MessageFlowSimulator` report delivery rate loss ($I_{\text{dyn}}$) as a **pure 1-dimensional score**, rather than combining it with latency or SLA violation metrics?
 
-While `MessageFlowSimulator` collects extensive runtime diagnostics—including tail latency degradation ($\Delta L_{p95}$), Latency Inflation Factor ($\text{LIF}$), Deadline Violation Rate ($\text{DVR} / \Delta\text{SLA}$), and Queue Overflow counts—empirical evaluation across both low-rate (`healthcare_system`) and high-rate (`financial_trading_system`) scenarios demonstrates why these cannot be aggregated into a composite damage score ($I_{\text{dyn}}^{\text{comp}}$):
+During empirical testing, an interesting physical phenomenon was uncovered: **Contention Relief**.
 
-1. **Systemic Negative Correlation (Contention Relief vs. Feed Loss)**:
-   In distributed publish-subscribe architectures, failing a publisher removes its offered traffic. On contended subscribers, this relieves queueing pressure: post-fault tail latencies decrease ($\Delta L_{p95} < 0$, e.g., mean $-0.13\text{ ms}$ on `financial_trading_system`) and deadline violations fall ($\Delta\text{SLA} < 0$). Every secondary metric correlates **negatively** with delivery loss $I_{\text{dyn}}$:
-   - $\Delta L_{p95}$ vs. $I_{\text{dyn}}$: $\rho = -0.499$ ($p = 0.069$)
-   - $\text{LIF}$ vs. $I_{\text{dyn}}$: $\rho = -0.518$ ($p = 0.058$)
-   - $\text{DVR} / \Delta\text{SLA}$ vs. $I_{\text{dyn}}$: $\rho = -0.418$ ($p = 0.137$)
+When a high-volume publisher fails, it stops sending messages. On heavily loaded subscribers, the sudden removal of this traffic **clears the queue**, causing post-fault latency to *decrease* and deadline violations to *drop*:
+- Tail Latency ($\Delta L_{p95}$) vs. Delivery Loss ($I_{\text{dyn}}$): $\rho = -0.499$ (negative correlation!)
+- Deadline Violations vs. Delivery Loss ($I_{\text{dyn}}$): $\rho = -0.418$ (negative correlation!)
 
-   Each of the three is recomputable from `FaultEventRecord` alone — `delta_latency_p95`, `latency_inflation_factor` and `delta_deadline_violations` respectively — so the sign of the effect can be re-derived from any saved run.
+If SaG combined delivery loss and latency into an additive score:
+$$\text{Damage} = w_1 \cdot \Delta\text{Delivery} + w_2 \cdot \Delta\text{Latency}$$
+The positive delivery loss and negative latency delta would cancel each other out! 
 
-   An additive composite $I_{\text{dyn}}^{\text{comp}} = w_A \Delta\text{DR} + w_L \Delta L_{p95} + w_D \Delta\text{SLA} + \dots$ with positive weights would sum anti-correlated quantities, structurally cancelling the damage signal and reducing discriminative ranking accuracy.
+Therefore, $I_{\text{dyn}}$ is kept strictly 1-dimensional (delivery rate loss), while latency and deadline metrics are reported separately as supplementary diagnostics.
 
-2. **Severe Scenario-Dependent SNR Discrepancy**:
-   On low-rate scenarios ($\sim 1\text{--}10\text{ Hz}$), within-node seed noise ($\sigma_{\text{seed}} \approx 79.4\text{ ms}$) swamps across-node variation ($\sigma_{\text{across}} \approx 20.9\text{ ms}$), producing $\text{SNR} = 0.26$. On high-rate scenarios ($\sim 700\text{ Hz}$), $\text{SNR}$ reaches $2.68$, but resolves consistently negative deltas (contention relief). A metric whose SNR swings by an order of magnitude cannot serve as a cross-scenario ranking label.
+### 6.7 Role as an Offline Convergent-Validity Research Probe
 
-3. **Structural Neutralization of Saturation & Starvation**:
-   Saturation- and starvation-flavoured metrics (buffer drop rates, starvation ratios, fairness indices) have no headroom to vary at the corpus operating point, because per-subscriber calibration bounds every queue by construction: sizing $E[S_s] = \rho / \Lambda_s$ at $\rho = 0.65$ (§5.4) holds each station below saturation whatever its offered load. A metric that is pinned near its floor by the experimental design cannot discriminate between components under it. `measured_utilization` on every result records where each station actually landed, so the claim is checkable per run rather than assumed — and it bounds the argument in the safe direction, since stations that undershoot $\rho$ are further from saturation still.
+`MessageFlowSimulator` is computationally demanding (taking minutes to simulate high-rate scenarios), making it unsuitable for live CI/CD gating.
 
-**Conclusion**: $I_{\text{dyn}}$ remains strictly 1-dimensional (unweighted delivery rate loss), operating at $\text{SNR} = 1.46\text{--}95.8$. Secondary metrics are exposed in `FaultEventRecord` exclusively as per-scenario runtime diagnostics.
+Instead, it serves as an **offline research probe for convergent validity** (JSS Section 7.3 and Table 13):
+- Across the twelve evaluation scenarios, $I_{\text{dyn}}$ correlates with $I^*$ (`FaultInjector`) at **Spearman $\rho = 0.620$**.
+- This substantial correlation confirms that static topological graph rankings reflect real runtime communication bottlenecks, without requiring expensive discrete-event simulations in pre-deployment pipelines.
 
 ---
 
-## 6. Quality Model Alignment & Construct Grounding
+## 7. Engine 4: ChangePropagationSimulator (Maintainability Reference)
 
-The simulation suite maps observed metrics to ISO/IEC 25010 & 25019 quality constructs:
+### 7.1 Core Purpose: Runtime Failure vs. Development-Time Change
 
-| Quality Characteristic | Observed Simulation Attribute | Metric / Artifact Source |
+The first three simulation engines answer runtime dependability questions. **`ChangePropagationSimulator`** answers a software engineering and evolution question:
+
+> *"If a software engineer modifies component $v$, how many other components across the system must be adapted or re-tested?"*
+
+| Concept | Runtime Failure Simulation | Change Propagation Simulation |
 |:---|:---|:---|
-| **Effectiveness** (Availability & Fault Tolerance) | Message delivery rates, dropped packet fractions & path reachability | `FaultInjector.sub_loss`, `FailureSimulator.reachability_loss`, `MessageFlowSimulator.system_delivery_rate` |
-| **Efficiency** (Time Behavior & Capacity) | Queue occupancies, throughput loss & end-to-end latency percentiles | `FailureSimulator.throughput_loss`, `MessageFlowSimulator.latency_p50 / p95` |
-| **Freedom from Risk** (Contract Integrity) | Graph fragmentation, QoS deadline violations & subscriber starvation | `FailureSimulator.fragmentation`, `MessageFlowSimulator.qos_violations_count` |
-| **Modularity & Maintainability** (Architectural Blast Radius) | Derived dependency fan-in/fan-out, library blast radius | `FailureSimulator.maintainability_impact` ($IM(v)$) |
+| **Trigger** | Component $v$ crashes at runtime | Component $v$'s interface/code changes at development time |
+| **Direction** | Follows communication flow (downstream impact) | Follows dependency contracts (upstream ripple on $G^\top$) |
+| **Stop Conditions** | Queue absorption, broker redundancy | Loose coupling, stable interfaces |
+| **Output Metric** | Operational cascade damage ($I^*(v), I_{\text{comp}}(v)$) | Architectural blast radius / Maintainability ($IM(v)$) |
+
+### 7.2 Transposed Graph Traversal ($G^\top$) & Stop Conditions
+
+If component $u$ depends on component $v$ ($u \xrightarrow{\text{DEPENDS\_ON}} v$), then changing $v$ may force $u$ to adapt. Therefore, change propagates in the **reverse direction** of dependencies:
+
+1. Build the transposed dependency graph $G^\top$: invert every edge $(u \to v)$ into $(v \to u)$.
+2. Execute a breadth-first search (BFS) starting at modified component $v$.
+3. At each encountered node $u$, check two stopping conditions:
+   - **Loose-Coupling Stop**: If edge weight $w(u \to v) < \theta_{\text{loose}}$ (e.g., volatile, best-effort messaging), the dependent absorbs the change without requiring modifications.
+   - **Stable-Interface Stop**: If node instability $I(u) < \theta_{\text{stable}}$ (many incoming dependencies, few outgoing), the component acts as a stable boundary and halts propagation.
+
+### 7.3 Maintainability Impact ($IM(v)$)
+
+`ChangePropagationSimulator` outputs three normalized metrics for each component:
+- **`change_reach`**: Fraction of system components reached by the change.
+- **`weighted_change_impact`**: Importance-weighted adaptation cost.
+- **`normalized_change_depth`**: Maximum propagation depth reached.
+
+These are combined into the canonical Maintainability Impact score:
+$$IM(v) = 0.45 \cdot \text{Change Reach} + 0.35 \cdot \text{Weighted Change Impact} + 0.20 \cdot \text{Normalized Depth}$$
 
 ---
 
-## 7. Worked Examples: ATM & Autonomous Vehicle (AV)
+## 8. Quality Model Alignment (ISO/IEC 25010 & 25019)
 
-### 7.1 Air Traffic Management (ATM) Scenario
+The SaG simulation suite maps observed metrics directly to international software quality standards:
+
+| ISO/IEC 25010 Quality Characteristic | Observed Simulation Attribute | Mathematical Formula / Metric | Responsible Simulator Engine |
+|:---|:---|:---|:---|
+| **Effectiveness & Reliability** | Feed-loss cascade reach & path severing | $I^*(v) = \frac{1}{|S|} \sum \text{sub\_loss}(s)$ | `FaultInjector` |
+| **Structural Reliability** | Publisher-to-subscriber path reachability loss | $\text{reachability\_loss} = 1 - \frac{\text{paths}_{\text{post}}}{\text{paths}_{\text{pre}}}$ | `FailureSimulator` |
+| **Availability & Fault Tolerance** | Infrastructure fragmentation & stranded message volume | $\text{fragmentation} = 0.7 \Delta\text{CC} + 0.3 \Delta\text{Mass}$ | `FailureSimulator` |
+| **Operational Capacity** | QoS-weighted lost message bandwidth | $\text{throughput\_loss} = 1 - \frac{\sum \text{rate}_{\text{post}}}{\sum \text{rate}_{\text{pre}}}$ | `FailureSimulator` |
+| **Time Behavior & Performance** | Real-time traffic delivery drop under contention | $I_{\text{dyn}}(v) = \text{DR}_{\text{before}} - \text{DR}_{\text{after}}$ | `MessageFlowSimulator` |
+| **Modularity & Maintainability** | Upstream code change ripple on transposed dependencies | $IM(v) = 0.45 \text{Reach} + 0.35 \text{Impact} + 0.20 \text{Depth}$ | `ChangePropagationSimulator` |
+
+---
+
+## 9. Worked Examples
+
+### 9.1 Air Traffic Management (ATM) Walkthrough
+
+Consider an Air Traffic Management architecture:
 
 ```
-RadarTracker ──PUBLISHES_TO──▶ T_radar   ──SUBSCRIBES_TO──▶ ConflictDetector
-             ──PUBLISHES_TO──▶ T_tracks  ──SUBSCRIBES_TO──▶ ConflictDetector, ATCWorkstation, FlightDataProcessor
+RadarTracker ──PUBLISHES_TO──► T_radar   ──SUBSCRIBES_TO──► ConflictDetector
+             ──PUBLISHES_TO──► T_tracks  ──SUBSCRIBES_TO──► ConflictDetector, ATCWorkstation, FlightDataProcessor
 
-FlightDataProcessor ──PUBLISHES_TO──▶ T_fpa ──SUBSCRIBES_TO──▶ ATCWorkstation
-ConflictDetector    ──PUBLISHES_TO──▶ T_conflicts ──SUBSCRIBES_TO──▶ ATCWorkstation
-ASTERIX_Broker      ──ROUTES────────▶ All Topics
+FlightDataProcessor ──PUBLISHES_TO──► T_fpa ──SUBSCRIBES_TO──► ATCWorkstation
+ConflictDetector    ──PUBLISHES_TO──► T_conflicts ──SUBSCRIBES_TO──► ATCWorkstation
+ASTERIX_Broker      ──ROUTES────────► All Topics
 ```
 
-#### Simulated Fault Impact Ranking
+#### Simulation Results & Architectural Rationale
 
-| Component | $I^*(v)$ | Cascade Depth | Architectural Rationale |
+| Component | $I^*(v)$ (`FaultInjector`) | Cascade Depth | Architectural Rationale |
 |:---|:---:|:---:|:---|
-| `RadarTracker` | **1.000** | 1 | Sole producer of `T_radar` and `T_tracks`; starves `ConflictDetector` and `FlightDataProcessor`, triggering full cascade to `ATCWorkstation`. |
-| `ASTERIX_Broker`| **1.000** | 1 | Sole routing broker for all system topics; partitions the entire graph. |
-| `ConflictDetector`| **0.111** | 0 | Orphans `T_conflicts` only; `ATCWorkstation` loses 1 of 3 input feeds. |
-| `FlightDataProcessor`| **0.111** | 0 | Orphans `T_fpa` only; `ATCWorkstation` loses 1 of 3 input feeds. |
-| `ATCWorkstation`| **0.000** | 0 | Pure leaf consumer; failure inflicts zero downstream impact. |
+| **`RadarTracker`** | **1.000** | 1 | Sole producer of primary radar and track feeds. Its failure starves `ConflictDetector` and `FlightDataProcessor`, triggering a cascade that eliminates all feeds to `ATCWorkstation`. |
+| **`ASTERIX_Broker`** | **1.000** | 1 | Sole routing broker for the entire system; its failure partitions all publish-subscribe message paths. |
+| **`ConflictDetector`** | **0.111** | 0 | Only publishes `T_conflicts`. When it fails, `ATCWorkstation` loses 1 out of 3 feeds (partial degradation; no cascade). |
+| **`FlightDataProcessor`**| **0.111** | 0 | Only publishes `T_fpa`. `ATCWorkstation` loses 1 out of 3 feeds. |
+| **`ATCWorkstation`** | **0.000** | 0 | Pure sink subscriber. Its failure causes zero downstream feed loss. |
 
-### 7.2 Autonomous Vehicle (AV) Cyber-Physical System
+### 9.2 Autonomous Vehicle (AV) Multi-Oracle Stratification
 
-* **Graph Scale:** $|V| = 152$ nodes (80 Applications, 20 Libraries, 40 Topics, 4 Brokers, 8 ECUs/Nodes) and $|E| = 730$ directed edges.
-* **Domain Context:** Real-time ROS 2 / DDS architecture with sensor fusion pipelines (LiDAR, Camera, Radar), SLAM, path planning, and strict 20 ms actuation deadlines.
+Evaluating an Autonomous Vehicle system ($|V| = 152$ nodes, $|E| = 730$ edges) across the simulation engines demonstrates how each oracle reveals different architectural layers:
 
-#### Multi-Oracle Stratification Across Architectural Layers
-
-| Architectural Layer / Stratum | Evaluated $N$ | Mean $I^*$ (FaultInjector) | Mean $I_{\text{comp}}$ (FailureSimulator) | Mean $I_{\text{dyn}}$ (MessageFlow) |
+| Architectural Layer / Stratum | Evaluated Count | Mean $I^*$ (`FaultInjector`) | Mean $I_{\text{comp}}$ (`FailureSimulator`) | Mean $I_{\text{dyn}}$ (`MessageFlow`) |
 |:---|:---:|:---:|:---:|:---:|
-| **Infrastructure (Nodes / ECUs)** | 8 | — (unlabeled) | 0.2713 | — (unobservable) |
-| **Application (Shared Libraries)** | 20 | 0.9436 | 0.0000 | — (unobservable) |
-| **Middleware (Message Brokers)** | 4 | 0.4882 | 0.0945 | — (unobservable) |
-| **Application (Microservices)** | 80 | 0.1905 | 0.0119 | 0.1842 |
-| **Entire System (Pooled)** | 112 | 0.3821 | 0.0381 | — |
+| **Infrastructure (Compute ECUs)** | 8 | — *(unlabeled)* | **0.2713** | — *(unobservable)* |
+| **Application (Shared Libraries)**| 20 | **0.9436** | 0.0000 | — *(unobservable)* |
+| **Middleware (Message Brokers)**  | 4 | 0.4882 | **0.0945** | — *(unobservable)* |
+| **Application (Microservices)**   | 80 | 0.1905 | 0.0119 | **0.1842** |
+| **Entire System (Pooled)**        | 112 | 0.3821 | 0.0381 | — |
 
-The three oracles measure complementary aspects:
-- `FaultInjector` produces $I^*(v)$ for GNN supervision, deriving app-to-library dependencies so libraries exhibit high impact.
-- `FailureSimulator` evaluates multi-layer structural loss across compute nodes, brokers, and applications.
-- `MessageFlowSimulator` evaluates continuous runtime delivery loss $I_{\text{dyn}}(v)$ over active message paths under QoS contracts.
-
----
-
-## 8. CLI Reference (`cli/simulate_graph.py`)
-
-### 8.1 Shared Arguments
-
-```bash
---input PATH      # Path to scenario JSON (or use --layer <name>)
---output DIR      # Output directory (default: output/simulation/)
---export-json     # Write full JSON and summary text reports
---verbose / -v    # Enable debug logging
-```
-
-### 8.2 `fault-inject` Subcommand
-
-```bash
-# Full multi-seed cascade simulation
-PYTHONPATH=. python cli/simulate_graph.py fault-inject     --input data/scenarios/atm_system.json     --seeds 42,123,456,789,2024     --propagation-threshold 0.2     --qos-factor ladder     --export-json
-```
-
-### 8.3 `message-flow` Subcommand
-
-```bash
-# Inject broker fault at midpoint (t = 150s)
-PYTHONPATH=. python cli/simulate_graph.py message-flow     --input data/scenarios/atm_system.json     --duration 300     --fault-node ConflictDetector     --fault-time 150     --qos-mode full     --export-json
-```
-
-### 8.4 `combined` Subcommand
-
-```bash
-# Run both cascade fault injection and message-flow sequentially
-PYTHONPATH=. python cli/simulate_graph.py combined     --input data/scenarios/atm_system.json     --seeds 42,123,456,789,2024     --node-types Application,Broker,Library     --duration 300 --fault-node ConflictDetector     --export-json
-```
+**Key Insights**:
+- `FaultInjector` focuses on application feeds and shared libraries ($I^* = 0.9436$ for libraries because multiple microservices crash when a core library fails).
+- `FailureSimulator` captures infrastructure crash impact ($I_{\text{comp}} = 0.2713$ on compute ECUs due to multi-process host termination).
+- `MessageFlowSimulator` evaluates continuous runtime delivery loss over active microservices ($I_{\text{dyn}} = 0.1842$).
 
 ---
 
-## 9. Output Schemas (`impact_scores.json` & `message_flow_results.json`)
+## 10. CLI Reference (`cli/simulate_graph.py`)
 
-### 9.1 `impact_scores.json` (Fault Injection Ground Truth)
+The SaG simulation CLI is accessible via `cli/simulate_graph.py`.
+
+### 10.1 General Options
+
+```bash
+python cli/simulate_graph.py [SUBCOMMAND] [OPTIONS]
+
+Shared Options:
+  --input PATH      Path to scenario graph JSON (e.g., data/scenarios/atm_system.json)
+  --output DIR      Directory for output artifacts (default: output/simulation/)
+  --export-json     Export results to structured JSON files
+  --verbose, -v     Enable debug logging
+```
+
+### 10.2 `fault-inject` Subcommand
+
+Runs multi-seed cascade reachability simulation to generate $I^*(v)$ training labels:
+
+```bash
+# Full multi-seed sweep across Application and Broker nodes
+python cli/simulate_graph.py fault-inject \
+    --input data/scenarios/atm_system.json \
+    --output output/simulation/ \
+    --seeds 42,123,456,789,2024 \
+    --propagation-threshold 0.2 \
+    --qos-factor ladder \
+    --export-json
+```
+
+**Key Arguments**:
+- `--seeds`: Comma-separated list of random seeds (default: `42,123,456,789,2024`).
+- `--propagation-threshold`: Cascade sensitivity (default: `0.2`).
+- `--nodes`: Specific component IDs to inject (default: all eligible nodes).
+- `--node-types`: Filter node types (default: `Application,Broker`).
+
+### 10.3 `message-flow` Subcommand
+
+Runs SimPy discrete-event message flow simulation:
+
+```bash
+# 300-second simulation, faulting ConflictDetector at t=150s with full QoS enforcement
+python cli/simulate_graph.py message-flow \
+    --input data/scenarios/atm_system.json \
+    --output output/simulation/ \
+    --duration 300 \
+    --fault-node ConflictDetector \
+    --fault-time 150 \
+    --qos-mode full \
+    --target-utilization 0.65 \
+    --seed 42 \
+    --export-json
+```
+
+**Key Arguments**:
+- `--duration`: Simulation run time in virtual seconds (default: `300.0`).
+- `--fault-node`: Component ID to crash during the run.
+- `--fault-time`: Simulation timestamp when fault triggers (default: midpoint).
+- `--qos-mode`: QoS enforcement level (`none`, `contracts`, `recovery`, `full`, `legacy`).
+- `--target-utilization`: Calibrated subscriber utilization target (default: `0.65`).
+
+### 10.4 `combined` Subcommand
+
+Executes both `fault-inject` and `message-flow` sequentially in a single pass:
+
+```bash
+python cli/simulate_graph.py combined \
+    --input data/scenarios/atm_system.json \
+    --output output/simulation/ \
+    --seeds 42,123,456 \
+    --duration 300 \
+    --fault-node ConflictDetector \
+    --export-json
+```
+
+---
+
+## 11. Output Schemas (`impact_scores.json` & `message_flow_results.json`)
+
+### 11.1 `impact_scores.json` (Fault Injection Ground Truth)
+
+Generated by `FaultInjector`, this artifact supplies the $I^*(v)$ supervised training labels:
 
 ```json
 {
   "schema_version": "2.1",
   "graph_id": "atm_system",
   "labeler": "FaultInjector",
-  "labeled_node_types": ["Application", "Broker", "Library"],
+  "seeds_used": [42, 123, 456, 789, 2024],
+  "labeled_node_types": ["Application", "Broker"],
   "labeled_dimensions": ["composite", "reliability"],
-  "unlabeled_node_ids": ["N0", "N1", "N2"],
+  "unlabeled_node_ids": ["N0", "N1", "T_radar", "T_tracks"],
   "label_stability": {
     "n_seeds": 5,
     "test_retest_spearman": 0.9802,
     "topk_jaccard": 0.6250
   },
-  "top_k_by_impact": [
-    {
-      "rank": 1,
-      "node_id": "RadarTracker",
-      "node_type": "Application",
+  "records": {
+    "RadarTracker": {
       "impact_score": 1.0,
+      "impact_score_std": 0.0,
       "cascade_depth": 1,
-      "orphaned_topics": 4,
       "impacted_subscribers": 3,
-      "impact_score_std": 0.0
+      "orphaned_topics": 2
+    },
+    "ConflictDetector": {
+      "impact_score": 0.1111,
+      "impact_score_std": 0.0,
+      "cascade_depth": 0,
+      "impacted_subscribers": 1,
+      "orphaned_topics": 1
     }
-  ]
+  }
 }
 ```
 
-### 9.2 `message_flow_results.json` (Dynamic Discrete-Event Results)
+### 11.2 `message_flow_results.json` (Dynamic Discrete-Event Results)
+
+Generated by `MessageFlowSimulator`:
 
 ```json
 {
@@ -489,25 +633,28 @@ PYTHONPATH=. python cli/simulate_graph.py combined     --input data/scenarios/at
   "qos_mode": "full",
   "target_utilization": 0.65,
   "utilization_mode": "per_subscriber",
-  "service_distribution": "exponential",
-  "measured_utilization": {"ConflictDetector": 0.6478, "TrackDisplay": 0.6512},
-  "service_time_s": {"ConflictDetector": 0.0129, "TrackDisplay": 0.0093},
+  "measured_utilization": {
+    "ConflictDetector": 0.6478,
+    "ATCWorkstation": 0.6512
+  },
   "fault_event": {
     "fault_time": 150.0,
     "faulted_node_id": "ConflictDetector",
-    "delivery_rate_before": 0.9977,
-    "delivery_rate_after": 0.9962,
+    "delivery_rate_before": 0.9982,
+    "delivery_rate_after": 0.9810,
+    "delivery_rate_drop": 0.0172,
     "latency_p50_before": 2.1,
-    "latency_p50_after": 8.7
+    "latency_p50_after": 2.0,
+    "qos_violations_count": 0
   }
 }
 ```
 
 ---
 
-## 10. Python API Usage
+## 12. Python API Quickstart
 
-### 10.1 Running `FaultInjector` Programmatically
+### 12.1 Running `FaultInjector` Programmatically
 
 ```python
 import networkx as nx
@@ -522,15 +669,15 @@ injector = FaultInjector(
     qos_factor_mode="ladder"
 )
 
-# Run simulation on eligible architectural node types
-result = injector.run(node_types=["Application", "Broker", "Library"])
+# Run systematic sweep over candidate node types
+result = injector.run(node_types=["Application", "Broker"])
 result.save(Path("output/simulation/impact_scores.json"))
 
-print(f"Top Critical: {result.top_k_by_impact[0]['node_id']} "
+print(f"Top critical node: {result.top_k_by_impact[0]['node_id']} "
       f"(I* = {result.top_k_by_impact[0]['impact_score']:.4f})")
 ```
 
-### 10.2 Running `FailureSimulator` Programmatically
+### 12.2 Running `FailureSimulator` Programmatically
 
 ```python
 from pathlib import Path
@@ -538,21 +685,21 @@ from saag.simulation.graph import SimulationGraph
 from saag.simulation.failure_simulator import FailureSimulator
 from saag.simulation.service import SimulationService
 
-# Wrap graph in SimulationGraph
+# Wrap graph into SimulationGraph
 sim_graph = SimulationGraph(graph_data)
 sim = FailureSimulator(sim_graph, qos_weighting=True)
 
-# Prime baseline flows so flow disruption (15%) is measurable
+# Prime baseline flows for flow disruption measurement
 SimulationService._prime_baseline_flows(sim_graph, sim)
 
 # Run exhaustive failure sweep
 results = sim.simulate_exhaustive(seed=42)
 for r in results[:5]:
-    print(f"Node: {r.target_id} -> I_comp = {r.impact.composite_impact:.4f} "
-          f"(Reachability: {r.impact.reachability_loss:.4f})")
+    print(f"Node: {r.target_id:<20} | I_comp: {r.impact.composite_impact:.4f} "
+          f"| Reachability Loss: {r.impact.reachability_loss:.4f}")
 ```
 
-### 10.3 Running `MessageFlowSimulator` Programmatically
+### 12.3 Running `MessageFlowSimulator` Programmatically
 
 ```python
 from pathlib import Path
@@ -572,32 +719,47 @@ result = sim.run()
 result.save(Path("output/simulation/message_flow_results.json"))
 
 if result.fault_event:
-    print(f"Delivery Drop: {result.fault_event.delivery_rate_before:.4f} -> "
-          f"{result.fault_event.delivery_rate_after:.4f}")
+    print(f"Faulted: {result.fault_event.faulted_node_id}")
+    print(f"Delivery Rate Drop (I_dyn): {result.fault_event.delivery_rate_drop:.4f}")
+```
+
+### 12.4 Running `ChangePropagationSimulator` Programmatically
+
+```python
+from saag.simulation.change_propagation import ChangePropagationSimulator
+
+# Run maintainability change propagation sweep on dependency graph
+cps = ChangePropagationSimulator(analysis_service)
+maintainability_results = cps.run_all()
+
+for node_id, res in list(maintainability_results.items())[:5]:
+    print(f"Node: {node_id:<20} | IM: {res.maintainability_impact:.4f} "
+          f"| Change Reach: {res.change_reach:.4f}")
 ```
 
 ---
 
-## 11. Known Limitations & Design Boundaries
+## 13. Methodological Boundaries & Design Invariants
 
 | # | Boundary / Limitation | Methodological Scope & Handling |
 |:---|:---|:---|
-| **L1** | **Host Node & Library Cascades Across Engines** | `FailureSimulator` natively cascades host failures via `RUNS_ON` and library failures via `USES`. `FaultInjector` dynamically derives `DEPENDS_ON(app_to_lib)` for libraries, but compute hardware nodes are omitted from default application-level training labels. |
-| **L2** | **Unmeasured Maintainability Dimension in $I^*$** | `FaultInjector` measures operational cascade reach ($IR$ / composite). Maintainability ground truth ($IM(v)$) is supplied by `FailureSimulator` in Step 6. |
-| **L3** | **Single Fault per Simulation** | Simulators evaluate one candidate component failure per run; multi-failure cascades model cascading effects rather than concurrent disjoint failures. |
-| **L4** | **Discrete-Event Tail Latency & Operating Point** | Under calibrated utilization ($\rho = 0.65$), queue contention is active. However, tail-latency variance across seeds has $\text{SNR} \approx 0.26$ ($\sigma_{\text{seed}} \approx 79\text{ ms} > \sigma_{\text{across}} \approx 21\text{ ms}$), so delivery rate drop remains the sole stable discriminative metric. |
-| **L5** | **Edge Ground Truth Scope** | Edge impact is evaluated via single-edge removal sweeps ($\Delta \text{Impact}$) with unmeasured edges marked `evaluated: false`. |
-| **L6** | **Counterfactual Search Cost** | Sweeps score the graph *as it stands* cheaply, but evaluating candidate architectural repairs costs one exhaustive sweep per (edit × threshold × seed). Remediation is thus structured as proposal followed by simulated verification rather than search-by-simulation — see [criticality.md §7.2.1](criticality.md#721-why-a-predictor-rather-than-the-oracle). |
-| **L7** | **$I_{\text{dyn}}$ is a convergent-validity probe, not an independent oracle** | It is behavioural where $I^*$ is topological, but both traverse the same graph, and subscriber-side dynamics over the same topology cannot be fully independent of a topological oracle. That structural argument is what limits the claim, and it holds whatever the correlation turns out to be: report $I_{\text{dyn}}$ as convergent validity, never as independent predictive validation. **The disattenuated estimate previously quoted here ($\approx 0.94\text{--}0.97$) is withdrawn**: it was derived from the superseded $\rho = 0.907$, and re-deriving it requires a fresh test-retest reliability for $I_{\text{dyn}}$ under `qos_mode=full` on the twelve-fold cohort, which has not been measured. The observed $\rho = 0.620$ is now well below $I^*$'s own reproducibility, so the earlier reading — that near-ceiling agreement left $I_{\text{dyn}}$ no room to falsify anything $I^*$ would not — no longer follows from the data. |
-| **L8** | **Broker and host Nodes are unobservable to $I_{\text{dyn}}$** | `MessageFlowSimulator` models publisher, topic, and subscriber interactions only; faulting a Broker (`ROUTES`) or a `Node` (`RUNS_ON`) has no direct messaging process. Such components are omitted from evaluated sets rather than scored 0.0. |
+| **L1** | **Physical Node & Library Scope** | `FailureSimulator` cascades physical host crashes (`RUNS_ON`) and library crashes (`USES`). `FaultInjector` derives `DEPENDS_ON(app_to_lib)` for libraries, but hardware nodes are excluded from default GNN application training sweeps. |
+| **L2** | **Maintainability Separation** | `FaultInjector` measures runtime operational cascade loss ($I^*(v)$). Maintainability ground truth ($IM(v)$) is supplied separately by `ChangePropagationSimulator`. |
+| **L3** | **Single-Fault Sweeps** | Simulators evaluate one component failure per run to calculate isolated individual criticality. Cascades model propagation depth rather than simultaneous disjoint failures. |
+| **L4** | **1-Dimensional $I_{\text{dyn}}$** | Due to the **Contention-Relief phenomenon** (§6.6), secondary metrics (latency, SLA violations) negatively correlate with delivery loss. Therefore, $I_{\text{dyn}}$ is kept strictly 1-dimensional (delivery rate drop). |
+| **L5** | **Edge Ground-Truth Scope** | Edge criticality is evaluated via single-edge removal sweeps ($\Delta \text{Impact}$). Unmeasured edges are explicitly marked `evaluated: false`. |
+| **L6** | **Counterfactual Prescriptive Verification** | Sweeps on a static graph are fast, but counterfactual mutation verification costs one sweep per candidate repair. Prescriptive optimization therefore uses a heuristic proposal generator followed by simulated verification (`EditVerifier`), rather than brute-force search. |
+| **L7** | **$I_{\text{dyn}}$ is a Convergent Probe, Not an Independent Oracle** | While $I_{\text{dyn}}$ is behavioral and $I^*$ is topological, both traverse the same underlying system architecture. $I_{\text{dyn}}$ provides convergent construct validity (JSS Table 13, $\rho = 0.620$) rather than fully independent statistical validation. |
+| **L8** | **Hardware Brokers & Nodes in Discrete-Event Simulation** | `MessageFlowSimulator` models active message-passing processes. Hardware compute nodes and passive network links are unobservable to message queuing processes and are omitted from discrete-event evaluation rather than scored 0.0. |
 
 ---
 
-## 12. What Comes Next
+## 14. What Comes Next
 
-Simulation ground-truth files (`impact_scores.json` and `message_flow_results.json`) are consumed downstream:
-- **[Step 3: Predict](prediction.md)** trains GNN models on $I^*(v)$ cascade labels.
-- **[Step 6: Validate](validation.md)** executes statistical correlation gates (Spearman $\rho \ge 0.70$, $F_1\text{@top-}K$) validating topological $Q(v)$ and GNN predictions against simulated structural impact ($I_{\text{comp}}$) and dynamic behavioral flow ($I_{\text{dyn}}$).
+With ground-truth simulation artifacts generated:
+- **[Step 3: Predict](prediction.md)**: Train Heterogeneous Graph Transformers (`HGT-QoS`) using the $I^*(v)$ labels generated by `FaultInjector`.
+- **[Step 6: Validate](validation.md)**: Statistically evaluate predicted criticality scores against simulated ground-truth metrics using Spearman rank correlation ($\rho \ge 0.70$) and top-$K$ identification ($F_1@K$).
+- **[Step 7: Prescribe](prescription.md)**: Apply automated refactoring operators and verify net risk reduction ($\Delta I_{\text{comp}} > 0, \Delta \text{SRI} > 0$) using `FailureSimulator`.
 
 ---
 

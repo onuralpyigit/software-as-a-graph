@@ -417,25 +417,18 @@ def evaluate(
     # and the catalog's most-cited critical finding — so it gets scored directly
     # rather than only through the aggregate.
     #
-    # Two thresholds, because the repo default is not on this oracle's scale.
-    # ``calculate_spof_f1`` defaults to ia_threshold=0.50, but availability impact
-    # on these topologies tops out around 0.36, so the fixed threshold admits no
-    # true SPOF at all and returns a structural zero. The adaptive variant uses
-    # the oracle's own upper quartile, which is what the rest of this script does.
+    # calculate_spof_f1 defaults to ia_quantile=0.75 (the upper quartile of
+    # simulated availability impact), matching the adaptive cut used across the repo.
     predicted_ap = {k: float(components[k].structural.ap_c_directed) for k in ids}
     actual_ia = {k: oracle["availability"].get(k, 0.0) for k in ids}
     ia_values = list(actual_ia.values())
     adaptive_ia = float(np.percentile(ia_values, 75.0)) if ia_values else 0.5
 
+    spof_result = calculate_spof_f1(predicted_ap, actual_ia, ia_quantile=0.75)
     row["spof"] = {
-        **{k: round(v, 4) for k, v in calculate_spof_f1(
-            predicted_ap, actual_ia, ia_threshold=adaptive_ia).items()},
+        **{k: round(v, 4) for k, v in spof_result.items()},
         "ia_threshold": round(adaptive_ia, 4),
         "ia_max": round(max(ia_values), 4) if ia_values else 0.0,
-        "fixed_050": {
-            k: round(v, 4) for k, v in calculate_spof_f1(
-                predicted_ap, actual_ia, ia_threshold=0.50).items()
-        },
         "n_predicted_ap": sum(1 for v in predicted_ap.values() if v > 0.0),
     }
     return row

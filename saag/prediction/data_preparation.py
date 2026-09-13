@@ -700,7 +700,10 @@ def networkx_to_hetero_data(
             if isinstance(sim, dict):
                 n_labelled += 1
                 for key, value in sim.items():
-                    seen[key].add(round(float(value), 12))
+                    try:
+                        seen[key].add(round(float(value), 12))
+                    except (TypeError, ValueError):
+                        continue
         # With a population to measure over, a column that never varies is a
         # structural constant rather than an observation. With a single labelled
         # node there is no variance to have, so key presence is all the evidence
