@@ -59,11 +59,12 @@ import argparse
 import csv
 import json
 import logging
+import shutil
 import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
@@ -82,12 +83,17 @@ from saag.prediction.data_preparation import (
     networkx_to_hetero_data,
     create_kfold_masks,
 )
+from saag.evaluation.fingerprint import fit_fingerprint
 
 # Reuse LOSO's cache-loading, bundle dataclass and metric computation unchanged.
 from cli.loso_evaluate import (
     ScenarioBundle,
     discover_scenarios,
     compute_inductive_metrics,
+    SeedFailed,
+    SweepAborted,
+    _FailFast,
+    _resolve_device,
 )
 
 logger = logging.getLogger("kfold_evaluate")
@@ -163,55 +169,80 @@ def _test_node_ids(data, node_id_map: Dict[str, List[str]]) -> set:
     return ids
 
 
-def run_one_scenario(
+def _seed_cfg(**kwargs) -> Dict[str, Any]:
+    expected = {
+        "variant", "layer", "epochs", "lr", "hidden", "heads", "layers",
+        "dropout", "mode", "weight_decay", "warmup_T0", "multitask_weight",
+        "rm_consistency_weight", "ranking_weight", "pairwise_ranking_weight",
+        "rank_normalize_features", "rank_normalize_labels", "qos_injection",
+        "eval_population",
+    }
+    missing = expected - set(kwargs.keys())
+    if missing:
+        raise TypeError(f"_seed_cfg missing keys: {missing}")
+    return {k: kwargs[k] for k in expected}
+
+
+def _seed_fingerprint(
+    scenario_id: str,
+    k: int,
+    fold_idx: int,
+    seed: int,
+    cfg: Dict[str, Any],
+    target_device: torch.device,
+    cache_dir: Optional[Path],
+) -> str:
+    return fit_fingerprint(
+        {
+            **cfg,
+            "scenario_id": scenario_id,
+            "k": k,
+            "fold_idx": fold_idx,
+            "seed": seed,
+            "device": target_device.type,
+        },
+        cache_dir=str(cache_dir) if cache_dir is not None else None,
+    )
+
+
+def _replicate_structural(done: Dict[str, Any], seed: int) -> Dict[str, Any]:
+    m = {k: (dict(v) if isinstance(v, dict) else v) for k, v in done.items()}
+    if "_full_scores" in done and isinstance(done["_full_scores"], dict):
+        m["_full_scores"] = {k: dict(v) if isinstance(v, dict) else v for k, v in done["_full_scores"].items()}
+    m["seed"] = seed
+    return m
+
+
+def _run_seed(
     bundle: ScenarioBundle,
     k: int,
-    seeds: List[int],
-    layer: str,
-    epochs: int,
-    lr: float,
-    hidden: int,
-    heads: int,
-    layers: int,
-    dropout: float,
-    workdir: Path,
-    mode: str,
-    variant: str,
-    weight_decay: float,
-    warmup_T0: Optional[int],
-    multitask_weight: float,
-    rm_consistency_weight: float,
-    ranking_weight: float,
-    pairwise_ranking_weight: float,
-    rank_normalize_features: bool = False,
-    rank_normalize_labels: bool = False,
-    qos_injection: str = "pooled",
-    eval_population: str = "application",
-    device: Optional[str] = "auto",
-) -> ScenarioResult:
-    """Repeated stratified k-fold within a single scenario's own graph."""
-    # Pre-flight, before any state is touched: the dispatch below sits inside a
-    # per-seed try/except that logs and continues, so an unknown id would
-    # otherwise surface as a full set of nan folds and a plausible artifact.
-    if variant not in KNOWN_VARIANTS:
-        raise ValueError(
-            f"unrecognised variant {variant!r}; expected one of "
-            f"{sorted(KNOWN_VARIANTS)}"
-        )
-
-    if device == "cuda" or (device in ("auto", None) and torch.cuda.is_available()):
-        target_device = torch.device("cuda")
-    else:
-        target_device = torch.device("cpu")
-
-    scenario_dir = workdir / bundle.scenario_id
-    scenario_dir.mkdir(parents=True, exist_ok=True)
+    fold_idx: int,
+    seed: int,
+    cfg: Dict[str, Any],
+    target_device: torch.device,
+    fold_dir: Path,
+) -> Dict[str, Any]:
+    variant = cfg["variant"]
+    layer = cfg["layer"]
+    epochs = cfg["epochs"]
+    lr = cfg["lr"]
+    hidden = cfg["hidden"]
+    heads = cfg["heads"]
+    layers = cfg["layers"]
+    dropout = cfg["dropout"]
+    mode = cfg["mode"]
+    weight_decay = cfg["weight_decay"]
+    warmup_T0 = cfg["warmup_T0"]
+    multitask_weight = cfg["multitask_weight"]
+    rm_consistency_weight = cfg["rm_consistency_weight"]
+    ranking_weight = cfg["ranking_weight"]
+    pairwise_ranking_weight = cfg["pairwise_ranking_weight"]
+    rank_normalize_features = cfg["rank_normalize_features"]
+    rank_normalize_labels = cfg["rank_normalize_labels"]
+    qos_injection = cfg["qos_injection"]
+    eval_population = cfg["eval_population"]
 
     use_qos = _registry.VARIANTS[variant].qos != "none"
-    # Mask QoS off the graph for the unweighted arms. topology_rm is the one
-    # exception and always has been: it is scored from Q(v), not from the
-    # graph's QoS, and masking would change a published baseline. Preserving
-    # that exemption is why this is not simply `if not use_qos`.
     if not use_qos and variant != "topology_rm":
         from reproduce.main_table import _mask_qos_in_graph, _mask_qos_in_structural
         train_graph = _mask_qos_in_graph(bundle.graph)
@@ -221,246 +252,248 @@ def run_one_scenario(
         train_sm = bundle.structural
 
     true_impact = {nid: float(d.get("composite", 0.0)) for nid, d in bundle.simulation.items()}
+    split_seed = 1000 + fold_idx
 
-    fold_results: List[FoldResult] = []
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    ckpt_dir = fold_dir / f"seed_{seed}"
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
 
-    for fold_idx in range(k):
-        fold_dir = scenario_dir / f"fold_{fold_idx}"
-        fold_dir.mkdir(parents=True, exist_ok=True)
-        split_seed = 1000 + fold_idx  # fixed per fold: same test nodes across repeat seeds
-
-        seed_metrics: List[Dict[str, Any]] = []
-
-        for seed in seeds:
-            torch.manual_seed(seed)
-            np.random.seed(seed)
-            ckpt_dir = fold_dir / f"seed_{seed}"
-            ckpt_dir.mkdir(parents=True, exist_ok=True)
-
+    try:
+        if variant in _STRUCTURAL_VARIANTS:
+            from reproduce.main_table import (
+                _compute_topo_baseline_scores, _load_scenario_data,
+            )
             try:
-                if variant in _STRUCTURAL_VARIANTS:
-                    # Training-free structural centrality: no fit, so the
-                    # fold split only selects which nodes are scored. Present
-                    # in the table because a learned variant has to beat it.
-                    #
-                    # Scored on the DEPENDS_ON projection, matching the LOSO and
-                    # in-distribution harnesses. On the native pub-sub graph
-                    # Application nodes never route messages, so their
-                    # betweenness is identically zero and the QoS-weighted arm
-                    # silently falls back to plain topology betweenness -- which
-                    # made Topo and Topo-QoS produce byte-identical scores.
-                    from reproduce.main_table import (
-                        _compute_topo_baseline_scores, _load_scenario_data,
-                    )
-                    try:
-                        proj_graph, proj_struct, _s, _r, _g = _load_scenario_data(
-                            bundle.scenario_id, substrate="projection"
-                        )
-                    except Exception as exc:      # noqa: BLE001
-                        logger.warning("%s: projection unavailable (%s); using native graph",
-                                       variant, exc)
-                        proj_graph, proj_struct = train_graph, train_sm
-
-                    struct_pred = _compute_topo_baseline_scores(
-                        proj_graph, proj_struct, use_qos=use_qos
-                    ) or {}
-
-                    # Restrict to this fold's test nodes, exactly as the learned
-                    # branches do. The baseline needs no training, but scoring it
-                    # on every node while the learned variants are scored on a
-                    # 20% test split would compare two estimators on two samples
-                    # -- the same defect this harness exists to prevent. Fold
-                    # membership is derived from the identical HeteroData
-                    # construction, so all variants see the same test set.
-                    _conv = networkx_to_hetero_data(
-                        train_graph, train_sm, bundle.simulation, bundle.rm,
-                        qos_enabled=use_qos, rank_normalize_features=rank_normalize_features,
-                    )
-                    create_kfold_masks(_conv.hetero_data, k=k, fold_idx=fold_idx, seed=split_seed)
-                    _test_ids = _test_node_ids(_conv.hetero_data, _conv.node_id_map)
-                    pred_scores = {
-                        str(nid): float(v) for nid, v in struct_pred.items()
-                        if nid in _test_ids
-                    }
-
-                elif variant in _HOMOGENEOUS_VARIANTS:
-                    from saag.prediction.models.baselines import build_baseline
-                    from saag.prediction.trainer import GNNTrainer
-
-                    conv = networkx_to_hetero_data(
-                        train_graph, train_sm, bundle.simulation, bundle.rm, qos_enabled=use_qos,
-                        rank_normalize_features=rank_normalize_features,
-                    )
-                    data = conv.hetero_data
-                    create_kfold_masks(data, k=k, fold_idx=fold_idx, seed=split_seed)
-
-                    # Registry-resolved; identity for every reported variant.
-                    edge_dim = _registry.edge_dim(variant, "kfold")
-                    baseline_name = "homo_unweighted" if edge_dim is None else "homo_scalar"
-                    model = build_baseline(
-                        baseline_name,
-                        hidden_channels=_registry.hidden_for(variant, hidden, "kfold"),
-                        num_heads=heads,
-                        num_layers=layers, dropout=dropout, edge_dim=edge_dim,
-                    )
-                    model.to(target_device)
-                    trainer = GNNTrainer(
-                        model=model, checkpoint_dir=str(ckpt_dir),
-                        lr=lr, num_epochs=epochs, patience=min(60, epochs),
-                        weight_decay=weight_decay, warmup_T0=warmup_T0,
-                        multitask_weight=multitask_weight,
-                        rm_consistency_weight=rm_consistency_weight,
-                        ranking_weight=ranking_weight,
-                        pairwise_ranking_weight=pairwise_ranking_weight,
-                    )
-                    trainer.train(data)
-
-                    test_ids = _test_node_ids(data, conv.node_id_map)
-                    model.eval()
-                    data_dev = data.to(target_device)
-                    with torch.no_grad():
-                        x = {nt: data_dev[nt].x for nt in data_dev.node_types if hasattr(data_dev[nt], "x")}
-                        ei = {r: data_dev[r].edge_index for r in data_dev.edge_types}
-                        ea = {r: data_dev[r].edge_attr for r in data_dev.edge_types if hasattr(data_dev[r], "edge_attr")}
-                        out = model(x, ei, ea)
-                    pred_scores = {}
-                    for nt, preds in out.items():
-                        node_list = conv.node_id_map.get(nt, [])
-                        for local_idx, nid in enumerate(node_list):
-                            if nid in test_ids and local_idx < preds.shape[0]:
-                                pred_scores[nid] = float(preds[local_idx, 0])
-
-                elif variant in _HGT_VARIANTS:
-                    # hgl_qos (default), hgl, hgl_qos_uni or topology_rm → GNNService.
-                    # GNNService.train() always calls (module-level) create_node_splits
-                    # internally; monkeypatch it to our fixed k-fold split for the
-                    # duration of this call so the rest of GNNService's training/
-                    # inference machinery (model construction, IQR label norm,
-                    # multi-seed best-state tracking, RM blending) is reused unchanged.
-                    import saag.prediction.gnn_service as gnn_service_mod
-
-                    effective_mode = "rm" if variant == "topology_rm" else mode
-                    effective_epochs = 1 if variant == "topology_rm" else epochs
-
-                    def _fold_split(hd, train_ratio=0.6, val_ratio=0.2, seed=None):
-                        create_kfold_masks(hd, k=k, fold_idx=fold_idx, val_ratio=val_ratio, seed=split_seed)
-
-                    original_splitter = gnn_service_mod.create_node_splits
-                    gnn_service_mod.create_node_splits = _fold_split
-                    try:
-                        service = GNNService(
-                            checkpoint_dir=str(ckpt_dir),
-                            hidden_channels=hidden,
-                            num_heads=heads,
-                            num_layers=layers,
-                            dropout=dropout,
-                            predict_edges=False,
-                            qos_injection=qos_injection,
-                            device=target_device,
-                            use_bidirectional=_registry.bidirectional_for(variant),
-                        )
-                        service.train(
-                            graph=train_graph,
-                            structural_metrics=train_sm,
-                            simulation_results=bundle.simulation,
-                            rm_scores=bundle.rm,
-                            num_epochs=effective_epochs,
-                            lr=lr,
-                            patience=min(60, epochs),
-                            layer=layer,
-                            qos_enabled=use_qos,
-                            weight_decay=weight_decay,
-                            warmup_T0=warmup_T0,
-                            multitask_weight=multitask_weight,
-                            rm_consistency_weight=rm_consistency_weight,
-                            ranking_weight=ranking_weight,
-                            pairwise_ranking_weight=pairwise_ranking_weight,
-                            seeds=[seed],
-                            mode=effective_mode,
-                            rank_normalize_features=rank_normalize_features,
-                            rank_normalize_labels=rank_normalize_labels,
-                        )
-                        conv = service._conversion_result
-                        test_ids = _test_node_ids(conv.hetero_data, conv.node_id_map)
-                        result = service.predict_from_data(conv.hetero_data, bundle.simulation, mode=effective_mode)
-                        pred_scores = {
-                            nid: float(ns.composite_score)
-                            for nid, ns in result.node_scores.items()
-                            if nid in test_ids
-                        }
-                    finally:
-                        gnn_service_mod.create_node_splits = original_splitter
-
-                else:
-                    # Unreachable via the CLI; see cli/loso_evaluate.py.
-                    raise ValueError(
-                        f"unrecognised variant {variant!r}; expected one of "
-                        f"{sorted(KNOWN_VARIANTS)}"
-                    )
-
-            except Exception as e:
-                logger.error(
-                    "  [%s] fold %d seed %d failed: %s",
-                    bundle.scenario_id, fold_idx, seed, e, exc_info=True,
+                proj_graph, proj_struct, _s, _r, _g = _load_scenario_data(
+                    bundle.scenario_id, substrate="projection"
                 )
-                continue
+            except Exception as exc:      # noqa: BLE001
+                logger.warning("%s: projection unavailable (%s); using native graph",
+                               variant, exc)
+                proj_graph, proj_struct = train_graph, train_sm
 
-            m = compute_inductive_metrics(
-                pred_scores, true_impact, bundle.graph, population=eval_population,
+            struct_pred = _compute_topo_baseline_scores(
+                proj_graph, proj_struct, use_qos=use_qos
+            ) or {}
+
+            _conv = networkx_to_hetero_data(
+                train_graph, train_sm, bundle.simulation, bundle.rm,
+                qos_enabled=use_qos, rank_normalize_features=rank_normalize_features,
             )
-            m["seed"] = seed
-            m["prediction_mode"] = mode
-            m["variant"] = variant
-            seed_metrics.append(m)
+            create_kfold_masks(_conv.hetero_data, k=k, fold_idx=fold_idx, seed=split_seed)
+            _test_ids = _test_node_ids(_conv.hetero_data, _conv.node_id_map)
+            pred_scores = {
+                str(nid): float(v) for nid, v in struct_pred.items()
+                if nid in _test_ids
+            }
 
-            logger.info(
-                "  [%s] fold %d seed %d: ρ=%.4f F1=%.4f NDCG=%.4f RMSE=%.4f (n_test=%d)",
-                bundle.scenario_id, fold_idx, seed,
-                m["spearman_rho"], m["f1_at_k"], m["ndcg_10"], m["rmse"], m["n"],
+        elif variant in _HOMOGENEOUS_VARIANTS:
+            from saag.prediction.models.baselines import build_baseline
+            from saag.prediction.trainer import GNNTrainer
+
+            conv = networkx_to_hetero_data(
+                train_graph, train_sm, bundle.simulation, bundle.rm, qos_enabled=use_qos,
+                rank_normalize_features=rank_normalize_features,
+            )
+            data = conv.hetero_data
+            create_kfold_masks(data, k=k, fold_idx=fold_idx, seed=split_seed)
+
+            edge_dim = _registry.edge_dim(variant, "kfold")
+            baseline_name = "homo_unweighted" if edge_dim is None else "homo_scalar"
+            model = build_baseline(
+                baseline_name,
+                hidden_channels=_registry.hidden_for(variant, hidden, "kfold"),
+                num_heads=heads,
+                num_layers=layers, dropout=dropout, edge_dim=edge_dim,
+            )
+            model.to(target_device)
+            trainer = GNNTrainer(
+                model=model, checkpoint_dir=str(ckpt_dir),
+                lr=lr, num_epochs=epochs, patience=min(60, epochs),
+                weight_decay=weight_decay, warmup_T0=warmup_T0,
+                multitask_weight=multitask_weight,
+                rm_consistency_weight=rm_consistency_weight,
+                ranking_weight=ranking_weight,
+                pairwise_ranking_weight=pairwise_ranking_weight,
+            )
+            trainer.train(data)
+
+            test_ids = _test_node_ids(data, conv.node_id_map)
+            model.eval()
+            data_dev = data.to(target_device)
+            with torch.no_grad():
+                x = {nt: data_dev[nt].x for nt in data_dev.node_types if hasattr(data_dev[nt], "x")}
+                ei = {r: data_dev[r].edge_index for r in data_dev.edge_types}
+                ea = {r: data_dev[r].edge_attr for r in data_dev.edge_types if hasattr(data_dev[r], "edge_attr")}
+                out = model(x, ei, ea)
+            pred_scores = {}
+            for nt, preds in out.items():
+                node_list = conv.node_id_map.get(nt, [])
+                for local_idx, nid in enumerate(node_list):
+                    if nid in test_ids and local_idx < preds.shape[0]:
+                        pred_scores[nid] = float(preds[local_idx, 0])
+
+        elif variant in _HGT_VARIANTS:
+            import saag.prediction.gnn_service as gnn_service_mod
+
+            effective_mode = "rm" if variant == "topology_rm" else mode
+            effective_epochs = 1 if variant == "topology_rm" else epochs
+
+            def _fold_split(hd, train_ratio=0.6, val_ratio=0.2, seed=None):
+                create_kfold_masks(hd, k=k, fold_idx=fold_idx, val_ratio=val_ratio, seed=split_seed)
+
+            original_splitter = gnn_service_mod.create_node_splits
+            gnn_service_mod.create_node_splits = _fold_split
+            try:
+                service = GNNService(
+                    checkpoint_dir=str(ckpt_dir),
+                    hidden_channels=hidden,
+                    num_heads=heads,
+                    num_layers=layers,
+                    dropout=dropout,
+                    predict_edges=False,
+                    qos_injection=qos_injection,
+                    device=target_device,
+                    use_bidirectional=_registry.bidirectional_for(variant),
+                )
+                service.train(
+                    graph=train_graph,
+                    structural_metrics=train_sm,
+                    simulation_results=bundle.simulation,
+                    rm_scores=bundle.rm,
+                    num_epochs=effective_epochs,
+                    lr=lr,
+                    patience=min(60, epochs),
+                    layer=layer,
+                    qos_enabled=use_qos,
+                    weight_decay=weight_decay,
+                    warmup_T0=warmup_T0,
+                    multitask_weight=multitask_weight,
+                    rm_consistency_weight=rm_consistency_weight,
+                    ranking_weight=ranking_weight,
+                    pairwise_ranking_weight=pairwise_ranking_weight,
+                    seeds=[seed],
+                    mode=effective_mode,
+                    rank_normalize_features=rank_normalize_features,
+                    rank_normalize_labels=rank_normalize_labels,
+                )
+                conv = service._conversion_result
+                test_ids = _test_node_ids(conv.hetero_data, conv.node_id_map)
+                result = service.predict_from_data(conv.hetero_data, bundle.simulation, mode=effective_mode)
+                pred_scores = {
+                    nid: float(ns.composite_score)
+                    for nid, ns in result.node_scores.items()
+                    if nid in test_ids
+                }
+            finally:
+                gnn_service_mod.create_node_splits = original_splitter
+
+        else:
+            raise ValueError(
+                f"unrecognised variant {variant!r}; expected one of {sorted(KNOWN_VARIANTS)}"
             )
 
-        if not seed_metrics:
-            logger.warning("  [%s] fold %d: all seeds failed, skipping fold.", bundle.scenario_id, fold_idx)
-            continue
+    except Exception as e:
+        logger.error("  [%s] fold %d seed %d failed: %s", bundle.scenario_id, fold_idx, seed, e, exc_info=True)
+        raise SeedFailed(str(e)) from e
 
-        rho_vals = [m["spearman_rho"] for m in seed_metrics]
-        f1_vals = [m["f1_at_k"] for m in seed_metrics]
-        precision_vals = [m["precision_at_k"] for m in seed_metrics]
-        recall_vals = [m["recall_at_k"] for m in seed_metrics]
-        ndcg_vals = [m["ndcg_10"] for m in seed_metrics]
-        rmse_vals = [m["rmse"] for m in seed_metrics]
+    m = compute_inductive_metrics(
+        pred_scores, true_impact, bundle.graph, population=eval_population,
+    )
+    m["seed"] = seed
+    m["prediction_mode"] = mode
+    m["variant"] = variant
+    return m
 
-        per_type_summary = aggregate_per_type(
-            [m.get("per_type_rho", {}) for m in seed_metrics], value_key="rho"
-        )
 
-        fold_results.append(FoldResult(
-            scenario_id=bundle.scenario_id,
-            fold_idx=fold_idx,
-            n_test=seed_metrics[0]["n"],
-            seed_metrics=seed_metrics,
-            mean_metrics={
-                "spearman_rho": float(np.mean(rho_vals)),
-                "f1_at_k": float(np.mean(f1_vals)),
-                "precision_at_k": float(np.mean(precision_vals)),
-                "recall_at_k": float(np.mean(recall_vals)),
-                "ndcg_10": float(np.mean(ndcg_vals)),
-                "rmse": float(np.mean(rmse_vals)),
-            },
-            std_metrics={
-                "spearman_rho": float(np.std(rho_vals)),
-                "f1_at_k": float(np.std(f1_vals)),
-                "precision_at_k": float(np.std(precision_vals)),
-                "recall_at_k": float(np.std(recall_vals)),
-                "ndcg_10": float(np.std(ndcg_vals)),
-                "rmse": float(np.std(rmse_vals)),
-            },
-            per_type_rho=per_type_summary,
-        ))
+def _seed_metrics(
+    bundle: ScenarioBundle,
+    k: int,
+    fold_idx: int,
+    seed: int,
+    cfg: Dict[str, Any],
+    target_device: torch.device,
+    fold_dir: Path,
+    resume: bool = False,
+    cache_dir: Optional[Path] = None,
+    done: Optional[List[Dict[str, Any]]] = None,
+    errors: Optional[List[str]] = None,
+    info: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    if cfg["variant"] in _STRUCTURAL_VARIANTS and done:
+        return _replicate_structural(done[0], seed)
 
-    if not fold_results:
-        raise RuntimeError(f"All folds failed for scenario {bundle.scenario_id}.")
+    seed_dir = fold_dir / f"seed_{seed}"
+    shard = seed_dir / "seed_result.json"
+    fingerprint = _seed_fingerprint(bundle.scenario_id, k, fold_idx, seed, cfg, target_device, cache_dir)
 
+    if resume and shard.exists():
+        try:
+            payload = json.loads(shard.read_text())
+        except json.JSONDecodeError:
+            payload = {}
+        if payload.get("fingerprint") == fingerprint:
+            logger.info("  [%s] fold %d seed %d: reusing stored fit", bundle.scenario_id, fold_idx, seed)
+            if info is not None:
+                info["reused"] = True
+            return payload["metrics"]
+        logger.info("  [%s] fold %d seed %d: stored fit fingerprint mismatch, re-running",
+                    bundle.scenario_id, fold_idx, seed)
+
+    if seed_dir.exists():
+        shutil.rmtree(seed_dir)
+    seed_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        m = _run_seed(bundle, k, fold_idx, seed, cfg, target_device, fold_dir)
+    except SeedFailed as exc:
+        if errors is not None:
+            errors.append(str(exc))
+        return None
+
+    shard.write_text(json.dumps({"fingerprint": fingerprint, "metrics": m}))
+    return m
+
+
+def _aggregate_fold(scenario_id: str, fold_idx: int, seed_metrics: List[Dict[str, Any]]) -> FoldResult:
+    rho_vals = [m["spearman_rho"] for m in seed_metrics]
+    f1_vals = [m["f1_at_k"] for m in seed_metrics]
+    precision_vals = [m["precision_at_k"] for m in seed_metrics]
+    recall_vals = [m["recall_at_k"] for m in seed_metrics]
+    ndcg_vals = [m["ndcg_10"] for m in seed_metrics]
+    rmse_vals = [m["rmse"] for m in seed_metrics]
+
+    per_type_summary = aggregate_per_type(
+        [m.get("per_type_rho", {}) for m in seed_metrics], value_key="rho"
+    )
+
+    return FoldResult(
+        scenario_id=scenario_id,
+        fold_idx=fold_idx,
+        n_test=seed_metrics[0]["n"],
+        seed_metrics=seed_metrics,
+        mean_metrics={
+            "spearman_rho": float(np.mean(rho_vals)),
+            "f1_at_k": float(np.mean(f1_vals)),
+            "precision_at_k": float(np.mean(precision_vals)),
+            "recall_at_k": float(np.mean(recall_vals)),
+            "ndcg_10": float(np.mean(ndcg_vals)),
+            "rmse": float(np.mean(rmse_vals)),
+        },
+        std_metrics={
+            "spearman_rho": float(np.std(rho_vals)),
+            "f1_at_k": float(np.std(f1_vals)),
+            "precision_at_k": float(np.std(precision_vals)),
+            "recall_at_k": float(np.std(recall_vals)),
+            "ndcg_10": float(np.std(ndcg_vals)),
+            "rmse": float(np.std(rmse_vals)),
+        },
+        per_type_rho=per_type_summary,
+    )
+
+
+def _aggregate_scenario(scenario_id: str, fold_results: List[FoldResult]) -> ScenarioResult:
     fold_rhos = [f.mean_metrics["spearman_rho"] for f in fold_results]
     fold_f1s = [f.mean_metrics["f1_at_k"] for f in fold_results]
     fold_precisions = [f.mean_metrics["precision_at_k"] for f in fold_results]
@@ -473,7 +506,7 @@ def run_one_scenario(
     )
 
     return ScenarioResult(
-        scenario_id=bundle.scenario_id,
+        scenario_id=scenario_id,
         fold_results=fold_results,
         mean_metrics={
             "spearman_rho": float(np.mean(fold_rhos)),
@@ -495,14 +528,268 @@ def run_one_scenario(
     )
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Full k-fold orchestration
-# ──────────────────────────────────────────────────────────────────────────────
+#: Per-worker state for ProcessPoolExecutor.
+_WORKER_STATE: Dict[str, Any] = {}
 
-#: Scenarios allowed to fail, with nothing succeeding, before the sweep is
-#: abandoned. Two rather than one so a single genuinely degenerate scenario
-#: cannot stop a run that would otherwise have produced a table.
-_FAIL_FAST_SCENARIOS = 2
+
+def _worker_init(cache_dir: str, skip: List[str], expected_ids: List[str], torch_threads: int) -> None:
+    torch.set_num_threads(max(1, torch_threads))
+    logging.getLogger().setLevel(logging.WARNING)
+    bundles = discover_scenarios(Path(cache_dir), skip=skip, min_scenarios=1)
+    got = [b.scenario_id for b in bundles]
+    if got != list(expected_ids):
+        raise RuntimeError(
+            f"worker corpus differs from the parent's: {got} != {list(expected_ids)}"
+        )
+    _WORKER_STATE["bundles"] = {b.scenario_id: b for b in bundles}
+
+
+def _worker_seed(job: Tuple) -> Tuple[str, int, int, Optional[Dict[str, Any]], Optional[str], bool]:
+    (scenario_id, k, fold_idx, seed, cfg, fold_dir_str,
+     device_str, resume, cache_dir) = job
+    bundle = _WORKER_STATE["bundles"][scenario_id]
+    errors: List[str] = []
+    info: Dict[str, Any] = {}
+    m = _seed_metrics(
+        bundle=bundle,
+        k=k,
+        fold_idx=fold_idx,
+        seed=seed,
+        cfg=cfg,
+        target_device=torch.device(device_str),
+        fold_dir=Path(fold_dir_str),
+        resume=resume,
+        cache_dir=Path(cache_dir) if cache_dir else None,
+        errors=errors,
+        info=info,
+    )
+    return scenario_id, fold_idx, seed, m, (errors[-1] if errors else None), bool(info.get("reused"))
+
+
+def run_one_scenario(
+    bundle: ScenarioBundle,
+    k: int,
+    seeds: List[int],
+    layer: str,
+    epochs: int,
+    lr: float,
+    hidden: int,
+    heads: int,
+    layers: int,
+    dropout: float,
+    workdir: Path,
+    mode: str,
+    variant: str,
+    weight_decay: float,
+    warmup_T0: Optional[int],
+    multitask_weight: float,
+    rm_consistency_weight: float,
+    ranking_weight: float,
+    pairwise_ranking_weight: float = 0.1,
+    rank_normalize_features: bool = False,
+    rank_normalize_labels: bool = False,
+    qos_injection: str = "pooled",
+    eval_population: str = "application",
+    device: Optional[str] = "auto",
+    resume: bool = False,
+    cache_dir: Optional[Path] = None,
+) -> ScenarioResult:
+    """Repeated stratified k-fold within a single scenario's own graph."""
+    if variant not in KNOWN_VARIANTS:
+        raise ValueError(
+            f"unrecognised variant {variant!r}; expected one of "
+            f"{sorted(KNOWN_VARIANTS)}"
+        )
+
+    target_device = _resolve_device(device)
+    cfg = _seed_cfg(
+        variant=variant, layer=layer, epochs=epochs, lr=lr, hidden=hidden,
+        heads=heads, layers=layers, dropout=dropout, mode=mode,
+        weight_decay=weight_decay, warmup_T0=warmup_T0,
+        multitask_weight=multitask_weight,
+        rm_consistency_weight=rm_consistency_weight,
+        ranking_weight=ranking_weight,
+        pairwise_ranking_weight=pairwise_ranking_weight,
+        rank_normalize_features=rank_normalize_features,
+        rank_normalize_labels=rank_normalize_labels,
+        qos_injection=qos_injection, eval_population=eval_population,
+    )
+
+    scenario_dir = workdir / bundle.scenario_id
+    scenario_dir.mkdir(parents=True, exist_ok=True)
+    fold_results: List[FoldResult] = []
+
+    for fold_idx in range(k):
+        fold_dir = scenario_dir / f"fold_{fold_idx}"
+        fold_dir.mkdir(parents=True, exist_ok=True)
+        seed_metrics: List[Dict[str, Any]] = []
+
+        for seed in seeds:
+            errors: List[str] = []
+            info: Dict[str, Any] = {}
+            m = _seed_metrics(
+                bundle=bundle, k=k, fold_idx=fold_idx, seed=seed, cfg=cfg,
+                target_device=target_device, fold_dir=fold_dir, resume=resume,
+                cache_dir=cache_dir, done=seed_metrics, errors=errors, info=info,
+            )
+            if m is not None:
+                seed_metrics.append(m)
+                reused_s = "  (reused)" if info.get("reused") else ""
+                logger.info(
+                    "  [%s] fold %d seed %d: ρ=%.4f F1=%.4f NDCG=%.4f RMSE=%.4f (n_test=%d)%s",
+                    bundle.scenario_id, fold_idx, seed,
+                    m["spearman_rho"], m["f1_at_k"], m["ndcg_10"], m["rmse"], m["n"], reused_s,
+                )
+
+        if seed_metrics:
+            fold_results.append(_aggregate_fold(bundle.scenario_id, fold_idx, seed_metrics))
+
+    if not fold_results:
+        raise RuntimeError(f"All folds failed for scenario {bundle.scenario_id}.")
+
+    return _aggregate_scenario(bundle.scenario_id, fold_results)
+
+
+def _run_kfold_parallel(
+    bundles: List[ScenarioBundle],
+    k: int,
+    seeds: List[int],
+    cfg: Dict[str, Any],
+    target_device: torch.device,
+    workdir: Path,
+    jobs: int,
+    resume: bool,
+    cache_dir: Optional[Path],
+    skip: List[str],
+    torch_threads: int,
+    expected_ids: List[str],
+) -> List[ScenarioResult]:
+    import multiprocessing as mp
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+
+    if cache_dir is None:
+        raise ValueError("--jobs > 1 needs --cache-dir so each worker can load the corpus")
+
+    mp_context = mp.get_context("spawn") if target_device.type == "cuda" else None
+
+    queue = []
+    bundle_k_map: Dict[str, int] = {}
+    for bundle in bundles:
+        this_k = min(k, bundle.n_labelled) if bundle.n_labelled >= 2 else k
+        bundle_k_map[bundle.scenario_id] = this_k
+        scenario_dir = workdir / bundle.scenario_id
+        scenario_dir.mkdir(parents=True, exist_ok=True)
+        for fold_idx in range(this_k):
+            fold_dir = scenario_dir / f"fold_{fold_idx}"
+            fold_dir.mkdir(parents=True, exist_ok=True)
+            for seed in seeds:
+                queue.append((
+                    bundle.scenario_id, this_k, fold_idx, seed, cfg,
+                    str(fold_dir), str(target_device), resume, str(cache_dir),
+                ))
+
+    logger.info("Dispatching %d fits across %d workers.", len(queue), jobs)
+
+    by_scenario: Dict[str, Dict[int, Dict[int, Dict[str, Any]]]] = {
+        b.scenario_id: {} for b in bundles
+    }
+    guard = _FailFast()
+    done_count = 0
+
+    with ProcessPoolExecutor(
+        max_workers=jobs,
+        mp_context=mp_context,
+        initializer=_worker_init,
+        initargs=(str(cache_dir), list(skip), list(expected_ids), torch_threads),
+    ) as pool:
+        futures = {pool.submit(_worker_seed, job): job for job in queue}
+        try:
+            for fut in as_completed(futures):
+                sc_id, fold_idx, seed, m, err, reused = fut.result()
+                done_count += 1
+                if m is not None:
+                    if fold_idx not in by_scenario[sc_id]:
+                        by_scenario[sc_id][fold_idx] = {}
+                    by_scenario[sc_id][fold_idx][seed] = m
+                    outcome = f"rho={m['spearman_rho']:.4f}"
+                    if reused:
+                        outcome += "  (reused)"
+                else:
+                    outcome = f"FAILED ({err})"
+
+                logger.info("  [%d/%d] scenario=%s fold=%d seed=%d %s",
+                            done_count, len(queue), sc_id, fold_idx, seed, outcome)
+                guard.record(None if m is not None else (err or "unknown"))
+        except SweepAborted:
+            for fut in futures:
+                fut.cancel()
+            raise
+
+    scenario_results: List[ScenarioResult] = []
+    for bundle in bundles:
+        this_k = bundle_k_map[bundle.scenario_id]
+        sc_metrics = by_scenario.get(bundle.scenario_id, {})
+        fold_results: List[FoldResult] = []
+        for fold_idx in range(this_k):
+            seed_metrics = [
+                sc_metrics[fold_idx][s]
+                for s in seeds
+                if fold_idx in sc_metrics and s in sc_metrics[fold_idx]
+            ]
+            if seed_metrics:
+                fold_results.append(_aggregate_fold(bundle.scenario_id, fold_idx, seed_metrics))
+
+        if fold_results:
+            scenario_results.append(_aggregate_scenario(bundle.scenario_id, fold_results))
+        else:
+            logger.warning("All folds failed for scenario %s", bundle.scenario_id)
+
+    return scenario_results
+
+
+def _run_kfold_serial(
+    bundles: List[ScenarioBundle],
+    k: int,
+    seeds: List[int],
+    cfg: Dict[str, Any],
+    target_device: torch.device,
+    workdir: Path,
+    resume: bool = False,
+    cache_dir: Optional[Path] = None,
+) -> List[ScenarioResult]:
+    scenario_results: List[ScenarioResult] = []
+    failures: List[str] = []
+
+    for i, bundle in enumerate(bundles):
+        logger.info("════════════════════════════════════════════════════════════")
+        logger.info("Scenario %d / %d   %s (%d nodes, %d labelled)",
+                    i + 1, len(bundles), bundle.scenario_id, bundle.n_nodes, bundle.n_labelled)
+        logger.info("════════════════════════════════════════════════════════════")
+
+        this_k = min(k, bundle.n_labelled) if bundle.n_labelled >= 2 else k
+        if this_k < k:
+            logger.warning(
+                "  [%s] only %d labelled nodes — reducing k %d -> %d for this scenario.",
+                bundle.scenario_id, bundle.n_labelled, k, this_k,
+            )
+
+        try:
+            res = run_one_scenario(
+                bundle=bundle, k=this_k, seeds=seeds, workdir=workdir,
+                device=str(target_device), resume=resume, cache_dir=cache_dir,
+                **cfg,
+            )
+            scenario_results.append(res)
+        except Exception as exc:
+            logger.exception("  Scenario failed (%s): %s", bundle.scenario_id, exc)
+            failures.append(f"{bundle.scenario_id}: {exc}")
+            if not scenario_results and len(failures) >= _FAIL_FAST_SCENARIOS:
+                raise RuntimeError(
+                    f"First {_FAIL_FAST_SCENARIOS} scenarios failed ({failures}); "
+                    "aborting sweep rather than training on."
+                ) from exc
+
+    return scenario_results
 
 
 def run_kfold(
@@ -530,60 +817,52 @@ def run_kfold(
     qos_injection: str = "pooled",
     eval_population: str = "application",
     device: Optional[str] = "auto",
+    jobs: int = 1,
+    torch_threads: int = 1,
+    resume: bool = False,
+    cache_dir: Optional[Path] = None,
+    skip: Optional[List[str]] = None,
 ) -> KFoldReport:
     output_dir.mkdir(parents=True, exist_ok=True)
     workdir = output_dir / "workspace"
     workdir.mkdir(exist_ok=True)
 
-    scenario_results: List[ScenarioResult] = []
-    failures: List[str] = []
-    for i, bundle in enumerate(bundles):
-        logger.info("════════════════════════════════════════════════════════════")
-        logger.info("Scenario %d / %d   %s (%d nodes, %d labelled)",
-                     i + 1, len(bundles), bundle.scenario_id, bundle.n_nodes, bundle.n_labelled)
-        logger.info("════════════════════════════════════════════════════════════")
+    target_device = _resolve_device(device)
+    cfg = _seed_cfg(
+        variant=variant, layer=layer, epochs=epochs, lr=lr, hidden=hidden,
+        heads=heads, layers=layers, dropout=dropout, mode=mode,
+        weight_decay=weight_decay, warmup_T0=warmup_T0,
+        multitask_weight=multitask_weight,
+        rm_consistency_weight=rm_consistency_weight,
+        ranking_weight=ranking_weight,
+        pairwise_ranking_weight=pairwise_ranking_weight,
+        rank_normalize_features=rank_normalize_features,
+        rank_normalize_labels=rank_normalize_labels,
+        qos_injection=qos_injection, eval_population=eval_population,
+    )
 
-        this_k = min(k, bundle.n_labelled) if bundle.n_labelled >= 2 else k
-        if this_k < k:
-            logger.warning(
-                "  [%s] only %d labelled nodes — reducing k %d -> %d for this scenario.",
-                bundle.scenario_id, bundle.n_labelled, k, this_k,
-            )
+    scenario_ids = [b.scenario_id for b in bundles]
 
-        try:
-            result = run_one_scenario(
-                bundle=bundle, k=this_k, seeds=seeds,
-                layer=layer, epochs=epochs, lr=lr,
-                hidden=hidden, heads=heads, layers=layers, dropout=dropout,
-                workdir=workdir, mode=mode, variant=variant,
-                weight_decay=weight_decay, warmup_T0=warmup_T0,
-                multitask_weight=multitask_weight,
-                rm_consistency_weight=rm_consistency_weight,
-                ranking_weight=ranking_weight,
-                pairwise_ranking_weight=pairwise_ranking_weight,
-                rank_normalize_features=rank_normalize_features,
-                rank_normalize_labels=rank_normalize_labels,
-                qos_injection=qos_injection,
-                eval_population=eval_population,
-                device=device,
-            )
-            scenario_results.append(result)
-        except Exception as exc:
-            logger.exception("  Scenario failed (%s): %s", bundle.scenario_id, exc)
-            failures.append(f"{bundle.scenario_id}: {exc}")
-            # A sweep that has produced nothing and has now failed twice the same
-            # way is not unlucky, it is misconfigured — and every remaining
-            # scenario is about to fail identically. The run this guard was
-            # written after trained 12 scenarios x 5 folds x 5 seeds and threw
-            # every fit away before raising, 3.8 hours later, because a mask had
-            # been left on the GPU and `.numpy()` cannot read one there.
-            if not scenario_results and len(failures) >= _FAIL_FAST_SCENARIOS:
-                raise RuntimeError(
-                    f"the first {len(failures)} scenarios all failed and none "
-                    f"succeeded; abandoning the sweep rather than training on. "
-                    f"Failures so far: " + "; ".join(failures)
-                ) from exc
-            continue
+    if variant in _STRUCTURAL_VARIANTS:
+        logger.info("Variant %s is training-free; running it serially.", variant)
+        scenario_results = _run_kfold_serial(
+            bundles=bundles, k=k, seeds=seeds, cfg=cfg,
+            target_device=target_device, workdir=workdir,
+            resume=resume, cache_dir=cache_dir,
+        )
+    elif jobs > 1:
+        scenario_results = _run_kfold_parallel(
+            bundles=bundles, k=k, seeds=seeds, cfg=cfg,
+            target_device=target_device, workdir=workdir, jobs=jobs,
+            resume=resume, cache_dir=cache_dir, skip=skip or [],
+            torch_threads=torch_threads, expected_ids=scenario_ids,
+        )
+    else:
+        scenario_results = _run_kfold_serial(
+            bundles=bundles, k=k, seeds=seeds, cfg=cfg,
+            target_device=target_device, workdir=workdir,
+            resume=resume, cache_dir=cache_dir,
+        )
 
     if not scenario_results:
         raise RuntimeError("All scenarios failed — nothing to report.")
@@ -788,6 +1067,19 @@ def parse_args() -> argparse.Namespace:
              "cli/loso_evaluate.py.",
     )
     p.add_argument(
+        "--jobs", "-j", type=int, default=1,
+        help="Number of concurrent fit processes across (scenario, fold, seed) triplets (default: 1 = serial). "
+             "Safe on CUDA: uses 'spawn' multiprocessing context with per-worker thread capping.",
+    )
+    p.add_argument(
+        "--torch-threads", type=int, default=1,
+        help="torch.set_num_threads per worker process (default: 1). Keeps intra-op parallelism from fighting across workers.",
+    )
+    p.add_argument(
+        "--resume", action="store_true",
+        help="Reuse cached per-seed fit results if scenario/fold/seed hyperparameters match.",
+    )
+    p.add_argument(
         "--device", default="auto", choices=["auto", "cuda", "cpu"],
         help="Device for model training/inference (default: auto -> cuda if available else cpu)",
     )
@@ -814,6 +1106,8 @@ def main() -> int:
     logger.info("  Cache:     %s", args.cache_dir)
     logger.info("  Output:    %s", args.output_dir)
     logger.info("  Device:    %s", dev_desc)
+    logger.info("  Jobs:      %d concurrent fit(s), %d thread(s) each", args.jobs, args.torch_threads)
+    logger.info("  Resume:    %s", "on" if args.resume else "off")
     logger.info("  Layer:     %s", args.layer)
     logger.info("  k:         %s", args.k)
     logger.info("  Seeds:     %s", seeds)
@@ -847,6 +1141,11 @@ def main() -> int:
         qos_injection=args.qos_injection,
         eval_population=args.eval_population,
         device=args.device,
+        jobs=args.jobs,
+        torch_threads=args.torch_threads,
+        resume=args.resume,
+        cache_dir=args.cache_dir,
+        skip=skip,
     )
     elapsed = time.time() - t0
     logger.info("K-fold evaluation complete in %.1f s.", elapsed)

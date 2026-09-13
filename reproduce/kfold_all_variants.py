@@ -70,16 +70,17 @@ def _run_variant(
     epochs: int,
     extra_args: List[str],
     verbose: bool,
+    jobs: int = 1,
+    torch_threads: int = 1,
+    resume: bool = False,
 ) -> Optional[Dict]:
     """Invoke kfold_evaluate.py for one variant and return its results dict."""
     out_dir = OUTPUT_BASE / variant
 
-    # Clear stale state before running. GNNService restores from any checkpoint
-    # it finds, so a leftover workspace makes the run skip training entirely and
-    # score a model fitted for a different configuration (see the same guard in
-    # loso_all_variants.py, where it flipped hgl from -0.576 to +0.594).
+    # Clear stale state before running unless --resume is enabled.
+    # Under --resume, completed per-seed fits are reused if fingerprints match.
     workspace = out_dir / "workspace"
-    if workspace.exists():
+    if workspace.exists() and not resume:
         shutil.rmtree(workspace)
     out_dir.mkdir(parents=True, exist_ok=True)
     results_path = out_dir / "results.json"
@@ -94,8 +95,12 @@ def _run_variant(
         "--seeds", seeds,
         "--k", str(k),
         "--epochs", str(epochs),
+        "--jobs", str(jobs),
+        "--torch-threads", str(torch_threads),
         *extra_args,
     ]
+    if resume:
+        cmd.append("--resume")
     if verbose:
         print(f"    CMD: {' '.join(cmd)}")
 
@@ -292,6 +297,17 @@ def parse_args():
         help="Node population every variant is scored on; forwarded to "
              "cli/kfold_evaluate.py. Defaults to 'application'.",
     )
+    p.add_argument("--skip", default="",
+                   help="Comma-separated scenario id substrings dropped from evaluation")
+    p.add_argument(
+        "--jobs", type=int, default=1,
+        help="Concurrent (scenario, fold, seed) fits within each variant (default: 1). "
+             "Safe on CUDA: uses 'spawn' multiprocessing context with per-worker thread capping.",
+    )
+    p.add_argument(
+        "--torch-threads", type=int, default=1,
+        help="Intra-op threads per fit (default: 1). Forwarded to cli/kfold_evaluate.py.",
+    )
     p.add_argument(
         "--device", default="auto", choices=["auto", "cuda", "cpu"],
         help="Device for model training/inference (default: auto -> cuda if available else cpu)",
@@ -315,6 +331,10 @@ def main():
     print(f"  k         : {args.k}")
     print(f"  Device    : {dev_desc}")
     print(f"  Cache dir : {args.cache_dir}")
+    print(f"  Jobs      : {args.jobs} concurrent fit(s), {args.torch_threads} thread(s) each")
+    print(f"  Resume    : {'on' if args.resume else 'off'}")
+    if args.skip:
+        print(f"  Skip      : {args.skip}")
     print()
 
     results_by_variant: Dict[str, Optional[Dict]] = {}
@@ -334,6 +354,10 @@ def main():
             print(f"Error: --cache-dir {args.cache_dir} does not exist.", file=sys.stderr)
             sys.exit(1)
 
+        extra_cli = ["--eval-population", args.eval_population, "--device", args.device]
+        if args.skip:
+            extra_cli.extend(["--skip", args.skip])
+
         for var in variants:
             rp = OUTPUT_BASE / var / "results.json"
             if args.resume and rp.exists():
@@ -345,8 +369,11 @@ def main():
             data = _run_variant(
                 variant=var, seeds=args.seeds, k=args.k,
                 cache_dir=args.cache_dir, epochs=args.epochs,
-                extra_args=["--eval-population", args.eval_population, "--device", args.device],
+                extra_args=extra_cli,
                 verbose=args.verbose,
+                jobs=args.jobs,
+                torch_threads=args.torch_threads,
+                resume=args.resume,
             )
             results_by_variant[var] = data
 
