@@ -33,7 +33,7 @@ Two consequences follow, and both are stated here rather than deferred to a thre
 
 First, **every correlation this thesis reports is surrogate fidelity, not accuracy against
 reality.** When HGL-QoS attains ρ = 0.6676 under leave-one-system-out evaluation
-([`results/table4_loso_results.md`](../../../../results/table4_loso_results.md)), the claim
+(`results/table4_loso_results.md`), the claim
 supported is that the learned model reproduces the simulator's ordering on a system it never saw —
 not that either the model or the simulator reproduces the ordering a production outage would
 reveal. That second link is unmeasured, and is marked as such in the three-link validation chain of
@@ -63,7 +63,7 @@ and that the analysis stage performs a function simulation does not perform at a
 
 The naive form of this argument is false and should not be made. A trained model does not deliver
 an order-of-magnitude end-to-end speedup over simulation, because the model's inputs are not free.
-From [`results/inference_latency.json`](../../../../results/inference_latency.json), at |V| = 2000
+From `results/inference_latency.json`, at |V| = 2000
 the GNN forward pass takes 254 ms, but the structural analysis that produces its 18–25-dimensional
 features takes **56.72 s** — a ratio of 223×, with Analyse, not inference, as the bottleneck. One
 exhaustive simulation sweep at comparable scale is of the same order. A claim of cheap prediction
@@ -101,7 +101,7 @@ that simulation forecloses it by cost, which is a reason for a cheap approximato
 
 "Just simulate" presumes a simulator. This framework has three, and they do not agree.
 
-From [`results/convergent_validity.json`](../../../../results/convergent_validity.json), measured
+From `results/convergent_validity.json`, measured
 across seven scenarios and five seeds:
 
 | Oracle pair | Mean Spearman ρ | Min ρ | Mean top-K Jaccard |
@@ -122,7 +122,7 @@ The parameterisation compounds this. `propagation_threshold = 0.2` is a free par
 ground truth* rather than of any model, which is why the threshold-sensitivity harness exists at
 all: a result that only holds at one setting of it is a result about the setting. Seed variance is
 likewise non-trivial — from
-[`results/label_stability.json`](../../../../results/label_stability.json), test–retest ρ ranges
+`results/label_stability.json`, test–retest ρ ranges
 0.807–1.0 and top-K Jaccard falls to 0.44, with a per-node standard deviation reaching **0.416 on a
 [0, 1]-bounded label** in `financial_trading_system`. The exhaustive sweep runs `n_trials = 1`: a
 single draw, with no variance estimate attached.

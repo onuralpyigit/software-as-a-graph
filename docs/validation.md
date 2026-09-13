@@ -122,7 +122,7 @@ Different simulation engines generate distinct ground-truth formulations across 
 - **Engine Separation**: The two engines are strictly separated by contract ([`tests/test_groundtruth_contract.py`](../tests/test_groundtruth_contract.py)) and must not be mixed within the same evaluation stage.
 - **$I_M(v)$ substrate**: change propagation runs over the transpose of the six-rule
   `DEPENDS_ON` projection, which `SimulationGraph.get_dependency_edges()` derives from raw
-  structural edges (see [graph-model.md §4.4](graph-model.md#44-depends_on-derivation)).
+  structural edges (see [graph-model.md §4.4](graph-model.md#44-phase-4-dependency-derivation)).
   Until that derivation implemented all six rules, reach was non-zero only for Topic and
   Library while the exhaustive sweep targets only Node, Broker and Application — disjoint
   sets, so $I_M(v)$ was identically $0.0$ for every component the validation scored, and

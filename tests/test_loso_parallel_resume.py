@@ -133,3 +133,46 @@ def test_structural_replication_copies_values_and_restamps_the_seed():
     clone["per_type_rho"]["Application"] = 9.9
     assert original["_full_scores"]["app-1"]["overall"] == 0.5, "shared mutable state"
     assert original["per_type_rho"]["Application"] == 0.31, "shared mutable state"
+
+
+# ── parallel multiprocessing context ─────────────────────────────────────────
+
+def test_parallel_runner_uses_spawn_context_for_cuda(monkeypatch, tmp_path):
+    import cli.loso_evaluate as mod
+    import torch
+
+    captured_ctx = []
+
+    class DummyExecutor:
+        def __init__(self, *args, **kwargs):
+            captured_ctx.append(kwargs.get("mp_context"))
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def submit(self, *args, **kwargs):
+            raise mod.SweepAborted("done")
+
+    import concurrent.futures
+    monkeypatch.setattr(concurrent.futures, "ProcessPoolExecutor", DummyExecutor)
+
+    plan = _FoldPlan(
+        holdout=type("B", (), {"scenario_id": "holdout"})(),
+        train_set=[], train_ids=[], primary=None, inductives=[],
+        val_bundle=None, effective_layers=1, fold_dir=tmp_path / "fold",
+    )
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    try:
+        mod._run_folds_parallel(
+            plans=[plan], seeds=[42], cfg=_cfg(),
+            target_device=torch.device("cuda"), workdir=tmp_path, jobs=2,
+            resume=False, cache_dir=cache, skip=[], torch_threads=1,
+            expected_ids=["holdout"], auto_layers=False, inner_val="none",
+        )
+    except mod.SweepAborted:
+        pass
+
+    assert len(captured_ctx) == 1
+    assert captured_ctx[0] is not None
+    assert captured_ctx[0].get_start_method() == "spawn"

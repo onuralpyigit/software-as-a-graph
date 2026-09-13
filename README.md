@@ -255,9 +255,9 @@ provenance manifest, and which scenario backs which result.
 
 Two regimes, and they disagree — which is the point. **In-distribution**
 (`make -f reproduce/Makefile table3`; 7 core domains × 6 variants × 5 seeds =
-210 runs, [`results/table3_main_results.md`](results/table3_main_results.md)) and
+210 runs, `results/table3_main_results.md`) and
 **inductive LOSO** (12 folds, train on eleven graphs and test on the held-out
-twelfth, [`results/table4_loso_results.md`](results/table4_loso_results.md)).
+twelfth, `results/table4_loso_results.md`).
 
 | Mean ρ vs. $I^*(v)$ | Topo | Topo-QoS | GAT-N | GAT-N-QoS | HGT | HGT-QoS |
 |:---|---:|---:|---:|---:|---:|---:|

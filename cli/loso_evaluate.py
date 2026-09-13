@@ -99,6 +99,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 import networkx as nx
 import numpy as np
 import torch
@@ -533,7 +537,9 @@ class SeedFailed(RuntimeError):
 
 
 def _resolve_device(device: Optional[str]) -> torch.device:
-    if device == "cuda" or (device in ("auto", None) and torch.cuda.is_available()):
+    if device and device.startswith("cuda"):
+        return torch.device(device)
+    if device in ("auto", None) and torch.cuda.is_available():
         return torch.device("cuda")
     return torch.device("cpu")
 
@@ -1254,13 +1260,13 @@ def _worker_init(cache_dir: str, skip: List[str], expected_ids: List[str],
 
 def _worker_seed(job: Tuple) -> Tuple[int, int, Optional[Dict[str, Any]], Optional[str], bool]:
     (k, seed, cfg, workdir, layers, auto_layers, inner_val,
-     device_type, resume, cache_dir) = job
+     device_str, resume, cache_dir) = job
     plan = _plan_fold(_WORKER_STATE["bundles"], k, layers, auto_layers,
                       inner_val, Path(workdir))
     errors: List[str] = []
     info: Dict[str, Any] = {}
     m = _seed_metrics(
-        plan, seed, cfg, torch.device(device_type), resume=resume,
+        plan, seed, cfg, torch.device(device_str), resume=resume,
         cache_dir=Path(cache_dir) if cache_dir else None, errors=errors, info=info,
     )
     return k, seed, m, (errors[-1] if errors else None), bool(info.get("reused"))
@@ -1278,14 +1284,19 @@ def _run_folds_parallel(
     of magnitude (the primary graph changes with the holdout), so a fold-level
     pool would spend its tail waiting on a single worker.
     """
+    import multiprocessing as mp
     from concurrent.futures import ProcessPoolExecutor, as_completed
 
     if cache_dir is None:
         raise ValueError("--jobs > 1 needs --cache-dir so each worker can load the corpus")
 
+    # PyTorch CUDA does not support the default 'fork' start method on Linux;
+    # 'spawn' is mandatory to avoid "Cannot re-initialize CUDA in forked subprocess".
+    mp_context = mp.get_context("spawn") if target_device.type == "cuda" else None
+
     queue = [
         (k, seed, cfg, str(workdir), cfg["layers"], auto_layers, inner_val,
-         target_device.type, resume, str(cache_dir))
+         str(target_device), resume, str(cache_dir))
         for k in range(len(plans)) for seed in seeds
     ]
     logger.info("Dispatching %d fits (%d folds x %d seeds) across %d workers.",
@@ -1298,6 +1309,7 @@ def _run_folds_parallel(
 
     with ProcessPoolExecutor(
         max_workers=jobs,
+        mp_context=mp_context,
         initializer=_worker_init,
         initargs=(str(cache_dir), list(skip), list(expected_ids), torch_threads),
     ) as pool:
