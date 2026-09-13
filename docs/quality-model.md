@@ -57,7 +57,7 @@ Together, they form the **RM Quality Model**, which produces the composite criti
 
 ### Core Principle
 
-> **Criticality is *computed* from internal quality evidence (Layers 0 & 1), *validated* against simulated external quality (Layer 2), and *defined* on Quality-in-Use (Layer 3).** *(See [criticality.md §1](criticality.md#1-overview))*
+> **Criticality is *computed* from internal quality evidence (Layers 0 & 1), *validated* against simulated external quality (Layer 2), and *defined* on Quality-in-Use (Layer 3).** *(See [criticality.md §1](criticality.md#1-overview--core-philosophy))*
 
 ### Documentation Map
 
@@ -181,7 +181,7 @@ Ingested from static code analyzers (e.g., SonarQube) for `Application` and `Lib
 
 ### 3.3 Declared QoS Measure Elements
 
-QoS policies declare execution contract guarantees. In SQuaRE terms, they represent **declared external quality requirements** ([graph-model.md §4.3](graph-model.md#43-phase-3--intrinsic-weight-computation)).
+QoS policies declare execution contract guarantees. In SQuaRE terms, they represent **declared external quality requirements** ([graph-model.md §4.3](graph-model.md#43-phase-3-intrinsic-topic-weighting)).
 
 `QoSPolicy` ([`saag/core/models.py`](../saag/core/models.py)) maps configuration enums to scalar scores:
 
@@ -236,29 +236,30 @@ Out of ~50 metrics computed on the graph, **exactly 19 measures drive the rule-b
 #### Group 1: Fault Tolerance Inputs ($FT$)
 | # | Metric Key | Symbol | Coefficient | Description & Formal Ref |
 |:---:|:---|:---:|:---:|:---|
-| 1 | `reverse_pagerank` | $RPR$ | $0.45$ | Cascade reach on transposed graph $G^{\mathsf T}$ ([§9.1](structural-analysis.md#91-reverse-pagerank-rpr)) |
-| 2 | `in_degree_raw` | $DG_{in}$ | $0.30$ | Immediate dependent count ([§9.2](structural-analysis.md#92-in-degree-dg_in)) |
-| 3 | `out_degree_raw` | $DG_{out}$ | Derived | Absorber vs. emitter ratio in $CDPot$ ([§11.3](structural-analysis.md#113-derived-terms)) |
-| 4 | `mpci` | $MPCI$ | Multiplier | Multi-Path Coupling Index; amplifies $CDPot$ ([§9.3](structural-analysis.md#93-multi-path-coupling-index-mpci)) |
-| 5 | `fan_out_criticality` | $FOC$ | $0.50$ | Topic fan-out risk (Topic branch only) ([§9.4](structural-analysis.md#94-fan-out-criticality-foc)) |
-| 6 | `dependency_weight_in` | $w_{in}$ | Discount | QoS-weighted publisher redundancy discount ([§9.13](structural-analysis.md#913-qos-weighted-in-degree-w_in)) |
+| 1 | `reverse_pagerank` | $RPR$ | $0.45$ | Cascade reach on transposed graph $G^{\mathsf T}$ ([§9.1](structural-analysis.md#1-reverse-pagerank-rpr)) |
+| 2 | `in_degree_raw` | $DG_{in}$ | $0.30$ | Immediate dependent count ([§9.2](structural-analysis.md#2-in-degree-dg_in)) |
+| 3 | `out_degree_raw` | $DG_{out}$ | Derived | Absorber vs. emitter ratio in $CDPot$ ([§11.3](structural-analysis.md#74-derived-inline-composites)) |
+| 4 | `mpci` | $MPCI$ | Multiplier | Multi-Path Coupling Index; amplifies $CDPot$ ([§9.3](structural-analysis.md#3-multi-path-coupling-index-mpci)) |
+| 5 | `fan_out_criticality` | $FOC$ | $0.50$ | Topic fan-out risk (Topic branch only) ([§9.4](structural-analysis.md#4-fan-out-criticality-foc--topic-nodes-only)) |
+| 6 | `dependency_weight_in` | $w_{in}$ | Discount | QoS-weighted publisher redundancy discount ([§9.13](structural-analysis.md#5-qos-weighted-in-degree-w_in--topic-nodes-only)) |
 
 #### Group 2: Availability Inputs ($A$)
 | # | Metric Key | Symbol | Coefficient | Description & Formal Ref |
 |:---:|:---|:---:|:---:|:---|
-| 7 | `ap_c_directed` | $AP_c^{\text{dir}}$ | $0.35$ | Continuous graph fragmentation upon node removal ([§9.8](structural-analysis.md#98-directed-ap-score-ap_c_directed)) |
-| 8 | `bridge_ratio` | $BR$ | $0.25$ | Fraction of incident edges that are bridges ([§9.9](structural-analysis.md#99-bridge-ratio-br)) |
-| 9 | `cdi` | $CDI$ | $0.10$ | Path lengthening upon node removal ([§9.10](structural-analysis.md#910-connectivity-degradation-index-cdi)) |
-| 10 | `weight` | $w(v)$ | $0.05$ | Aggregated QoS criticality weight ([graph-model.md §4.5](graph-model.md#45-phase-5--aggregate-weight-propagation)) |
+| 7 | `ap_c_directed` | $AP_c^{\text{dir}}$ | $0.2563$ | Continuous graph fragmentation upon node removal ([§7.1](structural-analysis.md#1-directed-articulation-point-score-ap_ctextdir)) |
+| 8 | *(derived)* | $QSPOF$ | $0.1998$ | QoS-weighted SPOF severity, computed inline as $AP_c^{\text{dir}}(v) \cdot w(v)$ — not a stored `StructuralMetrics` field, which is why it carried no row here before |
+| 9 | `bridge_ratio` | $BR$ | $0.1998$ | Fraction of incident edges that are bridges ([§7.2](structural-analysis.md#2-bridge-ratio-br)) |
+| 10 | `cdi` | $CDI$ | $0.2563$ | Path lengthening upon node removal ([§7.3](structural-analysis.md#3-connectivity-degradation-index-cdi)) |
+| 11 | `weight` | $w(v)$ | $0.0878$ | Aggregated QoS criticality weight ([graph-model.md §4.5](graph-model.md#45-phase-5-aggregate-weight-propagation)) |
 
 #### Group 3: Maintainability Inputs ($M$)
 | # | Metric Key | Symbol | Coefficient | Description & Formal Ref |
 |:---:|:---|:---:|:---:|:---|
-| 11 | `betweenness` | $BT$ | $0.35$ | Shortest-path routing bottleneck ([§9.5](structural-analysis.md#95-betweenness-centrality-bt)) |
-| 12 | `dependency_weight_out` | $w_{out}$ | $0.30$ | QoS-weighted outgoing dependency coupling ([§9.6](structural-analysis.md#96-qos-weighted-out-degree-w_out)) |
+| 11 | `betweenness` | $BT$ | $0.35$ | Shortest-path routing bottleneck ([§9.5](structural-analysis.md#1-betweenness-centrality-bt)) |
+| 12 | `dependency_weight_out` | $w_{out}$ | $0.30$ | QoS-weighted outgoing dependency coupling ([§9.6](structural-analysis.md#2-qos-weighted-out-degree-w_out)) |
 | 13 | `code_quality_penalty` | $CQP$ | $0.15$ | Composite code penalty from static code analysis |
-| 14 | `path_complexity` | $PC$ | $\delta = 0.10$ | Channel diversity multiplier in $CouplingRisk_{\text{enh}}$ ([§9.14](structural-analysis.md#914-path-complexity-pc)) |
-| 15 | `clustering_coefficient` | $CC$ | $0.08$ | Local isolation penalty scored as $(1 - CC)$ ([§9.7](structural-analysis.md#97-clustering-coefficient-cc)) |
+| 14 | `path_complexity` | $PC$ | $\delta = 0.10$ | Channel diversity multiplier in $CouplingRisk_{\text{enh}}$ ([§9.14](structural-analysis.md#74-derived-inline-composites)) |
+| 15 | `clustering_coefficient` | $CC$ | $0.08$ | Local isolation penalty scored as $(1 - CC)$ ([§9.7](structural-analysis.md#3-clustering-coefficient-cc)) |
 | 16 | `loc_norm` | — | $0.10$ | Size penalty within $CQP$ |
 | 17 | `complexity_norm` | — | $0.35$ | Cyclomatic complexity within $CQP$ |
 | 18 | `instability_code` | — | $0.30$ | Efferent/(Afferent+Efferent) code coupling within $CQP$ |
@@ -339,7 +340,7 @@ flowchart TD
             FT_Topic["Topics:<br>0.50·FOC + 0.50·CDPot_topic"]
         end
         subgraph AGroup["Availability A(v)"]
-            A_Formula["0.35·AP_c^dir + 0.25·QSPOF + 0.25·BR + 0.10·CDI + 0.05·w(v)"]
+            A_Formula["0.2563·AP_c^dir + 0.1998·QSPOF + 0.1998·BR + 0.2563·CDI + 0.0878·w(v)"]
         end
         FTGroup -->|Weight = 0.36| R_Blend["R(v) = 0.36·FT(v) + 0.64·A(v)"]
         AGroup -->|Weight = 0.64| R_Blend
@@ -371,13 +372,13 @@ Estimates the extent to which faults propagate to dependent components before be
   \end{aligned}$$
   *($w_{in}$ is summed in-edge QoS weight across every incoming edge type — PUBLISHES\_TO and*
   *broker ROUTES — rank-normalised against the whole component population, not publisher count;*
-  *see [§9.13](structural-analysis.md#913-qos-weighted-in-degree-w_in). It correlates with*
+  *see [§9.13](structural-analysis.md#5-qos-weighted-in-degree-w_in--topic-nodes-only). It correlates with*
   *publisher redundancy but is not a direct count of publishers.)*
 
 #### 2. Availability — $A(v)$
 Estimates catastrophic service loss from structural graph partitioning:
 
-$$A(v) = 0.35 \cdot AP_c^{\text{dir}}(v) + 0.25 \cdot QSPOF(v) + 0.25 \cdot BR(v) + 0.10 \cdot CDI(v) + 0.05 \cdot w(v)$$
+$$A(v) = 0.2563 \cdot AP_c^{\text{dir}}(v) + 0.1998 \cdot QSPOF(v) + 0.1998 \cdot BR(v) + 0.2563 \cdot CDI(v) + 0.0878 \cdot w(v)$$
 
 #### 3. Hierarchical Blend — $R(v)$
 
@@ -398,7 +399,7 @@ $$M(v) = 0.35 \cdot BT(v) + 0.30 \cdot w_{out}(v) + 0.15 \cdot CQP(v) + 0.12 \cd
 - $(1 - CC)$ ($0.08$): Low clustering indicates sole-integration points between uncoordinated modules.
 
 > [!NOTE]
-> **Maintainability's oracle is a structural traversal, not a fault injection.** Unlike Reliability, Maintainability cannot be observed through runtime execution — no amount of running the system reveals what changing it would cost. It is still a Layer 2 (External) quantity with a declared oracle, $IM(v)$, evaluated via change-propagation traversal over $G^\top$ rather than fault injection; see [docs/validation.md §3.1](validation.md#31-notation--three-quantities-three-symbols) for why $IM(v)$'s shared substrate with $M(v)$ makes it a consistency check rather than an independent behavioural test.
+> **Maintainability's oracle is a structural traversal, not a fault injection.** Unlike Reliability, Maintainability cannot be observed through runtime execution — no amount of running the system reveals what changing it would cost. It is still a Layer 2 (External) quantity with a declared oracle, $IM(v)$, evaluated via change-propagation traversal over $G^\top$ rather than fault injection; see [docs/validation.md §3.1](validation.md#31-the-simulation-oracles) for why $IM(v)$'s shared substrate with $M(v)$ makes it a consistency check rather than an independent behavioural test.
 
 ### 5.3 The Composite Criticality Score $Q(v)$
 
@@ -431,7 +432,7 @@ $$w_{\text{final}} = \lambda \cdot w_{\text{AHP}} + (1 - \lambda) \cdot \frac{1}
 |:---|:---:|:---|:---|:---:|
 | **Fault Tolerance ($FT$)** | $3 \times 3$ | $(0.45, 0.30, 0.25)$ | $(0.422, 0.323, 0.255)$ | $+0.0028$ |
 | **Maintainability ($M$)** | $5 \times 5$ | $(0.35, 0.30, 0.15, 0.12, 0.08)$ | $(0.305, 0.270, 0.165, 0.144, 0.116)$ | $+0.0005$ |
-| **Availability ($A$)** | $5 \times 5$ | $(0.35, 0.25, 0.25, 0.10, 0.05)$ | $(0.305, 0.235, 0.235, 0.130, 0.095)$ | $-0.0008$ |
+| **Availability ($A$)** | $5 \times 5$ | $(0.2804, 0.1998, 0.1998, 0.2804, 0.0397)$ | $(0.2563, 0.1998, 0.1998, 0.2563, 0.0878)$ | $-0.0029$ |
 | **Topic QoS** | $3 \times 3$ | $(0.30, 0.40, 0.30)$ | $(0.300, 0.400, 0.300)$ | $-0.0014$ |
 | **Simulation Impact** | $4 \times 4$ | $(0.393, 0.250, 0.250, 0.107)$ | $(0.347, 0.254, 0.254, 0.145)$ | $+0.0011$ |
 
@@ -601,7 +602,7 @@ A complete index of all numeric constants driving the RM quality model:
 | $w_M$ (`q_maintainability`) | $0.20$ | **DECLARED** | [`weight_calculator.py`](../saag/analysis/weight_calculator.py) | **Exact** |
 | $FT$ Weights ($RPR, DG_{in}, CDPot$) | $0.45, 0.30, 0.25$ | **DERIVED** (AHP) | [`weight_calculator.py`](../saag/analysis/weight_calculator.py) | *Structural* |
 | $M$ Weights ($BT, w_{out}, CQP, CR, 1-CC$) | $0.35, 0.30, 0.15, 0.12, 0.08$ | **DERIVED** (AHP) | [`weight_calculator.py`](../saag/analysis/weight_calculator.py) | *Structural* |
-| $A$ Weights ($AP_c^{\text{dir}}, QSPOF, BR, CDI, w$) | $0.35, 0.25, 0.25, 0.10, 0.05$ | **DERIVED** (AHP) | [`weight_calculator.py`](../saag/analysis/weight_calculator.py) | *Structural* |
+| $A$ Weights ($AP_c^{\text{dir}}, QSPOF, BR, CDI, w$) | $0.2563, 0.1998, 0.1998, 0.2563, 0.0878$ | **DERIVED** (AHP) | [`weight_calculator.py`](../saag/analysis/weight_calculator.py) | *Structural* |
 | $CQP$ Weights (`loc`, `complexity`, $I_{\text{code}}$, `lcom`) | $0.10, 0.35, 0.30, 0.25$ | **DECLARED** | [`structural_analyzer.py`](../saag/analysis/structural_analyzer.py) | *Functional* |
 | Edge Weights ($e_{BT}, e_{\text{bridge}}, e_{\text{endpoint}}, e_{\text{qos}}$) | $0.35, 0.30, 0.20, 0.15$ | **DECLARED** | [`weight_calculator.py`](../saag/analysis/weight_calculator.py) | *Default config* |
 | Topic QoS Split (Rel, Dur, Pri) | $0.24, 0.62, 0.14$ | **DERIVED** (AHP) | [`core/models.py`](../saag/core/models.py) | **Exact** (`test_topic_qos_matrix`) |
@@ -628,8 +629,8 @@ sequenceDiagram
     participant Rx as Step 7: Prescribe
 
     M->>A: Graph topology, code metrics, QoS contracts (Layer 0)
-    A->>P: 11 Tier-1 structural metrics M(v) (Layer 1)
-    A->>D: 11 Tier-1 structural metrics M(v) (Layer 1)
+    A->>P: 53-field structural metric vector M(v) (Layer 1)
+    A->>D: 53-field structural metric vector M(v) (Layer 1)
     P->>P: Pathway B: Predictive HGL Î*(v) (GNN)
     D->>D: Pathway A: Diagnostic ISO-RM Q*(v) (Layer 2) & Anti-Patterns
     P->>D: Triage Bridge: Scope Diagnosis to Top-K Risks

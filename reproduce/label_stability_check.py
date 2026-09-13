@@ -36,7 +36,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from cli.simulate_graph import _load_graph
+from reproduce._provenance import stamp
+from saag.core.graph_io import load_graph as _load_graph
 from saag.simulation.fault_injector import FaultInjector, RECOMMENDED_SEEDS
 
 #: The seven evaluation scenarios (Tables 3/18/20 of the JSS draft). Matches
@@ -129,7 +130,14 @@ def main() -> None:
     }
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps({"summary": summary, "scenarios": results}, indent=2))
+    # Stamped like every other reproduce artifact. It was not, and it drifted
+    # unnoticed: the committed copy read 0.9651 for atm_system against 0.9717
+    # from a fresh run on the same cache, and nothing flagged it -- this file
+    # is the source of the paper's label-noise ceiling.
+    args.output.write_text(json.dumps(
+        {"summary": summary, "scenarios": results,
+         "provenance": stamp(scenarios=sorted(results), n_seeds=len(RECOMMENDED_SEEDS))},
+        indent=2))
     print(f"\nRange across {len(rhos)} scenarios: "
           f"test_retest_rho {summary['test_retest_spearman_range']}, "
           f"topk_jaccard {summary['topk_jaccard_range']}")

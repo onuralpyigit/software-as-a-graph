@@ -18,10 +18,13 @@
   (primary); *Explainable, Interpretable, and Robust AI* (secondary, §5 and §7.3); *AI for Automated
   Performance Tasks* (RQ5, §7.5)
 * **Review model:** single-anonymised (confirmed against the Elsevier Guide for Authors, September 2026); authors are named in the manuscript, `title_page.tex` uploaded separately
-* **Scale:** 43 pages, 9 sections, 12 tables, 4 figures, 91 references, plus a 7-page supplement
-  (S1–S7)
-* **Build:** zero LaTeX errors, zero undefined references or citations; 177 reported table figures
-  reconcile against their artifacts via `reproduce/reconcile_manuscript.py`
+* **Scale:** 39 pages, 9 sections, 12 tables, 3 figures, 91 references, plus an 8-page supplement
+  (S1–S8, 6 tables, 2 figures). Take these from the build, not from this line:
+  `pdfinfo latex/manuscript.pdf`, `grep -c 'begin{table' latex/sections/*.tex`.
+* **Build:** zero LaTeX errors, zero undefined references or citations, zero overfull boxes; 240
+  reported table figures reconcile against their artifacts via
+  `reproduce/reconcile_manuscript.py`, which now also covers `supplementary.tex` and fails on a
+  missing or dirty-provenance artifact
 
 ---
 
@@ -44,12 +47,12 @@ if an edit ever softens one back into a claim, that is a regression.
 
 | Quantity | Value | Where |
 |---|---|---|
-| In-distribution mean ρ — Topo / Topo-QoS / GAT-N / GAT-N-QoS / HGT / HGT-QoS | 0.166 / 0.629 / **0.691** / 0.653 / 0.624 / 0.630 | §7.1 (Table 6) |
-| **LOSO mean ρ** — Topo / Topo-QoS / GAT-N / GAT-N-QoS / HGT / HGT-QoS / RM | 0.250 / 0.568 / 0.493 / 0.581 / 0.640 / **0.695** / 0.133 | §7.1 (Table 8) |
-| LOSO F₁@K — same order | 0.306 / 0.353 / 0.417 / 0.474 / 0.466 / **0.507** / 0.258 | §7.1 (Table 8) |
+| In-distribution mean ρ — Topo / Topo-QoS / GAT-N / GAT-N-QoS / HGT / HGT-QoS | 0.370 / 0.568 / 0.543 / 0.439 / 0.624 / **0.661** | §7.1 (Table 5) |
+| **LOSO mean ρ** — Topo / Topo-QoS / GAT-N / GAT-N-QoS / HGT / HGT-QoS / RM | 0.250 / 0.568 / 0.493 / 0.581 / 0.640 / **0.695** / 0.133 | §7.1 (Table 7) |
+| LOSO F₁@K — same order | 0.306 / 0.353 / 0.417 / 0.474 / 0.466 / **0.507** / 0.258 | §7.1 (Table 7) |
 | **Typing, LOSO** (HGT-QoS vs GAT-N-QoS) | **+0.114**, 11/12, p = 0.0122, CI [+0.048, +0.170] | §7.2 |
 | Typing, unweighted pair (HGT vs GAT-N) | +0.147, 11/12, p = 0.0010 | §7.2 |
-| Typing, **in-distribution** | −0.023, 3/7, p = 0.813 — no benefit | §7.2 |
+| Typing, **in-distribution** (HGT-QoS vs GAT-N-QoS) | **+0.222**, 11/12, p = 0.0024 | §7.2 |
 | QoS edge encoding, LOSO | +0.054, 11/12, p = 0.0093 | §7.3.1 |
 | QoS encoding, **active stratum** | +0.025, p = 0.151 — gain does not survive | §7.1.2, §7.3.1 |
 | **vs Topo-QoS (LOSO)** | +0.127, 9/12, p = 0.077; **+0.078 without the ATM fold** | §7.1 |
@@ -58,12 +61,12 @@ if an edit ever softens one back into a claim, that is a regression.
 | Real-world zero-shot, full population / active stratum | 0.680 / **+0.160**, negative on 2 of 5 | §7.4.1 (Table 11) |
 | Real-world training-free references — RM / Topo | 0.516 / 0.511 (Topo-QoS not computable) | §7.4.1, §8.4 |
 | Oracle agreement — I_dyn·I\* / I_comp·I\* / I_comp·I_dyn | 0.620 / 0.395 / 0.366 (12 folds) | §7.3 (Table 10) |
-| Stratified vs pooled RM ρ | 0.515 / 0.183 / 0.149 vs pooled **0.057** (Simpson's) | §7.3.6 |
-| Label-noise ceiling | test–retest 0.880–1.000, median 0.979 | §7.1 |
+| Stratified vs pooled RM ρ | 0.566 (App) / 0.119 (Broker) / 0.244 (Node) vs pooled **0.098** (Simpson's) | §7.3.6 |
+| Label-noise ceiling | test–retest **0.817**–1.000, median 0.979, 9/12 ≥ 0.95 | §7.1 |
 | **Cost** — HGT forward vs structural analysis at 2,000 components | 56.2 ms vs 239.34 s (**4,259×**) | §7.5 (Table 12) |
 | Gate vs its own oracle | gate 0.04–82.7 s, oracle 0.14–7.2 s → **gate ~11× dearer** | §7.5.1 |
-| AHP shrinkage, uniform → raw | 0.262 → 0.166 (elicited weights are anti-predictive) | Supp. S1 |
-| Morris screening, only load-bearing constants | r_α (μ\* 0.144), λ (0.117); other eight ≤ 0.023 | Supp. S1 |
+| AHP shrinkage, uniform → raw | 0.319 → 0.200 (elicited weights are anti-predictive) | Supp. S1 |
+| Morris screening, only load-bearing constants | λ (μ\* 0.134), r_α (0.132); other eight ≤ 0.025 | Supp. S1 |
 | Corpus | 2,812 components, 17 architectures (12 synthetic + 5 real-world) | §6.1 (Table 4) |
 
 ### Four standing caveats that travel with every figure above
@@ -104,10 +107,11 @@ if an edit ever softens one back into a claim, that is a regression.
 | **8** | Discussion, threats, limitations | When to use which engine; the withdrawn fallback gate; sustainability restated honestly; four limitations | §8.4's four paragraphs are the paper's own strongest critique |
 | **9** | Conclusion | What is established, what is not | — |
 
-## Supplement (S1–S7)
+## Supplement (S1–S8)
 
 Parameter sensitivity (S1, with Figure S1), zero-inflation bounds on oracle agreement (S2), domain
 weighting and thresholds (S3), the AHP matrices and their rank-one diagnostic (S4), generative
-parameters of the corpus (S5), the anti-pattern detection benchmark (S6), and the explanation
-layer's real-world evaluation against I_comp (S7). Cross-references from the supplement into the
+parameters of the corpus (S5), the anti-pattern detection benchmark (S6), the explanation
+layer's real-world evaluation against I_comp (S7), and the HGT relational attention-weight
+analysis (S8, with Figure S2). Cross-references from the supplement into the
 body are literal text, never `\ref` — the two documents do not share an `.aux`.

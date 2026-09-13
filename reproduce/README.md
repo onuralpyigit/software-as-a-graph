@@ -45,7 +45,7 @@ docker run --rm -v $(pwd)/results:/workspace/results \
 ### Prerequisites
 
 ```bash
-python --version   # requires 3.10 or 3.11
+python --version   # project requires >=3.9 (pyproject.toml); CI builds on 3.11
 pip install -e ".[all]"   # installs from pyproject.toml: base + neo4j + gnn (PyTorch Geometric) + api extras
 ```
 
@@ -78,7 +78,7 @@ make -f reproduce/Makefile table4
 # Output: results/table4_loso_results.tex  /  .md
 ```
 
-> Feeds **JSS Table 8 (`tab:7`)** (Inductive Leave-One-Scenario-Out evaluation across 8 folds).
+> Feeds **JSS Table 8 (`tab:7`)** (Inductive Leave-One-Scenario-Out evaluation across 12 folds).
 
 ### Step 3b — Per-domain k-fold (primary intra-scenario validation, ~8–20 h CPU)
 
@@ -92,20 +92,23 @@ Runs `reproduce/kfold_all_variants.py` for all 5 variants (`hgl_qos`, `hgl`, `gl
 within* each of the 7 cached scenarios. Confirmed result: HGT-QoS reaches mean cross-scenario
 $\rho=0.587$ ($\sigma=0.146$), $F_1@K=0.505$, positive in all seven scenarios individually.
 
-### Step 4 — Figures (JSS Figures 1–5)
+### Step 4 — Figures (3 in the manuscript, 2 in the supplement)
 
-To generate all 5 manuscript figures into `docs/research/jss/latex/figures/`:
+To generate all 5 figures into `docs/research/jss/latex/figures/`:
 
 ```bash
 make -f reproduce/Makefile jss-figures
 ```
 
-Individual figures can also be generated:
-- `make -f reproduce/Makefile jss-fig1`: Figure 1 — SaG Dual-Pathway Architecture (`Figure_1.pdf`)
+Individual figures can also be generated. Note the numbering: the manuscript's
+artwork is `Figure_1..3` and the supplement keeps a separate `Figure_S*` series,
+as the JSS Guide requires. There are no `jss-fig4` / `jss-fig5` targets.
+
+- `make -f reproduce/Makefile jss-fig1`: Figure 1 — SaG pipeline (`Figure_1.pdf`)
 - `make -f reproduce/Makefile jss-fig2`: Figure 2 — Running Example Multigraph (`Figure_2.pdf`)
-- `make -f reproduce/Makefile jss-fig3`: Figure 3 — HGT Attention Case Study (`Figure_3.pdf`)
-- `make -f reproduce/Makefile jss-fig4`: Figure 4 — AHP Shrinkage Sensitivity (`Figure_4.pdf`)
-- `make -f reproduce/Makefile jss-fig5`: Figure 5 — Results at a Glance (`Figure_5.pdf`)
+- `make -f reproduce/Makefile jss-fig3`: Figure 3 — Results at a Glance (`Figure_3.pdf`)
+- `make -f reproduce/Makefile jss-figS1`: Figure S1 — AHP Shrinkage Sensitivity (`Figure_S1.pdf`)
+- `make -f reproduce/Makefile jss-figS2`: Figure S2 — HGT Attention Case Study (`Figure_S2.pdf`)
 
 ### Step 5 — Sensitivity & Diagnostic Sweeps (JSS Tables 5, 10–13, 15)
 
@@ -148,7 +151,7 @@ make -f reproduce/Makefile smoke-test EPOCHS=50
 | Script / Target | Generated Artifact | JSS Paper Output | Content |
 |---|---|---|---|
 | `main_table.py` (`make table3`) | `results/table3_main_results.tex` | **Table 6 (`tab:5`)**, **Table 7 (`tab:6`)** | In-distribution held-out $\rho$, Wilcoxon tests |
-| `loso_all_variants.py` (`make table4`) | `results/table4_loso_results.tex` | **Table 8 (`tab:7`)** | Inductive LOSO cross-validation (8 folds) |
+| `loso_all_variants.py` (`make table4`) | `results/table4_loso_results.tex` | **Table 8 (`tab:7`)** | Inductive LOSO cross-validation (12 folds) |
 | `scenario_param_table.py` (`make jss-tables`) | `tab_genparams.tex` | **Table 5 (`tab:genparams`)** | Scenario generation parameters |
 | `topic_weight_sensitivity.py` | `results/topic_weight_sensitivity.json` | **Table 10 (`tab:8b`)** | Sensitivity of topic weights $(\beta, \alpha, \psi)$ |
 | `ahp_sensitivity.py` | `results/ahp_shrinkage_sweep.json` | **Table 11 (`tab:8`)** | AHP shrinkage $\lambda$ sweep |
@@ -157,9 +160,9 @@ make -f reproduce/Makefile smoke-test EPOCHS=50
 | `inference_latency.py` | `results/inference_latency.json` | **Table 15 (`tab:scale`)** | Per-stage inference latency |
 | `figure1_pipeline.dot` (`make jss-fig1`) | `docs/research/jss/latex/figures/Figure_1.pdf` | **Figure 1 (`fig:1`)** | Architecture flowchart |
 | `figure2_running_example.dot` (`make jss-fig2`) | `docs/research/jss/latex/figures/Figure_2.pdf` | **Figure 2 (`fig:2`)** | Running example graph |
-| `extract_attention.py` + `render_attention_subgraph.py` (`make jss-fig3`) | `docs/research/jss/latex/figures/Figure_3.pdf` | **Figure 3 (`fig:3`)** | HGT attention case study |
-| `render_shrinkage_figure.py` (`make jss-fig4`) | `docs/research/jss/latex/figures/Figure_4.pdf` | **Figure 4 (`fig:4`)** | AHP shrinkage curve |
-| `render_results_figure.py` (`make jss-fig5`) | `docs/research/jss/latex/figures/Figure_5.pdf` | **Figure 5 (`fig:5`)** | Results at a glance |
+| `render_results_figure.py` (`make jss-fig3`) | `docs/research/jss/latex/figures/Figure_3.pdf` | **Figure 3 (`fig:3`)** | Results at a glance |
+| `render_shrinkage_figure.py` (`make jss-figS1`) | `docs/research/jss/latex/figures/Figure_S1.pdf` | **Figure S1** | AHP shrinkage curve |
+| `extract_attention.py` + `render_attention_subgraph.py` (`make jss-figS2`) | `docs/research/jss/latex/figures/Figure_S2.pdf` | **Figure S2** | HGT attention case study |
 
 ---
 
@@ -254,7 +257,7 @@ reproduce/
 │
 │   Core empirical harness (JSS Tables 6, 7, 8):
 ├── main_table.py                — 7×6×5 evaluation matrix (JSS Tables 6-7)
-├── loso_all_variants.py         — LOSO 8 folds (JSS Table 8)
+├── loso_all_variants.py         — LOSO 12 folds (JSS Table 8)
 ├── kfold_all_variants.py        — Stratified k-fold evaluation
 ├── render_table.py              — LaTeX/CSV/MD table renderer
 │

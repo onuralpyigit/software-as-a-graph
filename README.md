@@ -49,7 +49,7 @@ Each capability is a pipeline stage with its own CLI script, SDK method, and met
 |:--|:---|:---|:---|:---|
 | — | *Generate (prep)* | Synthesizes a pub-sub topology for experiments, benchmarks, and CI regression | Topology JSON | [graph-generation.md](docs/graph-generation.md) |
 | 1 | **Model** | Imports topology JSON into Neo4j as a weighted directed graph $G = (V, E, \tau_V, \tau_E, w)$; derives logical `DEPENDS_ON` edges via six rules; computes QoS-derived weights | $G_{\text{structural}}$, $G_{\text{analysis}}(l)$ | [graph-model.md](docs/graph-model.md) |
-| 2 | **Analyze** | Deterministic, closed-form. Computes the 11 Tier-1 structural metrics $M(v)$ — and nothing else | $M(v)$ metric vector | [structural-analysis.md](docs/structural-analysis.md) |
+| 2 | **Analyze** | Deterministic, closed-form. Computes the 53-field structural metric vector $M(v)$ (19 of its fields feed the RM composite) — and nothing else | $M(v)$ metric vector | [structural-analysis.md](docs/structural-analysis.md) |
 | 3 | **Predict** | Pathway B: optional HGT neural blast-radius forecasts $\hat{I}^*(v)$ and Top-K criticality ranking; always computes the deterministic ISO-RM composite $Q^*(v)$ as the GNN's own input feature and zero-checkpoint fallback | GNN ranks (or RM fallback), Top-K shortlist | [prediction.md](docs/prediction.md) |
 | 4 | **Diagnose** | Pathway A: deterministic ISO-RM dimension scores $Q^*(v)$ and 5-level classification, grounded in ISO/IEC 25010/25019; detects 19 anti-patterns; generates natural-language explanations; links to stage 3's ranking via the Triage Bridge to map Top-K risks to stakeholder actions — needs no GNN checkpoint (zero-GNN cold start) | RM/$Q^*(v)$ scores, Triage profile, anti-pattern report | [diagnosis.md](docs/diagnosis.md) |
 | 5 | **Simulate** | Injects faults and propagates cascades over the raw structural graph to obtain ground-truth impact — training labels for stage 3 and the offline oracle for stage 6 | $I^*(v)$ composite and per-dimension $I_R, I_M$ (itself $\alpha\cdot I_{FT}+(1-\alpha)\cdot I_A$) | [failure-simulation.md](docs/failure-simulation.md) |
@@ -77,7 +77,7 @@ Each capability is a pipeline stage with its own CLI script, SDK method, and met
                                        ▼ [Step 2: Analyze]     │ (trains)      │ (ground-truth)
                          ┌─────────────────────────────┐       │               │
                          │  StructuralAnalysisResult   │       │               │
-                         │ (11 Tier-1 Metrics Vector M)│       │               │
+                         │  (53-field Metric Vector M) │       │               │
                          └──────┬───────────────┬──────┘       │               │
                                 │               │              │               │
               [Step 3: Predict]      [Step 4: Diagnose]                        │
@@ -202,8 +202,8 @@ pytest -m "not integration"  # skip anything requiring a database
 
 ```bash
 # Exact environment (recommended)
-docker build -t saag-repro -f reproduce/Dockerfile .
-docker run --rm -v $(pwd)/results:/workspace/results saag-repro
+docker build -t sag-jss -f reproduce/Dockerfile .
+docker run --rm -v $(pwd)/results:/workspace/results sag-jss
 
 # Or locally, after the install above
 make -f reproduce/Makefile smoke-test   # ~15-30 min, 50 epochs, 2 seeds
@@ -213,12 +213,12 @@ make -f reproduce/Makefile all          # ~6-12 h CPU, 5 seeds
 | Target | Produces | Notes |
 |:---|:---|:---|
 | `block0` | W1 QoS pipeline audit | **Go/no-go gate** — must pass before `table3`. Runs `tests/test_qos_pipeline_audit.py` and `tests/test_baselines.py` |
-| `table3` | `results/table3_main_results.tex` | Main results: scenarios × 4 variants × 5 seeds. Depends on `block0`; `--resume` makes it restartable |
+| `table3` | `results/table3_main_results.tex` | Main results: 7 core domains × 6 variants × 5 seeds (210 runs). Depends on `block0`; `--resume` makes it restartable |
 | `table4` | `results/table4_loso_results.tex` | **LOSO** — leave-one-scenario-out, measures the cross-domain generalization gap |
 | `kfold` | `results/table4_kfold_results.tex` | **Per-domain repeated k-fold** — the in-domain protocol. Opt-in, not part of `all`: ~5× more model fits than LOSO for the same seed count |
 | `figure4` | `results/figure4_stratified_rho.pdf` | Per-node-type stratified $\rho$ |
 | `figure5` | `output/atm_case_study/attention_subgraph.pdf` | ATM attention-weight case study |
-| `jss-figures` | `docs/research/jss/latex/figures/Figure_1..6.pdf` | The six figures for the JSS manuscript ([docs/research/jss/latex/](docs/research/jss/latex/)) |
+| `jss-figures` | `docs/research/jss/latex/figures/Figure_1..3.pdf`, `Figure_S1..S2.pdf` | The three manuscript figures plus the two supplementary ones ([docs/research/jss/latex/](docs/research/jss/latex/)) |
 | `all` | everything above except `kfold` | |
 
 Budget roughly 6–12 h on 8 CPU cores, or 1–2 h on a CUDA GPU. Ablations (`reproduce/qos_label_ablation.py`, `threshold_sensitivity.py`, `ahp_sensitivity.py`, `reversed_projection_ablation.py`, `hardening_budget.py`, `convergent_validity.py`) run separately and are documented in `reproduce/EXPERIMENTS.md`.
@@ -247,18 +247,42 @@ These are the **per-dimension** gates. The stricter **composite** targets for $Q
 
 ## Empirical Results
 
-Validated across the seven-scenario evaluation suite in [`data/scenarios/`](data/scenarios/) — autonomous vehicles, IoT smart city, high-frequency trading, healthcare, hub-and-spoke, microservices, and enterprise-scale pub-sub — plus an ATM/air-traffic case study. See [docs/scenario.md](docs/scenario.md) for the corpus, its provenance manifest, and which scenario backs which result.
+Validated on the corpus in [`data/scenarios/`](data/scenarios/): twelve synthetic
+architectures forming the inductive cross-validation folds, plus five real-world
+systems transcribed from open-source repositories and withheld from every
+training fold. See [docs/scenario.md](docs/scenario.md) for the corpus, its
+provenance manifest, and which scenario backs which result.
 
-Figures below are re-run under the RM model (`make -f reproduce/Makefile table3`, 210 runs — 7 scenarios × 6 variants × 5 seeds); see [`results/table3_main_results.md`](results/table3_main_results.md) for the full table and [`results/table4_loso_results.md`](results/table4_loso_results.md) for the LOSO cross-scenario generalisation results.
+Two regimes, and they disagree — which is the point. **In-distribution**
+(`make -f reproduce/Makefile table3`; 7 core domains × 6 variants × 5 seeds =
+210 runs, [`results/table3_main_results.md`](results/table3_main_results.md)) and
+**inductive LOSO** (12 folds, train on eleven graphs and test on the held-out
+twelfth, [`results/table4_loso_results.md`](results/table4_loso_results.md)).
 
-| Metric | Target | Achieved (best single run) |
-|:---|:---:|:---:|
-| Composite Spearman $\rho(Q^*, I^*)$ | $\ge 0.85$ | **0.928** (av_system, Topo-QoS) |
-| Composite $\rho$ at large scale (300 apps, enterprise_system) | — | **0.920** (HGT) |
-| Composite F1 | $\ge 0.90$ | **1.00** (multiple HGT runs) |
-| Predictive gain vs. degree baseline | $> 0.03$ | measured per run, see LOSO/table3 reports |
-| Best variant | — | HGT-QoS (mean ρ = 0.652 LOSO, 0.631 table3) — heterogeneous + QoS-aware beats topology-only baselines throughout |
-| Scale effect | — | Accuracy improves with system size (Enterprise, 300 apps, outperforms smaller scenarios on mean ρ) |
+| Mean ρ vs. $I^*(v)$ | Topo | Topo-QoS | GAT-N | GAT-N-QoS | HGT | HGT-QoS |
+|:---|---:|---:|---:|---:|---:|---:|
+| In-distribution (7 domains) | 0.166 | 0.629 | **0.691** | 0.653 | 0.624 | 0.630 |
+| LOSO (12 folds) | 0.250 | 0.568 | 0.493 | 0.581 | 0.640 | **0.695** |
+
+**Read these together, not separately.** Relation typing wins under distribution
+shift (HGT-QoS vs GAT-N-QoS: +0.114, 11 of 12 folds, *p* = 0.0122) and gives no
+in-distribution benefit at all (−0.023, 3 of 7, *p* = 0.813); it is an inductive
+bias, not extra capacity. And the learned model does **not** establish a
+significant ranking advantage over training-free QoS-weighted centrality
+(+0.127, *p* = 0.077, and +0.078 with the ATM fold excluded), so a team that
+wants a scalar ranking and nothing more can reasonably run `Topo-QoS` and stop.
+What the learned model adds is per-relationship edge criticalities and attention
+maps a centrality score cannot produce.
+
+The validation gates in [`saag/validation/models.py`](saag/validation/models.py)
+(ρ ≥ 0.70, F1@K ≥ 0.75, composite ρ ≥ 0.85) are deliberately stricter than
+anything measured above and are **not** met on the real-world systems — that is
+the gate working as intended, not a regression. See
+[docs/validation.md](docs/validation.md).
+
+Numbers above are rendered from `results/main_table_v3.json` and
+`results/loso_all_variants_v4.json` and are machine-checked against the
+manuscript by `python reproduce/reconcile_manuscript.py`.
 
 ---
 
@@ -284,7 +308,7 @@ Criticality here is a **Quality-in-Use** construct in the ISO/IEC 25019:2023 (SQ
 
 The construct spans all three SQuaRE quality views, and they are kept apart deliberately: criticality is **computed** from internal quality evidence (topology plus static code metrics), **validated** against simulated external quality (service delivered under fault), and **defined** on Quality-in-Use ([three views](docs/criticality.md#30-three-quality-views-internal-external-and-quality-in-use)).
 
-It decomposes into two ISO/IEC 25010:2023 characteristics computed on the derived dependency graph, where edges point from *dependent* to *dependency*. Reliability is **hierarchical**: its Fault Tolerance and Availability sub-characteristics are scored individually and combined via a declared blend. Each characteristic/sub-characteristic identifies the failure **mechanism**; the Quality-in-Use characteristic that attribute's loss threatens is the **harm** ([full binding](docs/criticality.md#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)).
+It decomposes into two ISO/IEC 25010:2023 characteristics computed on the derived dependency graph, where edges point from *dependent* to *dependency*. Reliability is **hierarchical**: its Fault Tolerance and Availability sub-characteristics are scored individually and combined via a declared blend. Each characteristic/sub-characteristic identifies the failure **mechanism**; the Quality-in-Use characteristic that attribute's loss threatens is the **harm** ([full binding](docs/criticality.md#35-binding-rm-to-external-quality-dependability-and-quality-in-use)).
 
 The same dimensions score components and relationships alike: the dimension fixes the harm, the scope fixes the mechanism.
 
@@ -295,11 +319,11 @@ The same dimensions score components and relationships alike: the dimension fixe
 | ↳ **A — Availability** | Its loss partitions the dependency graph | It is the only route, both endpoints healthy | Reliability → availability | Effectiveness, Freedom from risk | DevOps / SRE |
 | **M — Maintainability** | It resists safe change | It forces both sides to change together | Maintainability → modularity, modifiability | Efficiency (engineering) | Software architect |
 
-Vulnerability/Security was scored as a third dimension in an earlier revision of this framework and has been **retired outright** — not folded into another dimension — because its ground-truth evidence was the weakest of the (then) four dimensions and no fault-model instrument could validate it by construction ([full rationale](docs/criticality.md#35-how-the-dimensions-bind-to-external-quality-dependability-and-quality-in-use)). These now map onto two of the standard dependability attributes; **safety is not covered** — no hazard class or functional integrity field exists in the schema, so these scores locate structural exposure and cannot discharge a safety argument.
+Vulnerability/Security was scored as a third dimension in an earlier revision of this framework and has been **retired outright** — not folded into another dimension — because its ground-truth evidence was the weakest of the (then) four dimensions and no fault-model instrument could validate it by construction ([full rationale](docs/criticality.md#35-binding-rm-to-external-quality-dependability-and-quality-in-use)). These now map onto two of the standard dependability attributes; **safety is not covered** — no hazard class or functional integrity field exists in the schema, so these scores locate structural exposure and cannot discharge a safety argument.
 
-Each cell traces to one of the sub-definitions D1.R, D1.FT, D1.A, D1.M (components) and their D2 counterparts (relationships) in [criticality.md](docs/criticality.md#43-the-rm-model), where each is stated as D1 or D2 restricted to a single mechanism.
+Each cell traces to one of the sub-definitions D1.R, D1.FT, D1.A, D1.M (components) and their D2 counterparts (relationships) in [criticality.md](docs/criticality.md#43-the-rm-decomposition-model), where each is stated as D1 or D2 restricted to a single mechanism.
 
-The composite is $R(v) = 0.36\, FT(v) + 0.64\, A(v)$, then $Q(v) = 0.80\, R(v) + 0.20\, M(v)$. These are DECLARED constants — not AHP output — algebraically re-derived from the retired 4-D composite (A=0.43, R=0.24, M=0.17, V=0.16) by dropping Vulnerability and renormalising ([full derivation](docs/structural-analysis.md#composite-score-qv)). An equal-weight baseline ($w_R=w_M=0.5$, $\alpha=0.5$) is available via `--equal-weights` for comparison.
+The composite is $R(v) = 0.36\, FT(v) + 0.64\, A(v)$, then $Q(v) = 0.80\, R(v) + 0.20\, M(v)$. These are DECLARED constants — not AHP output — algebraically re-derived from the retired 4-D composite (A=0.43, R=0.24, M=0.17, V=0.16) by dropping Vulnerability and renormalising ([full derivation](docs/structural-analysis.md#5-composite-criticality-score-q)). An equal-weight baseline ($w_R=w_M=0.5$, $\alpha=0.5$) is available via `--equal-weights` for comparison.
 
 Scores map to five tiers using adaptive box-plot thresholds derived from the system's own score distribution: **CRITICAL** above the upper fence $Q_3 + 1.5 \cdot IQR$, then **HIGH** above $Q_3$, **MEDIUM** above the median, **LOW** above $Q_1$, **MINIMAL** at or below $Q_1$. Below 12 components the classifier falls back to fixed percentiles (top 10% → CRITICAL).
 

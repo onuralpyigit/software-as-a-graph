@@ -25,6 +25,7 @@ Usage
 
 from __future__ import annotations
 
+import argparse
 import re
 import subprocess
 import sys
@@ -110,6 +111,15 @@ def fenced_block(text: str, needle: str) -> str:
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument(
+        "--check", action="store_true",
+        help="do not write; exit 1 if regenerating would change draft.md. "
+             "draft.md is generated, but nothing detected when it had drifted, "
+             "so it twice shipped superseded results tables while the LaTeX was "
+             "already correct. Run this in CI, or before a submission build.")
+    args = ap.parse_args()
+
     if not (LATEX / "manuscript.aux").exists():
         sys.exit("manuscript.aux missing — run `make` in docs/research/jss/latex first")
     labels, cites = load_numbering()
@@ -173,9 +183,27 @@ def main() -> int:
     keywords = "**Keywords:** " + keywords + "."
     decl = old[old.index("# Declarations"):].strip()
 
-    DRAFT.write_text(header + "# Abstract\n\n" + abstract + "\n\n" + keywords +
-                     "\n\n---\n\n" + body.strip() + "\n\n---\n\n# References\n\n" +
-                     render_references(cites) + "\n\n---\n\n" + decl + "\n", encoding="utf8")
+    rendered = (header + "# Abstract\n\n" + abstract + "\n\n" + keywords +
+                "\n\n---\n\n" + body.strip() + "\n\n---\n\n# References\n\n" +
+                render_references(cites) + "\n\n---\n\n" + decl + "\n")
+
+    if args.check:
+        if rendered == old:
+            print(f"draft.md is up to date ({len(labels)} labels, {len(cites)} citations)")
+            return 0
+        import difflib
+        diff = list(difflib.unified_diff(
+            old.splitlines(), rendered.splitlines(),
+            fromfile="draft.md (on disk)", tofile="draft.md (regenerated)", lineterm="", n=1))
+        print(f"draft.md is STALE against the LaTeX — {len(diff)} diff line(s). "
+              f"Run this script without --check to regenerate.\n")
+        for line in diff[:60]:
+            print(f"  {line}")
+        if len(diff) > 60:
+            print(f"  ... {len(diff) - 60} more")
+        return 1
+
+    DRAFT.write_text(rendered, encoding="utf8")
     print(f"draft.md regenerated: {len(labels)} labels, {len(cites)} citations")
     return 0
 

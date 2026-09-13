@@ -15,7 +15,10 @@ from .dimensions import (
     DimensionInputs, DimensionResult, DimensionSpec,
 )
 from .metric_calculator import calculate_correlation, spearman_correlation
-from .models import ValidationTargets, ValidationResult, LayerValidationResult, PipelineResult
+from .models import (
+    RELEASE_GATES, ValidationTargets, ValidationResult, LayerValidationResult,
+    PipelineResult, evaluate_gate,
+)
 from .validator import Validator, robust_sigmoid_scale_dict
 from saag.core.layers import AnalysisLayer, get_simulation_layer_definition
 
@@ -58,13 +61,12 @@ class ValidationService:
         prediction_service: Any,
         simulation_service: Any,
         targets: Optional[ValidationTargets] = None,
-        ndcg_k: int = 10
     ):
         self.analysis = analysis_service
         self.prediction = prediction_service
         self.simulation = simulation_service
         self.targets = targets or ValidationTargets()
-        self.validator = Validator(targets=self.targets, ndcg_k=ndcg_k)
+        self.validator = Validator(targets=self.targets)
         self.logger = logging.getLogger(__name__)
 
     # ------------------------------------------------------------------
@@ -221,8 +223,7 @@ class ValidationService:
             context=layer_def.name,
         )
 
-        # 2. Predictor benchmarks
-        rule_based_baseline_metrics = self._rule_based_baseline(validation_res)
+        # 2. Predictor benchmark
         gnn_forecasting_metrics = self._gnn_forecasting_metrics(analysis_result, sim_results)
 
         # 3. Per-dimension validation — each predictor against its own ground truth
@@ -278,8 +279,9 @@ class ValidationService:
         system_health = self._system_health(components)
         if system_health:
             dimensional_validation["composite"] = {
-                "spearman_q_star_i_star": round(composite["spearman"] if composite else 0.0, 4),
-                "predictive_gain": round(composite["predictive_gain"] if composite else 0.0, 4),
+                "spearman_q_star_i_star": round(composite["spearman"], 4) if composite else None,
+                "predictive_gain": round(composite["predictive_gain"], 4) if composite else None,
+                "dimensions": composite["dimensions"] if composite else [],
                 "best_single_dim": composite["best_dim"] if composite else "None",
                 "best_single_dim_rho": round(composite["best_dim_rho"] if composite else 0.0, 4),
                 "interdim_rhos": interdim_rhos,
@@ -291,8 +293,8 @@ class ValidationService:
             }
 
         # 5. Gates and stratified reporting
-        composite_spearman = composite["spearman"] if composite else 0.0
-        predictive_gain = composite["predictive_gain"] if composite else 0.0
+        composite_spearman = composite["spearman"] if composite else None
+        predictive_gain = composite["predictive_gain"] if composite else None
         gates = self._evaluate_gates(validation_res, dimensional_validation, predictive_gain)
 
         return LayerValidationResult(
@@ -324,7 +326,7 @@ class ValidationService:
             predictive_gain=predictive_gain,
             system_health=system_health,
 
-            passed=all(gates.get(g, False) for g in ("G1_spearman", "G2_f1", "G3_precision", "G4_top5")),
+            passed=all(gates.get(g) is True for g in RELEASE_GATES),
             gates=gates,
             comparisons=validation_res.overall.components,
             warnings=validation_res.warnings,
@@ -333,7 +335,6 @@ class ValidationService:
             dimensional_scatter=dimensional_scatter,
             confidence_intervals=confidence_intervals,
             gnn_forecasting_metrics=gnn_forecasting_metrics,
-            rule_based_baseline_metrics=rule_based_baseline_metrics,
         )
 
     # ------------------------------------------------------------------
@@ -375,37 +376,19 @@ class ValidationService:
     # Predictor benchmarks
     # ------------------------------------------------------------------
 
-    def _acceptance(self, spearman: float, macro_f1: float, ndcg_10: float) -> Dict[str, Any]:
-        """Shared pass/fail shape for the rule-based and GNN predictors."""
-        t = self.targets
-        return {
-            "spearman": round(spearman, 4),
-            "macro_f1": round(macro_f1, 4),
-            "ndcg_10": round(ndcg_10, 4),
-            "passed": (
-                spearman >= t.baseline_spearman
-                and macro_f1 >= t.baseline_macro_f1
-                and ndcg_10 >= t.baseline_ndcg_10
-            ),
-            "targets": {
-                "spearman": t.baseline_spearman,
-                "macro_f1": t.baseline_macro_f1,
-                "ndcg_10": t.baseline_ndcg_10,
-            },
-        }
-
-    def _rule_based_baseline(self, validation_res: ValidationResult) -> Dict[str, Any]:
-        """Acceptance check for the deterministic RM predictor."""
-        return self._acceptance(
-            float(validation_res.overall.correlation.spearman),
-            float(validation_res.overall.classification.macro_f1),
-            float(validation_res.overall.ranking.ndcg_10),
-        )
-
     def _gnn_forecasting_metrics(
         self, analysis_result: Any, sim_results: List[Any]
     ) -> Optional[Dict[str, Any]]:
-        """Acceptance check for the GNN predictor, when a checkpoint is loaded."""
+        """Acceptance check for the GNN predictor, when a checkpoint is loaded.
+
+        These numbers are NOT comparable with the release gates above, and the
+        payload says so explicitly. The gates score every matched component,
+        binarised by independent >= Q3 masks (~25% positive on each side) against
+        robust-sigmoid labels; this scores the ~20% inductive test split, binarised
+        by rank-matched top-K (~50% positive). A shared threshold triple used to
+        hide that, alongside a "rule-based baseline" that merely re-read the gate
+        numbers against stricter constants and measured nothing new.
+        """
         if not hasattr(self.prediction, "predict_quality_with_gnn"):
             return None
         if not getattr(self.prediction, "gnn_checkpoint_dir", None):
@@ -427,20 +410,36 @@ class ValidationService:
         if metrics is None:
             return None
 
-        report = self._acceptance(
-            float(metrics.spearman_rho), float(metrics.macro_f1), float(metrics.ndcg_10)
-        )
-        report["bce_loss"] = round(float(metrics.bce_loss), 4)
-        report["regression_curve"] = {
-            "slope": round(float(metrics.regression_slope), 4),
-            "intercept": round(float(metrics.regression_intercept), 4),
-            "r2": round(float(metrics.regression_r2), 4),
+        t = self.targets
+        spearman = float(metrics.spearman_rho)
+        macro_f1 = float(metrics.macro_f1)
+        ndcg_10 = float(metrics.ndcg_10)
+        return {
+            "spearman": round(spearman, 4),
+            "macro_f1": round(macro_f1, 4),
+            "ndcg_10": round(ndcg_10, 4),
+            "passed": (
+                spearman >= t.gnn_spearman
+                and macro_f1 >= t.gnn_macro_f1
+                and ndcg_10 >= t.gnn_ndcg_10
+            ),
+            "targets": {
+                "spearman": t.gnn_spearman,
+                "macro_f1": t.gnn_macro_f1,
+                "ndcg_10": t.gnn_ndcg_10,
+            },
+            # Provenance: what these numbers were measured on.
+            "population": "inductive_test_split",
+            "n": int(getattr(metrics, "n_critical_in_truth", 0)),
+            "calibration": getattr(metrics, "calibration", "rank_matched"),
+            "binarization": "rank_matched_top_k",
+            "bce_loss": round(float(metrics.bce_loss), 4),
+            "regression_curve": {
+                "slope": round(float(metrics.regression_slope), 4),
+                "intercept": round(float(metrics.regression_intercept), 4),
+                "r2": round(float(metrics.regression_r2), 4),
+            },
         }
-        return report
-
-    # ------------------------------------------------------------------
-    # Dimensional validation
-    # ------------------------------------------------------------------
 
     def _validate_dimension(
         self,
@@ -549,8 +548,30 @@ class ValidationService:
             "m": ground_truths["maintainability_impact"],
         }
         shared = set.intersection(*(set(d) for d in dims.values())) if dims else set()
+
+        # Only dimensions that actually vary may enter I*(v). robust_sigmoid_scale_dict
+        # maps a constant vector to a uniform 0.5, so a degenerate term would blend a
+        # constant offset into the very thing predictive gain is measured against and
+        # leave rho(Q*, I*) rank-identical to the surviving term alone.
+        live = {
+            k: d for k, d in dims.items()
+            if len({round(float(d[cid]), 12) for cid in shared}) >= 2
+        }
+        if not live:
+            self.logger.warning(
+                "[%s] every composite dimension has a degenerate ground truth; "
+                "I*(v) not computed", layer,
+            )
+            return None
+        if len(live) < len(dims):
+            self.logger.warning(
+                "[%s] composite I*(v) built from %s only; %s had no variance",
+                layer, sorted(live), sorted(set(dims) - set(live)),
+            )
+
+        total = sum(weights[k] for k in live)
         composite_i_star = {
-            cid: sum(weights[k] * dims[k][cid] for k in dims)
+            cid: sum(weights[k] * live[k][cid] for k in live) / total
             for cid in shared
         }
 
@@ -570,7 +591,7 @@ class ValidationService:
             # or unpopulated) — there is no baseline to beat, so Predictive Gain is
             # undefined. Report 0.0 rather than corr.spearman - 0, which would
             # silently credit the composite with a "gain" measured against nothing
-            # and let G5_predictive_gain pass on an empty comparison.
+            # and let the predictive_gain gate pass on an empty comparison.
             best_dim = "None"
             best_dim_rho = 0.0
             predictive_gain = 0.0
@@ -582,6 +603,7 @@ class ValidationService:
 
         return {
             "spearman": corr.spearman,
+            "dimensions": sorted(live),
             "predictive_gain": predictive_gain,
             "best_dim": best_dim.capitalize(),
             "best_dim_rho": best_dim_rho,
@@ -686,30 +708,27 @@ class ValidationService:
         self,
         validation_res: ValidationResult,
         dimensional_validation: Dict[str, Any],
-        predictive_gain: float,
-    ) -> Dict[str, bool]:
-        """The unified gate checklist. G1-G4 decide `passed`.
+        predictive_gain: Optional[float],
+    ) -> Dict[str, Optional[bool]]:
+        """The unified gate checklist. RELEASE_GATES decide `passed`.
 
-        G7 (CDCC) and G9 (FTR) were retired with the Vulnerability/Security
-        dimension — both specialist metrics were security-only. The gap in
-        the numbering is intentional; do not renumber or reuse it.
+        A gate is None when its metric was never measured -- a dimension whose
+        ground truth was degenerate, say. That is deliberately distinct from
+        False: reading an unmeasured dimension as a failed one is what these
+        gates did for as long as the maintainability oracle was dead.
         """
         t = self.targets
-        overall = validation_res.overall
         maintainability = dimensional_validation.get("maintainability", {})
 
-        gates = dict(overall.gates)
+        gates: Dict[str, Optional[bool]] = dict(validation_res.overall.gates)
         gates.update({
-            # Tier 1 — primary
-            "G1_spearman": float(overall.correlation.spearman) >= float(t.spearman),
-            "G2_f1": float(overall.classification.f1_score) >= float(t.f1_score),
-            "G3_precision": float(overall.classification.precision) >= float(t.precision),
-            "G4_top5": float(overall.ranking.top_5_overlap) >= float(t.top_5_overlap),
-            # Tier 2 — secondary
-            "G5_predictive_gain": float(predictive_gain) > float(t.predictive_gain),
-            "G6_kappa_cta": float(maintainability.get("weighted_kappa_cta", 0.0)) >= float(t.weighted_kappa_cta),
-            # Tier 3 — dimension specialists
-            "G8_bottleneck_precision": float(maintainability.get("bottleneck_precision", 0.0)) >= float(t.bottleneck_precision_target),
+            "predictive_gain": evaluate_gate(predictive_gain, t.predictive_gain, strict=True),
+            "kappa_cta": evaluate_gate(
+                maintainability.get("weighted_kappa_cta"), t.weighted_kappa_cta
+            ),
+            "bottleneck_precision": evaluate_gate(
+                maintainability.get("bottleneck_precision"), t.bottleneck_precision_target
+            ),
         })
         return gates
 

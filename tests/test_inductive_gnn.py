@@ -283,16 +283,26 @@ def test_gnn_trainer_train_uses_primary_data_when_provided():
     # Loader order deliberately puts `other` first, `data` (primary) second.
     loader = DataLoader([other, data], batch_size=1, shuffle=False)
 
+    # Probed at the point the validation graph is *selected* — train() now
+    # extracts that subgraph once and scores it with a single forward pass per
+    # epoch, rather than calling evaluate() and _compute_val_loss() separately
+    # on the same inputs, so there is no longer a per-epoch _compute_val_loss
+    # call to spy on. The property under test is unchanged.
+    import saag.prediction.trainer as trainer_mod
+
     seen_val_targets = []
-    original_compute_val_loss = trainer._compute_val_loss
+    original_subgraph = trainer_mod.get_inductive_subgraph
 
-    def spy_compute_val_loss(hetero_data):
-        seen_val_targets.append(hetero_data)
-        return original_compute_val_loss(hetero_data)
+    def spy_subgraph(hetero_data, mask_name):
+        if mask_name == "val_mask":
+            seen_val_targets.append(hetero_data)
+        return original_subgraph(hetero_data, mask_name)
 
-    trainer._compute_val_loss = spy_compute_val_loss
-
-    trainer.train(loader, primary_data=data)
+    trainer_mod.get_inductive_subgraph = spy_subgraph
+    try:
+        trainer.train(loader, primary_data=data)
+    finally:
+        trainer_mod.get_inductive_subgraph = original_subgraph
 
     assert len(seen_val_targets) >= 1
     assert all(t is data for t in seen_val_targets)

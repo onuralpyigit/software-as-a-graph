@@ -238,16 +238,19 @@ Imports a system topology JSON file into the Neo4j database, building nodes and 
 ---
 
 ### 5.3 Step 2: Structural Analysis
-Analyzes the imported graph in Neo4j to compute centrality metrics, anti-patterns, and baseline RM and Q(v) quality scores.
+Analyzes the imported graph in Neo4j to compute the structural metric vector (centrality, articulation and connectivity measures). Anti-patterns and the RM / Q(v) quality scores are **not** produced here — they belong to Diagnose (Step 4).
 - **Script:** [cli/analyze_graph.py] or `saag-analyze`
 - **Arguments:**
   - `--layer`: Targets specific system layers (`app`, `infra`, `mw`, `system`).
-  - `--use-ahp`: Use AHP-derived dimension weights instead of uniform weights.
   - `--output`: Path to export analysis metrics JSON.
 - **Example:**
   ```bash
-  python cli/analyze_graph.py --layer system --use-ahp --output output/structural_metrics.json
+  python cli/analyze_graph.py --layer system --output output/structural_metrics.json
   ```
+
+  > Analyze is structural-only: it computes the metric vector and nothing else. There is no
+  > `--use-ahp` here because no RM/Q score is produced at this stage — the AHP weighting flags
+  > belong to Diagnose (Step 4) below.
 
 ---
 
@@ -301,13 +304,18 @@ Scores deterministic ISO-RM quality attribution, detects 19 architectural anti-p
 ### 5.6 Step 5: Cascade Failure Simulation
 Injects synthetic failures and evaluates cascade propagation, change propagation, and service disruptions to compute ground-truth impact labels.
 - **Script:** [cli/simulate_graph.py] or `saag-simulate`
+- **Subcommand is mandatory** — one of `fault-inject`, `edge-criticality`, `message-flow`, `combined`.
+  (`--sim-mode` belongs to `cli/run.py`, not to this script.)
 - **Arguments:**
+  - `--input`: System topology JSON the simulation runs against.
   - `--layer`: Targets specific system layer.
-  - `--sim-mode`: Simulation strategy (`exhaustive`, `monte_carlo`).
-  - `--output`: Path to save simulation results JSON.
+  - `--seeds`: Comma-separated seeds, e.g. `42,123,456,789,2024`.
+  - `--output`: Directory to save simulation results into.
+  - `--export-json`: Write the per-node impact scores as JSON.
 - **Example:**
   ```bash
-  python cli/simulate_graph.py --layer system --sim-mode exhaustive --output output/simulation_results.json
+  python cli/simulate_graph.py fault-inject --input data/system.json --layer system \
+      --seeds 42,123,456,789,2024 --output output/simulation/ --export-json
   ```
 
 ---

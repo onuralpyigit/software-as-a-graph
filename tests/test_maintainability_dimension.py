@@ -285,44 +285,69 @@ class TestWeightedKappaCTA:
 # ===========================================================================
 
 class TestBottleneckPrecision:
+    """BP selects BT-dominant components and asks what share carry high IM.
+
+    Two things changed together: the IM cut is a quantile rather than an absolute
+    0.50 (IM arrives robust-sigmoid scaled with its median pinned at 0.5, so 0.50
+    was a median split), and an empty BT-dominant selection reports None rather
+    than 0.0 -- there is no precision to report on an empty set, and 0.0 reads as
+    "every bottleneck was wrong".
+    """
 
     def test_all_bt_dominant_high_im(self):
-        """All BT-dominant have high IM → BP = 1.0."""
+        """All BT-dominant sit in the top IM quartile → BP = 1.0."""
         bt    = {"a": 0.9, "b": 0.8, "c": 0.2}
         w_out = {"a": 0.1, "b": 0.1, "c": 0.8}
         im    = {"a": 0.8, "b": 0.7, "c": 0.1}
-        bp = calculate_bottleneck_precision(bt, w_out, im)
+        # quantile 0.25 of [0.1, 0.7, 0.8] is 0.40, so a and b clear it.
+        bp = calculate_bottleneck_precision(bt, w_out, im, im_quantile=0.25)
         assert bp == pytest.approx(1.0)
 
-    def test_no_bt_dominant_components(self):
-        """No BT-dominant → BP = 0.0."""
+    def test_no_bt_dominant_components_is_unmeasured(self):
+        """No BT-dominant component → None, not a measured 0.0."""
         bt    = {"a": 0.3, "b": 0.2}
         w_out = {"a": 0.5, "b": 0.6}
         im    = {"a": 0.8, "b": 0.9}
-        bp = calculate_bottleneck_precision(bt, w_out, im)
-        assert bp == pytest.approx(0.0)
+        assert calculate_bottleneck_precision(bt, w_out, im) is None
 
     def test_partial_bt_dominant_high_im(self):
-        """Half BT-dominant have high IM → BP = 0.5."""
+        """Half the BT-dominant clear the IM cut → BP = 0.5."""
         bt    = {"a": 0.8, "b": 0.9, "c": 0.1}
         w_out = {"a": 0.1, "b": 0.2, "c": 0.9}
-        im    = {"a": 0.8, "b": 0.3, "c": 0.1}  # only 'a' has IM > 0.5
-        bp = calculate_bottleneck_precision(bt, w_out, im)
+        im    = {"a": 0.8, "b": 0.3, "c": 0.1}
+        # quantile 0.5 of [0.1, 0.3, 0.8] is 0.30, which only 'a' exceeds.
+        bp = calculate_bottleneck_precision(bt, w_out, im, im_quantile=0.5)
         assert bp == pytest.approx(0.5)
 
     def test_empty_inputs_safe(self):
-        """Empty inputs → BP = 0.0, no error."""
-        assert calculate_bottleneck_precision({}, {}, {}) == 0.0
+        """Empty inputs → None, no error."""
+        assert calculate_bottleneck_precision({}, {}, {}) is None
 
     def test_custom_thresholds(self):
-        """Custom BT/w_out/IM thresholds are respected."""
+        """Custom BT/w_out thresholds are respected."""
         bt    = {"a": 0.5}  # below default bt_threshold=0.60
         w_out = {"a": 0.1}
         im    = {"a": 0.9}
-        # With default: not BT-dominant → BP=0.0
-        assert calculate_bottleneck_precision(bt, w_out, im) == pytest.approx(0.0)
-        # With lower bt_threshold=0.40: now BT-dominant → BP=1.0
-        assert calculate_bottleneck_precision(bt, w_out, im, bt_threshold=0.40) == pytest.approx(1.0)
+        assert calculate_bottleneck_precision(bt, w_out, im) is None
+        assert calculate_bottleneck_precision(
+            bt, w_out, im, bt_threshold=0.40, im_quantile=0.0
+        ) == pytest.approx(0.0)
+
+    def test_inputs_are_expected_normalised(self):
+        """Raw w_out is an unbounded QoS-weight sum; the thresholds assume [0, 1].
+
+        Passing raw structural values made the BT>0.60 AND w_out<0.30 conjunction
+        very nearly unsatisfiable, so BP read 0.0 by construction on every
+        scenario. `dimensions._max_normalised` now scales both inputs first.
+        """
+        raw_w_out = {"a": 14.2, "b": 9.8}     # raw QoS-weight sums
+        bt        = {"a": 0.9, "b": 0.8}
+        im        = {"a": 0.9, "b": 0.8}
+        assert calculate_bottleneck_precision(bt, raw_w_out, im) is None
+
+        peak = max(raw_w_out.values())
+        normalised = {k: v / peak for k, v in raw_w_out.items()}
+        assert calculate_bottleneck_precision(bt, normalised, im) is None
 
 
 # ===========================================================================
@@ -408,3 +433,43 @@ class TestChangePropagationSimulator:
             assert 0.0 <= r.normalized_change_depth <= 1.0, (
                 f"normalized_change_depth out of range for {cid}: {r.normalized_change_depth}"
             )
+
+
+class TestMaintainabilityOracleIsLive:
+    """IM(v) must carry variance over the population the validation actually scores.
+
+    Regression test for the disjoint-population bug: change-propagation reach was
+    non-zero only for Topic and Library, while simulate_exhaustive targets only
+    Node, Broker and Application, so IM(v) was identically 0.0 everywhere. The
+    maintainability dimension silently never validated, and G6/G8 reported FAIL
+    from an unmeasured zero.
+    """
+
+    def _exhaustive(self, scenario: str, layer: str = "system"):
+        import json
+        from saag.infrastructure.memory_repo import MemoryRepository
+        from saag.simulation.service import SimulationService
+        from saag.usecases.model_graph import ModelGraphUseCase
+
+        repo = MemoryRepository()
+        with open(f"data/scenarios/{scenario}_system.json") as fh:
+            ModelGraphUseCase(repo).execute(json.load(fh), clear=True)
+        return SimulationService(repo).run_failure_simulation_exhaustive(layer=layer)
+
+    def test_im_is_non_degenerate_on_the_corpus(self):
+        results = self._exhaustive("atm")
+        distinct = {round(r.impact.maintainability_impact, 9) for r in results}
+        assert len(distinct) >= 3, (
+            f"IM(v) carries {len(distinct)} distinct value(s) over {len(results)} "
+            "components; a constant ground truth cannot validate a dimension"
+        )
+        assert max(r.impact.maintainability_impact for r in results) > 0.0
+
+    def test_im_is_populated_on_every_layer(self):
+        """The bug was layer-independent, so the guard must be too."""
+        for layer in ("app", "mw", "infra", "system"):
+            results = self._exhaustive("atm", layer=layer)
+            if len(results) < 3:
+                continue
+            distinct = {round(r.impact.maintainability_impact, 9) for r in results}
+            assert len(distinct) >= 2, f"IM(v) is constant on layer '{layer}'"

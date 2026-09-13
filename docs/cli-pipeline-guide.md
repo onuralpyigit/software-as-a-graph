@@ -144,7 +144,7 @@ PYTHONPATH=. python cli/export_graph.py --output output/exported_graph.json --fo
 ## Step 2: Analyze
 
 **Script:** `cli/analyze_graph.py`  
-**Purpose:** Compute structural metrics M(v) and the graph summary S(G) only — no RM/Q scoring, no anti-pattern detection. RM/Q scoring and anti-pattern detection belong to Step 4 (Diagnose); GNN ranking belongs to Step 3 (Predict). `analyze_graph.py` takes no RM-weighting flags because scoring is not this stage's job. See [structural-analysis.md §1](structural-analysis.md#1-what-this-step-does).
+**Purpose:** Compute structural metrics M(v) and the graph summary S(G) only — no RM/Q scoring, no anti-pattern detection. RM/Q scoring and anti-pattern detection belong to Step 4 (Diagnose); GNN ranking belongs to Step 3 (Predict). `analyze_graph.py` takes no RM-weighting flags because scoring is not this stage's job. See [structural-analysis.md §1](structural-analysis.md#1-overview).
 
 ```bash
 PYTHONPATH=. python cli/analyze_graph.py --layer system
@@ -335,7 +335,7 @@ Systematic BFS cascade fault injection → `impact_scores.json`.
 The emitted `impact_scores.json` is schema 2.1: it names its `labeler`, declares
 `labeled_node_types` / `labeled_dimensions` / `unlabeled_node_ids`, and carries a
 `label_stability` block giving the ceiling on any correlation computed against it. See
-[failure-simulation.md §6.1](failure-simulation.md#61-impact_scoresjson).
+[failure-simulation.md §6.1](failure-simulation.md#91-impact_scoresjson-fault-injection-ground-truth).
 
 #### `message-flow`
 
@@ -704,6 +704,21 @@ PYTHONPATH=. python cli/validate_graph.py sweep \
 ### LOSO Cross-Validation
 
 Use `cli/loso_evaluate.py` for leave-one-scenario-out evaluation across domain datasets.
+
+A sweep is `folds x seeds` independent fits (12 x 5 = 60 per variant on the shipped
+corpus), and the flags below control how they are scheduled rather than what they
+compute. None of them changes a result: a fold reproduces bit-identically at any
+`--jobs` and any `--torch-threads`.
+
+| Flag | Default | What it does |
+|:---|:---|:---|
+| `--jobs N` | `1` | Run N (fold, seed) fits concurrently. Fits are latency-bound rather than compute-bound on graphs this size, so several workers share one GPU or CPU well. Measured on the 12-fold corpus: 253 s at `--jobs 1`, 73 s at `--jobs 6`, identical output. |
+| `--torch-threads N` | `1` | Intra-op threads per fit. One is the fastest setting here, not a throttle: every tensor op is smaller than its own threading overhead, and one forward+backward on the enterprise scenario takes 1540 ms at 14 threads versus 54 ms at 1. |
+| `--resume` | off | Reuse any completed fit whose stored fingerprint — configuration, cache contents, and the contents of the model/trainer/harness modules — still matches. Anything that does not match is re-run with its stale checkpoint deleted first, so an interrupted sweep restarts where it stopped rather than at zero. |
+| `--no-preflight` | on | Skip the one-epoch probe fit that runs before the sweep. The probe exercises conversion, model construction, a training step, inference and metrics on the target device in a few seconds; without it an environment fault surfaces only after every fit has failed. |
+
+`reproduce/loso_all_variants.py` forwards all four, and `make -f reproduce/Makefile
+table4 JOBS=8` sets the first.
 
 ### Ablation Studies (Topology-only vs QoS-enriched)
 

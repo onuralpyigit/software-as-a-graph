@@ -237,7 +237,7 @@ def _graph(topology: Dict[str, Any]):
     """
     key = id(topology)
     if key not in _GRAPH_CACHE:
-        from cli.loso_evaluate import _build_graph_from_json
+        from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
 
         _GRAPH_CACHE[key] = _build_graph_from_json(topology)
     return _GRAPH_CACHE[key]

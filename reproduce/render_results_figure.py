@@ -145,7 +145,21 @@ def _load_oracles(path: Path) -> Tuple[List[Dict[str, Any]], Dict[str, Any], Opt
     chance = next(
         (blk.get("mean_topk_jaccard_random_baseline") for blk in summary.values()
          if isinstance(blk, dict) and blk.get("mean_topk_jaccard_random_baseline")), None)
-    ceiling = (data.get("self_agreement_ceiling") or {}).get("topk_jaccard_range")
+    # Read the labeler's own floor from results/label_stability.json, which is
+    # where it is measured, rather than from the copy convergent_validity.json
+    # denormalises into itself at write time. That copy is only as fresh as the
+    # convergent-validity run: refreshing label_stability alone left the figure
+    # annotating a 12-fold result with a superseded floor, and nothing said so.
+    ceiling = None
+    stability = Path("results/label_stability.json")
+    if stability.exists():
+        try:
+            ceiling = (json.loads(stability.read_text()).get("summary") or {}).get(
+                "topk_jaccard_range")
+        except (OSError, ValueError):
+            ceiling = None
+    if ceiling is None:
+        ceiling = (data.get("self_agreement_ceiling") or {}).get("topk_jaccard_range")
 
     return rows, {
         "jaccard_min": min(jac) if jac else None,

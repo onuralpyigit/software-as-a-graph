@@ -157,3 +157,40 @@ def test_prediction_service_structural_and_dual(sample_pubsub_graph):
     assert dual_res.prediction_mode == "dual"
     assert hasattr(dual_res, "dual_result")
     assert len(dual_res.dual_result.combined_scores) > 0
+
+
+def test_canonical_baseline_equivalence():
+    """Verify bit-for-bit numerical equivalence between TopoPredictor/TopoQoSPredictor and main_table baseline.
+
+    Skipped without a populated cache, because it reads the real scenario cache
+    rather than a fixture.
+    """
+    from reproduce.main_table import _find_cache_dir, _load_scenario_data, _compute_topo_baseline_scores
+
+    for scenario in ("av_system", "atm_system"):
+        cache_dir = _find_cache_dir(scenario)
+        if not cache_dir.exists():
+            pytest.skip(f"output/loso_cache not populated for '{scenario}'")
+
+        try:
+            nx_g, sm, _, _, _ = _load_scenario_data(scenario, substrate="projection")
+        except FileNotFoundError as exc:
+            pytest.skip(f"Scenario cache data unavailable: {exc}")
+
+        # Topo arm
+        base_topo = _compute_topo_baseline_scores(nx_g, sm, use_qos=False)
+        pred_topo = TopoPredictor().predict(nx_g, sm)
+        assert base_topo is not None and pred_topo
+        assert set(base_topo.keys()) == set(pred_topo.keys())
+        for k in base_topo:
+            assert abs(base_topo[k] - pred_topo[k]) < 1e-12
+
+        # Topo-QoS arm
+        base_qos = _compute_topo_baseline_scores(nx_g, sm, use_qos=True)
+        pred_qos = TopoQoSPredictor().predict(nx_g, sm)
+        assert base_qos is not None and pred_qos
+        assert set(base_qos.keys()) == set(pred_qos.keys())
+        for k in base_qos:
+            assert abs(base_qos[k] - pred_qos[k]) < 1e-12
+
+

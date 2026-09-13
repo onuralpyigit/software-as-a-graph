@@ -4,23 +4,51 @@
 %  Please provide the biography in an editable format (e.g. Word, not in PDF
 %  format)."
 %
-% TEMPLATE -- both entries below are placeholders and MUST be written by the
-% authors before submission. Keep each to 100 words or fewer; count with
-%   detex vitae.tex | wc -w
 % Elsevier typesets vitae after the reference list, so no citations here.
+%
+% ---------------------------------------------------------------------------
+% STATUS: drafted from facts recorded in this repository, NOT invented.
+%
+%   Sourced from:
+%     - affiliation and corresponding author  -> title_page.tex, manuscript.tex
+%     - contribution wording                  -> sections/declarations.tex (CRediT)
+%     - prior joint publication               -> refs.bib, @yigit2025graph
+%                                                (IEEE RASSE 2025,
+%                                                 doi:10.1109/RASSE64831.2025.11315354)
+%     - degree, institution, advisor          -> docs/research/thesis/outline.md
+%
+%   Each remaining \vitaeTODO is a fact this repository does not record and that
+%   only the authors can supply. Nothing has been guessed in its place: degrees,
+%   years, prior positions, and research interests beyond the present work are
+%   left blank rather than plausibly filled in.
+%
+%   Count words before submitting (the 100-word cap is per biography):
+%     detex vitae.tex | wc -w
+% ---------------------------------------------------------------------------
+
+\providecommand{\vitaeTODO}[1]{\emph{[#1]}}
 
 \section*{Vitae}
 
-\noindent\textbf{Ibrahim Onuralp Yigit} \emph{[TO BE WRITTEN --- max.\ 100 words.
-Suggested content: current position and department; degrees held, with
-institution and year; principal research interests, which for this paper are
-software architecture analysis, distributed publish--subscribe systems, graph
-representation learning, and software dependability; any prior positions or
-notable service.]}
+\noindent\textbf{Ibrahim Onuralp Yigit} is a Ph.D. candidate in the Department of
+Computer Engineering at Istanbul Technical University, where his doctoral research
+addresses graph-based modelling and analysis of distributed publish--subscribe
+systems. His interests span software architecture analysis, architecture-level
+dependability, cascading-failure prediction, and graph representation learning.
+With Feza Buzluca he published a graph-based dependency analysis method for
+identifying critical components in distributed publish--subscribe systems at IEEE
+RASSE 2025. For the present work he led the conceptualization, methodology,
+implementation, validation, and analysis.
+\vitaeTODO{Add degrees held --- B.Sc./M.Sc., institution and year --- and any
+prior positions.}
 
 \bigskip
 
-\noindent\textbf{Feza Buzluca} \emph{[TO BE WRITTEN --- max.\ 100 words.
-Suggested content: current position and department; degrees held, with
-institution and year; principal research interests; teaching and supervision;
-any prior positions or notable service.]}
+\noindent\textbf{Feza Buzluca} is a Professor in the Department of Computer
+Engineering at Istanbul Technical University, where he supervises the doctoral
+research of which this paper forms part. He co-authored the IEEE RASSE 2025 study
+of graph-based dependency analysis for critical-component identification in
+distributed publish--subscribe systems. He contributed the conceptualization,
+methodology, validation, and critical review of the present work.
+\vitaeTODO{Add degrees held, with institution and year; principal research
+interests beyond this paper; and teaching, supervision or service worth noting.}

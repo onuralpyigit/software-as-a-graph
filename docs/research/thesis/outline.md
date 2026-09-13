@@ -6,7 +6,7 @@
 > what is still open. No chapter text exists yet — this is the plan, not the manuscript.
 >
 > **Source precedence is not negotiable** (see [§Source integrity](#source-integrity)). The frozen
-> [`jss_draft_full.md`](jss_draft_full.md) is **RMAV-era** and must not be used for Chapter 4 or for
+> `jss_draft_full.md` is **RMAV-era** and must not be used for Chapter 4 or for
 > any results table.
 
 * **Degree / institution:** PhD, Istanbul Technical University, Department of Computer Engineering
@@ -38,7 +38,7 @@ the duality in a different direction:
 results into evidence. Pathway A's LOSO $\rho = 0.195$ and its anti-correlation at every AHP
 shrinkage setting are not a weak baseline — they are the measurement establishing that a diagnostic
 instrument is not a ranker. The separation is *architectural* (no shared parameters, per
-[`ARCHITECTURE.md`](../../../ARCHITECTURE.md#L49)) and *empirically testable*: the `λ_RM` coupling
+[`ARCHITECTURE.md`](../../../ARCHITECTURE.md)) and *empirically testable*: the `λ_RM` coupling
 term in [`saag/prediction/models/core.py`](../../../saag/prediction/models/core.py#L432) defaults to
 0.0, and the $\lambda_{\text{RM}} = 0.1$ arm is the direct evidence the pathways are separable.
 **No publication currently reports that ablation as separability evidence.**
@@ -158,7 +158,7 @@ other students and must have their boundaries stated explicitly.
 
 ## Source integrity
 
-**[`jss_draft_full.md`](jss_draft_full.md) is RMAV-era and mostly unusable as a direct source.** It
+**`jss_draft_full.md` is RMAV-era and mostly unusable as a direct source, and has since been deleted** (removed in commit `14cd94b`; recover it with `git show 14cd94b^:<path>` only if you need the historical text). It
 carries 42 `RMAV` occurrences; §4.1 is *"Four Orthogonal Dimensions"* and §4.2 is *"RMAV Formulas"* —
 the retired four-dimension model throughout. Its Tables 18–23 are superseded three times over: the
 RM migration, the advisor-review reruns, and the 2026-08-29 weight revision.

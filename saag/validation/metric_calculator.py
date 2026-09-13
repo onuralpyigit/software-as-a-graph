@@ -47,8 +47,12 @@ def _top_k_overlap(
     if not common or k <= 0:
         return 0.0, set(), set()
     effective_k = min(k, len(common))
-    pred_top = set(sorted(common, key=lambda c: predicted[c], reverse=True)[:effective_k])
-    actual_top = set(sorted(common, key=lambda c: actual[c], reverse=True)[:effective_k])
+    # Ties break by component id, never by set iteration order. Sorting a set on
+    # score alone made the top-K -- and therefore CCR@K and COCR@K -- depend on
+    # PYTHONHASHSEED: measured 0.400/0.200/0.400/0.200 for CCR@5 on atm_system
+    # across seeds 0-3, at an identical rho of 0.5427.
+    pred_top = set(sorted(common, key=lambda c: (-predicted[c], c))[:effective_k])
+    actual_top = set(sorted(common, key=lambda c: (-actual[c], c))[:effective_k])
     return len(pred_top & actual_top) / effective_k, pred_top, actual_top
 
 
@@ -260,8 +264,10 @@ def calculate_ranking(
     if k_values is None:
         k_values = [5, 10]
 
-    pred_sorted = sorted(predicted.items(), key=lambda x: x[1], reverse=True)
-    actual_sorted = sorted(actual.items(), key=lambda x: x[1], reverse=True)
+    # (-score, id): ties must not resolve by dict insertion order, which is
+    # hash-seed dependent here -- Validator builds these dicts from a set.
+    pred_sorted = sorted(predicted.items(), key=lambda x: (-x[1], x[0]))
+    actual_sorted = sorted(actual.items(), key=lambda x: (-x[1], x[0]))
 
     pred_ids = [x[0] for x in pred_sorted]
     actual_ids = [x[0] for x in actual_sorted]
@@ -529,25 +535,34 @@ def calculate_bottleneck_precision(
     actual_im: Dict[str, float],
     bt_threshold: float = 0.60,
     w_out_threshold: float = 0.30,
-    im_threshold: float = 0.50,
-) -> float:
+    im_quantile: float = 0.75,
+) -> Optional[float]:
     """Bottleneck Precision (BP).
 
     Among BT-dominant components (BT > bt_threshold AND w_out < w_out_threshold),
-    the fraction that also have high IM(v) (> im_threshold).
+    the fraction whose IM(v) sits in the top ``im_quantile``.
 
-    BP = |{v : BT-dominant ∧ IM(v) > im_threshold}| / |{v : BT-dominant}|
-    Target: BP ≥ 0.70. Returns 0.0 if no BT-dominant components exist.
+    ``predicted_bt`` and ``predicted_w_out`` must already be normalised to [0, 1] --
+    the thresholds are calibrated for the normalised betweenness and w_out that
+    ``_compute_rm`` scores against, not for the raw structural values.
+
+    ``im_quantile`` replaces a fixed ``im_threshold=0.50`` for the same reason as
+    ``calculate_spof_f1``: IM(v) arrives robust-sigmoid scaled with its median pinned
+    at 0.5, so an absolute 0.50 cut was a median split.
+
+    Returns None when no component is BT-dominant -- there is no precision to report
+    on an empty selection, and 0.0 would read as "all the bottlenecks were wrong".
     """
     common = set(predicted_bt) & set(predicted_w_out) & set(actual_im)
     if not common:
-        return 0.0
+        return None
     bt_dominant = [
         cid for cid in common
         if predicted_bt[cid] > bt_threshold and predicted_w_out[cid] < w_out_threshold
     ]
     if not bt_dominant:
-        return 0.0
+        return None
+    im_threshold = float(np.quantile([actual_im[cid] for cid in common], im_quantile))
     return sum(1 for cid in bt_dominant if actual_im[cid] > im_threshold) / len(bt_dominant)
 
 
@@ -559,21 +574,28 @@ def calculate_spof_f1(
     predicted_ap: Dict[str, float],
     actual_ia: Dict[str, float],
     ap_threshold: float = 0.0,
-    ia_threshold: float = 0.50,
+    ia_quantile: float = 0.75,
 ) -> Dict[str, float]:
     """SPOF Precision-Recall F1 (SPR).
 
-    A component v is a "true SPOF" if IA(v) > ia_threshold (confirmed by
-    failure simulation) and a "predicted SPOF" if AP_c(v) > ap_threshold
+    A component v is a "true SPOF" if IA(v) sits in the top ``ia_quantile`` of the
+    simulated availability impact, and a "predicted SPOF" if AP_c(v) > ap_threshold
     (structural detection).
 
     SPR = {precision, recall, f1}  — Target F1 ≥ 0.90.
+
+    ``ia_quantile`` replaces a fixed ``ia_threshold=0.50``. The IA(v) values reaching
+    this function are robust-sigmoid scaled, which pins their median at exactly 0.5,
+    so "IA > 0.50" was a median split wearing an absolute threshold's clothes: it
+    labelled half of every system a true SPOF regardless of the impact magnitudes
+    (measured 55/111 = 50.0% on microservices). Naming the cut as a quantile makes
+    what it does visible at the call site.
 
     Args:
         predicted_ap:  {component_id: AP_c_directed_score}
         actual_ia:     {component_id: IA(v) score from simulation}
         ap_threshold:  AP score threshold to classify as predicted-SPOF (default 0.0 = any AP)
-        ia_threshold:  IA score threshold to classify as actual-SPOF (default 0.50)
+        ia_quantile:   Quantile of IA(v) above which a component is an actual SPOF
 
     Returns:
         Dict with keys 'precision', 'recall', 'f1'.
@@ -581,6 +603,8 @@ def calculate_spof_f1(
     common = set(predicted_ap) & set(actual_ia)
     if not common:
         return {"precision": 0.0, "recall": 0.0, "f1": 0.0}
+
+    ia_threshold = float(np.quantile([actual_ia[cid] for cid in common], ia_quantile))
 
     tp = fp = fn = 0
     for cid in common:
@@ -599,87 +623,4 @@ def calculate_spof_f1(
                  if (precision + recall) > 0 else 0.0)
     return {"precision": precision, "recall": recall, "f1": f1}
 
-
-def calculate_hsrr(
-    predicted_qspof: Dict[str, float],
-    actual_ia: Dict[str, float],
-    ap_c_binary: Dict[str, float],
-    ia_threshold: float = 0.50,
-    qspof_threshold: float = 0.0,
-) -> float:
-    """Hidden SPOF Recovery Rate (HSRR).
-
-    Fraction of high-availability-impact components that are not binary
-    articulation points but are nevertheless caught by QSPOF or CDI.
-
-    HSRR = |{v : AP_c=0 ∧ QSPOF > 0 ∧ IA > ia_threshold}|
-          / |{v : AP_c=0 ∧ IA > ia_threshold}|
-    """
-    common = set(predicted_qspof) & set(actual_ia) & set(ap_c_binary)
-    if not common:
-        return 0.0
-    
-    candidates = [
-        cid for cid in common
-        if ap_c_binary[cid] == 0 and actual_ia[cid] > ia_threshold
-    ]
-    if not candidates:
-        return 0.0
-    
-    recovered = sum(1 for cid in candidates if predicted_qspof[cid] > qspof_threshold)
-    return recovered / len(candidates)
-
-
-def calculate_dasa(
-    ap_c_out: Dict[str, float],
-    ap_c_in: Dict[str, float],
-    ia_out: Dict[str, float],
-    ia_in: Dict[str, float],
-) -> float:
-    """Directed SPOF Asymmetry Accuracy (DASA).
-
-    Checks that the directionality of the SPOF (whether out-reachability
-    or in-reachability dominates) matches the directionality observed
-    in simulation.
-
-    DASA = |{v : sign(AP_c_out - AP_c_in) = sign(ia_out - ia_in)}| / n
-    Target: DASA ≥ 0.70.
-    """
-    common = set(ap_c_out) & set(ap_c_in) & set(ia_out) & set(ia_in)
-    if not common:
-        return 0.0
-    
-    def _sign(val):
-        return 1 if val > 0 else -1 if val < 0 else 0
-
-    matching = sum(
-        1 for cid in common
-        if _sign(ap_c_out[cid] - ap_c_in[cid]) == _sign(ia_out[cid] - ia_in[cid])
-    )
-    return matching / len(common)
-
-
-def calculate_rri(
-    actual_ia: Dict[str, float],
-    br_scores: Dict[str, float],
-    ia_threshold: float = 0.30,
-) -> float:
-    """Redundancy Robustness Index (RRI).
-
-    Among components with no bridge edges (structurally redundant),
-    what fraction also have low actual availability impact?
-
-    RRI = |{v : BR(v) = 0 AND IA < ia_threshold}| / |{v : BR(v) = 0}|
-    Target: RRI ≥ 0.80.
-    """
-    common = set(actual_ia) & set(br_scores)
-    if not common:
-        return 0.0
-
-    redundant = [cid for cid in common if br_scores[cid] == 0.0]
-    if not redundant:
-        return 0.0
-
-    true_negatives = sum(1 for cid in redundant if actual_ia[cid] < ia_threshold)
-    return true_negatives / len(redundant)
 

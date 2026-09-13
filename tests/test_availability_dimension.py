@@ -10,8 +10,6 @@ Covers:
   - CDI normalisation
   - ImpactMetrics: IA(v) default fields, availability_impact property arithmetic, to_dict()
   - calculate_spof_f1: perfect, zero, partial coverage
-  - calculate_hsrr: pairs recovered vs not recovered
-  - calculate_rri: true-negative rate arithmetic
 """
 import pytest
 from saag.analysis.weight_calculator import QualityWeights, AHPMatrices, AHPProcessor
@@ -20,8 +18,6 @@ from saag.analysis.structural_analyzer import StructuralAnalyzer
 from saag.simulation.models import ImpactMetrics
 from saag.validation.metric_calculator import (
     calculate_spof_f1,
-    calculate_hsrr,
-    calculate_rri,
 )
 
 
@@ -295,7 +291,7 @@ class TestCalculateSPOFF1:
         """All predicted SPOFs are actual SPOFs → F1 = 1.0."""
         ap  = {"a": 0.8, "b": 0.7, "c": 0.0}  # a,b predicted SPOF; c not
         ia  = {"a": 0.9, "b": 0.8, "c": 0.1}  # a,b actual SPOF; c not
-        res = calculate_spof_f1(ap, ia, ap_threshold=0.0, ia_threshold=0.5)
+        res = calculate_spof_f1(ap, ia, ap_threshold=0.0, ia_quantile=0.25)
         assert res["f1"] == pytest.approx(1.0)
         assert res["precision"] == pytest.approx(1.0)
         assert res["recall"] == pytest.approx(1.0)
@@ -304,7 +300,7 @@ class TestCalculateSPOFF1:
         """No predicted SPOFs match actual SPOFs → F1 = 0.0."""
         ap  = {"a": 0.0, "b": 0.0, "c": 0.8}  # c predicted SPOF
         ia  = {"a": 0.9, "b": 0.8, "c": 0.1}  # a,b actual SPOF; c not
-        res = calculate_spof_f1(ap, ia, ap_threshold=0.0, ia_threshold=0.5)
+        res = calculate_spof_f1(ap, ia, ap_threshold=0.0, ia_quantile=0.25)
         assert res["f1"] == pytest.approx(0.0, abs=0.01)
 
     def test_partial_coverage(self):
@@ -312,7 +308,7 @@ class TestCalculateSPOFF1:
         # a: TP; b: FP; c: FN
         ap  = {"a": 0.8, "b": 0.7, "c": 0.0}
         ia  = {"a": 0.9, "b": 0.1, "c": 0.8}
-        res = calculate_spof_f1(ap, ia, ia_threshold=0.5)
+        res = calculate_spof_f1(ap, ia, ia_quantile=0.25)
         assert 0.0 < res["f1"] < 1.0
         # precision = 1/(1+1) = 0.5; recall = 1/(1+1) = 0.5; F1 = 0.5
         assert res["f1"] == pytest.approx(0.5, abs=0.01)
@@ -336,84 +332,31 @@ class TestCalculateSPOFF1:
             assert 0.0 <= val <= 1.0, f"{metric_name} out of range: {val}"
 
 
-# ===========================================================================
-# calculate_hsrr
-# ===========================================================================
+class TestSPOFThresholdIsAQuantile:
+    """The actual-SPOF cut must be a quantile, not an absolute 0.50.
 
-class TestCalculateHSRR:
+    IA(v) reaches `calculate_spof_f1` robust-sigmoid scaled, which pins its median
+    at exactly 0.5. An absolute `ia_threshold=0.50` was therefore a median split in
+    disguise, labelling half of every system a true SPOF regardless of the impact
+    magnitudes (measured 55 of 111 components on microservices).
+    """
 
-    def test_all_recovered(self):
-        """All hidden SPOFs (AP_c=0, IA>0.5) have QSPOF > 0 → HSRR = 1.0."""
-        qspof = {"a": 0.7, "b": 0.8}
-        ia    = {"a": 0.9, "b": 0.9}
-        ap_c  = {"a": 0.0, "b": 0.0}
-        assert calculate_hsrr(qspof, ia, ap_c) == pytest.approx(1.0)
+    def test_absolute_half_threshold_is_not_reintroduced(self):
+        import inspect
+        from saag.validation.metric_calculator import calculate_spof_f1
+        params = inspect.signature(calculate_spof_f1).parameters
+        assert "ia_threshold" not in params
+        assert params["ia_quantile"].default == 0.75
 
-    def test_none_recovered(self):
-        """No hidden SPOFs have QSPOF > 0 → HSRR = 0.0."""
-        qspof = {"a": 0.0, "b": 0.0}
-        ia    = {"a": 0.9, "b": 0.9}
-        ap_c  = {"a": 0.0, "b": 0.0}
-        assert calculate_hsrr(qspof, ia, ap_c) == pytest.approx(0.0)
+    def test_median_pinned_input_does_not_select_half_the_population(self):
+        from saag.validation.metric_calculator import calculate_spof_f1
+        from saag.validation.validator import robust_sigmoid_scale_dict
 
-    def test_partial_recovered(self):
-        """Half hidden SPOFs recovered → HSRR = 0.5."""
-        qspof = {"a": 0.7, "b": 0.0}
-        ia    = {"a": 0.9, "b": 0.9}
-        ap_c  = {"a": 0.0, "b": 0.0}
-        assert calculate_hsrr(qspof, ia, ap_c) == pytest.approx(0.5)
-
-    def test_empty_inputs_returns_zero(self):
-        assert calculate_hsrr({}, {}, {}) == 0.0
-
-    def test_missing_components_safe(self):
-        qspof = {"a": 0.9}
-        ia    = {"x": 0.9} # x is hidden SPOF but not in qspof dict
-        ap_c  = {"x": 0.0}
-        assert calculate_hsrr(qspof, ia, ap_c) == pytest.approx(0.0)
-
-
-# ===========================================================================
-# calculate_rri
-# ===========================================================================
-
-class TestCalculateRRI:
-
-    def test_perfect_rri(self):
-        """All non-bridge components (BR=0) have IA < 0.30 → RRI = 1.0."""
-        ia     = {"r1": 0.1, "r2": 0.2}
-        br     = {"r1": 0.0, "r2": 0.0}
-        assert calculate_rri(ia, br, ia_threshold=0.30) == pytest.approx(1.0)
-
-    def test_zero_rri(self):
-        """All non-bridge components have high IA → RRI = 0.0."""
-        ia     = {"r1": 0.9, "r2": 0.8}
-        br     = {"r1": 0.0, "r2": 0.0}
-        assert calculate_rri(ia, br, ia_threshold=0.30) == pytest.approx(0.0)
-
-    def test_partial_rri(self):
-        """Half non-bridge components have low IA → RRI = 0.5."""
-        ia     = {"r1": 0.1, "r2": 0.9}
-        br     = {"r1": 0.0, "r2": 0.0}
-        assert calculate_rri(ia, br, ia_threshold=0.30) == pytest.approx(0.5)
-
-    def test_no_redundant_components(self):
-        """No components have BR=0 → RRI = 0.0 (degenerate)."""
-        ia     = {"a": 0.1}
-        br     = {"a": 0.5}
-        assert calculate_rri(ia, br, ia_threshold=0.30) == pytest.approx(0.0)
-
-    def test_empty_inputs_safe(self):
-        """Empty inputs → RRI = 0.0, no error."""
-        assert calculate_rri({}, {}) == 0.0
-
-    def test_rri_in_range(self):
-        """RRI should always be in [0, 1]."""
-        import random
-        rng = random.Random(42)
-        keys = [f"c{i}" for i in range(20)]
-        av   = {k: rng.random() for k in keys}
-        ia   = {k: rng.random() for k in keys}
-        br   = {k: 0.0 if rng.random() < 0.5 else rng.random() for k in keys}
-        rri  = calculate_rri(ia, br)
-        assert 0.0 <= rri <= 1.0 + 1e-9, f"RRI out of range: {rri}"
+        raw = {f"c{i}": float(i) for i in range(100)}
+        scaled = robust_sigmoid_scale_dict(raw)
+        # Everything is an articulation point, so precision == |actual| / |predicted|.
+        ap = {k: 1.0 for k in scaled}
+        res = calculate_spof_f1(ap, scaled)
+        assert res["precision"] == pytest.approx(0.25, abs=0.02), (
+            "the top-quartile cut should select ~25% of the population, not ~50%"
+        )

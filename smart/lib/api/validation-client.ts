@@ -6,32 +6,35 @@ import type { Neo4jConfig } from '@/lib/types/api';
 // Types
 // ============================================================================
 
+// Mirrors ValidationTargets.to_dict() in saag/validation/models.py, which emits
+// scalars only. pearson/kendall/recall/top_10_overlap/rmse_max were removed
+// server-side along with the gates that read them.
 export interface ValidationTargets {
   spearman: number;
-  pearson: number;
-  kendall: number;
   f1_score: number;
   precision: number;
-  recall: number;
   top_5_overlap: number;
-  top_10_overlap: number;
-  rmse_max: number;
+  predictive_gain?: number;
+  weighted_kappa_cta?: number;
+  bottleneck_precision_target?: number;
 }
 
 export interface CorrelationMetrics {
   spearman: number;
   pearson: number;
   kendall: number;
-  spearman_pvalue: number;
-  pearson_pvalue: number;
-  kendall_pvalue: number;
+  // The backend emits spearman_p_value; pearson/kendall p-values are not emitted.
+  spearman_p_value: number;
+  spearman_ci: [number, number];
+  spearman_kendall_gap: number;
 }
 
 export interface ErrorMetrics {
   rmse: number;
+  nrmse: number;
   mae: number;
+  mse: number;
   max_error: number;
-  mean_error: number;
 }
 
 export interface ClassificationMetrics {
@@ -49,12 +52,16 @@ export interface ClassificationMetrics {
 
 export interface RankingMetrics {
   top_5_overlap: number;
+  top_5_ci: [number, number];
   top_10_overlap: number;
-  top_5_predicted: string[];
-  top_5_actual: string[];
-  top_5_common: string[];
-  ndcg_at_5: number;
-  ndcg_at_10: number;
+  // Nested under top_5_agreement by RankingMetrics.to_dict(), not flat.
+  top_5_agreement: {
+    predicted: string[];
+    actual: string[];
+    common: string[];
+  };
+  ndcg_5: number;
+  ndcg_10: number;
 }
 
 export interface ComponentComparison {
@@ -77,14 +84,6 @@ export interface ValidationGroupResult {
     error: ErrorMetrics;
     classification: ClassificationMetrics;
     ranking: RankingMetrics;
-  };
-  summary: {
-    spearman: number;
-    f1: number;
-    precision: number;
-    recall: number;
-    rmse: number;
-    top5_overlap: number;
   };
 }
 
@@ -110,6 +109,9 @@ export interface LayerValidationResult {
     simulated_components: number;
     matched_components: number;
   };
+  // Emitted twice by the API: top level from LayerValidationResult.to_dict()
+  // and again inside summary by api/presenters/validation_presenter.py.
+  passed: boolean;
   summary: {
     passed: boolean;
     spearman: number;
@@ -118,7 +120,12 @@ export interface LayerValidationResult {
     recall: number;
     top_5_overlap: number;
     rmse: number;
+    composite_spearman: number | null;
+    predictive_gain: number | null;
+    system_health: Record<string, number>;
   };
+  // null for a gate whose metric was never measured, distinct from false.
+  gates: Record<string, boolean | null>;
   validation_result: ValidationResult | null;
   warnings: string[];
 }

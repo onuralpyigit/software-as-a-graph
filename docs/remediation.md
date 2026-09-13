@@ -8,7 +8,7 @@ This document bridges [Step 4: Diagnose](diagnosis.md) (anti-pattern detection) 
 
 ## 1. Detection: the 19-pattern catalog
 
-`AntiPatternDetector` (`saag/analysis/antipattern_detector.py`) evaluates the 11 Tier-1 structural metric vector $M(v)$ (see [structural-analysis.md](structural-analysis.md)) and the derived RM criticality scores against a catalog of **19** anti-patterns, each with a severity tier and a formal detection rule.
+`AntiPatternDetector` (`saag/analysis/antipattern_detector.py`) evaluates the 53-field structural metric vector $M(v)$ (see [structural-analysis.md](structural-analysis.md)) and the derived RM criticality scores against a catalog of **19** anti-patterns, each with a severity tier and a formal detection rule.
 
 A key design property: thresholds are **population-relative, not universal**. Most detectors compare a component's metric against an adaptive box-plot fence (`Q3 + 1.5 × IQR`) computed over the *current system's own* metric distribution, not a fixed constant. A 300-component enterprise system and a 15-component ROS 2 stack get different absolute cutoffs for the same pattern, because "anomalous" is defined relative to each system's own population.
 

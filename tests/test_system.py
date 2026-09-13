@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from tools.generation import generate_graph
-from saag.adapters import create_repository
+from saag.infrastructure import create_repository
 from saag.analysis import AnalysisService
 from saag.simulation import SimulationService
 from saag.validation import ValidationService
@@ -54,7 +54,7 @@ def test_system_end_to_end(tmp_path):
         assert len(sim_results) > 0
 
         # 5. Validate
-        validation_service = ValidationService(analysis_service, prediction_service, simulation_service, ndcg_k=5)
+        validation_service = ValidationService(analysis_service, prediction_service, simulation_service)
         val_result = validation_service.validate_single_layer("app")
         assert val_result is not None
 

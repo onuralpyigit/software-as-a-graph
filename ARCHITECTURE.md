@@ -32,10 +32,10 @@ reproduce/     # Paper reproduction package — its own Makefile/Dockerfile/READ
 scripts/       # Shell orchestrators for longer experiment sweeps
 examples/      # Annotated, runnable SDK usage examples
 data/          # Topology JSONs, scenario YAMLs, and configuration datasets
-models/        # Trained GNN checkpoints
+models/        # (unused) checkpoints go to output/gnn_checkpoints/ — see Client/Pipeline defaults
 output/        # Pipeline run artifacts (dashboards, predictions, checkpoints)
 results/       # Rendered paper tables/figures from reproduce/
-evaluation/    # Ad-hoc evaluation artifacts
+evaluation/    # (leftover, gitignored) not to be confused with the live saag/evaluation/ package
 tests/         # Pytest test suite
 docs/          # Per-stage methodology documentation + formal specs
 ```
@@ -70,7 +70,7 @@ Step 3 (Predict) and Step 4 (Diagnose) are two deliberately separate stages over
                                        ▼ [Step 2: Analyze]     │ (trains)      │ (ground-truth)
                          ┌─────────────────────────────┐       │               │
                          │  StructuralAnalysisResult   │       │               │
-                         │ (11 Tier-1 Metrics Vector M)│       │               │
+                         │  (53-field Metric Vector M) │       │               │
                          └──────┬───────────────┬──────┘       │               │
                                 │               │              │               │
               [Step 3: Predict]      [Step 4: Diagnose]                        │
@@ -152,7 +152,7 @@ The SDK follows a **hexagonal (ports & adapters) architecture**. Domain logic is
 ┌────────────────────▼─────────────────────────────────────┐
 │  Core Domain (core/)                                     │
 │   models.py  metrics.py  layers.py  criticality.py       │
-│   Ports: IGraphRepository, IFileStore                    │
+│   Ports: IGraphRepository                                │
 └────────────────────┬─────────────────────────────────────┘
                      │
 ┌────────────────────▼─────────────────────────────────────┐
@@ -169,7 +169,6 @@ Pure Python; no dependency on Neo4j, NetworkX, or presentation frameworks.
 - `layers.py` — Layer projections (`AnalysisLayer` enum: `app`, `infra`, `mw`, `system`) and their member mappings (`LAYER_DEFINITIONS`).
 - `criticality.py` — Thresholding structures: `CriticalityLevel`, `BoxPlotStats`.
 - `ports/graph_repository.py` — `IGraphRepository`: `save_graph()`, `derive_dependencies()`, `get_graph_data()`, `get_layer_data()`, `export_json()`.
-- `ports/file_store.py` — `IFileStore`, implemented by `file_exporter.py`'s `LocalFileStore` for filesystem I/O.
 - `utils/serialization.py` — Flatten/reconstruct helpers between nested JSON and flat graph properties.
 
 ### `analysis/` — Step 2 Analytical Engine
@@ -186,7 +185,7 @@ Computes structural metrics only on the layer subgraph. No RM/Q scores or anti-p
 - `GNNService` — Loads a checkpoint containing `NodeCriticalityGNN`: `N` stacked stock `torch_geometric.nn.HGTConv` layers, with an `EdgeFeatureEncoder` injecting edge features before each layer ([core.py:146-290](saag/prediction/models/core.py#L146-L290)). Runs inductive prediction (Step 3).
 - `ExplanationEngine` (from `explanation/`) — Generates the natural-language narrative attached to each Diagnose-stage (Step 4) result.
 
-> **Back-compat shims — not architectural components.** `saag/adapters/` and `saag/core/graph_generator.py` are thin re-export stubs kept for import compatibility; their real implementations live in `tools/generation/`. Do not extend the shims directly.
+> **Generation lives in `tools/generation/`.** `cli/generate_graph.py` delegates there rather than implementing topology synthesis itself. `saag/core/graph_generator.py` used to be a re-export stub pointing at a `src.` package that no longer exists and that nothing imported; it has been removed, as have `saag/core/file_exporter.py` and `saag/core/ports/file_store.py` (a dead port/adapter pair with no implementation or consumer). `saag/adapters/` is not a shim: it is the real-world topology importer, and its persistence re-exports have been replaced by direct imports from `saag/infrastructure/`.
 
 ### `simulation/` — Step 5 Simulation Engine
 A discrete-event and BFS cascade failure simulation suite evaluating propagation boundaries on raw structural edges.

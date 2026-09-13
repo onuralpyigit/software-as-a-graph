@@ -29,10 +29,9 @@ records the `Figure_N` file correspondence.
 ```
 latex/
 ├── manuscript.tex       — main file: preamble, frontmatter, abstract, \input of every section
-├── sections/            — one .tex per manuscript section (sec1..sec8) + declarations.tex
+├── sections/            — one .tex per manuscript section (sec1..sec9) + declarations.tex
 │                         NOTE: sec4_* is the PREDICTIVE pathway (HGT), sec5_* the EXPLANATION layer (RM)
-│                         §9 (Conclusion) is a top-level \section at the end of sec8_discussion.tex
-├── supplementary.tex    — SEPARATE document, Sections S1–S7 (see below); builds standalone
+├── supplementary.tex    — SEPARATE document, Sections S1–S8 (see below); builds standalone
 ├── refs.bib             — 91 references, shared by the manuscript and the supplement
 ├── title_page.tex       — SEPARATE, non-anonymous title page for Editorial Manager
 ├── highlights.tex       — SEPARATE file, 5 bullets ≤85 chars (Elsevier requires "highlights" in the name)
@@ -76,17 +75,21 @@ the layout JSS's "<36 pages single-column" guidance reads naturally against.
 
 | Class options | Pages | Note |
 |---|---:|---|
-| **`[preprint,3p]`** | **43** | **current setting** |
+| **`[preprint,3p]`** | **39** | **current setting** |
 | `[preprint,review,3p]` | — | 1.5-spaced reviewing copy; add `review` back if the editor asks for one |
 | `[preprint]` | — | Elsevier's generic preprint layout (larger type/margins) |
 
-Of the 43 pages, the main text through the Conclusion is 37 and the reference list is 5. Reaching 36
-for the whole PDF would require dropping an evaluation condition; `LENGTH_JUSTIFICATION.md` argues
-the case for the current length and lists what has already been moved to the supplement.
+Of the 39 pages, the reference list is the last 5. Reaching the 36 the Guide encourages would require
+dropping an evaluation condition; `LENGTH_JUSTIFICATION.md` argues the case for the current length
+and lists what has already been moved to the supplement.
+
+**Re-measure, do not restate.** This file previously carried three different page counts at once (43,
+43 and 36) against an actual 39. Take every count here from the build: `pdfinfo manuscript.pdf`,
+`grep -c 'begin{table' sections/*.tex`, `grep -c '^\\bibitem' manuscript.bbl`.
 
 ## Supplementary material
 
-`supplementary.tex` (7 pages) carries the material moved out of the body during condensation:
+`supplementary.tex` (8 pages, Sections S1--S8) carries the material moved out of the body during condensation:
 
 | § | Content |
 |---|---|
@@ -97,6 +100,7 @@ the case for the current length and lists what has already been moved to the sup
 | S5 | Generative parameters of the synthetic corpus |
 | S6 | Anti-pattern detection benchmark and node-type stratification |
 | S7 | Real-world evaluation of the explanation layer (RM / Q(v) against I_comp) |
+| S8 | HGT relational attention-weight analysis, Figure S2 |
 
 The two documents do not share an `.aux`, so cross-references from the supplement into the body are
 written as literal text ("Section 7.1 of the main manuscript"), never as `\ref`. Keep it that way —
@@ -132,8 +136,11 @@ judging by eye.
 python ../../../../reproduce/reconcile_manuscript.py --verbose
 ```
 
-Reconciles every reported table figure — currently **177** — against the committed artifact that
-produced it, and flags any artifact older than the corpus it claims to describe. Run it after any
+Reconciles every reported table figure — currently **237** — against the artifact that produced it,
+and flags any that is missing, stale against the corpus, or was produced from a dirty working tree.
+It covers `supplementary.tex` as well as the body: the supplement restates body figures as literal
+text (it cannot `\ref` across documents), and that is how S6/S7 once kept a superseded pooled ρ after
+§7.3.6 was corrected. Run it after any
 edit to a table in `sec6`/`sec7`. It does **not** check numbers that appear only in prose; that class
 of defect has bitten this manuscript twice, so grep for headline values across both formats after a
 revision:
@@ -142,9 +149,9 @@ revision:
 grep -rnE '0\.680|0\.160|0\.695|0\.581|0\.568|0\.114|0\.054|0\.127|2,461|2,812' sections/ ../draft.md
 ```
 
-Current state of the build: 36 pages, **zero LaTeX errors, zero undefined references, zero undefined
-citations, zero overfull boxes**, 12 tables, 3 figures, 91 references (all cited). The supplement
-builds to 8 pages, also with zero undefined references.
+Current state of the build: **39 pages**, 9 sections, 12 tables, 3 figures, 91 references (all cited),
+**zero LaTeX errors, zero undefined references, zero undefined citations, zero overfull boxes**. The
+supplement builds to 8 pages (S1--S8, 6 tables, 2 figures), also with zero undefined references.
 
 ## What's still a placeholder
 
@@ -152,15 +159,19 @@ builds to 8 pages, also with zero undefined references.
   Authors, confirmed September 2026), so `manuscript.tex` correctly carries the author block
   and `title_page.tex` is uploaded to Editorial Manager as a separate file. Do not anonymise
   the body.
-- **Generative-AI declaration** — now its own `\section*{}` at the end of
-  `sections/declarations.tex`, immediately before the reference list, with the heading the Guide
-  prescribes. **The tool name is still `[NAME OF TOOL / SERVICE]` and must be filled in (or the
-  whole section deleted, if only basic grammar/spell checkers were used — the Guide exempts those).**
-- **Vitae** — `vitae.tex` exists but both biographies are placeholders. The Guide requires a
-  ≤100-word biography per author, in an editable format.
+- **Generative-AI declaration** — its own `\section*{}` at the end of `sections/declarations.tex`,
+  immediately before the reference list, with the heading the Guide prescribes. Tool name filled in
+  (Anthropic's Claude, for language and LaTeX typesetting only). Resolved.
+- **Vitae** — `vitae.tex` is drafted from facts recorded in this repository (affiliation,
+  CRediT contributions, the RASSE 2025 joint publication, and the degree/advisor line in
+  `docs/research/thesis/outline.md`). Yigit's entry is 82 words, Buzluca's 58, both under the
+  Guide's 100-word cap. **Two `\vitaeTODO` slots remain** — degrees with institution and year
+  for both authors, plus Buzluca's wider research interests and service. These are facts the
+  repository does not record; they were left blank rather than plausibly filled in, and must be
+  completed before submission. Re-count with `detex vitae.tex | wc -w` after editing.
 - No **Acknowledgements** section is included; add one before submission if needed. It belongs in its
   own section directly before the reference list (and before the generative-AI declaration).
 - **Graphical abstract** — encouraged by the Guide, not required; not produced here. If added:
   531 × 1328 px (h × w) or proportionally more, TIFF/EPS/PDF/MS Office, separate file.
-- **Length** — 36 pages, one over the "less than 36 pages single-column" the Guide encourages, so
+- **Length** — 39 pages, over the "less than 36 pages single-column" the Guide encourages, so
   `LENGTH_JUSTIFICATION.md` must go into the "Comments to the Editor" field at submission.

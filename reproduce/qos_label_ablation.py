@@ -75,7 +75,7 @@ def _load_topology(path: Path) -> Dict[str, Any]:
 
 def _labels(topology: Dict[str, Any], mode: str) -> Dict[str, float]:
     """I(v) for every candidate node under one QoS-factor mode."""
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     from saag.simulation.fault_injector import FaultInjector
 
     graph = _build_graph_from_json(topology)
@@ -93,7 +93,7 @@ def _predictors(topology: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
     """
     import networkx as nx
 
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
 
     graph = _build_graph_from_json(topology)
     undirected = nx.Graph()

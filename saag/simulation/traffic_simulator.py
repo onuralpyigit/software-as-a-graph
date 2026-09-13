@@ -31,7 +31,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from saag.adapters import create_repository
+from saag.infrastructure import create_repository
 
 
 class TrafficSimulator:

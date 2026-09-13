@@ -41,7 +41,12 @@ def run_single(
 
     n = len(scores)
     app_nodes = [v for v, ns in scores.items() if ns.node_type == "Application"]
-    top_k = max(3, int(n * top_k_frac))
+    # K is computed over the population that is actually ranked. run_statistical_tests
+    # scores Applications only (primary_type), so deriving K from len(scores) -- every
+    # node, including the Topics/Brokers/Nodes/Libraries it filters out -- produced a
+    # top-K far larger than 20% of the ranked set: on EdgeX, K = 12 of 22 Applications,
+    # a 55% split that made the overlap condition pass almost by construction.
+    top_k = max(3, round(len(app_nodes) * top_k_frac))
 
     stat = run_statistical_tests(scores, top_k=top_k, B=B, alpha=alpha, primary_type="Application")
     strata = stratified_metrics(scores, top_k=top_k)
@@ -82,7 +87,7 @@ def run_sweep(
         all_scores.append(sc)
 
     rhos = [r.spearman_rho for r in results]
-    f1s  = [r.f1_at_k for r in results]
+    overlaps = [r.overlap_at_k for r in results]
     pgs  = [r.pg for r in results]
 
     rcr = rank_consistency_rate(all_scores)
@@ -100,7 +105,7 @@ def run_sweep(
         rho_std=float(np.std(rhos)),
         rho_min=float(np.min(rhos)),
         rho_max=float(np.max(rhos)),
-        f1_mean=float(np.mean(f1s)),
+        overlap_mean=float(np.mean(overlaps)),
         pg_mean=float(np.mean(pgs)),
         rcr=rcr,
         all_gates_pass_rate=float(np.mean([r.overall_pass for r in results])),
@@ -122,20 +127,20 @@ class AblationReport:
     # baseline (qos=False)
     base_rho_mean: float
     base_rho_std: float
-    base_f1_mean: float
+    base_overlap_mean: float
     base_pg_mean: float
     base_rcr: float
 
     # enriched (qos=True)
     enr_rho_mean: float
     enr_rho_std: float
-    enr_f1_mean: float
+    enr_overlap_mean: float
     enr_pg_mean: float
     enr_rcr: float
 
     # deltas
     delta_rho: float          # Δρ = enr − base  (primary Middleware 2026 claim)
-    delta_f1: float
+    delta_overlap: float
     delta_pg: float
     rho_lift_significant: bool  # bootstrap overlap test: CI(enr) does not overlap CI(base)
 
@@ -189,16 +194,16 @@ def run_ablation(
         seeds=seeds,
         base_rho_mean=sr_base.rho_mean,
         base_rho_std=sr_base.rho_std,
-        base_f1_mean=sr_base.f1_mean,
+        base_overlap_mean=sr_base.overlap_mean,
         base_pg_mean=sr_base.pg_mean,
         base_rcr=sr_base.rcr,
         enr_rho_mean=sr_enr.rho_mean,
         enr_rho_std=sr_enr.rho_std,
-        enr_f1_mean=sr_enr.f1_mean,
+        enr_overlap_mean=sr_enr.overlap_mean,
         enr_pg_mean=sr_enr.pg_mean,
         enr_rcr=sr_enr.rcr,
         delta_rho=sr_enr.rho_mean - sr_base.rho_mean,
-        delta_f1=sr_enr.f1_mean  - sr_base.f1_mean,
+        delta_overlap=sr_enr.overlap_mean - sr_base.overlap_mean,
         delta_pg=sr_enr.pg_mean  - sr_base.pg_mean,
         rho_lift_significant=significant,
         base_rhos=base_rhos,

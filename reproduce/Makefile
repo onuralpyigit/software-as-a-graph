@@ -31,6 +31,10 @@ comma      := ,
 empty      :=
 space      := $(empty) $(empty)
 SEEDS      ?= 42,123,456,789,2024
+#: Concurrent (fold, seed) fits. The fits behind table4/kfold are independent,
+#: so this changes wall-clock only — a fold reproduces bit-identically at any
+#: JOBS. Override for a bigger box: `make table4 JOBS=8`.
+JOBS       ?= 4
 SEEDS_LIST  = $(subst $(comma),$(space),$(SEEDS))
 EPOCHS     ?= 300
 EPOCHS_FAST ?= 50      # for quick smoke-test
@@ -82,9 +86,16 @@ block0:
 	@echo "✓ Block 0 PASSED — W1 audit gate cleared."
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Block C: Table 3 — 8 × 4 variants × 5 seeds
+# Block C: Table 3 (JSS Table 5) — 7 core domains × 6 variants × 5 seeds = 210 runs
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Writes results/main_table.json, which reconcile_manuscript.py reads as the
+# backing artifact for Table 5. Keep the three in sync: this target's --output,
+# render_table.py's --table3 default, and reconcile_manuscript.py's --main-table
+# default. An interrupted run once left two smoke-test cells in this file and
+# render_table.py turned them into an all-0.500 "results" table (quarantined in
+# results/superseded/); the reconciler now refuses any artifact under 42 cells,
+# and --resume makes this target idempotent.
 table3: block0
 	$(PYTHON) reproduce/main_table.py \
 	    --output $(RESULTS_DIR)/main_table.json \
@@ -93,17 +104,19 @@ table3: block0
 	    --resume
 	$(PYTHON) reproduce/render_table.py \
 	    --table3 $(RESULTS_DIR)/main_table.json \
+	    --table4 $(RESULTS_DIR)/loso_all_variants_v4.json \
 	    --output-dir $(RESULTS_DIR)
 	@echo "✓ Table 3 ready: $(RESULTS_DIR)/table3_main_results.tex"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Block E: Table 4 — LOSO × 4 variants
+# Block E: Table 4 (JSS Table 7) — LOSO, 12 folds × 7 variants
 # ─────────────────────────────────────────────────────────────────────────────
 
 table4:
 	$(PYTHON) reproduce/loso_all_variants.py \
 	    --cache-dir $(OUTPUT_DIR)/loso_cache \
 	    --epochs $(EPOCHS) \
+	    --jobs $(JOBS) \
 	    --output $(RESULTS_DIR)/loso_all_variants.json \
 	    --resume
 	$(PYTHON) reproduce/render_table.py \
@@ -163,9 +176,16 @@ kfold:
 # Use --max-candidates to bound it on the larger scenarios.
 # ─────────────────────────────────────────────────────────────────────────────
 
+# --qos-mode MUST be passed explicitly. The script's own default is `legacy`,
+# the pre-QoS arm, so this target used to regenerate the WRONG arm straight over
+# the published artifact. The paper reports `full`: it is the arm that enforces
+# the QoS semantics the paper describes, it has the higher minimum per-scenario
+# rho, and under `legacy` financial_trading returns -0.17 as a pure noise-floor
+# artifact (scale_max 0.037, almost no measurable delivery loss to correlate).
 convergent-validity:
 	$(PYTHON) reproduce/convergent_validity.py \
 	    --seeds $(SEEDS_LIST) \
+	    --qos-mode full \
 	    --output $(RESULTS_DIR)/convergent_validity.json \
 	    --verbose
 	@echo "✓ Oracle agreement ready: $(RESULTS_DIR)/convergent_validity.json"
@@ -262,6 +282,15 @@ jss-figS1:
 	$(PYTHON) reproduce/render_shrinkage_figure.py
 	@echo "✓ Figure S1 (AHP shrinkage sensitivity) ready."
 
+# NOTE: no --checkpoint is passed, and that is not an oversight -- it is what
+# Supplementary S8 now documents. extract_attention.py falls back to training a
+# fresh 3-layer, 100-epoch model on atm_system alone (seed 42); the LOSO
+# checkpoints cannot be loaded here (40-relation schema vs this topology's 32,
+# 2 layers vs 3, and Library publish/subscribe relations the ATM graph lacks).
+# The extraction is deterministic, but its output tracks the corpus: the Sep-10
+# regeneration moved USES (Lib->Lib) from 0.225 to 0.169 on an unchanged model
+# recipe. Re-run this target whenever data/scenarios/atm_system.json changes,
+# and re-check the relation-type figures quoted in S8.
 jss-figS2:
 	$(PYTHON) reproduce/extract_attention.py \
 	    --scenario atm_system \

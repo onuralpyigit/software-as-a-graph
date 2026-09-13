@@ -291,7 +291,7 @@ flowchart TD
 
     subgraph A_Calc["Availability A(v) — Service Partition"]
         direction TB
-        A_Eq["A(v) = 0.35·AP_c^dir + 0.25·QSPOF + 0.25·BR + 0.10·CDI + 0.05·w(v)"]
+        A_Eq["A(v) = 0.2563·AP_c^dir + 0.1998·QSPOF + 0.1998·BR + 0.2563·CDI + 0.0878·w(v)"]
     end
 
     subgraph R_Calc["Hierarchical Reliability R(v)"]
@@ -425,7 +425,7 @@ $$Q_{\text{GNN}}(u, v) = \text{TypedEdgeEncoder}(\mathbf{h}_u, \mathbf{h}_v, \ma
 **Trained on a heuristic label, not the removal oracle.** The training target is
 $y_{\text{edge}}(u, v) = I^*(u) \times \text{bridge\_multiplier}$ — the source
 node's simulated impact, discounted 10× unless the edge is a structural bridge
-(see [docs/prediction.md §5](prediction.md#5-edge-criticality)). The genuine
+(see [docs/prediction.md §5](prediction.md#43-relation-specific-edge-prediction-head)). The genuine
 **Edge Removal Simulation Oracle**,
 
 $$I_{\text{edge}}(u, v) = \text{Impact}(G \setminus \{(u,v)\}) - \text{Impact}(G)$$
@@ -520,7 +520,7 @@ flowchart LR
     RealExt -->|"Link 3: UNMEASURED<br>(Telemetry vs. User Perception)"| QiU["Quality-in-Use Loss<br>(D1/D2 Construct)"]
 ```
 
-- **Link 1 (Internal $\to$ Simulated External)**: **Rigorously Measured**. Verified by statistical batteries against simulation oracles (mean $\rho(I_{\text{dyn}}, I^*) = 0.620$ over the twelve LOSO folds, against $I^*$'s own $0.817$–$1.0$ reproducibility ceiling).
+- **Link 1 (Internal $\to$ Simulated External)**: **Rigorously Measured**. Verified by statistical batteries against simulation oracles (mean $\rho(I_{\text{dyn}}, I^*) = 0.620$ over the twelve LOSO folds, against $I^*$'s own $0.811$–$1.0$ reproducibility ceiling).
 - **Link 2 (Simulated $\to$ Real System)**: **Unmeasured**. Simulator acts as a discrete-event model of runtime behavior.
 - **Link 3 (Real System $\to$ Stakeholder Perception)**: **Unmeasured**. Assumes service degradation translates to stakeholder harm without human survey studies.
 
@@ -561,7 +561,7 @@ Full treatment: [`docs/research/thesis/material/why_not_simulate.md`](research/t
 | ISO/IEC 25010 Characteristic | Coverage Status | Architectural Boundary & Missing Fields |
 |:---|:---:|:---|
 | **Reliability (Fault Tolerance, Availability)** | **Strong** | Operationalized via $RPR, AP_c^{\text{dir}}, BR$ and validated against $I^*, I_{\text{dyn}}$. |
-| **Maintainability (Modularity, Modifiability)** | **Moderate** | Modeled via $BT, w_{out}, CQP$; validated at the Validate stage via change-propagation BFS ($I_M$), which traverses the same `DEPENDS_ON` substrate $M(v)$ is scored from, so $\rho(M, I_M)$ is an internal consistency check rather than independent evidence (see [docs/validation.md](validation.md)). $I_M$ is *computed* by `ChangePropagationSimulator` on every exhaustive failure sweep — Simulate, Validate, Prescribe, and the prediction API alike — but is only *used as an oracle* at the Validate stage; the canonical GNN Predict-stage labeler (`FaultInjector`) never reads it, so the GNN's maintainability head has no ground-truth supervision there (see [docs/prediction.md §Labels](prediction.md#labels)). |
+| **Maintainability (Modularity, Modifiability)** | **Moderate** | Modeled via $BT, w_{out}, CQP$; validated at the Validate stage via change-propagation BFS ($I_M$), which traverses the same `DEPENDS_ON` substrate $M(v)$ is scored from, so $\rho(M, I_M)$ is an internal consistency check rather than independent evidence (see [docs/validation.md](validation.md)). $I_M$ is *computed* by `ChangePropagationSimulator` on every exhaustive failure sweep — Simulate, Validate, Prescribe, and the prediction API alike — but is only *used as an oracle* at the Validate stage; the canonical GNN Predict-stage labeler (`FaultInjector`) never reads it, so the GNN's maintainability head has no ground-truth supervision there (see [docs/prediction.md §Labels](prediction.md#33-target-labels--dimension-masking)). |
 | **Reliability (Recoverability)** | **Absent** | Requires MTTR and replica state absent in static schemas. |
 | **Performance Efficiency** | **Absent** | Simulator logs latency, but metrics do not score runtime bandwidth. |
 | **Safety** | **Absent** | System identifies structural exposure, not functional safety integrity (SIL/ASIL). |

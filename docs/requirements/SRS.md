@@ -175,7 +175,7 @@ The legacy "Quality Scoring" mechanism (formerly part of Step 2) has been remove
 | **REQ-GNN-02** | The system shall construct node feature tensors consisting of an 18-dimensional base topological vector augmented by type-specific properties (Application/Library: 23-dim, Broker: 19-dim, Topic: 22-dim, Node: 20-dim). |
 | **REQ-GNN-03** | The system shall construct 16-dimensional edge feature tensors containing QoS metrics, path counts, and edge-type one-hot encodings (see Appendix A.7). |
 | **REQ-GNN-04** | The system shall implement a 3-layer **HGTConv (Heterogeneous Graph Transformer)** backbone (`NodeCriticalityGNN`) with relation-specific Key/Query/Value projection matrices to learn type-specific attention weights. |
-| **REQ-GNN-05** | The system shall inject 16-dimensional edge attributes into node embeddings via `EdgeFeatureEncoder`, which projects each edge vector and scatter-means it into the destination node ahead of every `HGTConv` layer, since `HGTConv` does not accept raw `edge_attr` tensors. Per-edge features reach the edge head un-averaged through `TypedEdgeEncoder`; the node backbone sees them pre-aggregated (see [prediction.md §9 L2](../prediction.md#9-known-limitations)). |
+| **REQ-GNN-05** | The system shall inject 16-dimensional edge attributes into node embeddings via `EdgeFeatureEncoder`, which projects each edge vector and scatter-means it into the destination node ahead of every `HGTConv` layer, since `HGTConv` does not accept raw `edge_attr` tensors. Per-edge features reach the edge head un-averaged through `TypedEdgeEncoder`; the node backbone sees them pre-aggregated (see [prediction.md §9 L2](../prediction.md#9-known-limitations--design-boundaries)). |
 | **REQ-GNN-06** | The system shall support a bidirectional pass option (`use_bidirectional=True`) to capture upstream and downstream architectural signals during graph convolution. |
 | **REQ-GNN-07** | The system shall deploy multi-task prediction heads (MLPs with Sigmoid activations) to predict dimension scores ($\hat{R}$, $\hat{M}$) and a composite score $\hat{I}^*$ concurrently. Fault Tolerance and Availability are Reliability sub-characteristics scored on the analysis side, not separate GNN prediction targets. |
 | **REQ-GNN-08** | The system shall feed the outputs of the two dimension heads directly into the composite head alongside the node representation to learn non-linear dimension interactions. |
@@ -411,7 +411,7 @@ $$M(v) = w_1 \times BT(v) + w_2 \times w_{out}(v) + w_3 \times CQP(v) + w_4 \tim
 
 ### A.4 Availability Score (Reliability Sub-Characteristic)
 $$A(v) = w_1 \times AP_{c\_directed}(v) + w_2 \times QSPOF(v) + w_3 \times BR(v) + w_4 \times CDI(v) + w_5 \times w(v)$$
-*(Weights: $w_1 = 0.35, w_2 = 0.25, w_3 = 0.25, w_4 = 0.10, w_5 = 0.05$)*
+*(Weights: $w_1 = 0.2563, w_2 = 0.1998, w_3 = 0.1998, w_4 = 0.2563, w_5 = 0.0878$ — the v4 shrunk vector; see [quality-model.md](../quality-model.md))*
 
 ### A.5 Reliability Score (Hierarchical Composite)
 $$R(v) = \alpha \cdot FT(v) + (1 - \alpha) \cdot A(v)$$

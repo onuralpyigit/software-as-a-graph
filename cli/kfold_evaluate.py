@@ -152,7 +152,7 @@ def _test_node_ids(data, node_id_map: Dict[str, List[str]]) -> set:
         store = data[nt]
         if not hasattr(store, "test_mask"):
             continue
-        mask = store.test_mask.numpy()
+        mask = store.test_mask.detach().cpu().numpy()
         for local_idx, nid in enumerate(node_id_map.get(nt, [])):
             if local_idx < len(mask) and mask[local_idx]:
                 ids.add(nid)
@@ -495,6 +495,12 @@ def run_one_scenario(
 # Full k-fold orchestration
 # ──────────────────────────────────────────────────────────────────────────────
 
+#: Scenarios allowed to fail, with nothing succeeding, before the sweep is
+#: abandoned. Two rather than one so a single genuinely degenerate scenario
+#: cannot stop a run that would otherwise have produced a table.
+_FAIL_FAST_SCENARIOS = 2
+
+
 def run_kfold(
     bundles: List[ScenarioBundle],
     k: int,
@@ -526,6 +532,7 @@ def run_kfold(
     workdir.mkdir(exist_ok=True)
 
     scenario_results: List[ScenarioResult] = []
+    failures: List[str] = []
     for i, bundle in enumerate(bundles):
         logger.info("════════════════════════════════════════════════════════════")
         logger.info("Scenario %d / %d   %s (%d nodes, %d labelled)",
@@ -559,6 +566,19 @@ def run_kfold(
             scenario_results.append(result)
         except Exception as exc:
             logger.exception("  Scenario failed (%s): %s", bundle.scenario_id, exc)
+            failures.append(f"{bundle.scenario_id}: {exc}")
+            # A sweep that has produced nothing and has now failed twice the same
+            # way is not unlucky, it is misconfigured — and every remaining
+            # scenario is about to fail identically. The run this guard was
+            # written after trained 12 scenarios x 5 folds x 5 seeds and threw
+            # every fit away before raising, 3.8 hours later, because a mask had
+            # been left on the GPU and `.numpy()` cannot read one there.
+            if not scenario_results and len(failures) >= _FAIL_FAST_SCENARIOS:
+                raise RuntimeError(
+                    f"the first {len(failures)} scenarios all failed and none "
+                    f"succeeded; abandoning the sweep rather than training on. "
+                    f"Failures so far: " + "; ".join(failures)
+                ) from exc
             continue
 
     if not scenario_results:

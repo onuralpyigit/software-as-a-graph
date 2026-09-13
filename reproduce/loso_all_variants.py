@@ -15,15 +15,22 @@ Usage
   # Smoke test: 1 variant, 2 seeds
   python reproduce/loso_all_variants.py --variants gl hgl --seeds 42,123
 
-  # Resume (reuses a variant's results.json only when it is newer than the
-  # cache and less than _RESUME_MAX_AGE_DAYS old; otherwise re-runs it)
-  python reproduce/loso_all_variants.py --resume
+  # Eight concurrent (fold, seed) fits. Changes wall-clock only — every fit is
+  # independent and seeded from its own seed, so the table is bit-identical.
+  python reproduce/loso_all_variants.py --jobs 8
+
+  # Resume. A variant is skipped outright when its results.json is still fresh
+  # (see _staleness); otherwise it re-runs, and cli/loso_evaluate.py reuses each
+  # individual fit whose fingerprint — configuration, cache contents, model code
+  # — still matches, so an interrupted sweep does not start over.
+  python reproduce/loso_all_variants.py --resume --jobs 8
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -49,6 +56,23 @@ CONTROL_VARIANTS = [
     "gl_full_cap", "gl_full_qos_cap", "gl_full_qos16_cap", "hgl_qos_uni",
 ]
 
+#: Dispatch order, measured rather than assumed (one 12-fold x 5-seed sweep on a
+#: Tesla T4: hgl 12635 s, gl_qos 5096 s, gl 3432 s, topology_rm 214 s, topo_qos
+#: 32 s, topo_baseline 24 s; hgl_qos did not finish). ALL_VARIANTS stays in
+#: reporting order — this only decides what runs first. The expensive arms go
+#: first deliberately: a sweep that is interrupted should lose the cheap rows,
+#: which cost minutes to redo, not the headline arm that costs hours. The run
+#: this was written after lost exactly the headline arm.
+_DISPATCH_COST = {
+    "hgl_qos": 0, "hgl": 1, "gl_qos": 2, "gl": 3,
+    "topology_rm": 4, "topo_qos": 5, "topo_baseline": 6,
+}
+
+
+def _dispatch_order(variants: List[str]) -> List[str]:
+    return sorted(variants, key=lambda v: (_DISPATCH_COST.get(v, 3), v))
+
+
 DEFAULT_SEEDS = "42,123,456,789,2024"
 OUTPUT_BASE   = Path("output/loso")
 #: Beyond this, a --resume result is re-run rather than trusted. Model code
@@ -68,6 +92,7 @@ def _run_variant(
     extra_args: List[str],
     verbose: bool,
     output_base: Path = OUTPUT_BASE,
+    resume: bool = False,
 ) -> Optional[Dict]:
     """Invoke loso_evaluate.py for one variant and return its results dict."""
     out_dir = output_base / variant
@@ -79,8 +104,15 @@ def _run_variant(
     # workspace finishes in 3.2 s and reports LOSO rho = -0.576, while the same
     # command on a clean one trains for 322 s and reports +0.594. Stale state
     # was silently producing the published number.
+    #
+    # Under --resume the workspace is kept instead, because the hazard is now
+    # handled where it belongs: cli/loso_evaluate.py stores a fingerprint of the
+    # configuration, the cache contents and the model code beside every
+    # completed fit, reuses a fit only on an exact match, and deletes the
+    # checkpoint of any fit it cannot match before re-running it. Wiping here
+    # too would mean a sweep interrupted at hour three restarts at hour zero.
     workspace = out_dir / "workspace"
-    if workspace.exists():
+    if workspace.exists() and not resume:
         shutil.rmtree(workspace)
     out_dir.mkdir(parents=True, exist_ok=True)
     results_path = out_dir / "results.json"
@@ -96,14 +128,23 @@ def _run_variant(
         "--epochs", str(epochs),
         *extra_args,
     ]
+    if resume:
+        cmd.append("--resume")
     if verbose:
         print(f"    CMD: {' '.join(cmd)}")
+
+    # BLAS/OpenMP thread pools are worse than useless on graphs this size, and
+    # actively harmful once --jobs puts several fits on one machine: each worker
+    # would claim every core. cli/loso_evaluate.py pins torch's own intra-op
+    # threads; these cover the numpy/scipy side.
+    env = {**os.environ, "OMP_NUM_THREADS": "1", "MKL_NUM_THREADS": "1"}
 
     t0 = time.time()
     proc = subprocess.run(
         cmd,
         capture_output=not verbose,
         text=True,
+        env=env,
         cwd=str(Path(__file__).resolve().parent.parent),  # project root
     )
     elapsed = time.time() - t0
@@ -179,6 +220,9 @@ def _extra_args(args) -> List[str]:
         extra.append("--rank-normalize-labels")
     if getattr(args, "device", None):
         extra += ["--device", args.device]
+    extra += ["--jobs", str(args.jobs), "--torch-threads", str(args.torch_threads)]
+    if not args.preflight:
+        extra.append("--no-preflight")
     return extra
 
 
@@ -327,6 +371,26 @@ def parse_args():
         "--device", default="auto", choices=["auto", "cuda", "cpu"],
         help="Device for model training/inference (default: auto -> cuda if available else cpu)",
     )
+    p.add_argument(
+        "--jobs", type=int, default=1,
+        help="Concurrent (fold, seed) fits within each variant (default: 1). "
+             "The 240 fits behind this table are independent — each seeds torch "
+             "and numpy from its own seed and writes to its own directory — so "
+             "this changes wall-clock only; a fold reproduces bit-identically at "
+             "any --jobs. Fits are latency-bound rather than compute-bound on a "
+             "corpus this size, so several workers share one device well.",
+    )
+    p.add_argument(
+        "--torch-threads", type=int, default=1,
+        help="Intra-op threads per fit (default: 1). Forwarded to "
+             "cli/loso_evaluate.py; see its help for the measurement.",
+    )
+    p.add_argument(
+        "--no-preflight", dest="preflight", action="store_false", default=True,
+        help="Skip each variant's one-epoch probe fit. The probe costs seconds "
+             "and is the difference between learning about an environment fault "
+             "now and learning about it after the sweep.",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
@@ -345,6 +409,8 @@ def main():
     print(f"  Seeds     : {args.seeds}")
     print(f"  Device    : {dev_desc}")
     print(f"  Cache dir : {args.cache_dir}")
+    print(f"  Jobs      : {args.jobs} concurrent fit(s), {args.torch_threads} thread(s) each")
+    print(f"  Resume    : {'on (fingerprinted, per fit)' if args.resume else 'off'}")
     print()
 
     results_by_variant: Dict[str, Optional[Dict]] = {}
@@ -366,7 +432,7 @@ def main():
             print(f"Error: --cache-dir {args.cache_dir} does not exist.", file=sys.stderr)
             sys.exit(1)
 
-        for var in variants:
+        for var in _dispatch_order(variants):
             rp = output_base / var / "results.json"
             if args.resume and rp.exists():
                 stale = _staleness(rp, args.cache_dir)
@@ -374,6 +440,10 @@ def main():
                     print(f"  SKIP (resume): {var}")
                     results_by_variant[var] = json.loads(rp.read_text())
                     continue
+                # Re-running no longer means starting from zero: the child
+                # reuses every individual fit whose fingerprint still matches,
+                # so a variant that is stale for one reason (an age bound, a
+                # touched cache file) does not pay for all 60 fits again.
                 print(f"  STALE, re-running {var}: {stale}")
 
             print(f"  Running {var} ...")
@@ -383,10 +453,16 @@ def main():
                 extra_args=_extra_args(args),
                 verbose=args.verbose,
                 output_base=output_base,
+                resume=args.resume,
             )
             results_by_variant[var] = data
 
     # Build + save comparison table
+    # Reporting order is ALL_VARIANTS', not the order they happened to run in.
+    results_by_variant = {
+        v: results_by_variant[v]
+        for v in [*ALL_VARIANTS, *CONTROL_VARIANTS] if v in results_by_variant
+    }
     table = _build_comparison_table(results_by_variant, args.eval_population)
     output = {
         "comparison_table": table,

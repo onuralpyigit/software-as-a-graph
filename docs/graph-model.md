@@ -14,11 +14,11 @@ For the full CLI reference (`import_graph.py`, `export_graph.py`), see [cli-pipe
 2. [Why Model as a Directed Dependency Graph?](#2-why-model-as-a-directed-dependency-graph)
 3. [Formal Graph Definition](#3-formal-graph-definition)
 4. [Five Construction Phases](#4-five-construction-phases)
-   - [Phase 1: Entity Modeling](#41-phase-1--entity-modeling)
-   - [Phase 2: Structural Topology & Fan-Out](#42-phase-2--structural-topology--fan-out)
-   - [Phase 3: Intrinsic Topic Weighting](#43-phase-3--intrinsic-topic-weighting)
-   - [Phase 4: Dependency Derivation](#44-phase-4--dependency-derivation)
-   - [Phase 5: Aggregate Weight Propagation](#45-phase-5--aggregate-weight-propagation)
+   - [Phase 1: Entity Modeling](#41-phase-1-entity-modeling)
+   - [Phase 2: Structural Topology & Fan-Out](#42-phase-2-structural-topology--fan-out)
+   - [Phase 3: Intrinsic Topic Weighting](#43-phase-3-intrinsic-topic-weighting)
+   - [Phase 4: Dependency Derivation](#44-phase-4-dependency-derivation)
+   - [Phase 5: Aggregate Weight Propagation](#45-phase-5-aggregate-weight-propagation)
 5. [Layer Projections](#5-layer-projections)
 6. [Dual Graph Views (Simulation vs. Analysis)](#6-dual-graph-views-simulation-vs-analysis)
 7. [Topology JSON Specification](#7-topology-json-specification)
@@ -205,6 +205,16 @@ Dependency:     Subscriber ─────────────────�
 | **4** | `node_to_broker` | Node $\to$ Broker *(when a hosted app depends on a broker)* | Worst-case lift: $\max_{d} w(d)$ |
 | **5** | `app_to_lib` | Application $\to$ Library *(via `USES` relationship)* | Harmonic mean: $\frac{2 \cdot w(\text{app}) \cdot w(\text{lib})}{w(\text{app}) + w(\text{lib})}$ |
 | **6** | `broker_to_broker` | Broker $A \leftrightarrow$ Broker $B$ *(colocated on the same Node)* | Shared Node weight: $w(\text{node})$ |
+
+> **Three implementations, one rule set.** `Neo4jRepository._derive_dependencies` and
+> `MemoryRepository._derive_dependencies` are the persistence-side derivations. The
+> simulation package may not read derived edges at all, so
+> `SimulationGraph.get_dependency_edges()` derives the same six rules independently from
+> raw structural edges, for the $I_M(v)$ change-propagation substrate.
+> `tests/test_simulation_dependency_derivation.py` pins its arc set equal to
+> `MemoryRepository`'s on the committed corpus. Until it implemented all six, it returned
+> the subscribed *Topic* — not a legal `DEPENDS_ON` endpoint — instead of that topic's
+> publishers, which left Applications as sinks in $G^\top$ and $I_M(v)$ identically zero.
 
 #### Multi-Topic Probabilistic Union
 When two applications communicate over multiple topics $T_{uv} = \{t_1, t_2, \dots, t_k\}$, they collapse into a single directed edge with:

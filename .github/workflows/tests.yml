@@ -39,5 +39,26 @@ jobs:
           # 3. Remaining extras (torch + scatter + sparse already satisfied).
           pip install -e ".[neo4j,gnn,api,dev]"
 
+      - name: Lint (ruff)
+        # ruff and mypy are declared in the `dev` extra and were installed by the
+        # step above, but nothing ever ran them. Non-blocking for now so this does
+        # not fail the build on pre-existing findings; drop `continue-on-error`
+        # once the tree is clean.
+        continue-on-error: true
+        run: ruff check saag/ cli/ api/ reproduce/ scripts/
+
       - name: Run pytest
-        run: pytest --tb=short -q
+        # `-m "not integration"` is deliberate: the integration tests need a live
+        # Neo4j at bolt://localhost:7687, which this job does not provision. They
+        # do skip themselves on a failed connection, but deselecting says so up
+        # front rather than reporting skips that look like flakes.
+        run: pytest --tb=short -q -m "not integration"
+
+      - name: Documentation links
+        run: python scripts/check_doc_links.py
+
+      - name: Manuscript reconciliation
+        # results/ is gitignored, so on a clean checkout every artifact is absent.
+        # --allow-missing keeps that from failing the build while still exercising
+        # the parser and the corpus-derived Table 4 check, which needs no artifact.
+        run: python reproduce/reconcile_manuscript.py --allow-missing --verbose

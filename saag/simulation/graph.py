@@ -15,7 +15,17 @@ import networkx as nx
 
 from .models import ComponentState, ComponentInfo, TopicInfo
 from saag.core.layers import SimulationLayer, SIMULATION_LAYERS
-from saag.core.models import QoSPolicy
+from saag.core.models import (
+    MIN_TOPIC_WEIGHT, QoSPolicy,
+    compute_effective_edge_weight, compute_harmonic_coupling, compute_lifted_edge_weight,
+)
+
+#: Component types that participate in messaging dependencies (Rules 1, 2, 5).
+#: Mirrors saag/infrastructure/memory_repo.py so the two derivations cannot drift.
+MESSAGING_TYPES = ("Application", "Library")
+
+#: Maximum USES hops followed when resolving which Applications reach a Library.
+USES_CHAIN_DEPTH = 3
 
 class SimulationGraph:
     """
@@ -66,6 +76,10 @@ class SimulationGraph:
         # own keeps working — the partial-outage case that edge criticality is
         # about. Consulted by the relationship accessors below.
         self._failed_edges: Set[Tuple[str, str]] = set()
+
+        #: Memoised DEPENDS_ON projection (Rules 1-6), built lazily by
+        #: get_dependency_edges() and invalidated on load.
+        self._dependency_edges: Optional[List[Tuple[str, str, float, str]]] = None
         
         # Load graph
         if graph_data:
@@ -147,6 +161,7 @@ class SimulationGraph:
                 self._uses[src].append(tgt)
                 self._used_by[tgt].append(src)
 
+        self._dependency_edges = None
         self._build_app_topic_index()
 
     def _build_app_topic_index(self) -> None:
@@ -502,31 +517,163 @@ class SimulationGraph:
                 routing[broker_id].append(topic_id)
         return dict(routing)
 
+    def get_dependency_edges(self) -> List[Tuple[str, str, float, str]]:
+        """
+        Derive the whole DEPENDS_ON projection as (dependent, dependency, weight, type).
+
+        Implements Rules 1-6 of docs/graph-model.md §4.4 from this graph's own raw
+        structural indices. Derived here rather than read off the analysis graph:
+        saag/simulation/ never consumes derived edges (see the module docstring and
+        tests/test_independence_guarantee.py), so the projection is recomputed from
+        PUBLISHES_TO / SUBSCRIBES_TO / ROUTES / RUNS_ON / USES.
+
+        Direction is dependent -> dependency, the reverse of data flow: if A publishes
+        to a topic B subscribes to, B depends on A.
+
+        Reads the raw index dicts directly rather than the accessors, which consult
+        ``_failed_edges``. IM(v) is a development-time question about the intact
+        architecture, so a severed runtime link must not change the answer.
+
+        Memoised; ``_load_from_data`` invalidates the cache.
+        """
+        if self._dependency_edges is not None:
+            return self._dependency_edges
+
+        types = {cid: c.type for cid, c in self.components.items()}
+        topic_w = {
+            tid: getattr(self.components[tid], "weight", MIN_TOPIC_WEIGHT)
+            for tid in self.topics if tid in self.components
+        }
+
+        def endpoints(index: Dict[str, List[Tuple[str, float]]], topic: str) -> List[str]:
+            return [comp for comp, _ in index.get(topic, [])]
+
+        # Applications reaching each Library over 1..USES_CHAIN_DEPTH hops.
+        lib_users: Dict[str, List[str]] = defaultdict(list)
+        for app, app_type in types.items():
+            if app_type != "Application":
+                continue
+            reached: Set[str] = set()
+            frontier = [app]
+            for _ in range(USES_CHAIN_DEPTH):
+                frontier = [
+                    lib for src in frontier
+                    for lib in self._uses.get(src, []) if lib not in reached
+                ]
+                reached.update(frontier)
+            for lib in reached:
+                lib_users[lib].append(app)
+
+        # (dependent, dependency, type) -> set of mediating topics.
+        #
+        # A *set*, deliberately: a topic reachable both directly and through a
+        # library must enter the probabilistic union once. memory_repo.py's
+        # _collapse_paths flattens a per-kind dict into a multiset instead, which
+        # double-counts such topics (0 affected pairs on atm_system, 64 on
+        # microservices with dw <= 0.248, 139 on av with dw <= 0.374). Neo4jRepository
+        # does not share that bug -- it MERGEs each kind separately and keeps the
+        # max -- so this matches Neo4j, not memory_repo.
+        paths: Dict[Tuple[str, str, str], Set[str]] = defaultdict(set)
+
+        for topic in set(self._publishers) | set(self._subscribers) | set(self._routing):
+            publishers = endpoints(self._publishers, topic)
+            subscribers = endpoints(self._subscribers, topic)
+            pubs = [p for p in publishers if types.get(p) in MESSAGING_TYPES]
+            subs = [s for s in subscribers if types.get(s) in MESSAGING_TYPES]
+
+            # Rule 1 -- app_to_app: a subscriber depends on every publisher.
+            for sub in subs:
+                for pub in pubs:
+                    if sub != pub:
+                        paths[(sub, pub, "app_to_app")].add(topic)
+            # ... and the same holds when either side reaches the topic through a
+            # library it uses rather than through its own edge.
+            for lib in subscribers:
+                for app in lib_users.get(lib, []):
+                    for pub in pubs:
+                        if app != pub:
+                            paths[(app, pub, "app_to_app")].add(topic)
+            for lib in publishers:
+                for app in lib_users.get(lib, []):
+                    for sub in subs:
+                        if sub != app:
+                            paths[(sub, app, "app_to_app")].add(topic)
+
+            # Rule 2 -- app_to_broker: a participant depends on every routing broker.
+            participants = set(publishers) | set(subscribers)
+            for broker in endpoints(self._routing, topic):
+                if types.get(broker) != "Broker":
+                    continue
+                for comp in participants:
+                    if types.get(comp) in MESSAGING_TYPES:
+                        paths[(comp, broker, "app_to_broker")].add(topic)
+                for lib in participants:
+                    for app in lib_users.get(lib, []):
+                        paths[(app, broker, "app_to_broker")].add(topic)
+
+        edges: Dict[Tuple[str, str, str], float] = {
+            key: compute_effective_edge_weight([topic_w.get(t, MIN_TOPIC_WEIGHT) for t in topics])
+            for key, topics in paths.items()
+        }
+
+        # Rules 3 & 4 -- lift component dependencies onto the hosting nodes.
+        # Worst-case max, not a probabilistic union: the lifted dependencies
+        # aggregate over overlapping app and topic sets, so they are not
+        # independent events and the union would saturate.
+        node_node: Dict[Tuple[str, str], List[float]] = defaultdict(list)
+        node_broker: Dict[Tuple[str, str], List[float]] = defaultdict(list)
+        for (src, tgt, dep_type), weight in edges.items():
+            src_node, tgt_node = self._hosted_on.get(src), self._hosted_on.get(tgt)
+            if src_node and tgt_node and src_node != tgt_node:
+                node_node[(src_node, tgt_node)].append(weight)
+            if dep_type == "app_to_broker" and src_node:
+                node_broker[(src_node, tgt)].append(weight)
+
+        lifted: Dict[Tuple[str, str, str], float] = {
+            (n1, n2, "node_to_node"): compute_lifted_edge_weight(ws)
+            for (n1, n2), ws in node_node.items()
+        }
+        lifted.update({
+            (node, broker, "node_to_broker"): compute_lifted_edge_weight(ws)
+            for (node, broker), ws in node_broker.items()
+        })
+        edges.update(lifted)
+
+        # Rule 5 -- app_to_lib: harmonic coupling between user and library.
+        for src, libs in self._uses.items():
+            if types.get(src) not in MESSAGING_TYPES:
+                continue
+            for lib in libs:
+                if types.get(lib) != "Library":
+                    continue
+                edges[(src, lib, "app_to_lib")] = compute_harmonic_coupling(
+                    getattr(self.components[src], "weight", MIN_TOPIC_WEIGHT),
+                    getattr(self.components[lib], "weight", MIN_TOPIC_WEIGHT),
+                )
+
+        # Rule 6 -- broker_to_broker: colocated brokers share their node's fate.
+        for node_id, hosted in self._hosts.items():
+            brokers = [c for c in hosted if types.get(c) == "Broker"]
+            node_w = getattr(self.components.get(node_id), "weight", MIN_TOPIC_WEIGHT)
+            for b1 in brokers:
+                for b2 in brokers:
+                    if b1 != b2:
+                        key = (b1, b2, "broker_to_broker")
+                        edges[key] = max(edges.get(key, 0.0), node_w)
+
+        self._dependency_edges = [(s, t, w, d) for (s, t, d), w in edges.items()]
+        return self._dependency_edges
+
     def get_depends_on_targets(self, comp_id: str) -> List[str]:
         """
         Get the components that `comp_id` depends on (outgoing DEPENDS_ON arcs).
 
-        Since SimulationGraph does not explicitly store DEPENDS_ON relationships,
-        this method derives them from the raw structural edges:
-          - SUBSCRIBES_TO: subscriber depends on the topic (and by extension its
-            publishers), so the topic is a dependency target.
-          - USES: app/component depends on the library it uses.
-
-        These are the same dependency semantics used by the quality analyser
-        when building G_analysis. This keeps the IM(v) simulation consistent
-        with the analysis layer without requiring a separate graph load.
+        Thin view over :meth:`get_dependency_edges`; see it for the derivation.
 
         Returns:
             List of component IDs that `comp_id` depends on (may be empty).
         """
-        targets: List[str] = []
-        # SUBSCRIBES_TO: comp_id subscribes to topics (depends on topic chain)
-        for topic_id, subs in self._subscribers.items():
-            if any(s[0] == comp_id for s in subs):
-                targets.append(topic_id)
-        # USES: comp_id uses libraries
-        targets.extend(self._uses.get(comp_id, []))
-        return targets
+        return [tgt for src, tgt, _, _ in self.get_dependency_edges() if src == comp_id]
     
     # =========================================================================
     # Layer Filtering

@@ -261,9 +261,9 @@ class TestValidationService:
         # Check Availability
         avl = layer_res.dimensional_validation["availability"]
         assert "spof_f1" in avl
-        assert "hsrr" in avl
-        assert "dasa" in avl
-        assert "rri" in avl
+        # hsrr/dasa/rri were removed: they read structural fields the analyzer
+        # never writes, so they could only ever be reported as None.
+        assert not {"hsrr", "dasa", "rri"} & set(avl)
         
     def test_composite_section_and_predictive_gain(self, validation_service, mock_prediction_service, mock_simulation_service):
         """Test composite I* calculation and Predictive Gain."""
@@ -271,6 +271,8 @@ class TestValidationService:
         result = validation_service.validate_layers(layers=["app"])
         layer_res = result.layers["app"]
         
+        from saag.validation.models import RELEASE_GATES
+
         comp = layer_res.dimensional_validation["composite"]
         assert "spearman_q_star_i_star" in comp
         assert "predictive_gain" in comp
@@ -306,10 +308,22 @@ class TestValidationService:
         assert layer_res.reliability_spearman == 0.0
         assert layer_res.maintainability_spearman == 0.0
 
+        # An unmeasured dimension must read as None, never as a measured zero
+        # or a failed gate -- that conflation is what made G6/G8 report FAIL for
+        # as long as the maintainability oracle was degenerate.
+        from saag.validation.models import RELEASE_GATES
+
         comp = layer_res.dimensional_validation["composite"]
-        assert comp["best_single_dim"] == "None"
-        assert comp["predictive_gain"] == 0.0
-        assert layer_res.gates["G5_predictive_gain"] is False
+        assert comp["predictive_gain"] is None
+        assert comp["spearman_q_star_i_star"] is None
+        assert layer_res.predictive_gain is None
+        assert layer_res.composite_spearman is None
+        assert layer_res.gates["predictive_gain"] is None
+        assert layer_res.gates["kappa_cta"] is None
+        assert layer_res.gates["bottleneck_precision"] is None
+        # `passed` is unaffected: the release gates score Q(v) against the
+        # composite impact and do not read the per-dimension oracles at all.
+        assert set(layer_res.gates) >= set(RELEASE_GATES)
 
     def test_node_type_stratified_in_output(self, validation_service, mock_prediction_service, mock_simulation_service):
         """Test node-type stratified reporting."""
@@ -781,11 +795,9 @@ class TestPassFailLogic:
         pred, actual, types = self._make_monotonic_data(20)
         validator = Validator(targets=ValidationTargets(
             spearman=0.50,
-            spearman_p_max=0.10,
             f1_score=0.30,
             top_5_overlap=0.20,
-            rmse_max=0.50,
-        ), winsorize_actuals=False)
+        ))
         result = validator.validate(pred, actual, types)
         assert result.passed is True
 
@@ -795,57 +807,51 @@ class TestPassFailLogic:
         pred = {f"c{i}": (20 - i) / 20 for i in range(20)}
         actual = {f"c{i}": (i + 1) / 20 for i in range(20)}
         types = {f"c{i}": "App" for i in range(20)}
-        validator = Validator(targets=ValidationTargets(spearman=0.70), winsorize_actuals=False)
+        validator = Validator(targets=ValidationTargets(spearman=0.70))
         result = validator.validate(pred, actual, types)
         assert result.passed is False
 
-    def test_p_value_gate(self):
-        """Validation should fail when Spearman p-value exceeds threshold."""
-        # With n=3, p-values tend to be high even for decent correlation
-        validator = Validator(targets=ValidationTargets(
-            spearman=0.0,  # very lenient
-            spearman_p_max=0.001,  # very strict p-value
-            f1_score=0.0,
-            top_5_overlap=0.0,
-            rmse_max=10.0,
-        ), winsorize_actuals=False)
-        pred = {"A": 0.9, "B": 0.5, "C": 0.1}
-        actual = {"A": 0.8, "B": 0.4, "C": 0.2}
-        types = {"A": "App", "B": "App", "C": "App"}
-        result = validator.validate(pred, actual, types)
-        # With n=3, even perfect correlation has high p-value
-        # so this should likely fail the p-value gate
-        assert result.overall.correlation.spearman_p > 0.001 or result.passed
+    def test_rmse_is_reported_but_never_gates(self):
+        """RMSE is not a release gate: it scored scale offset, not predictive error.
 
-    def test_rmse_gate(self):
-        """Validation should fail when RMSE exceeds threshold."""
+        Predictions are raw Q(v); labels are robust-sigmoid rescaled with their
+        median pinned at 0.5. A perfectly ranked predictor on a compressed scale
+        failed the old gate at RMSE 0.335, and rescaling Q into [0, 1] without
+        moving a single rank flipped it to pass.
+        """
         validator = Validator(targets=ValidationTargets(
             spearman=0.0,
-            spearman_p_max=1.0,
             f1_score=0.0,
             top_5_overlap=0.0,
-            rmse_max=0.01,  # very strict RMSE
-        ), winsorize_actuals=False)
-        # Same ordering but large offset
+        ))
+        # Same ordering, large constant offset: rho is perfect, RMSE is not.
         pred = {f"c{i}": i / 10 for i in range(10)}
         actual = {f"c{i}": i / 10 + 0.5 for i in range(10)}
         types = {f"c{i}": "App" for i in range(10)}
         result = validator.validate(pred, actual, types)
-        # RMSE fails but passed is True because Tier 1 passes
+
         assert result.passed is True
-        assert result.gates["G5_rmse"] is False
         assert result.overall.error.rmse > 0.01
+        assert "rmse" not in result.gates
+        assert "G5_rmse" not in result.gates
+
+    def test_gate_keys_are_the_declared_release_set(self):
+        """The emitted gate keys must be exactly RELEASE_GATES -- no numbering."""
+        from saag.validation.models import RELEASE_GATES
+
+        pred, actual, types = self._make_monotonic_data(20)
+        result = Validator().validate(pred, actual, types)
+        assert set(result.gates) == set(RELEASE_GATES)
+        assert "p_value_pass" not in result.gates
 
     def test_custom_targets_respected(self):
         """Custom ValidationTargets should override defaults."""
         targets = ValidationTargets(
             spearman=0.99,
-            spearman_p_max=0.05,
             f1_score=0.99,
             top_5_overlap=0.99,
-            rmse_max=0.001,
         )
-        validator = Validator(targets=targets, winsorize_actuals=False)
+        validator = Validator(targets=targets)
         pred, actual, types = self._make_monotonic_data(20)
         result = validator.validate(pred, actual, types)
         # Very strict targets - unlikely to pass with slight noise
@@ -957,7 +963,7 @@ class TestRealisticScale:
         actual[f"c{n-1}"] = 5.01  # outlier
         types = {f"c{i}": "Application" for i in range(n)}
 
-        validator = Validator(winsorize_actuals=False)
+        validator = Validator()
         result = validator.validate(pred, actual, types)
         assert result.overall.correlation.spearman > 0.95
         assert result.overall.correlation.spearman_p < 0.001
@@ -973,7 +979,7 @@ class TestRealisticScale:
         actual = {f"c{i}": base[i] + rng.gauss(0, 0.05) for i in range(n)}
         types = {f"c{i}": "Application" for i in range(n)}
 
-        validator = Validator(winsorize_actuals=False)
+        validator = Validator()
         result = validator.validate(pred, actual, types)
         assert result.overall.correlation.spearman > 0.70
         assert result.overall.correlation.spearman_p < 0.05
@@ -1100,7 +1106,9 @@ class TestStep5ValidationFeatures:
             layer="app"
         )
 
-        assert res.rule_based_baseline_metrics is not None
+        # rule_based_baseline_metrics is gone: it re-read the release-gate numbers
+        # against stricter constants and measured nothing new.
+        assert not hasattr(res, "rule_based_baseline_metrics")
         assert res.gnn_forecasting_metrics is not None
         
         # Verify GNN forecasting metrics mapped correctly
@@ -1112,3 +1120,41 @@ class TestStep5ValidationFeatures:
         assert gnn_prof["regression_curve"]["slope"] == 0.95
         assert gnn_prof["regression_curve"]["r2"] == 0.85
         assert gnn_prof["passed"] is True
+        # The GNN block must declare the population it was measured on -- these
+        # numbers are not comparable with the release gates above.
+        assert gnn_prof["population"] == "inductive_test_split"
+        assert gnn_prof["binarization"] == "rank_matched_top_k"
+
+class TestTopKTieDeterminism:
+    """Top-K selection must not depend on set/dict iteration order.
+
+    `_top_k_overlap` sorted a set on score alone, so tied components resolved by
+    hash order: CCR@5 on atm_system measured 0.400/0.200/0.400/0.200 across
+    PYTHONHASHSEED 0-3 at an identical rho of 0.5427.
+    """
+
+    def test_top_k_overlap_breaks_ties_by_id(self):
+        from saag.validation.metric_calculator import _top_k_overlap
+
+        # Four components tied at 1.0; only two fit in the top-2.
+        tied = {"d": 1.0, "c": 1.0, "b": 1.0, "a": 1.0}
+        actual = {"a": 1.0, "b": 0.9, "c": 0.8, "d": 0.7}
+        _, pred_top, _ = _top_k_overlap(tied, actual, k=2)
+        assert pred_top == {"a", "b"}, "ties must resolve by component id"
+
+    def test_top_k_overlap_is_stable_under_input_ordering(self):
+        from saag.validation.metric_calculator import _top_k_overlap
+
+        forward = {"a": 0.5, "b": 0.5, "c": 0.5, "d": 0.1}
+        reverse = {"d": 0.1, "c": 0.5, "b": 0.5, "a": 0.5}
+        actual = {k: 1.0 for k in forward}
+        assert _top_k_overlap(forward, actual, 2)[1] == _top_k_overlap(reverse, actual, 2)[1]
+
+    def test_calculate_ranking_breaks_ties_by_id(self):
+        from saag.validation.metric_calculator import calculate_ranking
+
+        predicted = {"d": 1.0, "c": 1.0, "b": 1.0, "a": 1.0, "e": 0.0}
+        actual = {"a": 5.0, "b": 4.0, "c": 3.0, "d": 2.0, "e": 1.0}
+        r1 = calculate_ranking(predicted, actual, k_values=[2, 3])
+        r2 = calculate_ranking(dict(reversed(list(predicted.items()))), actual, k_values=[2, 3])
+        assert r1.top_5_predicted == r2.top_5_predicted == ["a", "b"]

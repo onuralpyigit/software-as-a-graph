@@ -32,7 +32,6 @@ def layer_result():
         spearman=0.8123,
         f1_score=0.7654,
         precision=0.9012,
-        recall=0.6543,
         top_5_overlap=0.6,
         rmse=0.1234,
         passed=True,
@@ -86,8 +85,11 @@ class TestValidationPresenter:
 
     def test_targets_response_keeps_fields_the_web_ui_reads(self):
         targets = build_targets_response(ValidationTargets())["targets"]
-        for key in ("spearman", "f1_score", "precision", "recall", "top_5_overlap", "rmse_max"):
+        for key in ("spearman", "f1_score", "precision", "top_5_overlap"):
             assert key in targets, f"web UI reads targets.{key}"
+        # Removed with their gates; the UI must no longer read them.
+        for key in ("recall", "rmse_max", "pearson", "kendall", "top_10_overlap"):
+            assert key not in targets, f"targets.{key} should have been removed"
 
 
 class TestValidationEndpoints:

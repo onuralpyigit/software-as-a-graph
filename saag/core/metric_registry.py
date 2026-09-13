@@ -78,9 +78,9 @@ METRIC_ROLES: Dict[str, FrozenSet[MetricRole]] = {
     "is_directed_ap": frozenset({MetricRole.DETECTION}),  # antipattern_detector.py:438 (SPOF)
     "is_isolated": frozenset({MetricRole.DETECTION}),  # antipattern_detector.py:537 (ISOLATED)
     "bridge_count": frozenset({MetricRole.DESCRIPTIVE}),  # statistics.py:1463 (dashboard); feeds bridge_ratio internally, not read on its own downstream
-    "bridge_ratio": frozenset({MetricRole.SCORING, MetricRole.GNN_FEATURE}),  # analyzer.py: A term, w=0.25
-    "ap_c_directed": frozenset({MetricRole.SCORING, MetricRole.GNN_FEATURE}),  # analyzer.py: A term, w=0.35, and QSPOF = ap_c * qw
-    "cdi": frozenset({MetricRole.SCORING, MetricRole.GNN_FEATURE}),  # analyzer.py: A term, w=0.10
+    "bridge_ratio": frozenset({MetricRole.SCORING, MetricRole.GNN_FEATURE}),  # analyzer.py: A term, w=0.1998
+    "ap_c_directed": frozenset({MetricRole.SCORING, MetricRole.GNN_FEATURE}),  # analyzer.py: A term, w=0.2563, and QSPOF = ap_c * qw (w=0.1998)
+    "cdi": frozenset({MetricRole.SCORING, MetricRole.GNN_FEATURE}),  # analyzer.py: A term, w=0.2563 (v4: promoted to parity with ap_c_directed)
     "blast_radius": frozenset({MetricRole.DESCRIPTIVE}),  # saag/models.py ComponentFacade reporting only
     "cascade_depth": frozenset({MetricRole.DESCRIPTIVE}),  # saag/models.py ComponentFacade reporting only
     "publisher_spof": frozenset({MetricRole.DESCRIPTIVE}),  # smart dashboard explorer only
@@ -118,7 +118,7 @@ METRIC_ROLES: Dict[str, FrozenSet[MetricRole]] = {
     "duplicated_lines_density": frozenset({MetricRole.DESCRIPTIVE}),
 
     # === Weights ===
-    "weight": frozenset({MetricRole.SCORING, MetricRole.GNN_FEATURE, MetricRole.DETECTION}),  # analyzer.py: A term (w=0.05) + QSPOF; antipattern_detector.py:605 (QOS_MISMATCH)
+    "weight": frozenset({MetricRole.SCORING, MetricRole.GNN_FEATURE, MetricRole.DETECTION}),  # analyzer.py: A term (w=0.0878) + QSPOF; antipattern_detector.py:605 (QOS_MISMATCH)
     "dependency_weight_in": frozenset({MetricRole.SCORING, MetricRole.GNN_FEATURE}),  # analyzer.py: Topic FT branch only, as w_in — summed in-edge QoS weight (all edge types), not publisher count — see structural-analysis.md §9.13
     "dependency_weight_out": frozenset({MetricRole.SCORING, MetricRole.GNN_FEATURE}),  # analyzer.py: M term, w=0.30
 }

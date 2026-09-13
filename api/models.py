@@ -7,7 +7,7 @@ from typing import Dict, Any, List, Optional
 from enum import Enum
 
 
-from saag.adapters import config
+from saag.infrastructure import config
 
 
 class Neo4jCredentials(BaseModel):

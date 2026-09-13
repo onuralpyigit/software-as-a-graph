@@ -6,8 +6,8 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 
 from .models import (
-    ValidationTargets, CorrelationMetrics, ErrorMetrics,
-    ClassificationMetrics, RankingMetrics,
+    RELEASE_GATES, ValidationTargets, CorrelationMetrics, ErrorMetrics,
+    ClassificationMetrics, RankingMetrics, evaluate_gate,
     ValidationResult, ValidationGroupResult, ComponentComparison
 )
 from .metric_calculator import (
@@ -40,13 +40,9 @@ class Validator:
         self,
         targets: Optional[ValidationTargets] = None,
         k_factor: float = 0.75,
-        winsorize_actuals: bool = True,
-        ndcg_k: int = 10,
     ):
         self.targets = targets or ValidationTargets()
         self.classifier = BoxPlotClassifier(k_factor=k_factor)
-        self.winsorize_actuals = winsorize_actuals
-        self.ndcg_k = ndcg_k
         self.logger = logging.getLogger(__name__)
 
     def validate(
@@ -135,10 +131,6 @@ class Validator:
         correlation = calculate_correlation(pred_vals, actual_vals)
         error = calculate_error(pred_vals, actual_vals)
 
-        # Apply winsorization to actual scores if enabled (mitigate simulation outliers)
-        if self.winsorize_actuals:
-            actual_vals = self._winsorize(actual_vals, limit=0.05)
-
         # Adaptive thresholding via Box-Plot or Percentile Fallback
         if n >= 20:
             pred_stats = self.classifier.compute_stats(pred_vals)
@@ -159,7 +151,7 @@ class Validator:
         
         classification = calculate_classification(pred_crit, actual_crit)
         classification.auc_pr = calculate_auc_pr(pred_vals, actual_crit)
-        ranking = calculate_ranking(predicted, actual, k_values=[5, self.ndcg_k])
+        ranking = calculate_ranking(predicted, actual, k_values=[5, 10])
 
         components: List[ComponentComparison] = []
         for i, cid in enumerate(ids):
@@ -177,27 +169,25 @@ class Validator:
             ))
         components.sort(key=lambda x: x.error, reverse=True)
 
-        # Tier 1 Gates (High-Bar Primary)
-        g1 = correlation.spearman >= self.targets.spearman
-        g2 = classification.f1_score >= self.targets.f1_score
-        g3 = classification.precision >= self.targets.precision
-        g4 = ranking.top_5_overlap >= self.targets.top_5_overlap
-
-        # Tier 2 Gates (reported/secondary)
-        g5 = error.rmse <= self.targets.rmse_max
-        g_p = correlation.spearman_p <= self.targets.spearman_p_max
-        
-        gates = {
-            "G1_spearman": g1,
-            "G2_f1": g2,
-            "G3_precision": g3,
-            "G4_top5": g4,
-            "G5_rmse": g5,
-            "p_value_pass": g_p,
+        # Release gates. Precision@K is not among them: both critical sets are the
+        # top quartile, so |predicted+| == |actual+| and precision, recall and F1
+        # are identically one number. An RMSE gate is not among them either --
+        # predictions are raw Q(v) while labels are robust-sigmoid rescaled to a
+        # median of 0.5, so it scored calibration offset against an arbitrary
+        # transform, not predictive error.
+        gates: Dict[str, Optional[bool]] = {
+            "spearman": evaluate_gate(correlation.spearman, self.targets.spearman),
+            "overlap_at_q3": evaluate_gate(classification.f1_score, self.targets.f1_score),
+            "top5_overlap": evaluate_gate(ranking.top_5_overlap, self.targets.top_5_overlap),
         }
+        passed = all(gates.get(g) is True for g in RELEASE_GATES)
 
-        # passed if all primary Tier 1 gates pass
-        passed = g1 and g2 and g3 and g4
+        if abs(classification.precision - classification.f1_score) > 1e-9:
+            self.logger.warning(
+                "Precision (%.4f) and F1 (%.4f) diverged; the two critical sets "
+                "are not the same size, likely from ties at the Q3 boundary.",
+                classification.precision, classification.f1_score,
+            )
 
         return ValidationGroupResult(
             group_name=group_name,
@@ -211,13 +201,6 @@ class Validator:
             targets=self.targets,
             components=components,
         )
-
-    def _winsorize(self, values: List[float], limit: float = 0.05) -> List[float]:
-        """Cap values at (1 - limit) percentile."""
-        if not values or limit <= 0:
-            return values
-        cap = self._percentile(values, (1.0 - limit) * 100)
-        return [min(v, cap) for v in values]
 
     def _percentile(self, values: List[float], p: float) -> float:
         if not values:

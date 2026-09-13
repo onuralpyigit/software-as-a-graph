@@ -2,23 +2,23 @@
 
 | Rank | α | Source | Edge Type | Destination |
 |---|---|---|---|---|
-| 1 | 1.0000 | A15 | USES | L6 |
-| 2 | 0.5046 | B4 | ROUTES | T16 |
-| 3 | 0.5000 | A3 | USES | L5 |
-| 4 | 0.5000 | A14 | USES | L5 |
-| 5 | 0.4954 | A2 | SUBSCRIBES_TO | T16 |
-| 6 | 0.3593 | L6 | USES | L2 |
-| 7 | 0.3530 | B3 | RUNS_ON | N0 |
-| 8 | 0.3406 | B0 | ROUTES | T6 |
-| 9 | 0.3395 | A2 | RUNS_ON | N3 |
-| 10 | 0.3395 | A22 | RUNS_ON | N3 |
-| 11 | 0.3297 | A21 | SUBSCRIBES_TO | T6 |
-| 12 | 0.3297 | A22 | SUBSCRIBES_TO | T6 |
-| 13 | 0.3235 | A15 | RUNS_ON | N0 |
-| 14 | 0.3235 | A20 | RUNS_ON | N0 |
-| 15 | 0.3211 | N2 | CONNECTS_TO | N3 |
-| 16 | 0.3204 | A2 | USES | L2 |
-| 17 | 0.3204 | A3 | USES | L2 |
-| 18 | 0.2755 | L5 | USES | L1 |
-| 19 | 0.2682 | B0 | ROUTES | T17 |
-| 20 | 0.2665 | B4 | ROUTES | T26 |
+| 1 | 1.0000 | A13 | USES | L6 |
+| 2 | 0.5069 | B2 | ROUTES | T9 |
+| 3 | 0.5000 | A13 | USES | L5 |
+| 4 | 0.5000 | A16 | USES | L5 |
+| 5 | 0.4931 | A4 | SUBSCRIBES_TO | T9 |
+| 6 | 0.3447 | B1 | ROUTES | T10 |
+| 7 | 0.3394 | A10 | RUNS_ON | N4 |
+| 8 | 0.3394 | A15 | RUNS_ON | N4 |
+| 9 | 0.3383 | A7 | SUBSCRIBES_TO | T10 |
+| 10 | 0.3333 | A2 | RUNS_ON | N5 |
+| 11 | 0.3333 | A16 | RUNS_ON | N5 |
+| 12 | 0.3333 | A25 | RUNS_ON | N5 |
+| 13 | 0.3333 | A1 | USES | L2 |
+| 14 | 0.3333 | A4 | USES | L2 |
+| 15 | 0.3333 | A21 | USES | L2 |
+| 16 | 0.3211 | N3 | CONNECTS_TO | N4 |
+| 17 | 0.3171 | A6 | PUBLISHES_TO | T10 |
+| 18 | 0.2713 | B2 | ROUTES | T24 |
+| 19 | 0.2684 | B3 | ROUTES | T25 |
+| 20 | 0.2649 | B2 | ROUTES | T23 |

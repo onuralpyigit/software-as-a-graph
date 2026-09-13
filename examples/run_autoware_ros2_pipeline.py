@@ -333,10 +333,9 @@ def run_autoware_ros2_pipeline(args):
         )
 
         gate_names = {
-            "G1_spearman": ("Primary Rank Correlation", "\u2265 0.70 / 0.80", f"{raw_val.spearman:.4f}"),
-            "G2_f1": ("Criticality Set F1 Score", "\u2265 0.75 / 0.70", f"{raw_val.f1_score:.4f}"),
-            "G3_precision": ("Criticality Set Precision", "\u2265 0.80", f"{raw_val.precision:.4f}"),
-            "G4_top5": ("Top-5 Critical Overlap", "\u2265 0.60", f"{raw_val.top_5_overlap:.4f}"),
+            "spearman": ("Primary Rank Correlation", "\u2265 0.70 / 0.80", f"{raw_val.spearman:.4f}"),
+            "overlap_at_q3": ("Criticality Set F1 Score", "\u2265 0.75 / 0.70", f"{raw_val.f1_score:.4f}"),
+            "top5_overlap": ("Top-5 Critical Overlap", "\u2265 0.60", f"{raw_val.top_5_overlap:.4f}"),
         }
         gate_rows = []
         for gid, (name, threshold, actual) in gate_names.items():

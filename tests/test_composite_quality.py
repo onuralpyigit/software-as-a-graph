@@ -249,23 +249,15 @@ class TestSystemHealth:
 
 class TestCompositeValidationTargets:
 
-    def test_composite_spearman_present_and_correct(self):
-        """composite_spearman target must be 0.85."""
-        t = ValidationTargets()
-        assert hasattr(t, "composite_spearman")
-        assert t.composite_spearman == pytest.approx(0.85, abs=0.01)
+    def test_unread_composite_targets_are_gone(self):
+        """composite_spearman/_f1/_top5_overlap had no production reader.
 
-    def test_composite_f1_present_and_correct(self):
-        """composite_f1 target must be 0.90."""
+        No F1 or top-5 is ever computed against I*(v) -- only rho -- so two of the
+        three could not have been evaluated even in principle.
+        """
         t = ValidationTargets()
-        assert hasattr(t, "composite_f1")
-        assert t.composite_f1 == pytest.approx(0.90, abs=0.01)
-
-    def test_composite_top5_overlap_raised(self):
-        """composite_top5_overlap target must be 0.80 (raised from 0.60)."""
-        t = ValidationTargets()
-        assert hasattr(t, "composite_top5_overlap")
-        assert t.composite_top5_overlap >= 0.80
+        for attr in ("composite_spearman", "composite_f1", "composite_top5_overlap"):
+            assert not hasattr(t, attr), f"{attr} should have been removed"
 
     def test_predictive_gain_present(self):
         """predictive_gain target must be 0.03."""

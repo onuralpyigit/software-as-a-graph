@@ -9,7 +9,7 @@ import logging
 from api.models import Neo4jCredentials
 from api.dependencies import get_repository
 from api.presenters.components_presenter import serialize_critical_edge
-from saag.adapters import create_repository
+from saag.infrastructure import create_repository
 from saag.core.ports.graph_repository import IGraphRepository
 from saag import Client
 

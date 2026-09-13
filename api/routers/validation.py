@@ -13,7 +13,7 @@ from api.presenters.validation_presenter import (
     build_layers_response, build_pipeline_response,
     build_quick_response, build_targets_response,
 )
-from saag.adapters import create_repository
+from saag.infrastructure import create_repository
 from saag.core import LAYER_DEFINITIONS
 from saag.analysis import AnalysisService
 from saag.prediction import PredictionService

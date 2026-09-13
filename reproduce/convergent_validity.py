@@ -80,7 +80,7 @@ def _fault_injector_labels(
     scenario: str, seeds: List[int], qos: bool = True
 ) -> Dict[str, float]:
     """I*(v) — the labels that back the published tables."""
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     from saag.simulation.fault_injector import FaultInjector
     from reproduce.ahp_sensitivity import _load_topology
 
@@ -161,7 +161,7 @@ def _message_flow_labels(
     duration: float = 60.0,
     seed: int = 42,
     max_candidates: Optional[int] = None,
-    qos_mode: str = "legacy",
+    qos_mode: str = "full",
     target_utilization: Optional[float] = 0.65,
 ) -> Dict[str, float]:
     """I_dyn(v) — the delivery-rate loss surviving consumers actually suffer.
@@ -171,7 +171,7 @@ def _message_flow_labels(
     Brokers (ROUTES) or Nodes (RUNS_ON), and a component it cannot observe is
     omitted rather than recorded as impact 0.0.
     """
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     from saag.simulation.message_flow_simulator import MessageFlowSimulator
     from reproduce.ahp_sensitivity import _load_topology
 
@@ -216,7 +216,7 @@ def _restrict(
     """
     if population == "labeled":
         return oracles
-    from cli.loso_evaluate import _build_graph_from_json
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     from reproduce.ahp_sensitivity import _load_topology
 
     graph = _build_graph_from_json(_load_topology(scenario))
@@ -406,7 +406,7 @@ def compare(
     max_candidates: Optional[int] = None,
     skip_message_flow: bool = False,
     population: str = "application",
-    qos_mode: str = "legacy",
+    qos_mode: str = "full",
     target_utilization: Optional[float] = 0.65,
     stability_seeds: Optional[List[int]] = None,
 ) -> Dict[str, Any]:
@@ -476,9 +476,15 @@ def parse_args():
     p.add_argument(
         "--qos-mode",
         choices=["legacy", "full", "none", "contracts", "recovery"],
-        default="legacy",
-        help="QoS mode for MessageFlowSimulator (default: legacy). When --no-qos is set, "
-             "qos_mode='none' is used automatically.",
+        default="full",
+        help="QoS mode for MessageFlowSimulator (default: full — the arm the paper "
+             "reports, and the one the published artifact's provenance records). "
+             "The default was 'legacy' (the pre-QoS arm), which meant a bare re-run "
+             "silently regenerated a different result than the one being reproduced; "
+             "under 'legacy', financial_trading returns rho = -0.17 as a noise-floor "
+             "artifact rather than an anti-correlation, because scale_max for I_dyn is "
+             "0.037 and there is almost no delivery loss to correlate against. When "
+             "--no-qos is set, qos_mode='none' is used automatically.",
     )
     p.add_argument(
         "--duration", type=float, default=60.0,

@@ -35,7 +35,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from cli.simulate_graph import _load_graph  # noqa: E402
+from saag.core.graph_io import load_graph as _load_graph  # noqa: E402
 from reproduce._provenance import stamp  # noqa: E402
 from saag.simulation.fault_injector import FaultInjector  # noqa: E402
 

@@ -44,11 +44,12 @@ class ValidationResult:
 
     # ── classification ─────────────────────────────────────────────────────────
     top_k: int = 0
-    precision_at_k: float = 0.0
-    recall_at_k: float = 0.0
-    f1_at_k: float = 0.0
+    #: |Top-K(Q) ∩ Top-K(I)| / K. This one number *is* precision@K, recall@K and
+    #: F1@K -- both sets are "the top K", so they are the same size. It used to be
+    #: reported under all three names plus its own complement (ftr), which made one
+    #: statistic look like four independent gate conditions.
+    overlap_at_k: float = 0.0
     spof_f1: float = 0.0
-    ftr: float = 0.0              # False Top Rate
 
     # ── specialist metrics ─────────────────────────────────────────────────────
     icr_at_k: float = 0.0        # In-Cluster Recall @K
@@ -77,7 +78,7 @@ class SweepReport:
     rho_std: float
     rho_min: float
     rho_max: float
-    f1_mean: float
+    overlap_mean: float
     pg_mean: float
     rcr: float                    # Rank Consistency Rate = 1 − (mean Kendall distance)
     all_gates_pass_rate: float    # Fraction of seeds that pass all gates
@@ -93,20 +94,18 @@ class SweepReport:
 def top_k_sets(items, node_scores: Dict[str, "NodeScores"], k: int) -> Tuple[set, set]:
     """The top-K node sets by ground truth I(v) and by prediction Q(v)."""
     ids = [ns.node_id for ns in items]
-    gt_top = set(sorted(ids, key=lambda v: node_scores[v].I, reverse=True)[:k])
-    pred_top = set(sorted(ids, key=lambda v: node_scores[v].Q, reverse=True)[:k])
+    gt_top = set(sorted(ids, key=lambda v: (-node_scores[v].I, v))[:k])
+    pred_top = set(sorted(ids, key=lambda v: (-node_scores[v].Q, v))[:k])
     return gt_top, pred_top
 
 
 def top_k_agreement(items, node_scores: Dict[str, "NodeScores"], k: int) -> float:
     """Fraction of the top-K set that Q(v) and I(v) agree on.
 
-    Note this single number *is* precision@K, recall@K and F1@K. Because the
-    predicted and ground-truth positive sets are both defined as "the top K",
-    they are the same size, so TP+FP = TP+FN = K and the three metrics coincide
-    by construction. They are reported under all three names because downstream
-    report schemas expect those fields, but they carry no independent
-    information — a gate on F1@K and a gate on precision@K test the same thing.
+    This single number *is* precision@K, recall@K and F1@K: the predicted and
+    ground-truth positive sets are both "the top K", so they are the same size,
+    TP+FP = TP+FN = K, and the three coincide by construction. It is now reported
+    once, under one name.
     """
     if k <= 0 or not items:
         return 0.0
@@ -179,15 +178,18 @@ def run_statistical_tests(
     actual_k = min(top_k, n)
     gt_top_k, pred_top_k = top_k_sets(items, node_scores, actual_k)
 
-    # Both sets have exactly `actual_k` members, so precision, recall and F1 are
-    # the same number; FTR is its complement. See `top_k_agreement`.
-    agreement = top_k_agreement(items, node_scores, actual_k)
-    prec = rec = f1 = agreement
-    ftr = 1.0 - agreement if actual_k > 0 else 0.0
+    # Both sets have exactly `actual_k` members, so this is precision, recall and
+    # F1 at once. See `top_k_agreement`.
+    overlap = top_k_agreement(items, node_scores, actual_k)
 
     # ── SPOF-F1 ───────────────────────────────────────────────────────────────
+    # The predicted set is the top-K by Q(v). It used to be "every articulation
+    # point", which made spof_actual a subset of spof_pred: recall was then
+    # identically 1.0 and the whole statistic never read Q at all, so it returned
+    # the same value for RM, RM-QoS and every GNN variant and could not
+    # discriminate between the models it was gating.
     spof_actual = {ns.node_id for ns in items if ns.is_articulation_point and ns.I > 0.3}
-    spof_pred   = {ns.node_id for ns in items if ns.is_articulation_point}
+    spof_pred   = pred_top_k
     if len(spof_actual) == 0 and len(spof_pred) == 0:
         spof_f1 = 1.0
     else:
@@ -222,7 +224,9 @@ def run_statistical_tests(
     else:
         w_stat, w_p = 0.0, 1.0
 
-    pg = float(abs(rho) - abs(rho_dc))
+    # Signed, not |rho| - |rho_dc|: taking absolute values scored a perfectly
+    # anti-correlated predictor (rho = -0.9) as a large gain over degree.
+    pg = float(rho - rho_dc)
 
     # ── zero-exclusion sensitivity ────────────────────────────────────────────
     # On several transcribed architectures 40-66% of Applications carry I(v)=0,
@@ -253,11 +257,8 @@ def run_statistical_tests(
         bootstrap_ci_lo=ci_lo,
         bootstrap_ci_hi=ci_hi,
         top_k=actual_k,
-        precision_at_k=prec,
-        recall_at_k=rec,
-        f1_at_k=f1,
+        overlap_at_k=overlap,
         spof_f1=spof_f1,
-        ftr=ftr,
         icr_at_k=icr,
         bce=bce,
         pg=pg,
@@ -296,18 +297,23 @@ def stratified_metrics(node_scores: Dict[str, NodeScores], top_k: int) -> Dict[s
             "n": len(items),
             "spearman_rho": round(float(rho), 4),
             "spearman_p": round(float(p), 4),
-            "f1_at_k": round(f1, 4),
+            "overlap_at_k": round(f1, 4),
             "k_used": k,
         }
     return strata
 
 
+#: Four conditions, not five. The retired one was FTR, which was defined as
+#: 1 - overlap_at_k -- the exact complement of the overlap condition, with a
+#: strictly tighter implied threshold in every class (sparse 0.70 > 0.65,
+#: medium 0.75 > 0.70, dense 0.75 > 0.72, hub_spoke 0.80 > 0.75), so the overlap
+#: condition could never bind and the gate was never really five conditions.
 GATE_THRESHOLDS = {
-    # class           rho_min  f1_min  spof_f1_min  ftr_max  pg_min
-    "sparse":        (0.75,   0.65,   0.60,        0.30,    0.02),
-    "medium":        (0.80,   0.70,   0.65,        0.25,    0.03),
-    "dense":         (0.82,   0.72,   0.65,        0.25,    0.03),
-    "hub_spoke":     (0.85,   0.75,   0.70,        0.20,    0.03),
+    # class           rho_min  overlap_min  spof_f1_min  pg_min
+    "sparse":        (0.75,   0.70,        0.60,        0.02),
+    "medium":        (0.80,   0.75,        0.65,        0.03),
+    "dense":         (0.82,   0.75,        0.65,        0.03),
+    "hub_spoke":     (0.85,   0.80,        0.70,        0.03),
 }
 
 
@@ -338,13 +344,12 @@ def classify_topology(G: nx.DiGraph) -> str:
 def evaluate_gates(res: ValidationResult, topo_class: str) -> Dict[str, bool]:
     """Return pass/fail for each gate threshold given topology class."""
     thresholds = GATE_THRESHOLDS.get(topo_class, GATE_THRESHOLDS["medium"])
-    rho_min, f1_min, spof_min, ftr_max, pg_min = thresholds
+    rho_min, overlap_min, spof_min, pg_min = thresholds
     return {
-        f"rho >= {rho_min}":      res.spearman_rho >= rho_min,
-        f"f1 >= {f1_min}":        res.f1_at_k >= f1_min,
-        f"spof_f1 >= {spof_min}": res.spof_f1 >= spof_min,
-        f"ftr <= {ftr_max}":      res.ftr <= ftr_max,
-        f"pg >= {pg_min}":        res.pg >= pg_min,
+        f"rho >= {rho_min}":          res.spearman_rho >= rho_min,
+        f"overlap >= {overlap_min}":  res.overlap_at_k >= overlap_min,
+        f"spof_f1 >= {spof_min}":     res.spof_f1 >= spof_min,
+        f"pg >= {pg_min}":            res.pg >= pg_min,
     }
 
 
