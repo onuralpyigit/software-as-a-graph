@@ -150,7 +150,14 @@ _HOMOGENEOUS_VARIANTS = (
     "gl", "gl_qos", "gl_full_cap", "gl_full_qos_cap", "gl_full_qos16_cap",
 )
 _HGT_VARIANTS = ("hgl", "hgl_qos", "hgl_qos_uni", "topology_rm")
-KNOWN_VARIANTS = _STRUCTURAL_VARIANTS + _HOMOGENEOUS_VARIANTS + _HGT_VARIANTS
+#: Learned, but not a graph model: gradient boosting on the same typed node
+#: features the GNNs read. Its own branch because it has no HeteroData forward
+#: pass, no checkpoint and no epochs -- see saag/prediction/models/tabular.py.
+_TABULAR_VARIANTS = ("tab_gbm",)
+KNOWN_VARIANTS = (
+    _STRUCTURAL_VARIANTS + _HOMOGENEOUS_VARIANTS + _HGT_VARIANTS
+    + _TABULAR_VARIANTS
+)
 
 
 @dataclass
@@ -1016,6 +1023,45 @@ def _run_seed(
                 for nid, ns in result.node_scores.items()
             }
 
+        elif variant in _TABULAR_VARIANTS:
+            # Learned but not a graph model. Reads the same typed feature
+            # tensors the GNN arms read -- built here by the same
+            # networkx_to_hetero_data call -- and fits one regressor per node
+            # type, so any margin the GNNs hold over it is attributable to
+            # message passing rather than to the features or the labels.
+            from saag.prediction.models.tabular import fit_predict_tabular
+
+            # QoS lives on the edge channel, which this arm has no way to read;
+            # the node features are identical either way. Building without it
+            # keeps the graph construction on the same path as GAT-N.
+            use_qos = False
+            holdout_graph, holdout_sm = _prepare_bundle_graph(holdout, use_qos)
+            conv = networkx_to_hetero_data(
+                holdout_graph, holdout_sm, holdout.simulation, holdout.rm,
+                qos_enabled=use_qos,
+                rank_normalize_features=rank_normalize_features,
+            )
+            pred_scores = fit_predict_tabular(
+                train_data=[
+                    # `primary` is the main training graph and `inductives` are
+                    # the additional ones -- the HGT branch passes them through
+                    # two separate arguments, so both are needed here to train
+                    # on the same N-1 graphs the GNN arms see.
+                    _build_training_hetero(b, use_qos, rank_normalize_features)
+                    for b in [primary, *inductives]
+                ],
+                holdout_data=conv.hetero_data,
+                holdout_id_map=conv.node_id_map,
+                seed=seed,
+            )
+            if not pred_scores:
+                logger.warning("  %s: nothing fitted on this holdout; skipping seed", variant)
+                raise SeedFailed("tabular baseline fitted no node type")
+            full_node_scores = {
+                k: {"overall": v, "reliability": v, "maintainability": v}
+                for k, v in pred_scores.items()
+            }
+
         else:
             # Unreachable via the CLI (argparse `choices` is checked against
             # KNOWN_VARIANTS by tests/test_variant_dispatch.py) and via the
@@ -1767,7 +1813,8 @@ def parse_args() -> argparse.Namespace:
                     "Pass 0.1 (the pre-decoupling default) to reproduce the ablation arm.")
     p.add_argument(
         "--eval-population", default="application",
-        choices=["application", "app_lib", "labeled"],
+        choices=["application", "app_lib", "labeled",
+                 "topic", "node", "broker", "library"],
         help="Node population every variant is scored on. 'application' (default) "
              "matches reproduce/main_table.py, so the LOSO table and the "
              "in-distribution table compare like with like. 'labeled' pools every "

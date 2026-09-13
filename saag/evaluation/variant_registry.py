@@ -93,10 +93,11 @@ class Variant:
     control_for: Optional[str] = None
 
 
-FAMILY_ORDER = ["structural", "homogeneous", "heterogeneous", "control"]
+FAMILY_ORDER = ["structural", "tabular", "homogeneous", "heterogeneous", "control"]
 
 FAMILY_LABELS = {
     "structural": "Structural baselines (training-free)",
+    "tabular": "Non-graph learned baseline (no message passing)",
     "homogeneous": "Homogeneous graph learning (untyped GAT)",
     "heterogeneous": "Heterogeneous graph learning (typed HGT)",
     "control": "RQ2 confound controls (not manuscript columns)",
@@ -198,6 +199,16 @@ _VARIANT_LIST = [
               "capacity control for the QoS-off replication of RQ2",
         hidden_channels=296,
         control_for="capacity",
+    ),
+    Variant(
+        variant_id="tab_gbm",
+        family="tabular",
+        substrate="native",
+        qos="none",
+        label="GBM-Feat",
+        blurb="gradient boosting on the identical typed node features, no "
+              "message passing; isolates whether the graph-learning gain is "
+              "the aggregation or just the features",
     ),
     Variant(
         variant_id="gl_full_qos_cap",

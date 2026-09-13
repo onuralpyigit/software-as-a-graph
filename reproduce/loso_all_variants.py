@@ -54,6 +54,9 @@ ALL_VARIANTS = ["topo_baseline", "topo_qos", "topology_rm", "gl", "gl_qos", "hgl
 #: downstream are paired over folds.
 CONTROL_VARIANTS = [
     "gl_full_cap", "gl_full_qos_cap", "gl_full_qos16_cap", "hgl_qos_uni",
+    # Not a confound control but the same kind of arm: learned, scored on the
+    # same folds, and only meaningful paired against the GNNs it is compared to.
+    "tab_gbm",
 ]
 
 #: Dispatch order, measured rather than assumed (one 12-fold x 5-seed sweep on a
@@ -66,6 +69,8 @@ CONTROL_VARIANTS = [
 _DISPATCH_COST = {
     "hgl_qos": 0, "hgl": 1, "gl_qos": 2, "gl": 3,
     "topology_rm": 4, "topo_qos": 5, "topo_baseline": 6,
+    # No epochs and no forward pass: seconds, not hours.
+    "tab_gbm": 7,
 }
 
 
@@ -340,7 +345,8 @@ def parse_args():
                    help="Load existing results and print table only (no training)")
     p.add_argument(
         "--eval-population", default="application",
-        choices=["application", "app_lib", "labeled"],
+        choices=["application", "app_lib", "labeled",
+                             "topic", "node", "broker", "library"],
         help="Node population every variant is scored on; forwarded to "
              "cli/loso_evaluate.py. Defaults to 'application' so this table and "
              "reproduce/main_table.py compare like with like.",

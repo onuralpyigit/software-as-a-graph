@@ -46,6 +46,13 @@ EVAL_POPULATIONS: Dict[str, Optional[frozenset]] = {
     # Simpson's-paradox hazard the per-type reporting exists to avoid.
     "topic": frozenset({"Topic"}),
     "node": frozenset({"Node"}),
+    # Brokers. Labelled by FaultInjector alongside Applications and Libraries,
+    # but never exposed as a scoring population until the cross-entity claim of
+    # Section 1.3 needed evidence: message passing is argued to score entity
+    # types no fault-injection sweep was configured for, and that argument is
+    # only testable against a stratum the model was not trained to rank.
+    "broker": frozenset({"Broker"}),
+    "library": frozenset({"Library"}),
     # Every node that carries a non-degenerate label, whatever its type.
     "labeled": None,
 }

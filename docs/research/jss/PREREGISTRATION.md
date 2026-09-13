@@ -176,3 +176,77 @@ survive internal review in the first place.
 2026-09-10 and are compared only against arms re-baselined on the same corpus
 and the same device. Rows measured on CPU and rows measured on GPU are never
 placed in the same comparison; `config.device` in each artifact records which.
+
+---
+
+## Amendment 3 — re-baseline, and a withdrawal (2026-09-13, before any v5 result)
+
+**Status when written:** the sweep this amendment governs has not been run. No
+number below is an outcome.
+
+### What prompted it
+
+`reproduce/reconcile_manuscript.py` reports **53 mismatches** between the
+manuscript's Tables 7/7c/9b and the artifacts declared to back them. The cause
+is artifact drift, not a reporting slip: the manuscript's LOSO figures match
+`results/loso_all_variants_v3.json` (unstamped) to three decimals, while the
+declared backing artifact is `results/loso_all_variants_v4.json`, stamped clean
+at commit `99f2f45` against the current corpus digest. The v3→v4 gap is most
+plausibly the 2026-09-12 corpus regeneration and `output/loso_cache/` rebuild.
+
+The two runs do not merely differ in the third decimal. Under v4 the
+typed-vs-untyped margin is **+0.011** (HGT-QoS 0.6216 vs GAT-N-QoS 0.6109),
+against the published +0.114; HGT-QoS no longer leads on `F1@K`; and the
+real-world active-stratum inversion on Cloud Microservices reverses sign. Under
+v4's numbers the architecture contrasts run through `loso_significance.py` give
+typing-with-QoS p = 0.791 and typing-unweighted p = 0.0024 — the opposite
+pattern to the one published.
+
+Neither v3 nor v4 is adopted. Both predate this amendment's tooling changes and
+v4 is nine commits stale, so the sweep is re-run at a clean HEAD as **v5**, and
+v5 is what the manuscript will report.
+
+### Withdrawal
+
+Section 7.2.1 as committed reports a capacity control arm — GAT-N-QoS-C at
+439,041 parameters, ρ = 0.589, CI [0.501, 0.665], against GAT-N-QoS at 110,145
+parameters — and calls it "definitive empirical evidence". **No artifact backs
+any of those five numbers.** Neither v3 nor v4 contains a control arm;
+`results/table_rq2_controls.md`, which `render_table.py` would emit, does not
+exist; and the parameter counts contradict the values pinned in
+`tests/test_baselines.py::TestControlArmCapacityParity` (HGT-QoS 434,620,
+GAT-N-QoS 28,168). The paragraph entered the repository in a docs-only commit
+(`f85271a`) one day after Amendment 2 recorded that no control arm had been run.
+
+That paragraph and the three-arm announcement in Section 6.2.2 are withdrawn in
+full. Amendment 2's reporting commitment stands unchanged: the arms are now
+being run for the first time, and whatever they produce is what gets reported.
+
+Section 6.2.2's announcement also mislabelled arm (ii) — 429,992 is
+`gl_full_qos16_cap`, an *edge-channel* control. No bidirectional-homogeneous arm
+exists in the codebase (`build_baseline` has no directionality parameter), and
+none is claimed.
+
+### New arms and tests, all post-hoc
+
+| Addition | Purpose | Pre-registered? |
+|:---|:---|:---|
+| `tab_gbm` (GBM-Feat) | Gradient boosting on the identical typed node features, no message passing. Isolates whether any graph-learning margin is the aggregation or just the features — the features already contain betweenness, closeness, reverse PageRank and articulation scores, and `I*(v)` is a reachability functional over the same topology. | No |
+| `ARCHITECTURE_CONTRASTS` in `loso_significance.py` | RQ2 (typed vs untyped) and RQ3 (QoS edge ablation) are variant-vs-variant comparisons, not comparisons against `topo_qos`. The exploratory block only ever paired against the baseline, so the p-values the manuscript reports for both — 0.0122 and 0.0093 — appear in **no** significance artifact under any version. Holm-corrected within their own family. | No |
+| Bootstrap CI on every contrast's fold deltas | The LOSO table has never carried one; `EXPERIMENTS.md` §2.D's claim of bootstrap CIs is true only of the in-distribution table. | No |
+| `broker` / `library` / `topic` / `node` evaluation populations | Section 1.3 argues message passing scores entity types no fault-injection sweep was configured for. That claim is only testable against a stratum the model was not trained to rank, and no current artifact scores one. | No |
+
+### What is unchanged
+
+The primary and secondary pre-registered contrasts, their unit of analysis (the
+fold), the five fixed seeds, and the prohibition on pairing at (fold × seed).
+Amendment 2's decision rule governs the control arms exactly as written.
+
+### Reporting commitment
+
+v5 is reported whichever way it comes out. If the typed-vs-untyped margin does
+not survive the re-baseline, Amendment 2's "margin does not survive" row applies
+and the abstract's +0.114 is withdrawn — with the added constraint, from this
+amendment, that the replacement claim must name the artifact it reproduces from.
+An artifact that does not reproduce from a commit is not reportable, which is
+the rule v3 failed and the reason this amendment exists.

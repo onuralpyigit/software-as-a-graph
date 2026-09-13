@@ -403,8 +403,13 @@ class TestControlArmCapacityParity:
         published results.
         """
         from saag.evaluation import variant_registry as registry
+        # "control" arms deliberately override width/directionality -- that is
+        # their purpose. "tabular" is excluded because it is not a GNN at all:
+        # it has no hidden dimension and no message-passing direction, so the
+        # accessors below are vacuous for it rather than meaningful.
         reported = [
-            v for v, spec in registry.VARIANTS.items() if spec.family != "control"
+            v for v, spec in registry.VARIANTS.items()
+            if spec.family not in ("control", "tabular")
         ]
         assert len(reported) == 9
         for v in reported:

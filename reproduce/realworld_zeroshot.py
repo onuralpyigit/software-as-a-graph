@@ -439,9 +439,11 @@ def main() -> int:
         "reference_mean_rho": ref_means,
         "reference_note": (
             "Training-free references scored against the same I*(v) labels, "
-            "population and node set as the learned model. Topo-QoS is absent: "
-            "it needs QoS-weighted betweenness on the projection graph, which "
-            "this cache does not carry."
+            "population and node set as the learned model. Topo-QoS is present: "
+            "it was previously omitted on the grounds that the cache carried no "
+            "QoS edge weights, which was a defect in the projection guard rather "
+            "than a property of the data. With that corrected, 48-66% of edges "
+            "carry non-unit weights across the five systems."
         ),
         "mean_rho_across_systems": mean_rho_all,
         "mean_hybrid_rho_across_systems": mean_hybrid_rho_all,

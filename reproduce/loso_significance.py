@@ -59,6 +59,21 @@ CONTROL_CONTRASTS = (
     ("hgl", "gl_full_cap", "capacity_qos_off"),
 )
 
+#: The architecture contrasts the manuscript actually headlines: RQ2 is a
+#: typed-vs-untyped comparison and RQ3's ablation is QoS-on vs QoS-off, and
+#: neither is a comparison against BASELINE. Both were reported with p-values
+#: that appeared in no significance artifact under any version, because the
+#: exploratory block below only ever pairs a variant against topo_qos. They are
+#: not pre-registered, so they are Holm-corrected inside their own family for
+#: the same reason the controls are: pooling questions asked later with the two
+#: pre-registered contrasts would penalise those for the later questions.
+ARCHITECTURE_CONTRASTS = (
+    ("hgl_qos", "gl_qos", "typing_qos"),
+    ("hgl", "gl", "typing_unweighted"),
+    ("hgl_qos", "hgl", "qos_edge_typed"),
+    ("gl_qos", "gl", "qos_edge_untyped"),
+)
+
 
 def attainable_floor(n: int) -> float:
     """Smallest two-sided p a signed-rank test on ``n`` pairs can produce."""
@@ -94,6 +109,30 @@ def _per_fold(table: Dict[str, Any], variant: str) -> Dict[str, float]:
             if f.get("mean_rho") is not None}
 
 
+def _bootstrap_delta_ci(
+    diff: np.ndarray, b: int = 2000, alpha: float = 0.05, seed: int = 42
+) -> Tuple[float, float]:
+    """Percentile bootstrap 95% CI for the mean per-fold delta.
+
+    The LOSO table has never carried one: ``reproduce/loso_all_variants.py``
+    computes no interval, and EXPERIMENTS.md 2.D's claim of bootstrap CIs is
+    true only of the in-distribution table. Resampling is over folds, matching
+    the unit of analysis the signed-rank test uses.
+
+    The folds are not independent -- any two LOSO models share 10 of their 11
+    training graphs -- so this interval, like the p-value beside it, understates
+    the true dispersion. It is reported as the conventional summary, not as an
+    unbiased one.
+    """
+    rng = np.random.default_rng(seed)
+    n = len(diff)
+    if n < 2:
+        return (float("nan"), float("nan"))
+    means = diff[rng.integers(0, n, size=(b, n))].mean(axis=1)
+    lo, hi = np.percentile(means, [100 * alpha / 2, 100 * (1 - alpha / 2)])
+    return (float(lo), float(hi))
+
+
 def compare(table: Dict[str, Any], a: str, b: str) -> Optional[Dict[str, Any]]:
     """Paired comparison of variant ``a`` against variant ``b`` over folds."""
     pa, pb = _per_fold(table, a), _per_fold(table, b)
@@ -123,6 +162,7 @@ def compare(table: Dict[str, Any], a: str, b: str) -> Optional[Dict[str, Any]]:
         "p": float(p),
         "attainable_floor_p": attainable_floor(n),
         "loss_budget_at_005": loss_budget(n),
+        "delta_ci95": _bootstrap_delta_ci(diff),
         "per_fold_delta": {f: float(d) for f, d in zip(folds, diff)},
     }
 
@@ -236,20 +276,25 @@ def main() -> int:
     for r in exploratory:
         r["role"] = "exploratory"
 
-    controls = []
-    for a, b, what in CONTROL_CONTRASTS:
-        if a not in table or b not in table:
-            continue
-        r = compare(table, a, b)
-        if not r:
-            continue
-        r["role"] = "control"
-        r["controls_for"] = what
-        r["not_preregistered"] = True
-        controls.append(r)
-    # Corrected within the control family only, per Amendment 2.
-    if controls:
-        holm(controls)
+    def _family(contrasts, role):
+        out = []
+        for a, b, what in contrasts:
+            if a not in table or b not in table:
+                continue
+            r = compare(table, a, b)
+            if not r:
+                continue
+            r["role"] = role
+            r["controls_for"] = what
+            r["not_preregistered"] = True
+            out.append(r)
+        # Each family is corrected within itself, per Amendment 2.
+        if out:
+            holm(out)
+        return out
+
+    architecture = _family(ARCHITECTURE_CONTRASTS, "architecture")
+    controls = _family(CONTROL_CONTRASTS, "control")
 
     n = family[0]["n_folds"]
     print(f"\n  Pre-registered LOSO comparisons vs "
@@ -260,7 +305,7 @@ def main() -> int:
     print("  " + "─" * 78)
     print(f"  {'variant':<12}{'role':<13}{'d rho':>9}{'wins':>7}{'W':>7}"
           f"{'p':>9}{'p_holm':>9}")
-    for r in family + exploratory + controls:
+    for r in family + exploratory + architecture + controls:
         holm_s = f"{r['p_holm']:.4f}" if "p_holm" in r else "—"
         print(f"  {r['label']:<12}{r['role']:<13}{r['mean_delta']:>+9.4f}"
               f"{r['wins']:>4}/{r['n_folds']:<2}{r['W']:>7.1f}"
@@ -301,6 +346,9 @@ def main() -> int:
         "loss_budget_at_alpha": loss_budget(n, args.alpha),
         "preregistered": family,
         "exploratory": exploratory,
+        # Post-hoc architecture contrasts (RQ2 typing, RQ3 QoS edge ablation);
+        # Holm-corrected within this list only.
+        "architecture": architecture,
         # Post-hoc RQ2 confound controls; Holm-corrected within this list only.
         "rq2_controls": controls,
         "qos_stratified_ablation": stratified,

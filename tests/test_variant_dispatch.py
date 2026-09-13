@@ -37,6 +37,9 @@ def test_known_variants_partition_the_dispatch(module_name):
         set(mod._STRUCTURAL_VARIANTS),
         set(mod._HOMOGENEOUS_VARIANTS),
         set(mod._HGT_VARIANTS),
+        # Not every harness wires the non-graph arm; absent is an empty branch,
+        # not a missing one.
+        set(getattr(mod, "_TABULAR_VARIANTS", ())),
     )
     union = set().union(*groups)
     assert union == set(mod.KNOWN_VARIANTS)
