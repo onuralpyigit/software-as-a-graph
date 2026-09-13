@@ -200,7 +200,7 @@ A discrete-event and BFS cascade failure simulation suite evaluating propagation
 - `ComplexityProcessor` — Converts component complexity into processing-latency estimates for flow simulation.
 - `SimulationService` — Orchestrates all of the above for use-case consumption.
 
-> **`FaultInjector` and `FailureSimulator` both emit a quantity called "impact", and the two are not interchangeable.** Each owns its canonical role — labels vs. validation oracle — and mixing them within a stage is a correctness error, enforced by `tests/test_groundtruth_contract.py`. See [docs/failure-simulation.md §2.1](docs/failure-simulation.md#21-canonical-engine-roles--responsibilities).
+> **`FaultInjector` and `FailureSimulator` both emit a quantity called "impact", and the two are not interchangeable.** Each owns its canonical role — labels vs. validation oracle — and mixing them within a stage is a correctness error, enforced by `tests/test_groundtruth_contract.py`. See [docs/failure-simulation.md §2.1](docs/failure-simulation.md#2-the-five-simulation-engines-at-a-glance).
 
 
 ### `validation/` — Step 6 Validation Engine

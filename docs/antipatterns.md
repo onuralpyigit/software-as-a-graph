@@ -108,7 +108,7 @@ This projection produces `G_analysis(layer)` — a layer-specific directed graph
 
 ### 3.4 Architectural Layers
 
-Analysis is organized across four architectural projections, each providing a different lens on the system. The authoritative vertex/edge-type table is [graph-model.md §5](graph-model.md#5-layer-projections) — notably, `app` includes **both** Application and Library vertices (`app_to_app` and `app_to_lib` edges), and `mw` includes Node in addition to Application and Broker. Restated here only at the "primary question" level:
+Analysis is organized across four architectural projections, each providing a different lens on the system. The authoritative vertex/edge-type table is [graph-model.md §5](graph-model.md#7-layer-projections-pi_ell) — notably, `app` includes **both** Application and Library vertices (`app_to_app` and `app_to_lib` edges), and `mw` includes Node in addition to Application and Broker. Restated here only at the "primary question" level:
 
 | Layer | Primary Question |
 |-------|-------------------|
@@ -139,7 +139,7 @@ Step 8: Visualize                      Interactive dashboard with pattern annota
 
 ### 4.2 The Structural Metrics Detection Draws On
 
-Step 2 computes the full `M(v)` structural metric vector for each component — 50 fields, of which 19 feed the RM composite Q(v) and a further handful are read directly by the detectors below (e.g. `pagerank` for CONCENTRATION_RISK, `is_articulation_point`/`is_directed_ap` for SPOF, `topic_subscriber_count`/`topic_publisher_count` for TOPIC_FANOUT/ORPHANED_TOPIC). Rather than reproduce that catalogue here — a prior version of this table both undercounted the vector and listed fields no detector actually reads — see [structural-analysis.md §10](structural-analysis.md#8-metric-catalogue-reference) for the authoritative per-field listing and [`saag/core/metric_registry.py`](../saag/core/metric_registry.py) for the machine-checked role of every field (scoring / detection / GNN feature / descriptive-only).
+Step 2 computes the full `M(v)` structural metric vector for each component — 50 fields, of which 19 feed the RM composite Q(v) and a further handful are read directly by the detectors below (e.g. `pagerank` for CONCENTRATION_RISK, `is_articulation_point`/`is_directed_ap` for SPOF, `topic_subscriber_count`/`topic_publisher_count` for TOPIC_FANOUT/ORPHANED_TOPIC). Rather than reproduce that catalogue here — a prior version of this table both undercounted the vector and listed fields no detector actually reads — see [structural-analysis.md §10](structural-analysis.md#8-formal-metric-definitions-tier-1--tier-2) for the authoritative per-field listing and [`saag/core/metric_registry.py`](../saag/core/metric_registry.py) for the machine-checked role of every field (scoring / detection / GNN feature / descriptive-only).
 
 All metrics are normalized to `[0, 1]` before quality scoring and anti-pattern detection, using one of two methods depending on the metric type:
 
@@ -164,7 +164,7 @@ where `Q3` is the 75th percentile and `IQR = Q3 − Q1`. A component is flagged 
 
 ### 4.4 The RM Prediction Framework
 
-The RM framework maps structural metrics to two ISO/IEC 25010:2023 quality characteristics — Reliability and Maintainability. Reliability is itself hierarchical, composed of a Fault Tolerance and an Availability sub-characteristic. These characteristics provide the explanatory bridge between raw topological metrics and named anti-patterns, and they determine which anti-patterns a component is susceptible to. The formulas themselves — FT(v), A(v), R(v), M(v), Q(v), and the AHP/shrinkage/QoS-adaptation machinery behind their weights — are defined once, in [structural-analysis.md §9.2](structural-analysis.md#92-exact-scoring-formulas); they are not repeated here.
+The RM framework maps structural metrics to two ISO/IEC 25010:2023 quality characteristics — Reliability and Maintainability. Reliability is itself hierarchical, composed of a Fault Tolerance and an Availability sub-characteristic. These characteristics provide the explanatory bridge between raw topological metrics and named anti-patterns, and they determine which anti-patterns a component is susceptible to. The formulas themselves — FT(v), A(v), R(v), M(v), Q(v), and the AHP/shrinkage/QoS-adaptation machinery behind their weights — are defined once, in [structural-analysis.md §9.2](structural-analysis.md#92-exact-rm-scoring-formulas); they are not repeated here.
 
 Each RM characteristic addresses a distinct operational concern:
 
