@@ -9,48 +9,26 @@ The evaluation corpus comprises 2{,}812 components across seventeen system archi
 \begin{table}[htbp]
 \centering
 \small
-\caption{Experimental evaluation corpus. The twelve synthetic topologies are the inductive Leave-One-Scenario-Out folds of Table~\ref{tab:7}; the five real-world systems are withheld from every training fold and used only for zero-shot transfer (Section~\ref{sec:7.4}). Counts are read from the committed topology files rather than from the generator configurations.}
+\caption{Evaluation corpus at a glance. The twelve synthetic topologies are the inductive Leave-One-Scenario-Out folds of Table~\ref{tab:7}; the five real-world systems are withheld from every training fold and used only for zero-shot transfer (Section~\ref{sec:7.4}). Per-scenario entity and edge counts, read from the committed topology files and verified against them in continuous integration, are in Supplementary Section~S13.}
 \label{tab:4}
-\resizebox{\linewidth}{!}{%
-\begin{tabular}{llrrrrrrr}
+\begin{tabular}{lrrrrrrr}
 \toprule
-\textbf{Dataset / Architecture} & \textbf{System Paradigm} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{Topics} & \textbf{Brokers} & \textbf{Hosts} & \textbf{Libs} & \textbf{$|E|$} \\
+\textbf{Regime} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{Topics} & \textbf{Brokers} & \textbf{Hosts} & \textbf{Libs} & \textbf{$|E|$} \\
 \midrule
-\multicolumn{9}{l}{\textit{Synthetic evaluation scenarios (\texttt{evaluation} role in the manifest)}} \\
-\textbf{Autonomous Vehicle (AV)} & ROS~2 Cyber-Physical & 152 & 80 & 40 & 4 & 8 & 20 & 774 \\
-\textbf{Enterprise Pub-Sub} & Kafka Event Mesh & 520 & 300 & 120 & 10 & 40 & 50 & 3{,}216 \\
-\textbf{Financial Trading} & Low-Latency Pub-Sub & 124 & 60 & 35 & 5 & 6 & 18 & 631 \\
-\textbf{Healthcare Integration} & HL7/FHIR Event Mesh & 98 & 50 & 25 & 3 & 8 & 12 & 389 \\
-\textbf{Hub-and-Spoke Enterprise} & Broker-Centric Messaging & 139 & 70 & 30 & 2 & 12 & 25 & 691 \\
-\textbf{IoT Smart City} & MQTT Telemetry Mesh & 326 & 200 & 80 & 6 & 30 & 10 & 1{,}188 \\
-\textbf{Microservices Mesh} & Cloud-Native Services & 186 & 90 & 45 & 6 & 15 & 30 & 678 \\
-\textbf{Telecom RAN} & 5G Radio Access Network & 225 & 120 & 55 & 8 & 20 & 22 & 881 \\
-\textbf{Industrial SCADA} & Plant Control Telemetry & 254 & 140 & 70 & 4 & 25 & 15 & 824 \\
-\textbf{Real-Time Gaming} & Multiplayer State Sync & 158 & 75 & 38 & 5 & 12 & 28 & 630 \\
-\textbf{Logistics Fleet} & Vehicle Telematics Mesh & 205 & 110 & 50 & 7 & 18 & 20 & 755 \\
+Synthetic evaluation scenarios (11) & 2{,}387 & 1{,}295 & 588 & 60 & 194 & 250 & 10{,}657 \\
+Synthetic case study --- ATM (1)    &    74 &    26 &  27 &  5 &   8 &   8 &   261 \\
 \midrule
-\multicolumn{9}{l}{\textit{Synthetic case study (LOSO fold; \texttt{case\_study} role in the manifest)}} \\
-\textbf{Air Traffic Management (ATM)} & ICAO Global ATM Concept & 74 & 26 & 27 & 5 & 8 & 8 & 261 \\
+\textbf{Synthetic subtotal (12 LOSO folds)} & \textbf{2{,}461} & 1{,}321 & 615 & 65 & 202 & 258 & \textbf{10{,}918} \\
+\textbf{Real-world subtotal (5 systems)}    & \textbf{351}    &   141 & 120 & 16 &  32 &  42 & \textbf{700} \\
 \midrule
-\multicolumn{9}{l}{\textit{Real-world reference systems (never used as training folds)}} \\
-\textbf{Autoware.universe \cite{kato2018autoware}} & Real-World ROS~2 Autoware & 75 & 32 & 24 & 3 & 6 & 10 & 179 \\
-\textbf{Cloud Microservices \cite{google2024onlineboutique}} & Real-World GCP Boutique & 60 & 22 & 20 & 4 & 6 & 8 & 128 \\
-\textbf{Train-Ticket \cite{zhou2021fault}} & Real-World Microservices & 90 & 41 & 30 & 3 & 8 & 8 & 162 \\
-\textbf{Home Assistant \cite{homeassistant2024}} & Real-World Smart Home & 63 & 24 & 22 & 3 & 6 & 8 & 119 \\
-\textbf{EdgeX Foundry \cite{edgexfoundry2024}} & Real-World Industrial IoT & 63 & 22 & 24 & 3 & 6 & 8 & 112 \\
-\midrule
-\textbf{Synthetic subtotal (12 LOSO folds)} & & \textbf{2{,}461} & 1{,}321 & 615 & 65 & 202 & 258 & \textbf{10{,}918} \\
-\textbf{Real-world subtotal (5 systems)} & & \textbf{351} & 141 & 120 & 16 & 32 & 42 & \textbf{700} \\
-\textbf{Total} & & \textbf{2{,}812} & & & & & & \textbf{11{,}618} \\
+\textbf{Total} & \textbf{2{,}812} & 1{,}462 & 735 & 81 & 234 & 300 & \textbf{11{,}618} \\
 \bottomrule
-\end{tabular}%
-}
+\end{tabular}
 \end{table}
 
-Here, $|V|$ is the sum of all five entity-type counts per scenario. The twelve synthetic topologies total 2{,}461 components; the eleven carrying the manifest's \texttt{evaluation} role account for 2{,}387 of these and the ATM case study for the remaining 74. The five real-world systems add 351. $|E|$ counts every raw structural relationship instance recorded in the scenario specification --- the native substrate that simulation oracles traverse --- rather than the derived \texttt{DEPENDS\_ON} projection constructed for GNN training. All six structural relation types are included in that count (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{CONNECTS\_TO}, \texttt{USES}); we note the convention explicitly because the generator's own build log omits \texttt{CONNECTS\_TO} and therefore reports slightly lower per-scenario totals. Every count in Table~\ref{tab:4} is read directly from the committed topology files, whose byte-identical regeneration from configuration is asserted in continuous integration (Section~\ref{sec:6.1.repro}).
+Here, $|V|$ is the sum of all five entity-type counts per scenario and $|E|$ counts every raw structural relationship instance in the scenario specification --- the native substrate the simulation oracles traverse, across all six relation types --- rather than the derived \texttt{DEPENDS\_ON} projection built for GNN training. We note the convention because the generator's own build log omits \texttt{CONNECTS\_TO} and therefore reports lower per-scenario totals.
 
-Five real-world architectures were transcribed from authentic open-source repositories using dedicated architectural adapters. The synthetic scenarios were produced by a parameterized topology generator: each is fully defined by a committed configuration specifying a random seed, per-entity-type counts, seven-number summaries (mean, median, standard deviation, minimum, maximum, $Q_1$, $Q_3$) for application publish and subscribe fan-out, applications per host, library fan-in, topic payload size, and categorical distributions over the three QoS dimensions. Graph degree distributions and clustering emerge directly from these parameters rather than being synthetically forced. Supplementary Section~S5 reports the generative parameters governing each topology's shape; complete configurations are included in the replication package.
-
+The five real-world architectures were transcribed from authentic open-source repositories using dedicated architectural adapters. The synthetic scenarios come from a parameterized topology generator: each is fully defined by a committed configuration specifying a random seed, per-entity-type counts, seven-number summaries for application publish and subscribe fan-out, applications per host, library fan-in and topic payload size, and categorical distributions over the three QoS dimensions. Degree distributions and clustering emerge from these parameters rather than being synthetically forced. Supplementary Section~S5 reports the generative parameters per topology and Section~S13 the resulting per-scenario counts; complete configurations ship in the replication package.
 
 \noindent\textbf{Corpus Composition across Experimental Regimes.} 
 The experimental evaluation spans three complementary regimes with precisely bounded corpora:
@@ -60,30 +38,9 @@ The experimental evaluation spans three complementary regimes with precisely bou
     \item \emph{Real-World Architectural Transfer (Table~\ref{tab:9b}; Supplementary Section~S7):} The five open-source real-world systems (Autoware.universe, Cloud Microservices, Train-Ticket, Home Assistant, EdgeX Foundry) are never used as training folds; they are withheld entirely and used strictly for zero-shot architectural transfer validation.
 \end{enumerate}
 
-Not every analysis in Section~\ref{sec:7} runs on the full corpus: the sensitivity sweeps and the detection benchmark predate the four extended domains and operate on smaller cached subsets. Because a reader comparing figures across subsections would otherwise have no way to tell which population a number belongs to, Table~\ref{tab:corpusmap} states the subset used by each analysis. Comparisons are made only within a row.
+Not every analysis in Section~\ref{sec:7} runs on the full corpus: the sensitivity sweeps and the detection benchmark predate the four extended domains and operate on smaller cached subsets. Because a reader comparing figures across subsections would otherwise have no way to tell which population a number belongs to, Supplementary Section~S12 tabulates the subset behind each analysis. Comparisons are made only within a row of that table, and never across rows.
 
-\begin{table}[htbp]
-\centering
-\small
-\caption{Which corpus subset backs each analysis. Figures from different rows are not directly comparable, and we do not compare them.}
-\label{tab:corpusmap}
-\resizebox{\linewidth}{!}{%
-\begin{tabular}{llcl}
-\toprule
-\textbf{Analysis} & \textbf{Scenario subset} & \textbf{$n$} & \textbf{Reported in} \\
-\midrule
-In-distribution ranking & Eleven evaluation scenarios $+$ ATM & 12 & Table~\ref{tab:5}, Supp.~S10 \\
-Inductive LOSO & Eleven evaluation scenarios $+$ ATM & 12 & Table~\ref{tab:7}, Sections~\ref{sec:7.1}--\ref{sec:7.2} \\
-QoS edge-feature ablation & Same twelve LOSO folds & 12 & Section~\ref{sec:7.3.1} \\
-Weight sweeps and Morris screening & Six--seven core synthetic domains & 6--7 & Supplementary S1 \\
-Cross-oracle convergent validity & Same twelve LOSO folds & 12 & Section~\ref{sec:7.3.convergent}, Supp.~S9 \\
-Anti-pattern detection, stratification & Seven core domains $+$ ATM & 8 & Section~\ref{sec:7.3.6} \\
-Relational attention illustration & ATM case study alone & 1 & Supplementary~S8 \\
-Real-world zero-shot transfer & Five open-source systems & 5 & Table~\ref{tab:9b}, Supp.~S7 \\
-\bottomrule
-\end{tabular}%
-}
-\end{table}
+
 
 \subsubsection{Reproducibility of the Corpus}
 \label{sec:6.1.repro}
@@ -111,7 +68,7 @@ We evaluate four primary predictor configurations drawn from three families. Pre
 
 Predictors in this study operate on matched substrates within their respective families:
 \begin{itemize}
-    \item \textbf{Graph Learning Models (GAT-N-QoS, HGT-QoS):} Under Leave-One-Scenario-Out (Table~\ref{tab:7}) both learned predictors ingest the complete native typed multigraph across all five entity types --- which is what the shared \mbox{\texttt{-N}} suffix records --- so that comparison carries no multi-entity visibility confound. It does not hold in-distribution: the homogeneous pair reported in Table~\ref{tab:5} (GAT / GAT-QoS, without the suffix) consumes the Application--Library \texttt{DEPENDS\_ON} projection, so the in-distribution margin mixes typing with multi-entity visibility and we do not read it as a typing result. Node type reaches homogeneous GAT-N-QoS only through its per-type input projection layer, while message passing uses untyped GATConv with shared weights across all edges; in contrast, heterogeneous HGT-QoS employs relation-specific HGTConv weight matrices per edge triple alongside edge-type encodings. Substrate and node features are matched; the edge channel is not, since GAT-N-QoS consumes the scalar QoS aggregate $w(e)$ where HGT-QoS consumes all 16 dimensions (Section~\ref{sec:6.2}). Comparisons between the two therefore isolate relation-specific parameterization jointly with per-dimension QoS encoding, and we report the QoS factor separately in Section~\ref{sec:7.3.1} rather than attributing the whole margin to typing. Two further factors are also unmatched as published, and we state their magnitudes here rather than leave them to be inferred. \emph{Parameter budget:} on the relation set of the LOSO primary training graph, HGT-QoS carries $434{,}620$ parameters against GAT-N-QoS's $28{,}168$, a factor of $15.4$. \emph{Directionality:} HGT applies a reverse-direction HGTConv ($103{,}725$ parameters, $24\%$ of the model) so that a node can see its upstream neighbourhood, whereas the homogeneous baseline propagates along native edge direction only --- a difference that matters because $I^*(v)$ is a downstream-reachability functional. Table~\ref{tab:controls} in Section~\ref{sec:7.2.1} reports one arm per factor, holding each constant in turn: a capacity-matched homogeneous baseline ($439{,}272$ parameters, with its QoS-off counterpart at $437{,}496$), a capacity-matched homogeneous baseline reading the full sixteen-dimensional edge channel ($429{,}992$), and a forward-only heterogeneous model with the reverse convolution removed ($330{,}895$). A non-graph learned baseline is reported alongside them: gradient boosting over the identical typed node features, which isolates whether any graph-learning margin comes from neighbourhood aggregation or from the features alone. All were added post-hoc after an internal audit and none is pre-registered.
+    \item \textbf{Graph Learning Models (GAT-N-QoS, HGT-QoS):} Under Leave-One-Scenario-Out (Table~\ref{tab:7}) both learned predictors ingest the complete native typed multigraph across all five entity types --- which is what the shared \mbox{\texttt{-N}} suffix records --- so that comparison carries no multi-entity visibility confound. It does not hold in-distribution: the homogeneous pair reported in Table~\ref{tab:5} (GAT / GAT-QoS, without the suffix) consumes the Application--Library \texttt{DEPENDS\_ON} projection, so the in-distribution margin mixes typing with multi-entity visibility and we do not read it as a typing result. Node type reaches homogeneous GAT-N-QoS only through its per-type input projection layer, while message passing uses untyped GATConv with shared weights across all edges; in contrast, heterogeneous HGT-QoS employs relation-specific HGTConv weight matrices per edge triple alongside edge-type encodings. Substrate and node features are matched; the edge channel is not, since GAT-N-QoS consumes the scalar QoS aggregate $w(e)$ where HGT-QoS consumes all 16 dimensions (Section~\ref{sec:6.2}). Comparisons between the two therefore isolate relation-specific parameterization jointly with per-dimension QoS encoding, and we report the QoS factor separately in Section~\ref{sec:7.3.1} rather than attributing the whole margin to typing. Two further factors are unmatched as published --- parameter budget ($434{,}620$ against $28{,}168$) and message-passing directionality --- and Section~\ref{sec:8.4} states what they leave open.
     \item \textbf{Training-Free Structural Baselines (Topo, Topo-QoS):} Topological baselines are evaluated on the derived Application--Library \texttt{DEPENDS\_ON} projection (Section~\ref{sec:3.2}). This projected substrate is necessary because in raw publish--subscribe multigraphs, Application nodes never route messages directly, resulting in near-zero betweenness and bridge ratios that yield degenerate, uninformative scores.
     \item \textbf{Ground-Truth Independence Guarantee:} Crucially, \textbf{no predictor in either group accesses $G_{\text{structural}}$}: that raw topology is strictly reserved as the substrate for ground-truth simulation oracles (Section~\ref{sec:4.4}), a guarantee formally verified by \texttt{tests/test\_independence\_guarantee.py}.
 \end{itemize}

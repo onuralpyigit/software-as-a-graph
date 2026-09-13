@@ -330,4 +330,88 @@ Both pathways read the same typed node properties from $G_{\text{analysis}}$: th
     \item \textbf{Infrastructure Node (20 dims):} indices 18--19 are normalized CPU core allocation and physical memory.
 \end{itemize}
 
+\section{Corpus Subset Behind Each Analysis}
+\label{supp:corpusmap}
+
+Not every analysis in Section 7 of the main manuscript runs on the full corpus: the sensitivity sweeps and the detection benchmark predate the four extended domains and operate on smaller cached subsets. This table states which subset backs each reported figure.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Which corpus subset backs each analysis. Figures from different rows are not directly comparable, and we do not compare them.}
+\label{tab:supp-corpusmap}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llcl}
+\toprule
+\textbf{Analysis} & \textbf{Scenario subset} & \textbf{$n$} & \textbf{Reported in} \\
+\midrule
+In-distribution ranking & Eleven evaluation scenarios $+$ ATM & 12 & Table 5, Supp.~S10 \\
+Inductive LOSO & Eleven evaluation scenarios $+$ ATM & 12 & Table 7, Sections 7.1--7.2 \\
+QoS edge-feature ablation & Same twelve LOSO folds & 12 & Section 7.3.1 \\
+Weight sweeps and Morris screening & Six--seven core synthetic domains & 6--7 & Supplementary S1 \\
+Cross-oracle convergent validity & Same twelve LOSO folds & 12 & Section 7.3.2, Supp.~S9 \\
+Anti-pattern detection, stratification & Seven core domains $+$ ATM & 8 & Section 7.3.3 \\
+Relational attention illustration & ATM case study alone & 1 & Supplementary~S8 \\
+Real-world zero-shot transfer & Five open-source systems & 5 & Table 9b, Supp.~S7 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section{Per-Scenario Corpus Composition}
+\label{supp:corpus}
+
+Entity and edge counts for every scenario, read from the committed topology files rather than from the generator configurations. Continuous integration asserts that each dataset regenerates byte-identically from its configuration and that these counts match what is on disk.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Experimental evaluation corpus. The twelve synthetic topologies are the inductive Leave-One-Scenario-Out folds of Table 7 of the main manuscript; the five real-world systems are withheld from every training fold and used only for zero-shot transfer (Section 7.4 of the main manuscript). Counts are read from the committed topology files rather than from the generator configurations.}
+\label{tab:supp-corpus}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llrrrrrrr}
+\toprule
+\textbf{Dataset / Architecture} & \textbf{System Paradigm} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{Topics} & \textbf{Brokers} & \textbf{Hosts} & \textbf{Libs} & \textbf{$|E|$} \\
+\midrule
+\multicolumn{9}{l}{\textit{Synthetic evaluation scenarios (\texttt{evaluation} role in the manifest)}} \\
+\textbf{Autonomous Vehicle (AV)} & ROS~2 Cyber-Physical & 152 & 80 & 40 & 4 & 8 & 20 & 774 \\
+\textbf{Enterprise Pub-Sub} & Kafka Event Mesh & 520 & 300 & 120 & 10 & 40 & 50 & 3{,}216 \\
+\textbf{Financial Trading} & Low-Latency Pub-Sub & 124 & 60 & 35 & 5 & 6 & 18 & 631 \\
+\textbf{Healthcare Integration} & HL7/FHIR Event Mesh & 98 & 50 & 25 & 3 & 8 & 12 & 389 \\
+\textbf{Hub-and-Spoke Enterprise} & Broker-Centric Messaging & 139 & 70 & 30 & 2 & 12 & 25 & 691 \\
+\textbf{IoT Smart City} & MQTT Telemetry Mesh & 326 & 200 & 80 & 6 & 30 & 10 & 1{,}188 \\
+\textbf{Microservices Mesh} & Cloud-Native Services & 186 & 90 & 45 & 6 & 15 & 30 & 678 \\
+\textbf{Telecom RAN} & 5G Radio Access Network & 225 & 120 & 55 & 8 & 20 & 22 & 881 \\
+\textbf{Industrial SCADA} & Plant Control Telemetry & 254 & 140 & 70 & 4 & 25 & 15 & 824 \\
+\textbf{Real-Time Gaming} & Multiplayer State Sync & 158 & 75 & 38 & 5 & 12 & 28 & 630 \\
+\textbf{Logistics Fleet} & Vehicle Telematics Mesh & 205 & 110 & 50 & 7 & 18 & 20 & 755 \\
+\midrule
+\multicolumn{9}{l}{\textit{Synthetic case study (LOSO fold; \texttt{case\_study} role in the manifest)}} \\
+\textbf{Air Traffic Management (ATM)} & ICAO Global ATM Concept & 74 & 26 & 27 & 5 & 8 & 8 & 261 \\
+\midrule
+\multicolumn{9}{l}{\textit{Real-world reference systems (never used as training folds)}} \\
+\textbf{Autoware.universe \cite{kato2018autoware}} & Real-World ROS~2 Autoware & 75 & 32 & 24 & 3 & 6 & 10 & 179 \\
+\textbf{Cloud Microservices \cite{google2024onlineboutique}} & Real-World GCP Boutique & 60 & 22 & 20 & 4 & 6 & 8 & 128 \\
+\textbf{Train-Ticket \cite{zhou2021fault}} & Real-World Microservices & 90 & 41 & 30 & 3 & 8 & 8 & 162 \\
+\textbf{Home Assistant \cite{homeassistant2024}} & Real-World Smart Home & 63 & 24 & 22 & 3 & 6 & 8 & 119 \\
+\textbf{EdgeX Foundry \cite{edgexfoundry2024}} & Real-World Industrial IoT & 63 & 22 & 24 & 3 & 6 & 8 & 112 \\
+\midrule
+\textbf{Synthetic subtotal (12 LOSO folds)} & & \textbf{2{,}461} & 1{,}321 & 615 & 65 & 202 & 258 & \textbf{10{,}918} \\
+\textbf{Real-world subtotal (5 systems)} & & \textbf{351} & 141 & 120 & 16 & 32 & 42 & \textbf{700} \\
+\textbf{Total} & & \textbf{2{,}812} & & & & & & \textbf{11{,}618} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section{Running Example: Structural Graph and Its Projection}
+\label{supp:running}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{figures/Figure_2}
+\caption{Running example: the raw structural graph (left) and the \texttt{DEPENDS\_ON} projection derived from it (right). The projection makes implicit runtime dependencies explicit---a subscriber depends on the publishers of its topics even though no structural edge joins them---while the simulators continue to operate on the structural view alone.}
+\label{fig:supp-running}
+\end{figure}
+
 \end{document}

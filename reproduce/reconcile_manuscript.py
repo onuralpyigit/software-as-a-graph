@@ -171,8 +171,17 @@ def check_table4_corpus(rep: Report) -> None:
     This is the check that would have caught the stale edge counts: six of seven
     scenarios disagreed with the corpus by up to +144 edges after the rebuild.
     """
-    tex = _tex("sec6_experimental_setup.tex")
-    rows = _rows(tex, r"\textbf{Autonomous Vehicle (AV)}")
+    # The per-scenario table moved to the supplement when the body was cut to
+    # length; the body keeps only regime subtotals. Check wherever it lives.
+    # Anchored on the table's own label: S5's generative-parameter table opens
+    # with the same row name, and an unanchored search silently matched it --
+    # nine-column rows became five-column rows and every check fell through.
+    tex = _supp()
+    rows = _rows(tex, r"\textbf{Autonomous Vehicle (AV)}",
+                 after_label=r"\label{tab:supp-corpus}")
+    if not rows:
+        tex = _tex("sec6_experimental_setup.tex")
+        rows = _rows(tex, r"\textbf{Autonomous Vehicle (AV)}")
     name_to_file = {
         "Autonomous Vehicle (AV)": "av_system", "Enterprise Pub-Sub": "enterprise_system",
         "Financial Trading": "financial_trading_system", "Healthcare Integration": "healthcare_system",

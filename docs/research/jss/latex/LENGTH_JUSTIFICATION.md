@@ -1,59 +1,59 @@
 # Length justification
 
-*To be pasted into the "Comments to the Editor" field at submission, per the JSS
-Guide for Authors: "It is encouraged that authors submit full-length papers of
-less than 36 pages single-column… If your manuscript is longer, please include an
-explanation in your submission as to why the length is justified."*
+*For the "Comments to the Editor" field at submission, per the JSS Guide for Authors: "It is
+encouraged that authors submit full-length papers of less than 36 pages single-column… If your
+manuscript is longer, please include an explanation in your submission as to why the length is
+justified."*
 
 ---
 
-The manuscript runs to 36 single-column pages in the `elsarticle` preprint class. The Guide for Authors encourages full-length papers of *less than* 36 pages single-column, so we are one page over the encouraged limit and offer this explanation as the Guide asks. Three of those pages are the reference list (91 entries); the main text and declarations, from the Introduction through the Declarations, occupy 33 pages. We have moved extensive material to supplementary material — parameter-sensitivity sweeps (OFAT, Morris screening), AHP matrices and consistency diagnostics, generative corpus parameters, the anti-pattern detection benchmark, the explanation layer's real-world evaluation, and the HGT attention weight distribution analysis now occupy eight supplementary sections (Sections S1–S8) rather than the body. We provide this note to contextualize the depth of the remaining manuscript across three key dimensions:
+The manuscript runs to **38 single-column pages** in the `elsarticle` preprint class, of which
+**three are the reference list** (92 entries). The main text and declarations occupy 35 pages. We are
+two pages over the encouraged limit and offer this explanation as the Guide asks.
 
-**1. The empirical program is unusually broad for a single paper.** The study
-evaluates six predictor configurations across twelve synthetic architectures
-under inductive leave-one-scenario-out cross-validation, seven of those same
-architectures in-distribution, and five authentic open-source systems zero-shot —
-2,812 components in total, against four distinct simulation oracles. Each of the
-five research questions is answered on an explicitly bounded corpus subset, and
-Table 5 exists precisely so that a reader can tell which population each reported
-figure belongs to. Compressing this would mean either dropping evaluation
-conditions or leaving the reader unable to reconstruct which comparison rests on
-which data.
+We have already moved substantial material out of the body. Fourteen supplementary sections now
+carry the parameter-sensitivity sweeps (OFAT and Morris screening), the AHP matrices and their
+consistency diagnostics, the generative corpus parameters, the per-scenario corpus composition, the
+typed node feature schema, the anti-pattern detection benchmark, the explanation layer's real-world
+evaluation, the HGT attention distributions, the cross-oracle convergent-validity analysis, the
+in-distribution significance tests, the corpus-subset map, and the running-example figure. What
+remains in the body is what a referee needs in order to check a claim without leaving the page.
 
-**2. A substantial share of the length is negative and boundary-setting
-results, which we consider the paper's main contribution to the community.**
-We report that our proposed model does *not* significantly outperform an
-unparameterized QoS-weighted centrality baseline; that its apparent margin rests
-on a single fold; that typing helps out-of-distribution but not in-distribution,
-where the untyped model is nominally better; that the QoS encoding's ranking gain
-does not survive restriction to components that actually propagate failures; that
-zero-shot transfer to real systems is *not* established once tied labels are
-excluded, and inverts on two of five systems; that a label-free confidence signal
-we previously reported does not replicate; that the explanation layer's elicited
-AHP weights are anti-predictive and three of its five AHP matrices are rank-one;
-and that our own static gate is roughly eleven times more expensive than the
-simulation it was intended to displace. Each of these required space to state
-precisely, with the sensitivity analysis that establishes it. JSS explicitly
-welcomes "studies with negative results," and reporting them rigorously costs
-more pages than reporting a clean positive claim would.
+**1. The paper's contribution is a set of negative and boundary results, and those cost pages to
+state precisely.** JSS explicitly welcomes "studies with negative results". This study reports that
+its proposed model does *not* significantly outperform an unparameterized QoS-weighted centrality
+baseline; that its two architectural mechanisms — relation typing and QoS edge encoding — are
+*substitutes rather than complements*, each worth a large, robustly significant gain alone
+(+0.234 and +0.287, Holm-corrected p = 0.002 and 0.003) and almost nothing once the other is present
+(+0.035 and +0.087, both non-significant); that zero-shot transfer to real systems is not
+established once tied labels are excluded, and inverts on two of five architectures; that a
+label-free confidence signal previously reported does not replicate; that the explanation layer's
+elicited AHP weights are anti-predictive and three of its five AHP matrices are rank-one by
+construction; and that the static gate is roughly eleven times more expensive than the simulation it
+was intended to displace. Each of these is a claim *against* our own framework, and each required the
+ablation, the corrected baseline, or the sensitivity analysis that establishes it. A paper reporting
+a clean positive result would be shorter; it would also be less useful.
 
-**3. Reproducibility claims are load-bearing and are stated in the text.** The
-corpus regenerates byte-identically from committed configurations; every table
-traces to a named artifact, checked mechanically by a committed script that
-reconciles 177 reported figures against the JSON that produced them; the
-input–label independence guarantee is asserted in continuous integration; and the
-primary out-of-distribution comparison was pre-registered before any result under
-the revised harness existed. Where a reported figure could not be reproduced from
-a committed script, we either re-measured it or removed it. Supporting these
-claims requires stating protocols — evaluation populations, oracle assignment,
-substrate parity, model-selection rules — that a shorter paper would leave
-implicit and a referee could not check.
+**2. The empirical program is broad, and each result is scoped to a stated population.** Seven
+predictor configurations are evaluated across twelve synthetic architectures under inductive
+leave-one-scenario-out cross-validation, twelve more in-distribution, and five authentic open-source
+systems zero-shot — 2,812 components against four simulation oracles. Every research question is
+answered on an explicitly bounded corpus subset, because pooling entity types triggers a
+demonstrated Simpson's paradox. Compressing further would mean dropping an evaluation condition or
+leaving the reader unable to reconstruct which comparison rests on which data.
 
-Further reduction is possible on request. Bringing the paper under the
-encouraged threshold requires roughly one page, and the two candidates we would
-cut first are the cross-oracle convergent-validity subsection (§7.3.2, movable to
-the supplement alongside the zero-inflation analysis it already cites) and the
-node-type stratification discussion (§7.3.3). Both, however, are the evidence for
-methodological choices the rest of the paper depends on, so in our judgment the
-next cuts would remove either an evaluation condition or one of the caveats
-above, and we would rather the editors make that call than preempt it.
+**3. Reproducibility claims are load-bearing and stated in the text.** The corpus regenerates
+byte-identically from committed configurations; 271 reported table values are mechanically
+reconciled against the JSON artifacts that produced them by a committed script that refuses a clean
+run when an artifact is absent or was produced from a modified working tree; the input–label
+independence guarantee is asserted in continuous integration; and the primary out-of-distribution
+comparison was pre-registered before any result existed, with three dated amendments recording every
+subsequent protocol change. Supporting these claims requires stating protocols — evaluation
+populations, oracle assignment, substrate parity, model-selection rules — that a shorter paper would
+leave implicit and a referee could not check.
+
+**If the editors prefer the manuscript at 36 pages**, the two further cuts we would make are the
+Reliability–Maintainability decomposition table (Section 5.1) and the heterogeneous message-passing
+equations (Section 4.1.2), both to the supplement. We have not made them pre-emptively because both
+are the definitions the rest of the paper reasons from, and we would rather the editors make that
+call than present a body that cannot be read without the supplement.
