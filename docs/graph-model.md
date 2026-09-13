@@ -206,6 +206,16 @@ Dependency:     Subscriber ─────────────────�
 | **5** | `app_to_lib` | Application $\to$ Library *(via `USES` relationship)* | Harmonic mean: $\frac{2 \cdot w(\text{app}) \cdot w(\text{lib})}{w(\text{app}) + w(\text{lib})}$ |
 | **6** | `broker_to_broker` | Broker $A \leftrightarrow$ Broker $B$ *(colocated on the same Node)* | Shared Node weight: $w(\text{node})$ |
 
+> **Three implementations, one rule set.** `Neo4jRepository._derive_dependencies` and
+> `MemoryRepository._derive_dependencies` are the persistence-side derivations. The
+> simulation package may not read derived edges at all, so
+> `SimulationGraph.get_dependency_edges()` derives the same six rules independently from
+> raw structural edges, for the $I_M(v)$ change-propagation substrate.
+> `tests/test_simulation_dependency_derivation.py` pins its arc set equal to
+> `MemoryRepository`'s on the committed corpus. Until it implemented all six, it returned
+> the subscribed *Topic* — not a legal `DEPENDS_ON` endpoint — instead of that topic's
+> publishers, which left Applications as sinks in $G^\top$ and $I_M(v)$ identically zero.
+
 #### Multi-Topic Probabilistic Union
 When two applications communicate over multiple topics $T_{uv} = \{t_1, t_2, \dots, t_k\}$, they collapse into a single directed edge with:
 - **`path_count`** $= |T_{uv}|$ (integer coupling density).

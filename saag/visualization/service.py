@@ -24,7 +24,7 @@ from .dashboard import DashboardGenerator
 from .collector import LayerDataCollector
 from saag.core.layers import AnalysisLayer
 from saag.core.ports.graph_repository import IGraphRepository
-from saag.validation.models import ValidationTargets
+from saag.validation.models import RELEASE_GATES, REPORTED_GATES, ValidationTargets
 
 DEFAULT_LAYERS = ["app", "infra", "mw", "system"]
 DASHBOARD_TITLE = "Software-as-a-Graph Analysis Dashboard"
@@ -35,17 +35,21 @@ DASHBOARD_TITLE = "Software-as-a-Graph Analysis Dashboard"
 #: table rather than hardcoded so they cannot drift from the thresholds the
 #: gates are actually evaluated against (they previously did: "F1-score >
 #: 0.6" / "Top-K precision > 0.5" against real targets of 0.75 / 0.80).
-#: G7 (CDCC) and G9 (FTR) were retired with the Vulnerability/Security
-#: dimension — both specialist metrics were security-only. The gap in the
-#: numbering is intentional; do not renumber or reuse it.
-_GATE_SPECS = (
-    ("G1_spearman", "Spearman ρ", "spearman", "≥"),
-    ("G2_f1", "F1-score", "f1_score", "≥"),
-    ("G3_precision", "Top-K precision", "precision", "≥"),
-    ("G4_top5", "Top-5 overlap", "top_5_overlap", "≥"),
-    ("G5_predictive_gain", "Predictive gain", "predictive_gain", ">"),
-    ("G6_kappa_cta", "Weighted κ (CTA)", "weighted_kappa_cta", "≥"),
-    ("G8_bottleneck_precision", "Bottleneck precision", "bottleneck_precision_target", "≥"),
+#: Dashboard rows, one per emitted gate. Built from the two tuples in
+#: saag/validation/models.py so this can never name a gate the service does not
+#: emit, or miss one it does. The old G-numbers are gone: the numbering had
+#: retired holes (G7, G9) and, worse, two different gates both called G5.
+_GATE_LABELS = {
+    "spearman": ("Spearman ρ", "spearman", "≥"),
+    "overlap_at_q3": ("Top-quartile overlap", "f1_score", "≥"),
+    "top5_overlap": ("Top-5 overlap", "top_5_overlap", "≥"),
+    "predictive_gain": ("Predictive gain", "predictive_gain", ">"),
+    "kappa_cta": ("Weighted κ (CTA)", "weighted_kappa_cta", "≥"),
+    "bottleneck_precision": ("Bottleneck precision", "bottleneck_precision_target", "≥"),
+}
+
+_GATE_SPECS = tuple(
+    (key, *_GATE_LABELS[key]) for key in RELEASE_GATES + REPORTED_GATES
 )
 
 
@@ -486,7 +490,7 @@ class VisualizationService:
     def _add_validation_report(
         self, gen: DashboardGenerator, data: LayerData
     ) -> None:
-        """Section 7: Gate results (G1-G8, with G7 and G9 retired — see _GATE_SPECS)."""
+        """Section 7: release and reported gate results — see _GATE_SPECS."""
         gen.start_section("Validation Report", "validation-report")
         targets = getattr(self.validation_service, "targets", None) or ValidationTargets()
         metrics: Dict[str, str] = {}
@@ -495,11 +499,14 @@ class VisualizationService:
             if key not in data.gates:
                 continue
             threshold = getattr(targets, attr)
-            gate_number = key.split("_", 1)[0]
-            name = f"{gate_number}: {label} {op} {threshold:.2f}"
-            passed = data.gates.get(key, False)
-            metrics[name] = "PASSED" if passed else "FAILED"
-            highlights[name] = passed
+            scope = "release" if key in RELEASE_GATES else "reported"
+            name = f"{label} {op} {threshold:.2f} ({scope})"
+            passed = data.gates.get(key)
+            # None is "never measured", which must not render as a failure.
+            metrics[name] = (
+                "NOT MEASURED" if passed is None else ("PASSED" if passed else "FAILED")
+            )
+            highlights[name] = passed is True
         gen.add_metrics_box(metrics, "Methodology validation gates", highlights)
         gen.end_section()
 

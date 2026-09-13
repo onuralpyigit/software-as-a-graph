@@ -31,6 +31,10 @@ comma      := ,
 empty      :=
 space      := $(empty) $(empty)
 SEEDS      ?= 42,123,456,789,2024
+#: Concurrent (fold, seed) fits. The fits behind table4/kfold are independent,
+#: so this changes wall-clock only — a fold reproduces bit-identically at any
+#: JOBS. Override for a bigger box: `make table4 JOBS=8`.
+JOBS       ?= 4
 SEEDS_LIST  = $(subst $(comma),$(space),$(SEEDS))
 EPOCHS     ?= 300
 EPOCHS_FAST ?= 50      # for quick smoke-test
@@ -112,6 +116,7 @@ table4:
 	$(PYTHON) reproduce/loso_all_variants.py \
 	    --cache-dir $(OUTPUT_DIR)/loso_cache \
 	    --epochs $(EPOCHS) \
+	    --jobs $(JOBS) \
 	    --output $(RESULTS_DIR)/loso_all_variants.json \
 	    --resume
 	$(PYTHON) reproduce/render_table.py \

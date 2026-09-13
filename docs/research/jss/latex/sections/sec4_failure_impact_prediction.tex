@@ -106,6 +106,7 @@ To evaluate predictive accuracy prior to deployment without relying on productio
     \label{eq:change_prop}
     I_M(v) = 0.45\,\text{ChangeReach}(v) + 0.35\,\text{WeightedChangeImpact}(v) + 0.20\,\text{NormalizedChangeDepth}(v)
     \end{equation}
+    The traversal runs over the transpose of the six-rule \texttt{DEPENDS\_ON} projection of Section~\ref{sec:3}, with loose-coupling and stable-interface stops at $\theta_{\text{loose}} = \theta_{\text{stable}} = 0.20$.
     \item \textbf{Relationship (Edge) Removal Oracle ($I_{\text{edge}}(u,v)$):} the systemic impact of severing one dependency while both endpoints stay operational. Writing $\bar{I}_{\text{comp}}(G)$ for the mean composite impact over $G$:
     \begin{equation}
     \label{eq:edge_crit}

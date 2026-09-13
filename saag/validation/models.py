@@ -6,82 +6,73 @@ from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Any, Optional, Tuple
 
 
+#: Gates whose conjunction defines `LayerValidationResult.passed`.
+#: These three are the independent signals: a global rank correlation and two
+#: set-overlap statistics at different K. Precision@K was retired because the
+#: predicted and actual critical sets are both the top quartile, so precision,
+#: recall and F1 are identically the same number -- the manuscript states this
+#: too (sec6_experimental_setup.tex).
+RELEASE_GATES: Tuple[str, ...] = ("spearman", "overlap_at_q3", "top5_overlap")
+
+#: Reported alongside the release gates, never part of `passed`. A value of
+#: None means the underlying dimension was never validated, which is distinct
+#: from a measured failure.
+REPORTED_GATES: Tuple[str, ...] = ("predictive_gain", "kappa_cta", "bottleneck_precision")
+
+
+def evaluate_gate(
+    value: Optional[float], threshold: float, strict: bool = False
+) -> Optional[bool]:
+    """Compare a metric against its threshold, preserving "never measured".
+
+    Returns None when `value` is None. Coercing that to 0.0 would report an
+    unmeasured dimension as a failed one -- which is what G6/G8 did while the
+    maintainability ground truth was degenerate.
+    """
+    if value is None:
+        return None
+    return float(value) > threshold if strict else float(value) >= threshold
+
+
 @dataclass
 class ValidationTargets:
     """Thresholds the validation gates are evaluated against.
 
-    Every field below is read by something. The gate that consumes each one is
-    named in its comment; fields with no gate are consumed by the frontend
-    (``/api/v1/validation/targets``) or by the reported-only metrics.
+    Every field is read by a gate named in its comment, or by the web UI. Fields
+    that no longer had a reader were removed rather than left to rot; see
+    RELEASE_GATES / REPORTED_GATES for the gate set they serve.
     """
 
-    # Tier 1 — primary gates. `LayerValidationResult.passed` is G1 ∧ G2 ∧ G3 ∧ G4.
-    spearman: float = 0.70              # G1: ρ(Q, I) ≥ 0.70
-    f1_score: float = 0.75              # G2: F1@K ≥ 0.75
-    precision: float = 0.80             # G3: Precision@K ≥ 0.80
-    top_5_overlap: float = 0.60         # G4: Top-5 overlap ≥ 0.60
+    # Release gates. `LayerValidationResult.passed` is their conjunction.
+    spearman: float = 0.70              # spearman: rho(Q, I) >= 0.70
+    f1_score: float = 0.75              # overlap_at_q3: top-quartile overlap >= 0.75
+    top_5_overlap: float = 0.60         # top5_overlap: Top-5 overlap >= 0.60
 
-    # Tier 2 — secondary gates (reported, not part of `passed`)
+    # Reported gates (not part of `passed`).
     #
-    # PG = rho(Q*, I*) - max over dimensions of rho(dim, I*). A former TODO here
-    # worried that dropping from 4 candidate dimensions (R, M, A, S) to 2 (R, M)
-    # would mechanically RAISE PG by shrinking the max being subtracted, leaving
-    # 0.03 too easy to clear. Measured on the current corpus, that is refuted:
-    # PG is negative on every scenario tested.
-    #
-    #   atm_tiny -0.057  atm -0.202  av -0.510  healthcare -0.675
-    #   hub_and_spoke -0.377  microservices -0.435  financial_trading -0.477
-    #   iot_smart_city -0.206  enterprise -0.412
-    #   n=9, median -0.412, range [-0.675, -0.057]
-    #
-    # (Reproduce: import each data/scenarios/*_system.json into a
-    # MemoryRepository via saag.Client and read `predictive_gain` off
-    # validate(layers=["system"]).layers["system"].raw.)
-    #
-    # So the composite scores I*(v) WORSE than its own best single dimension,
-    # everywhere, by a wide margin. 0.03 is therefore left as written: it is a
-    # specification of what a composite would have to add to earn its place, not
-    # a value fitted to observed data, and re-deriving it downward from these
-    # measurements would only be fitting the threshold to the failure. G5 reads
-    # false on every scenario, which is the correct signal.
-    #
-    # This does not affect any pass/fail decision: `LayerValidationResult.passed`
-    # is G1 AND G2 AND G3 AND G4 (see _evaluate_gates), and G5 is reported only.
-    # It is consistent with the manuscript, which presents RM as an attribution
-    # instrument rather than a ranker.
-    predictive_gain: float = 0.03       # G5: PG > 0.03 (reported; currently false everywhere)
-    weighted_kappa_cta: float = 0.70    # G6: κ_CTA ≥ 0.70
-    # G7 (CDCC, security-vs-availability contamination) and G9 (FTR, security
-    # false-target-rate) were retired with the Vulnerability/Security
-    # dimension — see saag/validation/dimensions.py. The gap in the gate
-    # numbering (G7, G9) is intentional; do not renumber or reuse it.
+    # PG = rho(Q*, I*) - max over dimensions of rho(dim, I*). It is negative on
+    # every scenario measured, but the reason changed once the maintainability
+    # oracle was repaired: M(v) correlates with its own ground truth IM(v) at
+    # rho ~= -0.01, so blending 20% of it into Q* dilutes the reliability signal
+    # that I* is mostly made of. 0.03 remains a specification of what a composite
+    # would have to add to earn its place, not a value fitted to the data.
+    predictive_gain: float = 0.03       # predictive_gain: PG > 0.03
+    weighted_kappa_cta: float = 0.70    # kappa_cta: weighted Cohen's kappa >= 0.70
+    bottleneck_precision_target: float = 0.70   # bottleneck_precision: BP >= 0.70
 
-    # Tier 3 — dimension-specific specialist gates
-    bottleneck_precision_target: float = 0.70   # G8: BP ≥ 0.70
+    # Rule-based and GNN forecasting acceptance thresholds.
+    gnn_spearman: float = 0.85
+    gnn_macro_f1: float = 0.88
+    gnn_ndcg_10: float = 0.90
 
-    # Per-group gates evaluated inside Validator._validate_group
-    spearman_p_max: float = 0.05        # p_value_pass: p ≤ 0.05
-    rmse_max: float = 0.25              # G5_rmse: RMSE ≤ 0.25 (also read by the web UI)
+    # Reported only -- surfaced by the web UI, no gate reads them.
+    precision: float = 0.80
 
-    # Rule-based baseline and GNN forecasting acceptance thresholds
-    baseline_spearman: float = 0.85
-    baseline_macro_f1: float = 0.88
-    baseline_ndcg_10: float = 0.90
-
-    # Composite Q*(v) vs I*(v) and dimension orthogonality
-    composite_spearman: float = 0.85        # ρ(Q*, I*) ≥ 0.85
-    composite_f1: float = 0.90              # F1(Q*, I*) ≥ 0.90
-    composite_top5_overlap: float = 0.80    # Top-5(Q*, I*) ≥ 0.80
-    max_interdim_correlation: float = 0.40  # orthogonality warning threshold
-
-    # Reported only — surfaced by the web UI, no gate reads them
-    recall: float = 0.80
-    pearson: float = 0.65
-    kendall: float = 0.50
-    top_10_overlap: float = 0.50
+    # Dimension orthogonality warning (logged, not gated).
+    max_interdim_correlation: float = 0.40
 
     # Non-scalar configuration. `to_dict` filters these out, so they never reach
-    # the API payload — keep any new entry here non-numeric for that reason.
+    # the API payload -- keep any new entry here non-numeric for that reason.
     # Deliberately EQUAL (0.5/0.5), not the scoring weights (0.80/0.20): the
     # ground-truth composite I*(v) must not be weighted by the same judgement
     # it validates, or rho(Q*, I*) would be partly circular.
@@ -94,7 +85,7 @@ class ValidationTargets:
     node_type_rho_default: float = 0.70
 
     def to_dict(self) -> Dict[str, float]:
-        """Scalar targets only — the shape the API and web UI consume."""
+        """Scalar targets only -- the shape the API and web UI consume."""
         return {k: v for k, v in asdict(self).items() if isinstance(v, (float, int))}
 
 
@@ -186,9 +177,6 @@ class RankingMetrics:
     top_5_common: List[str] = field(default_factory=list)
     top_5_ci_lower: float = 0.0
     top_5_ci_upper: float = 0.0
-    # Reliability-specific ranking metrics
-    ccr_5: float = 0.0   # Cascade Capture Rate @ 5
-    cme: float = 0.0     # Cascade Magnitude Error
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -202,8 +190,6 @@ class RankingMetrics:
                 "actual": self.top_5_actual,
                 "common": self.top_5_common,
             },
-            "ccr_5": round(self.ccr_5, 4),
-            "cme": round(self.cme, 4),
         }
 
 
@@ -242,7 +228,7 @@ class ValidationGroupResult:
     classification: ClassificationMetrics
     ranking: RankingMetrics
     passed: bool
-    gates: Dict[str, bool] = field(default_factory=dict)
+    gates: Dict[str, Optional[bool]] = field(default_factory=dict)
     targets: ValidationTargets = field(default_factory=ValidationTargets)
     components: List[ComponentComparison] = field(default_factory=list)
 
@@ -318,8 +304,9 @@ class LayerValidationResult:
     maintainability_spearman: float = 0.0  # ρ(M(v), IM(v)) — maintainability-specific correlation
     availability_spearman: float = 0.0  # ρ(A(v), IA(v)) — sub-characteristic diagnostic, not a gate input
     # Composite Q*(v) vs I*(v)
-    composite_spearman: float = 0.0     # ρ(Q*(v), I*(v)) — the primary composite validation gate
-    predictive_gain: float = 0.0        # PG = ρ_composite − max(dim ρ) > 0.03
+    #: None when I*(v) could not be built (every dimension degenerate).
+    composite_spearman: Optional[float] = None   # ρ(Q*(v), I*(v))
+    predictive_gain: Optional[float] = None      # PG = ρ_composite − max(dim ρ)
     system_health: Dict[str, float] = field(default_factory=dict)
     # system_health keys: H_R, H_M, H_FT, H_A, SRI, RCI (SRI sums only H_R, H_M)
     passed: bool = False
@@ -333,7 +320,7 @@ class LayerValidationResult:
     warnings: List[str] = field(default_factory=list)
     csc_names: Dict[str, str] = field(default_factory=dict)
     dimensional_validation: Dict[str, Any] = field(default_factory=dict)
-    gates: Dict[str, bool] = field(default_factory=dict)
+    gates: Dict[str, Optional[bool]] = field(default_factory=dict)
     node_type_stratified: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     frequency_decile_stratified: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     # New: Full scatter data per dimension for visualization
@@ -342,7 +329,6 @@ class LayerValidationResult:
     # New: Confidence intervals per dimension
     confidence_intervals: Dict[str, Tuple[float, float]] = field(default_factory=dict)
     gnn_forecasting_metrics: Optional[Dict[str, Any]] = None
-    rule_based_baseline_metrics: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -358,8 +344,8 @@ class LayerValidationResult:
                 "reliability_spearman": round(self.reliability_spearman, 4),
                 "maintainability_spearman": round(self.maintainability_spearman, 4),
                 "availability_spearman": round(self.availability_spearman, 4),
-                "composite_spearman": round(self.composite_spearman, 4),
-                "predictive_gain": round(self.predictive_gain, 4),
+                "composite_spearman": round(self.composite_spearman, 4) if self.composite_spearman is not None else None,
+                "predictive_gain": round(self.predictive_gain, 4) if self.predictive_gain is not None else None,
                 "system_health": {k: round(v, 4) for k, v in self.system_health.items()},
             },
             "validation_result": self.validation_result.to_dict() if self.validation_result else None,
@@ -368,7 +354,6 @@ class LayerValidationResult:
             "frequency_decile_stratified": self.frequency_decile_stratified,
             "warnings": self.warnings,
             "gnn_forecasting_metrics": self.gnn_forecasting_metrics,
-            "rule_based_baseline_metrics": self.rule_based_baseline_metrics,
         }
 
 

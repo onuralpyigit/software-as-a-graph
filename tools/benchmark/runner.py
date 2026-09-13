@@ -37,19 +37,17 @@ DEFAULT_TARGETS = ValidationTargets(
     spearman=0.70,
     f1_score=0.80,
     precision=0.80,
-    recall=0.80,
     top_5_overlap=0.60,
-    top_10_overlap=0.50,
 )
 
 # Metric names in (record_attr, target_attr) pairs for DRY target counting
+# recall and top10_overlap were dropped: recall is identically precision under the
+# shared top-quartile mask, and no gate or UI ever read a top-10 target.
 _TARGET_CHECKS: List[Tuple[str, str]] = [
     ("spearman",      "spearman"),
     ("f1_score",      "f1_score"),
     ("precision",     "precision"),
-    ("recall",        "recall"),
     ("top5_overlap",  "top_5_overlap"),
-    ("top10_overlap", "top_10_overlap"),
 ]
 
 
@@ -70,12 +68,10 @@ class BenchmarkRunner:
         password: str = "password",
         verbose: bool = False,
         targets: Optional[ValidationTargets] = None,
-        ndcg_k: int = 10,
     ):
         self.output_dir = output_dir
         self.verbose = verbose
         self.targets = targets or DEFAULT_TARGETS
-        self.ndcg_k = ndcg_k
         self.logger = logging.getLogger("Benchmark")
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -93,7 +89,6 @@ class BenchmarkRunner:
             prediction_service=self.prediction_service,
             simulation_service=self.simulation_service,
             targets=self.targets,
-            ndcg_k=self.ndcg_k
         )
 
     # ------------------------------------------------------------------

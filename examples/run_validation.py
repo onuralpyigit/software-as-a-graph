@@ -97,13 +97,12 @@ def run_validation(args):
         # intentional, see saag/validation/service.py._evaluate_gates)
         # ---------------------------------------------------------------------
         gate_names = {
-            "G1_spearman": ("Primary Rank Correlation", "\u2265 0.70 / 0.80", f"{raw_val.spearman:.4f}"),
-            "G2_f1": ("Criticality Set F1 Score", "\u2265 0.75 / 0.70", f"{raw_val.f1_score:.4f}"),
-            "G3_precision": ("Criticality Set Precision", "\u2265 0.80", f"{raw_val.precision:.4f}"),
-            "G4_top5": ("Top-5 Critical Overlap", "\u2265 0.60", f"{raw_val.top_5_overlap:.4f}"),
-            "G5_predictive_gain": ("Predictive Gain (PG)", "> 0.03", f"{raw_val.predictive_gain:.4f}"),
-            "G6_kappa_cta": ("Weighted Kappa \u03ba_CTA", "\u2265 0.70", f"{raw_val.dimensional_validation.get('maintainability', {}).get('weighted_kappa_cta', 0.0):.4f}"),
-            "G8_bottleneck_precision": ("Bottleneck Precision BP", "\u2265 0.70", f"{raw_val.dimensional_validation.get('maintainability', {}).get('bottleneck_precision', 0.0):.4f}"),
+            "spearman": ("Primary Rank Correlation", "\u2265 0.70 / 0.80", f"{raw_val.spearman:.4f}"),
+            "overlap_at_q3": ("Criticality Set F1 Score", "\u2265 0.75 / 0.70", f"{raw_val.f1_score:.4f}"),
+            "top5_overlap": ("Top-5 Critical Overlap", "\u2265 0.60", f"{raw_val.top_5_overlap:.4f}"),
+            "predictive_gain": ("Predictive Gain (PG)", "> 0.03", f"{raw_val.predictive_gain if raw_val.predictive_gain is not None else float('nan'):.4f}"),
+            "kappa_cta": ("Weighted Kappa \u03ba_CTA", "\u2265 0.70", f"{raw_val.dimensional_validation.get('maintainability', {}).get('weighted_kappa_cta') or float('nan'):.4f}"),
+            "bottleneck_precision": ("Bottleneck Precision BP", "\u2265 0.70", f"{raw_val.dimensional_validation.get('maintainability', {}).get('bottleneck_precision') or float('nan'):.4f}"),
         }
 
         gate_rows = []
@@ -214,10 +213,9 @@ def run_validation(args):
         print(f"  [PASS] Predictive Gain (PG) = {raw_val.predictive_gain:.4f}")
 
         # Verify Gates passed/failed (fails G1, G2 & G3, passes G4)
-        assert raw_val.gates["G1_spearman"] == False, "Expected G1_spearman gate to fail"
-        assert raw_val.gates["G2_f1"] == False, "Expected G2_f1 gate to fail"
-        assert raw_val.gates["G3_precision"] == False, "Expected G3_precision gate to fail"
-        assert raw_val.gates["G4_top5"] == True, "Expected G4_top5 gate to pass"
+        assert raw_val.gates["spearman"] is False, "Expected the spearman gate to fail"
+        assert raw_val.gates["overlap_at_q3"] is False, "Expected the overlap_at_q3 gate to fail"
+        assert raw_val.gates["top5_overlap"] is True, "Expected the top5_overlap gate to pass"
         print("  [PASS] Gate statuses verified: G1/G2/G3 failed (expected due to small graph size and low variance), G4 passed successfully.")
 
         # Verify System health index bounds

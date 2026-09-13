@@ -17,7 +17,10 @@ from __future__ import annotations
 import logging
 from typing import Dict, Any, List, Optional, Tuple
 
-from neo4j import GraphDatabase
+try:
+    from neo4j import GraphDatabase
+except ImportError:
+    GraphDatabase = None
 
 from saag.core.ports.graph_repository import IGraphRepository
 from saag.core.layers import get_layer_definition, resolve_layer
@@ -83,6 +86,11 @@ def _set_if_present_clause(var: str, properties: List[str]) -> str:
 
 def create_repository(uri=None, user=None, password=None):
     """Create a Neo4jRepository from params or environment."""
+    if GraphDatabase is None:
+        raise ImportError(
+            "The 'neo4j' driver is required to use Neo4jRepository. "
+            "Install it with: pip install neo4j"
+        )
     return Neo4jRepository(
         uri=uri or config.get_default_uri(),
         user=user or config.get_default_username(),
@@ -109,6 +117,11 @@ class Neo4jRepository:
         database: str = None
     ):
         """Initialize Neo4j repository."""
+        if GraphDatabase is None:
+            raise ImportError(
+                "The 'neo4j' driver is required to use Neo4jRepository. "
+                "Install it with: pip install neo4j"
+            )
         uri = uri or config.get_default_uri()
         user = user or config.get_default_username()
         password = password or config.get_default_password()

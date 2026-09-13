@@ -91,6 +91,8 @@ import argparse
 import csv
 import json
 import logging
+import os
+import shutil
 import sys
 import time
 from dataclasses import dataclass, field
@@ -105,6 +107,7 @@ from sklearn.metrics import average_precision_score
 from torch_geometric.data import HeteroData
 
 # ── SaG SDK imports ──────────────────────────────────────────────────────────
+from saag.evaluation.fingerprint import fit_fingerprint
 from saag.evaluation.metrics import (
     aggregate_per_type,
     compute_inductive_metrics as _shared_inductive_metrics,
@@ -456,6 +459,8 @@ def run_one_fold(
     rank_normalize_features: bool = False,
     rank_normalize_labels: bool = False,
     device: Optional[str] = "auto",
+    resume: bool = False,
+    cache_dir: Optional[Path] = None,
 ) -> FoldResult:
     """
     One LOSO fold: train on N-1 scenarios with multi-seed, predict on held-out.
@@ -479,6 +484,69 @@ def run_one_fold(
         target_device = torch.device("cuda")
     else:
         target_device = torch.device("cpu")
+    target_device = _resolve_device(device)
+    plan = _plan_fold(bundles, holdout_idx, layers, auto_layers, inner_val, workdir)
+    cfg = _seed_cfg(
+        layer=layer, epochs=epochs, lr=lr, hidden=hidden, heads=heads,
+        layers=layers, dropout=dropout, mode=mode, variant=variant,
+        eval_population=eval_population, weight_decay=weight_decay,
+        warmup_T0=warmup_T0, multitask_weight=multitask_weight,
+        rm_consistency_weight=rm_consistency_weight, ranking_weight=ranking_weight,
+        pairwise_ranking_weight=pairwise_ranking_weight,
+        rank_normalize_features=rank_normalize_features,
+        rank_normalize_labels=rank_normalize_labels,
+    )
+
+    seed_metrics: List[Dict[str, Any]] = []
+    for seed in seeds:
+        m = _seed_metrics(
+            plan, seed, cfg, target_device,
+            resume=resume, cache_dir=cache_dir, done=seed_metrics,
+        )
+        if m is not None:
+            seed_metrics.append(m)
+
+    return _aggregate_fold(plan, seed_metrics)
+
+
+@dataclass
+class _FoldPlan:
+    """Everything about a fold that does not depend on the seed.
+
+    Split out of ``run_one_fold`` so a (fold, seed) fit is addressable on its
+    own: it is the unit ``--jobs`` dispatches, the unit ``--resume`` reuses, and
+    the unit whose failure aborts a sweep early.
+    """
+
+    holdout: ScenarioBundle
+    train_set: List[ScenarioBundle]
+    train_ids: List[str]
+    primary: ScenarioBundle
+    inductives: List[ScenarioBundle]
+    val_bundle: Optional[ScenarioBundle]
+    effective_layers: int
+    fold_dir: Path
+
+
+class SeedFailed(RuntimeError):
+    """One (fold, seed) fit raised. Carries the message for fail-fast triage."""
+
+
+def _resolve_device(device: Optional[str]) -> torch.device:
+    if device == "cuda" or (device in ("auto", None) and torch.cuda.is_available()):
+        return torch.device("cuda")
+    return torch.device("cpu")
+
+
+def _plan_fold(
+    bundles: List[ScenarioBundle],
+    holdout_idx: int,
+    layers: int,
+    auto_layers: bool,
+    inner_val: str,
+    workdir: Path,
+) -> _FoldPlan:
+    """Resolve holdout/primary/inductive/val membership and depth for one fold."""
     holdout = bundles[holdout_idx]
     train_set = [b for i, b in enumerate(bundles) if i != holdout_idx]
     train_ids = [b.scenario_id for b in train_set]
@@ -525,294 +593,468 @@ def run_one_fold(
     fold_dir = workdir / f"fold_{holdout.scenario_id}"
     fold_dir.mkdir(parents=True, exist_ok=True)
 
-    seed_metrics: List[Dict[str, Any]] = []
+    return _FoldPlan(
+        holdout=holdout, train_set=train_set, train_ids=train_ids,
+        primary=primary, inductives=inductives, val_bundle=val_bundle,
+        effective_layers=effective_layers, fold_dir=fold_dir,
+    )
 
-    for seed in seeds:
-        logger.info("  ── seed %d ──", seed)
-        torch.manual_seed(seed)
-        np.random.seed(seed)
 
-        ckpt_dir = fold_dir / f"seed_{seed}"
-        ckpt_dir.mkdir(parents=True, exist_ok=True)
 
+#: Keys of one fit's configuration. Collected in one place so the fingerprint and
+#: the dispatch cannot drift: anything that changes what a fit produces has to
+#: appear here, or a stale shard is silently reusable.
+_SEED_CFG_KEYS = (
+    "layer", "epochs", "lr", "hidden", "heads", "layers", "dropout", "mode",
+    "variant", "eval_population", "weight_decay", "warmup_T0",
+    "multitask_weight", "rm_consistency_weight", "ranking_weight",
+    "pairwise_ranking_weight", "rank_normalize_features", "rank_normalize_labels",
+)
+
+
+def _seed_cfg(**kwargs) -> Dict[str, Any]:
+    missing = set(_SEED_CFG_KEYS) - set(kwargs)
+    if missing:
+        raise TypeError(f"_seed_cfg missing {sorted(missing)}")
+    return {k: kwargs[k] for k in _SEED_CFG_KEYS}
+
+
+def _seed_fingerprint(
+    plan: _FoldPlan, seed: int, cfg: Dict[str, Any],
+    target_device: torch.device, cache_dir: Optional[Path],
+) -> str:
+    """Content hash of everything this fit depends on.
+
+    Fold membership is included explicitly rather than implied by the holdout id:
+    dropping a scenario with ``--skip`` changes the training set of every
+    remaining fold without changing any holdout's name.
+    """
+    return fit_fingerprint(
+        {
+            **cfg,
+            "seed": seed,
+            "holdout": plan.holdout.scenario_id,
+            "primary": plan.primary.scenario_id,
+            "inductives": [b.scenario_id for b in plan.inductives],
+            "val": plan.val_bundle.scenario_id if plan.val_bundle else None,
+            "effective_layers": plan.effective_layers,
+            # A CPU fit and a CUDA fit of the same configuration are not
+            # interchangeable rows; reproduce/loso_all_variants.py already
+            # records the device for exactly this reason.
+            "device": target_device.type,
+        },
+        cache_dir=str(cache_dir) if cache_dir is not None else None,
+    )
+
+
+def _replicate_structural(done: Dict[str, Any], seed: int) -> Dict[str, Any]:
+    """Copy a training-free variant's result onto another seed.
+
+    ``topo_baseline``/``topo_qos`` score a fixed graph with a deterministic
+    centrality: every seed recomputes the identical numbers. Replicating rather
+    than recomputing keeps the reported ``n_seeds_per_fold`` and the (zero)
+    across-seed std exactly as they were, while doing the work once.
+    """
+    m = {k: (dict(v) if isinstance(v, dict) else v) for k, v in done.items()}
+    m["_full_scores"] = {k: dict(v) for k, v in done["_full_scores"].items()}
+    m["seed"] = seed
+    return m
+
+
+def _seed_metrics(
+    plan: _FoldPlan,
+    seed: int,
+    cfg: Dict[str, Any],
+    target_device: torch.device,
+    resume: bool = False,
+    cache_dir: Optional[Path] = None,
+    done: Optional[List[Dict[str, Any]]] = None,
+    errors: Optional[List[str]] = None,
+    info: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """One fit, reusing a stored one when its fingerprint still matches.
+
+    Returns ``None`` when the fit failed, preserving ``run_one_fold``'s
+    log-and-continue behaviour; the caller decides whether a run of failures is
+    worth aborting for.
+    """
+    if cfg["variant"] in _STRUCTURAL_VARIANTS and done:
+        return _replicate_structural(done[0], seed)
+
+    seed_dir = plan.fold_dir / f"seed_{seed}"
+    shard = seed_dir / "seed_result.json"
+    fingerprint = _seed_fingerprint(plan, seed, cfg, target_device, cache_dir)
+
+    if resume and shard.exists():
         try:
-            if variant in _STRUCTURAL_VARIANTS:
-                # Training-free structural centrality. It has no notion of a
-                # train set, so its held-out score is simply its score — which
-                # is exactly why it belongs in the LOSO table: an out-of-domain
-                # comparison a model must beat to justify being trained at all.
-                # Omitting it (as the published Table 4 did) leaves the strongest
-                # non-learning competitor unmeasured under the harder protocol.
-                from reproduce.main_table import (
-                    _compute_topo_baseline_scores, _load_scenario_data,
-                )
-
-                # Score on the DEPENDS_ON projection, not the native graph.
-                # Application nodes never route messages, so their betweenness
-                # on the raw pub-sub graph is identically 0 — the baseline would
-                # emit a constant for the entire Application stratum and its
-                # pooled rho would be carried purely by between-type offsets.
-                # This is the same substrate the in-distribution table gives it.
-                try:
-                    proj_graph, proj_struct, _sim, _rm, _gt = _load_scenario_data(
-                        holdout.scenario_id, substrate="projection"
-                    )
-                except Exception as exc:      # noqa: BLE001 - fall back to native
-                    logger.warning("  %s: projection unavailable (%s); using native graph", variant, exc)
-                    proj_graph, proj_struct = holdout.graph, holdout.structural
-
-                struct_pred = _compute_topo_baseline_scores(
-                    proj_graph, proj_struct,
-                    use_qos=(variant == "topo_qos"),
-                )
-                if not struct_pred:
-                    logger.warning("  %s: no structural signal on holdout; skipping seed", variant)
-                    continue
-                pred_scores = {str(k): float(v) for k, v in struct_pred.items()}
-                full_node_scores = {
-                    k: {"overall": v, "reliability": v, "maintainability": v}
-                    for k, v in pred_scores.items()
-                }
-
-            elif variant in _HOMOGENEOUS_VARIANTS:
-                # Baseline variants use GNNTrainer directly
-                from saag.prediction.models.baselines import build_baseline
-                from saag.prediction.data_preparation import create_node_splits
-                from saag.prediction.trainer import GNNTrainer, evaluate
-
-                # Any arm with an edge channel needs QoS on the graph; the
-                # registry owns which those are.
-                use_qos = _registry.edge_dim(variant, "loso") is not None
-                train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
-                holdout_graph, holdout_sm = _prepare_bundle_graph(holdout, use_qos)
-
-                conv = networkx_to_hetero_data(
-                    train_graph, train_sm, primary.simulation, primary.rm,
-                    qos_enabled=use_qos,
-                    rank_normalize_features=rank_normalize_features,
-                )
-                data = conv.hetero_data
-                create_node_splits(data, seed=seed)
-
-                # Training-set parity with the HGT branch below. This branch
-                # used to train on `primary` alone while the HGT branch trained
-                # on primary + every inductive scenario, so the published
-                # typed-vs-untyped LOSO margin compared a model with N-1
-                # training graphs against one with a single graph. Same folds,
-                # same substrate, same graph count.
-                inductive_data = [
-                    _build_training_hetero(b, use_qos, rank_normalize_features)
-                    for b in inductives
-                ]
-                for ig in inductive_data:
-                    create_node_splits(ig, seed=seed)
-
-                # Multi-graph training also requires the label normalization the
-                # GNNService path has always applied and this branch never did:
-                # without it each scenario's labels reach the same scale-sensitive
-                # loss terms on its own raw scale.
-                normalize_labels_robust(data, rank_normalize=rank_normalize_labels)
-                for ig in inductive_data:
-                    normalize_labels_robust(ig, rank_normalize=rank_normalize_labels)
-
-                val_data = None
-                if val_bundle is not None:
-                    val_data = _build_validation_hetero(
-                        val_bundle, use_qos, rank_normalize_features
-                    )
-                    normalize_labels_robust(val_data, rank_normalize=rank_normalize_labels)
-
-                if inductive_data:
-                    from torch_geometric.loader import DataLoader as _PyGDataLoader
-                    training_input = _PyGDataLoader(
-                        [data] + inductive_data, batch_size=1, shuffle=True
-                    )
-                else:
-                    training_input = data
-
-                # Width and edge-channel width come from the registry: they are
-                # identity for every reported variant and differ only for the
-                # RQ2 capacity / edge-channel controls.
-                edge_dim = _registry.edge_dim(variant, "loso")
-                baseline_name = "homo_unweighted" if edge_dim is None else "homo_scalar"
-                model = build_baseline(baseline_name,
-                                       hidden_channels=_registry.hidden_for(variant, hidden, "loso"),
-                                       num_heads=heads,
-                                       num_layers=layers, dropout=dropout,
-                                       edge_dim=edge_dim)
-                model.to(target_device)
-                best_path = ckpt_dir / "best_model.pt"
-                if best_path.exists():
-                    logger.info("  Found baseline checkpoint %s. Skipping training.", best_path)
-                    model.load_state_dict(torch.load(best_path, map_location=target_device))
-                else:
-                    trainer = GNNTrainer(model=model, checkpoint_dir=str(ckpt_dir),
-                                         lr=lr, num_epochs=epochs, patience=min(60, epochs),
-                                         weight_decay=weight_decay, warmup_T0=warmup_T0,
-                                         multitask_weight=multitask_weight,
-                                         rm_consistency_weight=rm_consistency_weight,
-                                         ranking_weight=ranking_weight,
-                                         pairwise_ranking_weight=pairwise_ranking_weight,
-                                         # Also parity: without the labeler's
-                                         # dimension mask the unmeasured
-                                         # maintainability head is regressed
-                                         # toward a fabricated zero, which the
-                                         # HGT branch has never done.
-                                         dimension_mask=conv.dimension_mask)
-                    trainer.train(
-                        training_input,
-                        primary_data=data if inductive_data else None,
-                        val_data=val_data,
-                    )
-
-                # Evaluate on holdout
-                conv_h = networkx_to_hetero_data(
-                    holdout_graph, holdout_sm, holdout.simulation, holdout.rm,
-                    qos_enabled=use_qos,
-                    rank_normalize_features=rank_normalize_features,
-                )
-                data_h = conv_h.hetero_data
-                create_node_splits(data_h, seed=seed)
-                metrics = evaluate(model, data_h, "test_mask", target_device)
-
-                # Build pred_scores from model output for inductive metrics
-                model.eval()
-                data_h_dev = data_h.to(target_device)
-                with torch.no_grad():
-                    x_h = {nt: data_h_dev[nt].x for nt in data_h_dev.node_types if hasattr(data_h_dev[nt], "x")}
-                    ei_h = {r: data_h_dev[r].edge_index for r in data_h_dev.edge_types}
-                    ea_h = {r: data_h_dev[r].edge_attr for r in data_h_dev.edge_types if hasattr(data_h_dev[r], "edge_attr")}
-                    out_h = model(x_h, ei_h, ea_h)
-
-                pred_scores: Dict[str, float] = {}
-                full_node_scores: Dict[str, Dict[str, float]] = {}
-                # node_id_map is Dict[str, List[str]]: node_type → ordered list of node IDs
-                for nt, preds in out_h.items():
-                    node_list = conv_h.node_id_map.get(nt, [])
-                    for local_idx, nid in enumerate(node_list):
-                        if local_idx < preds.shape[0]:
-                            pred_scores[nid] = float(preds[local_idx, 0])
-                            full_node_scores[nid] = {
-                                "overall":         float(preds[local_idx, 0]),
-                                "reliability":     float(preds[local_idx, 1]),
-                                "maintainability": float(preds[local_idx, 2]),
-                            }
-
-            elif variant in _HGT_VARIANTS:
-                # hgl_qos (default), hgl, hgl_qos_uni or topology_rm → GNNService
-                effective_mode = "rm" if variant == "topology_rm" else mode
-                use_qos = variant in ("hgl_qos", "hgl_qos_uni")
-                train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
-                holdout_graph, holdout_sm = _prepare_bundle_graph(holdout, use_qos)
-
-                best_path = ckpt_dir / "best_model.pt"
-                if best_path.exists():
-                    logger.info("  Found GNN checkpoint %s. Skipping training.", best_path)
-                    service = GNNService.from_checkpoint(
-                        str(ckpt_dir),
-                        graph=train_graph,
-                        layer=layer,
-                        device=target_device,
-                    )
-                else:
-                    service = GNNService(
-                        checkpoint_dir=str(ckpt_dir),
-                        hidden_channels=hidden,
-                        num_heads=heads,
-                        num_layers=effective_layers,
-                        dropout=dropout,
-                        predict_edges=False,
-                        device=target_device,
-                        # Variant-derived, unlike --qos-injection, which is a
-                        # cross-cutting CLI ablation. The directionality control
-                        # is the only arm that turns this off.
-                        use_bidirectional=_registry.bidirectional_for(variant),
-                    )
-                    service.train(
-                        graph=train_graph,
-                        structural_metrics=train_sm,
-                        simulation_results=primary.simulation,
-                        edge_simulation_results=primary.edge_simulation or None,
-                        rm_scores=primary.rm,
-                        inductive_graphs=[
-                            _build_training_hetero(b, use_qos, rank_normalize_features)
-                            for b in inductives
-                        ],
-                        val_graph=(
-                            _build_validation_hetero(
-                                val_bundle, use_qos, rank_normalize_features
-                            )
-                            if val_bundle is not None else None
-                        ),
-                        seeds=[seed],
-                        num_epochs=1 if variant == "topology_rm" else epochs,
-                        lr=lr,
-                        patience=min(60, epochs),
-                        layer=layer,
-                        qos_enabled=use_qos,
-                        weight_decay=weight_decay,
-                        warmup_T0=warmup_T0,
-                        multitask_weight=multitask_weight,
-                        rm_consistency_weight=rm_consistency_weight,
-                        ranking_weight=ranking_weight,
-                        pairwise_ranking_weight=pairwise_ranking_weight,
-                        rank_normalize_features=rank_normalize_features,
-                        rank_normalize_labels=rank_normalize_labels,
-                    )
-                result = service.predict(
-                    graph=holdout_graph,
-                    structural_metrics=holdout_sm,
-                    rm_scores=holdout.rm,
-                    # GNNService.train() names this simulation_results, predict() names
-                    # it eval_labels. Passing the train() spelling here raised TypeError
-                    # inside the per-seed try/except, so every HGT/HGT-QoS seed was
-                    # skipped and the fold aggregated to nan.
-                    eval_labels=holdout.simulation,
-                    mode=effective_mode,
-                    qos_enabled=use_qos,
-                )
-                pred_scores = {nid: float(ns.composite_score)
-                               for nid, ns in result.node_scores.items()}
-                full_node_scores = {
-                    nid: {
-                        "overall":         float(ns.composite_score),
-                        "reliability":     float(ns.reliability_score),
-                        "maintainability": float(ns.maintainability_score),
-                    }
-                    for nid, ns in result.node_scores.items()
-                }
-
-            else:
-                # Unreachable via the CLI (argparse `choices` is checked against
-                # KNOWN_VARIANTS by tests/test_variant_dispatch.py) and via the
-                # pre-flight check at the top of run_one_fold. Kept so a direct
-                # programmatic call cannot silently get the HGT branch.
-                raise ValueError(
-                    f"unrecognised variant {variant!r}; expected one of "
-                    f"{sorted(KNOWN_VARIANTS)}"
-                )
-
-        except Exception as e:
-            logger.error("  Fold seed %d failed: %s", seed, e, exc_info=True)
-            continue
-
-        true_impact = {nid: float(d.get("composite", 0.0)) for nid, d in holdout.simulation.items()}
-
-        m = compute_inductive_metrics(
-            pred_scores, true_impact, holdout.graph, population=eval_population,
-        )
-        m["seed"] = seed
-        m["prediction_mode"] = mode
-        m["variant"] = variant
-        m["_full_scores"] = full_node_scores  # temporary storage for aggregation
-        seed_metrics.append(m)
-
-
+            payload = json.loads(shard.read_text())
+        except json.JSONDecodeError:
+            payload = {}
+        if payload.get("fingerprint") == fingerprint:
+            logger.info("  ── seed %d ── reusing stored fit (fingerprint match)", seed)
+            if info is not None:
+                info["reused"] = True
+            return payload["metrics"]
         logger.info(
-            "    ρ=%.4f  F1=%.4f  NDCG=%.4f  RMSE=%.4f  (n=%d, mode=%s)",
-            m["spearman_rho"], m["f1_at_k"], m["ndcg_10"], m["rmse"], m["n"],
-            m["prediction_mode"],
+            "  ── seed %d ── stored fit does not match this configuration or the "
+            "current model code; re-running", seed,
         )
+
+    # Anything left in the seed directory is from a fit this one is replacing.
+    # It must go before training starts: both learned branches restore from a
+    # `best_model.pt` found here and skip training entirely, which is how a
+    # dirty workspace once reported hgl LOSO rho = -0.576 in 3.2 s.
+    if seed_dir.exists():
+        shutil.rmtree(seed_dir)
+    seed_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        m = _run_seed(plan, seed, cfg, target_device)
+    except SeedFailed as exc:
+        if errors is not None:
+            errors.append(str(exc))
+        return None
+
+    shard.write_text(json.dumps({"fingerprint": fingerprint, "metrics": m}))
+    return m
+
+
+def _run_seed(
+    plan: _FoldPlan,
+    seed: int,
+    cfg: Dict[str, Any],
+    target_device: torch.device,
+) -> Dict[str, Any]:
+    """Train and score one (fold, seed) fit. Raises :class:`SeedFailed`.
+
+    The body is the former inner block of ``run_one_fold``'s seed loop, moved
+    verbatim so that the parallel and serial paths cannot diverge.
+    """
+    holdout = plan.holdout
+    primary = plan.primary
+    inductives = plan.inductives
+    val_bundle = plan.val_bundle
+    effective_layers = plan.effective_layers
+    fold_dir = plan.fold_dir
+
+    variant = cfg["variant"]
+    layer = cfg["layer"]
+    epochs = cfg["epochs"]
+    lr = cfg["lr"]
+    hidden = cfg["hidden"]
+    heads = cfg["heads"]
+    layers = cfg["layers"]
+    dropout = cfg["dropout"]
+    mode = cfg["mode"]
+    eval_population = cfg["eval_population"]
+    weight_decay = cfg["weight_decay"]
+    warmup_T0 = cfg["warmup_T0"]
+    multitask_weight = cfg["multitask_weight"]
+    rm_consistency_weight = cfg["rm_consistency_weight"]
+    ranking_weight = cfg["ranking_weight"]
+    pairwise_ranking_weight = cfg["pairwise_ranking_weight"]
+    rank_normalize_features = cfg["rank_normalize_features"]
+    rank_normalize_labels = cfg["rank_normalize_labels"]
+
+    logger.info("  ── seed %d ──", seed)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
+    ckpt_dir = fold_dir / f"seed_{seed}"
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        if variant in _STRUCTURAL_VARIANTS:
+            # Training-free structural centrality. It has no notion of a
+            # train set, so its held-out score is simply its score — which
+            # is exactly why it belongs in the LOSO table: an out-of-domain
+            # comparison a model must beat to justify being trained at all.
+            # Omitting it (as the published Table 4 did) leaves the strongest
+            # non-learning competitor unmeasured under the harder protocol.
+            from reproduce.main_table import (
+                _compute_topo_baseline_scores, _load_scenario_data,
+            )
+
+            # Score on the DEPENDS_ON projection, not the native graph.
+            # Application nodes never route messages, so their betweenness
+            # on the raw pub-sub graph is identically 0 — the baseline would
+            # emit a constant for the entire Application stratum and its
+            # pooled rho would be carried purely by between-type offsets.
+            # This is the same substrate the in-distribution table gives it.
+            try:
+                proj_graph, proj_struct, _sim, _rm, _gt = _load_scenario_data(
+                    holdout.scenario_id, substrate="projection"
+                )
+            except Exception as exc:      # noqa: BLE001 - fall back to native
+                logger.warning("  %s: projection unavailable (%s); using native graph", variant, exc)
+                proj_graph, proj_struct = holdout.graph, holdout.structural
+
+            struct_pred = _compute_topo_baseline_scores(
+                proj_graph, proj_struct,
+                use_qos=(variant == "topo_qos"),
+            )
+            if not struct_pred:
+                logger.warning("  %s: no structural signal on holdout; skipping seed", variant)
+                raise SeedFailed("no structural signal on holdout")
+            pred_scores = {str(k): float(v) for k, v in struct_pred.items()}
+            full_node_scores = {
+                k: {"overall": v, "reliability": v, "maintainability": v}
+                for k, v in pred_scores.items()
+            }
+
+        elif variant in _HOMOGENEOUS_VARIANTS:
+            # Baseline variants use GNNTrainer directly
+            from saag.prediction.models.baselines import build_baseline
+            from saag.prediction.data_preparation import create_node_splits
+            from saag.prediction.trainer import GNNTrainer, evaluate
+
+            # Any arm with an edge channel needs QoS on the graph; the
+            # registry owns which those are.
+            use_qos = _registry.edge_dim(variant, "loso") is not None
+            train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
+            holdout_graph, holdout_sm = _prepare_bundle_graph(holdout, use_qos)
+
+            conv = networkx_to_hetero_data(
+                train_graph, train_sm, primary.simulation, primary.rm,
+                qos_enabled=use_qos,
+                rank_normalize_features=rank_normalize_features,
+            )
+            data = conv.hetero_data
+            create_node_splits(data, seed=seed)
+
+            # Training-set parity with the HGT branch below. This branch
+            # used to train on `primary` alone while the HGT branch trained
+            # on primary + every inductive scenario, so the published
+            # typed-vs-untyped LOSO margin compared a model with N-1
+            # training graphs against one with a single graph. Same folds,
+            # same substrate, same graph count.
+            inductive_data = [
+                _build_training_hetero(b, use_qos, rank_normalize_features)
+                for b in inductives
+            ]
+            for ig in inductive_data:
+                create_node_splits(ig, seed=seed)
+
+            # Multi-graph training also requires the label normalization the
+            # GNNService path has always applied and this branch never did:
+            # without it each scenario's labels reach the same scale-sensitive
+            # loss terms on its own raw scale.
+            normalize_labels_robust(data, rank_normalize=rank_normalize_labels)
+            for ig in inductive_data:
+                normalize_labels_robust(ig, rank_normalize=rank_normalize_labels)
+
+            val_data = None
+            if val_bundle is not None:
+                val_data = _build_validation_hetero(
+                    val_bundle, use_qos, rank_normalize_features
+                )
+                normalize_labels_robust(val_data, rank_normalize=rank_normalize_labels)
+
+            if inductive_data:
+                from torch_geometric.loader import DataLoader as _PyGDataLoader
+                training_input = _PyGDataLoader(
+                    [data] + inductive_data, batch_size=1, shuffle=True
+                )
+            else:
+                training_input = data
+
+            # Width and edge-channel width come from the registry: they are
+            # identity for every reported variant and differ only for the
+            # RQ2 capacity / edge-channel controls.
+            edge_dim = _registry.edge_dim(variant, "loso")
+            baseline_name = "homo_unweighted" if edge_dim is None else "homo_scalar"
+            model = build_baseline(baseline_name,
+                                   hidden_channels=_registry.hidden_for(variant, hidden, "loso"),
+                                   num_heads=heads,
+                                   num_layers=layers, dropout=dropout,
+                                   edge_dim=edge_dim)
+            model.to(target_device)
+            best_path = ckpt_dir / "best_model.pt"
+            if best_path.exists():
+                logger.info("  Found baseline checkpoint %s. Skipping training.", best_path)
+                model.load_state_dict(torch.load(best_path, map_location=target_device))
+            else:
+                trainer = GNNTrainer(model=model, checkpoint_dir=str(ckpt_dir),
+                                     lr=lr, num_epochs=epochs, patience=min(60, epochs),
+                                     weight_decay=weight_decay, warmup_T0=warmup_T0,
+                                     multitask_weight=multitask_weight,
+                                     rm_consistency_weight=rm_consistency_weight,
+                                     ranking_weight=ranking_weight,
+                                     pairwise_ranking_weight=pairwise_ranking_weight,
+                                     # Also parity: without the labeler's
+                                     # dimension mask the unmeasured
+                                     # maintainability head is regressed
+                                     # toward a fabricated zero, which the
+                                     # HGT branch has never done.
+                                     dimension_mask=conv.dimension_mask)
+                trainer.train(
+                    training_input,
+                    primary_data=data if inductive_data else None,
+                    val_data=val_data,
+                )
+
+            # Evaluate on holdout
+            conv_h = networkx_to_hetero_data(
+                holdout_graph, holdout_sm, holdout.simulation, holdout.rm,
+                qos_enabled=use_qos,
+                rank_normalize_features=rank_normalize_features,
+            )
+            data_h = conv_h.hetero_data
+            create_node_splits(data_h, seed=seed)
+            metrics = evaluate(model, data_h, "test_mask", target_device)
+
+            # Build pred_scores from model output for inductive metrics
+            model.eval()
+            data_h_dev = data_h.to(target_device)
+            with torch.no_grad():
+                x_h = {nt: data_h_dev[nt].x for nt in data_h_dev.node_types if hasattr(data_h_dev[nt], "x")}
+                ei_h = {r: data_h_dev[r].edge_index for r in data_h_dev.edge_types}
+                ea_h = {r: data_h_dev[r].edge_attr for r in data_h_dev.edge_types if hasattr(data_h_dev[r], "edge_attr")}
+                out_h = model(x_h, ei_h, ea_h)
+
+            pred_scores: Dict[str, float] = {}
+            full_node_scores: Dict[str, Dict[str, float]] = {}
+            # node_id_map is Dict[str, List[str]]: node_type → ordered list of node IDs
+            for nt, preds in out_h.items():
+                node_list = conv_h.node_id_map.get(nt, [])
+                for local_idx, nid in enumerate(node_list):
+                    if local_idx < preds.shape[0]:
+                        pred_scores[nid] = float(preds[local_idx, 0])
+                        full_node_scores[nid] = {
+                            "overall":         float(preds[local_idx, 0]),
+                            "reliability":     float(preds[local_idx, 1]),
+                            "maintainability": float(preds[local_idx, 2]),
+                        }
+
+        elif variant in _HGT_VARIANTS:
+            # hgl_qos (default), hgl, hgl_qos_uni or topology_rm → GNNService
+            effective_mode = "rm" if variant == "topology_rm" else mode
+            use_qos = variant in ("hgl_qos", "hgl_qos_uni")
+            train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
+            holdout_graph, holdout_sm = _prepare_bundle_graph(holdout, use_qos)
+
+            best_path = ckpt_dir / "best_model.pt"
+            if best_path.exists():
+                logger.info("  Found GNN checkpoint %s. Skipping training.", best_path)
+                service = GNNService.from_checkpoint(
+                    str(ckpt_dir),
+                    graph=train_graph,
+                    layer=layer,
+                    device=target_device,
+                )
+            else:
+                service = GNNService(
+                    checkpoint_dir=str(ckpt_dir),
+                    hidden_channels=hidden,
+                    num_heads=heads,
+                    num_layers=effective_layers,
+                    dropout=dropout,
+                    predict_edges=False,
+                    device=target_device,
+                    # Variant-derived, unlike --qos-injection, which is a
+                    # cross-cutting CLI ablation. The directionality control
+                    # is the only arm that turns this off.
+                    use_bidirectional=_registry.bidirectional_for(variant),
+                )
+                service.train(
+                    graph=train_graph,
+                    structural_metrics=train_sm,
+                    simulation_results=primary.simulation,
+                    edge_simulation_results=primary.edge_simulation or None,
+                    rm_scores=primary.rm,
+                    inductive_graphs=[
+                        _build_training_hetero(b, use_qos, rank_normalize_features)
+                        for b in inductives
+                    ],
+                    val_graph=(
+                        _build_validation_hetero(
+                            val_bundle, use_qos, rank_normalize_features
+                        )
+                        if val_bundle is not None else None
+                    ),
+                    seeds=[seed],
+                    num_epochs=1 if variant == "topology_rm" else epochs,
+                    lr=lr,
+                    patience=min(60, epochs),
+                    layer=layer,
+                    qos_enabled=use_qos,
+                    weight_decay=weight_decay,
+                    warmup_T0=warmup_T0,
+                    multitask_weight=multitask_weight,
+                    rm_consistency_weight=rm_consistency_weight,
+                    ranking_weight=ranking_weight,
+                    pairwise_ranking_weight=pairwise_ranking_weight,
+                    rank_normalize_features=rank_normalize_features,
+                    rank_normalize_labels=rank_normalize_labels,
+                )
+            result = service.predict(
+                graph=holdout_graph,
+                structural_metrics=holdout_sm,
+                rm_scores=holdout.rm,
+                # GNNService.train() names this simulation_results, predict() names
+                # it eval_labels. Passing the train() spelling here raised TypeError
+                # inside the per-seed try/except, so every HGT/HGT-QoS seed was
+                # skipped and the fold aggregated to nan.
+                eval_labels=holdout.simulation,
+                mode=effective_mode,
+                qos_enabled=use_qos,
+            )
+            pred_scores = {nid: float(ns.composite_score)
+                           for nid, ns in result.node_scores.items()}
+            full_node_scores = {
+                nid: {
+                    "overall":         float(ns.composite_score),
+                    "reliability":     float(ns.reliability_score),
+                    "maintainability": float(ns.maintainability_score),
+                }
+                for nid, ns in result.node_scores.items()
+            }
+
+        else:
+            # Unreachable via the CLI (argparse `choices` is checked against
+            # KNOWN_VARIANTS by tests/test_variant_dispatch.py) and via the
+            # pre-flight check at the top of run_one_fold. Kept so a direct
+            # programmatic call cannot silently get the HGT branch.
+            raise ValueError(
+                f"unrecognised variant {variant!r}; expected one of "
+                f"{sorted(KNOWN_VARIANTS)}"
+            )
+
+    except SeedFailed:
+        # Already reported by the branch that raised it (a structural variant
+        # with no signal on this holdout); not an unexpected fault.
+        raise
+    except Exception as e:
+        logger.error("  Fold seed %d failed: %s", seed, e, exc_info=True)
+        raise SeedFailed(str(e)) from e
+
+    true_impact = {nid: float(d.get("composite", 0.0)) for nid, d in holdout.simulation.items()}
+
+    m = compute_inductive_metrics(
+        pred_scores, true_impact, holdout.graph, population=eval_population,
+    )
+    m["seed"] = seed
+    m["prediction_mode"] = mode
+    m["variant"] = variant
+    m["_full_scores"] = full_node_scores  # temporary storage for aggregation
+
+
+    logger.info(
+        "    ρ=%.4f  F1=%.4f  NDCG=%.4f  RMSE=%.4f  (n=%d, mode=%s)",
+        m["spearman_rho"], m["f1_at_k"], m["ndcg_10"], m["rmse"], m["n"],
+        m["prediction_mode"],
+    )
+
+    return m
+
+
+def _aggregate_fold(plan: _FoldPlan, seed_metrics: List[Dict[str, Any]]) -> FoldResult:
+    """Collapse a fold's per-seed metrics into its FoldResult."""
+    holdout = plan.holdout
+    train_ids = plan.train_ids
+    primary = plan.primary
+    effective_layers = plan.effective_layers
+    val_bundle = plan.val_bundle
 
     # Aggregate node scores across seeds
     all_nodes = set()
@@ -905,6 +1147,189 @@ def run_one_fold(
 # Full LOSO orchestration
 # ──────────────────────────────────────────────────────────────────────────────
 
+#: How many consecutive failed fits before a sweep is abandoned. A systematic
+#: fault — a device mismatch, a missing artefact, a bad flag — fails every fit
+#: identically, and the per-seed handler's log-and-continue turns that into
+#: hours of wasted training before anything is raised. One fold's worth of
+#: identical failures is already conclusive.
+_FAIL_FAST_STREAK = 5
+
+
+class SweepAborted(RuntimeError):
+    """Raised when a run of fits fails the same way, instead of training on."""
+
+
+class _FailFast:
+    """Counts consecutive failures and trips once they look systematic."""
+
+    def __init__(self, streak: int = _FAIL_FAST_STREAK):
+        self.streak = streak
+        self.count = 0
+        self.last = ""
+
+    def record(self, error: Optional[str]) -> None:
+        if error is None:
+            self.count = 0
+            return
+        self.count += 1
+        self.last = error
+        if self.count >= self.streak:
+            raise SweepAborted(
+                f"{self.count} consecutive fits failed with the same fault; "
+                f"abandoning the sweep rather than training on. Last error: {self.last}"
+            )
+
+
+def _preflight(plan: _FoldPlan, cfg: Dict[str, Any], target_device: torch.device,
+               workdir: Path) -> None:
+    """Run one throwaway one-epoch fit before committing to the sweep.
+
+    A sweep is hours of work whose first fault may only surface at the end of a
+    fit. This exercises the whole path — conversion, model construction,
+    training step, inference, metric computation — for a few seconds, on this
+    device, so an environment fault is reported before the sweep rather than
+    after it.
+    """
+    probe_dir = workdir / ".preflight"
+    shutil.rmtree(probe_dir, ignore_errors=True)
+    probe_dir.mkdir(parents=True, exist_ok=True)
+    probe_plan = _FoldPlan(**{**plan.__dict__, "fold_dir": probe_dir})
+    probe_cfg = {**cfg, "epochs": 1}
+    t0 = time.time()
+    try:
+        _run_seed(probe_plan, 42, probe_cfg, target_device)
+    except SeedFailed as exc:
+        raise SweepAborted(
+            f"pre-flight fit failed on device '{target_device.type}' before the "
+            f"sweep started: {exc}. Nothing was trained. Re-run with "
+            f"--no-preflight to skip this check."
+        ) from exc
+    finally:
+        shutil.rmtree(probe_dir, ignore_errors=True)
+    logger.info("Pre-flight fit OK (%s, 1 epoch, %.1fs).", target_device.type, time.time() - t0)
+
+
+def _run_folds_serial(
+    plans: List[_FoldPlan], seeds: List[int], cfg: Dict[str, Any],
+    target_device: torch.device, resume: bool, cache_dir: Optional[Path],
+) -> Dict[str, List[Dict[str, Any]]]:
+    guard = _FailFast()
+    out: Dict[str, List[Dict[str, Any]]] = {}
+    for i, plan in enumerate(plans):
+        logger.info("════════════════════════════════════════════════════════════")
+        logger.info("LOSO fold %d / %d   holdout = %s",
+                    i + 1, len(plans), plan.holdout.scenario_id)
+        logger.info("════════════════════════════════════════════════════════════")
+        collected: List[Dict[str, Any]] = []
+        for seed in seeds:
+            errors: List[str] = []
+            m = _seed_metrics(plan, seed, cfg, target_device, resume=resume,
+                              cache_dir=cache_dir, done=collected, errors=errors)
+            guard.record(None if m is not None else (errors[-1] if errors else "unknown"))
+            if m is not None:
+                collected.append(m)
+        out[plan.holdout.scenario_id] = collected
+    return out
+
+
+#: Per-worker state. Populated once per process by _worker_init so the corpus is
+#: parsed once per worker rather than pickled once per fit.
+_WORKER_STATE: Dict[str, Any] = {}
+
+
+def _worker_init(cache_dir: str, skip: List[str], expected_ids: List[str],
+                 torch_threads: int) -> None:
+    torch.set_num_threads(max(1, torch_threads))
+    logging.getLogger().setLevel(logging.WARNING)
+    bundles = discover_scenarios(Path(cache_dir), skip=skip)
+    got = [b.scenario_id for b in bundles]
+    if got != list(expected_ids):
+        # Fold indices are positional; a worker that enumerated the corpus
+        # differently would train on one fold and report it as another.
+        raise RuntimeError(
+            f"worker corpus differs from the parent's: {got} != {list(expected_ids)}"
+        )
+    _WORKER_STATE["bundles"] = bundles
+
+
+def _worker_seed(job: Tuple) -> Tuple[int, int, Optional[Dict[str, Any]], Optional[str], bool]:
+    (k, seed, cfg, workdir, layers, auto_layers, inner_val,
+     device_type, resume, cache_dir) = job
+    plan = _plan_fold(_WORKER_STATE["bundles"], k, layers, auto_layers,
+                      inner_val, Path(workdir))
+    errors: List[str] = []
+    info: Dict[str, Any] = {}
+    m = _seed_metrics(
+        plan, seed, cfg, torch.device(device_type), resume=resume,
+        cache_dir=Path(cache_dir) if cache_dir else None, errors=errors, info=info,
+    )
+    return k, seed, m, (errors[-1] if errors else None), bool(info.get("reused"))
+
+
+def _run_folds_parallel(
+    plans: List[_FoldPlan], seeds: List[int], cfg: Dict[str, Any],
+    target_device: torch.device, workdir: Path, jobs: int, resume: bool,
+    cache_dir: Optional[Path], skip: List[str], torch_threads: int,
+    expected_ids: List[str], auto_layers: bool, inner_val: str,
+) -> Dict[str, List[Dict[str, Any]]]:
+    """Dispatch every (fold, seed) fit to a process pool.
+
+    The unit is the fit, not the fold: folds differ in cost by roughly an order
+    of magnitude (the primary graph changes with the holdout), so a fold-level
+    pool would spend its tail waiting on a single worker.
+    """
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+
+    if cache_dir is None:
+        raise ValueError("--jobs > 1 needs --cache-dir so each worker can load the corpus")
+
+    queue = [
+        (k, seed, cfg, str(workdir), cfg["layers"], auto_layers, inner_val,
+         target_device.type, resume, str(cache_dir))
+        for k in range(len(plans)) for seed in seeds
+    ]
+    logger.info("Dispatching %d fits (%d folds x %d seeds) across %d workers.",
+                len(queue), len(plans), len(seeds), jobs)
+
+    out: Dict[str, List[Dict[str, Any]]] = {p.holdout.scenario_id: [] for p in plans}
+    by_fold: Dict[int, Dict[int, Dict[str, Any]]] = {k: {} for k in range(len(plans))}
+    guard = _FailFast()
+    done_count = 0
+
+    with ProcessPoolExecutor(
+        max_workers=jobs,
+        initializer=_worker_init,
+        initargs=(str(cache_dir), list(skip), list(expected_ids), torch_threads),
+    ) as pool:
+        futures = {pool.submit(_worker_seed, job): job for job in queue}
+        try:
+            for fut in as_completed(futures):
+                k, seed, m, err, reused = fut.result()
+                done_count += 1
+                if m is not None:
+                    by_fold[k][seed] = m
+                if m is None:
+                    outcome = f"FAILED ({err})"
+                else:
+                    outcome = f"rho={m['spearman_rho']:.4f}"
+                    if reused:
+                        outcome += "  (reused)"
+                logger.info("  [%d/%d] fold=%s seed=%d %s", done_count, len(queue),
+                            plans[k].holdout.scenario_id, seed, outcome)
+                guard.record(None if m is not None else (err or "unknown"))
+        except SweepAborted:
+            for fut in futures:
+                fut.cancel()
+            raise
+
+    # Seed order is the caller's, not completion order: the per-seed lists are
+    # reported verbatim and an aggregate over a shuffled list would differ from
+    # the serial path's in its `seed_metrics` ordering.
+    for k, plan in enumerate(plans):
+        out[plan.holdout.scenario_id] = [by_fold[k][s] for s in seeds if s in by_fold[k]]
+    return out
+
+
 def run_loso(
     bundles: List[ScenarioBundle],
     seeds: List[int],
@@ -930,8 +1355,19 @@ def run_loso(
     rank_normalize_features: bool = False,
     rank_normalize_labels: bool = False,
     device: Optional[str] = "auto",
+    jobs: int = 1,
+    resume: bool = False,
+    cache_dir: Optional[Path] = None,
+    skip: Optional[List[str]] = None,
+    torch_threads: int = 1,
+    preflight: bool = True,
 ) -> LOSOReport:
-    """Run leave-one-scenario-out across all loaded bundles."""
+    """Run leave-one-scenario-out across all loaded bundles.
+
+    ``jobs`` > 1 dispatches (fold, seed) fits to a process pool. Each fit seeds
+    torch and numpy from its own seed and writes to its own directory, so the
+    result does not depend on how many workers ran it — only the wall-clock does.
+    """
     output_dir.mkdir(parents=True, exist_ok=True)
     workdir = output_dir / "workspace"
     workdir.mkdir(exist_ok=True)
@@ -946,38 +1382,52 @@ def run_loso(
     global_metadata = (list(all_node_types), list(all_edge_types))
     logger.info("Global metadata: %d node types, %d edge types", len(all_node_types), len(all_edge_types))
 
-    fold_results: List[FoldResult] = []
-    for k in range(len(bundles)):
-        logger.info("════════════════════════════════════════════════════════════")
-        logger.info("LOSO fold %d / %d   holdout = %s",
-                    k + 1, len(bundles), bundles[k].scenario_id)
-        logger.info("════════════════════════════════════════════════════════════")
+    cfg = _seed_cfg(
+        layer=layer, epochs=epochs, lr=lr, hidden=hidden, heads=heads,
+        layers=layers, dropout=dropout, mode=mode, variant=variant,
+        eval_population=eval_population, weight_decay=weight_decay,
+        warmup_T0=warmup_T0, multitask_weight=multitask_weight,
+        rm_consistency_weight=rm_consistency_weight, ranking_weight=ranking_weight,
+        pairwise_ranking_weight=pairwise_ranking_weight,
+        rank_normalize_features=rank_normalize_features,
+        rank_normalize_labels=rank_normalize_labels,
+    )
+    target_device = _resolve_device(device)
+    plans = [
+        _plan_fold(bundles, k, layers, auto_layers, inner_val, workdir)
+        for k in range(len(bundles))
+    ]
 
-        try:
-            fold = run_one_fold(
-                bundles=bundles, holdout_idx=k, seeds=seeds,
-                layer=layer, epochs=epochs, lr=lr,
-                hidden=hidden, heads=heads, layers=layers, dropout=dropout,
-                workdir=workdir, mode=mode,
-                global_metadata=global_metadata,
-                variant=variant,
-                eval_population=eval_population,
-                auto_layers=auto_layers,
-                weight_decay=weight_decay,
-                warmup_T0=warmup_T0,
-                multitask_weight=multitask_weight,
-                rm_consistency_weight=rm_consistency_weight,
-                ranking_weight=ranking_weight,
-                pairwise_ranking_weight=pairwise_ranking_weight,
-                inner_val=inner_val,
-                rank_normalize_features=rank_normalize_features,
-                rank_normalize_labels=rank_normalize_labels,
-                device=device,
-            )
-            fold_results.append(fold)
-        except Exception as exc:
-            logger.exception("  Fold failed (holdout=%s): %s", bundles[k].scenario_id, exc)
+    if preflight:
+        _preflight(plans[0], cfg, target_device, workdir)
+
+    # Training-free variants recompute the same deterministic numbers for every
+    # seed, so the pool would buy nothing and the seed-replication shortcut in
+    # _seed_metrics needs the seeds of a fold to be in one process.
+    if jobs > 1 and variant in _STRUCTURAL_VARIANTS:
+        logger.info("Variant %s is training-free; running it serially.", variant)
+        jobs = 1
+
+    if jobs > 1:
+        per_fold = _run_folds_parallel(
+            plans, seeds, cfg, target_device, workdir=workdir, jobs=jobs,
+            resume=resume, cache_dir=cache_dir, skip=skip or [],
+            torch_threads=torch_threads, expected_ids=[b.scenario_id for b in bundles],
+            auto_layers=auto_layers, inner_val=inner_val,
+        )
+    else:
+        per_fold = _run_folds_serial(
+            plans, seeds, cfg, target_device, resume=resume, cache_dir=cache_dir,
+        )
+
+    fold_results: List[FoldResult] = []
+    for plan in plans:
+        metrics = per_fold.get(plan.holdout.scenario_id, [])
+        if not metrics:
+            logger.error("  Fold produced no usable seed (holdout=%s).",
+                         plan.holdout.scenario_id)
             continue
+        fold_results.append(_aggregate_fold(plan, metrics))
 
     # Cross-fold aggregation
     if not fold_results:
@@ -1342,6 +1792,38 @@ def parse_args() -> argparse.Namespace:
         "--device", default="auto", choices=["auto", "cuda", "cpu"],
         help="Device for model training/inference (default: auto -> cuda if available else cpu)",
     )
+    p.add_argument(
+        "--jobs", type=int, default=1,
+        help="Number of (fold, seed) fits to run concurrently (default: 1). "
+             "Every fit seeds torch and numpy from its own seed and writes to its "
+             "own directory, so results do not depend on this — only wall-clock "
+             "does. The corpus here is small enough that a fit is latency-bound "
+             "rather than compute-bound, so several concurrent workers share one "
+             "GPU (or one CPU) without contending for it.",
+    )
+    p.add_argument(
+        "--torch-threads", type=int, default=1,
+        help="Intra-op threads per process (default: 1). On graphs this small, "
+             "every tensor op is smaller than its own threading overhead: "
+             "measured on the enterprise scenario, one forward+backward takes "
+             "1540 ms at 14 threads and 54 ms at 1. Results are unchanged (the "
+             "fold reproduces to 10 decimal places either way).",
+    )
+    p.add_argument(
+        "--resume", action="store_true",
+        help="Reuse any completed (fold, seed) fit whose stored fingerprint "
+             "still matches this configuration, the cache contents and the "
+             "current model code. Anything that does not match is re-run from "
+             "scratch, its stale checkpoint deleted first.",
+    )
+    p.add_argument(
+        "--no-preflight", dest="preflight", action="store_false", default=True,
+        help="Skip the one-epoch probe fit that runs before the sweep. The probe "
+             "exercises the whole path on the target device in a few seconds; "
+             "without it, an environment fault surfaces only after every fit has "
+             "failed (a CUDA-only fault in the k-fold harness cost 3.8 hours "
+             "before it raised).",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args()
 
@@ -1357,6 +1839,9 @@ def main() -> int:
     seeds = [int(s.strip()) for s in args.seeds.split(",") if s.strip()]
     skip = [s.strip() for s in args.skip.split(",") if s.strip()]
 
+    # Set before the first tensor op, and inherited by pool workers.
+    torch.set_num_threads(max(1, args.torch_threads))
+
     dev_desc = "cuda" if (args.device == "cuda" or (args.device == "auto" and torch.cuda.is_available())) else "cpu"
     if dev_desc == "cuda":
         dev_desc += f" ({torch.cuda.get_device_name(0)})"
@@ -1370,6 +1855,8 @@ def main() -> int:
     logger.info("  Mode:      %s", args.mode)
     logger.info("  Variant:   %s", getattr(args, 'variant', 'hgl_qos'))
     logger.info("  Skip:      %s", skip if skip else "(none)")
+    logger.info("  Jobs:      %d (%d intra-op thread(s) each)", args.jobs, args.torch_threads)
+    logger.info("  Resume:    %s", "on (fingerprinted)" if args.resume else "off")
 
     if not args.cache_dir.exists():
         logger.error("Cache dir not found: %s", args.cache_dir)
@@ -1398,6 +1885,12 @@ def main() -> int:
         rank_normalize_features=args.rank_normalize_features,
         rank_normalize_labels=args.rank_normalize_labels,
         device=args.device,
+        jobs=args.jobs,
+        resume=args.resume,
+        cache_dir=args.cache_dir,
+        skip=skip,
+        torch_threads=args.torch_threads,
+        preflight=args.preflight,
     )
     elapsed = time.time() - t0
     logger.info("LOSO complete in %.1f s.", elapsed)

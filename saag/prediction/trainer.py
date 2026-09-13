@@ -212,14 +212,13 @@ class GNNTrainer:
 
     def _compute_val_loss(self, data: "HeteroData") -> float:
         """Compute loss on validation-masked *labelled* nodes (no grad)."""
-        self.model.eval()
+        val_data = get_inductive_subgraph(data, "val_mask").to(self.device)
+        output = _node_preds_no_grad(self.model, val_data)
+        return self._val_loss_from_preds(output, val_data)
+
+    def _val_loss_from_preds(self, output, val_data: "HeteroData") -> float:
+        """The loss half of :meth:`_compute_val_loss`, given predictions."""
         with torch.no_grad():
-            val_data = get_inductive_subgraph(data, "val_mask")
-            val_data = val_data.to(self.device)
-            x_dict = {nt: val_data[nt].x for nt in val_data.node_types if hasattr(val_data[nt], "x")}
-            ei_dict = {rel: val_data[rel].edge_index for rel in val_data.edge_types}
-            ea_dict = {rel: val_data[rel].edge_attr for rel in val_data.edge_types if hasattr(val_data[rel], "edge_attr")}
-            output = self.model(x_dict, ei_dict, ea_dict)
             node_preds = output[0] if isinstance(output, tuple) else output
 
             total = 0.0
@@ -434,12 +433,27 @@ class GNNTrainer:
         epochs_without_improvement = 0
         history: Dict[str, List[float]] = {"train_loss": [], "val_loss": [], "val_rho": []}
 
+        # The validation graph and its mask never change, so its subgraph is
+        # extracted once and scored with a single forward pass per epoch —
+        # `evaluate` and `_compute_val_loss` each used to run their own, on
+        # identical inputs with dropout disabled.
+        #
+        # The *training* iteration is deliberately left alone. Caching its
+        # subgraphs the same way is worth a further ~11%, but it means iterating
+        # the loader's batch sampler instead of the loader, and
+        # `DataLoader.__iter__` draws a base seed from the global RNG on every
+        # epoch. Skipping that draw shifts the dropout stream and moves every
+        # reported number (measured: LOSO fold rho 0.1795 -> 0.1709). It is a
+        # protocol change, not a speedup, and does not belong here.
+        val_sub = get_inductive_subgraph(first_batch, "val_mask").to(self.device)
+
         for epoch in range(1, self.num_epochs + 1):
             avg_loss = self._run_epoch(loader, optimizer)
             scheduler.step()
 
-            val_metrics = evaluate(self.model, first_batch, "val_mask", self.device)
-            val_loss = self._compute_val_loss(first_batch)
+            val_preds = _node_preds_no_grad(self.model, val_sub)
+            val_metrics = _metrics_from_preds(val_preds, val_sub, "val_mask")
+            val_loss = self._val_loss_from_preds(val_preds, val_sub)
             self.model.train()
 
             if epoch == 1:
@@ -504,12 +518,22 @@ def evaluate(
     device:
         Torch device.
     """
-    model.eval()
-    
     # Enforce Inductive Split Protocol by isolating evaluation subgraph
     sub_data = get_inductive_subgraph(data, mask_name)
     sub_data = sub_data.to(device)
+    node_preds = _node_preds_no_grad(model, sub_data)
+    return _metrics_from_preds(node_preds, sub_data, mask_name)
 
+
+def _node_preds_no_grad(model: nn.Module, sub_data: 'HeteroData') -> Dict[str, Tensor]:
+    """One inference pass over an already-device-resident subgraph.
+
+    Split out of :func:`evaluate` so the training loop can score a validation
+    graph and compute its loss from a *single* forward pass. It used to run two
+    — one in ``evaluate``, one in ``_compute_val_loss`` — on identical inputs
+    with dropout disabled, so the second was a recomputation of the first.
+    """
+    model.eval()
     with torch.no_grad():
         x_dict = {nt: sub_data[nt].x for nt in sub_data.node_types if hasattr(sub_data[nt], "x")}
         ei_dict = {rel: sub_data[rel].edge_index for rel in sub_data.edge_types}
@@ -519,7 +543,12 @@ def evaluate(
             node_preds, _ = model(x_dict, ei_dict, ea_dict)
         else:
             node_preds = model(x_dict, ei_dict, ea_dict)
+    return node_preds
 
+
+def _metrics_from_preds(
+    node_preds: Dict[str, Tensor], sub_data: 'HeteroData', mask_name: str,
+) -> EvalMetrics:
     y_pred, y_true = _collect_samples(node_preds, sub_data, mask_name)
     metrics = evaluate_scores(y_pred, y_true)
 

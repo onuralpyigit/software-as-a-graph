@@ -602,32 +602,27 @@ class FailureSimulator:
 
     def _build_dependency_view(self) -> "_DependencyView":
         """
-        Derive the DEPENDS_ON view of the graph once, for the IM(v) and IV(v)
-        post-passes (which previously each rebuilt it identically).
+        Take the DEPENDS_ON projection once, for the IM(v) post-pass.
 
-        Each component's total outgoing dependency weight is spread evenly over
-        its outgoing arcs, which is the approximation both propagation
-        simulators were already written against.
+        Weights are the derived Rule 1-6 weights (probabilistic union, worst-case
+        lift, harmonic coupling) straight off SimulationGraph. The previous version
+        looked each arc up as a *structural* edge, which can never hit for a derived
+        pair, so every weight defaulted to 1.0 and ChangePropagationSimulator's
+        loose-coupling stop (theta_loose) could not fire.
         """
         components = self.graph.components
-        targets_of = {cid: self.graph.get_depends_on_targets(cid) for cid in components}
+        dep_edges: List[Tuple[str, str, float]] = [
+            (src, tgt, weight)
+            for src, tgt, weight, _ in self.graph.get_dependency_edges()
+        ]
 
-        out_deg = {cid: len(targets) for cid, targets in targets_of.items()}
+        out_deg = {cid: 0 for cid in components}
         in_deg = {cid: 0 for cid in components}
-        for targets in targets_of.values():
-            for tgt in targets:
-                if tgt in in_deg:
-                    in_deg[tgt] += 1
-
-        dep_edges: List[Tuple[str, str, float]] = []
-        for cid, targets in targets_of.items():
-            weight_out = sum(
-                self.graph.graph[cid][tgt].get("weight", 1.0)
-                if self.graph.graph.has_edge(cid, tgt) else 1.0
-                for tgt in targets
-            )
-            per_edge_w = weight_out / out_deg[cid] if out_deg[cid] > 0 else 0.0
-            dep_edges.extend((cid, tgt, per_edge_w) for tgt in targets)
+        for src, tgt, _ in dep_edges:
+            if src in out_deg:
+                out_deg[src] += 1
+            if tgt in in_deg:
+                in_deg[tgt] += 1
 
         return _DependencyView(
             edges=dep_edges,

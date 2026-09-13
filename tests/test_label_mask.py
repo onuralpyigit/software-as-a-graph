@@ -140,3 +140,19 @@ def test_missing_label_mask_falls_back_to_the_old_proxy():
 
     assert _labelled_nodes(store).tolist() == (store.y[:, 0].abs() > 1e-6).tolist()
     assert _labelled_index_mask(store).tolist() == (store.y[:, 0].abs() > 1e-6).tolist()
+
+
+def test_dimension_mask_rejects_a_present_but_constant_column():
+    """A key emitted on every node with one value is not an observation.
+
+    extract_simulation_dict's FailureResult branch always emits a
+    "maintainability" key, so while the change-propagation oracle was degenerate
+    an identically-zero column was marked measured and supervised a head toward
+    a constant — the conflation the branch's own comment warns about.
+    """
+    sim = {
+        "A0": {"composite": 0.9, "reliability": 0.8, "maintainability": 0.0},
+        "A1": {"composite": 0.4, "reliability": 0.3, "maintainability": 0.0},
+    }
+    result = networkx_to_hetero_data(_graph(), structural_metrics={}, simulation_results=sim)
+    assert result.dimension_mask == [True, True, False]

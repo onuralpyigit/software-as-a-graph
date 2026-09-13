@@ -802,31 +802,41 @@ class TestBuildHtml:
             self._service().build_html([])
 
     def test_validation_gate_labels_match_validation_targets(self):
-        """The gate labels the dashboard renders must match the thresholds
-        the gates are actually evaluated against (saag.validation.models.
-        ValidationTargets), and G1-G6/G8 must all render. Previously G2/G3's
-        labels were hardcoded to different numbers ("F1-score > 0.6",
-        "Top-K precision > 0.5") than the real targets (0.75, 0.80), and
-        G5/G6/G8 never appeared at all. G7 (CDCC) and G9 (FTR) were retired
-        with the Vulnerability/Security dimension — see _GATE_SPECS."""
+        """Rendered gate labels must carry the thresholds the gates use.
+
+        _GATE_SPECS is built from RELEASE_GATES + REPORTED_GATES, so it cannot
+        name a gate the service does not emit. The old G-numbers are gone: the
+        numbering had retired holes (G7, G9) and two different gates both called
+        G5 (RMSE in the Validator, predictive gain in the service).
+        """
         from cli.visualize_graph import _demo_layer_data
-        from saag.validation.models import ValidationTargets
+        from saag.validation.models import RELEASE_GATES, REPORTED_GATES, ValidationTargets
 
         data = _demo_layer_data()
         data.gates = {
-            "G1_spearman": True, "G2_f1": True, "G3_precision": True,
-            "G4_top5": True, "G5_predictive_gain": False,
-            "G6_kappa_cta": True,
-            "G8_bottleneck_precision": True,
+            "spearman": True, "overlap_at_q3": True, "top5_overlap": True,
+            "predictive_gain": False, "kappa_cta": True,
+            "bottleneck_precision": None,
         }
 
         html = self._service().build_html([data])
         targets = ValidationTargets()
 
-        assert f"G2: F1-score ≥ {targets.f1_score:.2f}" in html
-        assert f"G3: Top-K precision ≥ {targets.precision:.2f}" in html
-        assert "G7:" not in html
-        assert "G9:" not in html
+        assert f"Top-quartile overlap ≥ {targets.f1_score:.2f} (release)" in html
+        assert f"Spearman ρ ≥ {targets.spearman:.2f} (release)" in html
+        assert f"Predictive gain > {targets.predictive_gain:.2f} (reported)" in html
+        # None renders as NOT MEASURED, never as a failure.
+        assert "NOT MEASURED" in html
+        # No G-numbering survives anywhere in the report.
+        for n in (1, 2, 3, 4, 5, 6, 7, 8, 9):
+            assert f"G{n}:" not in html
+
+    def test_gate_specs_cannot_name_an_unemitted_gate(self):
+        """_GATE_SPECS is derived from the gate tuples, so drift is impossible."""
+        from saag.visualization.service import _GATE_SPECS
+        from saag.validation.models import RELEASE_GATES, REPORTED_GATES
+
+        assert [k for k, *_ in _GATE_SPECS] == list(RELEASE_GATES + REPORTED_GATES)
 
     def test_demo_fixture_renders_triage_panel(self):
         """Demo fixture should render the Triage bridge panel and role badges."""

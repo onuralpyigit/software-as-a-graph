@@ -746,27 +746,19 @@ export default function ValidationPage() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="p-3 border rounded-lg bg-muted/20">
                       <p className="text-xs text-muted-foreground"><TermTooltip term="Spearman ρ">Spearman ρ</TermTooltip></p>
-                      <p className="text-lg font-bold">≥ {validationTargets.spearman.toFixed(2)}</p>
+                      <p className="text-lg font-bold">≥ {validationTargets.spearman?.toFixed(2) ?? "—"}</p>
                     </div>
                     <div className="p-3 border rounded-lg bg-muted/20">
                       <p className="text-xs text-muted-foreground"><TermTooltip term="F1 Score">F1 Score</TermTooltip></p>
-                      <p className="text-lg font-bold">≥ {validationTargets.f1_score.toFixed(2)}</p>
+                      <p className="text-lg font-bold">≥ {validationTargets.f1_score?.toFixed(2) ?? "—"}</p>
                     </div>
                     <div className="p-3 border rounded-lg bg-muted/20">
                       <p className="text-xs text-muted-foreground"><TermTooltip term="Precision">Precision</TermTooltip></p>
-                      <p className="text-lg font-bold">≥ {validationTargets.precision.toFixed(2)}</p>
-                    </div>
-                    <div className="p-3 border rounded-lg bg-muted/20">
-                      <p className="text-xs text-muted-foreground"><TermTooltip term="Recall">Recall</TermTooltip></p>
-                      <p className="text-lg font-bold">≥ {validationTargets.recall.toFixed(2)}</p>
+                      <p className="text-lg font-bold">≥ {validationTargets.precision?.toFixed(2) ?? "—"}</p>
                     </div>
                     <div className="p-3 border rounded-lg bg-muted/20">
                       <p className="text-xs text-muted-foreground"><TermTooltip term="Top-5 Overlap">Top-5 Overlap</TermTooltip></p>
-                      <p className="text-lg font-bold">≥ {validationTargets.top_5_overlap.toFixed(2)}</p>
-                    </div>
-                    <div className="p-3 border rounded-lg bg-muted/20">
-                      <p className="text-xs text-muted-foreground"><TermTooltip term="RMSE">RMSE</TermTooltip></p>
-                      <p className="text-lg font-bold">≤ {validationTargets.rmse_max.toFixed(2)}</p>
+                      <p className="text-lg font-bold">≥ {validationTargets.top_5_overlap?.toFixed(2) ?? "—"}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -923,22 +915,10 @@ function LayerResultCard({
                   higherBetter={true}
                 />
                 <MetricRow
-                  label="Recall"
-                  value={layer.summary.recall}
-                  target={targets.recall}
-                  higherBetter={true}
-                />
-                <MetricRow
                   label="Top-5 Overlap"
                   value={layer.summary.top_5_overlap}
                   target={targets.top_5_overlap}
                   higherBetter={true}
-                />
-                <MetricRow
-                  label="RMSE"
-                  value={layer.summary.rmse}
-                  target={targets.rmse_max}
-                  higherBetter={false}
                 />
               </>
             )}

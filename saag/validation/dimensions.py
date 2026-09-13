@@ -30,8 +30,7 @@ class DimensionInputs:
 
     ``predicted``/``actual`` are restricted to this dimension's common ids, while
     ``predictions``/``ground_truths`` carry every dimension's dicts so a
-    specialist can reach sideways (availability's DASA needs the directional
-    ia_out/ia_in truths).
+    specialist can reach sideways into another dimension's signal.
     """
     ids: List[str]                              # sorted common ids, len >= 3
     predicted: Dict[str, float]                 # {id: dimension score}
@@ -62,23 +61,6 @@ class DimensionResult:
     ci: Tuple[float, float]                            # -> confidence_intervals[key]
 
 
-#: Structural metrics the availability specialists want that `StructuralMetrics`
-#: does not currently produce — see the note in `_availability_specialists`.
-#: `_structural` below is unused while that holds; both are kept so the fix
-#: (populate these four fields, then call `_structural` + calculate_hsrr/
-#: calculate_dasa/calculate_rri from metric_calculator again) is a small diff.
-UNPOPULATED_STRUCTURAL_METRICS = ("ap_c_out", "ap_c_in", "qspof", "bridge_score")
-
-
-def _structural(d: DimensionInputs, attr: str) -> Dict[str, float]:
-    """Read a structural metric for every id, defaulting to 0.0 when absent."""
-    return {
-        cid: float(getattr(d.components[cid].structural, attr, 0.0) or 0.0)
-        for cid in d.ids
-        if cid in d.components
-    }
-
-
 def _reliability_specialists(d: DimensionInputs) -> Dict[str, float]:
     """CCR@5 (cascade capture) and CME (cascade magnitude error).
 
@@ -100,50 +82,56 @@ def _reliability_specialists(d: DimensionInputs) -> Dict[str, float]:
     }
 
 
-def _maintainability_specialists(d: DimensionInputs) -> Dict[str, float]:
-    """COCR@5, weighted-κ coupling tier agreement, and bottleneck precision."""
-    betweenness = {
-        cid: d.components[cid].structural.betweenness for cid in d.ids if cid in d.components
-    }
-    weight_out = {
-        cid: d.components[cid].structural.dependency_weight_out
+def _max_normalised(d: DimensionInputs, attr: str) -> Dict[str, float]:
+    """Max-normalise one structural metric over the validated population.
+
+    `calculate_bottleneck_precision`'s thresholds (BT > 0.60, w_out < 0.30) are
+    calibrated for the normalised values `StructuralAnalyzer._compute_rm` scores
+    against, not for raw betweenness and raw dependency_weight_out -- raw w_out is
+    an unbounded sum of QoS weights, so the conjunction was very nearly
+    unsatisfiable and BP read 0.0 by construction. This reproduces the analyzer's
+    max-based scaling (`_normalize_max`) over the same population; it cannot reuse
+    the analyzer's own table, which is built inside `_compute_rm` and never
+    reaches the validation stage.
+    """
+    values = {
+        cid: float(getattr(d.components[cid].structural, attr, 0.0) or 0.0)
         for cid in d.ids if cid in d.components
     }
+    peak = max(values.values(), default=0.0)
+    if peak <= 0.0:
+        return {cid: 0.0 for cid in values}
+    return {cid: v / peak for cid, v in values.items()}
+
+
+def _maintainability_specialists(d: DimensionInputs) -> Dict[str, Any]:
+    """COCR@5, weighted-κ coupling tier agreement, and bottleneck precision."""
     return {
         "cocr_5": calculate_cocr_at_k(d.predicted, d.actual, k=5),
         "weighted_kappa_cta": calculate_weighted_kappa_cta(d.predicted, d.actual),
-        "bottleneck_precision": calculate_bottleneck_precision(betweenness, weight_out, d.actual),
+        "bottleneck_precision": calculate_bottleneck_precision(
+            _max_normalised(d, "betweenness"),
+            _max_normalised(d, "dependency_weight_out"),
+            d.actual,
+        ),
     }
 
 
 def _availability_specialists(d: DimensionInputs) -> Dict[str, Any]:
-    """SPOF-F1 (with its precision/recall), HSRR, DASA and RRI.
+    """SPOF-F1 over the structural articulation points.
 
-    Only SPOF-F1 is fully backed by the current analyzer: it uses
-    `is_articulation_point`, which `StructuralMetrics` does populate. HSRR, DASA
-    and RRI read the metrics named in `UNPOPULATED_STRUCTURAL_METRICS`
-    (`qspof`, `ap_c_out`, `ap_c_in`, `bridge_score`) — none of these are fields
-    `StructuralAnalyzer` ever writes to `StructuralMetrics`, so every predictor
-    value the specialists would see is permanently 0.0 by omission, not by
-    measurement. That does not evaluate to "no hidden SPOFs" or "no asymmetry";
-    it evaluates to no measurement at all. Report None rather than a computed
-    float, so "not yet measured" cannot be mistaken for "measured and
-    near-zero". Flip this back to computing real values once the analyzer
-    emits those four fields.
+    HSRR, DASA and RRI used to be reported here as a hardcoded None. They read
+    `qspof`, `ap_c_out`, `ap_c_in` and `bridge_score`, none of which
+    `StructuralAnalyzer` ever writes to `StructuralMetrics`, so they were never
+    measurable and nothing downstream consumed them; their calculators have been
+    removed along with the keys. `is_articulation_point` is populated, so SPOF-F1
+    is a real measurement and stays.
     """
     articulation = {
         cid: (1.0 if d.components[cid].structural.is_articulation_point else 0.0)
         for cid in d.ids if cid in d.components
     }
-    spof = calculate_spof_f1(articulation, d.actual)
-    return {
-        "spof_f1": spof["f1"],
-        "spof_precision": spof["precision"],
-        "spof_recall": spof["recall"],
-        "hsrr": None,
-        "dasa": None,
-        "rri": None,
-    }
+    return {"spof_f1": calculate_spof_f1(articulation, d.actual)["f1"]}
 
 
 #: Validated in this order; ``key`` is a published output key (read by
@@ -165,14 +153,13 @@ SUBCHARACTERISTIC_SPECS: Tuple[DimensionSpec, ...] = (
     DimensionSpec("availability", "availability", "availability_impact", "IA(v)", _availability_specialists),
 )
 
-#: Simulation impact fields that are scaled once and shared by the specs above.
-#: The first three are the per-dimension/sub-characteristic ground truths; the
-#: rest are auxiliary signals that individual specialists read.
+#: Simulation impact fields that are scaled once and shared by the specs above:
+#: the composite plus the per-dimension/sub-characteristic ground truths.
+#: ia_out/ia_in were scaled here for DASA and are no longer read by any
+#: specialist; the simulator still emits them and the API still exposes them.
 GROUND_TRUTH_FIELDS: Tuple[str, ...] = (
     "composite_impact",
     "reliability_impact",
     "maintainability_impact",
     "availability_impact",
-    "ia_out",
-    "ia_in",
 )

@@ -705,6 +705,21 @@ PYTHONPATH=. python cli/validate_graph.py sweep \
 
 Use `cli/loso_evaluate.py` for leave-one-scenario-out evaluation across domain datasets.
 
+A sweep is `folds x seeds` independent fits (12 x 5 = 60 per variant on the shipped
+corpus), and the flags below control how they are scheduled rather than what they
+compute. None of them changes a result: a fold reproduces bit-identically at any
+`--jobs` and any `--torch-threads`.
+
+| Flag | Default | What it does |
+|:---|:---|:---|
+| `--jobs N` | `1` | Run N (fold, seed) fits concurrently. Fits are latency-bound rather than compute-bound on graphs this size, so several workers share one GPU or CPU well. Measured on the 12-fold corpus: 253 s at `--jobs 1`, 73 s at `--jobs 6`, identical output. |
+| `--torch-threads N` | `1` | Intra-op threads per fit. One is the fastest setting here, not a throttle: every tensor op is smaller than its own threading overhead, and one forward+backward on the enterprise scenario takes 1540 ms at 14 threads versus 54 ms at 1. |
+| `--resume` | off | Reuse any completed fit whose stored fingerprint — configuration, cache contents, and the contents of the model/trainer/harness modules — still matches. Anything that does not match is re-run with its stale checkpoint deleted first, so an interrupted sweep restarts where it stopped rather than at zero. |
+| `--no-preflight` | on | Skip the one-epoch probe fit that runs before the sweep. The probe exercises conversion, model construction, a training step, inference and metrics on the target device in a few seconds; without it an environment fault surfaces only after every fit has failed. |
+
+`reproduce/loso_all_variants.py` forwards all four, and `make -f reproduce/Makefile
+table4 JOBS=8` sets the first.
+
 ### Ablation Studies (Topology-only vs QoS-enriched)
 
 ```bash

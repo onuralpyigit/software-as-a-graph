@@ -227,10 +227,6 @@ examples:
         help="Output directory for reports (default: results/benchmark)",
     )
     opts.add_argument(
-        "--ndcg-k", type=int, default=10,
-        help="K for NDCG@K calculation (default: 10)",
-    )
-    opts.add_argument(
         "--seed", type=int, default=42,
         help="Base seed for synthetic generation (default: 42)",
     )
@@ -300,7 +296,6 @@ def main() -> int:
         uri=args.uri,
         user=args.user,
         password=args.password,
-        ndcg_k=args.ndcg_k,
         verbose=args.verbose,
         targets=targets,
     ) as runner:

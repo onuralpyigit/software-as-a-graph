@@ -165,8 +165,7 @@ def _demo_layer_data() -> LayerData:
     ]
 
     demo_data.gates = {
-        "G1_spearman": True, "G2_f1": True,
-        "G3_precision": True, "G4_top5": True,
+        "spearman": True, "overlap_at_q3": True, "top5_overlap": True,
     }
 
     # Dual-Pathway & Triage data (§4 Prediction Architecture)

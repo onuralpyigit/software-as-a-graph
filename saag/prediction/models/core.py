@@ -592,15 +592,8 @@ class CriticalityLoss(nn.Module):
         _, idx = torch.sort(targets, descending=True)
         tau = max(float(temperature), 1e-4)
         sorted_scores = scores[idx] / tau
-        n = sorted_scores.shape[0]
-        cumulative_log_sum_exp = []
-        running = torch.tensor(-float("inf"), device=scores.device)
-        for i in range(n - 1, -1, -1):
-            running = torch.logaddexp(running, sorted_scores[i])
-            cumulative_log_sum_exp.insert(0, running)
-        log_probs = torch.stack(
-            [sorted_scores[i] - cumulative_log_sum_exp[i] for i in range(n)]
-        )
+        cum_lse = torch.logcumsumexp(sorted_scores.flip(0), dim=0).flip(0)
+        log_probs = sorted_scores - cum_lse
         return -log_probs.mean()
 
     @staticmethod

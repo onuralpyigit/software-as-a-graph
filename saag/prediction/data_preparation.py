@@ -120,6 +120,7 @@ from __future__ import annotations
 
 import logging
 import math
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
@@ -688,12 +689,25 @@ def networkx_to_hetero_data(
     # leaves maintainability absent; that column stays zero in the matrix but
     # must not be treated as an observation. See GraphConversionResult.
     if simulation_results:
-        measured_keys = set()
+        # Key presence is the weaker prior rule and was not enough: the
+        # FailureResult branch of extract_simulation_dict always emits a
+        # "maintainability" key, so an identically-zero column was marked
+        # measured -- exactly the conflation that regresses a head to a
+        # constant. A column has to actually vary to count as an observation.
+        seen: Dict[str, set] = defaultdict(set)
+        n_labelled = 0
         for sim in simulation_results.values():
             if isinstance(sim, dict):
-                measured_keys.update(sim.keys())
+                n_labelled += 1
+                for key, value in sim.items():
+                    seen[key].add(round(float(value), 12))
+        # With a population to measure over, a column that never varies is a
+        # structural constant rather than an observation. With a single labelled
+        # node there is no variance to have, so key presence is all the evidence
+        # available and the weaker rule applies.
         result.dimension_mask = [
-            dim in measured_keys for dim in sorted(LABEL_COLS, key=LABEL_COLS.get)
+            (len(seen.get(dim, ())) >= 2 if n_labelled > 1 else dim in seen)
+            for dim in sorted(LABEL_COLS, key=LABEL_COLS.get)
         ]
 
     # Also carry the mask on the HeteroData itself so GNNTrainer can default to it
