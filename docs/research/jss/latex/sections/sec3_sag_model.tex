@@ -59,10 +59,10 @@ Application and Library entities additionally incorporate static code metrics co
 
 In distributed middleware, communication links vary in coupling strength based on their Quality-of-Service (QoS) contracts. For instance, a \texttt{RELIABLE} topic with \texttt{TRANSIENT\_LOCAL} durability binds communicating services substantially more tightly than a \texttt{BEST\_EFFORT} telemetry stream.
 
-Each topic $t$ carries an intrinsic criticality weight $w(t) \in [0, 1]$ combining its declared QoS semantics with two runtime-stress modulators: payload size and publication frequency:
+Each topic $t \in V_{\text{topic}}$ carries an intrinsic criticality weight $w_V(t) \in [0, 1]$ combining its declared QoS semantics with two runtime-stress modulators: payload size and publication frequency:
 \begin{equation}
 \label{eq:3}
-w(t) = \beta \cdot \text{QoS}(t) + \alpha \cdot \text{SizeNorm}(t) + \psi \cdot \text{FreqNorm}(t),
+w_V(t) = \beta \cdot \text{QoS}(t) + \alpha \cdot \text{SizeNorm}(t) + \psi \cdot \text{FreqNorm}(t),
 \quad (\beta, \alpha, \psi) = (0.75,\, 0.15,\, 0.10)
 \end{equation}
 where the QoS term is an AHP-weighted aggregate of the declared contract:
@@ -70,9 +70,16 @@ where the QoS term is an AHP-weighted aggregate of the declared contract:
 \text{QoS}(t) = w_{\text{rel}} \cdot q_{\text{rel}} + w_{\text{dur}} \cdot q_{\text{dur}} + w_{\text{prio}} \cdot q_{\text{prio}},
 \quad (w_{\text{rel}}, w_{\text{dur}}, w_{\text{prio}}) = (0.24,\, 0.62,\, 0.14)
 \end{equation}
-Here, $q_{\text{rel}}, q_{\text{dur}}, q_{\text{prio}} \in [0, 1]$ represent normalized reliability, durability, and transport-priority scores. Durability dominates because it governs whether data persists across restarts and network partitions. Reliability and transport priority both govern in-flight delivery quality, with reliability receiving higher weight because unconditional delivery guarantees precede message scheduling. The sub-weight vector is the geometric-mean priority vector of an independently stated Saaty pairwise-comparison matrix, printed with its consistency computation in Supplementary Section~S4; $CR = 0.016$, small but non-zero. The modulators are logarithmically compressed and clamped to $[0, 1]$: $\text{SizeNorm}(t) = \min(1.0, \log_2(1 + \text{bytes})/20)$ (a 1~MiB design envelope, representing the practical DDS sample ceiling before RTPS fragmentation dominates) and $\text{FreqNorm}(t) = \min(1.0, \log_{10}(1 + \text{Hz})/3)$. The final weight $w(t)$ is clamped to $[0.01, 1]$, ensuring that best-effort edges remain visible to graph traversals. Every structural communication edge incident on $t$ (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}) inherits $w_E(e) = w(t)$ along with the topic's QoS vector.
+Here, $q_{\text{rel}}, q_{\text{dur}}, q_{\text{prio}} \in [0, 1]$ represent normalized reliability, durability, and transport-priority scores. Durability dominates because it governs whether data persists across restarts and network partitions. Reliability and transport priority govern in-flight delivery quality, with reliability receiving higher weight because delivery guarantees precede scheduling. The sub-weight vector is the geometric-mean priority vector of an independently stated Saaty pairwise-comparison matrix (Supplementary Section~S4; $CR = 0.016$). 
 
-The outer split $(\beta, \alpha, \psi)$ is a declared convex combination. Sweeping it over the full simplex changes the induced ordering of $w(t)$ by at most $\rho = 0.081$ and downstream rank correlation by at most $0.031$, so it is a documented convention rather than a tuned parameter (Supplementary Section~S1).
+The stress modulators are logarithmically compressed and clamped to $[0, 1]$: 
+\begin{align}
+\text{SizeNorm}(t) &= \min\left(1.0, \frac{\log_2(1 + \text{bytes})}{20}\right) \\
+\text{FreqNorm}(t) &= \min\left(1.0, \frac{\log_{10}(1 + \text{Hz})}{3}\right)
+\end{align}
+The size normalization denominator of 20 reflects a 1~MiB ($2^{20}$ bytes) design envelope, representing the practical DDS sample ceiling before RTPS network fragmentation degrades throughput; the frequency denominator of 3 accommodates up to 1~kHz ($10^3$ Hz) high-rate sensor streams (e.g., IMU or radar feeds) without saturating dynamic range. The final weight $w_V(t)$ is clamped to $[0.01, 1]$, ensuring best-effort edges remain visible to graph traversals. Every structural communication edge $e$ incident on $t$ (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}) inherits $w_E(e) = w_V(t)$ along with the topic's QoS vector.
+
+The outer split $(\beta, \alpha, \psi)$ is a declared convex combination. Sweeping it over the full simplex changes the induced ordering of $w_V(t)$ by at most $\rho = 0.081$ and downstream rank correlation by at most $0.031$, establishing that it is a documented convention rather than a sensitive tuned parameter (Supplementary Section~S1).
 
 \subsubsection{Logical Dependency Projection (\texttt{DEPENDS\_ON})}
 
@@ -86,12 +93,12 @@ Structural edges capture explicit deployment connections but omit implicit runti
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{clll}
 \toprule
-\textbf{Rule} & \textbf{Dependency Category} & \textbf{Structural Pattern ($\text{Dependent} \to \text{Dependency}$)} & \textbf{Derived Weight ($w$)} \\
+\textbf{Rule} & \textbf{Dependency Category} & \textbf{Structural Pattern ($\text{Dependent} \to \text{Dependency}$)} & \textbf{Derived Weight ($w_E(e)$)} \\
 \midrule
-\textbf{1} & \texttt{app\_to\_app} & Subscriber $\to$ Publisher (via shared Topic, incl.\ transitive \texttt{USES}) & $1 - \prod_{t \in T}(1 - w(t))$ \\
-\textbf{2} & \texttt{app\_to\_broker} & Publisher/Subscriber $\to$ Broker routing its topics & $1 - \prod_{t \in T}(1 - w(t))$ \\
-\textbf{3} & \texttt{node\_to\_node} & Host $\to$ Host (lifted from inter-host app dependencies) & Lifted $\max w$ \\
-\textbf{4} & \texttt{node\_to\_broker} & Host $\to$ Broker (lifted from hosted app dependencies) & Lifted $\max w$ \\
+\textbf{1} & \texttt{app\_to\_app} & Subscriber $\to$ Publisher (via shared Topic, incl.\ transitive \texttt{USES}) & $1 - \prod_{t \in T}(1 - w_V(t))$ \\
+\textbf{2} & \texttt{app\_to\_broker} & Publisher/Subscriber $\to$ Broker routing its topics & $1 - \prod_{t \in T}(1 - w_V(t))$ \\
+\textbf{3} & \texttt{node\_to\_node} & Host $\to$ Host (lifted from inter-host app dependencies) & Lifted $\max w_E$ \\
+\textbf{4} & \texttt{node\_to\_broker} & Host $\to$ Broker (lifted from hosted app dependencies) & Lifted $\max w_E$ \\
 \textbf{5} & \texttt{app\_to\_lib} & Application $\to$ Shared Library it \texttt{USES} & $H(w_V(\text{app}), w_V(\text{lib}))$ \\
 \textbf{6} & \texttt{broker\_to\_broker} & Broker $\leftrightarrow$ Broker (shared physical fault-domain colocation, symmetric) & $w_V(\text{node})$ \\
 \bottomrule
@@ -99,7 +106,7 @@ Structural edges capture explicit deployment connections but omit implicit runti
 }
 \end{table}
 
-Rules 1 and 2 aggregate the set of topics $T$ connecting a component pair using a probabilistic union rather than a maximum \cite{pearl1988probabilistic,beliakov2007aggregation,yager1988owa}. This guarantees that additional parallel failure vectors increase coupling monotonically while keeping $w \in (0, 1]$. Rule 5 applies the harmonic mean $H(x, y) = 2xy/(x+y)$ \cite{hardy1952inequalities} to combine the consuming Application's and the shared Library's vertex weights, balancing caller and dependency criticality. Rules 3 and 4 assign the maximum weight among component-level dependencies crossing the host boundary.
+Rules 1 and 2 aggregate the set of topics $T$ connecting a component pair using a probabilistic union rather than a maximum \cite{pearl1988probabilistic,beliakov2007aggregation,yager1988owa}. This guarantees that additional parallel failure vectors increase coupling monotonically while keeping $w_E \in (0, 1]$. Rule 5 applies the harmonic mean $H(x, y) = 2xy/(x+y)$ \cite{hardy1952inequalities} to combine the consuming Application's and the shared Library's vertex weights, balancing caller and dependency criticality. Rules 3 and 4 assign the maximum weight among component-level dependencies crossing the host boundary.
 
 \subsubsection{Sequential Cascades vs.\ Simultaneous Blasts}
 
@@ -111,7 +118,7 @@ A foundational principle of the SaG model is distinguishing between two fundamen
 
 Preserving architectural entity types and relation-specific projection rules enables SaG to model both mechanisms, whereas untyped homogeneous graphs collapse them into indistinguishable edges.
 
-Rule 6 is intentionally the only symmetric projection rule. It does not imply that one broker functionally depends on another, but rather that two brokers colocated on the same host share that host's physical failure domain. This follows the same simultaneous-blast principle as Rule 5, which is why the derived weight equals the shared Node's weight and the relation is bidirectional. In production middleware deployments, colocated brokers compete for host resources (CPU cores, page cache, file descriptors, and NIC bandwidth); a host outage takes down all colocated instances simultaneously. Operational best practices for Kafka, RabbitMQ, and EMQX recommend distributing brokers across fault domains. Rule 6 does not model directional intra-cluster broker coupling (e.g., partition replication, controller quorum election, federation, or shovel links), which do not require physical colocation; extending the schema to capture these interactions is reserved for future work. Rule 6 applies in four of the eight scenarios forming the detection benchmark subset --- the seven core synthetic topologies plus the ATM case study, the subset identified in Table~\ref{tab:corpusmap} --- and contributes only 12 directed edges across them. Because the simulation oracles operate strictly on $G_{\text{structural}}$ (Section~\ref{sec:4.4}), Rule 6 has zero influence on ground-truth failure labels.
+Rule 6 is intentionally the only symmetric projection rule. It captures physical fault-domain colocation: when two brokers are colocated on the same host machine, an outage of that host (or hardware resource exhaustion) simultaneously disables both brokers. The derived weight equals the hosting Node's weight ($w_V(\text{node})$). Rule 6 does not model directional application-level broker clustering (e.g., Kafka partition replication or RabbitMQ shovel links), which do not require physical colocation; extending the schema to capture inter-broker application replication is reserved for future work.
 
 \subsection{Dual Graph Views and Architectural Layers}
 \label{sec:3.3}
@@ -127,7 +134,7 @@ Figure~\ref{fig:2} illustrates this duality on a running example, contrasting th
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figures/Figure_2}
-\caption{Running example: the raw structural graph (left) and the \texttt{DEPENDS\_ON} projection derived from it (right). The projection makes implicit runtime dependencies explicit---a subscriber depends on the publishers of its topics even though no structural edge joins them---while the simulators continue to operate on the structural view alone.}
+\caption{Running example: raw structural graph (left) and the derived \texttt{DEPENDS\_ON} projection (right). The projection derives implicit runtime dependencies (subscribers depending on publishers) while independent simulation oracles operate exclusively on the structural view.}
 \label{fig:2}
 \end{figure}
 
@@ -137,7 +144,6 @@ $G_{\text{analysis}}$ is further structured into four analytical layers (Applica
 \label{sec:3.4}
 
 Both pathways read the same typed node properties from $G_{\text{analysis}}$: the predictive pathway (Section~\ref{sec:4}) projects them per entity type before heterogeneous message passing, and the explanation layer (Section~\ref{sec:5}) aggregates them into its quality profile. All five entity types share indices 0--17, a common block of topological metrics (in/out degree, betweenness, closeness, reverse PageRank, clustering coefficient, articulation score, bridge load) produced by the deterministic analysis stage whose cost is characterized in Section~\ref{sec:7.5}. Type-specific features extend that block:
-
 \begin{itemize}
     \item \textbf{Application (23 dims):} indices 18--22 add source-code metrics from SCA --- lines of code, cyclomatic complexity, Martin's instability $I_{\text{code}} = C_e/(C_a + C_e)$ \cite{martin2003agile}, Lack of Cohesion in Methods, and the composite Code Quality Penalty (CQP).
     \item \textbf{Library (25 dims):} the Application block plus two library-specific blast-radius drivers (23--24): the normalized size of the transitive reverse-\texttt{USES} closure, and the normalized count of distinct subscribers reachable from topics published within that closure.
