@@ -179,7 +179,7 @@ def _extract_via_return_attention_weights(
 
 # ── Data loading ──────────────────────────────────────────────────────────────
 
-def _load_scenario(scenario: str) -> Tuple[Any, Dict, Dict, Dict]:
+def _load_scenario(scenario: str, cache_dir: Optional[Path] = None) -> Tuple[Any, Dict, Dict, Dict]:
     """Load graph + metrics from cache or raw scenario JSON."""
     from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     from reproduce.main_table import _parse_failure_impact, _parse_quality_scores, _remap_node_ids
@@ -191,7 +191,8 @@ def _load_scenario(scenario: str) -> Tuple[Any, Dict, Dict, Dict]:
     topology = json.loads(json_path.read_text())
     g = _build_graph_from_json(topology)
 
-    cache = _LOSO_CACHE / scenario
+    base_cache = Path(cache_dir) if cache_dir is not None else _LOSO_CACHE
+    cache = base_cache / scenario
     struct, sim, rm = {}, {}, {}
     if cache.exists():
         p_struct = cache / "structural_metrics.json"

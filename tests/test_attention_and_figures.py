@@ -19,11 +19,54 @@ from saag.prediction.data_preparation import networkx_to_hetero_data
 
 def test_load_scenario_and_data_conversion():
     """Verify _load_scenario properly normalizes metrics and converts to HeteroData without TypeError."""
+    from reproduce.extract_attention import _LOSO_CACHE
+
+    cache = _LOSO_CACHE / "atm_system"
+    if not cache.exists() or not (cache / "failure_impact.json").exists():
+        pytest.skip("output/loso_cache/atm_system not populated")
+
     g, struct, sim, rm = _load_scenario("atm_system")
     assert g.number_of_nodes() > 0
     assert len(sim) > 0
     assert len(struct) > 0
     # Values inside sim should be dicts of metrics (not top-level metadata)
+    sample_key, sample_val = next(iter(sim.items()))
+    assert isinstance(sample_val, dict)
+    assert "composite" in sample_val
+
+    conv = networkx_to_hetero_data(g, struct, sim, rm)
+    assert conv.hetero_data is not None
+    assert len(conv.hetero_data.node_types) > 0
+
+
+def test_load_scenario_synthetic_cache(tmp_path):
+    """Verify _load_scenario metric normalization and conversion with a synthetic cache fixture."""
+    scenario_cache = tmp_path / "atm_system"
+    scenario_cache.mkdir(parents=True)
+
+    (scenario_cache / "failure_impact.json").write_text(json.dumps({
+        "records": {
+            "atm_client_app": {"impact_score": 0.5, "composite": 0.5},
+            "atm_auth_service": {"impact_score": 0.8, "composite": 0.8},
+        },
+        "metadata": {"version": 2.0},
+    }))
+
+    (scenario_cache / "structural_metrics.json").write_text(json.dumps({
+        "atm_client_app": {"betweenness": 0.1, "degree": 2},
+        "atm_auth_service": {"betweenness": 0.4, "degree": 5},
+    }))
+
+    (scenario_cache / "quality_scores.json").write_text(json.dumps({
+        "records": {
+            "atm_client_app": {"quality_score": 0.3},
+        }
+    }))
+
+    g, struct, sim, rm = _load_scenario("atm_system", cache_dir=tmp_path)
+    assert g.number_of_nodes() > 0
+    assert len(sim) > 0
+    assert len(struct) > 0
     sample_key, sample_val = next(iter(sim.items()))
     assert isinstance(sample_val, dict)
     assert "composite" in sample_val
