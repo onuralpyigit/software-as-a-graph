@@ -160,11 +160,22 @@ def test_prediction_service_structural_and_dual(sample_pubsub_graph):
 
 
 def test_canonical_baseline_equivalence():
-    """Verify bit-for-bit numerical equivalence between TopoPredictor/TopoQoSPredictor and main_table baseline."""
-    from reproduce.main_table import _load_scenario_data, _compute_topo_baseline_scores
+    """Verify bit-for-bit numerical equivalence between TopoPredictor/TopoQoSPredictor and main_table baseline.
+
+    Skipped without a populated cache, because it reads the real scenario cache
+    rather than a fixture.
+    """
+    from reproduce.main_table import _find_cache_dir, _load_scenario_data, _compute_topo_baseline_scores
 
     for scenario in ("av_system", "atm_system"):
-        nx_g, sm, _, _, _ = _load_scenario_data(scenario, substrate="projection")
+        cache_dir = _find_cache_dir(scenario)
+        if not cache_dir.exists():
+            pytest.skip(f"output/loso_cache not populated for '{scenario}'")
+
+        try:
+            nx_g, sm, _, _, _ = _load_scenario_data(scenario, substrate="projection")
+        except FileNotFoundError as exc:
+            pytest.skip(f"Scenario cache data unavailable: {exc}")
 
         # Topo arm
         base_topo = _compute_topo_baseline_scores(nx_g, sm, use_qos=False)
@@ -181,4 +192,5 @@ def test_canonical_baseline_equivalence():
         assert set(base_qos.keys()) == set(pred_qos.keys())
         for k in base_qos:
             assert abs(base_qos[k] - pred_qos[k]) < 1e-12
+
 
