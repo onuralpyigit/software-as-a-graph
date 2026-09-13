@@ -183,12 +183,42 @@ def _footnote(j: Dict[str, Any]) -> str:
     return line
 
 
-def render(variants, oracles, jac, population, output: Path, dpi: int = 300):
+def _load_interaction(sig_path: Path):
+    """The 2x2 interaction, read from the significance artifact.
+
+    Returns None when the artifact is absent or predates the factorial block, so
+    an older replication still renders the three original panels rather than
+    failing. Panel D is drawn only from measured values -- nothing is recomputed
+    here, so the figure and Table 8 cannot drift apart.
+    """
+    if not sig_path.exists():
+        return None
+    try:
+        d = json.loads(sig_path.read_text())
+    except Exception:                                   # noqa: BLE001
+        return None
+    row = next((r for r in (d.get("factorial") or [])
+                if r.get("quantity") == "interaction"), None)
+    if not row:
+        return None
+    per = row.get("per_fold_delta") or {}
+    if not per:
+        return None
+    return {
+        "per_fold": per,
+        "mean": row["mean_delta"],
+        "ci": row.get("delta_ci95") or (row["mean_delta"], row["mean_delta"]),
+        "p": row["p"],
+        "neg": sum(1 for v in per.values() if v < 0),
+    }
+
+
+def render(variants, oracles, jac, population, output: Path, dpi: int = 300, inter=None):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    fig, (axa, axb, axc) = plt.subplots(1, 3, figsize=(17.5, 5.0))
+    fig, ((axa, axb), (axc, axd)) = plt.subplots(2, 2, figsize=(13.0, 9.6))
 
     pop = f" — {population} population" if population else ""
     fig.suptitle(
@@ -262,7 +292,37 @@ def render(variants, oracles, jac, population, output: Path, dpi: int = 300):
                  bbox=dict(boxstyle="round,pad=0.45", facecolor="#FDF6E3",
                            edgecolor="#D9C89A", linewidth=0.8))
 
-    for ax in (axa, axb, axc):
+    # ── D: the typing x QoS interaction, per fold ────────────────────────────
+    # The substitution claim is an interaction, so it is shown as one: how much
+    # typing buys with the QoS channel present, minus how much it buys without.
+    # Every fold below zero is the claim; a mix of signs would refute it.
+    if inter:
+        deltas = sorted(inter["per_fold"].values())
+        ypos = range(len(deltas))
+        axd.barh(list(ypos), deltas, color="#C0392B", alpha=0.85,
+                 edgecolor="#7B241C", linewidth=0.6, zorder=3)
+        axd.axvline(0, color="#111", linewidth=1.1, zorder=4)
+        axd.axvline(inter["mean"], color="#1F6FB4", linewidth=1.6,
+                    linestyle="--", zorder=5,
+                    label=f"mean {inter['mean']:+.3f}")
+        axd.axvspan(inter["ci"][0], inter["ci"][1], color="#1F6FB4", alpha=0.12,
+                    zorder=1, label="95% CI")
+        axd.set_yticks(list(ypos))
+        axd.set_yticklabels(
+            [k.replace("_system", "").replace("_", " ")
+             for k in sorted(inter["per_fold"], key=inter["per_fold"].get)],
+            fontsize=8.5)
+        axd.set_xlabel(r"$(\rho_{HGT\text{-}QoS}-\rho_{GAT\text{-}N\text{-}QoS})-"
+                       r"(\rho_{HGT}-\rho_{GAT\text{-}N})$", fontsize=10)
+        axd.set_title("D. Typing $\\times$ QoS Interaction\n"
+                      f"({inter['neg']}/{len(deltas)} folds negative, "
+                      f"$p$ = {inter['p']:.4f})",
+                      fontsize=13, fontweight="bold")
+        axd.legend(fontsize=8.5, loc="lower left", framealpha=0.9)
+    else:
+        axd.axis("off")
+
+    for ax in (axa, axb, axc, axd):
         ax.grid(axis="x", linestyle="--", alpha=0.35, zorder=0)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
@@ -334,7 +394,11 @@ def main() -> int:
     for r in oracles:
         print(f"  {r['key']:16s} rho={r['rho']:.4f}")
 
-    render(variants, oracles, jac, pop_a, args.output, dpi=args.dpi)
+    inter = _load_interaction(RESULTS_DIR / "loso_significance_v5.json")
+    if inter:
+        print(f"  interaction      mean={inter['mean']:+.4f} "
+              f"({inter['neg']}/{len(inter['per_fold'])} folds negative, p={inter['p']:.4f})")
+    render(variants, oracles, jac, pop_a, args.output, dpi=args.dpi, inter=inter)
     return 0
 
 

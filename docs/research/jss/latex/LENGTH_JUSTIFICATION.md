@@ -23,9 +23,8 @@ remains in the body is what a referee needs in order to check a claim without le
 state precisely.** JSS explicitly welcomes "studies with negative results". This study reports that
 its proposed model does *not* significantly outperform an unparameterized QoS-weighted centrality
 baseline; that its two architectural mechanisms — relation typing and QoS edge encoding — are
-*substitutes rather than complements*, each worth a large, robustly significant gain alone
-(+0.234 and +0.287, Holm-corrected p = 0.002 and 0.003) and almost nothing once the other is present
-(+0.035 and +0.087, both non-significant); that zero-shot transfer to real systems is not
+*substitutes rather than complements*, each carrying a main effect (+0.134 and +0.187, Holm-corrected
+p = 0.0015) but interacting sub-additively (−0.199, negative on all twelve folds, p = 0.0005); that zero-shot transfer to real systems is not
 established once tied labels are excluded, and inverts on two of five architectures; that a
 label-free confidence signal previously reported does not replicate; that the explanation layer's
 elicited AHP weights are anti-predictive and three of its five AHP matrices are rank-one by
@@ -43,7 +42,7 @@ demonstrated Simpson's paradox. Compressing further would mean dropping an evalu
 leaving the reader unable to reconstruct which comparison rests on which data.
 
 **3. Reproducibility claims are load-bearing and stated in the text.** The corpus regenerates
-byte-identically from committed configurations; 271 reported table values are mechanically
+byte-identically from committed configurations; 295 reported table values are mechanically
 reconciled against the JSON artifacts that produced them by a committed script that refuses a clean
 run when an artifact is absent or was produced from a modified working tree; the input–label
 independence guarantee is asserted in continuous integration; and the primary out-of-distribution

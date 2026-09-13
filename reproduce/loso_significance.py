@@ -167,6 +167,87 @@ def compare(table: Dict[str, Any], a: str, b: str) -> Optional[Dict[str, Any]]:
     }
 
 
+#: The 2x2 design underlying the four architecture contrasts. Factors are
+#: T (relation typing) and Q (QoS edge channel); the four cells are the four
+#: reported learned arms.
+FACTORIAL_CELLS = {
+    ("T0", "Q0"): "gl",          # GAT-N      -- untyped, no edge channel
+    ("T1", "Q0"): "hgl",         # HGT        -- typed, no edge channel
+    ("T0", "Q1"): "gl_qos",      # GAT-N-QoS  -- untyped, edge channel
+    ("T1", "Q1"): "hgl_qos",     # HGT-QoS    -- typed, edge channel
+}
+
+
+def factorial(table: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """The three orthogonal quantities of the 2x2, tested per fold.
+
+    The four pairwise contrasts in ARCHITECTURE_CONTRASTS are *simple effects*,
+    and they are algebraically linked: given the four cell means, any three
+    determine the fourth, because
+
+        (TQ - T0Q) - (TQ0 - T00)  ==  (TQ - TQ0) - (T0Q - T00)
+
+    -- both sides are the interaction. Reporting the four as if they were four
+    independent questions, and reading "one significant, one not" as evidence
+    that the two differ, is the classic error of inferring an interaction from a
+    difference in significance. It does not follow: a contrast at p = 0.0005 and
+    one at p = 0.13 have not thereby been shown to differ from each other.
+
+    So the correction belongs on the three quantities that *are* distinct: the
+    two main effects and the interaction. The simple effects stay in the
+    manuscript because they carry the narrative ("typing helps when the QoS
+    channel is absent"), but they are reported descriptively, uncorrected, with
+    the claim about their difference resting on the interaction row here.
+
+    Main effects are averaged over the other factor's levels, which is what a
+    main effect means in a balanced 2x2 -- not the simple effect at one level.
+    """
+    cells = {k: _per_fold(table, v) for k, v in FACTORIAL_CELLS.items()}
+    if not all(cells.values()):
+        return []
+    folds = sorted(set.intersection(*(set(c) for c in cells.values())))
+    if len(folds) < 2:
+        return []
+
+    t00 = np.array([cells[("T0", "Q0")][f] for f in folds])
+    t10 = np.array([cells[("T1", "Q0")][f] for f in folds])
+    t01 = np.array([cells[("T0", "Q1")][f] for f in folds])
+    t11 = np.array([cells[("T1", "Q1")][f] for f in folds])
+
+    quantities = (
+        ("main_typing", "Typing (main effect)", ((t10 - t00) + (t11 - t01)) / 2.0),
+        ("main_qos", "QoS edge channel (main effect)", ((t01 - t00) + (t11 - t10)) / 2.0),
+        # Negative => typing buys less when the QoS channel is already present,
+        # i.e. the two mechanisms substitute rather than compose.
+        ("interaction", "Typing x QoS interaction", (t11 - t01) - (t10 - t00)),
+    )
+
+    out: List[Dict[str, Any]] = []
+    for key, label, diff in quantities:
+        n = len(folds)
+        try:
+            stat, p = wilcoxon(diff)
+        except ValueError:                     # all-zero differences
+            stat, p = float("nan"), 1.0
+        out.append({
+            "quantity": key,
+            "label": label,
+            "role": "factorial",
+            "not_preregistered": True,
+            "n_folds": n,
+            "mean_delta": float(diff.mean()),
+            "wins": int((diff > 0).sum()),
+            "losses": int((diff < 0).sum()),
+            "W": float(stat),
+            "p": float(p),
+            "attainable_floor_p": attainable_floor(n),
+            "delta_ci95": _bootstrap_delta_ci(diff),
+            "per_fold_delta": {f: float(d) for f, d in zip(folds, diff)},
+        })
+    holm(out)
+    return out
+
+
 def stratified_qos_ablation(
     table: Dict[str, Any], diagnostic_path: Path
 ) -> Optional[Dict[str, Any]]:
@@ -276,7 +357,7 @@ def main() -> int:
     for r in exploratory:
         r["role"] = "exploratory"
 
-    def _family(contrasts, role):
+    def _family(contrasts, role, correct=True):
         out = []
         for a, b, what in contrasts:
             if a not in table or b not in table:
@@ -289,11 +370,16 @@ def main() -> int:
             r["not_preregistered"] = True
             out.append(r)
         # Each family is corrected within itself, per Amendment 2.
-        if out:
+        if out and correct:
             holm(out)
         return out
 
-    architecture = _family(ARCHITECTURE_CONTRASTS, "architecture")
+    factors = factorial(table)
+    # Simple effects are reported descriptively: they are algebraically linked
+    # to each other and to the interaction, so correcting across them would
+    # treat one structural fact as four questions. The correction lives on the
+    # three orthogonal quantities in `factors`.
+    architecture = _family(ARCHITECTURE_CONTRASTS, "architecture", correct=False)
     controls = _family(CONTROL_CONTRASTS, "control")
 
     n = family[0]["n_folds"]
@@ -305,11 +391,22 @@ def main() -> int:
     print("  " + "─" * 78)
     print(f"  {'variant':<12}{'role':<13}{'d rho':>9}{'wins':>7}{'W':>7}"
           f"{'p':>9}{'p_holm':>9}")
-    for r in family + exploratory + architecture + controls:
+    for r in family + exploratory + architecture + controls:  # noqa: E501
         holm_s = f"{r['p_holm']:.4f}" if "p_holm" in r else "—"
         print(f"  {r['label']:<12}{r['role']:<13}{r['mean_delta']:>+9.4f}"
               f"{r['wins']:>4}/{r['n_folds']:<2}{r['W']:>7.1f}"
               f"{r['p']:>9.4f}{holm_s:>9}")
+
+    if factors:
+        print(f"\n  2x2 factorial   [POST-HOC]   Holm-corrected across these three")
+        print("  " + "\u2500" * 78)
+        print(f"  {'quantity':<34}{'d rho':>9}{'wins':>7}{'W':>7}{'p':>9}{'p_holm':>9}")
+        for r in factors:
+            print(f"  {r['label']:<34}{r['mean_delta']:>+9.4f}"
+                  f"{r['wins']:>4}/{r['n_folds']:<2}{r['W']:>7.1f}"
+                  f"{r['p']:>9.4f}{r['p_holm']:>9.4f}")
+        ci = next(r for r in factors if r["quantity"] == "interaction")["delta_ci95"]
+        print(f"  interaction bootstrap 95% CI: [{ci[0]:+.4f}, {ci[1]:+.4f}]")
 
     print("\n  Per-fold deltas (primary):")
     for fold, d in sorted(family[0]["per_fold_delta"].items(),
@@ -346,8 +443,11 @@ def main() -> int:
         "loss_budget_at_alpha": loss_budget(n, args.alpha),
         "preregistered": family,
         "exploratory": exploratory,
-        # Post-hoc architecture contrasts (RQ2 typing, RQ3 QoS edge ablation);
-        # Holm-corrected within this list only.
+        # The 2x2's three orthogonal quantities, Holm-corrected across them.
+        # This is where the substitution claim is tested.
+        "factorial": factors,
+        # Post-hoc simple effects (RQ2 typing, RQ3 QoS edge ablation), reported
+        # descriptively: algebraically linked, so not separately corrected.
         "architecture": architecture,
         # Post-hoc RQ2 confound controls; Holm-corrected within this list only.
         "rq2_controls": controls,

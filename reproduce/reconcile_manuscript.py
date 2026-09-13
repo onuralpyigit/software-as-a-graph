@@ -512,6 +512,80 @@ def check_table7c_active(rep: Report, artifact: str) -> None:
                     Finding("tab:7c", label, name, got, round(truth, 4)))
 
 
+def _norm(cell: str) -> str:
+    """Row label reduced to comparable words: LaTeX stripped, case folded.
+
+    Table 8's labels carry math and bold markup, so a literal comparison against
+    the rowmap silently matches nothing -- and a check that matches nothing
+    reports success. Normalising both sides makes a relabelled row fail loudly.
+    """
+    t = re.sub(r"\\[a-zA-Z]+", " ", _label(cell))
+    t = re.sub(r"[^a-z0-9]+", " ", t.lower())
+    return " ".join(t.split())
+
+
+def check_contrasts(rep: Report, artifact: str = "loso_significance_v5.json") -> None:
+    """Table 8's factorial and simple-effect rows against the significance artifact.
+
+    These were hand-copied prose figures until now -- PROSE_NOTES listed the
+    Wilcoxon contrasts as unchecked, which is precisely the class of drift that
+    once left three tables reporting a superseded run. Table 8 carries the
+    paper's headline claim, so it is the last table that should go unverified.
+    """
+    d = _load(artifact)
+    if d is None:
+        rep.skipped.append(f"tab:contrasts: {artifact} absent")
+        return
+
+    truth = {}
+    for r in d.get("factorial") or []:
+        truth[r["quantity"]] = r
+    for r in d.get("architecture") or []:
+        truth[f'{r["variant"]}|{r["baseline"]}'] = r
+
+    # Row label (first cell) -> key in `truth`. Simple effects are keyed by the
+    # variant pair so a relabelled row cannot silently match the wrong contrast.
+    rowmap = {
+        "Typing (main effect)":            "main_typing",
+        "QoS channel (main effect)":       "main_qos",
+        "Typing $\\times$ QoS interaction": "interaction",
+        "Typing, QoS absent":              "hgl|gl",
+        "Typing, QoS present":             "hgl_qos|gl_qos",
+        "QoS channel, typing absent":      "gl_qos|gl",
+        "QoS channel, typing present":     "hgl_qos|hgl",
+    }
+
+    tex = _tex("sec7_results.tex")
+    rows = _rows(tex, r"\multicolumn{7}{l}{\textit{The $2\times2$",
+                 after_label=r"\label{tab:contrasts}")
+    seen = 0
+    for row in rows:
+        cells = _cells(row)
+        if len(cells) < 6:
+            continue
+        label = _norm(cells[0])
+        key = next((v for k, v in rowmap.items() if _norm(k) == label), None)
+        blk = truth.get(key) if key else None
+        if blk is None:
+            continue
+        seen += 1
+        for idx, field, tol, nm in ((2, "mean_delta", 0.001, "delta_rho"),
+                                    (4, "W", 0.05, "W"),
+                                    (5, "p", 0.0001, "p")):
+            got, t = _num(cells[idx]), blk.get(field)
+            rep.checked += 1
+            if t is not None and (got is None or abs(got - t) > tol):
+                rep.findings.append(Finding("tab:contrasts", label, nm, got, round(t, 4)))
+        if "p_holm" in blk and len(cells) > 6:
+            got = _num(cells[6])
+            rep.checked += 1
+            if got is not None and abs(got - blk["p_holm"]) > 0.0001:
+                rep.findings.append(
+                    Finding("tab:contrasts", label, "p_holm", got, round(blk["p_holm"], 4)))
+    if seen == 0:
+        rep.skipped.append("tab:contrasts: no rows matched the significance artifact")
+
+
 def check_scale_table(rep: Report) -> None:
     """Table tab:scale per-stage latency against inference_latency artifact."""
     d = _load("inference_latency_v3.json") or _load("inference_latency.json")
@@ -593,7 +667,7 @@ FRESHNESS_TARGETS = {
     "loso_all_variants_v5.json": "Tables 7/7c",
     "realworld_zeroshot_v5.json": "Table 9b",
     "detection_validation_v3.json": "7.3 stratification",
-    "convergent_validity.json": "Table 8c",
+    "convergent_validity.json": "Supplementary S9",
     "label_stability.json": "7.1 label-noise ceiling",
     "topic_weight_sensitivity_v3.json": "Supplementary S1",
     "weight_global_sensitivity_v3.json": "Supplementary S1",
@@ -601,6 +675,7 @@ FRESHNESS_TARGETS = {
     "threshold_sensitivity_v3.json": "Supplementary S3",
     "atm_scale_sweep_v3.json": "Supplementary S6",
     "qos_label_ablation.json": "Section 4.3",
+    "loso_significance_v5.json": "Table 8 contrasts",
 }
 
 #: Artifacts that never read the corpus, so the corpus-freshness rule cannot
@@ -789,7 +864,6 @@ def check_qos_label_ablation(rep: Report) -> None:
 
 
 PROSE_NOTES = [
-    "Wilcoxon contrasts in 7.1/7.2 <- results/loso_significance_v*.json",
     "QoS ablation deltas in 7.3.1 <- loso_all_variants_v*.json",
     "sigma-hat diagnostic in 7.2.3 <- output/loso_v*/<variant>/inductive_predictions.json",
     "label-noise ceiling in 7.1 <- output/loso_cache/*/failure_impact.json label_stability",
@@ -821,6 +895,7 @@ def main() -> int:
     check_supplement_shrinkage(rep)
     check_table7_loso(rep, args.loso)
     check_table7c_active(rep, args.loso)
+    check_contrasts(rep)
     check_scale_table(rep)
     check_realworld(rep)
     check_oracle_timing(rep)
