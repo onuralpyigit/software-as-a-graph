@@ -19,14 +19,14 @@ All raw metrics are rank-normalized to $[0, 1]$ within the graph. Quality sub-ch
 \begin{enumerate}
     \item \textbf{Fault Tolerance ($FT(v)$):} Evaluates error cascade potential on transpose graph $G_{\text{analysis}}^\top$:
     $FT(v) = 0.45 \cdot \text{RPR}(v) + 0.30 \cdot \text{Deg}_{\text{in}}(v) + 0.25 \cdot \text{CDPot}_{\text{enh}}(v)$,
-    where $\text{RPR}(v)$ is Reverse PageRank (RPR), $\text{Deg}_{\text{in}}(v) = d_{\text{in}}(v)/(|V|-1)$ is normalized in-degree, and $\text{CDPot}_{\text{enh}}(v)$ is normalized cascade depth potential.
+    where $\text{RPR}(v)$ is Reverse PageRank (RPR), $\text{Deg}_{\text{in}}(v) = d_{\text{in}}(v)/(|V|-1)$ is normalized in-degree, and $\text{CDPot}_{\text{enh}}(v) = \text{depth}(v) / \max_{u \in V} \text{depth}(u)$ is the normalized cascade depth potential, measuring the longest reachable directed failure-propagation chain from $v$ on $G_{\text{analysis}}^\top$.
     \item \textbf{Availability ($A(v)$):} Identifies structural single points of failure across five terms:
     \begin{equation}
     \label{eq:availability}
     A(v) = 0.2563 \cdot \text{AP}_c^{\text{dir}}(v) + 0.1998 \cdot \text{QSPOF}(v) + 0.1998 \cdot \text{BR}(v) + 0.2563 \cdot \text{CDI}(v) + 0.0878 \cdot w(v)
     \end{equation}
     where $\text{AP}_c^{\text{dir}}(v)$ is Directed Articulation Point (AP) severity, $\text{QSPOF}(v)$ is QoS-weighted Single Point of Failure (QSPOF) severity, $\text{BR}(v)$ is Bridge Ratio (BR), $\text{CDI}(v)$ is Connectivity Degradation Index (CDI), and $w(v)$ is intrinsic QoS weight.
-    \item \textbf{Reliability ($R(v)$):} Blends Fault Tolerance and Availability: $R(v) = r_\alpha \cdot FT(v) + (1 - r_\alpha) \cdot A(v)$, with $r_\alpha = 0.36$. The intra-dimension weights apply $\lambda = 0.70$ shrinkage blending with a uniform prior. Because comparison matrices are rank-one by construction (Supplementary Section~S4), these weights represent documented conventions rather than independently elicited consensus.
+    \item \textbf{Reliability ($R(v)$):} Blends Fault Tolerance and Availability: $R(v) = r_{\text{FT}} \cdot FT(v) + (1 - r_{\text{FT}}) \cdot A(v)$, with $r_{\text{FT}} = 0.36$. The intra-dimension weights apply $\lambda = 0.70$ shrinkage blending with a uniform prior. Because comparison matrices are rank-one by construction (Supplementary Section~S4), these weights represent documented conventions rather than independently elicited consensus.
     \item \textbf{Maintainability ($M(v)$):} Blends structural coupling with static code analysis:
     $M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))$,
     where $\text{BT}(v)$ is Betweenness Centrality (BT), $w_{\text{out}}(v)$ is QoS-weighted efferent coupling, $\text{CQP}(v)$ is Code Quality Penalty (CQP), and $\text{CC}(v)$ is local Clustering Coefficient (CC).

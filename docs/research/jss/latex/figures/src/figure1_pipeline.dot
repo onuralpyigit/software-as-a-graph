@@ -144,7 +144,7 @@ digraph Figure1 {
     topk [
       label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
         <tr><td><b>Top-<i>K</i> Critical Component Set</b></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Blast radius <i>Ĉ</i>(<i>v</i>)</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Blast radius <i>Î*</i>(<i>v</i>)</font></td></tr>
         <tr><td align="left"><font point-size="9.5" color="#312E81">• Per-relationship criticality</font></td></tr>
         <tr><td align="left"><font point-size="9.5" color="#312E81">• Out-of-distribution ranking</font></td></tr>
       </table>>,
@@ -178,7 +178,7 @@ digraph Figure1 {
     rm [
       label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
         <tr><td><b>Explainable Quality Attribution</b></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#14532D">• Reliability = &#945;&#183;FT + (1&#8722;&#945;)&#183;A</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• Reliability = <i>r</i><sub>FT</sub>&#183;FT + (1&#8722;<i>r</i><sub>FT</sub>)&#183;A</font></td></tr>
         <tr><td align="left"><font point-size="9.5" color="#14532D">&#160;&#160;&#8226; Fault Tolerance: cascade depth</font></td></tr>
         <tr><td align="left"><font point-size="9.5" color="#14532D">&#160;&#160;&#8226; Availability: SPOF / articulation</font></td></tr>
         <tr><td align="left"><font point-size="9.5" color="#14532D">• Maintainability: coupling + SCA</font></td></tr>
