@@ -37,7 +37,7 @@ Counts are `apps / topics / brokers / nodes / libs`, read from the committed dat
 | `scenario_07_enterprise_xlarge.yaml` | `enterprise_system.json` | enterprise | 300 / 120 / 10 / 40 / 50 | 7007 | `dbee39896904` |
 
 **Pooled population: 1,545 nodes** — 850 Applications, 375 Topics, 165 Libraries, 119 Infrastructure
-Nodes, 36 Brokers. This is the figure [draft.md §7.1](research/jss/draft.md) reports, and the
+Nodes, 36 Brokers. This is the figure [manuscript.md §7.1](research/jss/manuscript.md) reports, and the
 population underlying the per-type correlations of §5.5 and §8.2. It is asserted by
 `test_evaluation_suite_matches_paper_population`; changing the corpus and the paper are one edit.
 
@@ -329,6 +329,6 @@ logs show them too — and both are now fixed:
 6. Add it to §1 and §2 above.
 
 Adding an **evaluation** scenario also changes the pooled population asserted by
-`test_evaluation_suite_matches_paper_population` and reported in draft.md §7.1, and invalidates every
+`test_evaluation_suite_matches_paper_population` and reported in manuscript.md §7.1, and invalidates every
 existing result — Table 3, Table 4, and the LOSO/k-fold splits all change shape. Add fixtures freely;
 add evaluation scenarios only alongside a full re-run.

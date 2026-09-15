@@ -1,6 +1,6 @@
 # Thesis material scaffold
 
-This folder exists because the [JSS special-issue draft](../jss/draft.md) was condensed from
+This folder exists because the [JSS special-issue draft](../jss/manuscript.md) was condensed from
 ~30,100 words to fit the journal's ≤36-single-column-page guidance, refocused around the paper's
 graph-learning-and-dependability claim. The material that came out is not wrong or wasted — most of
 it is exactly the kind of design and validation detail a thesis chapter has room for that a journal
@@ -64,5 +64,5 @@ but a natural first cut:
 
 Everything that survived the condensation in full or near-full — §1 (motivation, RQs), §2 (related
 work), the three-oracle definitions of §5.1, the HGT architecture of §5.2, and all of §8's results
-tables — is in [`docs/research/jss/draft.md`](../jss/draft.md) itself, condensed but not gutted, and
+tables — is in [`docs/research/jss/manuscript.md`](../jss/manuscript.md) itself, condensed but not gutted, and
 `jss_draft_full.md` for the pre-condensation wording if a thesis chapter wants the longer phrasing.

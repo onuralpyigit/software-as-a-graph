@@ -5,21 +5,21 @@ VSI:AI4MSS). **This folder is authoritative**: it is what gets zipped for Editor
 where manuscript revisions land, and its results tables and figures are generated from committed
 artifacts by scripts under `reproduce/` rather than written by hand.
 
-[`../draft.md`](../draft.md) is a Markdown rendering of the same manuscript. It is now **generated**,
+[`../manuscript.md`](../manuscript.md) is a Markdown rendering of the same manuscript. It is now **generated**,
 not maintained by hand:
 
 ```bash
 make                                    # refresh manuscript.aux / manuscript.bbl first
-python ../../../../reproduce/render_draft_md.py
+python ../../../../reproduce/render_manuscript_md.py
 ```
 
-Section, table, figure and citation numbers in `draft.md` are read out of the compiled `.aux` and
+Section, table, figure and citation numbers in `manuscript.md` are read out of the compiled `.aux` and
 `.bbl`, so the Markdown carries exactly the numbering the PDF does. Run the generator after every
-revision round; editing `draft.md` by hand reintroduces the drift that previously left it two
+revision round; editing `manuscript.md` by hand reintroduces the drift that previously left it two
 revision rounds behind (with superseded results tables, a withdrawn fallback-gate recommendation, and
 a retracted cost claim still in it).
 
-`draft.md` keeps two things these sources do not, and the generator preserves both: an ASCII
+`manuscript.md` keeps two things these sources do not, and the generator preserves both: an ASCII
 schematic of the pipeline and an ASCII diagram of the HGT layer stack (`Figure M1`), plus a header
 note recording the review model. Its figure numbering matches the LaTeX; a note in the document
 records the `Figure_N` file correspondence.
@@ -146,7 +146,7 @@ of defect has bitten this manuscript twice, so grep for headline values across b
 revision:
 
 ```bash
-grep -rnE '0\.680|0\.160|0\.695|0\.581|0\.568|0\.114|0\.054|0\.127|2,461|2,812' sections/ ../draft.md
+grep -rnE '0\.680|0\.160|0\.695|0\.581|0\.568|0\.114|0\.054|0\.127|2,461|2,812' sections/ ../manuscript.md
 ```
 
 Current state of the build: **39 pages**, 9 sections, 12 tables, 3 figures, 91 references (all cited),

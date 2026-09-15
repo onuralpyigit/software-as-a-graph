@@ -3,7 +3,7 @@
 > **Software-as-a-Graph: Heterogeneous Graph Learning for Pre-Deployment Reliability and Dependability Analysis of Complex Distributed Systems**
 > Submitted to the *Journal of Systems and Software* Special Issue **VSI:AI4MSS** (AI Techniques for
 > Performance, Reliability, and Sustainability of Modern Software Systems). See
-> `docs/research/jss/draft.md` for the Markdown version of the paper, `docs/research/jss/latex/`
+> `docs/research/jss/manuscript.md` for the Markdown version of the paper, `docs/research/jss/latex/`
 > for the authoritative Elsevier LaTeX submission sources, and
 > `docs/research/jss/methodology_revision_findings.md` for the pre-submission audit that regenerated
 > its numbers.

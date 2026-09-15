@@ -2,7 +2,7 @@
 
 This document provides a technical deep-dive into the reproducibility infrastructure for the paper
 **"Software-as-a-Graph: Heterogeneous Graph Learning for Pre-Deployment Reliability and Dependability Analysis of Complex Distributed Systems"** (JSS special issue VSI:AI4MSS — see
-`docs/research/jss/draft.md`).
+`docs/research/jss/manuscript.md`).
 
 ---
 

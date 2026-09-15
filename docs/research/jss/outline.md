@@ -1,7 +1,7 @@
 # Software-as-a-Graph — JSS submission reading map
 
-> **[`latex/`](latex/) is the authoritative manuscript.** [`draft.md`](draft.md) is now *generated*
-> from it by [`reproduce/render_draft_md.py`](../../../reproduce/render_draft_md.py), taking its
+> **[`latex/`](latex/) is the authoritative manuscript.** [`manuscript.md`](manuscript.md) is now *generated*
+> from it by [`reproduce/render_manuscript_md.py`](../../../reproduce/render_manuscript_md.py), taking its
 > section, table, figure and citation numbers from the compiled `.aux`/`.bbl`, so the two cannot
 > disagree unless the generator has not been re-run. This file is a section-by-section map of the
 > pair — what each part argues, what backs it, and where a reviewer will push.
