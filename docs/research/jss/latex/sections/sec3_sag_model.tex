@@ -1,13 +1,18 @@
 \section{The Software-as-a-Graph (SaG) Architectural Model}
 \label{sec:3}
 
-Figure~\ref{fig:1} illustrates the SaG framework's end-to-end architecture. A shared front end ingests Architecture-as-Code manifests, constructs a typed multigraph, projects implicit runtime interactions inside a QoS-weighted logical dependency layer, and extracts typed node properties. These features feed two decoupled pathways with no shared parameters: the predictive pathway (Section~\ref{sec:4}), which forecasts dynamic cascading failure blast radii and per-relationship criticality using a Heterogeneous Graph Transformer; and the explanation layer (Section~\ref{sec:5}), which decomposes fragility into standards-grounded Reliability and Maintainability quality profiles.
+Figure~\ref{fig:1} presents the end-to-end architecture of the SaG framework. The shared front end processes Architecture-as-Code manifests, constructs a typed multigraph, projects implicit runtime interactions within a QoS-weighted logical dependency layer, and extracts typed node properties. These features are input to two independent pathways with no shared parameters: the predictive pathway (Section~\ref{sec:4}), which forecasts cascading failure blast radii and per-relationship criticality using a Heterogeneous Graph Transformer; and the explanation layer (Section~\ref{sec:5}), which decomposes fragility into Reliability and Maintainability quality profiles.
 
 \begin{figure}[htbp]
+
 \centering
+
 \includegraphics[width=0.85\linewidth]{figures/Figure_1}
-\caption{End-to-end architecture of the SaG framework. The predictive pathway (Section~\ref{sec:4}) is the center line: manifest ingestion $\to$ typed multigraph $\to$ QoS-weighted \texttt{DEPENDS\_ON} projection $\to$ typed node properties $\to$ heterogeneous graph learning $\to$ a ranked critical set with per-relationship criticality $\to$ the ground-truth simulation oracle (Section~\ref{sec:4.3}) that scores it. The oracle closes the predictive pathway's training loop and runs on $G_{\text{structural}}$ alone; it is strictly offline and never part of inference (Section~\ref{sec:4.4}), as indicated by the dashed edge. The explanation layer (Section~\ref{sec:5}) branches off that line: it re-enters from the analysis multigraph, emits a standards-grounded quality profile from the same typed features while sharing no parameters with the predictor, and is reached by triage rather than by data flow.}
+
+\caption{End-to-end architecture of the SaG framework. The central assertion is that the predictive pathway (Section~\ref{sec:4}) forms the primary sequence: manifest ingestion $\to$ typed multigraph $\to$ QoS-weighted \texttt{DEPENDS\_ON} projection $\to$ typed node properties $\to$ heterogeneous graph learning $\to$ a ranked critical set with per-relationship criticality $\to$ the ground-truth simulation oracle (Section~\ref{sec:4.3}) that evaluates it. The oracle completes the predictive pathway's training loop and operates solely on $G_{\text{structural}}$; it functions strictly offline and is excluded from inference (Section~\ref{sec:4.4}), as indicated by the dashed edge. The explanation layer (Section~\ref{sec:5}) diverges from this sequence: it re-enters from the analysis multigraph, generates a standards-based quality profile from the same typed features without sharing parameters with the predictor, and is accessed through triage rather than direct data flow.}
+
 \label{fig:1}
+
 \end{figure}
 
 This section formalizes the Software-as-a-Graph multigraph representation (Section~\ref{sec:3.1}), the QoS-aware weighting and logical dependency derivation rules (Section~\ref{sec:3.2}), the dual graph views (Section~\ref{sec:3.3}), and the typed node feature encodings (Section~\ref{sec:3.4}).
@@ -15,23 +20,31 @@ This section formalizes the Software-as-a-Graph multigraph representation (Secti
 \subsection{Formal Multigraph Definition}
 \label{sec:3.1}
 
-A complex distributed software system is formally modeled as a typed, weighted, directed multigraph:
+A complex distributed software system is formally represented as a typed, weighted, directed multigraph:
+
 \begin{equation}
 \mathcal{G} = (V, E, \tau_V, \tau_E, w_V, w_E)
 \end{equation}
+
 where:
+
 \begin{itemize}
     \item $V$ is the set of system entities, partitioned into five disjoint categories $\mathcal{T}_V = \{\text{app}, \text{broker}, \text{topic}, \text{host}, \text{lib}\}$ such that $V = \bigcup_{t \in \mathcal{T}_V} V_t$:
+
     \begin{equation}
     V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\text{host}} \cup V_{\text{lib}}
     \end{equation}
-    To avoid conflating graph vertices with physical compute machines, we designate $V_{\text{host}}$ as \emph{Execution Hosts} (physical hosts or virtualized execution nodes).
+
+    To prevent conflation of graph vertices with physical compute machines, $V_{\text{host}}$ is designated as \emph{Execution Hosts} (physical hosts or virtualized execution nodes).
+
     \item $E$ is the set of directed edges connecting entities.
+
     \item $\tau_V: V \to \mathcal{T}_V$ and $\tau_E: E \to \mathcal{T}_E$ are typing functions assigning entity and relationship categories.
-    \item $w_V: V \to (0, 1]$ and $w_E: E \to (0, 1]$ are weighting functions representing entity criticality and connection strength. For applications and shared libraries, $w_V(v)$ is initialized from static code metrics as $w_V(v) = 1 - \text{CQP}(v)$ (where $\text{CQP}$ denotes the Code Quality Penalty, Section~\ref{sec:3.4}), defaulting to $1.0$ when static code metrics are absent or for infrastructure entities ($w_V(\text{host}) = 1.0$).
+
+    \item $w_V: V \to (0, 1]$ and $w_E: E \to (0, 1]$ are weighting functions representing entity criticality and connection strength. For applications and shared libraries, $w_V(v)$ is initialized from static code metrics as $w_V(v) = 1 - \text{CQP}(v)$ (where $\text{CQP}$ denotes the Code Quality Penalty, Section~\ref{sec:3.4}). It defaults to $1.0$ when static code metrics are absent or for infrastructure entities ($w_V(\text{host}) = 1.0$).
 \end{itemize}
 
-Table~\ref{tab:1} summarizes the five entity types and six structural edge types formalized in the SaG model, along with their semantics and representative concrete distributed-system implementations.
+Table~\ref{tab:1} summarizes the five entity types and six structural edge types defined in the SaG model, together with their semantics and representative distributed-system implementations.
 
 \begin{table}[htbp]
 \centering
@@ -62,38 +75,44 @@ Table~\ref{tab:1} summarizes the five entity types and six structural edge types
 }
 \end{table}
 
-Application and Library entities additionally incorporate static code metrics produced via Static Code Analysis (SCA) tools (\texttt{cm\_*} attributes: lines of code, cyclomatic complexity, coupling between objects, LCOM), linking code-level fragility directly to topological analysis.
+Application and Library entities also incorporate static code metrics generated by Static Code Analysis (SCA) tools (\texttt{cm\_*} attributes: lines of code, cyclomatic complexity, coupling between objects, LCOM), thereby linking code-level fragility directly to topological analysis.
 
 \subsection{QoS-Aware Weights and Logical Dependency Derivation}
 \label{sec:3.2}
 
-In distributed middleware, communication links vary in coupling strength based on their Quality-of-Service (QoS) contracts. For instance, a \texttt{RELIABLE} topic with \texttt{TRANSIENT\_LOCAL} durability binds communicating services substantially more tightly than a \texttt{BEST\_EFFORT} telemetry stream.
+In distributed middleware, communication links differ in strength according to their Quality-of-Service (QoS) contracts. For example, a \texttt{RELIABLE} topic with \texttt{TRANSIENT\_LOCAL} durability creates a stronger binding between communicating services than a \texttt{BEST\_EFFORT} telemetry stream.
 
 Each topic $t$ carries an intrinsic criticality weight $w(t) \in (0, 1]$ combining its declared QoS semantics with two runtime-stress modulators: payload size and publication frequency:
+
 \begin{equation}
 \label{eq:3}
 w(t) = \alpha_{\text{top}} \cdot \text{QoS}(t) + \beta_{\text{top}} \cdot \text{SizeNorm}(t) + \gamma_{\text{top}} \cdot \text{FreqNorm}(t),
 \quad (\alpha_{\text{top}},\, \beta_{\text{top}},\, \gamma_{\text{top}}) = (0.75,\, 0.15,\, 0.10)
 \end{equation}
+
 where the QoS term is an AHP-weighted aggregate of the declared contract:
+
 \begin{equation}
 \text{QoS}(t) = w_{\text{rel}} \cdot q_{\text{rel}} + w_{\text{dur}} \cdot q_{\text{dur}} + w_{\text{prio}} \cdot q_{\text{prio}},
 \quad (w_{\text{rel}}, w_{\text{dur}}, w_{\text{prio}}) = (0.24,\, 0.62,\, 0.14)
 \end{equation}
-Here, $q_{\text{rel}}, q_{\text{dur}}, q_{\text{prio}} \in [0, 1]$ represent normalized reliability, durability, and transport-priority scores mapped directly from declared manifest policies: $q_{\text{rel}} \in \{0.0, 1.0\}$ (best-effort vs.\ reliable), $q_{\text{dur}} \in \{0.0, 0.5, 1.0\}$ (volatile, transient-local, persistent), and $q_{\text{prio}} \in \{0.0, 0.5, 1.0\}$ (low, medium, high). Durability dominates because it governs whether data persists across restarts and network partitions. Reliability and transport priority both govern in-flight delivery quality, with reliability receiving higher weight because unconditional delivery guarantees precede message scheduling. The sub-weight vector is the geometric-mean priority vector of an independently stated Saaty pairwise-comparison matrix, printed with its consistency computation in Supplementary Section~S4; $CR = 0.016$, small but non-zero. 
+
+Here, $q_{\text{rel}}, q_{\text{dur}}, q_{\text{prio}} \in [0, 1]$ represent normalized reliability, durability, and transport-priority scores mapped directly from declared manifest policies: $q_{\text{rel}} \in \{0.0, 1.0\}$ (best-effort vs. reliable), $q_{\text{dur}} \in \{0.0, 0.5, 1.0\}$ (volatile, transient-local, persistent), and $q_{\text{prio}} \in \{0.0, 0.5, 1.0\}$ (low, medium, high). Durability dominates because it governs whether data remains across restarts and network partitions. Reliability and transport priority both govern in-flight delivery quality, with reliability receiving higher weight because unconditional delivery guarantees precede message scheduling. The sub-weight vector is the geometric-mean priority vector of an independently stated Saaty pairwise-comparison matrix, printed with its consistency computation in Supplementary Section~S4; $CR = 0.016$, small but non-zero.
 
 The modulators $\text{SizeNorm}(t)$ and $\text{FreqNorm}(t)$ are logarithmically compressed and clamped to $[0, 1]$:
+
 \begin{equation}
 \text{SizeNorm}(t) = \min\left(1.0, \frac{\log_2(1 + B(t))}{20}\right), \quad
 \text{FreqNorm}(t) = \min\left(1.0, \frac{\log_{10}(1 + F(t))}{3}\right)
 \end{equation}
-where $B(t)$ denotes message payload size in bytes (with a 1~MiB design envelope, representing the practical DDS sample ceiling before RTPS fragmentation dominates) and $F(t)$ represents nominal publication frequency in Hertz. The final weight $w(t)$ is clamped to $[0.01, 1]$, ensuring that best-effort edges remain visible to graph traversals. Every structural communication edge incident on $t$ (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}) inherits $w_E(e) = w(t)$ along with the topic's QoS vector.
 
-The outer split $(\alpha_{\text{top}}, \beta_{\text{top}}, \gamma_{\text{top}})$ is a declared convex combination. Global sensitivity screening via Morris elementary effects (Supplementary Section~S1) confirms that topic-weight variation alters downstream rank correlation by at most $0.018$ (with $\rho = 0.081$ max shift across the full simplex), demonstrating that this split is a documented convention rather than a sensitive parameter.
+Here, $B(t)$ denotes the message payload size in bytes (with a 1~MiB design envelope, which represents the practical DDS sample ceiling before RTPS fragmentation becomes dominant), and $F(t)$ represents the nominal publication frequency in Hertz. The final weight $w(t)$ is clamped to $[0.01, 1]$ to ensure that best-effort edges remain visible during graph traversals. Each structural communication edge incident on $t$ (\texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO}, \texttt{ROUTES}) inherits $w_E(e) = w(t)$ together with the topic's QoS vector.
+
+The outer split $(\alpha_{\text{top}}, \beta_{\text{top}}, \gamma_{\text{top}})$ constitutes a declared convex combination. Comprehensive sensitivity analysis using Morris elementary effects (Supplementary Section~S1) demonstrates that topic-weight variation alters downstream rank correlation by no more than $0.018$ (with $\rho = 0.081$ maximum shift across the full simplex). This finding indicates that the split is a documented convention rather than a sensitive parameter.
 
 \subsubsection{Logical Dependency Projection (\texttt{DEPENDS\_ON})}
 
-Structural edges capture explicit deployment connections but omit implicit runtime dependencies. For example, a subscriber depends upon a publisher, yet no direct edge connects them in pub-sub architectures. We therefore derive a single unified semantic relation, \texttt{DEPENDS\_ON}, directed from \emph{dependent} toward \emph{dependency} (``if target fails, source is impacted''), according to the six projection rules detailed in Table~\ref{tab:2}. The derived weight $w \in (0, 1]$ quantifies the operational coupling strength, indicating the conditional likelihood that a disruption in the dependency propagates to the dependent.
+Structural edges represent explicit deployment connections but do not capture implicit runtime dependencies. For instance, a subscriber depends on a publisher, yet no direct edge connects them in publish-subscribe architectures. To address this, a single unified semantic relation, \texttt{DEPENDS\_ON}, is derived and directed from \emph{dependent} to \emph{dependency} ("if target fails, source is impacted"), following the six projection rules detailed in Table~\ref{tab:2}. The resulting weight $w \in (0, 1]$ quantifies the magnitude of operational coupling and indicates the conditional likelihood that a disruption in the dependency propagates to the dependent.
 
 \begin{table}[htbp]
 \centering
@@ -116,24 +135,24 @@ Structural edges capture explicit deployment connections but omit implicit runti
 }
 \end{table}
 
-Rules 1 and 2 aggregate the set of topics $T$ connecting a component pair using a probabilistic union rather than a maximum \cite{pearl1988probabilistic,beliakov2007aggregation,yager1988owa}. This guarantees that additional parallel failure vectors increase coupling monotonically while keeping $w \in (0, 1]$. Rule 5 applies the harmonic mean $H(x, y) = 2xy/(x+y)$ \cite{hardy1952inequalities} to combine the consuming Application's as well as the shared Library's vertex weights, balancing caller and dependency criticality. Rules 3 and 4 lift application-level dependencies across host boundaries using the maximum coupling weight.
+Rules 1 and 2 aggregate the set of topics $T$ connecting a component pair using a probabilistic union rather than a maximum \cite{pearl1988probabilistic,beliakov2007aggregation,yager1988owa}. This approach ensures that additional parallel failure vectors increase coupling monotonically while maintaining $w \in (0, 1]$. Rule 5 employs the harmonic mean $H(x, y) = 2xy/(x+y)$ \cite{hardy1952inequalities} to combine the vertex weights of the consuming Application and the shared Library, thereby balancing caller and dependency criticality. Rules 3 and 4 extend application-level dependencies across host boundaries using the maximum coupling weight.
 
 \subsubsection{Sequential Cascades vs.\ Simultaneous Blasts}
 
-A primary principle of the SaG model is distinguishing two degradation modes: (1)~\textbf{Sequential Cascades (Rule 1)}, where a failed publisher starves downstream subscribers hop by hop through message queues and topic buffers; and (2)~\textbf{Simultaneous Blasts (Rule 5)}, where a crashed library or execution host causes all consuming applications and colocated brokers to fail instantaneously in a single shared-fate event. Preserving entity types and relation-specific projection rules enables SaG to model both mechanisms, whereas untyped homogeneous graphs collapse them into indistinguishable edges.
+A central principle of the SaG model is the distinction between two degradation modes: (1)~\textbf{Sequential Cascades (Rule 1)}, in which a failed publisher starves downstream subscribers sequentially through message queues and topic buffers; and (2)~\textbf{Simultaneous Blasts (Rule 5)}, in which a crashed library or execution host causes all consuming applications and colocated brokers to fail instantaneously in a single shared-fate event. The preservation of entity types and relation-specific projection rules enables the SaG model to represent both mechanisms, whereas untyped homogeneous graphs collapse them into indistinguishable edges.
 
 Rule 6 is the only symmetric projection rule: two brokers colocated on the same execution host share that host's physical failure domain (following the simultaneous-blast principle of Rule 5, with $w = w_V(\text{host})$). In production deployments, colocated brokers compete for CPU, memory, and I/O; a host crash halts all colocated instances simultaneously. Rule 6 does not model logical intra-cluster broker coupling (e.g., partition replication, quorum election, or shovel links, which do not require physical colocation). It applies in four of the eight detection benchmark scenarios (Supplementary Section~S12) and contributes only 12 directed edges. Because simulation oracles operate strictly on $G_{\text{structural}}$ (Section~\ref{sec:4.4}), Rule 6 has zero influence on ground-truth failure labels.
 
 \subsection{Dual Graph Views and Architectural Layers}
 \label{sec:3.3}
 
-The SaG framework contains two distinct representations: (1)~\textbf{Structural Graph} ($G_{\text{structural}}$), the raw deployment graph containing physical and structural relations (\texttt{PUBLISHES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{USES}) that preserves the untransformed deployment topology; and (2)~\textbf{Analysis Graph} ($G_{\text{analysis}}$), the projected graph containing derived \texttt{DEPENDS\_ON} edges annotated with QoS weights and ingested SCA metrics, over which all GNN embeddings and analytical metrics are computed (see running example in Supplementary Figure~S14.1).
+The SaG framework comprises two distinct representations: (1)~\textbf{Structural Graph} ($G_{\text{structural}}$), which is the raw deployment graph containing physical and structural relations (\texttt{PUBLISHES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{USES}) and preserves the untransformed deployment topology; and (2)~\textbf{Analysis Graph} ($G_{\text{analysis}}$), which is the projected graph containing derived \texttt{DEPENDS\_ON} edges annotated with QoS weights and ingested SCA metrics. All GNN embeddings and analytical metrics are computed on the analysis graph (see running example in Supplementary Figure~S14.1).
 
-$G_{\text{analysis}}$ is further structured into four analytical layers (Application, Middleware, Infrastructure, and Global System), enabling evaluation of criticality at subsystem levels, consistent with hierarchical frameworks such as MIL-STD-498 \cite{dod1994milstd498}.
+$G_{\text{analysis}}$ is further organized into four analytical layers (Application, Middleware, Infrastructure, and Global System), which enables evaluation of criticality at subsystem levels in a manner consistent with hierarchical frameworks such as MIL-STD-498 \cite{dod1994milstd498}.
 
 \subsection{Typed Node Feature Encoding}
 \label{sec:3.4}
 
-In the SaG architecture, both the predictive pathway (Section~\ref{sec:4}) and the explanation layer (Section~\ref{sec:5}) ingest the same unified typed node properties from $G_{\text{analysis}}$: the predictive pathway projects them per entity type before heterogeneous message passing, and the explanation layer aggregates them into its quality profile. All five entity types share indices 0--17, a common block of topological metrics --- in/out degree, betweenness, closeness, reverse PageRank, clustering coefficient, articulation score and bridge load --- produced by the deterministic analysis stage whose cost is characterized in Section~\ref{sec:7.5}. All topological metrics in this block are normalized to $[0, 1]$ within each graph: degrees are normalized by $|V|-1$, betweenness and closeness follow standard network formulations, and reverse PageRank is normalized to unit sum. This within-graph normalization prevents raw graph size and component counts from controlling multi-layer perceptron projections during cross-scenario inductive transfer. Type-specific blocks extend it to between 19 and 25 dimensions: source-code metrics and the Code Quality Penalty for Applications, two reverse-\texttt{USES} blast-radius drivers for Libraries, queue capacity for Brokers, publisher/subscriber counts and ordinal QoS criticality for Topics, and CPU and memory allocation for Execution Hosts ($V_{\text{host}}$). Supplementary Section~S11 gives the index-by-index schema.
+Within the SaG architecture, both the predictive pathway (Section~\ref{sec:4}) and the explanation layer (Section~\ref{sec:5}) utilize the same unified typed node properties from $G_{\text{analysis}}$. The predictive pathway projects these properties per entity type prior to heterogeneous message passing, while the explanation layer aggregates them into its quality profile. All five entity types share indices 0--17, which comprise a common block of topological metrics: in/out degree, betweenness, closeness, reverse PageRank, clustering coefficient, articulation score, and bridge load. These metrics are produced by the deterministic analysis stage, whose computational cost is characterized in Section~\ref{sec:7.5}. All topological metrics in this block are normalized to $[0, 1]$ within each graph: degrees are normalized by $|V|-1$, betweenness and closeness follow standard network formulations, and reverse PageRank is normalized to unit sum. This normalization prevents raw graph size and component counts from dominating multi-layer perceptron projections during cross-scenario inductive transfer. Type-specific blocks extend the feature set to between 19 and 25 dimensions: source-code metrics and the Code Quality Penalty for Applications, two reverse-\texttt{USES} blast-radius drivers for Libraries, queue capacity for Brokers, publisher/subscriber counts and ordinal QoS criticality for Topics, and CPU and memory allocation for Execution Hosts ($V_{\text{host}}$). Supplementary Section~S11 provides the index-by-index schema.
 
-The shared block contains the graph structure, which matters for interpreting Section~\ref{sec:7}: betweenness, closeness, reverse PageRank, and articulation score are topology summaries computed before any model sees the graph. A learned model is therefore not the only route from structure to a criticality score, which is what makes the closed-form baselines fair comparators rather than strawmen.
+The shared block includes the graph composition, which is relevant for interpreting Section~\ref{sec:7}: betweenness, closeness, reverse PageRank, and articulation score are topological summaries computed prior to model evaluation. Consequently, a learned model is not the sole method for deriving a criticality score from structure, which ensures that the closed-form baselines serve as fair comparators rather than strawman alternatives.
