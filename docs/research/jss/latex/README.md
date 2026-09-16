@@ -5,7 +5,7 @@ VSI:AI4MSS). **This folder is authoritative**: it is what gets zipped for Editor
 where manuscript revisions land, and its results tables and figures are generated from committed
 artifacts by scripts under `reproduce/` rather than written by hand.
 
-[`../manuscript.md`](../manuscript.md) is a Markdown rendering of the same manuscript. It is now **generated**,
+[`../manuscript.md`](../manuscript.md) and the modular section files in [`../sections/`](../sections/) are Markdown renderings of the same manuscript. They are now **generated**,
 not maintained by hand:
 
 ```bash
@@ -13,16 +13,17 @@ make                                    # refresh manuscript.aux / manuscript.bb
 python ../../../../reproduce/render_manuscript_md.py
 ```
 
-Section, table, figure and citation numbers in `manuscript.md` are read out of the compiled `.aux` and
+Section, table, figure and citation numbers in `manuscript.md` and `../sections/` are read out of the compiled `.aux` and
 `.bbl`, so the Markdown carries exactly the numbering the PDF does. Run the generator after every
-revision round; editing `manuscript.md` by hand reintroduces the drift that previously left it two
+revision round; editing Markdown files by hand reintroduces the drift that previously left it two
 revision rounds behind (with superseded results tables, a withdrawn fallback-gate recommendation, and
 a retracted cost claim still in it).
 
 `manuscript.md` keeps two things these sources do not, and the generator preserves both: an ASCII
 schematic of the pipeline and an ASCII diagram of the HGT layer stack (`Figure M1`), plus a header
 note recording the review model. Its figure numbering matches the LaTeX; a note in the document
-records the `Figure_N` file correspondence.
+records the `Figure_N` file correspondence. Individual section files under `../sections/` mirror `sections/*.tex`
+for granular review and diffing.
 
 ## Layout
 

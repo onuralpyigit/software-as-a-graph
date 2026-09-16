@@ -29,6 +29,8 @@ LATEX = JSS / "latex"
 SEC = LATEX / "sections"
 MANUSCRIPT_MD = JSS / "manuscript.md"
 
+MD_SECTIONS = JSS / "sections"
+
 SECTIONS = [
     "sec1_introduction",
     "sec2_related_work",
@@ -155,12 +157,7 @@ def render_frontmatter() -> tuple[str, str, str]:
     return header, abstract_md, keywords_md
 
 
-def render_body(labels: dict, cites: dict) -> str:
-    body = "\n\n".join(
-        to_markdown(preprocess((SEC / f"{n}.tex").read_text(encoding="utf8"), labels, cites), n)
-        for n in SECTIONS
-    )
-
+def postprocess_markdown(body: str, labels: dict) -> str:
     body = re.sub(r"^(#{2,}) (\d+\.\d[\d.]*)\. ", r"\1 \2 ", body, flags=re.M)
 
     def fig(m):
@@ -188,56 +185,100 @@ def render_body(labels: dict, cites: dict) -> str:
     return body.strip()
 
 
-def build_manuscript() -> str:
+def render_sections(labels: dict, cites: dict) -> dict[str, str]:
+    header, abstract_md, keywords_md = render_frontmatter()
+
+    sections: dict[str, str] = {}
+    sections["frontmatter"] = header.rstrip()
+    sections["abstract"] = f"# Abstract\n\n{abstract_md}\n\n{keywords_md}"
+
+    for n in SECTIONS:
+        raw = to_markdown(preprocess((SEC / f"{n}.tex").read_text(encoding="utf8"), labels, cites), n)
+        sections[n] = postprocess_markdown(raw, labels)
+
+    sections["declarations"] = render_declarations(cites)
+    sections["references"] = f"# References\n\n{render_references(cites)}"
+    return sections
+
+
+def build_manuscript(sections: dict[str, str] | None = None) -> tuple[str, dict[str, str]]:
     if not (LATEX / "manuscript.aux").exists():
         sys.exit("manuscript.aux missing — run `make` in docs/research/jss/latex first")
 
     labels, cites = load_numbering()
-    header, abstract_md, keywords_md = render_frontmatter()
-    body = render_body(labels, cites)
-    declarations_md = render_declarations(cites)
-    references_md = render_references(cites)
+    if sections is None:
+        sections = render_sections(labels, cites)
+
+    body = "\n\n".join(sections[n] for n in SECTIONS)
+    fm = sections["frontmatter"]
+    ab = sections["abstract"]
+    dec = sections["declarations"]
+    ref = sections["references"]
 
     rendered = (
-        f"{header}\n"
+        f"{fm}\n\n"
         f"---\n\n"
-        f"# Abstract\n\n"
-        f"{abstract_md}\n\n"
-        f"{keywords_md}\n\n"
+        f"{ab}\n\n"
         f"---\n\n"
         f"{body}\n\n"
         f"---\n\n"
-        f"{declarations_md}\n\n"
+        f"{dec}\n\n"
         f"---\n\n"
-        f"# References\n\n"
-        f"{references_md}\n"
+        f"{ref}\n"
     )
-    return rendered
+    return rendered, sections
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument(
         "--check", action="store_true",
-        help="do not write; exit 1 if regenerating would change manuscript.md")
+        help="do not write; exit 1 if regenerating would change manuscript.md or sections/*.md")
     args = ap.parse_args()
 
-    rendered = build_manuscript()
+    rendered, sections = build_manuscript()
 
     if args.check:
+        stale = False
         if not MANUSCRIPT_MD.exists():
             print("manuscript.md does not exist.")
+            stale = True
+        else:
+            old = MANUSCRIPT_MD.read_text(encoding="utf8")
+            if rendered != old:
+                import difflib
+                diff = list(difflib.unified_diff(
+                    old.splitlines(), rendered.splitlines(),
+                    fromfile="manuscript.md (on disk)", tofile="manuscript.md (regenerated)", lineterm="", n=1))
+                print(f"manuscript.md is STALE against the LaTeX — {len(diff)} diff line(s).")
+                stale = True
+
+        for name, content in sections.items():
+            sec_file = MD_SECTIONS / f"{name}.md"
+            if not sec_file.exists():
+                print(f"sections/{name}.md does not exist.")
+                stale = True
+            else:
+                old_sec = sec_file.read_text(encoding="utf8")
+                expected_sec = content + "\n"
+                if old_sec != expected_sec:
+                    import difflib
+                    diff = list(difflib.unified_diff(
+                        old_sec.splitlines(), expected_sec.splitlines(),
+                        fromfile=f"sections/{name}.md (on disk)", tofile=f"sections/{name}.md (regenerated)", lineterm="", n=1))
+                    print(f"sections/{name}.md is STALE against the LaTeX — {len(diff)} diff line(s).")
+                    stale = True
+
+        if stale:
             return 1
-        old = MANUSCRIPT_MD.read_text(encoding="utf8")
-        if rendered == old:
-            print("manuscript.md is up to date.")
-            return 0
-        import difflib
-        diff = list(difflib.unified_diff(
-            old.splitlines(), rendered.splitlines(),
-            fromfile="manuscript.md (on disk)", tofile="manuscript.md (regenerated)", lineterm="", n=1))
-        print(f"manuscript.md is STALE against the LaTeX — {len(diff)} diff line(s).")
-        return 1
+        print("manuscript.md and sections/*.md are up to date.")
+        return 0
+
+    MD_SECTIONS.mkdir(parents=True, exist_ok=True)
+    for name, content in sections.items():
+        sec_file = MD_SECTIONS / f"{name}.md"
+        sec_file.write_text(content + "\n", encoding="utf8")
+    print(f"Rendered {len(sections)} section files to {MD_SECTIONS}")
 
     MANUSCRIPT_MD.write_text(rendered, encoding="utf8")
     print(f"manuscript.md generated successfully at {MANUSCRIPT_MD}")

@@ -1,10 +1,11 @@
 # Software-as-a-Graph — JSS submission reading map
 
-> **[`latex/`](latex/) is the authoritative manuscript.** [`manuscript.md`](manuscript.md) is now *generated*
-> from it by [`reproduce/render_manuscript_md.py`](../../../reproduce/render_manuscript_md.py), taking its
-> section, table, figure and citation numbers from the compiled `.aux`/`.bbl`, so the two cannot
+> **[`latex/`](latex/) is the authoritative manuscript.** [`manuscript.md`](manuscript.md) and
+> [`sections/`](sections/) are now *generated* from it by
+> [`reproduce/render_manuscript_md.py`](../../../reproduce/render_manuscript_md.py), taking their
+> section, table, figure and citation numbers from the compiled `.aux`/`.bbl`, so they cannot
 > disagree unless the generator has not been re-run. This file is a section-by-section map of the
-> pair — what each part argues, what backs it, and where a reviewer will push.
+> paper — what each part argues, what backs it, and where a reviewer will push.
 >
 > **Regenerated after the corpus re-derivation (PR #56) and the consistency pass that followed.**
 > Every earlier version of this file is stale: it carried the pre-re-derivation numbers
