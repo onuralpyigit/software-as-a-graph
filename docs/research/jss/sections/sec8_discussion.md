@@ -52,7 +52,7 @@ Heavy-tailed distributions are evaluated using non-parametric correlations (Spea
 
 #### Correction of the Real-World Baseline
 
-Earlier versions omitted `Topo-QoS` from Table 8, explaining this to missing QoS contracts in open-source adapters. However, all five adapters declare QoS parameters. The omission resulted from computing betweenness on the raw multigraph rather than on the `DEPENDS_ON` projection. After this correction, `Topo-QoS` is now reported across all systems.
+Earlier versions omitted `Topo-QoS` from Table 8, attributing this to missing QoS contracts in open-source adapters. However, all five adapters declare QoS parameters. The omission resulted from computing betweenness on the raw multigraph rather than on the `DEPENDS_ON` projection. After this correction, `Topo-QoS` is now reported across all systems.
 
 #### Explanation Layer Validation
 

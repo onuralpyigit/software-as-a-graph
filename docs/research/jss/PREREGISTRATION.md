@@ -14,12 +14,19 @@ only because it is what motivated this pass. The question it raised stands:
 can a heterogeneous model beat Topo-QoS under LOSO by a margin that survives a
 signed-rank test?
 
-**Outcome (recorded after the fact, 2026-09-09).** No. On the twelve-fold
-corpus the measured margin is +0.127 (9/12, W = 16.0, p = 0.077), and it rests
-almost entirely on the ATM fold where Topo-QoS fails outright; excluding that
-fold it falls to +0.078 (8/11, p = 0.148). Reported as registered, in
-Section 7.1 of the manuscript. The secondary contrast and the typing
-comparisons are reported in the same section and in Section 7.2.
+**Outcome (recorded after the fact, 2026-09-09; restated 2026-09-16).** No.
+The 2026-09-09 run measured +0.127 (9/12, W = 16.0, p = 0.077) and was recorded
+here as resting almost entirely on the ATM fold. That run has since been
+superseded. The reported result is the twelve-fold re-run in
+`results/loso_all_variants_v5.json` and `results/loso_significance_v5.json`:
+**+0.085 (9/12, W = 20.0, p = 0.151, CI [-0.029, +0.194])**. The conclusion is
+unchanged — the margin does not reach significance — but two details of the
+earlier record no longer hold. The ATM dependency is gone: ATM contributes
++0.210, behind Healthcare (+0.401) and IoT Smart City (+0.360). The three
+losing folds are Enterprise (-0.334), Telecom RAN (-0.169) and AV (-0.030);
+Microservices, recorded as a loss in earlier drafts, is a +0.229 win. Reported
+as registered, in Section 7.1 of the manuscript. The secondary contrast and the
+typing comparisons are reported in the same section and in Section 7.2.
 
 ## Primary comparison
 
