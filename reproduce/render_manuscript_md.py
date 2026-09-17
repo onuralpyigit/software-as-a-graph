@@ -201,12 +201,22 @@ def render_sections(labels: dict, cites: dict) -> dict[str, str]:
     return sections
 
 
-def build_manuscript(sections: dict[str, str] | None = None) -> tuple[str, dict[str, str]]:
-    if not (LATEX / "manuscript.aux").exists():
-        sys.exit("manuscript.aux missing — run `make` in docs/research/jss/latex first")
+def load_sections_from_markdown() -> dict[str, str]:
+    sections: dict[str, str] = {}
+    sections["frontmatter"] = (MD_SECTIONS / "frontmatter.md").read_text(encoding="utf8").strip()
+    sections["abstract"] = (MD_SECTIONS / "abstract.md").read_text(encoding="utf8").strip()
+    for n in SECTIONS:
+        sections[n] = (MD_SECTIONS / f"{n}.md").read_text(encoding="utf8").strip()
+    sections["declarations"] = (MD_SECTIONS / "declarations.md").read_text(encoding="utf8").strip()
+    sections["references"] = (MD_SECTIONS / "references.md").read_text(encoding="utf8").strip()
+    return sections
 
-    labels, cites = load_numbering()
+
+def build_manuscript(sections: dict[str, str] | None = None) -> tuple[str, dict[str, str]]:
     if sections is None:
+        if not (LATEX / "manuscript.aux").exists():
+            sys.exit("manuscript.aux missing — run `make` in docs/research/jss/latex first")
+        labels, cites = load_numbering()
         sections = render_sections(labels, cites)
 
     body = "\n\n".join(sections[n] for n in SECTIONS)
@@ -234,7 +244,32 @@ def main() -> int:
     ap.add_argument(
         "--check", action="store_true",
         help="do not write; exit 1 if regenerating would change manuscript.md or sections/*.md")
+    ap.add_argument(
+        "--from-sections", action="store_true",
+        help="assemble manuscript.md from docs/research/jss/sections/*.md without touching LaTeX")
     args = ap.parse_args()
+
+    if args.from_sections:
+        sections = load_sections_from_markdown()
+        rendered, _ = build_manuscript(sections)
+        if args.check:
+            if not MANUSCRIPT_MD.exists():
+                print("manuscript.md does not exist.")
+                return 1
+            old = MANUSCRIPT_MD.read_text(encoding="utf8")
+            if rendered != old:
+                import difflib
+                diff = list(difflib.unified_diff(
+                    old.splitlines(), rendered.splitlines(),
+                    fromfile="manuscript.md (on disk)", tofile="manuscript.md (from sections)", lineterm="", n=1))
+                print(f"manuscript.md is STALE against sections/*.md — {len(diff)} diff line(s).")
+                return 1
+            print("manuscript.md is up to date with sections/*.md.")
+            return 0
+
+        MANUSCRIPT_MD.write_text(rendered, encoding="utf8")
+        print(f"manuscript.md generated successfully from sections at {MANUSCRIPT_MD}")
+        return 0
 
     rendered, sections = build_manuscript()
 
