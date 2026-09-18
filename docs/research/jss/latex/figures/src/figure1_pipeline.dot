@@ -158,7 +158,7 @@ digraph Figure1 {
   oracle [
     label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
       <tr><td><b>Ground-Truth Simulation Oracle (<i>I*</i>(<i>v</i>))</b></td></tr>
-      <tr><td><font point-size="9.5" color="#7C2D12">FaultInjector on raw <i>G</i><sub>structural</sub></font></td></tr>
+      <tr><td><font point-size="9.5" color="#7C2D12">Cascade reachability on raw <i>G</i><sub>structural</sub></font></td></tr>
       <tr><td><font point-size="9.5" color="#7C2D12">Offline: training &amp; validation only</font></td></tr>
     </table>>,
     fillcolor="#FFEDD5", color="#C2410C"
@@ -251,7 +251,7 @@ digraph Figure1 {
   ];
 
   // Prescribe's per-edit acceptance filter re-simulates each candidate on its
-  // own mutated copy of G_structural before accepting it (EditVerifier) — a
+  // own mutated copy of G_structural before accepting it (counterfactual verification) — a
   // closed loop back into the centre line's front end, not a second call into
   // the oracle. headlabel (not label, not xlabel): an inline label widens the
   // canvas, and an xlabel lands on top of the diag -> remediate arrow.

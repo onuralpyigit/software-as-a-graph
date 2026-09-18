@@ -13,7 +13,7 @@ $rho = 0.553$ in zero-shot testing across twelve synthetic architectures and $0.
 
 #### Dual-Engine Consensus Protocol
 
-A previous version of this study proposed an automated tiered fallback based on prediction dispersion $\hat{\sigma}$. However, this heuristic does not replicate: $\hat{\sigma}$ correlates negatively with the margin over `Topo-QoS` at $\rho_s = -0.126$ (§7.2.1), so we withdrew that recommendation. Instead, since both engines execute within seconds, SaG now provides a dual-mode (`–predictor-mode dual`) scoring manifest with `HGT-QoS` and `Topo-QoS` concurrently. This approach flags unanimous top-$K$ components for immediate remediation and highlights substantial ranking divergences for human architectural review.
+A previous version of this study proposed an automated tiered fallback based on prediction dispersion $\hat{\sigma}$. However, this heuristic does not replicate: $\hat{\sigma}$ correlates negatively with the margin over `Topo-QoS` at $\rho_s = -0.126$ (§7.2.1), so we withdrew that recommendation. Instead, since both engines execute within seconds, SaG now provides a dual-prediction mode evaluating `HGT-QoS` and `Topo-QoS` concurrently. This approach flags unanimous top-$K$ components for immediate remediation and highlights substantial ranking divergences for human architectural review.
 
 #### Role of the Explanation Layer
 
@@ -59,7 +59,7 @@ SaG separates Availability from Fault Tolerance, but human studies have not yet 
 
 #### Uncontrolled Confounds in Typing
 
-Table 7 holds substrate, training set, depth, and early stopping constant, but parameter budget ($434{,}620$ vs. $28{,}168$) and reverse message-passing directionality ($103{,}725$ parameters in `HGTConv`) remain unmatched. Because $I^*(v)$ is a downstream-reachability functional, upstream visibility confers an advantage unrelated to typing. Three specific control variants have been registered in the SaG benchmark suite (`saag/evaluation/variant_registry.py`): `GAT-N-C` (capacity-matched homogeneous baseline expanded to $\approx 434\text{k}$ parameters), `GAT-N-QoS-C` (capacity-matched homogeneous with QoS edge encoding), and `HGT-QoS-U` (unidirectional HGT with forward message passing only). Executing these registered control arms across all twelve LOSO folds is the primary empirical priority for subsequent benchmark iterations.
+Table 7 holds substrate, training set, depth, and early stopping constant, but parameter budget ($434{,}620$ vs. $28{,}168$) and reverse message-passing directionality ($103{,}725$ parameters in `HGTConv`) remain unmatched. Because $I^*(v)$ is a downstream-reachability functional, upstream visibility confers an advantage unrelated to typing. Three specific control variants have been registered in the SaG benchmark suite: `GAT-N-C` (capacity-matched homogeneous baseline expanded to $\approx 434\text{k}$ parameters), `GAT-N-QoS-C` (capacity-matched homogeneous with QoS edge encoding), and `HGT-QoS-U` (unidirectional HGT with forward message passing only). Executing these registered control arms across all twelve LOSO folds is the primary empirical priority for subsequent benchmark iterations.
 
 #### Model Selection and Caching
 
