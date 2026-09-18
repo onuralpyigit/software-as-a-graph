@@ -1540,6 +1540,10 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
             "gt_source":      gt_source,
             "gt_engine":      cs[0].get("gt_engine", "FaultInjector") if cs else "FaultInjector",
             "eval_population": cs[0].get("eval_population") if cs else None,
+            # Size of the oracle's critical set. Fixed by the labels, so it is
+            # the same for every variant, but F1 is unreadable without it: a
+            # #crit far from K is what caps precision_at_tau/recall_at_tau.
+            "n_true_critical": cs[0].get("n_true_critical") if cs else None,
             "scored_on":      cs[0].get("scored_on") if cs else None,
             "n_evaluated":    cs[0].get("n_evaluated") if cs else None,
             "per_node_type":  mean_pnt,
