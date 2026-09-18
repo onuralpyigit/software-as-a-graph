@@ -70,6 +70,11 @@ from saag.core.models import QoSPolicy
 
 from .simulation_results import (
     FaultEventRecord,
+    GoldenSignalsReport,
+    LatencySignal,
+    TrafficSignal,
+    ErrorSignal,
+    SaturationSignal,
     MessageFlowResult,
     SubscriberFlowStats,
     TopicFlowStats,
@@ -308,6 +313,8 @@ class ServiceStation:
         #: Accumulated service time, for the realised-utilization check that
         #: tells you whether the calibration actually landed.
         self.busy_time = 0.0
+        self.busy_time_pre = 0.0
+        self.busy_time_post = 0.0
 
     def sample_service_time(self, rng: random.Random) -> float:
         """Draw one service time.
@@ -326,15 +333,25 @@ class ServiceStation:
             return self.service_time_s * (0.8 + 0.4 * rng.random())
         return self.service_time_s
 
-    def record_service(self, service_time: float) -> None:
+    def record_service(self, service_time: float, window: Optional[str] = None) -> None:
         """Accumulate busy time, ignoring the pre-steady-state transient."""
         if self.env.now >= self.measure_from:
             self.busy_time += service_time
+            if window == "pre":
+                self.busy_time_pre += service_time
+            elif window == "post":
+                self.busy_time_post += service_time
 
     def utilization(self, until: float) -> float:
         """Realised busy fraction of this station's capacity, post warm-up."""
         span = (until - self.measure_from) * self.concurrency
         return self.busy_time / span if span > 0 else 0.0
+
+    def utilization_window(self, window_span: float, window: str) -> float:
+        """Realised busy fraction for a specific window (pre or post)."""
+        busy = self.busy_time_pre if window == "pre" else self.busy_time_post
+        span = window_span * self.concurrency
+        return busy / span if span > 0 else 0.0
 
 
 def _merge_qos(topic: QoSProfile, edge: QoSProfile) -> QoSProfile:
@@ -464,6 +481,59 @@ class SubscriberQueue:
         self.bucket_of = bucket_of
         self._store: simpy.Store = simpy.Store(env, capacity=qos.queue_size)
 
+        # Saturation tracking: depth integral and peak occupancy
+        self._last_depth_change_time = 0.0
+        self._area_under_depth = 0.0
+        self._peak_depth = 0
+        self._area_pre = 0.0
+        self._area_post = 0.0
+        self._peak_pre = 0
+        self._peak_post = 0
+
+    def _update_depth_area(self) -> None:
+        now = self.env.now
+        dt = now - self._last_depth_change_time
+        current_depth = len(self._store.items)
+        if dt > 0:
+            area = dt * current_depth
+            self._area_under_depth += area
+            window = self.bucket_of(now) if self.bucket_of else None
+            if window == "pre":
+                self._area_pre += area
+            elif window == "post":
+                self._area_post += area
+            self._last_depth_change_time = now
+        if current_depth > self._peak_depth:
+            self._peak_depth = current_depth
+        window = self.bucket_of(now) if self.bucket_of else None
+        if window == "pre" and current_depth > self._peak_pre:
+            self._peak_pre = current_depth
+        elif window == "post" and current_depth > self._peak_post:
+            self._peak_post = current_depth
+
+    def record_dequeue(self) -> None:
+        """Invoked immediately after an item is yielded from get()."""
+        self._update_depth_area()
+
+    def mean_depth(self, until: float, window: Optional[str] = None, window_span: Optional[float] = None) -> float:
+        self._update_depth_area()
+        if window == "pre":
+            span = window_span or until
+            return self._area_pre / span if span > 0 else 0.0
+        elif window == "post":
+            span = window_span or until
+            return self._area_post / span if span > 0 else 0.0
+        return self._area_under_depth / until if until > 0 else 0.0
+
+    def occupancy(self, until: float, window: Optional[str] = None, window_span: Optional[float] = None) -> float:
+        cap = self.qos.queue_size
+        return (self.mean_depth(until, window, window_span) / cap) if cap > 0 else 0.0
+
+    def peak_occupancy(self, window: Optional[str] = None) -> float:
+        cap = self.qos.queue_size
+        peak = self._peak_pre if window == "pre" else (self._peak_post if window == "post" else self._peak_depth)
+        return (peak / cap) if cap > 0 else 0.0
+
     def get(self) -> "simpy.resources.store.StoreGet":
         return self._store.get()
 
@@ -495,6 +565,7 @@ class SubscriberQueue:
 
     def _try_put(self, msg: Message, stats: TopicFlowStats) -> bool:
         """Enqueue msg; apply overflow policy; return True if enqueued."""
+        self._update_depth_area()
         if self.depth >= self.qos.queue_size:
             stats.total_dropped_queue_full += 1
             if self.qos.reliability == "BEST_EFFORT":
@@ -505,7 +576,9 @@ class SubscriberQueue:
             if self._store.items:
                 self._store.items.pop(0)
                 self._record_drop(stats)
+                self._update_depth_area()
         self._store.put(msg)
+        self._update_depth_area()
         return True
 
 
@@ -797,6 +870,9 @@ def _subscriber_process(
     latency_windows: Optional[Dict[str, list]] = None,
     station: Optional[ServiceStation] = None,
     service_priority: int = 0,
+    queue_wait_windows: Optional[Dict[str, list]] = None,
+    service_time_windows: Optional[Dict[str, list]] = None,
+    bytes_windows: Optional[Dict[str, Dict[str, int]]] = None,
 ) -> Generator:
     """
     Subscriber SimPy process.
@@ -823,6 +899,7 @@ def _subscriber_process(
 
         msg_event = sq.get()
         msg: Message = yield msg_event
+        sq.record_dequeue()
 
         # Double-check: failure could have been injected while waiting in get()
         if app_id in failed_nodes:
@@ -833,30 +910,33 @@ def _subscriber_process(
             return
 
         enqueue_time = msg.created_at
-
-        # Subscriber-side compute. When a station is present this is the one
-        # contended resource in the engine: every topic this subscriber reads
-        # queues for the same server, so a fault that silences one publisher
-        # relieves the others -- an effect no topological oracle can express.
-        if station is not None:
-            with station.resource.request(priority=service_priority) as req:
-                yield req
-                service_time = station.sample_service_time(rng)
-                if service_time > 0:
-                    station.record_service(service_time)
-                    yield env.timeout(service_time)
-        elif processing_time_s > 0:
-            yield env.timeout(processing_time_s * (0.8 + 0.4 * rng.random()))
-
-        # BUG-MFS-5 FIX: end-to-end latency includes subscriber processing time
-        delivery_time = env.now
-        e2e_latency_ms = (delivery_time - enqueue_time) * 1000.0
+        dequeue_time = env.now
+        queue_wait_ms = (dequeue_time - enqueue_time) * 1000.0
 
         # Window membership follows the message's *creation* time, the same
         # timestamp the publisher counted its demand at, so numerator and
         # denominator always describe the same population of messages.
         window = bucket_of(msg.window_time)
         post_fault = window == "post"
+
+        # Subscriber-side compute. When a station is present this is the one
+        # contended resource in the engine: every topic this subscriber reads
+        # queues for the same server, so a fault that silences one publisher
+        # relieves the others -- an effect no topological oracle can express.
+        service_start = env.now
+        if station is not None:
+            with station.resource.request(priority=service_priority) as req:
+                yield req
+                service_time = station.sample_service_time(rng)
+                if service_time > 0:
+                    station.record_service(service_time, window=window)
+                    yield env.timeout(service_time)
+        elif processing_time_s > 0:
+            yield env.timeout(processing_time_s * (0.8 + 0.4 * rng.random()))
+
+        delivery_time = env.now
+        service_time_ms = (delivery_time - service_start) * 1000.0
+        e2e_latency_ms = (delivery_time - enqueue_time) * 1000.0
 
         # Lifespan check (message may have expired while queued)
         if qos.lifespan_ms is not None and e2e_latency_ms > qos.lifespan_ms:
@@ -879,6 +959,9 @@ def _subscriber_process(
             continue
 
         # Delivered
+        payload_bytes = getattr(msg, "payload_size_bytes", 64)
+        topic_stats.total_bytes_delivered += payload_bytes
+
         sub_stats.received_per_topic[received_key] += 1
         if msg.window_at is not None:
             # A replayed sample is kept out of the lifetime `total_delivered`,
@@ -906,11 +989,106 @@ def _subscriber_process(
                 if fault_time is not None:
                     sub_stats.received_post_fault += 1
 
-        # Latency sample
+        # Latency samples
         if len(topic_stats.latency_samples) < max_latency_samples:
             topic_stats.latency_samples.append(e2e_latency_ms)
+            topic_stats.queue_wait_samples.append(queue_wait_ms)
+            topic_stats.service_time_samples.append(service_time_ms)
         if latency_windows is not None and fault_time is not None and window is not None:
             latency_windows[window].append(e2e_latency_ms)
+        if queue_wait_windows is not None and fault_time is not None and window is not None:
+            queue_wait_windows[window].append(queue_wait_ms)
+        if service_time_windows is not None and fault_time is not None and window is not None:
+            service_time_windows[window].append(service_time_ms)
+        if bytes_windows is not None and window is not None:
+            bytes_windows[topic_id][window] += payload_bytes
+
+
+def _build_golden_signals_report(
+    duration: float,
+    published_count: int,
+    delivered_count: int,
+    expected_demand: int,
+    bytes_delivered: int,
+    deadline_violations: int,
+    queue_overflows: int,
+    best_effort_drops: int,
+    latency_samples: List[float],
+    queue_wait_samples: List[float],
+    service_time_samples: List[float],
+    cpu_utils: List[float],
+    queue_depths: List[float],
+    queue_occs: List[float],
+    queue_peaks: List[float],
+) -> GoldenSignalsReport:
+    """Consolidate telemetry into Google SRE Four Golden Signals."""
+    p50 = percentile(latency_samples, 50) if latency_samples else None
+    p95 = percentile(latency_samples, 95) if latency_samples else None
+    p99 = percentile(latency_samples, 99) if latency_samples else None
+    mean_e2e = (sum(latency_samples) / len(latency_samples)) if latency_samples else None
+    mean_wait = (sum(queue_wait_samples) / len(queue_wait_samples)) if queue_wait_samples else None
+    mean_service = (sum(service_time_samples) / len(service_time_samples)) if service_time_samples else None
+
+    latency = LatencySignal(
+        p50_ms=p50,
+        p95_ms=p95,
+        p99_ms=p99,
+        mean_e2e_ms=mean_e2e,
+        mean_queue_wait_ms=mean_wait,
+        mean_service_time_ms=mean_service,
+    )
+
+    pub_rate = published_count / duration if duration > 0 else 0.0
+    del_rate = delivered_count / duration if duration > 0 else 0.0
+    throughput_bytes = bytes_delivered / duration if duration > 0 else 0.0
+    throughput_kbps = (throughput_bytes * 8.0) / 1000.0
+
+    traffic = TrafficSignal(
+        published_rate_hz=pub_rate,
+        delivered_rate_hz=del_rate,
+        throughput_bytes_per_s=throughput_bytes,
+        throughput_kbps=throughput_kbps,
+        total_messages_published=published_count,
+        total_messages_delivered=delivered_count,
+        total_bytes_delivered=bytes_delivered,
+    )
+
+    unserved = max(0, expected_demand - delivered_count - deadline_violations - queue_overflows - best_effort_drops)
+    total_errors = deadline_violations + queue_overflows + best_effort_drops + unserved
+    error_rate = total_errors / expected_demand if expected_demand > 0 else 0.0
+
+    errors = ErrorSignal(
+        total_errors=total_errors,
+        error_rate=error_rate,
+        deadline_violations=deadline_violations,
+        queue_overflows=queue_overflows,
+        best_effort_drops=best_effort_drops,
+        unserved_demand=unserved,
+    )
+
+    cpu_util = (sum(cpu_utils) / len(cpu_utils)) if cpu_utils else 0.0
+    peak_cpu = max(cpu_utils) if cpu_utils else 0.0
+    saturated_subs = (sum(1 for u in cpu_utils if u >= 0.85) / len(cpu_utils)) if cpu_utils else 0.0
+
+    mean_q_depth = (sum(queue_depths) / len(queue_depths)) if queue_depths else 0.0
+    mean_q_occ = (sum(queue_occs) / len(queue_occs)) if queue_occs else 0.0
+    peak_q_occ = max(queue_peaks) if queue_peaks else 0.0
+
+    saturation = SaturationSignal(
+        cpu_utilization=cpu_util,
+        peak_cpu_utilization=peak_cpu,
+        mean_queue_depth=mean_q_depth,
+        mean_queue_occupancy=mean_q_occ,
+        peak_queue_occupancy=peak_q_occ,
+        saturated_subscribers_fraction=saturated_subs,
+    )
+
+    return GoldenSignalsReport(
+        latency=latency,
+        traffic=traffic,
+        errors=errors,
+        saturation=saturation,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1249,6 +1427,11 @@ class MessageFlowSimulator:
         del_window: Dict[str, Dict[str, int]],
         latency_windows: Dict[str, list],
         sub_stats: Dict[str, SubscriberFlowStats],
+        queue_wait_windows: Optional[Dict[str, list]] = None,
+        service_time_windows: Optional[Dict[str, list]] = None,
+        bytes_window: Optional[Dict[str, Dict[str, int]]] = None,
+        stations: Optional[Dict[str, ServiceStation]] = None,
+        sub_queues: Optional[Dict[Tuple[str, str], SubscriberQueue]] = None,
     ) -> None:
         """
         Fill in what the fault actually cost: which topics it orphaned, which
@@ -1339,6 +1522,75 @@ class MessageFlowSimulator:
         record.latency_p95_before = percentile(latency_windows["pre"], 95)
         record.latency_p95_after = percentile(latency_windows["post"], 95)
 
+        def _build_window_signals(window: str, span: float) -> GoldenSignalsReport:
+            pub_count = sum(pub_window[tid][window] for tid in fanouts)
+            del_count = sum(del_window[tid][window] for tid in fanouts) - own[window]
+            expected = sum(
+                pub_window[tid][window] * surviving_subs[tid] for tid in fanouts
+            )
+            bytes_count = (
+                sum(bytes_window[tid][window] for tid in fanouts)
+                if bytes_window is not None else del_count * 64
+            )
+            dl_viol = sum(
+                s.deadline_violations_pre if window == "pre" else s.deadline_violations_post
+                for s in topic_stats.values()
+            )
+            q_ovf = sum(
+                s.queue_overflows_pre if window == "pre" else s.queue_overflows_post
+                for s in topic_stats.values()
+            )
+            lat_samples = latency_windows.get(window, [])
+            wait_samples = queue_wait_windows.get(window, []) if queue_wait_windows else []
+            serv_samples = service_time_windows.get(window, []) if service_time_windows else []
+
+            cpu_utils = [
+                st.utilization_window(span, window)
+                for sid, st in stations.items()
+                if sid != self.fault_node and st.calibrated
+            ] if stations else []
+
+            q_depths = [
+                q.mean_depth(self.duration, window=window, window_span=span)
+                for (tid, sid), q in sub_queues.items()
+                if sid != self.fault_node
+            ] if sub_queues else []
+
+            q_occs = [
+                q.occupancy(self.duration, window=window, window_span=span)
+                for (tid, sid), q in sub_queues.items()
+                if sid != self.fault_node
+            ] if sub_queues else []
+
+            q_peaks = [
+                q.peak_occupancy(window=window)
+                for (tid, sid), q in sub_queues.items()
+                if sid != self.fault_node
+            ] if sub_queues else []
+
+            return _build_golden_signals_report(
+                duration=span,
+                published_count=pub_count,
+                delivered_count=del_count,
+                expected_demand=expected,
+                bytes_delivered=bytes_count,
+                deadline_violations=dl_viol,
+                queue_overflows=q_ovf,
+                best_effort_drops=0,
+                latency_samples=lat_samples,
+                queue_wait_samples=wait_samples,
+                service_time_samples=serv_samples,
+                cpu_utils=cpu_utils,
+                queue_depths=q_depths,
+                queue_occs=q_occs,
+                queue_peaks=q_peaks,
+            )
+
+        if record.pre_window_s > 0:
+            record.signals_before = _build_window_signals("pre", record.pre_window_s)
+        if record.post_window_s > 0:
+            record.signals_after = _build_window_signals("post", record.post_window_s)
+
     # ── Public API ──────────────────────────────────────────────────────────
 
     def run(self) -> MessageFlowResult:
@@ -1378,7 +1630,10 @@ class MessageFlowSimulator:
         # Per-topic publish/delivery counters, split on the fault boundary.
         pub_window = {tid: {"pre": 0, "post": 0} for tid in fanouts}
         del_window = {tid: {"pre": 0, "post": 0} for tid in fanouts}
+        bytes_window = {tid: {"pre": 0, "post": 0} for tid in fanouts}
         latency_windows: Dict[str, list] = {"pre": [], "post": []}
+        queue_wait_windows: Dict[str, list] = {"pre": [], "post": []}
+        service_time_windows: Dict[str, list] = {"pre": [], "post": []}
 
         # Index each publisher within its own topic, so co-publishers can be
         # phase-staggered rather than all firing on the same instants.
@@ -1442,6 +1697,9 @@ class MessageFlowSimulator:
                         effective_qos[(tgt, src)].transport_priority, 0.33))
                     if self.qos_mode in _PRIORITY_ORDERED else 0
                 ),
+                queue_wait_windows=queue_wait_windows,
+                service_time_windows=service_time_windows,
+                bytes_windows=bytes_window,
             ))
 
         fault_event_record: Optional[FaultEventRecord] = None
@@ -1527,6 +1785,11 @@ class MessageFlowSimulator:
             self._annotate_fault_cascade(
                 fault_event_record, edges, fanouts,
                 pub_window, del_window, latency_windows, sub_stats,
+                queue_wait_windows=queue_wait_windows,
+                service_time_windows=service_time_windows,
+                bytes_window=bytes_window,
+                stations=stations,
+                sub_queues=sub_queues,
             )
 
         # This engine can only observe components that carry pub/sub traffic.
@@ -1535,6 +1798,42 @@ class MessageFlowSimulator:
         # because an omitted component is unmeasured, not measured as harmless.
         labeled = {s for s, _, _ in pub_edges} | {s for s, _, _ in sub_edges}
 
+        # Google SRE Four Golden Signals telemetry report (overall run)
+        all_latency = [s for ts in topic_stats.values() for s in ts.latency_samples]
+        all_wait = [s for ts in topic_stats.values() for s in ts.queue_wait_samples]
+        all_service = [s for ts in topic_stats.values() for s in ts.service_time_samples]
+        total_published_all = sum(ts.total_published for ts in topic_stats.values())
+        total_bytes_all = sum(ts.total_bytes_delivered for ts in topic_stats.values())
+        total_dl = sum(ts.total_dropped_deadline for ts in topic_stats.values())
+        total_q_ovf = sum(ts.total_dropped_queue_full for ts in topic_stats.values())
+        total_be = sum(ts.total_dropped_best_effort for ts in topic_stats.values())
+
+        cal_utils = [
+            st.utilization(self.duration)
+            for st in stations.values() if st.calibrated
+        ]
+        q_depths = [q.mean_depth(self.duration) for q in sub_queues.values()]
+        q_occs = [q.occupancy(self.duration) for q in sub_queues.values()]
+        q_peaks = [q.peak_occupancy() for q in sub_queues.values()]
+
+        overall_signals = _build_golden_signals_report(
+            duration=self.duration,
+            published_count=total_published_all,
+            delivered_count=total_delivered,
+            expected_demand=total_expected,
+            bytes_delivered=total_bytes_all,
+            deadline_violations=total_dl,
+            queue_overflows=total_q_ovf,
+            best_effort_drops=total_be,
+            latency_samples=all_latency,
+            queue_wait_samples=all_wait,
+            service_time_samples=all_service,
+            cpu_utils=cal_utils,
+            queue_depths=q_depths,
+            queue_occs=q_occs,
+            queue_peaks=q_peaks,
+        )
+
         return MessageFlowResult(
             graph_id=self.graph.graph.get("id", ""),
             simulation_duration=self.duration,
@@ -1542,10 +1841,10 @@ class MessageFlowSimulator:
             fault_event=fault_event_record,
             system_delivery_rate=round(min(1.0, system_delivery), 4),
             system_drop_rate=round(max(0.0, 1.0 - system_delivery), 4),
-            total_messages_published=sum(ts.total_published for ts in topic_stats.values()),
+            total_messages_published=total_published_all,
             total_messages_delivered=total_delivered,
-            total_deadline_violations=sum(ts.total_dropped_deadline for ts in topic_stats.values()),
-            total_queue_overflows=sum(ts.total_dropped_queue_full for ts in topic_stats.values()),
+            total_deadline_violations=total_dl,
+            total_queue_overflows=total_q_ovf,
             qos_mode=self.qos_mode,
             target_utilization=self.target_utilization,
             utilization_mode=self.utilization_mode,
@@ -1561,4 +1860,5 @@ class MessageFlowSimulator:
             subscriber_stats=sub_stats,
             labeled_node_ids=sorted(labeled),
             unlabeled_node_ids=sorted(set(self.graph.nodes) - labeled),
+            golden_signals=overall_signals,
         )

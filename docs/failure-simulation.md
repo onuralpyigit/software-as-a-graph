@@ -837,9 +837,21 @@ flowchart LR
 │  A catastrophic publisher crash would produce an apparent Damage score ≈ 0. │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  Resolution: I_dyn is kept strictly 1-dimensional (delivery rate loss).     │
-│  Latency and deadline violations are reported separately as diagnostics.    │
+│  Google SRE's Four Golden Signals (Latency, Traffic, Errors, Saturation)    │
+│  are computed and reported as structured telemetry alongside I_dyn.        │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+#### SRE Four Golden Signals Telemetry
+
+To provide complete observability without compromising $I_{\text{dyn}}(v)$'s scalar integrity, `MessageFlowSimulator` calculates Google Site Reliability Engineering (SRE)'s Four Golden Signals:
+
+1. **Latency**: End-to-end traversal latency ($t_{\text{e2e}}$) decomposed into queue waiting time ($t_{\text{wait}} = t_{\text{dequeue}} - t_{\text{created}}$) and CPU compute service time ($t_{\text{service}} = t_{\text{delivery}} - t_{\text{dequeue}}$), with p50, p95, and p99 percentiles.
+2. **Traffic**: Demand and throughput metrics, including published rate (Hz), delivered rate (Hz), message throughput (B/s), and bandwidth utilization (Kbps).
+3. **Errors**: Total drop and failure counts, drop rate, deadline violations, queue overflow discards, best-effort drops, and unserved demand when publishers crash.
+4. **Saturation**: System-wide compute resource utilization ($\rho$), peak CPU load, time-weighted average queue depth ($\int q(t)dt / T$), buffer occupancy ratio, and fraction of saturated subscribers.
+
+These signals are captured for the overall simulation run (`overall_signals`) and windowed for fault events (`signals_before` and `signals_after`), exposing the exact dynamics of contention-relief or cascading failure.
 
 ---
 
@@ -973,6 +985,41 @@ PYTHONPATH=. python reproduce/convergent_validity.py --scenarios atm_system --du
   "system_delivery_rate": 0.9975,
   "qos_mode": "full",
   "target_utilization": 0.65,
+  "golden_signals": {
+    "latency": {
+      "mean_e2e_ms": 2.14,
+      "mean_queue_wait_ms": 1.02,
+      "mean_service_time_ms": 1.12,
+      "p50_ms": 2.10,
+      "p95_ms": 4.50,
+      "p99_ms": 6.80
+    },
+    "traffic": {
+      "published_rate_hz": 120.0,
+      "delivered_rate_hz": 119.7,
+      "throughput_bytes_per_sec": 122572.8,
+      "throughput_kbps": 980.58,
+      "total_messages_published": 7200,
+      "total_messages_delivered": 7182,
+      "total_bytes_delivered": 7354368
+    },
+    "errors": {
+      "total_errors": 18,
+      "error_rate": 0.0025,
+      "deadline_violations": 12,
+      "queue_overflow_drops": 6,
+      "best_effort_drops": 0,
+      "unserved_demand": 0
+    },
+    "saturation": {
+      "mean_cpu_utilization": 0.648,
+      "peak_cpu_utilization": 0.820,
+      "mean_queue_depth": 1.45,
+      "mean_queue_occupancy": 0.145,
+      "peak_queue_occupancy": 0.600,
+      "saturated_subscriber_ratio": 0.0
+    }
+  },
   "fault_event": {
     "fault_time": 30.0,
     "faulted_node_id": "ConflictDetector",
@@ -981,7 +1028,9 @@ PYTHONPATH=. python reproduce/convergent_validity.py --scenarios atm_system --du
     "delivery_rate_drop": 0.0172,
     "latency_p50_before": 2.1,
     "latency_p50_after": 2.0,
-    "qos_violations_count": 0
+    "qos_violations_count": 0,
+    "signals_before": { "latency": "...", "traffic": "...", "errors": "...", "saturation": "..." },
+    "signals_after": { "latency": "...", "traffic": "...", "errors": "...", "saturation": "..." }
   }
 }
 ```

@@ -385,6 +385,40 @@ def _operating_point(result) -> Optional[str]:
     return f"{result.target_utilization:.2f} target / {realised}"
 
 
+def _format_golden_signals(gs, indent: str = "  ") -> List[str]:
+    lines = [f"{indent}FOUR GOLDEN SIGNALS (Google SRE):"]
+    lat = gs.latency
+    p50_s = f"{lat.p50_ms:.2f} ms" if lat.p50_ms is not None else "—"
+    p95_s = f"{lat.p95_ms:.2f} ms" if lat.p95_ms is not None else "—"
+    p99_s = f"{lat.p99_ms:.2f} ms" if lat.p99_ms is not None else "—"
+    wait_s = f"{lat.mean_queue_wait_ms:.2f} ms" if lat.mean_queue_wait_ms is not None else "—"
+    serv_s = f"{lat.mean_service_time_ms:.2f} ms" if lat.mean_service_time_ms is not None else "—"
+    lines.append(f"{indent}  • Latency   : p50={p50_s} | p95={p95_s} | p99={p99_s}")
+    lines.append(f"{indent}                Queue wait (mean)={wait_s} | Service (mean)={serv_s}")
+
+    tr = gs.traffic
+    lines.append(
+        f"{indent}  • Traffic   : Publish={tr.published_rate_hz:.1f} msg/s | "
+        f"Deliver={tr.delivered_rate_hz:.1f} msg/s | "
+        f"Throughput={tr.throughput_bytes_per_s:.1f} B/s ({tr.throughput_kbps:.2f} Kbps)"
+    )
+
+    err = gs.errors
+    lines.append(
+        f"{indent}  • Errors    : Total={err.total_errors:,} (rate={err.error_rate:.4f}) | "
+        f"Overflows={err.queue_overflows:,} | Deadline viol={err.deadline_violations:,}"
+    )
+
+    sat = gs.saturation
+    lines.append(
+        f"{indent}  • Saturation: CPU util={sat.cpu_utilization * 100:.1f}% "
+        f"(peak={sat.peak_cpu_utilization * 100:.1f}%) | "
+        f"Queue occupancy={sat.mean_queue_occupancy * 100:.1f}% "
+        f"(peak={sat.peak_queue_occupancy * 100:.1f}%)"
+    )
+    return lines
+
+
 def _print_message_flow_summary(result, elapsed: float) -> None:
     print()
     print("=" * 70)
@@ -404,6 +438,11 @@ def _print_message_flow_summary(result, elapsed: float) -> None:
         print(f"  Utilization           : {_op}")
     print(f"  Elapsed (wall)        : {elapsed:.2f}s")
 
+    if getattr(result, "golden_signals", None):
+        print()
+        for l in _format_golden_signals(result.golden_signals, indent="  "):
+            print(l)
+
     if result.fault_event:
         fe = result.fault_event
         print()
@@ -414,6 +453,14 @@ def _print_message_flow_summary(result, elapsed: float) -> None:
         print(f"    Impacted   : {fe.cascade_impacted_subscribers}")
         print(f"    Rate before: {fe.delivery_rate_before:.4f}")
         print(f"    Rate after : {fe.delivery_rate_after:.4f}")
+        if getattr(fe, "signals_before", None) and getattr(fe, "signals_after", None):
+            print()
+            print("    Signals before fault:")
+            for l in _format_golden_signals(fe.signals_before, indent="      "):
+                print(l)
+            print("    Signals after fault:")
+            for l in _format_golden_signals(fe.signals_after, indent="      "):
+                print(l)
 
     print()
     print(f"  {'Topic':<30}  {'Delivery':>9}  {'P50 ms':>8}  {'P95 ms':>8}  "
@@ -443,6 +490,11 @@ def _write_message_flow_text_summary(result, elapsed: float, output_dir: Path) -
     if _op:
         lines.append(f"Utilization        : {_op}")
     lines.append(f"Elapsed (wall)     : {elapsed:.2f}s")
+
+    if getattr(result, "golden_signals", None):
+        lines.append("")
+        lines.extend(_format_golden_signals(result.golden_signals, indent=""))
+
     if result.fault_event:
         fe = result.fault_event
         lines.extend([
@@ -455,6 +507,13 @@ def _write_message_flow_text_summary(result, elapsed: float, output_dir: Path) -
             f"  Rate before fault : {fe.delivery_rate_before:.4f}",
             f"  Rate after fault  : {fe.delivery_rate_after:.4f}",
         ])
+        if getattr(fe, "signals_before", None) and getattr(fe, "signals_after", None):
+            lines.append("")
+            lines.append("  Signals before fault:")
+            lines.extend(_format_golden_signals(fe.signals_before, indent="    "))
+            lines.append("  Signals after fault:")
+            lines.extend(_format_golden_signals(fe.signals_after, indent="    "))
+
     lines.extend(["", "TOPIC BREAKDOWN", "-" * 70])
     for tid, ts in sorted(result.topic_stats.items(),
                           key=lambda x: x[1].delivery_rate):

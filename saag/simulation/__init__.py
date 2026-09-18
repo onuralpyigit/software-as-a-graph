@@ -54,6 +54,11 @@ from .simulation_results import (
     SubscriberFlowStats,
     FaultEventRecord,
     CascadeWave,
+    LatencySignal,
+    TrafficSignal,
+    ErrorSignal,
+    SaturationSignal,
+    GoldenSignalsReport,
 )
 
 
@@ -117,6 +122,11 @@ __all__ = [
     "SubscriberFlowStats",
     "FaultEventRecord",
     "CascadeWave",
+    "LatencySignal",
+    "TrafficSignal",
+    "ErrorSignal",
+    "SaturationSignal",
+    "GoldenSignalsReport",
     # Enums / config
     "ComponentState",
     "FailureMode",

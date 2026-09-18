@@ -193,6 +193,119 @@ class FaultInjectionResult:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Site Reliability Engineering (SRE) — Four Golden Signals
+# ─────────────────────────────────────────────────────────────────────────────
+
+@dataclass
+class LatencySignal:
+    """Latency metrics: distribution and structural decomposition."""
+    p50_ms: Optional[float] = None
+    p95_ms: Optional[float] = None
+    p99_ms: Optional[float] = None
+    mean_e2e_ms: Optional[float] = None
+    mean_queue_wait_ms: Optional[float] = None
+    mean_service_time_ms: Optional[float] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "p50_ms": round(self.p50_ms, 3) if self.p50_ms is not None else None,
+            "p95_ms": round(self.p95_ms, 3) if self.p95_ms is not None else None,
+            "p99_ms": round(self.p99_ms, 3) if self.p99_ms is not None else None,
+            "mean_e2e_ms": round(self.mean_e2e_ms, 3) if self.mean_e2e_ms is not None else None,
+            "mean_queue_wait_ms": (
+                round(self.mean_queue_wait_ms, 3)
+                if self.mean_queue_wait_ms is not None else None
+            ),
+            "mean_service_time_ms": (
+                round(self.mean_service_time_ms, 3)
+                if self.mean_service_time_ms is not None else None
+            ),
+        }
+
+
+@dataclass
+class TrafficSignal:
+    """Traffic metrics: publication demand and delivered throughput rates."""
+    published_rate_hz: float = 0.0
+    delivered_rate_hz: float = 0.0
+    throughput_bytes_per_s: float = 0.0
+    throughput_kbps: float = 0.0
+    total_messages_published: int = 0
+    total_messages_delivered: int = 0
+    total_bytes_delivered: int = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "published_rate_hz": round(self.published_rate_hz, 4),
+            "delivered_rate_hz": round(self.delivered_rate_hz, 4),
+            "throughput_bytes_per_s": round(self.throughput_bytes_per_s, 2),
+            "throughput_kbps": round(self.throughput_kbps, 2),
+            "total_messages_published": self.total_messages_published,
+            "total_messages_delivered": self.total_messages_delivered,
+            "total_bytes_delivered": self.total_bytes_delivered,
+        }
+
+
+@dataclass
+class ErrorSignal:
+    """Error metrics: policy breaches, buffer drops, and loss rates."""
+    total_errors: int = 0
+    error_rate: float = 0.0
+    deadline_violations: int = 0
+    queue_overflows: int = 0
+    best_effort_drops: int = 0
+    unserved_demand: int = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "total_errors": self.total_errors,
+            "error_rate": round(self.error_rate, 4),
+            "deadline_violations": self.deadline_violations,
+            "queue_overflows": self.queue_overflows,
+            "best_effort_drops": self.best_effort_drops,
+            "unserved_demand": self.unserved_demand,
+        }
+
+
+@dataclass
+class SaturationSignal:
+    """Saturation metrics: server capacity utilization and queue buffer occupancy."""
+    cpu_utilization: float = 0.0
+    peak_cpu_utilization: float = 0.0
+    mean_queue_depth: float = 0.0
+    mean_queue_occupancy: float = 0.0
+    peak_queue_occupancy: float = 0.0
+    saturated_subscribers_fraction: float = 0.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "cpu_utilization": round(self.cpu_utilization, 4),
+            "peak_cpu_utilization": round(self.peak_cpu_utilization, 4),
+            "mean_queue_depth": round(self.mean_queue_depth, 2),
+            "mean_queue_occupancy": round(self.mean_queue_occupancy, 4),
+            "peak_queue_occupancy": round(self.peak_queue_occupancy, 4),
+            "saturated_subscribers_fraction": round(self.saturated_subscribers_fraction, 4),
+        }
+
+
+@dataclass
+class GoldenSignalsReport:
+    """Consolidated Google SRE Four Golden Signals telemetry report."""
+    latency: LatencySignal = field(default_factory=LatencySignal)
+    traffic: TrafficSignal = field(default_factory=TrafficSignal)
+    errors: ErrorSignal = field(default_factory=ErrorSignal)
+    saturation: SaturationSignal = field(default_factory=SaturationSignal)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "latency": self.latency.to_dict(),
+            "traffic": self.traffic.to_dict(),
+            "errors": self.errors.to_dict(),
+            "saturation": self.saturation.to_dict(),
+        }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Message Flow Simulation
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -216,6 +329,9 @@ class TopicFlowStats:
     total_dropped_best_effort: int = 0  # Dropped because policy = BEST_EFFORT under load
 
     latency_samples: List[float] = field(default_factory=list)  # ms, sampled
+    queue_wait_samples: List[float] = field(default_factory=list)  # ms, sampled
+    service_time_samples: List[float] = field(default_factory=list)  # ms, sampled
+    total_bytes_delivered: int = 0
 
     # ── Fault-windowed counters ──────────────────────────────────────────────
     # Split on the message's *creation* time, so demand and delivery describe the
@@ -298,6 +414,14 @@ class TopicFlowStats:
     def latency_p99(self) -> Optional[float]:
         return percentile(self.latency_samples, 99)
 
+    @property
+    def mean_queue_wait_ms(self) -> Optional[float]:
+        return (sum(self.queue_wait_samples) / len(self.queue_wait_samples)) if self.queue_wait_samples else None
+
+    @property
+    def mean_service_time_ms(self) -> Optional[float]:
+        return (sum(self.service_time_samples) / len(self.service_time_samples)) if self.service_time_samples else None
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "topic_id": self.topic_id,
@@ -310,6 +434,7 @@ class TopicFlowStats:
             "total_published": self.total_published,
             "total_expected": self.total_expected,
             "total_delivered": self.total_delivered,
+            "total_bytes_delivered": self.total_bytes_delivered,
             "total_dropped_queue_full": self.total_dropped_queue_full,
             "total_dropped_deadline": self.total_dropped_deadline,
             "total_dropped_best_effort": self.total_dropped_best_effort,
@@ -340,6 +465,8 @@ class TopicFlowStats:
             "latency_p50_ms": round(self.latency_p50, 3) if self.latency_p50 is not None else None,
             "latency_p95_ms": round(self.latency_p95, 3) if self.latency_p95 is not None else None,
             "latency_p99_ms": round(self.latency_p99, 3) if self.latency_p99 is not None else None,
+            "mean_queue_wait_ms": round(self.mean_queue_wait_ms, 3) if self.mean_queue_wait_ms is not None else None,
+            "mean_service_time_ms": round(self.mean_service_time_ms, 3) if self.mean_service_time_ms is not None else None,
         }
 
 
@@ -424,6 +551,10 @@ class FaultEventRecord:
     pre_window_s: float = 0.0
     post_window_s: float = 0.0
 
+    #: Four Golden Signals before and after fault injection.
+    signals_before: Optional[GoldenSignalsReport] = None
+    signals_after: Optional[GoldenSignalsReport] = None
+
     @property
     def i_dyn(self) -> float:
         """I_dyn(v): the delivery-rate loss surviving consumers suffer.
@@ -473,6 +604,8 @@ class FaultEventRecord:
         out["latency_inflation_factor"] = self.latency_inflation_factor
         out["delta_deadline_violations"] = self.delta_deadline_violations
         out["delta_queue_overflows"] = self.delta_queue_overflows
+        out["signals_before"] = self.signals_before.to_dict() if self.signals_before else None
+        out["signals_after"] = self.signals_after.to_dict() if self.signals_after else None
         return out
 
 
@@ -527,6 +660,9 @@ class MessageFlowResult:
     labeled_node_ids: List[str] = field(default_factory=list)
     unlabeled_node_ids: List[str] = field(default_factory=list)
 
+    #: Google SRE Four Golden Signals report (overall run)
+    golden_signals: Optional[GoldenSignalsReport] = None
+
     def to_dict(self) -> Dict[str, Any]:
         d = {
             "schema_version": self.schema_version,
@@ -548,6 +684,7 @@ class MessageFlowResult:
                 k: round(v, 4) for k, v in self.measured_utilization.items()
             },
             "service_time_s": self.service_time_s,
+            "golden_signals": self.golden_signals.to_dict() if self.golden_signals else None,
             "topic_stats": {tid: ts.to_dict() for tid, ts in self.topic_stats.items()},
             "subscriber_stats": {sid: ss.to_dict() for sid, ss in self.subscriber_stats.items()},
             "labeler": self.labeler,
