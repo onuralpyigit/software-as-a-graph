@@ -11,7 +11,7 @@ Table~\ref{tab:5} presents in-distribution held-out Spearman rank correlation ($
 \begin{table}[htbp]
 \centering
 \small
-\caption{In-distribution held-out Spearman $\rho$ versus simulated cascade impact $I^*(v)$: mean over five seeds with bootstrap 95\% CI in brackets; $n$ = held-out Application count. Substrates differ, and the comparison is confounded in-distribution: HGT/HGT-QoS consume the native typed multigraph. In contrast, GAT/GAT-QoS and the topological baselines consume the Application–Library \texttt{DEPENDS\_ON} flow projection (Section~\ref{sec:6.2}). The typed–untyped contrast below therefore mixes typing with multi-entity visibility here; the substrate-matched comparison is the LOSO one in Table~\ref{tab:7}, where both architectures read the same graph. Each seed redraws the 60/20/20 split and the initialization. Supplementary Section~S10 reports the paired significance tests for these scenarios.}
+\caption{In-distribution held-out Spearman $\rho$ versus simulated cascade impact $I^*(v)$: mean over five seeds with bootstrap 95\% CI in brackets; $n$ = held-out Application count. Substrates differ, and the comparison is confounded in-distribution: HGT/HGT-QoS consume the native typed multigraph. In contrast, GAT/GAT-QoS and the topological baselines consume the Application–Library \texttt{DEPENDS\_ON} flow projection (Section~\ref{sec:6.2}). The typed–untyped contrast below therefore mixes typing with multi-entity visibility here; the substrate-matched comparison is the LOSO one in Table~\ref{tab:7}, where both architectures read the same graph. Each seed redraws the 60/20/20 split and the initialization. Supplementary Section~ S10 reports the paired significance tests for these scenarios.}
 \label{tab:5}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lrcccccc}
@@ -68,7 +68,7 @@ In inductive Leave-One-Scenario-Out (LOSO) cross-validation, models are assessed
 }
 \end{table}
 
-We evaluated twelve LOSO folds, encompassing eleven synthetic scenarios and the ATM case study, as detailed in Table~\ref{tab:3} (Section~\ref{sec:6.1}). In each fold, we held out one scenario for zero-shot testing and trained the model exclusively on the remaining eleven. We assessed all model variants on the same Application node set per fold (Section~\ref{sec:6.3}) and ran paired Wilcoxon tests across the twelve folds, yielding a minimum attainable two-sided $p$-value of $0.00049$. The evaluated populations per fold ranged from 26 to 300 Application nodes, resulting in $K = \text{round}(0.20 \cdot |V_{\text{app}}|)$ values between 5 and 60. For $F_1@K$, \texttt{HGT-QoS} achieved $0.424$ compared to \texttt{Topo-QoS}'s $0.388$ ($\Delta = +0.037$, prevailing in 7 of 12 folds, $W = 29.0$, $p = 0.470$). The untyped \texttt{GAT-N-QoS} attained $0.431$ ($\Delta = -0.006$, prevailing in 5 of 12 folds, 1 tie, $W = 27.5$, $p = 0.653$), indicating that critical-set identification does not statistically distinguish the typed model from either untyped learning or the QoS-weighted baseline.
+We evaluated twelve LOSO folds, encompassing eleven synthetic scenarios and the ATM case study, as detailed in Table~\ref{tab:4} (Section~\ref{sec:6.1}). In each fold, we held out one scenario for zero-shot testing and trained the model exclusively on the remaining eleven. We assessed all model variants on the same Application node set per fold (Section~\ref{sec:6.3}) and ran paired Wilcoxon tests across the twelve folds, yielding a minimum attainable two-sided $p$-value of $0.00049$. The evaluated populations per fold ranged from 26 to 300 Application nodes, resulting in $K = \text{round}(0.20 \cdot |V_{\text{app}}|)$ values between 5 and 60. For $F_1@K$, \texttt{HGT-QoS} achieved $0.424$ compared to \texttt{Topo-QoS}'s $0.388$ ($\Delta = +0.037$, prevailing in 7 of 12 folds, $W = 29.0$, $p = 0.470$). The untyped \texttt{GAT-N-QoS} attained $0.431$ ($\Delta = -0.006$, prevailing in 5 of 12 folds, 1 tie, $W = 27.5$, $p = 0.653$), indicating that critical-set identification does not statistically distinguish the typed model from either untyped learning or the QoS-weighted baseline.
 
 \noindent\textbf{Label-noise ceiling.} These correlations are bounded by the reproducibility of the target they are scored against. Re-running the ground-truth oracle across the five seeds gives a test–retest rank correlation between $0.811$ and $1.000$ across the twelve folds (median $0.982$; nine of twelve at or above $0.95$), with Microservices the least reproducible at $0.811$. \texttt{HGT-QoS}'s $\rho = 0.638$ therefore recovers roughly $65\%$ of the attainable signal against the median ceiling, and no predictor in Table~\ref{tab:7} can exceed the reproducibility of its own labels. Top-$K$ critical sets are a much noisier construct: their cross-seed Jaccard has a median of $0.847$ and falls to $0.370$ (Logistics Fleet), $0.500$ (Industrial SCADA), and $0.500$ (Telecom RAN). That instability is the main reason the $F_1@K$ margins are less stable than the ranking margins, and it bounds how much weight any single critical-set comparison can carry. Microservices is the least reproducible fold, but it is not one the typed model loses (Section~\ref{sec:7.2.1}): \texttt{HGT-QoS} wins it by $+0.229$. On this corpus, the folds with the lowest label ceiling and the folds where the model is beaten are disjoint.
 
@@ -167,6 +167,7 @@ RQ2 investigates whether relation typing boosts prediction compared to homogeneo
 
 \subsubsection{Where Typed Learning Fails, and How It Can Be Detected}
 \label{sec:7.2.1}
+\label{sec:7.2.3}
 
 HGT-QoS loses to Topo-QoS on three folds, but only two of them are substantive: Enterprise ($\rho = 0.461$ vs.\ $0.795$) and Telecom RAN ($0.407$ vs.\ $0.576$). The third, AV System ($0.722$ vs.\ $0.753$), is a near-tie at $-0.030$ and carries little interpretive weight. The two substantive inversions are what keep the RQ1 comparison below significance. All three losses fall where \texttt{Topo-QoS} is at its own strongest: Enterprise, AV and Telecom RAN are its 2nd, 3rd and 7th best folds of twelve ($0.795$, $0.753$, $0.576$), each at or above its mean of $0.553$. This supports reading the inversions as the learned model discarding structural signal the baseline retains, rather than as folds that are intrinsically hard — on the two folds where \texttt{Topo-QoS} is weakest (Microservices $0.265$, ATM $0.311$) the typed model wins by $+0.229$ and $+0.210$.
 
@@ -231,11 +232,11 @@ To assess generalization to architectures outside the generator, \texttt{HGT-QoS
 \toprule
 \textbf{Real-World Architecture} & \textbf{$|V_{\text{app}}|$} & \textbf{RM $\rho$} & \textbf{Topo $\rho$} & \textbf{Topo-QoS $\rho$} & \textbf{HGT-QoS $\rho$} & \textbf{HGT-QoS $\rho_{>0}$} & \textbf{$n_{>0}$} & \textbf{$F_1@K$} \\
 \midrule
-\textbf{Cloud Microservices Mesh} & 22 & 0.777 & \textbf{0.891} & 0.888 & 0.649 $\pm$ 0.131 & \textbf{-0.029} & 18 & 0.400 \\
-\textbf{Train-Ticket Booking Mesh} & 41 & 0.713 & 0.528 & 0.541 & \textbf{0.776} $\pm$ 0.004 & \textbf{-0.213} & 22 & 0.450 \\
-\textbf{Autoware.universe (ROS 2)} & 32 & 0.357 & 0.307 & 0.378 & \textbf{0.734} $\pm$ 0.054 & +0.559 & 28 & 0.633 \\
-\textbf{EdgeX Foundry (Industrial IoT)} & 22 & 0.470 & 0.534 & 0.534 & \textbf{0.804} $\pm$ 0.040 & +0.304 & 19 & 0.500 \\
-\textbf{Home Assistant (Smart Home)} & 24 & 0.265 & 0.297 & 0.289 & \textbf{0.872} $\pm$ 0.035 & +0.704 & 23 & 0.600 \\
+\textbf{Cloud Microservices Mesh} & 22 & 0.777 & \textbf{0.891} & 0.888 & 0.649 ± 0.131 & \textbf{-0.029} & 18 & 0.400 \\
+\textbf{Train-Ticket Booking Mesh} & 41 & 0.713 & 0.528 & 0.541 & \textbf{0.776} ± 0.004 & \textbf{-0.213} & 22 & 0.450 \\
+\textbf{Autoware.universe (ROS 2)} & 32 & 0.357 & 0.307 & 0.378 & \textbf{0.734} ± 0.054 & +0.559 & 28 & 0.633 \\
+\textbf{EdgeX Foundry (Industrial IoT)} & 22 & 0.470 & 0.534 & 0.534 & \textbf{0.804} ± 0.040 & +0.304 & 19 & 0.500 \\
+\textbf{Home Assistant (Smart Home)} & 24 & 0.265 & 0.297 & 0.289 & \textbf{0.872} ± 0.035 & +0.704 & 23 & 0.600 \\
 \midrule
 \textbf{Mean} & — & 0.516 & 0.511 & 0.526 & \textbf{0.767} & +0.265 & — & 0.517 \\
 \bottomrule
@@ -266,10 +267,10 @@ RQ5 quantifies computing overhead and sustainability during CI/CD evaluation, wi
 \toprule
 \textbf{$|V|$} & \textbf{$|E|$} & \textbf{Analyze (s)} & \textbf{Graph $\to$ Tensor (s)} & \textbf{HGT Forward (ms)} & \textbf{Analyze : Forward} \\
 \midrule
-249   & 1{,}127  & 1.74   & 0.010 & 26.5 & 66$\times$ \\
-499   & 2{,}402  & 8.32   & 0.022 & 16.4 & 509$\times$ \\
-999   & 6{,}422  & 44.54  & 0.056 & 21.1 & 2{,}108$\times$ \\
-1{,}998 & 19{,}301 & 239.34 & 0.157 & 56.2 & \textbf{4{,}259$\times$} \\
+249   & 1{,}127  & 1.74   & 0.010 & 26.5 & 66× \\
+499   & 2{,}402  & 8.32   & 0.022 & 16.4 & 509× \\
+999   & 6{,}422  & 44.54  & 0.056 & 21.1 & 2{,}108× \\
+1{,}998 & 19{,}301 & 239.34 & 0.157 & 56.2 & \textbf{4{,}259×} \\
 \bottomrule
 \end{tabular}
 \end{table}
