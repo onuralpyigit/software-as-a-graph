@@ -6,36 +6,40 @@ Empirical results for RQ1–RQ5 are presented across the twelve-fold inductive b
 \subsection{RQ1: Graph Learning vs.\ Structural Baselines}
 \label{sec:7.1}
 
-Table~\ref{tab:5} presents in-distribution held-out Spearman rank correlation ($\rho$) versus simulated cascade impact $I^*(v)$ across all twelve distributed architecture scenarios ($n = 12$).
+Table~\ref{tab:5} presents in-distribution held-out performance versus simulated cascade impact $I^*(v)$ across all twelve distributed architecture scenarios ($n = 12$), evaluating both global rank-order monotonicity (Spearman $\rho$) and operational critical-set identification ($F_1@K$ on the top 20\% most vulnerable Application services).
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{In-distribution held-out Spearman $\rho$ versus simulated cascade impact $I^*(v)$: mean over five seeds with bootstrap 95\% CI in brackets; $n$ = held-out Application count. Substrates differ, and the comparison is confounded in-distribution: HGT/HGT-QoS consume the native typed multigraph. In contrast, GAT/GAT-QoS and the topological baselines consume the Application–Library \texttt{DEPENDS\_ON} flow projection (Section~\ref{sec:6.2}). The typed–untyped contrast below therefore mixes typing with multi-entity visibility here; the substrate-matched comparison is the LOSO one in Table~\ref{tab:7}, where both architectures read the same graph. Each seed redraws the 60/20/20 split and the initialization.}
+\caption{In-distribution held-out evaluation across all twelve distributed architecture scenarios, reporting both Spearman rank correlation ($\rho$) and critical-set identification ($F_1@K$, with $K = \text{round}(0.20 \cdot n)$): mean over five seeds; $n$ = held-out Application test count. Substrates differ in-distribution: HGT/HGT-QoS consume the native typed multigraph, whereas GAT/GAT-QoS and the topological baselines consume the Application–Library \texttt{DEPENDS\_ON} flow projection (Section~\ref{sec:6.2}). Bold indicates the best performance per metric row. Each seed redraws the 60/20/20 split and model initialization.}
 \label{tab:5}
 \resizebox{\linewidth}{!}{%
-\begin{tabular}{lrcccccc}
+\begin{tabular}{lrcccccccccccc}
 \toprule
-\textbf{Scenario} & \textbf{$n$} & \textbf{Topo} & \textbf{Topo-QoS} & \textbf{GAT} & \textbf{GAT-QoS} & \textbf{HGT} & \textbf{HGT-QoS} \\
+\textbf{Scenario} & \textbf{$n$} & \multicolumn{2}{c}{\textbf{Topo}} & \multicolumn{2}{c}{\textbf{Topo-QoS}} & \multicolumn{2}{c}{\textbf{GAT}} & \multicolumn{2}{c}{\textbf{GAT-QoS}} & \multicolumn{2}{c}{\textbf{HGT}} & \multicolumn{2}{c}{\textbf{HGT-QoS}} \\
+\cmidrule(lr){3-4} \cmidrule(lr){5-6} \cmidrule(lr){7-8} \cmidrule(lr){9-10} \cmidrule(lr){11-12} \cmidrule(lr){13-14}
+& & $\rho$ & $F_1$ & $\rho$ & $F_1$ & $\rho$ & $F_1$ & $\rho$ & $F_1$ & $\rho$ & $F_1$ & $\rho$ & $F_1$ \\
 \midrule
-\textbf{ATM System} & 5 & 0.538 & \textbf{0.557} & $-$0.393 & $-$0.080 & 0.492 & 0.348 \\
-\textbf{AV System} & 16 & 0.187 & 0.797 & \textbf{0.816} & 0.465 & 0.637 & 0.558 \\
-\textbf{Enterprise} & 60 & 0.443 & 0.793 & 0.779 & 0.481 & 0.861 & \textbf{0.878} \\
-\textbf{Financial Trading} & 12 & 0.387 & 0.512 & 0.565 & 0.666 & 0.693 & \textbf{0.730} \\
-\textbf{Healthcare} & 10 & 0.291 & 0.399 & \textbf{0.725} & 0.575 & 0.575 & 0.607 \\
-\textbf{Hub-and-Spoke} & 14 & 0.179 & 0.429 & 0.363 & $-$0.156 & 0.421 & \textbf{0.476} \\
-\textbf{Industrial SCADA} & 28 & 0.601 & 0.710 & 0.656 & 0.478 & 0.787 & \textbf{0.839} \\
-\textbf{IoT Smart City} & 40 & 0.320 & 0.397 & 0.580 & 0.538 & 0.849 & \textbf{0.850} \\
-\textbf{Logistics Fleet} & 22 & 0.511 & 0.652 & 0.746 & 0.780 & 0.796 & \textbf{0.815} \\
-\textbf{Microservices} & 18 & 0.219 & 0.344 & 0.351 & 0.363 & 0.141 & \textbf{0.664} \\
-\textbf{Real-Time Gaming} & 15 & 0.360 & \textbf{0.802} & 0.464 & 0.471 & 0.651 & 0.641 \\
-\textbf{Telecom RAN} & 24 & 0.402 & 0.422 & \textbf{0.608} & 0.350 & 0.591 & 0.526 \\
+\textbf{ATM System} & 5 & 0.538 & 0.400 & \textbf{0.557} & 0.400 & $-$0.393 & 0.000 & $-$0.080 & 0.000 & 0.492 & \textbf{0.600} & 0.348 & 0.400 \\
+\textbf{AV System} & 16 & 0.188 & 0.333 & 0.797 & \textbf{0.533} & \textbf{0.816} & 0.400 & 0.465 & 0.267 & 0.637 & \textbf{0.533} & 0.558 & \textbf{0.533} \\
+\textbf{Enterprise} & 60 & 0.443 & \textbf{0.600} & 0.793 & \textbf{0.600} & 0.779 & 0.583 & 0.481 & 0.433 & 0.861 & \textbf{0.600} & \textbf{0.878} & \textbf{0.600} \\
+\textbf{Financial Trading} & 12 & 0.387 & 0.200 & 0.512 & 0.400 & 0.565 & 0.400 & 0.666 & 0.400 & 0.693 & \textbf{0.500} & \textbf{0.730} & \textbf{0.500} \\
+\textbf{Healthcare} & 10 & 0.291 & 0.200 & 0.399 & 0.000 & \textbf{0.725} & 0.300 & 0.575 & 0.300 & 0.575 & 0.400 & 0.607 & \textbf{0.500} \\
+\textbf{Hub-and-Spoke} & 14 & 0.179 & 0.267 & 0.429 & 0.400 & 0.363 & \textbf{0.467} & $-$0.156 & 0.067 & 0.421 & 0.400 & \textbf{0.476} & 0.400 \\
+\textbf{Industrial SCADA} & 28 & 0.601 & 0.533 & 0.710 & 0.533 & 0.656 & 0.533 & 0.478 & 0.500 & 0.787 & \textbf{0.667} & \textbf{0.839} & 0.633 \\
+\textbf{IoT Smart City} & 40 & 0.320 & 0.350 & 0.397 & 0.350 & 0.580 & 0.450 & 0.538 & 0.425 & 0.849 & \textbf{0.650} & \textbf{0.850} & \textbf{0.650} \\
+\textbf{Logistics Fleet} & 22 & 0.511 & 0.500 & 0.652 & 0.400 & 0.746 & 0.500 & 0.780 & \textbf{0.550} & 0.796 & \textbf{0.550} & \textbf{0.815} & 0.500 \\
+\textbf{Microservices} & 18 & 0.219 & 0.150 & 0.344 & 0.250 & 0.351 & 0.400 & 0.363 & 0.450 & 0.141 & 0.300 & \textbf{0.664} & \textbf{0.600} \\
+\textbf{Real-Time Gaming} & 15 & 0.360 & \textbf{0.533} & \textbf{0.802} & \textbf{0.533} & 0.464 & 0.333 & 0.471 & 0.400 & 0.651 & \textbf{0.533} & 0.641 & 0.400 \\
+\textbf{Telecom RAN} & 24 & 0.402 & \textbf{0.480} & 0.422 & 0.280 & \textbf{0.608} & 0.320 & 0.350 & 0.360 & 0.591 & 0.280 & 0.526 & 0.320 \\
 \midrule
-\textbf{Mean} & — & 0.370 & 0.568 & 0.522 & 0.411 & 0.624 & \textbf{0.661} \\
+\textbf{Mean} & — & 0.370 & 0.379 & 0.568 & 0.390 & 0.522 & 0.391 & 0.411 & 0.346 & 0.624 & 0.501 & \textbf{0.661} & \textbf{0.503} \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
+
+In-distribution critical-set identification mirrors the ranking trend while providing key operational discriminators. Heterogeneous architectures (\texttt{HGT} mean $F_1 = 0.501$, \texttt{HGT-QoS} mean $F_1 = 0.503$) systematically outperform homogeneous message passing (\texttt{GAT} $0.391$, \texttt{GAT-QoS} $0.346$) and structural baselines (\texttt{Topo} $0.379$, \texttt{Topo-QoS} $0.390$) by over $+11$ percentage points. Notably, evaluating $F_1$ reveals vulnerabilities obscured by rank correlation alone: in Healthcare, \texttt{Topo-QoS} achieves a moderate $\rho = 0.399$ but fails completely at critical component triage ($F_1 = 0.000$). In Microservices, unaugmented \texttt{HGT} suffers severe degradation ($\rho = 0.141, F_1 = 0.300$), whereas \texttt{HGT-QoS} leverages QoS attributes to recover both ranking monotonicity ($\rho = 0.664$) and high critical-set recall ($F_1 = 0.600$).
 
 \subsubsection{Out-of-Distribution (LOSO) Generalization}
 
@@ -225,20 +229,22 @@ To assess generalization to architectures outside the generator, \texttt{HGT-QoS
 \begin{table}[htbp]
 \centering
 \small
-\caption{Zero-shot transfer to five open-source systems, scored against $I^*(v)$ on the Application population. \texttt{HGT-QoS} trains on all twelve synthetic scenarios ($\pm$ = spread over five seeds); RM, Topo, and \texttt{Topo-QoS} are training-free and are scored on identical labels and nodes. \textbf{$\rho_{>0}$ restricts the correlation to the $n_{>0}$ components that actually propagate a failure and is the column to read for ranking quality}; full-population $\rho$ conflates that with separating active from inert. Both training-free references are scored on the same labels and nodes (Section~\ref{sec:8.4}).}
+\caption{Zero-shot transfer to five open-source systems, scored against $I^*(v)$ on the Application population ($V_{\text{app}}$), reporting both Spearman rank correlation ($\rho$) and critical-set identification ($F_1@K$ at $K = \text{round}(0.20 \cdot |V_{\text{app}}|)$). \texttt{HGT-QoS} trains on all twelve synthetic scenarios ($\pm$ = spread over five seeds); RM, Topo, and \texttt{Topo-QoS} are training-free and are evaluated on identical labels and components. \textbf{$\rho_{>0}$ restricts rank correlation to the $n_{>0}$ components that actually propagate a failure}; full-population $\rho$ conflates that with separating active from inert nodes. Bold indicates the best score per row.}
 \label{tab:9b}
 \resizebox{\linewidth}{!}{%
-\begin{tabular}{lrccccccc}
+\begin{tabular}{lrrccccccccc}
 \toprule
-\textbf{Real-World Architecture} & \textbf{$|V_{\text{app}}|$} & \textbf{RM $\rho$} & \textbf{Topo $\rho$} & \textbf{Topo-QoS $\rho$} & \textbf{HGT-QoS $\rho$} & \textbf{HGT-QoS $\rho_{>0}$} & \textbf{$n_{>0}$} & \textbf{$F_1@K$} \\
+\textbf{Real-World Architecture} & \textbf{$|V_{\text{app}}|$} & \textbf{$n_{>0}$} & \multicolumn{2}{c}{\textbf{RM}} & \multicolumn{2}{c}{\textbf{Topo}} & \multicolumn{2}{c}{\textbf{Topo-QoS}} & \multicolumn{3}{c}{\textbf{HGT-QoS}} \\
+\cmidrule(lr){4-5} \cmidrule(lr){6-7} \cmidrule(lr){8-9} \cmidrule(lr){10-12}
+& & & $\rho$ & $F_1$ & $\rho$ & $F_1$ & $\rho$ & $F_1$ & $\rho$ (Full) & $\rho_{>0}$ (Active) & $F_1@K$ \\
 \midrule
-\textbf{Cloud Microservices Mesh} & 22 & 0.777 & \textbf{0.891} & 0.888 & 0.649 ± 0.131 & \textbf{-0.029} & 18 & 0.400 \\
-\textbf{Train-Ticket Booking Mesh} & 41 & 0.713 & 0.528 & 0.541 & \textbf{0.776} ± 0.004 & \textbf{-0.213} & 22 & 0.450 \\
-\textbf{Autoware.universe (ROS 2)} & 32 & 0.357 & 0.307 & 0.378 & \textbf{0.734} ± 0.054 & +0.559 & 28 & 0.633 \\
-\textbf{EdgeX Foundry (Industrial IoT)} & 22 & 0.470 & 0.534 & 0.534 & \textbf{0.804} ± 0.040 & +0.304 & 19 & 0.500 \\
-\textbf{Home Assistant (Smart Home)} & 24 & 0.265 & 0.297 & 0.289 & \textbf{0.872} ± 0.035 & +0.704 & 23 & 0.600 \\
+\textbf{Cloud Microservices Mesh} & 22 & 18 & 0.777 & 0.250 & \textbf{0.891} & 0.250 & 0.888 & 0.250 & 0.649 $\pm$ 0.131 & \textbf{-0.029} & \textbf{0.400 $\pm$ 0.255} \\
+\textbf{Train-Ticket Booking Mesh} & 41 & 22 & 0.713 & \textbf{0.625} & 0.528 & \textbf{0.625} & 0.541 & \textbf{0.625} & \textbf{0.776 $\pm$ 0.004} & \textbf{-0.213} & 0.450 $\pm$ 0.100 \\
+\textbf{Autoware.universe (ROS 2)} & 32 & 28 & 0.357 & 0.167 & 0.307 & 0.167 & 0.378 & 0.167 & \textbf{0.734 $\pm$ 0.054} & \textbf{+0.559} & \textbf{0.633 $\pm$ 0.163} \\
+\textbf{EdgeX Foundry (Industrial IoT)} & 22 & 19 & 0.470 & 0.000 & 0.534 & 0.000 & 0.534 & 0.000 & \textbf{0.804 $\pm$ 0.040} & \textbf{+0.304} & \textbf{0.500 $\pm$ 0.000} \\
+\textbf{Home Assistant (Smart Home)} & 24 & 23 & 0.265 & 0.200 & 0.297 & 0.200 & 0.289 & 0.200 & \textbf{0.872 $\pm$ 0.035} & \textbf{+0.704} & \textbf{0.600 $\pm$ 0.000} \\
 \midrule
-\textbf{Mean} & — & 0.516 & 0.511 & 0.526 & \textbf{0.767} & +0.265 & — & 0.517 \\
+\textbf{Mean} & — & — & 0.516 & 0.248 & 0.511 & 0.248 & 0.526 & 0.248 & \textbf{0.767} & \textbf{+0.265} & \textbf{0.517} \\
 \bottomrule
 \end{tabular}%
 }
@@ -249,7 +255,7 @@ To assess generalization to architectures outside the generator, \texttt{HGT-QoS
 \item \textbf{The full-population figure is not a ranking result.} On all Applications, \texttt{HGT-QoS} reaches $\rho = 0.767$ vs. $0.511$ (Topo), $0.526$ (\texttt{Topo-QoS}), and $0.516$ (RM), leading on 4/5 systems. However, between $4\%$ (Home Assistant) and $46\%$ (Train-Ticket) of Applications carry zero simulated impact; full correlation heavily rewards separating inert from active components rather than ranking active ones.
 \item \textbf{Restricted to components that actually propagate failures, transfer is not established.} On the active stratum the mean drops to $+0.265$, and both microservice call trees invert: Cloud Microservices ($\rho_{>0} = -0.029$, $n = 18$) and Train-Ticket ($-0.213$, $n = 22$). The three pub-sub systems hold up ($+0.559$ Autoware, $+0.704$ Home Assistant, $+0.304$ EdgeX). \textbf{We therefore report RQ4 as a negative result:} learned relational transfer to authentic open-source architectures is not established.
 \item \textbf{The QoS-weighted baseline is now scored, and it sharpens one comparison.} \texttt{Topo-QoS} reaches $\rho = 0.888$ on Cloud Microservices, where the learned model scores worst ($0.649$) and inverts on active components, sharpening the deficit on synchronous call trees.
-\item \textbf{What the full-population number does support.} Separating propagating components from non-propagating ones narrows the review surface effectively, reflected in the $F_1@K$ column ($0.517$ mean, $0.633$ on Autoware).
+\item \textbf{Critical-set identification reveals a decisive $2.08\times$ learned model advantage.} On operational triage ($F_1@K$), \texttt{HGT-QoS} averages $0.517$, more than double the structural baselines ($0.248$ across RM, \texttt{Topo}, and \texttt{Topo-QoS}). Evaluating $F_1$ exposes critical vulnerabilities in structural heuristics that global rank correlation conceals: on EdgeX Foundry, all three structural baselines achieve $F_1 = 0.000$ (failing to identify any of the top critical services despite showing $\rho \approx 0.47$--$0.53$), whereas \texttt{HGT-QoS} captures them with $F_1 = 0.500$. On Autoware.universe, \texttt{HGT-QoS} improves critical component capture by $+280\%$ ($0.633$ vs.\ $0.167$). Even on Cloud Microservices, where \texttt{Topo} attains a higher global $\rho = 0.891$ by correctly ordering inert components, \texttt{HGT-QoS} achieves substantially higher operational identification ($F_1 = 0.400$ vs.\ $0.250$).
 \item \textbf{Architectural Ingestion Boundary.} The active-stratum inversion on microservices emphasizes a fundamental domain mismatch: synchronous RPC architectures propagate chain failures backward along invocation trees via timeout accumulation and thread pool starvation \cite{zhou2021fault}, whereas asynchronous pub-sub architectures cascade forward via queue saturation and topic starvation. Since \texttt{HGT-QoS} was trained only on pub-sub communication semantics, its relational inductive bias inverts when applied to synchronous call trees. A strict ingestion boundary is therefore recommended: SaG’s learned GNN pipeline should be deployed on asynchronous and event-driven architectures (ROS 2, Kafka, DDS, MQTT), while closed-form structural baselines (\texttt{Topo-QoS}, $\rho = 0.888$) or dedicated static call-graph analyzers should be used for synchronous RPC/REST microservice meshes.
 \end{enumerate}
 

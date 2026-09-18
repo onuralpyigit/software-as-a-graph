@@ -58,6 +58,7 @@ def preprocess(tex: str, labels: dict, cites: dict) -> str:
     # resizebox wrappers hide whole tables from pandoc; unwrap them.
     tex = re.sub(r"\\resizebox\{[^}]*\}\{[^}]*\}\{%?\n", "", tex)
     tex = re.sub(r"\n\}%?\n(\\end\{table\})", r"\n\1", tex)
+    tex = re.sub(r"\\cmidrule(\([^)]*\))?\{[^}]*\}", "", tex)
 
     def head(m):
         cmd, title, lbl = m.group(1), m.group(2), m.group(3)

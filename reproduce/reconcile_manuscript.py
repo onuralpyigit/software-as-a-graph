@@ -277,17 +277,27 @@ def check_table5_indist(rep: Report, artifact: str = "main_table.json") -> None:
         if scen is None:
             continue
         seen[scen] = True
-        for idx, vid in enumerate(variants, start=2):
+        is_dual = len(cells) >= 14
+        for idx, vid in enumerate(variants):
             blk = agg.get(f"{scen}|{vid}")
             if blk is None:
                 rep.skipped.append(f"tab:5: no aggregate for {scen}|{vid}")
                 continue
-            got, truth = _num(cells[idx]), blk.get("mean_rho")
+            rho_col = (2 + 2 * idx) if is_dual else (2 + idx)
+            got, truth = _num(cells[rho_col]), blk.get("mean_rho")
             rep.checked += 1
             if truth is not None and (got is None or abs(got - truth) > 0.001):
                 rep.findings.append(
                     Finding("tab:5", f"{label} / {labels[vid]}", "mean_rho",
                             got, round(truth, 4)))
+            if is_dual:
+                f1_col = rho_col + 1
+                got_f1, truth_f1 = _num(cells[f1_col]), blk.get("mean_f1")
+                rep.checked += 1
+                if truth_f1 is not None and (got_f1 is None or abs(got_f1 - truth_f1) > 0.001):
+                    rep.findings.append(
+                        Finding("tab:5", f"{label} / {labels[vid]}", "mean_f1",
+                                got_f1, round(truth_f1, 4)))
 
     missing = set(TABLE5_SCENARIOS.values()) - set(seen)
     if missing:
@@ -295,22 +305,42 @@ def check_table5_indist(rep: Report, artifact: str = "main_table.json") -> None:
 
     # Column means, recomputed over exactly the scenarios the artifact ran.
     scenarios = cfg.get("scenarios") or sorted(TABLE5_SCENARIOS.values())
-    mean_rows = _rows(tex, r"\textbf{Mean} & ---")
+    try:
+        t5_start = tex.index(r"\label{tab:5}")
+        t5_end = tex.index(r"\end{table}", t5_start)
+        tab5_body = tex[t5_start:t5_end]
+    except ValueError:
+        tab5_body = tex
+    mean_rows = [line.strip() for line in tab5_body.split("\n")
+                 if line.strip().startswith(r"\textbf{Mean}") and line.strip().endswith(r"\\")]
     if not mean_rows:
         rep.skipped.append("tab:5: Mean row not found")
         return
     cells = _cells(mean_rows[0])
-    for idx, vid in enumerate(variants, start=2):
+    is_dual = len(cells) >= 14
+    for idx, vid in enumerate(variants):
         vals = [agg[f"{sc}|{vid}"]["mean_rho"] for sc in scenarios
                 if f"{sc}|{vid}" in agg and agg[f"{sc}|{vid}"].get("mean_rho") is not None]
         if not vals:
             continue
         truth = sum(vals) / len(vals)
-        got = _num(cells[idx]) if idx < len(cells) else None
+        rho_col = (2 + 2 * idx) if is_dual else (2 + idx)
+        got = _num(cells[rho_col]) if rho_col < len(cells) else None
         rep.checked += 1
         if got is None or abs(got - truth) > 0.001:
             rep.findings.append(
                 Finding("tab:5", f"Mean / {labels[vid]}", "mean_rho", got, round(truth, 4)))
+        if is_dual:
+            vals_f1 = [agg[f"{sc}|{vid}"]["mean_f1"] for sc in scenarios
+                       if f"{sc}|{vid}" in agg and agg[f"{sc}|{vid}"].get("mean_f1") is not None]
+            if vals_f1:
+                truth_f1 = sum(vals_f1) / len(vals_f1)
+                f1_col = rho_col + 1
+                got_f1 = _num(cells[f1_col]) if f1_col < len(cells) else None
+                rep.checked += 1
+                if got_f1 is None or abs(got_f1 - truth_f1) > 0.001:
+                    rep.findings.append(
+                        Finding("tab:5", f"Mean / {labels[vid]}", "mean_f1", got_f1, round(truth_f1, 4)))
 
 
 def check_table5_columns(rep: Report, artifact: str = "main_table.json") -> None:
@@ -347,7 +377,14 @@ def check_table5_columns(rep: Report, artifact: str = "main_table.json") -> None
     if not header:
         rep.skipped.append("tab:5 columns: header row not found")
         return
-    printed = [_label(c) for c in _cells(header[0])][2:]
+    raw_cells = _cells(header[0])
+    printed = []
+    for c in raw_cells:
+        clean = re.sub(r"\\multicolumn\{[^}]*\}\{[^}]*\}\{([^}]*)\}", r"\1", c)
+        clean = _label(clean)
+        if clean and clean not in ("Scenario", "$n$", "n"):
+            printed.append(clean)
+
 
     # Order comes from TABLE5_VARIANTS -- the same constant the cell check reads
     # columns by -- restricted to the variants this artifact actually ran. Taking
@@ -630,6 +667,7 @@ def check_realworld(rep: Report) -> None:
     }
     tex = _tex("sec7_results.tex")
     rows = _rows(tex, r"\textbf{Cloud Microservices Mesh}", after_label=r"\label{tab:9b}")
+    refs = d.get("references", {})
     for row in rows:
         cells = _cells(row)
         if len(cells) < 9:
@@ -639,17 +677,34 @@ def check_realworld(rep: Report) -> None:
         if key is None or key not in per:
             continue
         s = per[key]
-        # Column order: name | |V_app| | RM | Topo | Topo-QoS | HGT rho | rho_>0 | n_>0 | F1@K.
-        # The Topo-QoS column was added once the projection-guard defect that made
-        # it degenerate was fixed, shifting every learned-model cell right by one.
-        for idx, k, tol, nm in ((5, "mean_rho", 0.002, "rho"),
-                                (6, "mean_rho_positive", 0.002, "rho_positive"),
-                                (7, "n_positive", 0.5, "n_positive"),
-                                (8, "mean_f1_at_k", 0.002, "f1_at_k")):
-            got, truth = _num(cells[idx]), s.get(k)
-            rep.checked += 1
-            if truth is not None and (got is None or abs(got - truth) > tol):
-                rep.findings.append(Finding("tab:9b", label, nm, got, round(truth, 4)))
+        if len(cells) >= 12:
+            # Dual-metric column order: name | |V_app| | n_>0 | RM rho | RM F1 | Topo rho | Topo F1 | Topo-QoS rho | Topo-QoS F1 | HGT rho | rho_>0 | F1@K
+            checks = (
+                (2, s.get("n_positive"), 0.5, "n_positive"),
+                (3, refs.get("RM", {}).get(key, {}).get("rho"), 0.002, "rm_rho"),
+                (4, refs.get("RM", {}).get(key, {}).get("f1_at_k"), 0.002, "rm_f1"),
+                (5, refs.get("Topo", {}).get(key, {}).get("rho"), 0.002, "topo_rho"),
+                (6, refs.get("Topo", {}).get(key, {}).get("f1_at_k"), 0.002, "topo_f1"),
+                (7, refs.get("Topo-QoS", {}).get(key, {}).get("rho"), 0.002, "topoqos_rho"),
+                (8, refs.get("Topo-QoS", {}).get(key, {}).get("f1_at_k"), 0.002, "topoqos_f1"),
+                (9, s.get("mean_rho"), 0.002, "rho"),
+                (10, s.get("mean_rho_positive"), 0.002, "rho_positive"),
+                (11, s.get("mean_f1_at_k"), 0.002, "f1_at_k"),
+            )
+            for idx, truth, tol, nm in checks:
+                got = _num(cells[idx]) if idx < len(cells) else None
+                rep.checked += 1
+                if truth is not None and (got is None or abs(got - truth) > tol):
+                    rep.findings.append(Finding("tab:9b", label, nm, got, round(truth, 4)))
+        else:
+            for idx, k, tol, nm in ((5, "mean_rho", 0.002, "rho"),
+                                    (6, "mean_rho_positive", 0.002, "rho_positive"),
+                                    (7, "n_positive", 0.5, "n_positive"),
+                                    (8, "mean_f1_at_k", 0.002, "f1_at_k")):
+                got, truth = _num(cells[idx]), s.get(k)
+                rep.checked += 1
+                if truth is not None and (got is None or abs(got - truth) > tol):
+                    rep.findings.append(Finding("tab:9b", label, nm, got, round(truth, 4)))
 
 
 #: Artifacts whose freshness is checked, and what each one backs. Only artifacts
