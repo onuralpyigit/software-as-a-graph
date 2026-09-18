@@ -45,9 +45,10 @@
    - 7.4 [Runtime DDS QoS Contract Enforcement](#74-runtime-dds-qos-contract-enforcement)
    - 7.5 [Load Calibration ($\rho = 0.65$) & Operating Points](#75-load-calibration-rho--065--operating-points)
    - 7.6 [Dynamic Delivery Loss ($I_{\text{dyn}}(v)$) & The Contention-Relief Phenomenon](#76-dynamic-delivery-loss-i_textdynv--the-contention-relief-phenomenon)
-   - 7.7 [How to Run `MessageFlowSimulator`](#77-how-to-run-messageflowsimulator)
-   - 7.8 [Output Schema Snippet (`message_flow_results.json`)](#78-output-schema-snippet-message_flow_resultsjson)
-   - 7.9 [Academic Provenance: Convergent-Validity Research Probe](#79-academic-provenance-convergent-validity-research-probe)
+   - 7.7 [JSS Study Simulation Protocol & Timing (Single-Component Lifecycle)](#77-jss-study-simulation-protocol--timing-single-component-lifecycle)
+   - 7.8 [How to Run `MessageFlowSimulator`](#78-how-to-run-messageflowsimulator)
+   - 7.9 [Output Schema Snippet (`message_flow_results.json`)](#79-output-schema-snippet-message_flow_resultsjson)
+   - 7.10 [Academic Provenance: Convergent-Validity Research Probe](#710-academic-provenance-convergent-validity-research-probe)
 8. [Engine 5: `ChangePropagationSimulator` (Maintainability Reference — Oracle $I_M$)](#8-engine-5-changepropagationsimulator-maintainability-reference--oracle-i_m)
    - 8.1 [Quick Facts](#81-quick-facts)
    - 8.2 [Runtime Failure vs. Development-Time Interface Change](#82-runtime-failure-vs-development-time-interface-change)
@@ -842,61 +843,138 @@ flowchart LR
 
 ---
 
-### 7.7 How to Run `MessageFlowSimulator`
+### 7.7 JSS Study Simulation Protocol & Timing (Single-Component Lifecycle)
 
-#### Python API
+In the JSS manuscript (§7.3.2 and Supplementary §S9), `MessageFlowSimulator` evaluates inter-oracle convergent validity across the 12 benchmark architectures via [`reproduce/convergent_validity.py`](../reproduce/convergent_validity.py).
+
+#### The Two-Window Simulation Lifecycle
+
+When measuring the dynamic criticality of an individual component $v$ (e.g., `fault_node="ConflictDetector"`), the simulator divides the virtual timeline into two equal observation windows:
+
+```
+Virtual Time (s)
+0.0 s                             30.0 s                            60.0 s
+├─────────────────────────────────┼─────────────────────────────────┤
+│    PRE-FAULT WINDOW (30 s)      │    POST-FAULT WINDOW (30 s)     │
+│  • Steady-state traffic         │  • Component v crashed & dead   │
+│  • Calibrated load (ρ = 0.65)   │  • Traffic severed or drained   │
+│  • Baseline delivery rate:      │  • Surviving delivery rate:     │
+│    DeliveryRate_before          │    DeliveryRate_after           │
+└─────────────────────────────────┴─────────────────────────────────┘
+                                   ▲
+                          FAULT INJECTION (t = 30.0 s)
+```
+
+1. **Pre-Fault Window ($t = 0.0\,\text{s} \dots 30.0\,\text{s}$)**:
+   - Publishers emit periodic messages; queues accumulate packets under calibrated load ($\rho = 0.65$).
+   - The engine logs unperturbed delivery to establish $\text{DeliveryRate}_{\text{pre-fault}}$.
+2. **Fault Injection Point ($t = 30.0\,\text{s}$)**:
+   - Component $v$ terminates immediately. If $v$ is a publisher, its emission processes stop.
+3. **Post-Fault Window ($t = 30.0\,\text{s} \dots 60.0\,\text{s}$)**:
+   - The simulation continues for another 30 seconds as downstream subscribers starve or queues drain.
+   - The engine logs surviving traffic to compute $\text{DeliveryRate}_{\text{post-fault}}$.
+4. **Dynamic Impact Metric**:
+   $$I_{\text{dyn}}(v) = \text{DeliveryRate}_{\text{pre-fault}} - \text{DeliveryRate}_{\text{post-fault}}$$
+
+#### How Long Do You Need to Simulate One Component Failure?
+
+There is an important distinction between **Virtual Simulation Time** (virtual clock inside SimPy) and **Wall-Clock Time** (real execution time on CPU):
+
+* **Virtual Simulation Time: 60.0 Virtual Seconds**:
+  - In the JSS study, every candidate run is configured with **`duration = 60.0`** and **`fault_time = 30.0`**. 30 seconds of pre-fault execution is sufficient for queues to reach stationary operating depth under $\rho = 0.65$, and 30 seconds post-fault accurately captures delivery rate disruption.
+  - *(Note: Standalone exploratory runs in the CLI default to 300.0 s, but the 12-fold paper benchmark standardizes on 60.0 s).*
+* **Real Wall-Clock Execution Time: ~1.1 to 3.5 Seconds per Component**:
+  - Because SimPy advances an event queue rather than sleeping in real time, 60 virtual seconds execute in a few seconds on a standard CPU:
+    - **ATM System** (26 applications, ~112,000 delivered messages): **~1.15 seconds** wall-clock time per component.
+    - **Autonomous Vehicle System** (32 applications, ~298,000 delivered messages): **~3.18 seconds** wall-clock time per component.
+    - **Large / High-Rate Scenarios** (e.g., Enterprise Mesh): **~5 to 15 seconds** wall-clock time per component.
+* **Why Sweeps are Computationally Heavy**:
+  - Because discrete-event simulation cannot evaluate all nodes in a single pass, calculating $I_{\text{dyn}}$ requires **one independent run per candidate component**. Evaluating 30 candidate applications in an AV system takes $30 \times 3.2\,\text{s} \approx 96\,\text{seconds}$.
+  - This computational footprint is why $I_{\text{dyn}}$ serves as an **offline research probe**, while `FaultInjector` (~10 ms/node) supplies continuous labels for GNN training.
+
+#### Exact JSS Study Configuration Parameters
+
+To reproduce the exact convergent validity values reported in JSS Table S3.1:
+
+| Parameter | JSS Value | Operational Rationale |
+|:---|:---:|:---|
+| `duration` | `60.0` | 60 simulated seconds ensures queue steady-state before failure. |
+| `fault_time` | `30.0` | Symmetrical pre-fault and post-fault measurement windows. |
+| `qos_mode` | `"full"` | Enforces all DDS QoS policies (`RELIABLE` head-drop, priority preemption, deadlines). |
+| `target_utilization` | `0.65` | Calibrates subscriber service rates ($E[S_s] = \rho / \Lambda_s$) to 65% target load. |
+| `seed` | `42` | Single seed across the 12 folds; `{42, 123, 456}` used on a 3-fold subset for test-retest. |
+| `eval_population` | `"application"` | Restricts evaluation to the Application stratum to prevent Simpson's paradox. |
+
+---
+
+### 7.8 How to Run `MessageFlowSimulator`
+
+#### Python API (Exact JSS 60s Study Configuration)
 ```python
 from pathlib import Path
 from saag.simulation.message_flow_simulator import MessageFlowSimulator
 from saag.core.graph_io import load_graph
 
-graph = load_graph("data/scenarios/atm_system.json")
+graph = load_graph(Path("data/scenarios/atm_system.json"))
 
+# Configure single component failure using exact JSS study settings
 sim = MessageFlowSimulator(
     graph=graph,
-    duration=300.0,
-    fault_node="ConflictDetector",
-    fault_time=150.0,
+    duration=60.0,                   # 60 virtual seconds
+    fault_node="ConflictDetector",   # Component to crash
+    fault_time=30.0,                  # Fault injected at midpoint
     seed=42,
-    qos_mode="full",
-    target_utilization=0.65
+    qos_mode="full",                  # Full DDS QoS contract enforcement
+    target_utilization=0.65           # Calibrated 65% load operating point
 )
 
 result = sim.run()
 result.save(Path("output/simulation/message_flow_results.json"))
 
 if result.fault_event:
-    print(f"Dynamic Delivery Rate Drop (I_dyn): {result.fault_event.delivery_rate_drop:.4f}")
+    dr_before = result.fault_event.delivery_rate_before
+    dr_after = result.fault_event.delivery_rate_after
+    i_dyn = dr_before - dr_after
+    print(f"Faulted Component:          {result.fault_event.faulted_node_id}")
+    print(f"Pre-Fault Delivery Rate:    {dr_before:.4f}")
+    print(f"Post-Fault Delivery Rate:   {dr_after:.4f}")
+    print(f"Dynamic Impact Score I_dyn: {i_dyn:.4f}")
 ```
 
-#### CLI Command
+#### CLI Command (Exact JSS 60s Profile)
 ```bash
 python cli/simulate_graph.py message-flow \
     --input data/scenarios/atm_system.json \
     --output output/simulation/ \
-    --duration 300 \
+    --duration 60 \
     --fault-node ConflictDetector \
-    --fault-time 150 \
+    --fault-time 30 \
     --qos-mode full \
     --target-utilization 0.65 \
     --seed 42 \
     --export-json
 ```
 
+#### Reproducing the Full Multi-Scenario JSS Paper Sweep
+To execute the multi-scenario convergent validity evaluation comparing $I_{\text{dyn}}$, $I^*$, and $I_{\text{comp}}$:
+```bash
+PYTHONPATH=. python reproduce/convergent_validity.py --scenarios atm_system --duration 60
+```
+
 ---
 
-### 7.8 Output Schema Snippet (`message_flow_results.json`)
+### 7.9 Output Schema Snippet (`message_flow_results.json`)
 
 ```json
 {
   "schema_version": "2.0",
   "graph_id": "atm_system",
-  "simulation_duration": 300.0,
+  "simulation_duration": 60.0,
   "system_delivery_rate": 0.9975,
   "qos_mode": "full",
   "target_utilization": 0.65,
   "fault_event": {
-    "fault_time": 150.0,
+    "fault_time": 30.0,
     "faulted_node_id": "ConflictDetector",
     "delivery_rate_before": 0.9982,
     "delivery_rate_after": 0.9810,
@@ -910,7 +988,7 @@ python cli/simulate_graph.py message-flow \
 
 ---
 
-### 7.9 Academic Provenance: Convergent-Validity Research Probe
+### 7.10 Academic Provenance: Convergent-Validity Research Probe
 
 > [!NOTE]
 > **JSS Manuscript Findings (§7.3.2, Supplementary §S9, Table S3.1):**
