@@ -1078,6 +1078,32 @@ def _score_cell(
         "label_scale_max": _round(metrics.get("label_scale_max")),
         "ndcg_10": _round(metrics.get("ndcg_10")),
         "per_node_type": metrics.get("per_type_rho", {}),
+        # Stratified figures the metric contract already computes. Kept because
+        # every pooled number above is a candidate for Simpson's paradox and the
+        # strata are the only way to see it: rho_positive is the same
+        # correlation restricted to components whose failure reaches anyone
+        # (I*(v) is heavily zero-inflated, so the pooled rho partly rewards
+        # separating inert from active rather than ordering the active ones),
+        # and per_qos_tier_rho is the same split along the QoS axis the
+        # QoS-weighted variants are argued on.
+        "spearman_rho_positive": _round(metrics.get("spearman_rho_positive")),
+        "n_positive": metrics.get("n_positive"),
+        "per_qos_tier_rho": metrics.get("per_qos_tier_rho", {}),
+        # The (prediction, label) pairs behind every figure in this cell, so a
+        # stratification nobody thought of at run time can be checked against a
+        # published table without re-training 360 models. Held-out set only;
+        # a few hundred KB across the matrix.
+        "eval_points": [
+            {
+                "id": nid,
+                "type": (nx_graph.nodes[nid].get("type") if nid in nx_graph else None),
+                # Six digits, not the table's four: these are re-ranked
+                # downstream and 4 dp invents ties in the long near-zero tail.
+                "pred": _round(float(pred_scores[nid]), 6),
+                "true": _round(float(true_impact[nid]), 6),
+            }
+            for nid in (held_out if scored_on == "held_out" else sorted(eval_keys or ()))
+        ],
         "eval_population": eval_population,
         "n_predicted": metrics.get("n_predicted"),
         "n_labeled": metrics.get("n_labeled"),

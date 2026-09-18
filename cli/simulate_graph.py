@@ -451,6 +451,8 @@ def _print_message_flow_summary(result, elapsed: float) -> None:
         print(f"    Time       : {fe.fault_time:.1f} s")
         print(f"    Orphaned   : {fe.cascade_orphaned_topics}")
         print(f"    Impacted   : {fe.cascade_impacted_subscribers}")
+        print(f"    Lost topics: {fe.lost_topics_count} (critical: {fe.lost_critical_topics_count})")
+        print(f"    Lost apps  : {fe.lost_applications_count} (critical: {fe.lost_critical_applications_count})")
         print(f"    Rate before: {fe.delivery_rate_before:.4f}")
         print(f"    Rate after : {fe.delivery_rate_after:.4f}")
         if getattr(fe, "signals_before", None) and getattr(fe, "signals_after", None):
@@ -504,6 +506,8 @@ def _write_message_flow_text_summary(result, elapsed: float, output_dir: Path) -
             f"  Time    : {fe.fault_time:.1f} s",
             f"  Orphaned: {', '.join(fe.cascade_orphaned_topics)}",
             f"  Impacted: {', '.join(fe.cascade_impacted_subscribers)}",
+            f"  Lost topics: {fe.lost_topics_count} (critical: {fe.lost_critical_topics_count})",
+            f"  Lost apps  : {fe.lost_applications_count} (critical: {fe.lost_critical_applications_count})",
             f"  Rate before fault : {fe.delivery_rate_before:.4f}",
             f"  Rate after fault  : {fe.delivery_rate_after:.4f}",
         ])

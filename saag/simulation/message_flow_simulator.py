@@ -1091,6 +1091,17 @@ def _build_golden_signals_report(
     )
 
 
+def _is_critical_entity(node_data: Dict[str, Any]) -> bool:
+    """Check whether an entity is classified as HIGH or CRITICAL criticality."""
+    crit = node_data.get("criticality")
+    if crit is None:
+        crit = node_data.get("criticality_level")
+    if crit is None:
+        return False
+    val = crit.value if hasattr(crit, "value") else str(crit)
+    return val.strip().upper() in ("HIGH", "CRITICAL")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main simulator class
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1490,6 +1501,14 @@ class MessageFlowSimulator:
         record.cascade_silenced_publishers = [self.fault_node]
         record.cascade_orphaned_topics = orphaned
         record.cascade_impacted_subscribers = impacted
+        record.lost_topics_count = len(orphaned)
+        record.lost_critical_topics_count = sum(
+            1 for t in orphaned if _is_critical_entity(self.graph.nodes.get(t, {}))
+        )
+        record.lost_applications_count = len(impacted)
+        record.lost_critical_applications_count = sum(
+            1 for a in impacted if _is_critical_entity(self.graph.nodes.get(a, {}))
+        )
         record.delivery_rate_before = _rate("pre")
         record.delivery_rate_after = _rate("post")
 

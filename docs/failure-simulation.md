@@ -853,6 +853,14 @@ To provide complete observability without compromising $I_{\text{dyn}}(v)$'s sca
 
 These signals are captured for the overall simulation run (`overall_signals`) and windowed for fault events (`signals_before` and `signals_after`), exposing the exact dynamics of contention-relief or cascading failure.
 
+#### Diagnostic Entity Impact Telemetry
+
+Alongside the Golden Signals, `FaultEventRecord` captures structured diagnostic counts of the architectural cascade:
+- **`lost_topics_count`** and **`lost_critical_topics_count`**: Total topics orphaned when their last publisher crashed, and how many of those topics carried `HIGH` or `CRITICAL` criticality.
+- **`lost_applications_count`** and **`lost_critical_applications_count`**: Downstream subscriber applications that lost feeds due to orphaned topics, and how many carried `HIGH` or `CRITICAL` criticality.
+
+These metrics serve strictly as **diagnostic operational telemetry** for human triage and CLI reporting; they are deliberately excluded from the $I_{\text{dyn}}(v)$ scalar objective to protect the Input-Label Independence Guarantee and avoid label masking.
+
 ---
 
 ### 7.7 JSS Study Simulation Protocol & Timing (Single-Component Lifecycle)

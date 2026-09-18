@@ -231,3 +231,63 @@ def test_json_serialization_roundtrip(tmp_path):
     with open(out_file) as f:
         loaded = json.load(f)
     assert loaded["golden_signals"]["traffic"]["total_messages_published"] > 0
+
+
+def test_fault_event_criticality_telemetry():
+    """Verify lost_topics and lost_applications telemetry counts based on criticality."""
+    g = nx.DiGraph()
+    topic_qos = {"reliability": "RELIABLE", "durability": "VOLATILE", "queue_size": 20}
+
+    # High criticality topic orphaned by Pub0
+    g.add_node("/crit_topic", type="Topic", frequency=10.0, criticality="HIGH", qos=topic_qos)
+    # Low criticality topic orphaned by Pub0
+    g.add_node("/low_topic", type="Topic", frequency=10.0, criticality="LOW", qos=topic_qos)
+    # Shared topic with surviving co-publisher Pub1 (should NOT be orphaned)
+    g.add_node("/shared_topic", type="Topic", frequency=10.0, criticality="CRITICAL", qos=topic_qos)
+
+    # Publishers
+    g.add_node("Pub0", type="Application", criticality="HIGH")
+    g.add_node("Pub1", type="Application", criticality="LOW")
+
+    g.add_edge("Pub0", "/crit_topic", type="PUBLISHES_TO")
+    g.add_edge("Pub0", "/low_topic", type="PUBLISHES_TO")
+    g.add_edge("Pub0", "/shared_topic", type="PUBLISHES_TO")
+    g.add_edge("Pub1", "/shared_topic", type="PUBLISHES_TO")
+
+    # Subscribers
+    g.add_node("SubCrit", type="Application", criticality="CRITICAL")
+    g.add_node("SubLow", type="Application", criticality="LOW")
+    g.add_node("SubShared", type="Application", criticality="CRITICAL")
+
+    g.add_edge("SubCrit", "/crit_topic", type="SUBSCRIBES_TO")
+    g.add_edge("SubLow", "/low_topic", type="SUBSCRIBES_TO")
+    g.add_edge("SubShared", "/shared_topic", type="SUBSCRIBES_TO")
+
+    sim = MessageFlowSimulator(
+        graph=g,
+        duration=4.0,
+        fault_node="Pub0",
+        fault_time=2.0,
+        seed=42,
+    )
+    result = sim.run()
+    fe = result.fault_event
+    assert fe is not None
+
+    # Orphaned topics should be /crit_topic and /low_topic (/shared_topic survives via Pub1)
+    assert sorted(fe.cascade_orphaned_topics) == ["/crit_topic", "/low_topic"]
+    assert fe.lost_topics_count == 2
+    assert fe.lost_critical_topics_count == 1  # only /crit_topic is HIGH
+
+    # Impacted subscribers should be SubCrit and SubLow (SubShared feed survives)
+    assert sorted(fe.cascade_impacted_subscribers) == ["SubCrit", "SubLow"]
+    assert fe.lost_applications_count == 2
+    assert fe.lost_critical_applications_count == 1  # only SubCrit is CRITICAL
+
+    # Verify serialization
+    d = fe.to_dict()
+    assert d["lost_topics_count"] == 2
+    assert d["lost_critical_topics_count"] == 1
+    assert d["lost_applications_count"] == 2
+    assert d["lost_critical_applications_count"] == 1
+

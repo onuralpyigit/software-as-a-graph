@@ -544,6 +544,12 @@ class FaultEventRecord:
     queue_overflows_before: int = 0
     queue_overflows_after: int = 0
 
+    #: Diagnostic entity-impact telemetry (lost nodes in the fault cascade)
+    lost_topics_count: int = 0
+    lost_critical_topics_count: int = 0
+    lost_applications_count: int = 0
+    lost_critical_applications_count: int = 0
+
     #: Measurement geometry, recorded so a reader can tell which part of the run
     #: each window covers without re-deriving it from the run parameters.
     warmup_s: float = 0.0

@@ -63,6 +63,7 @@ from cli.loso_evaluate import (  # noqa: E402
     discover_scenarios,
 )
 from saag.evaluation import variant_registry as _registry  # noqa: E402
+from saag.evaluation.metrics import resolve_eval_keys  # noqa: E402
 from saag.prediction.gnn_service import GNNService  # noqa: E402
 
 logging.basicConfig(
@@ -192,12 +193,38 @@ def score(service: GNNService, bundle: ScenarioBundle, *, use_qos: bool,
         m["spearman_rho_positive"] = (
             float(m_pos.get("spearman_rho")) if m_pos.get("spearman_rho") is not None else None
         )
-        m["n_positive"] = len(pos_impact)
+        # Count what the correlation was actually computed on. `pos_impact`
+        # spans every labelled node type, so reporting its length alongside an
+        # Application-population rho printed n_positive > n_evaluated.
+        m["n_positive"] = m_pos.get("n_evaluated", len(pos_impact))
     else:
         m["spearman_rho_positive"] = None
         m["n_positive"] = len(pos_impact)
 
+    m["eval_points"] = _eval_points(pred, true_impact, bundle.graph, population)
     return m
+
+
+def _eval_points(pred, true_impact, graph, population) -> List[Dict[str, Any]]:
+    """The (prediction, label) pairs behind one system's figures.
+
+    Kept so a stratification nobody ran at the time — by node type, by whether
+    the oracle scores the component above zero, by QoS tier, or pooled across
+    the five systems instead of averaged over them — can be checked against a
+    published number without re-training. Every pooled figure in this artifact
+    is a candidate for Simpson's paradox and these rows are what make that
+    testable.
+    """
+    keys = resolve_eval_keys(pred, true_impact, graph, population)
+    return [
+        {
+            "id": nid,
+            "type": graph.nodes[nid].get("type") if nid in graph else None,
+            "pred": round(float(pred[nid]), 6),
+            "true": round(float(true_impact[nid]), 6),
+        }
+        for nid in keys
+    ]
 
 
 def score_references(bundle: ScenarioBundle, *, population: str) -> Dict[str, Any]:
@@ -434,6 +461,9 @@ def main() -> int:
             # rank agreement, not identification. The block below is the
             # identification family proper, on the same seeds.
             **_identification_summary(runs),
+            # Seed 0's rows. The per-seed spread is already carried as std on
+            # every figure above; what these add is the ability to re-stratify.
+            "eval_points": runs[0].get("eval_points", []),
             "label_stability": bundle.label_stability,
             "labeler": bundle.labeler,
         }
@@ -450,6 +480,8 @@ def main() -> int:
             references.setdefault(name, {})[b.scenario_id] = {
                 "rho": float(m["spearman_rho"]),
                 "f1_at_k": float(m["f1_at_k"]),
+                "rho_positive": _finite(m.get("spearman_rho_positive")),
+                "n_positive": m.get("n_positive"),
                 **{k: _finite(m.get(k)) for k in _ID_KEYS},
             }
     ref_means = {}
