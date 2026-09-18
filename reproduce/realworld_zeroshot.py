@@ -288,6 +288,44 @@ def score_references(bundle: ScenarioBundle, *, population: str) -> Dict[str, An
     return out
 
 
+#: Identification metrics carried from the metric contract into this artifact.
+#: ``f1_at_k`` is deliberately not in the list: it is overlap@K, where the
+#: predicted and true sets both have exactly K members, so precision, recall and
+#: F1 are identically equal and none of them can be read as an F1 score.
+_ID_KEYS = (
+    "precision_at_tau", "recall_at_tau", "f1_at_tau",
+    "precision_at_threshold", "recall_at_threshold", "f1_at_threshold",
+    "f1_max", "f1_all_positive", "pr_auc",
+    "n_true_critical", "n_pred_critical",
+)
+
+
+def _finite(value):
+    """Numbers through unchanged; NaN and absent values become ``None``.
+
+    A degenerate truth set (every node critical, or none) leaves the metric
+    contract returning NaN. JSON has no NaN, and averaging it in as 0.0 would
+    turn "not measurable here" into "the model scored zero".
+    """
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return None if np.isnan(value) else float(value)
+    return value
+
+
+def _identification_summary(runs: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Mean/std of the identification family over the seeds where it is defined."""
+    out: Dict[str, Any] = {}
+    for key in _ID_KEYS:
+        vals = [v for v in (_finite(r.get(key)) for r in runs) if v is not None]
+        if key.startswith("n_"):
+            out[key] = int(vals[0]) if vals else None
+            continue
+        out[f"mean_{key}"] = float(np.mean(vals)) if vals else None
+        out[f"std_{key}"] = float(np.std(vals)) if vals else None
+        out[f"n_seeds_{key}_defined"] = len(vals)
+    return out
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--synthetic-cache", type=Path, default=Path("output/loso_cache"))
@@ -391,6 +429,11 @@ def main() -> int:
             "mean_rho_positive": float(np.mean(pos_rho)) if pos_rho else None,
             "std_rho_positive": float(np.std(pos_rho)) if pos_rho else None,
             "n_positive": runs[0].get("n_positive"),
+            # mean_f1_at_k above is overlap@K: both sets have exactly K members,
+            # so precision == recall == F1 there by construction and it measures
+            # rank agreement, not identification. The block below is the
+            # identification family proper, on the same seeds.
+            **_identification_summary(runs),
             "label_stability": bundle.label_stability,
             "labeler": bundle.labeler,
         }
@@ -407,6 +450,7 @@ def main() -> int:
             references.setdefault(name, {})[b.scenario_id] = {
                 "rho": float(m["spearman_rho"]),
                 "f1_at_k": float(m["f1_at_k"]),
+                **{k: _finite(m.get(k)) for k in _ID_KEYS},
             }
     ref_means = {}
     for name, per in references.items():

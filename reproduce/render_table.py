@@ -529,8 +529,12 @@ def render_id_metrics_md(data: Dict, output: Path):
 
     rows += [
         "",
-        "**Calibration:** All identification metrics use rank-matched binarization "
-        "(top-K predicted = critical, K = #ground-truth criticals).",
+        "**Calibration:** The `F1` column is `f1_at_k` — the top-K predicted set "
+        "against the top-K true set, K = round(0.20 n). Both sets have exactly K "
+        "members, so precision, recall and F1 are identically equal here and the "
+        "column measures rank overlap, not identification. K is *not* the number "
+        "of ground-truth criticals. For F1 proper see "
+        "results/table3_identification_metrics.md.",
         "",
         "- † = legacy fixed-threshold (0.5) binarization; not yet recalibrated",
         "- ‡ = degenerate label distribution (F1 undefined)",
@@ -540,6 +544,161 @@ def render_id_metrics_md(data: Dict, output: Path):
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text("\n".join(rows) + "\n")
     print(f"  Saved ID Metrics MD: {output}")
+
+
+def render_identification_md(data: Dict, output: Path):
+    """Per-scenario identification quality, with a non-degenerate F1.
+
+    Separate from :func:`render_id_metrics_md` because the ``F1`` column there
+    is ``f1_at_k`` — top-K predicted against top-K true, both sets of size
+    K = round(0.20 n). Those cardinalities are equal by construction, so
+    precision, recall and F1 are the same number and none of them is an F1
+    score; ``overlap@K`` is what it measures. This table reports the three
+    operating points where identification is actually testable:
+
+    ``F1@τ``       top-K prediction vs. the labels' own critical set
+                   (I*(v) >= 0.5 max I*). Precision and recall diverge, but
+                   both are capped by the mismatch between K and the size of
+                   that set, so a perfect ranking does not score 1.0.
+    ``F1@τ̂``      the same relative cut applied to *both* vectors. The
+                   predicted set size floats, the caps disappear, and a perfect
+                   ranking scores 1.0. This is the operating point a user of
+                   the tool would actually see.
+    ``F1max``      the best F1 any cut of the ranking could reach, next to
+                   ``F1₊``, the F1 of calling everything critical — the floor
+                   every ranking clears for free.
+    """
+    agg = data["aggregate"]
+    scenarios = sorted({k.split("|")[0] for k in agg if not k.startswith("_")})
+
+    header = ("| Scenario | Variant | ρ | overlap@K | F1@τ | P@τ̂ | R@τ̂ | F1@τ̂ "
+              "| F1max | F1₊ | PR-AUC | n | #crit |")
+    rows = [header, "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+
+    def _f(x):
+        return "—" if not isinstance(x, (int, float)) else f"{x:.3f}"
+
+    for sc in scenarios:
+        label = _SCENARIO_LABELS.get(sc, sc)
+        for v in _VARIANT_ORDER:
+            st = agg.get(f"{sc}|{v}", {})
+            if not st:
+                continue
+            rows.append(
+                f"| {label} | {_VARIANT_LABELS_PLAIN.get(v, v)} "
+                f"| {_f(st.get('mean_rho'))} | {_f(st.get('mean_f1'))} "
+                f"| {_f(st.get('mean_f1_at_tau'))} "
+                f"| {_f(st.get('mean_precision_at_threshold'))} "
+                f"| {_f(st.get('mean_recall_at_threshold'))} "
+                f"| {_f(st.get('mean_f1_at_threshold'))} "
+                f"| {_f(st.get('mean_f1_max'))} | {_f(st.get('mean_f1_all_positive'))} "
+                f"| {_f(st.get('mean_pr_auc'))} "
+                f"| {st.get('n_evaluated', '—')} | {st.get('n_true_critical', '—')} |"
+            )
+            label = ""
+        rows.append("| | | | | | | | | | | | | |")
+
+    # Cohort means, per variant, over the scenarios where each figure is defined.
+    rows += ["", "**Mean across scenarios**", "",
+             "| Variant | ρ | overlap@K | F1@τ | F1@τ̂ | F1max | F1₊ | PR-AUC |",
+             "|---|---|---|---|---|---|---|---|"]
+    for v in _VARIANT_ORDER:
+        cells = [agg[f"{sc}|{v}"] for sc in scenarios if f"{sc}|{v}" in agg]
+
+        def _mean(key):
+            vals = [c.get(key) for c in cells]
+            vals = [x for x in vals if isinstance(x, (int, float))]
+            return sum(vals) / len(vals) if vals else None
+
+        rows.append(
+            f"| {_VARIANT_LABELS_PLAIN.get(v, v)} | {_f(_mean('mean_rho'))} "
+            f"| {_f(_mean('mean_f1'))} | {_f(_mean('mean_f1_at_tau'))} "
+            f"| {_f(_mean('mean_f1_at_threshold'))} | {_f(_mean('mean_f1_max'))} "
+            f"| {_f(_mean('mean_f1_all_positive'))} | {_f(_mean('mean_pr_auc'))} |"
+        )
+
+    rows += [
+        "",
+        "Five seeds per cell; every figure is the mean over the seeds on which it "
+        "was defined. `n` is the held-out Application population, `#crit` the "
+        "number of components the oracle marks critical in it.",
+    ]
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("\n".join(rows) + "\n")
+    print(f"  Saved identification metrics MD: {output}")
+
+
+def render_realworld_identification_md(data: Dict, output: Path):
+    """The same identification family for the five transcribed real systems.
+
+    Zero-shot: the learned variant is trained on the synthetic corpus only and
+    never sees these graphs. The training-free references (RM, Topo, Topo-QoS)
+    are scored against the same oracle, population and node set, so the columns
+    are comparable down the page.
+    """
+    per_system = data.get("per_system", {})
+    references = data.get("references", {})
+    learned = data.get("label", data.get("variant", "learned"))
+
+    header = ("| System | Predictor | ρ | overlap@K | F1@τ | P@τ̂ | R@τ̂ | F1@τ̂ "
+              "| F1max | F1₊ | PR-AUC | n | #crit |")
+    rows = [header, "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+
+    def _f(x):
+        return "—" if not isinstance(x, (int, float)) else f"{x:.3f}"
+
+    def _i(x):
+        return "—" if not isinstance(x, (int, float)) else f"{int(x)}"
+
+    for sid in sorted(per_system):
+        st = per_system[sid]
+        if not st.get("n_seeds"):
+            continue
+        label = sid.replace("realworld_", "")
+        rows.append(
+            f"| {label} | {learned} | {_f(st.get('mean_rho'))} "
+            f"| {_f(st.get('mean_f1_at_k'))} | {_f(st.get('mean_f1_at_tau'))} "
+            f"| {_f(st.get('mean_precision_at_threshold'))} "
+            f"| {_f(st.get('mean_recall_at_threshold'))} "
+            f"| {_f(st.get('mean_f1_at_threshold'))} "
+            f"| {_f(st.get('mean_f1_max'))} | {_f(st.get('mean_f1_all_positive'))} "
+            f"| {_f(st.get('mean_pr_auc'))} "
+            f"| {st.get('n_evaluated', '—')} | {st.get('n_true_critical', '—')} |"
+        )
+        for name in sorted(references):
+            ref = references[name].get(sid, {})
+            if "rho" not in ref:
+                # Reference recorded why it could not be computed; say so rather
+                # than print a dash that reads like a missing run.
+                rows.append(f"| | {name} | _{ref.get('unavailable', 'unavailable')}_ "
+                            + "| " * 10 + "|")
+                continue
+            rows.append(
+                f"| | {name} | {_f(ref.get('rho'))} | {_f(ref.get('f1_at_k'))} "
+                f"| {_f(ref.get('f1_at_tau'))} | {_f(ref.get('precision_at_threshold'))} "
+                f"| {_f(ref.get('recall_at_threshold'))} | {_f(ref.get('f1_at_threshold'))} "
+                f"| {_f(ref.get('f1_max'))} | {_f(ref.get('f1_all_positive'))} "
+                f"| {_f(ref.get('pr_auc'))} | {st.get('n_evaluated', '—')} "
+                f"| {_i(ref.get('n_true_critical'))} |"
+            )
+        rows.append("| | | | | | | | | | | | | |")
+
+    rows += [
+        "",
+        f"Oracle: {data.get('oracle', 'I*(v)')}. Population: "
+        f"{data.get('eval_population', 'application')}. "
+        f"Seeds: {data.get('seeds', [])} (references are training-free and "
+        "deterministic, so they carry no seed variance).",
+        "",
+        "Column definitions are the same as results/table3_identification_metrics.md: "
+        "`overlap@K` is not an F1 (precision == recall == F1 by construction); "
+        "`F1@τ̂` is the non-degenerate one.",
+    ]
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("\n".join(rows) + "\n")
+    print(f"  Saved real-world identification metrics MD: {output}")
 
 
 def print_id_metrics_console(data: Dict):
@@ -871,6 +1030,10 @@ def parse_args():
                    help="Path to loso_all_variants.json (Block E output)")
     p.add_argument("--table-kfold", type=Path, default=_RESULTS_DIR / "kfold_all_variants.json",
                    help="Path to kfold_all_variants.json (per-domain k-fold output)")
+    p.add_argument("--realworld", type=Path,
+                   default=_RESULTS_DIR / "realworld_zeroshot.json",
+                   help="Path to realworld_zeroshot.json; renders the zero-shot "
+                        "identification table. Skipped when absent.")
     p.add_argument("--output-dir", type=Path, default=_RESULTS_DIR)
     p.add_argument("--tex-only", action="store_true", help="Only generate .tex files")
     p.add_argument("--no-tex", action="store_true", help="Skip .tex files")
@@ -923,12 +1086,21 @@ def main():
                 render_table3_csv(data3, out / "table3_main_results.csv")
                 render_table3_md(data3,  out / "table3_main_results.md")
                 render_id_metrics_md(data3, out / "table3_id_metrics.md")
+                render_identification_md(data3, out / "table3_identification_metrics.md")
                 render_per_type_table_md(data3, out / "table5_per_type_metrics.md")
         
         print_id_metrics_console(data3)
     else:
         print(f"\n  [Table 3] Not found: {args.table3}")
         print("  Run: python reproduce/main_table.py")
+
+    # ── Real-world zero-shot identification ──────────────────────────────────
+    if args.realworld is not None and args.realworld.exists() and not args.console:
+        print(f"\n  [Real-world zero-shot] {args.realworld}")
+        render_realworld_identification_md(
+            json.loads(args.realworld.read_text()),
+            out / "realworld_identification_metrics.md",
+        )
 
     # ── Table 4 ───────────────────────────────────────────────────────────────
     if args.table_controls is not None and args.table_controls.exists():

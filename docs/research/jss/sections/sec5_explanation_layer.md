@@ -8,7 +8,7 @@ This layer is explicitly unvalidated and intended for qualitative attribution ra
 
 In accordance with ISO/IEC 25010:2023 [13] and ISO/IEC 25019:2023 [14], SaG formalizes two primary criticality dimensions: Component Criticality ($D_1$), defined as service loss upon component failure, and Relationship Criticality ($D_2$), defined as service decline upon channel severance.
 
-Criticality is assessed across two orthogonal characteristics: **Reliability ($R$)** and **Maintainability ($M$)**. Reliability is divided into **Fault Tolerance ($FT$)**, which uses Reverse PageRank, in-degree, and cascade depth potential to inform redundancy and circuit breaker strategies, and **Availability ($A$)**, which uses directed articulation points, bridge ratios, and connectivity degradation to inform replication strategies. Maintainability ($M$) assesses structural coupling and code-level complexity, using betweenness, QoS-weighted fan-out, code quality penalties, and clustering to guide decoupling and refactoring. Supplementary Table S3 summarizes this partition, mapping each ISO/IEC sub-characteristic to its graph metrics and remediation roles. Safety and security considerations that require specialized hazard logs are excluded from purely structural topology analysis.
+Criticality is assessed across two orthogonal characteristics: **Reliability ($R$)** and **Maintainability ($M$)**. Reliability is divided into **Fault Tolerance ($FT$)**, which uses Reverse PageRank, in-degree, and cascade depth potential to inform redundancy and circuit breaker strategies, and **Availability ($A$)**, which uses directed articulation points, bridge ratios, and connectivity degradation to inform replication strategies. Maintainability ($M$) assesses structural coupling and code-level complexity, using betweenness, QoS-weighted fan-out, code quality penalties, and clustering to guide decoupling and refactoring. This partition maps each ISO/IEC sub-characteristic to its graph metrics and remediation roles. Safety and security considerations that require specialized hazard logs are excluded from purely structural topology analysis.
 
 ## 5.2 Composite Quality Score Formulation
 
@@ -33,7 +33,7 @@ All raw metrics are rank-normalized to the interval $[0, 1]$ within the graph. Q
     $$\tag{12}
     R(v) = r_{\text{FT}} \cdot FT(v) + (1 - r_{\text{FT}}) \cdot A(v), \quad r_{\text{FT}} = 0.36$$
 
-    The intra-dimension weights apply $\lambda = 0.70$ shrinkage blending with a uniform prior. Because comparison matrices are rank-one by construction (Supplementary §S4), these weights are documented conventions rather than independently elicited consensus.
+    The intra-dimension weights apply $\lambda = 0.70$ shrinkage blending with a uniform prior. Because comparison matrices are rank-one by construction, these weights are documented conventions rather than independently elicited consensus.
 
 4.  **Maintainability ($M(v)$):** Blends structural coupling with static code analysis:
 

@@ -24,7 +24,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 from scipy.stats import spearmanr
-from sklearn.metrics import average_precision_score
+from sklearn.metrics import average_precision_score, precision_recall_curve
 
 #: Sentinel written to JSON when a statistic cannot be computed. Distinct from
 #: 0.0 (a real, poor correlation) and from a missing key (nothing was attempted).
@@ -442,11 +442,61 @@ def compute_inductive_metrics(
             if (precision_tau + recall_tau) > 0 else 0.0
         )
         pr_auc = float(average_precision_score(true_critical.astype(int), y_pred))
+        # Prediction-side threshold. The block above cuts the *prediction* at
+        # top-K while cutting the *labels* at tau, so the predicted-positive set
+        # is pinned to K by the population size while the true-positive set is
+        # sized by the data. Precision is then capped at n_true_critical/K
+        # whenever the truth set is smaller than K, and recall at
+        # K/n_true_critical whenever it is larger — caps that are properties of
+        # the two set sizes, not of the ranking. Applying the *same* relative
+        # rule to both vectors ("critical" is anything within tau_frac of the
+        # top score) lets the predicted set size float, which is both what an
+        # operator thresholding this tool would see and the only variant in this
+        # function where precision and recall diverge for a reason attributable
+        # to the model.
+        pred_scale_max = float(y_pred.max())
+        tau_hat = tau_frac * pred_scale_max
+        pred_critical = y_pred >= tau_hat if pred_scale_max > 0 else np.zeros_like(y_pred, dtype=bool)
+        n_pred_critical = int(pred_critical.sum())
+        tp_thr = int((pred_critical & true_critical).sum())
+        precision_thr = tp_thr / n_pred_critical if n_pred_critical else float("nan")
+        recall_thr = tp_thr / n_true_critical
+        f1_thr = (
+            2 * precision_thr * recall_thr / (precision_thr + recall_thr)
+            if n_pred_critical and (precision_thr + recall_thr) > 0 else 0.0
+        )
+
+        # Threshold-free ceiling: the best F1 any single cut of this ranking
+        # could reach. Separates "the ranking cannot identify the critical set"
+        # from "this particular operating point is mis-placed".
+        prec_curve, rec_curve, thr_curve = precision_recall_curve(
+            true_critical.astype(int), y_pred
+        )
+        with np.errstate(divide="ignore", invalid="ignore"):
+            f1_curve = np.nan_to_num(
+                2 * prec_curve * rec_curve / (prec_curve + rec_curve), nan=0.0
+            )
+        best = int(np.argmax(f1_curve))
+        f1_max = float(f1_curve[best])
+        f1_max_threshold = (
+            float(thr_curve[best]) if best < len(thr_curve) else float("nan")
+        )
+
+        # Floor for f1_max: the F1 of calling *everything* critical, which any
+        # ranking whatsoever attains at its loosest cut. On a high-prevalence
+        # truth set this is already large (0.67 at 50% prevalence), so an
+        # f1_max near it is evidence of nothing.
+        prevalence = n_true_critical / len(common)
+        f1_all_positive = 2 * prevalence / (1 + prevalence)
     else:
         # Degenerate truth set: every node critical or none. Precision/recall
         # carry no information, so report them as undefined rather than 0.0.
         precision_tau = recall_tau = f1_tau = float("nan")
         pr_auc = float("nan")
+        precision_thr = recall_thr = f1_thr = float("nan")
+        n_pred_critical = 0
+        tau_hat = float("nan")
+        f1_max = f1_max_threshold = f1_all_positive = float("nan")
 
     k_ndcg = min(10, len(common))
     ideal_order = np.argsort(-y_true)[:k_ndcg]
@@ -492,6 +542,17 @@ def compute_inductive_metrics(
         "n_true_critical": n_true_critical,
         "tau": tau,
         "pr_auc": pr_auc,
+        # Same relative cut applied to both vectors: the only P/R pair here that
+        # is free to diverge because of the ranking rather than set sizes.
+        "precision_at_threshold": precision_thr,
+        "recall_at_threshold": recall_thr,
+        "f1_at_threshold": f1_thr,
+        "n_pred_critical": n_pred_critical,
+        "tau_hat": tau_hat,
+        # Best F1 reachable by any cut of this ranking, and where it sits.
+        "f1_max": f1_max,
+        "f1_max_threshold": f1_max_threshold,
+        "f1_all_positive": f1_all_positive,
         # Scale diagnostics for the otherwise-uninterpretable rmse/mae above.
         "rmse_scaled": rmse_scaled,
         "mae_scaled": mae_scaled,

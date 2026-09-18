@@ -1060,6 +1060,15 @@ def _score_cell(
         "overlap_at_k": _round(metrics.get("overlap_at_k")),
         "precision_at_tau": _round(metrics.get("precision_at_tau")),
         "recall_at_tau": _round(metrics.get("recall_at_tau")),
+        "f1_at_tau": _round(metrics.get("f1_at_tau")),
+        # Same relative cut on both vectors — the only P/R pair whose divergence
+        # is attributable to the ranking rather than to the two set sizes.
+        "precision_at_threshold": _round(metrics.get("precision_at_threshold")),
+        "recall_at_threshold": _round(metrics.get("recall_at_threshold")),
+        "f1_at_threshold": _round(metrics.get("f1_at_threshold")),
+        "f1_max": _round(metrics.get("f1_max")),
+        "f1_all_positive": _round(metrics.get("f1_all_positive")),
+        "n_pred_critical": metrics.get("n_pred_critical"),
         "pr_auc": _round(metrics.get("pr_auc")),
         "n_true_critical": metrics.get("n_true_critical"),
         "rmse": _round(metrics.get("rmse")),
@@ -1452,6 +1461,12 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
         maes = _defined(cs, "mae")
         ndcgs = _defined(cs, "ndcg_10")
         pr_aucs = _defined(cs, "pr_auc")
+        f1_taus = _defined(cs, "f1_at_tau")
+        prec_thrs = _defined(cs, "precision_at_threshold")
+        rec_thrs = _defined(cs, "recall_at_threshold")
+        f1_thrs = _defined(cs, "f1_at_threshold")
+        f1_maxes = _defined(cs, "f1_max")
+        f1_trivials = _defined(cs, "f1_all_positive")
 
         mean_r = float(np.mean(rhos)) if rhos else float("nan")
         lo, hi = _bootstrap_ci(rhos)
@@ -1511,6 +1526,15 @@ def _aggregate_cells(cells: List[Dict]) -> Dict:
             "mean_mae":       _m(maes),
             "mean_ndcg_10":   _m(ndcgs),
             "mean_pr_auc":    _m(pr_aucs),
+            # mean_f1 above is overlap@K (precision == recall == f1 by
+            # construction); these are the identification metrics that can
+            # actually separate the two.
+            "mean_f1_at_tau":            _m(f1_taus),
+            "mean_precision_at_threshold": _m(prec_thrs),
+            "mean_recall_at_threshold":  _m(rec_thrs),
+            "mean_f1_at_threshold":      _m(f1_thrs),
+            "mean_f1_max":               _m(f1_maxes),
+            "mean_f1_all_positive":      _m(f1_trivials),
             "ci_lo":          round(lo, 4) if not np.isnan(lo) else None,
             "ci_hi":          round(hi, 4) if not np.isnan(hi) else None,
             "gt_source":      gt_source,

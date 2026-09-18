@@ -68,6 +68,66 @@ def test_tau_precision_and_recall_diverge():
     assert m["precision_at_tau"] != pytest.approx(m["recall_at_tau"])
 
 
+def test_threshold_f1_is_not_capped_by_the_top_k_window():
+    """A perfect ranking must be able to score F1 = 1.0.
+
+    ``f1_at_tau`` cannot: it cuts the prediction at top-K (K = 20% of the
+    population) and the labels at tau, so on a skewed truth set the two set
+    sizes disagree and precision is capped at n_true_critical/K no matter how
+    good the ranking is. Cutting both vectors by the same relative rule removes
+    the cap, which is what makes ``f1_at_threshold`` readable as an F1 score.
+    """
+    true = _skewed_truth()
+    pred = dict(true)
+
+    m = compute_inductive_metrics(pred, true, _graph(true))
+
+    assert m["f1_at_threshold"] == pytest.approx(1.0)
+    assert m["n_pred_critical"] == m["n_true_critical"] == 3
+    assert m["f1_at_tau"] < 0.5, "the same perfect ranking, capped by K != 3"
+
+
+def test_threshold_precision_and_recall_diverge():
+    """The predicted set floats, so the two are free to differ."""
+    true = _skewed_truth()
+    # Over-predicts: n3 is pushed above the prediction-side threshold although
+    # its label is nowhere near tau.
+    pred = dict(true)
+    pred["n3"] = 0.9
+
+    m = compute_inductive_metrics(pred, true, _graph(true))
+
+    assert m["n_pred_critical"] == 4
+    assert m["recall_at_threshold"] == pytest.approx(1.0)
+    assert m["precision_at_threshold"] == pytest.approx(0.75)
+    assert m["precision_at_threshold"] != pytest.approx(m["recall_at_threshold"])
+
+
+def test_f1_max_bounds_the_operating_point_and_the_trivial_floor():
+    """F1max is a ceiling over cuts; F1 of "everything is critical" is the floor.
+
+    Reported together because a bare F1max is unreadable: on a high-prevalence
+    truth set the all-positive cut already scores well, so an F1max near the
+    floor is evidence of nothing.
+    """
+    true = _skewed_truth()
+    rng = np.random.default_rng(7)
+    pred = {k: v + rng.normal(0, 0.05) for k, v in true.items()}
+
+    m = compute_inductive_metrics(pred, true, _graph(true))
+
+    assert m["f1_max"] >= m["f1_at_threshold"]
+    assert m["f1_max"] >= m["f1_all_positive"]
+    # 3 criticals in 50 nodes: 2 * 0.06 / 1.06.
+    assert m["f1_all_positive"] == pytest.approx(2 * (3 / 50) / (1 + 3 / 50))
+
+    reversed_pred = {k: -v for k, v in true.items()}
+    worst = compute_inductive_metrics(reversed_pred, true, _graph(true))
+    assert worst["f1_max"] == pytest.approx(worst["f1_all_positive"]), (
+        "an exactly inverted ranking can do no better than calling everything critical"
+    )
+
+
 def test_pr_auc_separates_a_good_ranker_from_a_random_one():
     true = _skewed_truth()
     rng = np.random.default_rng(1)
@@ -134,6 +194,9 @@ def test_degenerate_truth_does_not_crash():
     assert np.isnan(m["pr_auc"])
     assert np.isnan(m["precision_at_tau"])
     assert np.isnan(m["recall_at_tau"])
+    assert np.isnan(m["f1_at_threshold"])
+    assert np.isnan(m["f1_max"])
+    assert np.isnan(m["f1_all_positive"])
 
 
 def test_too_few_common_nodes_still_reports_coverage():
