@@ -163,7 +163,8 @@ def _message_flow_labels(
     max_candidates: Optional[int] = None,
     qos_mode: str = "full",
     target_utilization: Optional[float] = 0.65,
-) -> Dict[str, float]:
+    return_signals: bool = False,
+) -> Dict[str, float] | tuple[Dict[str, float], Optional[Dict[str, Any]]]:
     """I_dyn(v) — the delivery-rate loss surviving consumers actually suffer.
 
     One discrete-event run per candidate, so this is the expensive oracle. Only
@@ -200,6 +201,10 @@ def _message_flow_labels(
         if event is None:
             continue
         labels[node] = float(event.delivery_rate_before - event.delivery_rate_after)
+
+    if return_signals:
+        signals_dict = probe.golden_signals.to_dict() if probe.golden_signals else None
+        return labels, signals_dict
     return labels
 
 
@@ -421,12 +426,15 @@ def compare(
         "i_star": _fault_injector_labels(scenario, seeds, qos=qos),
         "i_comp": _failure_simulator_labels(scenario, qos=qos),
     }
+    golden_signals = None
     if not skip_message_flow:
         effective_mode = qos_mode if qos else "none"
-        oracles["i_dyn"] = _message_flow_labels(
+        labels, golden_signals = _message_flow_labels(
             scenario, duration=duration, max_candidates=max_candidates,
             qos_mode=effective_mode, target_utilization=target_utilization,
+            return_signals=True,
         )
+        oracles["i_dyn"] = labels
 
     n_before = {name: len(scores) for name, scores in oracles.items()}
     oracles = _restrict(oracles, scenario, population)
@@ -449,6 +457,8 @@ def compare(
         },
         "pairs": {},
     }
+    if golden_signals is not None:
+        row["golden_signals"] = golden_signals
     for name_a, name_b in combinations(sorted(oracles), 2):
         row["pairs"][f"{name_a}__{name_b}"] = _pairwise(
             oracles[name_a], oracles[name_b])

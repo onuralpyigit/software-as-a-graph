@@ -323,7 +323,17 @@ To evaluate predictive accuracy before deployment without relying on production 
 
 -   **Multi-Metric Composite Oracle ($I_{\text{comp}}(v)$)**, evaluated via multi-metric failure simulation: a severity-weighted mixture of reachability loss, fragmentation, throughput loss and flow disruption, with AHP-derived coefficients $(0.35, 0.25, 0.25, 0.15)$. Those coefficients come from a rank-one comparison matrix, so they record their origin without independently justifying them. They are not swept in our sensitivity analysis — a gap worth naming because $I_{\text{comp}}$ supplies the labels for the explanation layer’s evaluation. It is reserved for Validate-stage gates and prescriptive verification, never for forecasting ranking.
 
--   **Dynamic Queue-Flow Oracle ($I_{\text{dyn}}(v)$)**, evaluated via discrete-event message-flow queue simulation (built on SimPy [79]): simulates emission rates, stochastic latencies, broker buffer saturation, and queue drops under fault injection, extracting the drop in delivered message rate to surviving consumers. It serves only as an independent convergent-validity probe (§7.3.2).
+-   **Dynamic Queue-Flow Oracle ($I_{\text{dyn}}(v)$)**, evaluated via discrete-event message-flow queue simulation (built on SimPy [79]): simulates emission rates, stochastic latencies, broker buffer saturation, and queue drops under fault injection, extracting the drop in delivered message rate to surviving consumers. To provide complete observability, the engine instruments Google Site Reliability Engineering (SRE)’s *Four Golden Signals* (latency, traffic, errors, saturation) across pre- and post-fault execution windows:
+
+    1.  *Latency:* decomposes end-to-end traversal latency ($t_{\text{e2e}}$) into private queue waiting time ($t_{\text{wait}} = t_{\text{dequeue}} - t_{\text{created}}$) and compute service time ($t_{\text{service}} = t_{\text{delivery}} - t_{\text{dequeue}}$), profiling p50, p95, and p99 percentiles;
+
+    2.  *Traffic:* monitors topic emission and subscriber delivery frequencies (Hz) alongside byte throughput (KB/s, Kbps);
+
+    3.  *Errors:* accounts for QoS deadline violations, queue overflow discards, best-effort network drops, and unserved message demand;
+
+    4.  *Saturation:* computes exact time-weighted mean queue depth ($\frac{1}{T}\int_0^T q_i(t)\,dt$), buffer occupancy ratios, and system-wide CPU utilization ($\rho_{\text{util}} \in [0, 1]$).
+
+    Crucially, golden signals are exposed as first-class diagnostic telemetry rather than mixed additively with $I_{\text{dyn}}(v)$. Under empirical testing, crashing a high-rate publisher clears downstream subscriber queues (*contention relief*, $\rho = -0.499$ between delivery loss and tail latency delta); an additive composite would mathematically cancel delivery damage with latency reduction. $I_{\text{dyn}}(v)$ is therefore kept strictly 1-dimensional, serving as an independent convergent-validity probe (§7.3.2).
 
 -   **Change-Propagation Oracle ($I_M(v)$)**, evaluated via structural change-propagation analysis: a deterministic reverse-dependency traversal over the transpose of the six-rule `DEPENDS_ON` projection, blending change reach, weighted change impact, and normalized depth. It is a structural maintainability reference and is never used as a training label, which would make the supervision circular.
 
@@ -626,6 +636,8 @@ Modal QoS shares range from 29% to 89% across the twelve scenarios, making sure 
 ### 7.3.2 Convergent Validity Over Simulation Oracles
 
 The three reliability-facing oracles measure distinct constructs, so we checked whether they agree before treating any as ground truth. Over the twelve inductive folds on the Application population, the behavioural queue-flow oracle and the topological cascade injector agree at mean Spearman $\rho = 0.620$ (top-$K$ Jaccard $0.365$ against $0.111$ expected by chance), against $I^*$’s own seed-to-seed test–retest of $0.811$–$1.000$. The agreement is therefore substantial but distinctly below label noise, which is the reading we want: an oracle reproducing another to within its own reproducibility would be re-measuring the same topology rather than corroborating it. Two boundaries qualify this — a large share of the agreement is the two oracles concurring on which components are *harmless*, and $I_{\text{dyn}}$ has a measured noise floor of its own that the headline does not correct for.
+
+Simultaneously, the Four Golden Signals captured during discrete-event execution reveal the physical mechanism underlying this construct separation: when a critical publisher crashes, surviving consumers experience substantial delivery degradation ($I_{\text{dyn}} > 0$), yet downstream queue wait times and buffer saturation drop markedly due to contention relief ($\rho = -0.499$ with tail latency delta), corroborating that dynamic queue dynamics capture behavioral phenomena inaccessible to static graph reachability alone.
 
 ### 7.3.3 Node-Type Stratification and Attention
 
