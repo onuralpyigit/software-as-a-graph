@@ -411,7 +411,7 @@ $$M(v) = w_1 \times BT(v) + w_2 \times w_{out}(v) + w_3 \times CQP(v) + w_4 \tim
 
 ### A.4 Availability Score (Reliability Sub-Characteristic)
 $$A(v) = w_1 \times AP_{c\_directed}(v) + w_2 \times QSPOF(v) + w_3 \times BR(v) + w_4 \times CDI(v) + w_5 \times w(v)$$
-*(Weights: $w_1 = 0.2563, w_2 = 0.1998, w_3 = 0.1998, w_4 = 0.2563, w_5 = 0.0878$ — the v4 shrunk vector; see [quality-model.md](../quality-model.md))*
+*(Weights: $w_1 = 0.25, w_2 = 0.20, w_3 = 0.20, w_4 = 0.25, w_5 = 0.10$ — the v4 shrunk vector rounded to design weights; see [quality-model.md](../quality-model.md))*
 
 ### A.5 Reliability Score (Hierarchical Composite)
 $$R(v) = \alpha \cdot FT(v) + (1 - \alpha) \cdot A(v)$$

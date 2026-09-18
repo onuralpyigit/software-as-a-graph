@@ -13,7 +13,7 @@
      FT_topic*(v) = 0.50×FOC_freq(v) + 0.50×CDPot_freq(v)     (Fault Tolerance v6, Topic nodes)
                    where FOC_freq(t) = log1p(f(t))·s(t) / max_t[log1p(f(t))·s(t)],
                    f(t) = message rate (Hz), s(t) = subscriber count
-     A*(v) = 0.2563×AP_c_directed + 0.1998×QSPOF + 0.1998×BR + 0.2563×CDI + 0.0878×w(v) (Availability v4, sub-characteristic)
+     A*(v) = 0.25×AP_c_directed + 0.20×QSPOF + 0.20×BR + 0.25×CDI + 0.10×w(v) (Availability v4, sub-characteristic)
                    CDI is computed for every node in the main graph component, not only
                    articulation points — a hard AP-gate leaves CDI 0.0 for every node whose
                    removal does not literally disconnect the graph, which degenerates to a
@@ -379,7 +379,7 @@ class QualityAnalyzer:
               w.a_ap_c_directed + w.a_qspof (qw=1). This is intentional (QSPOF exists
               so structural SPOF risk is not masked at low QoS weight, pinned by
               tests/test_availability_decoupling.py) and is kept small by the v4
-              rebalance (a_qspof=0.1998, down from 0.25) rather than removed.
+              rebalance (a_qspof=0.20, down from 0.25) rather than removed.
             - AP is continuous (ap_c = ap_c_directed).
             - A(v) v4: QSPOF + directed SPOF + BR + CDI (CDI ungated, see
               StructuralAnalyzer._compute_continuous_ap_scores).
@@ -461,7 +461,7 @@ class QualityAnalyzer:
         )
 
         # Availability: A(v) v4 — 5-term additive formula, a Reliability sub-characteristic
-        # A(v) = 0.2563·AP_c_directed + 0.1998·QSPOF + 0.1998·BR + 0.2563·CDI + 0.0878·w(v)
+        # A(v) = 0.25·AP_c_directed + 0.20·QSPOF + 0.20·BR + 0.25·CDI + 0.10·w(v)
         qspof = ap_c * qw
         A = (
             w.a_ap_c_directed * ap_c

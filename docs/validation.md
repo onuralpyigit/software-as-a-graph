@@ -180,10 +180,10 @@ object, counted two ways. The 50 are strictly partitioned into two tiers in
   2. `in_degree_raw`: Number of incoming dependency channels (feeds Fault Tolerance, weight $0.30$).
   3. `fan_out_criticality`: Immediate subscriber blast radius (feeds Topic Fault Tolerance).
   4. `dependency_weight_in`: Summed incoming QoS edge weights (feeds Topic Fault Tolerance).
-  5. `ap_c_directed`: Directed articulation point cut-vertex score (feeds Availability, weight $0.2563$).
-  6. `cdi`: Connectivity Degradation Index (feeds Availability, weight $0.2563$).
-  7. `bridge_ratio`: Proportion of incident edges that are structural bridges (feeds Availability, weight $0.1998$).
-  8. `weight`: Aggregated QoS criticality of incident contracts (feeds Availability, weight $0.0878$).
+  5. `ap_c_directed`: Directed articulation point cut-vertex score (feeds Availability, weight $0.25$).
+  6. `cdi`: Connectivity Degradation Index (feeds Availability, weight $0.25$).
+  7. `bridge_ratio`: Proportion of incident edges that are structural bridges (feeds Availability, weight $0.20$).
+  8. `weight`: Aggregated QoS criticality of incident contracts (feeds Availability, weight $0.10$).
   9. `betweenness`: Fraction of shortest paths traversing the component (feeds Maintainability, weight $0.35$).
   10. `dependency_weight_out`: Summed outgoing QoS edge weights (feeds Maintainability, weight $0.30$).
   11. `clustering_coefficient`: Local clustering transitivity, evaluated as $1 - CC$ (feeds Maintainability, weight $0.08$).

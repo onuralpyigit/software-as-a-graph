@@ -392,7 +392,7 @@ Tests that the RM formula inputs are correctly resolved, derived terms are compu
 
 **RM formula inputs reference (SDD v3.1 §6.19–§6.23):**
 - FT(v) = 0.45 × RPR + 0.30 × DG_in + 0.25 × CDPot_enh          (Fault Tolerance, Reliability sub-characteristic)
-- A(v)  = 0.2563 × AP_c_directed + 0.1998 × QSPOF + 0.1998 × BR + 0.2563 × CDI + 0.0878 × w(v)   (Availability, Reliability sub-characteristic)
+- A(v)  = 0.25 × AP_c_directed + 0.20 × QSPOF + 0.20 × BR + 0.25 × CDI + 0.10 × w(v)   (Availability, Reliability sub-characteristic)
 - R(v)  = α × FT(v) + (1 − α) × A(v)             α = 0.36        (Reliability, hierarchical)
 - M(v)  = 0.35 × BT + 0.30 × w_out + 0.15 × CQP + 0.12 × CouplingRisk + 0.08 × (1 − CC)
 

@@ -246,11 +246,11 @@ Out of ~50 metrics computed on the graph, **exactly 19 measures drive the rule-b
 #### Group 2: Availability Inputs ($A$)
 | # | Metric Key | Symbol | Coefficient | Description & Formal Ref |
 |:---:|:---|:---:|:---:|:---|
-| 7 | `ap_c_directed` | $AP_c^{\text{dir}}$ | $0.2563$ | Continuous graph fragmentation upon node removal ([§7.1](structural-analysis.md#64-phase-4-reachability--continuous-articulation-points-ap_ctextdir-cdi)) |
-| 8 | *(derived)* | $QSPOF$ | $0.1998$ | QoS-weighted SPOF severity, computed inline as $AP_c^{\text{dir}}(v) \cdot w(v)$ — not a stored `StructuralMetrics` field, which is why it carried no row here before |
-| 9 | `bridge_ratio` | $BR$ | $0.1998$ | Fraction of incident edges that are bridges ([§7.2](structural-analysis.md#83-availability-inputs-a)) |
-| 10 | `cdi` | $CDI$ | $0.2563$ | Path lengthening upon node removal ([§7.3](structural-analysis.md#83-availability-inputs-a)) |
-| 11 | `weight` | $w(v)$ | $0.0878$ | Aggregated QoS criticality weight ([graph-model.md §4.5](graph-model.md#54-phase-5a-aggregate-vertex-weighting-wv)) |
+| 7 | `ap_c_directed` | $AP_c^{\text{dir}}$ | $0.25$ | Continuous graph fragmentation upon node removal ([§7.1](structural-analysis.md#64-phase-4-reachability--continuous-articulation-points-ap_ctextdir-cdi)) |
+| 8 | *(derived)* | $QSPOF$ | $0.20$ | QoS-weighted SPOF severity, computed inline as $AP_c^{\text{dir}}(v) \cdot w(v)$ — not a stored `StructuralMetrics` field, which is why it carried no row here before |
+| 9 | `bridge_ratio` | $BR$ | $0.20$ | Fraction of incident edges that are bridges ([§7.2](structural-analysis.md#83-availability-inputs-a)) |
+| 10 | `cdi` | $CDI$ | $0.25$ | Path lengthening upon node removal ([§7.3](structural-analysis.md#83-availability-inputs-a)) |
+| 11 | `weight` | $w(v)$ | $0.10$ | Aggregated QoS criticality weight ([graph-model.md §4.5](graph-model.md#54-phase-5a-aggregate-vertex-weighting-wv)) |
 
 #### Group 3: Maintainability Inputs ($M$)
 | # | Metric Key | Symbol | Coefficient | Description & Formal Ref |
@@ -340,7 +340,7 @@ flowchart TD
             FT_Topic["Topics:<br>0.50·FOC + 0.50·CDPot_topic"]
         end
         subgraph AGroup["Availability A(v)"]
-            A_Formula["0.2563·AP_c^dir + 0.1998·QSPOF + 0.1998·BR + 0.2563·CDI + 0.0878·w(v)"]
+            A_Formula["0.25·AP_c^dir + 0.20·QSPOF + 0.20·BR + 0.25·CDI + 0.10·w(v)"]
         end
         FTGroup -->|Weight = 0.36| R_Blend["R(v) = 0.36·FT(v) + 0.64·A(v)"]
         AGroup -->|Weight = 0.64| R_Blend
@@ -378,7 +378,7 @@ Estimates the extent to which faults propagate to dependent components before be
 #### 2. Availability — $A(v)$
 Estimates catastrophic service loss from structural graph partitioning:
 
-$$A(v) = 0.2563 \cdot AP_c^{\text{dir}}(v) + 0.1998 \cdot QSPOF(v) + 0.1998 \cdot BR(v) + 0.2563 \cdot CDI(v) + 0.0878 \cdot w(v)$$
+$$A(v) = 0.25 \cdot AP_c^{\text{dir}}(v) + 0.20 \cdot QSPOF(v) + 0.20 \cdot BR(v) + 0.25 \cdot CDI(v) + 0.10 \cdot w(v)$$
 
 #### 3. Hierarchical Blend — $R(v)$
 
@@ -432,7 +432,7 @@ $$w_{\text{final}} = \lambda \cdot w_{\text{AHP}} + (1 - \lambda) \cdot \frac{1}
 |:---|:---:|:---|:---|:---:|
 | **Fault Tolerance ($FT$)** | $3 \times 3$ | $(0.45, 0.30, 0.25)$ | $(0.422, 0.323, 0.255)$ | $+0.0028$ |
 | **Maintainability ($M$)** | $5 \times 5$ | $(0.35, 0.30, 0.15, 0.12, 0.08)$ | $(0.305, 0.270, 0.165, 0.144, 0.116)$ | $+0.0005$ |
-| **Availability ($A$)** | $5 \times 5$ | $(0.2804, 0.1998, 0.1998, 0.2804, 0.0397)$ | $(0.2563, 0.1998, 0.1998, 0.2563, 0.0878)$ | $-0.0029$ |
+| **Availability ($A$)** | $5 \times 5$ | $(0.2804, 0.1998, 0.1998, 0.2804, 0.0397)$ | $(0.2563, 0.1998, 0.1998, 0.2563, 0.0878) \to (0.25, 0.20, 0.20, 0.25, 0.10)$ | $-0.0029$ |
 | **Topic QoS** | $3 \times 3$ | $(0.30, 0.40, 0.30)$ | $(0.300, 0.400, 0.300)$ | $-0.0014$ |
 | **Simulation Impact** | $4 \times 4$ | $(0.393, 0.250, 0.250, 0.107)$ | $(0.347, 0.254, 0.254, 0.145)$ | $+0.0011$ |
 
@@ -602,7 +602,7 @@ A complete index of all numeric constants driving the RM quality model:
 | $w_M$ (`q_maintainability`) | $0.20$ | **DECLARED** | [`weight_calculator.py`](../saag/analysis/weight_calculator.py) | **Exact** |
 | $FT$ Weights ($RPR, DG_{in}, CDPot$) | $0.45, 0.30, 0.25$ | **DERIVED** (AHP) | [`weight_calculator.py`](../saag/analysis/weight_calculator.py) | *Structural* |
 | $M$ Weights ($BT, w_{out}, CQP, CR, 1-CC$) | $0.35, 0.30, 0.15, 0.12, 0.08$ | **DERIVED** (AHP) | [`weight_calculator.py`](../saag/analysis/weight_calculator.py) | *Structural* |
-| $A$ Weights ($AP_c^{\text{dir}}, QSPOF, BR, CDI, w$) | $0.2563, 0.1998, 0.1998, 0.2563, 0.0878$ | **DERIVED** (AHP) | [`weight_calculator.py`](../saag/analysis/weight_calculator.py) | *Structural* |
+| $A$ Weights ($AP_c^{\text{dir}}, QSPOF, BR, CDI, w$) | $0.25, 0.20, 0.20, 0.25, 0.10$ | **DERIVED** (AHP) | [`weight_calculator.py`](../saag/analysis/weight_calculator.py) | *Structural* |
 | $CQP$ Weights (`loc`, `complexity`, $I_{\text{code}}$, `lcom`) | $0.10, 0.35, 0.30, 0.25$ | **DECLARED** | [`structural_analyzer.py`](../saag/analysis/structural_analyzer.py) | *Functional* |
 | Edge Weights ($e_{BT}, e_{\text{bridge}}, e_{\text{endpoint}}, e_{\text{qos}}$) | $0.35, 0.30, 0.20, 0.15$ | **DECLARED** | [`weight_calculator.py`](../saag/analysis/weight_calculator.py) | *Default config* |
 | Topic QoS Split (Rel, Dur, Pri) | $0.24, 0.62, 0.14$ | **DERIVED** (AHP) | [`core/models.py`](../saag/core/models.py) | **Exact** (`test_topic_qos_matrix`) |

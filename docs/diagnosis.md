@@ -264,7 +264,7 @@ For each component $v \in V$, the Fault Tolerance ($FT$), Availability ($A$), an
 
 $$\text{FT}(v) = 0.45 \cdot \widetilde{\text{RPR}}(v) + 0.30 \cdot \widetilde{\text{Deg}}_{\text{in}}(v) + 0.25 \cdot \widetilde{\text{CDPot}}_{\text{enh}}(v)$$
 
-$$\text{A}(v) = 0.2563 \cdot \widetilde{\text{AP}}_c^{\text{dir}}(v) + 0.1998 \cdot \widetilde{\text{QSPOF}}(v) + 0.1998 \cdot \widetilde{\text{BR}}(v) + 0.2563 \cdot \widetilde{\text{CDI}}(v) + 0.0878 \cdot w(v)$$
+$$\text{A}(v) = 0.25 \cdot \widetilde{\text{AP}}_c^{\text{dir}}(v) + 0.20 \cdot \widetilde{\text{QSPOF}}(v) + 0.20 \cdot \widetilde{\text{BR}}(v) + 0.25 \cdot \widetilde{\text{CDI}}(v) + 0.10 \cdot w(v)$$
 
 $$\text{M}(v) = 0.35 \cdot \widetilde{\text{BT}}(v) + 0.30 \cdot \widetilde{w}_{\text{out}}(v) + 0.15 \cdot \widetilde{\text{CQP}}(v) + 0.12 \cdot \widetilde{\text{CouplingRisk}}_{\text{enh}}(v) + 0.08 \cdot (1 - \widetilde{\text{CC}}(v))$$
 

@@ -83,7 +83,7 @@ class QualityWeights:
     m_out_degree: float = 0.0
     
     # Availability weights (SPOF risk) — A(v) v4, a sub-characteristic of Reliability
-    # Formula: 0.2563*AP_c_directed + 0.1998*QSPOF + 0.1998*BR + 0.2563*CDI + 0.0878*w(v)
+    # Formula: 0.25*AP_c_directed + 0.20*QSPOF + 0.20*BR + 0.25*CDI + 0.10*w(v)
     # v4 rebalance: CDI was previously AP-gated (0.0 for every non-articulation-point
     # node — the Application population had zero articulation points in 6/8 corpus
     # scenarios, so A(v) collapsed to ~0.05*w(v)). CDI is now computed for every node
@@ -91,11 +91,11 @@ class QualityWeights:
     # it carries real, continuous SPOF-adjacent signal and is promoted to parity with
     # AP_c_directed. QSPOF/BR shrink proportionally; w(v) shrinks least since it was
     # already the deliberately-small operational term.
-    a_ap_c_directed: float = 0.2563  # AHP co-primary: hard cut-vertex severity (binary-gated)
-    a_qspof: float = 0.1998          # QoS-weighted SPOF: AP_c_directed * w(v)
-    a_bridge_ratio: float = 0.1998   # Edge-level irrecoverability
-    a_cdi: float = 0.2563            # AHP co-primary: continuous redundancy-deficit (ungated)
-    a_qos_weight: float = 0.0878     # Operational weight contribution w(v) (Issue 5: decoupling)
+    a_ap_c_directed: float = 0.25   # AHP co-primary: hard cut-vertex severity (binary-gated)
+    a_qspof: float = 0.20           # QoS-weighted SPOF: AP_c_directed * w(v)
+    a_bridge_ratio: float = 0.20    # Edge-level irrecoverability
+    a_cdi: float = 0.25             # AHP co-primary: continuous redundancy-deficit (ungated)
+    a_qos_weight: float = 0.10      # Operational weight contribution w(v) (Issue 5: decoupling)
 
     # Overall quality weights (sum should be 1.0)
     # Derived from the retired 4-D AHP composite by dropping Vulnerability/Security
@@ -229,7 +229,8 @@ class AHPMatrices:
             # Geometric mean → approx [0.2804, 0.1998, 0.1998, 0.2804, 0.0397] before
             # shrinkage (CR ≈ 0, matrix is symmetric by row-pair construction). With
             # shrinkage λ=0.7, weighted toward uniform (0.2):
-            # [0.2563, 0.1998, 0.1998, 0.2563, 0.0878]
+            # [0.2563, 0.1998, 0.1998, 0.2563, 0.0878], rounded to design weights:
+            # [0.25, 0.20, 0.20, 0.25, 0.10]
 
         if self.criteria_topic_qos is None:
             self.criteria_topic_qos = [
@@ -371,11 +372,11 @@ class AHPProcessor:
             m_out_degree=0.0,               # Deprecated in v5+
 
             # Availability v4: (AP_c_directed, QSPOF, BR, CDI, w)
-            a_ap_c_directed=w_avail[0],    # Hard cut-vertex severity, co-primary (0.2563)
-            a_qspof=w_avail[1],             # QoS-weighted SPOF (0.1998)
-            a_bridge_ratio=w_avail[2],      # Multi-edge brittleness (0.1998)
-            a_cdi=w_avail[3],               # Continuous redundancy deficit, co-primary (0.2563)
-            a_qos_weight=w_avail[4],        # Pure operational priority (0.0878)
+            a_ap_c_directed=w_avail[0],    # Hard cut-vertex severity, co-primary (0.25)
+            a_qspof=w_avail[1],             # QoS-weighted SPOF (0.20)
+            a_bridge_ratio=w_avail[2],      # Multi-edge brittleness (0.20)
+            a_cdi=w_avail[3],               # Continuous redundancy deficit, co-primary (0.25)
+            a_qos_weight=w_avail[4],        # Pure operational priority (0.10)
 
             # Impact — all four criteria; i_flow_disruption used to be dropped
             # here, so the fourth AHP weight was computed and then discarded.

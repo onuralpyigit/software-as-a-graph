@@ -164,11 +164,11 @@ layer-projected graph $G_l$. Let $\varepsilon = 10^{-9}$.
     \begin{equation}
     FT_{\text{topic}}(t) = 0.50\,\mathrm{FOC}(t) + 0.50\,\mathrm{FOC}(t)\big(1 - \min(w_{\text{in}}(t), 1)\big)
     \end{equation}
-    \item \textbf{Availability ($A$).} Evaluates single-point-of-failure exposure. The interaction term $\mathrm{QSPOF}(v) = \mathrm{AP}_{c,\text{directed}}(v)\cdot w(v)$ deliberately reuses $\mathrm{AP}_{c,\text{directed}}$ so that structural SPOF risk is not masked at low QoS weight; its effective weight therefore ranges over $[0.2563,\, 0.4561]$ as $w(v)$ ranges over $[0,1]$:
+    \item \textbf{Availability ($A$).} Evaluates single-point-of-failure exposure. The interaction term $\mathrm{QSPOF}(v) = \mathrm{AP}_{c,\text{directed}}(v)\cdot w(v)$ deliberately reuses $\mathrm{AP}_{c,\text{directed}}$ so that structural SPOF risk is not masked at low QoS weight; its effective weight therefore ranges over $[0.25,\, 0.45]$ as $w(v)$ ranges over $[0,1]$:
     \begin{equation}
     \begin{aligned}
-    A(v) = & \; 0.2563\,\mathrm{AP}_{c,\text{directed}}(v) + 0.1998\,\mathrm{QSPOF}(v) \\
-           & + 0.1998\,\mathrm{BR}(v) + 0.2563\,\mathrm{CDI}(v) + 0.0878\,w(v)
+    A(v) = & \; 0.25\,\mathrm{AP}_{c,\text{directed}}(v) + 0.20\,\mathrm{QSPOF}(v) \\
+           & + 0.20\,\mathrm{BR}(v) + 0.25\,\mathrm{CDI}(v) + 0.10\,w(v)
     \end{aligned}
     \end{equation}
     \item \textbf{Maintainability ($M$).} Blends betweenness, efferent QoS out-degree, the Code Quality Penalty, a path-complexity-enriched coupling risk, and inverse clustering. With $\iota(v) = \deg^{+}(v) / (\deg^{-}(v) + \deg^{+}(v) + \varepsilon)$ the deployment-graph instability,

@@ -536,7 +536,7 @@ flowchart TD
     subgraph Reliability["Reliability: R(v) = 0.36·FT(v) + 0.64·A(v)"]
         direction TB
         FT["Fault Tolerance: FT(v)<br/>• Reverse PageRank (0.45)<br/>• In-Degree (0.30)<br/>• CDPot_enh (0.25)"]
-        AV["Availability: A(v)<br/>• AP_c_directed (0.2563)<br/>• QSPOF (0.1998)<br/>• Bridge Ratio (0.1998)<br/>• CDI (0.2563)<br/>• Component Weight (0.0878)"]
+        AV["Availability: A(v)<br/>• AP_c_directed (0.25)<br/>• QSPOF (0.20)<br/>• Bridge Ratio (0.20)<br/>• CDI (0.25)<br/>• Component Weight (0.10)"]
         FT -->|r_alpha = 0.36| Reliability
         AV -->|1 - r_alpha = 0.64| Reliability
     end
@@ -562,7 +562,7 @@ flowchart TD
   $$CDPot_{\text{topic}}(t) = FOC(t) \cdot (1 - \min(w_{\text{in}}(t), 1.0))$$
 
 #### 2. Availability ($A$)
-$$A(v) = 0.2563 \cdot AP_c^{\text{dir}}(v) + 0.1998 \cdot QSPOF(v) + 0.1998 \cdot BR(v) + 0.2563 \cdot CDI(v) + 0.0878 \cdot w(v)$$
+$$A(v) = 0.25 \cdot AP_c^{\text{dir}}(v) + 0.20 \cdot QSPOF(v) + 0.20 \cdot BR(v) + 0.25 \cdot CDI(v) + 0.10 \cdot w(v)$$
 
 #### 3. Hierarchical Reliability ($R$)
 $$R(v) = 0.36 \cdot FT(v) + 0.64 \cdot A(v)$$
@@ -624,7 +624,7 @@ $$w_{\text{shrunk}} = \lambda \cdot w_{\text{AHP}} + (1 - \lambda) \cdot \frac{1
 |:---|:---:|:---:|
 | **Fault Tolerance ($FT$)** | $(0.450, 0.300, 0.250)$ | $(0.422, 0.323, 0.255)$ |
 | **Maintainability ($M$)** | $(0.350, 0.300, 0.150, 0.120, 0.080)$ | $(0.305, 0.270, 0.165, 0.144, 0.116)$ |
-| **Availability ($A$)** | $(0.2804, 0.1998, 0.1998, 0.2804, 0.0397)$ | $(0.2563, 0.1998, 0.1998, 0.2563, 0.0878)$ |
+| **Availability ($A$)** | $(0.2804, 0.1998, 0.1998, 0.2804, 0.0397)$ | $(0.2563, 0.1998, 0.1998, 0.2563, 0.0878) \to (0.25, 0.20, 0.20, 0.25, 0.10)$ |
 
 *(Note: Top-level composite weights $w_R = 0.80, w_M = 0.20$ and blend $r_\alpha = 0.36$ are declared constants and remain $\lambda$-invariant).*
 

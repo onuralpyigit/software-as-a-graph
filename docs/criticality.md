@@ -291,7 +291,7 @@ flowchart TD
 
     subgraph A_Calc["Availability A(v) — Service Partition"]
         direction TB
-        A_Eq["A(v) = 0.2563·AP_c^dir + 0.1998·QSPOF + 0.1998·BR + 0.2563·CDI + 0.0878·w(v)"]
+        A_Eq["A(v) = 0.25·AP_c^dir + 0.20·QSPOF + 0.20·BR + 0.25·CDI + 0.10·w(v)"]
     end
 
     subgraph R_Calc["Hierarchical Reliability R(v)"]
