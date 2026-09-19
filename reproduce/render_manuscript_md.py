@@ -84,6 +84,7 @@ def preprocess(tex: str, labels: dict, cites: dict) -> str:
     for a, b in (("Sections~", "§§"), ("Section~", "§"), ("Table~", "Table "),
                  ("Figure~", "Figure "), ("Equation~", "Equation "), ("Eq.~", "Eq. ")):
         tex = tex.replace(a, b)
+    tex = re.sub(r"\\path\{([^}]+)\}", r"\\texttt{\1}", tex)
     return tex.replace("~", " ")
 
 
