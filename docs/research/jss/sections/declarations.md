@@ -6,6 +6,6 @@
 
 **Funding.** This research received no grant from public, commercial, or not-for-profit funding agencies.
 
-**Data Availability.** The replication package (datasets, harnesses, checkpoints, scripts) is available on Zenodo under DOI [10.5281/zenodo.14922108](https://doi.org/10.5281/zenodo.14922108) [93] with `uv`/`pip` environments. Synthetic datasets regenerate byte-identically. Table cells and quantities in §4.3 and §7.5.1 are verified against JSON artifacts via `reproduce/reconcile_manuscript.py`, asserting clean git provenance; other prose figures are not machine-checked.
+**Data Availability.** The replication package (datasets, harnesses, checkpoints, scripts) is available on Zenodo under DOI [10.5281/zenodo.14922108](https://doi.org/10.5281/zenodo.14922108) [93] with `uv`/`pip` environments. Synthetic datasets regenerate byte-identically. The verification script (`reproduce/reconcile_manuscript.py`) runs standalone on a clean machine against the Zenodo deposit, verifying table quantities against JSON artifacts with git provenance. Prose definitions, equations, and ground-truth formulations fall outside the automated checks and are verified manually.
 
-**Declaration of Generative AI.** The authors used Anthropic’s Claude to assist with typesetting and readability, and take full responsibility for all content. No generative AI was used to design the study, analyze data, or generate results; figures and tables render deterministically.
+**Declaration of Generative AI.** The authors used Anthropic’s Claude for typesetting and readability, taking full responsibility for all content. No generative AI was used to design the study, analyze data, or generate results; figures and tables render deterministically.

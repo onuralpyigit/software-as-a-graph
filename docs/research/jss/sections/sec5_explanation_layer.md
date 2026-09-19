@@ -33,7 +33,7 @@ All raw metrics are rank-normalized to the interval $[0, 1]$ within the graph. Q
     $$\tag{11}
     R(v) = r_{\text{FT}} \cdot FT(v) + (1 - r_{\text{FT}}) \cdot A(v), \quad r_{\text{FT}} = 0.36$$
 
-    The intra-dimension weights apply $\lambda = 0.70$ shrinkage blending with a uniform prior. Because comparison matrices are rank-one by construction, these weights are documented conventions rather than independently elicited consensus. The anti-predictive nature of the elicited AHP weights against dynamic simulation (§7.3) highlights a key conceptual distinction: AHP pairwise comparisons encode human engineering judgments of structural quality and architectural technical debt, whereas dynamic simulation reflects raw message reachability and graph connectivity.
+    The intra-dimension weights apply $\lambda = 0.70$ shrinkage blending with a uniform prior. Because comparison matrices are rank-one by construction, these weights are documented conventions rather than independently elicited consensus. The elicited AHP weights rank worse than a uniform prior against dynamic simulation (§7.3); whether they attribute better is untested, and we recommend the uniform prior pending a formal user study.
 
 4.  **Maintainability ($M(v)$):** Blends structural coupling with static code analysis:
 
