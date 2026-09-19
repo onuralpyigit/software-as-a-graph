@@ -232,7 +232,7 @@ The table below summarizes the technical specifications of each engine:
 | **`FaultInjector`** | *"If publisher or broker $v$ dies, which subscribers starve?"* | BFS cascade reachability ($O(V+E)$) | **$I^*(v)$**: Feed loss fraction | **Fast** (~10 ms/node) | **Predict**: Training labels.<br>**Validate**: CLI benchmark ($\rho \ge 0.70$). |
 | **`FailureSimulator`** | *"What is the systemic loss across hosts, links, brokers, and libraries?"* | Multi-layer structural graph traversal | **$I_{\text{comp}}(v)$**: AHP composite loss | **Moderate** (~50 ms/node) | **Validate**: Release safety gates.<br>**Prescribe**: Refactoring verification. |
 | **`EventSimulator`** | *"How do messages traverse the graph under Poisson failure/recovery?"* | Priority queue (`heapq`) event loop | **Flow Set**: Active paths, drops | **Fast** (~20 ms/run) | **Utility**: Primes baseline flows for `FailureSimulator`. |
-| **`MessageFlowSimulator`** | *"How do queues, packet drops, and deadlines behave under DDS traffic?"* | Discrete-event queuing (SimPy) | **$I_{\text{dyn}}(v)$**: Dynamic delivery drop | **Detailed** (~5–30 s/node) | **Research**: Inter-oracle convergent validity ($\rho = 0.620$). |
+| **`MessageFlowSimulator`** | *"How do queues, packet drops, and deadlines behave under DDS traffic?"* | Discrete-event queuing (SimPy) | **$I_{\text{dyn}}(v)$**: Dynamic delivery drop | **Detailed** (~5–30 s/node) | **Research**: Inter-oracle convergent validity ($\rho = 0.627$). |
 | **`ChangePropagationSimulator`** | *"If an interface changes, how far does it ripple upstream?"* | Transposed dependency BFS on $G^\top$ | **$I_M(v)$**: Maintenance blast radius | **Instant** (<5 ms/node) | **Reference**: Software evolution & GNN dimension masking. |
 
 ---
@@ -281,7 +281,7 @@ flowchart LR
 2. **Step 6 (Validate Stage)**:
    - **CLI Benchmark (`cli/validate_graph.py`)**: Uses `FaultInjector` to test whether GNN or structural predictions match empirical cascade reachability with rank correlation $\rho \ge 0.70$.
    - **Library Quality Gates (`ValidationService`)**: Uses `FailureSimulator` to evaluate the six shipped gates — three release gates (`spearman`, `overlap_at_q3`, `top5_overlap`) whose conjunction defines `passed`, and three reported informational gates.
-   - **Convergent Validity Probe**: Uses `MessageFlowSimulator` to verify that topological risk correlates with dynamic message loss ($I_{\text{dyn}}$ vs. $I^*$, $\rho = 0.620$).
+   - **Convergent Validity Probe**: Uses `MessageFlowSimulator` to verify that topological risk correlates with dynamic message loss ($I_{\text{dyn}}$ vs. $I^*$, $\rho = 0.627$).
 3. **Step 7 (Prescribe Stage)**:
    `EditVerifier` uses `FailureSimulator` to execute counterfactual failure simulations on proposed architectural refactorings, verifying that candidate edits yield net risk reduction ($\Delta I_{\text{comp}} > 0, \Delta \text{SRI} > 0$).
 4. **Step 4 (Diagnose Stage)**:
@@ -1050,9 +1050,9 @@ PYTHONPATH=. python reproduce/convergent_validity.py --scenarios atm_system --du
 > [!NOTE]
 > **JSS Manuscript Findings (§7.3.2, Supplementary §S9, Table S3.1):**
 > Across the twelve evaluation scenarios on the Application population, $I_{\text{dyn}}$ agrees with $I^*$ (`FaultInjector`) at:
-> - **Mean Spearman $\rho = \mathbf{0.620}$** (range $0.290$–$0.924$)
-> - **Kendall $\tau = 0.478$**
-> - **Top-$K$ Jaccard = $0.365$** (against $0.111$ expected by chance)
+> - **Mean Spearman $\rho = \mathbf{0.627}$** (range $0.186$–$0.953$)
+> - **Kendall $\tau = 0.493$**
+> - **Top-$K$ Jaccard = $0.370$** (against $0.111$ expected by chance)
 > 
 > Because this correlation is substantial but distinctly below $I^*$'s test-retest ceiling ($0.811$–$1.000$), it confirms that topological graph rankings reflect real runtime communication dynamics without being redundant with them.
 

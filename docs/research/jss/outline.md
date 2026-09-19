@@ -61,7 +61,7 @@ if an edit ever softens one back into a claim, that is a regression.
 | Active-stratum retention — Topo-QoS / HGT-QoS | 51% / 56% | §7.1.2 (Table 7c) |
 | Real-world zero-shot, full population / active stratum | 0.767 / **+0.265**, negative on 2 of 5 | §7.4.1 (Table 9b) |
 | Real-world training-free references — RM / Topo / Topo-QoS | 0.516 / 0.511 / 0.526 | §7.4.1, §8.4 |
-| Oracle agreement — I_dyn·I\* / I_comp·I\* / I_comp·I_dyn | 0.620 / 0.395 / 0.366 (12 folds) | §7.3 (Table 10) |
+| Oracle agreement — I_dyn·I\* / I_comp·I\* / I_comp·I_dyn | 0.627 / 0.395 / 0.411 (12 folds) | §7.3 (Table 10) |
 | Stratified vs pooled RM ρ | 0.566 (App) / 0.119 (Broker) / 0.244 (Node) vs pooled **0.098** (Simpson's) | §7.3.6 |
 | Label-noise ceiling | test–retest **0.817**–1.000, median 0.979, 9/12 ≥ 0.95 | §7.1 |
 | **Cost** — HGT forward vs structural analysis at 2,000 components | 56.2 ms vs 239.34 s (**4,259×**) | §7.5 (Table 12) |

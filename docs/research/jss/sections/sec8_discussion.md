@@ -34,7 +34,7 @@ We withdraw the previously stated efficiency claim. Static analysis does not red
 
 #### Construct Validity
 
-Ground-truth impact $I^*(v)$ is derived from discrete-event cascade simulation on structural models rather than live outages. While $I^*$ correlates with dynamic queue flow $I_{\text{dyn}}$ ($\rho = 0.620$ against a $0.811$–$1.000$ label test–retest ceiling, §7.3.2), top-$K$ Jaccard reaches only $0.27$–$0.37$ due to non-linear thresholding. Furthermore, $I^*(v)$ is recovered at $\rho = 0.965$ by topology-only relabeling, reflecting topological reachability rather than dynamic buffer drops. No oracle is measured against production incident telemetry, which constitutes the primary construct boundary.
+Ground-truth impact $I^*(v)$ is derived from discrete-event cascade simulation on structural models rather than live outages. While $I^*$ correlates with dynamic queue flow $I_{\text{dyn}}$ ($\rho = 0.627$ against a $0.811$–$1.000$ label test–retest ceiling, §7.3.2), top-$K$ Jaccard reaches only $0.27$–$0.37$ due to non-linear thresholding. Furthermore, $I^*(v)$ is recovered at $\rho = 0.965$ by topology-only relabeling, reflecting topological reachability rather than dynamic buffer drops. No oracle is measured against production incident telemetry, which constitutes the primary construct boundary.
 
 #### Internal Validity
 
