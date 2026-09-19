@@ -32,7 +32,7 @@ Counts are `apps / topics / brokers / nodes / libs`, read from the committed dat
 | `scenario_02_iot_smart_city.yaml` | `iot_smart_city_system.json` | iot | 200 / 80 / 6 / 30 / 10 | 2002 | `19e97dd3e1e3` |
 | `scenario_03_financial_trading.yaml` | `financial_trading_system.json` | finance | 60 / 35 / 5 / 6 / 18 | 3003 | `103f897ba3fb` |
 | `scenario_04_healthcare.yaml` | `healthcare_system.json` | healthcare | 50 / 25 / 3 / 8 / 12 | 4004 | `187320d76f0b` |
-| `scenario_05_hub_and_spoke.yaml` | `hub_and_spoke_system.json` | hub-and-spoke | 70 / 30 / 2 / 12 / 25 | 5005 | `5467d8c3c2d5` |
+| `scenario_05_hub_and_spoke.yaml` | `hub_and_spoke_system.json` | enterprise-integration (Broker Hub / ESB) | 70 / 30 / 2 / 12 / 25 | 5005 | `5467d8c3c2d5` |
 | `scenario_06_microservices.yaml` | `microservices_system.json` | microservices | 90 / 45 / 6 / 15 / 30 | 6006 | `497072b38a6d` |
 | `scenario_07_enterprise_xlarge.yaml` | `enterprise_system.json` | enterprise | 300 / 120 / 10 / 40 / 50 | 7007 | `dbee39896904` |
 
@@ -196,8 +196,8 @@ dominate in different scenarios:
    primary criticality driver.
 2. **Dense pub-sub** (Financial Trading, Healthcare) — most apps both publish and subscribe;
    articulation-point detection and QoS weight are decisive.
-3. **Anti-pattern / SPOF** (Hub-and-Spoke) — 2 brokers for 70 apps, structural vulnerability
-   deliberately encoded; validates that the methodology catches what a reviewer would flag by eye.
+3. **Anti-pattern / SPOF** (Enterprise Integration: Broker Hub / ESB) — 2 brokers for 70 apps,
+   centralized messaging anti-pattern deliberately encoded; validates that the methodology catches what an enterprise architect would flag by eye.
 4. **Sparse / well-distributed** (Microservices) — challenges the classifier to avoid over-flagging;
    the hardest precision test in the suite.
 5. **Enterprise scale** (Enterprise, 300 apps) — the scalability benchmark, and the scenario whose
@@ -218,7 +218,7 @@ Dominant QoS settings per scenario, from the `qos_stats` block of each config:
 | 02 IoT | VOLATILE | BEST_EFFORT | LOW |
 | 03 Financial Trading | PERSISTENT | RELIABLE | HIGH/CRITICAL |
 | 04 Healthcare | PERSISTENT | RELIABLE | HIGH |
-| 05 Hub-and-Spoke | TRANSIENT_LOCAL | RELIABLE | MEDIUM |
+| 05 Enterprise Integration (ESB) | TRANSIENT_LOCAL | RELIABLE | MEDIUM |
 | 06 Microservices | TRANSIENT_LOCAL | RELIABLE | MEDIUM |
 | 07 Enterprise | mixed | RELIABLE | MEDIUM |
 | 10 ATM (case study) | VOLATILE | RELIABLE | HIGH/CRITICAL |
@@ -264,7 +264,7 @@ full gate table), and several scenarios do not clear them. Regenerate with
 | Enterprise | 0.393 | 0.797 | 0.853 | 0.513 | 0.885 | 0.883 |
 | Financial Trading | 0.246 | 0.709 | 0.851 | 0.874 | 0.882 | **0.903** |
 | Healthcare | −0.182 | 0.772 | 0.815 | 0.804 | 0.842 | 0.845 |
-| Hub-and-Spoke | 0.299 | 0.511 | 0.494 | 0.475 | 0.537 | 0.557 |
+| Enterprise Integration (ESB) | 0.299 | 0.511 | 0.494 | 0.475 | 0.537 | 0.557 |
 | IoT Smart City | −0.063 | 0.068 | 0.674 | 0.474 | 0.891 | 0.883 |
 | Microservices | 0.302 | 0.556 | 0.524 | 0.436 | 0.362 | 0.354 |
 | **Mean** | **0.186** | **0.595** | **0.710** | **0.604** | **0.730** | **0.731** |

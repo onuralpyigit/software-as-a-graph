@@ -208,7 +208,7 @@ Table~\ref{tab:genparams} records the configuration behind each synthetic scenar
 \textbf{Enterprise Pub-Sub} & 7007 & 3.0 & 4.5 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (29--79\%) \\
 \textbf{Financial Trading} & 3003 & 4.0 & 6.0 & RELIABLE/PERSISTENT/HIGH (40--89\%) \\
 \textbf{Healthcare Integration} & 4004 & 2.5 & 3.0 & RELIABLE/PERSISTENT/HIGH (40--88\%) \\
-\textbf{Hub-and-Spoke} & 5005 & 2.0 & 7.0 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (33--67\%) \\
+\textbf{Enterprise Integration (ESB)} & 5005 & 2.0 & 7.0 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (33--67\%) \\
 \textbf{Industrial SCADA} & 1902 & 1.1 & 1.0 & RELIABLE/TRANSIENT/HIGH (31--80\%) \\
 \textbf{IoT Smart City} & 2002 & 2.0 & 1.5 & BEST\_EFFORT/VOLATILE/LOW (56--75\%) \\
 \textbf{Logistics Fleet} & 2104 & 1.8 & 1.9 & RELIABLE/TRANSIENT\_LOCAL/MEDIUM (40--76\%) \\
@@ -315,7 +315,7 @@ $I_{\text{comp}}$ vs.\ $I_{\text{dyn}}$ & $0.411$ ($-0.073$--$0.705$) & $0.389$ 
 
 \noindent The queue-flow simulator and the topological cascade oracle agree substantially but not interchangeably ($\rho = 0.627$, Jaccard $0.370$ against $0.111$ expected by chance). \textbf{This is the reading the ceiling supports.} $I^*$'s own seed-to-seed test--retest across these same twelve folds runs $0.811$--$1.000$ (median $0.982$; Section 7.1 of the main manuscript), so $I_{\text{dyn}}$ agrees with $I^*$ distinctly \emph{less} closely than $I^*$ agrees with itself. The gap is the point: a behavioural oracle that reproduced the topological one to within label noise would be re-measuring the topology rather than corroborating it. Ranking over discrete-event queueing traffic recovers most of the topological ordering while retaining content the cascade abstraction does not express.
 
-\noindent Two boundaries qualify this. First, $\rho^{+} = 0.429$ against $\rho = 0.627$ shows that a substantial share of the agreement is the two oracles concurring on which components are \emph{harmless}; restricted to components both score non-zero, agreement is weak in four of twelve folds (Industrial SCADA $-0.069$, Hub-and-Spoke $0.008$, Autonomous Vehicle $0.149$, Microservices $0.194$). Second, Industrial SCADA is the weakest fold ($\rho = 0.186$), and Microservices exhibits the least reproducible label in the corpus (test--retest $0.811$, top-$K$ Jaccard $0.720$), so part of that deficit is label noise rather than construct divergence.
+\noindent Two boundaries qualify this. First, $\rho^{+} = 0.429$ against $\rho = 0.627$ shows that a substantial share of the agreement is the two oracles concurring on which components are \emph{harmless}; restricted to components both score non-zero, agreement is weak in four of twelve folds (Industrial SCADA $-0.069$, Enterprise Integration (ESB) $0.008$, Autonomous Vehicle $0.149$, Microservices $0.194$). Second, Industrial SCADA is the weakest fold ($\rho = 0.186$), and Microservices exhibits the least reproducible label in the corpus (test--retest $0.811$, top-$K$ Jaccard $0.720$), so part of that deficit is label noise rather than construct divergence.
 
 \noindent\textbf{Both oracles have a floor, and only one of them had been measured.} The reading above is stated against $I^*$'s test--retest alone, which silently treats $I_{\text{dyn}}$ as noiseless. It is not: it is a stochastic discrete-event simulation run here at a single seed. Re-running both non-primary oracles across seeds $\{42, 123, 456\}$ on three folds spanning the corpus --- ATM, Healthcare Integration, and Microservices Mesh, the last being the weakest fold above --- gives $I_{\text{comp}}$ a test--retest of $1.000$ everywhere (its Bernoulli cascade draws are effectively deterministic at the shipped edge weights, so its single seed costs nothing), and $I_{\text{dyn}}$ a test--retest of $0.958$--$0.972$ on ATM, $0.828$--$0.867$ on Healthcare, and $0.741$--$0.821$ on Microservices. The subset is three folds rather than twelve because $I_{\text{dyn}}$ costs one discrete-event run per component per seed; it is chosen to bracket the corpus rather than to average over it.
 
@@ -413,7 +413,7 @@ Entity and edge counts for every scenario, read from the committed topology file
 \textbf{Enterprise Pub-Sub} & Kafka Event Mesh & 520 & 300 & 120 & 10 & 40 & 50 & 3{,}216 \\
 \textbf{Financial Trading} & Low-Latency Pub-Sub & 124 & 60 & 35 & 5 & 6 & 18 & 631 \\
 \textbf{Healthcare Integration} & HL7/FHIR Event Mesh & 98 & 50 & 25 & 3 & 8 & 12 & 389 \\
-\textbf{Hub-and-Spoke Enterprise} & Broker-Centric Messaging & 139 & 70 & 30 & 2 & 12 & 25 & 691 \\
+\textbf{Enterprise Integration (ESB)} & Enterprise Application Integration (Broker Hub) & 139 & 70 & 30 & 2 & 12 & 25 & 691 \\
 \textbf{IoT Smart City} & MQTT Telemetry Mesh & 326 & 200 & 80 & 6 & 30 & 10 & 1{,}188 \\
 \textbf{Microservices Mesh} & Cloud-Native Services & 186 & 90 & 45 & 6 & 15 & 30 & 678 \\
 \textbf{Telecom RAN} & 5G Radio Access Network & 225 & 120 & 55 & 8 & 20 & 22 & 881 \\

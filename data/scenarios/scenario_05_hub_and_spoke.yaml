@@ -1,9 +1,11 @@
 # =============================================================================
-# Scenario 05 — Hub-and-Spoke Anti-Pattern (Centralization Stress Test)
+# Scenario 05 — Enterprise Application Integration (Broker Hub / ESB)
 # =============================================================================
-# Domain   : Deliberately over-centralized publish-subscribe system
+# Domain   : Enterprise Application Integration (EAI) via Centralized Broker Hub / ESB
 # Scale    : 70 apps, 30 topics, 2 brokers, 12 nodes
-# Purpose  : Confirm that the methodology reliably detects architectural
+# Purpose  : Model an Enterprise Application Integration (EAI) deployment with an
+#            over-centralized Enterprise Service Bus (ESB) message broker hub,
+#            confirming that the methodology reliably detects architectural
 #            anti-patterns — specifically the "god broker" / hub-and-spoke
 #            topology where two brokers become critical SPOFs for the entire
 #            system.  Useful for validating Availability (SPOF) scoring.

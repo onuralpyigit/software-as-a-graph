@@ -411,7 +411,7 @@ BROKER_OVERLOAD(b) ↔ |brokers| = 1                  [sole broker — hub-and-s
 
 The factor of 2× the median identifies brokers whose routing load is at least twice the typical broker load in the same deployment. A sole broker is flagged unconditionally, since it is by definition handling 100% of all message routing.
 
-This anti-pattern is the pub-sub-specific instantiation of the classical **Hub-and-Spoke** topology anti-pattern. Scenario 05 in the validation corpus (`scenario_05_hub_and_spoke.yaml`) deliberately encodes this anti-pattern with only 2 brokers serving 70 applications across 12 nodes, and the methodology correctly identifies both brokers as CRITICAL-tier components with broker failure impact scores exceeding 50% of total system applications.
+This anti-pattern is the pub-sub-specific instantiation of the classical **Hub-and-Spoke** topology anti-pattern. Scenario 05 in the validation corpus (`scenario_05_hub_and_spoke.yaml`, Enterprise Application Integration / Broker Hub) deliberately encodes this anti-pattern with only 2 brokers serving 70 applications across 12 nodes, and the methodology correctly identifies both brokers as CRITICAL-tier components with broker failure impact scores exceeding 50% of total system applications.
 
 #### Topological Signature
 

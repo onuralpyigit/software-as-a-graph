@@ -185,6 +185,7 @@ def check_table4_corpus(rep: Report) -> None:
     name_to_file = {
         "Autonomous Vehicle (AV)": "av_system", "Enterprise Pub-Sub": "enterprise_system",
         "Financial Trading": "financial_trading_system", "Healthcare Integration": "healthcare_system",
+        "Enterprise Integration (ESB)": "hub_and_spoke_system",
         "Hub-and-Spoke Enterprise": "hub_and_spoke_system", "IoT Smart City": "iot_smart_city_system",
         "Microservices Mesh": "microservices_system", "Telecom RAN": "telecom_ran_system",
         "Industrial SCADA": "industrial_scada_system", "Real-Time Gaming": "realtime_gaming_system",
@@ -229,6 +230,7 @@ TABLE5_SCENARIOS = {
     "Enterprise": "enterprise_system",
     "Financial Trading": "financial_trading_system",
     "Healthcare": "healthcare_system",
+    "Enterprise Integration (ESB)": "hub_and_spoke_system",
     "Hub-and-Spoke": "hub_and_spoke_system",
     "Industrial SCADA": "industrial_scada_system",
     "IoT Smart City": "iot_smart_city_system",

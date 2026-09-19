@@ -43,7 +43,7 @@ _SCENARIO_LABELS = {
     "iot_smart_city_system":  "IoT Smart City",
     "financial_trading_system": "Financial Trading",
     "healthcare_system":      "Healthcare",
-    "hub_and_spoke_system":   "Hub-and-Spoke",
+    "hub_and_spoke_system":   "Enterprise Integration (ESB)",
     "microservices_system":   "Microservices",
     "enterprise_system":      "Enterprise",
     "industrial_scada_system": "Industrial SCADA",

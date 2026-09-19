@@ -56,7 +56,7 @@ _EVAL_ORDER = [
     ("enterprise_system", "Enterprise Pub-Sub"),
     ("financial_trading_system", "Financial Trading"),
     ("healthcare_system", "Healthcare Integration"),
-    ("hub_and_spoke_system", "Hub-and-Spoke"),
+    ("hub_and_spoke_system", "Enterprise Integration (ESB)"),
     ("industrial_scada_system", "Industrial SCADA"),
     ("iot_smart_city_system", "IoT Smart City"),
     ("logistics_fleet_system", "Logistics Fleet"),
