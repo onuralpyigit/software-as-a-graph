@@ -98,6 +98,53 @@ The $\lambda$ row deserves separate comment because its direction is unfavorable
 \label{fig:S1}
 \end{figure}
 
+\subsection{Global Sensitivity of the Composite Oracle \texorpdfstring{$I_{\text{comp}}$}{I\_comp} Severity Weights}
+\label{supp:icomp}
+
+The multi-metric composite failure oracle
+\begin{equation}
+I_{\text{comp}}(v) = w_1 \cdot \text{ReachabilityLoss} + w_2 \cdot \text{Fragmentation} + w_3 \cdot \text{ThroughputLoss} + w_4 \cdot \text{FlowDisruption}
+\end{equation}
+defines failure impact across four operational dimensions, parameterized by the AHP-derived severity weights $(0.35, 0.25, 0.25, 0.15)$. Section~7.3.3 of the main manuscript documents that evaluating the RM explanation layer $Q(v)$ against $I_{\text{comp}}(v)$ reveals Simpson's paradox: stratified rank correlations are $\rho = 0.566$ (Application), $0.119$ (Broker), and $0.244$ (Node), while pooling all component types collapses the correlation to $\rho = 0.098$ --- strictly below every per-type stratum it aggregates.
+
+To determine whether this phenomenon is an artifact of the specific AHP weight vector or a structural property of type-heterogeneous aggregation, we conducted two global sensitivity analyses across the 4-simplex ($\sum_{i=1}^4 w_i = 1, w_i \ge 0$) using the eight-scenario detection benchmark (\texttt{results/icomp\_sensitivity.json}):
+\begin{enumerate}
+    \item \textbf{One-Factor-At-A-Time (OFAT) Sweeps:} Each weight $w_i$ is swept across $[0.05, 0.70]$ in 14 increments, proportionally renormalizing the remaining three weights.
+    \item \textbf{Uniform Simplex Sampling:} $N = 1{,}000$ weight vectors sampled uniformly on the 4-simplex via $\text{Dirichlet}(1, 1, 1, 1)$, evaluating stratified and pooled Spearman $\rho$ across all scenarios.
+    \item \textbf{Morris Elementary-Effects Screening:} Trajectory screening ($r = 15, p = 4$ levels) to isolate the influence of each severity weight on the stratum-separation gap $\Delta = \min(\rho_{\text{app}}, \rho_{\text{broker}}, \rho_{\text{node}}) - \rho_{\text{pooled}}$.
+\end{enumerate}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Global sensitivity of $I_{\text{comp}}(v)$ severity weights across the 4-simplex ($N = 1{,}000$ Dirichlet draws and Morris elementary-effects screening). Shipped weights: Reachability $0.35$, Fragmentation $0.25$, Throughput $0.25$, Flow Disruption $0.15$.}
+\label{tab:S_icomp}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Stratum / Factor} & \textbf{Shipped Baseline} & \textbf{Dirichlet Simplex Range} & \textbf{Morris $\mu^*_{\text{gap}}$} & \textbf{Morris $\sigma_{\text{gap}}$} \\
+\midrule
+Application $\rho$ & $0.571$ & $[0.432, 0.574]$ & — & — \\
+Broker $\rho$      & $0.119$ & $[-0.056, 0.285]$ & — & — \\
+Node $\rho$        & $0.209$ & $[0.190, 0.238]$ & — & — \\
+Pooled $\rho$      & $0.108$ & $[-0.006, 0.269]$ & — & — \\
+\midrule
+Reachability ($w_1$) & $0.35$ & $[0.05, 0.70]$ & $0.115$ & $0.077$ \\
+Fragmentation ($w_2$) & $0.25$ & $[0.05, 0.70]$ & $0.000$ & $0.001$ \\
+Throughput ($w_3$) & $0.25$ & $[0.05, 0.70]$ & $0.333$ & $0.105$ \\
+Flow Disruption ($w_4$) & $0.15$ & $[0.05, 0.70]$ & $0.365$ & $0.224$ \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\noindent Table~\ref{tab:S_icomp} establishes three key findings:
+\begin{enumerate}
+    \item \textbf{Stratum Dominance is Invariant:} Across all $1{,}000$ Dirichlet draws, Application correlation ($\rho \in [0.432, 0.574]$) strictly dominates pooled correlation ($\rho \in [-0.006, 0.269]$). Heterogeneous pooling degrades ranking performance under 100\% of sampled weight configurations, demonstrating that the failure of pooled evaluations is an intrinsic property of mixing distinct architectural strata rather than an artifact of weight tuning.
+    \item \textbf{Simpson's Paradox Operating Envelope:} The strict condition $\rho_{\text{pooled}} < \min(\rho_{\text{app}}, \rho_{\text{broker}}, \rho_{\text{node}})$ holds across $34.8\%$ of the Dirichlet simplex. OFAT sweeps show that this condition is maintained whenever Flow Disruption is moderate ($w_4 \le 0.20$) and Reachability is non-degenerate ($w_1 \ge 0.20$). When Flow Disruption dominates ($w_4 > 0.35$), Broker correlation drops below zero ($\rho = -0.014$), breaking the strict lower bound while preserving the massive Application-versus-pooled gap.
+    \item \textbf{Dominant Drivers of Separation:} Morris screening demonstrates that Flow Disruption ($\mu^* = 0.365, \sigma = 0.224$) and Throughput ($\mu^* = 0.333, \sigma = 0.105$) are the primary drivers of the stratum gap, whereas Fragmentation ($\mu^* = 0.0002$) exerts virtually no influence.
+\end{enumerate}
+
 \section{Zero-Inflation Sensitivity of the Agreement Figures}
 \label{supp:zeroinfl}
 

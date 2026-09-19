@@ -11,7 +11,7 @@ Table~\ref{tab:5} presents in-distribution held-out performance versus simulated
 \begin{table}[htbp]
 \centering
 \small
-\caption{In-distribution held-out evaluation across all twelve distributed architecture scenarios, reporting both Spearman rank correlation ($\rho$) and critical-set identification ($F_1@K$, with $K = \text{round}(0.20 \cdot n)$): mean over five seeds; $n$ = held-out Application test count. Substrates differ in-distribution: HGT/HGT-QoS consume the native typed multigraph, whereas GAT/GAT-QoS and the topological baselines consume the Application–Library \texttt{DEPENDS\_ON} flow projection (Section~\ref{sec:6.2}). Bold indicates the best performance per metric row. Each seed redraws the 60/20/20 split and model initialization.}
+\caption{In-distribution held-out evaluation across all twelve distributed architecture scenarios, reporting both Spearman rank correlation ($\rho$) and critical-set identification ($F_1@K$, with $K = \text{round}(0.20 \cdot n)$): mean over five seeds; $n$ = held-out Application test count. Substrates differ in-distribution: HGT/HGT-QoS consume the native typed multigraph, whereas GAT/GAT-QoS and the topological baselines consume the Application–Library \texttt{DEPENDS\_ON} flow projection (Section~\ref{sec:6.2}). Each seed redraws the 60/20/20 split and model initialization.}
 \label{tab:5}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lrcccccccccccc}
@@ -20,28 +20,29 @@ Table~\ref{tab:5} presents in-distribution held-out performance versus simulated
 \cmidrule(lr){3-4} \cmidrule(lr){5-6} \cmidrule(lr){7-8} \cmidrule(lr){9-10} \cmidrule(lr){11-12} \cmidrule(lr){13-14}
 & & $\rho$ & $F_1$ & $\rho$ & $F_1$ & $\rho$ & $F_1$ & $\rho$ & $F_1$ & $\rho$ & $F_1$ & $\rho$ & $F_1$ \\
 \midrule
-\textbf{ATM System} & 5 & 0.538 & 0.400 & \textbf{0.557} & 0.400 & $-$0.393 & 0.000 & $-$0.080 & 0.000 & 0.492 & \textbf{0.600} & 0.348 & 0.400 \\
-\textbf{AV System} & 16 & 0.188 & 0.333 & 0.797 & \textbf{0.533} & \textbf{0.816} & 0.400 & 0.465 & 0.267 & 0.637 & \textbf{0.533} & 0.558 & \textbf{0.533} \\
-\textbf{Enterprise} & 60 & 0.443 & \textbf{0.600} & 0.793 & \textbf{0.600} & 0.779 & 0.583 & 0.481 & 0.433 & 0.861 & \textbf{0.600} & \textbf{0.878} & \textbf{0.600} \\
-\textbf{Financial Trading} & 12 & 0.387 & 0.200 & 0.512 & 0.400 & 0.565 & 0.400 & 0.666 & 0.400 & 0.693 & \textbf{0.500} & \textbf{0.730} & \textbf{0.500} \\
-\textbf{Healthcare} & 10 & 0.291 & 0.200 & 0.399 & 0.000 & \textbf{0.725} & 0.300 & 0.575 & 0.300 & 0.575 & 0.400 & 0.607 & \textbf{0.500} \\
-\textbf{Enterprise Integration (ESB)} & 14 & 0.179 & 0.267 & 0.429 & 0.400 & 0.363 & \textbf{0.467} & $-$0.156 & 0.067 & 0.421 & 0.400 & \textbf{0.476} & 0.400 \\
-\textbf{Industrial SCADA} & 28 & 0.601 & 0.533 & 0.710 & 0.533 & 0.656 & 0.533 & 0.478 & 0.500 & 0.787 & \textbf{0.667} & \textbf{0.839} & 0.633 \\
-\textbf{IoT Smart City} & 40 & 0.320 & 0.350 & 0.397 & 0.350 & 0.580 & 0.450 & 0.538 & 0.425 & 0.849 & \textbf{0.650} & \textbf{0.850} & \textbf{0.650} \\
-\textbf{Logistics Fleet} & 22 & 0.511 & 0.500 & 0.652 & 0.400 & 0.746 & 0.500 & 0.780 & \textbf{0.550} & 0.796 & \textbf{0.550} & \textbf{0.815} & 0.500 \\
-\textbf{Microservices} & 18 & 0.219 & 0.150 & 0.344 & 0.250 & 0.351 & 0.400 & 0.363 & 0.450 & 0.141 & 0.300 & \textbf{0.664} & \textbf{0.600} \\
-\textbf{Real-Time Gaming} & 15 & 0.360 & \textbf{0.533} & \textbf{0.802} & \textbf{0.533} & 0.464 & 0.333 & 0.471 & 0.400 & 0.651 & \textbf{0.533} & 0.641 & 0.400 \\
-\textbf{Telecom RAN} & 24 & 0.402 & \textbf{0.480} & 0.422 & 0.280 & \textbf{0.608} & 0.320 & 0.350 & 0.360 & 0.591 & 0.280 & 0.526 & 0.320 \\
+\textbf{ATM System} & 5 & 0.538 & 0.400 & 0.557 & 0.400 & $-$0.393 & 0.000 & $-$0.080 & 0.000 & 0.492 & 0.600 & 0.348 & 0.400 \\
+\textbf{AV System} & 16 & 0.188 & 0.333 & 0.797 & 0.533 & 0.816 & 0.400 & 0.465 & 0.267 & 0.637 & 0.533 & 0.558 & 0.533 \\
+\textbf{Enterprise} & 60 & 0.443 & 0.600 & 0.793 & 0.600 & 0.779 & 0.583 & 0.481 & 0.433 & 0.861 & 0.600 & 0.878 & 0.600 \\
+\textbf{Financial Trading} & 12 & 0.387 & 0.200 & 0.512 & 0.400 & 0.565 & 0.400 & 0.666 & 0.400 & 0.693 & 0.500 & 0.730 & 0.500 \\
+\textbf{Healthcare} & 10 & 0.291 & 0.200 & 0.399 & 0.000 & 0.725 & 0.300 & 0.575 & 0.300 & 0.575 & 0.400 & 0.607 & 0.500 \\
+\textbf{Enterprise Integration (ESB)} & 14 & 0.179 & 0.267 & 0.429 & 0.400 & 0.363 & 0.467 & $-$0.156 & 0.067 & 0.421 & 0.400 & 0.476 & 0.400 \\
+\textbf{Industrial SCADA} & 28 & 0.601 & 0.533 & 0.710 & 0.533 & 0.656 & 0.533 & 0.478 & 0.500 & 0.787 & 0.667 & 0.839 & 0.633 \\
+\textbf{IoT Smart City} & 40 & 0.320 & 0.350 & 0.397 & 0.350 & 0.580 & 0.450 & 0.538 & 0.425 & 0.849 & 0.650 & 0.850 & 0.650 \\
+\textbf{Logistics Fleet} & 22 & 0.511 & 0.500 & 0.652 & 0.400 & 0.746 & 0.500 & 0.780 & 0.550 & 0.796 & 0.550 & 0.815 & 0.500 \\
+\textbf{Microservices} & 18 & 0.219 & 0.150 & 0.344 & 0.250 & 0.351 & 0.400 & 0.363 & 0.450 & 0.141 & 0.300 & 0.664 & 0.600 \\
+\textbf{Real-Time Gaming} & 15 & 0.360 & 0.533 & 0.802 & 0.533 & 0.464 & 0.333 & 0.471 & 0.400 & 0.651 & 0.533 & 0.641 & 0.400 \\
+\textbf{Telecom RAN} & 24 & 0.402 & 0.480 & 0.422 & 0.280 & 0.608 & 0.320 & 0.350 & 0.360 & 0.591 & 0.280 & 0.526 & 0.320 \\
 \midrule
-\textbf{Mean} & — & 0.370 & 0.379 & 0.568 & 0.390 & 0.522 & 0.391 & 0.411 & 0.346 & 0.624 & 0.501 & \textbf{0.661} & \textbf{0.503} \\
+\textbf{Mean} & — & 0.370 & 0.379 & 0.568 & 0.390 & 0.522 & 0.391 & 0.411 & 0.346 & 0.624 & 0.501 & 0.661 & 0.503 \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-In-distribution critical-set identification mirrors the ranking trend while providing key operational discriminators. Heterogeneous architectures (\texttt{HGT} mean $F_1 = 0.501$, \texttt{HGT-QoS} mean $F_1 = 0.503$) systematically outperform homogeneous message passing (\texttt{GAT} $0.391$, \texttt{GAT-QoS} $0.346$) and structural baselines (\texttt{Topo} $0.379$, \texttt{Topo-QoS} $0.390$) by over $+11$ percentage points. Notably, evaluating $F_1$ reveals vulnerabilities obscured by rank correlation alone: in Healthcare, \texttt{Topo-QoS} achieves a moderate $\rho = 0.399$ but fails completely at critical component triage ($F_1 = 0.000$). In Microservices, unaugmented \texttt{HGT} suffers severe degradation ($\rho = 0.141, F_1 = 0.300$), whereas \texttt{HGT-QoS} leverages QoS attributes to recover both ranking monotonicity ($\rho = 0.664$) and high critical-set recall ($F_1 = 0.600$).
+In-distribution critical-set identification provides diagnostic insight into model fitting across different architectures. On the training graphs, heterogeneous architectures achieve higher in-distribution fit (\texttt{HGT} mean $F_1 = 0.501$, \texttt{HGT-QoS} mean $F_1 = 0.503$) than homogeneous message passing (\texttt{GAT} $0.391$, \texttt{GAT-QoS} $0.346$) and structural baselines (\texttt{Topo} $0.379$, \texttt{Topo-QoS} $0.390$). However, this gap demonstrates higher representational capacity for heterogeneous message passing on the training graphs rather than inductive transfer; whether this capacity translates to transferable ranking across unseen architectures is tested under the inductive LOSO evaluation in Section~\ref{sec:7.1.1}. Notably, in-distribution $F_1$ evaluation reveals fitting behaviors obscured by rank correlation alone: in Healthcare, \texttt{Topo-QoS} achieves a moderate $\rho = 0.399$ but fails at critical component triage ($F_1 = 0.000$). In Microservices, unaugmented \texttt{HGT} suffers severe degradation ($\rho = 0.141, F_1 = 0.300$), whereas \texttt{HGT-QoS} leverages QoS attributes to recover both ranking monotonicity ($\rho = 0.664$) and high critical-set recall ($F_1 = 0.600$).
 
 \subsubsection{Out-of-Distribution (LOSO) Generalization}
+\label{sec:7.1.1}
 
 In inductive Leave-One-Scenario-Out (LOSO) cross-validation, models are assessed based on their ability to predict cascading criticality across entirely unseen system topologies:
 
@@ -212,7 +213,7 @@ Simultaneously, the Four Golden Signals captured during discrete-event execution
 \label{sec:7.3.6}
 \label{sec:7.3.4}
 
-One result governs how every other number in this paper is read. Measured against $I_{\text{comp}}(v)$ over the eight scenarios of the detection benchmark, stratified RM rank correlations are $\rho = 0.566$ (Application), $0.119$ (Broker), and $0.244$ (Node), while pooling all types collapses the correlation to $\rho = 0.098$ — below every per-type value it aggregates, which is Simpson’s paradox in its textbook form. This is why we report every evaluation on a single stratum, and why pooled critical-set figures should be read as inflated wherever they appear. Evaluation of a rule-based anti-pattern catalog on the same benchmark indicates that the catalog flags $93.8\%$ of scored components and therefore does not discriminate, so critical-set identification is delegated to the continuous rankers of Sections~\ref{sec:7.1}–\ref{sec:7.2}.
+One result governs how every other number in this paper is read. Measured against $I_{\text{comp}}(v)$ over the eight scenarios of the detection benchmark, stratified RM rank correlations are $\rho = 0.566$ (Application), $0.119$ (Broker), and $0.244$ (Node), while pooling all types collapses the correlation to $\rho = 0.098$ — below every per-type value it aggregates, which is Simpson’s paradox in its textbook form. This is why we report every evaluation on a single stratum, and why pooled critical-set figures should be read as inflated wherever they appear. A global sensitivity sweep of $I_{\text{comp}}$'s four severity weights ($N = 1{,}000$ Dirichlet draws; Supplementary Section~S1) confirms that Application correlation consistently dominates pooled correlation across all draws ($\rho \in [0.432, 0.574]$ vs.\ $[-0.006, 0.269]$), with elementary-effects screening identifying throughput ($\mu^* = 0.333$) and flow disruption ($\mu^* = 0.365$) as primary separation drivers. Evaluation of a rule-based anti-pattern catalog on the same benchmark indicates that the catalog flags $93.8\%$ of scored components and therefore does not discriminate, so critical-set identification is delegated to the continuous rankers of Sections~\ref{sec:7.1}–\ref{sec:7.2}.
 
 Aggregated by relation type over the ATM case study, first-layer mean HGT attention orders \texttt{USES} into libraries ($0.227$) above publish–subscribe channels ($0.163$–$0.176$), but the spread across all seven relation types is narrow ($0.15$–$0.23$) and driven substantially by destination in-degree artifacts; typed attention remains active across relation types without establishing a statistically distinct ordering.
 
@@ -292,4 +293,4 @@ The neural model constitutes the least expensive stage, whereas the deterministi
 
 The framing that motivated this analysis — static gating as a low-cost substitute for dynamic simulation — does not survive measurement against our own oracle. Timing the cascade reachability labeling sweep (five seeds, node types Application/Broker/Library, the full ground-truth run) on the same corpus and the same idle hardware gives $0.14$--$7.2\,\text{s}$ per scenario, against $0.04$--$82.7\,\text{s}$ for the analysis gate. Both maxima occur in the 520-component Enterprise mesh, so the largest scenario compares $7.2\,\text{s}$ of simulation against $82.7\,\text{s}$ from static analysis: the gate costs roughly eleven times as much as the simulation it is meant to replace.
 
-This finding refutes the assumption that static analysis is computationally cheaper than in-process simulation: breadth-first cascade traversal is simpler than computing all-pairs connectivity degradation ($O(|V|^2 + |V||E|)$). However, in practical continuous integration workflows, static SSA provides a key deployment trade-off: (1) it scores components (e.g., shared libraries, hosts) and dependency edges that node-level simulation passes do not evaluate; and (2) deterministic graph metrics can be incrementally cached across git commits, recomputing only the $k$-hop neighborhood touched by an architectural pull request. We clarify that the benchmark timings in Table~\ref{tab:scale} reflect full from-scratch recomputation without caching; once cached, GNN scoring executes in $56\,\text{ms}$, whereas repeating full simulation sweeps requires re-running stochastic traversals globally. Without such caching, direct simulation is strictly faster.
+This finding refutes the assumption that static analysis is computationally cheaper than in-process simulation: breadth-first cascade traversal is simpler than computing all-pairs connectivity degradation ($O(|V|^2 + |V||E|)$). However, in practical continuous integration workflows, static SSA provides a key deployment trade-off: (1) it scores components (e.g., shared libraries, hosts) and dependency edges that node-level simulation passes do not evaluate; and (2) deterministic graph metrics can be incrementally cached across git commits, recomputing only the $k$-hop neighborhood touched by an architectural pull request. We clarify that the benchmark timings in Table~\ref{tab:scale} reflect full from-scratch recomputation without caching; under an incremental caching design, GNN scoring would execute in $56\,\text{ms}$ for unchanged subgraphs, but such caching is not currently implemented in our pipeline, whereas repeating full simulation sweeps requires re-running stochastic traversals globally. Without such caching, direct simulation is strictly faster.
