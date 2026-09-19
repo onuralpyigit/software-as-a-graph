@@ -7,8 +7,8 @@ justified."*
 
 ---
 
-The manuscript runs to **34 single-column pages** in the `elsarticle` preprint class, of which
-**3.5 pages are the reference list** (89 entries). The main text and declarations occupy 30.5 pages.
+The manuscript runs to **35 single-column pages** in the `elsarticle` preprint class, of which
+**2.7 pages are the reference list** (89 entries). The main text and declarations occupy 32.3 pages.
 The manuscript strictly conforms to the journal's recommended limit of less than 36 single-column pages.
 
 We have already moved substantial material out of the body. Fourteen supplementary sections now
@@ -42,7 +42,7 @@ demonstrated Simpson's paradox. Compressing further would mean dropping an evalu
 leaving the reader unable to reconstruct which comparison rests on which data.
 
 **3. Reproducibility claims are load-bearing and stated in the text.** The corpus regenerates
-byte-identically from committed configurations; 295 reported table values are mechanically
+byte-identically from committed configurations; 403 reported table values are mechanically
 reconciled against the JSON artifacts that produced them by a committed script that refuses a clean
 run when an artifact is absent or was produced from a modified working tree; the input–label
 independence guarantee is asserted in continuous integration; and the primary out-of-distribution
@@ -55,4 +55,4 @@ leave implicit and a referee could not check.
 Reliability–Maintainability decomposition table (Section~5.1 $\to$ Table~S3) and the formal heterogeneous message-passing
 equations (Section~4.1.2 $\to$ Section~S1.1) now reside in the online supplementary material, alongside
 concise inline syntheses of repetitive experimental protocols, bringing the complete manuscript
-comfortably to **34 single-column pages** (including all declarations and 89 references).
+comfortably to **35 single-column pages** (including all declarations and 89 references).

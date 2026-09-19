@@ -48,7 +48,7 @@ Crucially, SaG enforces a strict **input–label independence guarantee**: learn
 
 #### Rationale for Graph Learning vs. Direct Simulation
 
-Although discrete-event simulation $I^*(v)$ defines ground-truth criticality as well as completes in $0.14$–$7.2\,\text{s}$, it is necessary to clarify the rationale for training a graph model. From a sustainable environmental management perspective, pre-deployment static manifest analysis eliminates the substantial carbon footprint of provisioning physical staging clusters, container fleets, and live chaos-injection harnesses. However, as reported in §7.5.1, cold static feature extraction ($82.7\,\text{s}$) on CPU does not outperform lightweight in-process simulation ($7.2\,\text{s}$). In continuous integration (CI/CD) pipelines, static graph learning achieves practical speedup through deterministic topology caching: by caching base graph metrics across commits and extracting feature deltas only for pull-request-modified subgraphs, the sub-second neural forward pass ($56\,\text{ms}$) provides instantaneous feedback on every code commit without re-running global simulation sweeps. Additionally, message passing generalizes across both labeled and unlabeled entities, enabling the scoring of entity types (such as unsimulated shared libraries or physical hosts) and relationship-level criticalities ($I_{\text{edge}}$, Eq. 9) that node-level simulation sweeps cannot evaluate without combinatorial edge-severing passes. Empirical data do not support two further rationales: cascade simulation exhibits negligible stochasticity on this corpus (median test–retest $0.982$), and the claim that simulation requires runnable containers is incorrect for manifest-level cascade fault injection, which operates directly on raw manifests. §7.1 evaluates whether graph learning offers ranking advantages over closed-form baselines.
+Although discrete-event simulation $I^*(v)$ defines ground-truth criticality as well as completes in $0.14$–$7.2\,\text{s}$, it is necessary to clarify the rationale for training a graph model. From a sustainable environmental management perspective, pre-deployment static manifest analysis eliminates the substantial carbon footprint of provisioning physical staging clusters, container fleets, and live chaos-injection harnesses. However, as reported in §7.5.1, cold static feature extraction ($82.7\,\text{s}$) on CPU does not outperform lightweight in-process simulation ($7.2\,\text{s}$). In continuous integration (CI/CD) pipelines, static graph learning achieves practical speedup through deterministic topology caching: by caching base graph metrics across commits and extracting feature deltas only for pull-request-modified subgraphs, the sub-second neural forward pass ($56\,\text{ms}$) provides instantaneous feedback on every code commit without re-running global simulation sweeps. Additionally, message passing generalizes across both labeled and unlabeled entities, enabling the scoring of entity types (such as unsimulated shared libraries or physical hosts) that a node-level simulation sweep leaves unscored. Empirical data do not support two further rationales: cascade simulation exhibits negligible stochasticity on this corpus (median test–retest $0.982$), and the claim that simulation requires runnable containers is incorrect for manifest-level cascade fault injection, which operates directly on raw manifests. §7.1 evaluates whether graph learning offers ranking advantages over closed-form baselines.
 
 ## 1.4 Research Questions
 
@@ -282,14 +282,14 @@ From the final node embeddings $h_v^{(L)}$, SaG utilizes specialized multi-task 
 
 -   **Composite Failure Impact Head:** $\hat{I}^*(v) = \sigma(\text{MLP}_C(h_v \parallel \hat{R}(v) \parallel \hat{M}(v))) \in [0, 1]$
 
--   **Relationship Criticality Head:** $\hat{Q}(u,v) = \sigma(\text{TypedEdgeEncoder}_{\phi(e)}(h_u, h_v, e_{uv})) \in [0, 1]$
+-   **Relationship Criticality Head:** $\hat{Q}(u,v) = \sigma(\text{TypedEdgeEncoder}_{\phi(e)}(h_u, h_v, e_{uv})) \in [0, 1]$. This head is part of the released architecture but is *disabled throughout the evaluation reported here*: every harness that produces a number in this paper instantiates the model with edge prediction switched off, so $\hat{Q}(u,v)$ is neither trained nor scored, and the edge term is absent from the objective below. We describe it for completeness with the implementation and make no edge-level claim on its basis.
 
 ### 4.2.1 Dimension-Masked Loss Formulation
 
-The combined optimization objective integrates regression accuracy, multi-task dimension learning, ranking fidelity, pairwise ordering, and edge prediction:
+The combined optimization objective integrates regression accuracy, multi-task dimension learning, ranking fidelity, and pairwise ordering:
 
 $$\tag{6}
-\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{dimension}} + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}} + 0.3 \cdot \mathcal{L}_{\text{edge}} + \lambda_{\text{RM}} \cdot \mathcal{L}_{\text{consistency}}$$
+\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{dimension}} + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}} + \lambda_{\text{RM}} \cdot \mathcal{L}_{\text{consistency}}$$
 
 where $I^*(v)$ is the simulated cascade impact defined by the primary oracle (§4.3), $\mathcal{L}_{\text{composite}} = \text{MSE}(\hat{I}^*(v), I^*(v))$, $\mathcal{L}_{\text{rank}}$ is the ListMLE listwise ranking loss [78] parameterized by temperature $\tau$:
 
@@ -337,13 +337,6 @@ To evaluate predictive accuracy before deployment without relying on production 
 
 -   **Change-Propagation Oracle ($I_M(v)$)**, evaluated via structural change-propagation analysis: a deterministic reverse-dependency traversal over the transpose of the six-rule `DEPENDS_ON` projection, blending change reach, weighted change impact, and normalized depth. It is a structural maintainability reference and is never used as a training label, which would make the supervision circular.
 
--   **Relationship (Edge) Removal Oracle ($I_{\text{edge}}(u,v)$):** the systemic impact of severing one dependency while both endpoints stay operational. Writing $\bar{I}_{\text{comp}}(G)$ for the mean composite impact over $G$:
-
-    $$\tag{9}
-        I_{\text{edge}}(u,v) = \bar{I}_{\text{comp}}\big(G \setminus \{(u,v)\}\big) - \bar{I}_{\text{comp}}(G)$$
-
-    While Eq. 9 is formulated using $\bar{I}_{\text{comp}}$ in the multi-metric quality suite, $I_{\text{edge}}$ can equivalently be defined with respect to the primary reachability oracle $I^*(v)$, measuring the change in mean subscriber feed loss when dependency $(u,v)$ is severed.
-
 #### Topic Criticality Label Masking
 
 The multi-metric failure simulator can incorporate declared topic criticality into its severity term; however, this feature is disabled because topic criticality is a GNN input feature, and using it would result in the predictor being measured against a transformation of its own input.
@@ -382,28 +375,28 @@ All raw metrics are rank-normalized to the interval $[0, 1]$ within the graph. Q
 
 1.  **Fault Tolerance ($FT(v)$):** Evaluates error cascade potential on transpose graph $G_{\text{analysis}}^\top$:
 
-    $$\tag{10}
+    $$\tag{9}
     FT(v) = 0.45 \cdot \text{RPR}(v) + 0.30 \cdot \text{Deg}_{\text{in}}(v) + 0.25 \cdot \text{CDPot}_{\text{enh}}(v)$$
 
     where $\text{RPR}(v)$ is Reverse PageRank (RPR), $\text{Deg}_{\text{in}}(v) = d_{\text{in}}(v)/(|V|-1)$ is normalized in-degree, and $\text{CDPot}_{\text{enh}}(v) = \text{depth}(v) / \max_{u \in V} \text{depth}(u)$ is the normalized cascade depth potential, measuring the longest reachable directed failure-propagation chain from $v$ on $G_{\text{analysis}}^\top$.
 
 2.  **Availability ($A(v)$):** Identifies structural single points of failure across five terms:
 
-    $$\tag{11}
+    $$\tag{10}
     A(v) = 0.25 \cdot \text{AP}_c^{\text{dir}}(v) + 0.20 \cdot \text{QSPOF}(v) + 0.20 \cdot \text{BR}(v) + 0.25 \cdot \text{CDI}(v) + 0.10 \cdot w(v)$$
 
     where $\text{AP}_c^{\text{dir}}(v)$ is Directed Articulation Point (AP) severity, $\text{QSPOF}(v)$ is QoS-weighted Single Point of Failure (QSPOF) severity, $\text{BR}(v)$ is Bridge Ratio (BR), $\text{CDI}(v)$ is Connectivity Degradation Index (CDI), and $w(v)$ is the intrinsic QoS weight.
 
 3.  **Reliability ($R(v)$):** Blends Fault Tolerance and Availability:
 
-    $$\tag{12}
+    $$\tag{11}
     R(v) = r_{\text{FT}} \cdot FT(v) + (1 - r_{\text{FT}}) \cdot A(v), \quad r_{\text{FT}} = 0.36$$
 
     The intra-dimension weights apply $\lambda = 0.70$ shrinkage blending with a uniform prior. Because comparison matrices are rank-one by construction, these weights are documented conventions rather than independently elicited consensus.
 
 4.  **Maintainability ($M(v)$):** Blends structural coupling with static code analysis:
 
-    $$\tag{13}
+    $$\tag{12}
     M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))$$
 
     where $\text{BT}(v)$ is Betweenness Centrality (BT), $w_{\text{out}}(v)$ is QoS-weighted efferent coupling, $\text{CQP}(v)$ is Code Quality Penalty (CQP), and $\text{CC}(v)$ is local Clustering Coefficient (CC).
@@ -418,7 +411,7 @@ After attributing root causes, automated refactoring operators generate candidat
 
 ## 6.1 Datasets and System Corpus
 
-The evaluation corpus comprises 2,812 components across seventeen system architectures, including twelve synthetic topologies that form the inductive cross-validation folds and five real-world reference systems withheld from all training procedures, as detailed in Table 3.
+The evaluation corpus comprises 2,812 components across seventeen system architectures, including twelve synthetic topologies that form the inductive cross-validation folds and five real-world reference systems withheld from all training procedures, as detailed in Table 3. The synthetic scenarios span diverse operational domains (autonomous vehicles, financial trading, healthcare integration, industrial SCADA, smart-city IoT, telecom RAN, cloud microservices, and enterprise application integration via centralized broker hubs/ESB; detailed in Table S11 of the Supplementary Material).
 
 **Table 3.** Overview of the evaluation corpus. The twelve synthetic topologies correspond to the inductive Leave-One-Scenario-Out folds described in Table 5, and the five real-world systems are excluded from all training folds and used exclusively for zero-shot transfer (§7.4). Per-scenario entity and edge counts are obtained from the committed topology files and verified through continuous integration.
 
@@ -486,23 +479,23 @@ Table 4 presents in-distribution held-out performance versus simulated cascade i
 
 **Table 4.** In-distribution held-out evaluation across all twelve distributed architecture scenarios, reporting both Spearman rank correlation ($\rho$) and critical-set identification ($F_1@K$, with $K = \text{round}(0.20 \cdot n)$): mean over five seeds; $n$ = held-out Application test count. Substrates differ in-distribution: HGT/HGT-QoS consume the native typed multigraph, whereas GAT/GAT-QoS and the topological baselines consume the Application–Library `DEPENDS_ON` flow projection (§6.2). Bold indicates the best performance per metric row. Each seed redraws the 60/20/20 split and model initialization.
 
-|                       |         |          |           |              |           |                  |           |                  |           |         |           |             |           |
-|:----------------------|--------:|:--------:|:---------:|:------------:|:---------:|:----------------:|:---------:|:----------------:|:---------:|:-------:|:---------:|:-----------:|:---------:|
-| **Scenario**          | **$n$** | **Topo** |           | **Topo-QoS** |           |     **GAT**      |           |   **GAT-QoS**    |           | **HGT** |           | **HGT-QoS** |           |
-|                       |         |  $\rho$  |   $F_1$   |    $\rho$    |   $F_1$   |      $\rho$      |   $F_1$   |      $\rho$      |   $F_1$   | $\rho$  |   $F_1$   |   $\rho$    |   $F_1$   |
-| **ATM System**        |       5 |  0.538   |   0.400   |  **0.557**   |   0.400   | -0.393 |   0.000   | -0.080 |   0.000   |  0.492  | **0.600** |    0.348    |   0.400   |
-| **AV System**         |      16 |  0.188   |   0.333   |    0.797     | **0.533** |    **0.816**     |   0.400   |      0.465       |   0.267   |  0.637  | **0.533** |    0.558    | **0.533** |
-| **Enterprise**        |      60 |  0.443   | **0.600** |    0.793     | **0.600** |      0.779       |   0.583   |      0.481       |   0.433   |  0.861  | **0.600** |  **0.878**  | **0.600** |
-| **Financial Trading** |      12 |  0.387   |   0.200   |    0.512     |   0.400   |      0.565       |   0.400   |      0.666       |   0.400   |  0.693  | **0.500** |  **0.730**  | **0.500** |
-| **Healthcare**        |      10 |  0.291   |   0.200   |    0.399     |   0.000   |    **0.725**     |   0.300   |      0.575       |   0.300   |  0.575  |   0.400   |    0.607    | **0.500** |
-| **Enterprise Integration (ESB)** | 14 |  0.179   |   0.267   |    0.429     |   0.400   |      0.363       | **0.467** | -0.156 |   0.067   |  0.421  |   0.400   |  **0.476**  |   0.400   |
-| **Industrial SCADA**  |      28 |  0.601   |   0.533   |    0.710     |   0.533   |      0.656       |   0.533   |      0.478       |   0.500   |  0.787  | **0.667** |  **0.839**  |   0.633   |
-| **IoT Smart City**    |      40 |  0.320   |   0.350   |    0.397     |   0.350   |      0.580       |   0.450   |      0.538       |   0.425   |  0.849  | **0.650** |  **0.850**  | **0.650** |
-| **Logistics Fleet**   |      22 |  0.511   |   0.500   |    0.652     |   0.400   |      0.746       |   0.500   |      0.780       | **0.550** |  0.796  | **0.550** |  **0.815**  |   0.500   |
-| **Microservices**     |      18 |  0.219   |   0.150   |    0.344     |   0.250   |      0.351       |   0.400   |      0.363       |   0.450   |  0.141  |   0.300   |  **0.664**  | **0.600** |
-| **Real-Time Gaming**  |      15 |  0.360   | **0.533** |  **0.802**   | **0.533** |      0.464       |   0.333   |      0.471       |   0.400   |  0.651  | **0.533** |    0.641    |   0.400   |
-| **Telecom RAN**       |      24 |  0.402   | **0.480** |    0.422     |   0.280   |    **0.608**     |   0.320   |      0.350       |   0.360   |  0.591  |   0.280   |    0.526    |   0.320   |
-| **Mean**              |       — |  0.370   |   0.379   |    0.568     |   0.390   |      0.522       |   0.391   |      0.411       |   0.346   |  0.624  |   0.501   |  **0.661**  | **0.503** |
+|                                  |         |          |           |              |           |                  |           |                  |           |         |           |             |           |
+|:---------------------------------|--------:|:--------:|:---------:|:------------:|:---------:|:----------------:|:---------:|:----------------:|:---------:|:-------:|:---------:|:-----------:|:---------:|
+| **Scenario**                     | **$n$** | **Topo** |           | **Topo-QoS** |           |     **GAT**      |           |   **GAT-QoS**    |           | **HGT** |           | **HGT-QoS** |           |
+|                                  |         |  $\rho$  |   $F_1$   |    $\rho$    |   $F_1$   |      $\rho$      |   $F_1$   |      $\rho$      |   $F_1$   | $\rho$  |   $F_1$   |   $\rho$    |   $F_1$   |
+| **ATM System**                   |       5 |  0.538   |   0.400   |  **0.557**   |   0.400   | -0.393 |   0.000   | -0.080 |   0.000   |  0.492  | **0.600** |    0.348    |   0.400   |
+| **AV System**                    |      16 |  0.188   |   0.333   |    0.797     | **0.533** |    **0.816**     |   0.400   |      0.465       |   0.267   |  0.637  | **0.533** |    0.558    | **0.533** |
+| **Enterprise**                   |      60 |  0.443   | **0.600** |    0.793     | **0.600** |      0.779       |   0.583   |      0.481       |   0.433   |  0.861  | **0.600** |  **0.878**  | **0.600** |
+| **Financial Trading**            |      12 |  0.387   |   0.200   |    0.512     |   0.400   |      0.565       |   0.400   |      0.666       |   0.400   |  0.693  | **0.500** |  **0.730**  | **0.500** |
+| **Healthcare**                   |      10 |  0.291   |   0.200   |    0.399     |   0.000   |    **0.725**     |   0.300   |      0.575       |   0.300   |  0.575  |   0.400   |    0.607    | **0.500** |
+| **Enterprise Integration (ESB)** |      14 |  0.179   |   0.267   |    0.429     |   0.400   |      0.363       | **0.467** | -0.156 |   0.067   |  0.421  |   0.400   |  **0.476**  |   0.400   |
+| **Industrial SCADA**             |      28 |  0.601   |   0.533   |    0.710     |   0.533   |      0.656       |   0.533   |      0.478       |   0.500   |  0.787  | **0.667** |  **0.839**  |   0.633   |
+| **IoT Smart City**               |      40 |  0.320   |   0.350   |    0.397     |   0.350   |      0.580       |   0.450   |      0.538       |   0.425   |  0.849  | **0.650** |  **0.850**  | **0.650** |
+| **Logistics Fleet**              |      22 |  0.511   |   0.500   |    0.652     |   0.400   |      0.746       |   0.500   |      0.780       | **0.550** |  0.796  | **0.550** |  **0.815**  |   0.500   |
+| **Microservices**                |      18 |  0.219   |   0.150   |    0.344     |   0.250   |      0.351       |   0.400   |      0.363       |   0.450   |  0.141  |   0.300   |  **0.664**  | **0.600** |
+| **Real-Time Gaming**             |      15 |  0.360   | **0.533** |  **0.802**   | **0.533** |      0.464       |   0.333   |      0.471       |   0.400   |  0.651  | **0.533** |    0.641    |   0.400   |
+| **Telecom RAN**                  |      24 |  0.402   | **0.480** |    0.422     |   0.280   |    **0.608**     |   0.320   |      0.350       |   0.360   |  0.591  |   0.280   |    0.526    |   0.320   |
+| **Mean**                         |       — |  0.370   |   0.379   |    0.568     |   0.390   |      0.522       |   0.391   |      0.411       |   0.346   |  0.624  |   0.501   |  **0.661**  | **0.503** |
 
 In-distribution critical-set identification mirrors the ranking trend while providing key operational discriminators. Heterogeneous architectures (`HGT` mean $F_1 = 0.501$, `HGT-QoS` mean $F_1 = 0.503$) systematically outperform homogeneous message passing (`GAT` $0.391$, `GAT-QoS` $0.346$) and structural baselines (`Topo` $0.379$, `Topo-QoS` $0.390$) by over $+11$ percentage points. Notably, evaluating $F_1$ reveals vulnerabilities obscured by rank correlation alone: in Healthcare, `Topo-QoS` achieves a moderate $\rho = 0.399$ but fails completely at critical component triage ($F_1 = 0.000$). In Microservices, unaugmented `HGT` suffers severe degradation ($\rho = 0.141, F_1 = 0.300$), whereas `HGT-QoS` leverages QoS attributes to recover both ranking monotonicity ($\rho = 0.664$) and high critical-set recall ($F_1 = 0.600$).
 
@@ -711,7 +704,7 @@ This finding refutes the assumption that static analysis is computationally chea
 
 The findings do not support an unequivocal recommendation of the learned model over the closed-form alternative. Accordingly, present the trade-offs based on empirical measurements rather than theoretical expectations.
 
-**(1) Training-free ranking (`Topo-QoS`).** Eliminates the need for model training, checkpoint storage, or retraining, achieving $\rho = 0.553$ in zero-shot testing across twelve synthetic architectures and $0.526$ across five open-source systems. Learned models do not yield a statistically significant improvement in ranking performance ($+0.085$, $p = 0.151$, with the confidence interval including zero; and $0.888$ versus $0.649$ in favor of the baseline on Cloud Microservices). Therefore, `Topo-QoS` serves as a robust default for scalar criticality. **(2) One learned mechanism, not two (`GAT-N-QoS` or `HGT`).** Implementing either relation typing or a QoS edge channel individually results in substantial improvements over an untyped, unweighted model ($+0.234$ and $+0.287$, respectively; Holm-corrected $p \le 0.0015$), while combining both mechanisms provides minimal additional benefit. Untyped QoS-weighted graph neural networks (GNNs) offer a more favorable efficiency trade-off, achieving $\rho = 0.604$ with $28{,}168$ parameters compared to `HGT-QoS`’s $0.638$ with $434{,}620$ parameters. In contrast, unweighted homogeneous models (`GAT-N`, $\rho = 0.317$) underperform relative to training-free heuristics, indicating that GNNs lacking relational signals are not effective for this task. **(3) Capabilities without a closed-form counterpart.** Certain capabilities cannot be achieved using closed-form methods. Typed relational attention identifies the specific channels mediating cascades (§7.3.3), and edge-level criticality ($I_{\text{edge}}$, Eq. 9) supports assessment of individual dependencies for circuit-breaker placement. These features justify adopting typed models when additional computational overhead is acceptable.
+**(1) Training-free ranking (`Topo-QoS`).** Eliminates the need for model training, checkpoint storage, or retraining, achieving $\rho = 0.553$ in zero-shot testing across twelve synthetic architectures and $0.526$ across five open-source systems. Learned models do not yield a statistically significant improvement in ranking performance ($+0.085$, $p = 0.151$, with the confidence interval including zero; and $0.888$ versus $0.649$ in favor of the baseline on Cloud Microservices). Therefore, `Topo-QoS` serves as a robust default for scalar criticality. **(2) One learned mechanism, not two (`GAT-N-QoS` or `HGT`).** Implementing either relation typing or a QoS edge channel individually results in substantial improvements over an untyped, unweighted model ($+0.234$ and $+0.287$, respectively; Holm-corrected $p \le 0.0015$), while combining both mechanisms provides minimal additional benefit. Untyped QoS-weighted graph neural networks (GNNs) offer a more favorable efficiency trade-off, achieving $\rho = 0.604$ with $28{,}168$ parameters compared to `HGT-QoS`’s $0.638$ with $434{,}620$ parameters. In contrast, unweighted homogeneous models (`GAT-N`, $\rho = 0.317$) underperform relative to training-free heuristics, indicating that GNNs lacking relational signals are not effective for this task. **(3) Capabilities without a closed-form counterpart, and how far they presently go.** The typed model exposes one diagnostic the closed-form rankers cannot: per-relation attention, which names the channels a cascade travels (§7.3.3). We decline to advance this as a reason to adopt typing on the present evidence. The measured spread across relation types is narrow ($0.15$–$0.23$), substantially governed by destination in-degree, and unstable under corpus regeneration; it establishes that typed attention is active, not that it is diagnostically reliable. A capability argument for the typed architecture therefore remains open rather than established, and nothing in this paper closes it.
 
 #### Architectural and Systemic Drivers of Graph Learning Success
 
@@ -781,7 +774,7 @@ This study presents Software-as-a-Graph (SaG), a pre-deployment static analysis 
 
 The primary empirical finding is that the framework’s two architectural mechanisms substitute rather than complement each other, as shown by factorial ablation. Relation typing and the 16-dimensional Quality of Service (QoS) edge encoding each exhibit a main effect under inductive distribution shift ($\Delta\rho = +0.134$ and $+0.187$, Holm-corrected $p = 0.0015$). However, their interaction is $-0.199$ and remains negative across all twelve folds ($p = 0.0005$): typing contributes $+0.234$ to a model without the QoS channel and $+0.035$ to one that includes it. Either mechanism alone recovers most of the full model’s performance, while inclusion of the second yields minimal additional benefit. This evidence indicates that both mechanisms encode the same underlying information, specifically the relation traversed by a message. The oracle supports this interpretation, as a topology-only relabeling recovers $I^*(v)$’s ordering at mean $\rho = 0.965$ without any QoS term. Therefore, neither channel captures QoS-driven impact not already present in the ground truth.
 
-This finding has a direct practical implication: teams requiring only scalar criticality rankings should consider the simpler untyped QoS-weighted baseline ($\rho = 0.604$ at $28{,}168$ parameters compared to HGT-QoS’s $0.638$ at $434{,}620$, a non-significant difference despite a $15.4\times$ capacity gap). The typed architecture is preferable when relation-specific attention and edge criticality ($I_{\text{edge}}$, Eq. 9) are necessary for structural diagnostic functions that untyped models do not provide.
+This finding has a direct practical implication: teams requiring only scalar criticality rankings should consider the simpler untyped QoS-weighted baseline ($\rho = 0.604$ at $28{,}168$ parameters compared to HGT-QoS’s $0.638$ at $434{,}620$, a non-significant difference despite a $15.4\times$ capacity gap). We identify no measured capability that offsets that gap: the one diagnostic unique to the typed model, relation-specific attention, is reported in §7.3.3 as active but too narrow and too input-sensitive to recommend on (§8.1).
 
 The boundary conditions are clearly delineated: learned ranking does not significantly outperform unparameterized QoS-weighted centrality ($+0.085$, $p = 0.151$), and zero-shot transfer decreases to $+0.265$ on active components, with inversion observed on microservice call trees. Prediction dispersion does not replicate as an out-of-distribution fallback indicator, and elicited AHP weights result in poorer rankings than a uniform prior.
 
