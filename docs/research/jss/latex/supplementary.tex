@@ -117,12 +117,12 @@ To determine whether this phenomenon is an artifact of the specific AHP weight v
 \begin{table}[htbp]
 \centering
 \small
-\caption{Global sensitivity of $I_{\text{comp}}(v)$ severity weights across the 4-simplex ($N = 1{,}000$ Dirichlet draws and Morris elementary-effects screening). Shipped weights: Reachability $0.35$, Fragmentation $0.25$, Throughput $0.25$, Flow Disruption $0.15$.}
+\caption{Global sensitivity of $I_{\text{comp}}(v)$ severity weights across the 4-simplex ($N = 1{,}000$ Dirichlet draws and Morris elementary-effects screening). Shipped weights: Reachability $0.35$, Fragmentation $0.25$, Throughput $0.25$, Flow Disruption $0.15$. \textbf{Sweep Baseline} is the sweep harness's own evaluation at those weights and is not identical to the canonical detection-benchmark figures quoted in Section~7.3.3; see the reconciliation note below.}
 \label{tab:S_icomp}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
-\textbf{Stratum / Factor} & \textbf{Shipped Baseline} & \textbf{Dirichlet Simplex Range} & \textbf{Morris $\mu^*_{\text{gap}}$} & \textbf{Morris $\sigma_{\text{gap}}$} \\
+\textbf{Stratum / Factor} & \textbf{Sweep Baseline} & \textbf{Dirichlet Simplex Range} & \textbf{Morris $\mu^*_{\text{gap}}$} & \textbf{Morris $\sigma_{\text{gap}}$} \\
 \midrule
 Application $\rho$ & $0.571$ & $[0.432, 0.574]$ & — & — \\
 Broker $\rho$      & $0.119$ & $[-0.056, 0.285]$ & — & — \\
@@ -144,6 +144,8 @@ Flow Disruption ($w_4$) & $0.15$ & $[0.05, 0.70]$ & $0.365$ & $0.224$ \\
     \item \textbf{Simpson's Paradox Operating Envelope:} The strict condition $\rho_{\text{pooled}} < \min(\rho_{\text{app}}, \rho_{\text{broker}}, \rho_{\text{node}})$ holds across $34.8\%$ of the Dirichlet simplex. OFAT sweeps show that this condition is maintained whenever Flow Disruption is moderate ($w_4 \le 0.20$) and Reachability is non-degenerate ($w_1 \ge 0.20$). When Flow Disruption dominates ($w_4 > 0.35$), Broker correlation drops below zero ($\rho = -0.014$), breaking the strict lower bound while preserving the massive Application-versus-pooled gap.
     \item \textbf{Dominant Drivers of Separation:} Morris screening demonstrates that Flow Disruption ($\mu^* = 0.365, \sigma = 0.224$) and Throughput ($\mu^* = 0.333, \sigma = 0.105$) are the primary drivers of the stratum gap, whereas Fragmentation ($\mu^* = 0.0002$) exerts virtually no influence.
 \end{enumerate}
+
+\noindent\textbf{Reconciliation with Section~7.3.3.} The \emph{Sweep Baseline} column and the canonical detection-benchmark figures differ slightly, and Section~7.3.3 quotes the latter. The canonical values come from \texttt{results/detection\_validation\_v3.json}, produced by running the full \texttt{FailureSimulator}: $\rho = 0.566$ (Application), $0.119$ (Broker), $0.244$ (Node), $0.098$ (pooled). The sweep instead evaluates $I_{\text{comp}}$ as a direct linear combination of four cached per-node severity components, and admits a stratum to the per-type average only when it carries at least three scored nodes in a scenario; it does not re-execute the simulator. This reproduces the Broker stratum exactly ($0.119$) and shifts the others by $\le 0.035$ (Application $0.571$, Node $0.209$, pooled $0.108$). The shipped-weight Simpson gap is correspondingly $0.021$ under the canonical figures and $0.011$ under the sweep's reconstruction. Because the sweep's purpose is to compare weight vectors against one another under a fixed evaluation procedure, this offset is common to every draw and does not affect the ranges, the $34.8\%$ envelope, or the Morris screening reported above; absolute stratum correlations should be read from Section~7.3.3 rather than from this table.
 
 \section{Zero-Inflation Sensitivity of the Agreement Figures}
 \label{supp:zeroinfl}
