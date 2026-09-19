@@ -1,10 +1,10 @@
 # 3. The Software-as-a-Graph (SaG) Architectural Model
 
-Figure 1 presents the end-to-end architecture of the SaG framework. The shared front end processes Architecture-as-Code manifests, constructs a typed multigraph, projects implicit runtime interactions throughout a QoS-weighted logical dependency layer, and extracts typed node properties. These features feed two independent pathways with no shared parameters: the predictive pathway (§4), which forecasts cascading failure blast radii and per-relationship criticality using a Heterogeneous Graph Transformer; and the explanation layer (§5), which decomposes fragility into Reliability and Maintainability quality profiles.
+Figure 1 presents the end-to-end architecture of the SaG framework. The shared front end processes Architecture-as-Code manifests, constructs a typed multigraph, projects implicit runtime interactions throughout a QoS-weighted logical dependency layer, and extracts typed node properties. These features feed two independent pathways with no shared parameters: the predictive pathway (§4), which forecasts cascading failure blast radii using a Heterogeneous Graph Transformer; and the explanation layer (§5), which decomposes fragility into Reliability and Maintainability quality profiles.
 
 ![Figure 1](latex/figures/Figure_1.png)
 
-*Figure 1. End-to-end architecture of the SaG framework. The central assertion is that the predictive pathway (§4) forms the primary sequence: manifest ingestion → typed multigraph → QoS-weighted DEPENDS_ON projection → typed node properties → heterogeneous graph learning → a ranked critical set with per-relationship criticality → the ground-truth simulation oracle (§4.3) that evaluates it. The oracle completes the predictive pathway’s training loop and operates solely on Gstructural; it functions strictly offline and is excluded from inference (§4.4), as indicated by the dashed edge. The explanation layer (§5) differs from this sequence: it re-enters from the analysis multigraph, generates a standards-based quality profile from the same typed features without sharing parameters with the predictor, and is accessed through triage instead of direct data flow.*
+*Figure 1. End-to-end architecture of the SaG framework. The central assertion is that the predictive pathway (§4) forms the primary sequence: manifest ingestion → typed multigraph → QoS-weighted DEPENDS_ON projection → typed node properties → heterogeneous graph learning → a ranked critical set (with an architectural interface for per-relationship criticality reserved for future work) → the ground-truth simulation oracle (§4.3) that evaluates it. The oracle completes the predictive pathway’s training loop and operates solely on Gstructural; it functions strictly offline and is excluded from inference (§4.4), as indicated by the dashed edge. The explanation layer (§5) differs from this sequence: it re-enters from the analysis multigraph, generates a standards-based quality profile from the same typed features without sharing parameters with the predictor, and is accessed through triage instead of direct data flow.*
 
 This section formalizes the Software-as-a-Graph multigraph representation (§3.1), the QoS-aware weighting and logical dependency derivation rules (§3.2), the dual graph views (§3.3), and the typed node feature encodings (§3.4).
 
@@ -94,7 +94,7 @@ Structural edges represent explicit deployment connections but do not capture im
 |  **5**   | `app_to_lib`            | Application $\to$ Shared Library it `USES`                                           | $H(w_V(\text{app}), w_V(\text{lib}))$                                                       |
 |  **6**   | `broker_to_broker`      | Broker $\leftrightarrow$ Broker (shared physical fault-domain colocation, symmetric) | $w_V(\text{host})$                                                                          |
 
-Rules 1 and 2 aggregate the set of topics $T$ connecting a component pair using a probabilistic union rather than a maximum [72, 73, 74]. This approach confirms that additional parallel failure vectors increase coupling monotonically while maintaining $w \in (0, 1]$. Rule 5 employs the harmonic mean $H(x, y) = 2xy/(x+y)$ [75] to combine the vertex weights of the consuming Application and the shared Library, consequently balancing caller and dependency criticality. Rules 3 and 4 extend application-level dependencies across host boundaries using the maximum coupling weight.
+Rules 1 and 2 aggregate the set of topics $T$ connecting a component pair using a probabilistic union rather than a maximum [77, 78, 79]. This approach confirms that additional parallel failure vectors increase coupling monotonically while maintaining $w \in (0, 1]$. Rule 5 employs the harmonic mean $H(x, y) = 2xy/(x+y)$ [80] to combine the vertex weights of the consuming Application and the shared Library, consequently balancing caller and dependency criticality. Rules 3 and 4 extend application-level dependencies across host boundaries using the maximum coupling weight.
 
 ### Sequential Cascades vs. Simultaneous Blasts
 
@@ -110,7 +110,7 @@ The SaG framework consists of two distinct representations: (1) **Structural Gra
 
 *Figure 2. Running example: the raw structural graph (left) and the DEPENDS_ON projection derived from it (right). The projection makes implicit runtime dependencies explicit—a subscriber depends on the publishers of its topics even though no structural edge joins them—while the simulators continue to operate on the structural view alone.*
 
-$G_{\text{analysis}}$ is further organized into four analytical layers (Application, Middleware, Infrastructure, and Global System), enabling criticality evaluation at subsystem levels consistent with hierarchical frameworks such as MIL-STD-498 [76].
+$G_{\text{analysis}}$ is further organized into four analytical layers (Application, Middleware, Infrastructure, and Global System), enabling criticality evaluation at subsystem levels consistent with hierarchical frameworks such as MIL-STD-498 [81].
 
 ## 3.4 Typed Node Feature Encoding
 
