@@ -13,7 +13,7 @@ Table~\ref{tab:5} presents in-distribution held-out performance versus simulated
 \begin{table}[htbp]
 \centering
 \small
-\caption{In-distribution held-out evaluation across all twelve distributed architecture scenarios, reporting both Spearman rank correlation ($\rho$) and critical-set identification ($F_1@K$, with $K = \text{round}(0.20 \cdot n)$): mean over five seeds; $n$ = held-out Application test count. Substrates differ in-distribution and are listed per predictor in Table~\ref{tab:predictor_taxonomy} (Section~\ref{sec:6.2}). Each seed redraws the 60/20/20 split and model initialization.}
+\caption{In-distribution held-out evaluation across all twelve distributed architecture scenarios, reporting both Spearman rank correlation ($\rho$) and critical-set identification ($F_1@K$, with $K = \text{round}(0.20 \cdot n)$): mean over five seeds; $n$ = held-out Application test count. Because both the predicted and the reference set have exactly $K$ members, precision, recall and $F_1@K$ coincide identically, so this column measures top-$K$ overlap rather than identification against an independently sized critical set (Section~\ref{sec:6.3}). Substrates differ in-distribution and are listed per predictor in Table~\ref{tab:predictor_taxonomy} (Section~\ref{sec:6.2}). Each seed redraws the 60/20/20 split and model initialization. The held-out set is small on several scenarios --- $n = 5$ on ATM, giving $K = 1$ --- so a single rank swap moves $\rho$ substantially and the per-scenario cells on the smaller topologies are coarsely quantized; they are reported for completeness and the row means, not individual cells, carry the comparison.}
 \label{tab:5}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lrcccccccccccc}
@@ -41,7 +41,7 @@ Table~\ref{tab:5} presents in-distribution held-out performance versus simulated
 }
 \end{table}
 
-In-distribution critical-set identification provides diagnostic insight into model fitting across architectures. On training graphs, heterogeneous architectures achieve higher in-distribution fit (\texttt{HGT} mean $F_1 = 0.501$, \texttt{HGT-QoS} $0.503$) than homogeneous message passing (\texttt{GAT} $0.391$, \texttt{GAT-QoS} $0.346$) and structural baselines (\texttt{Topo} $0.379$, \texttt{Topo-QoS} $0.390$), demonstrating higher representational capacity on seen graphs rather than inductive transfer. Notably, in-distribution $F_1$ evaluation reveals fitting behaviors obscured by rank correlation alone. In Healthcare, \texttt{Topo-QoS} achieves $\rho = 0.399$ but fails at critical triage ($F_1 = 0.000$); in Microservices, unaugmented \texttt{HGT} suffers degradation ($\rho = 0.141, F_1 = 0.300$), whereas \texttt{HGT-QoS} recovers both ranking monotonicity ($\rho = 0.664$) and critical-set recall ($F_1 = 0.600$).
+In-distribution critical-set identification provides diagnostic insight into model fitting across architectures. On training graphs, heterogeneous architectures achieve higher in-distribution fit (\texttt{HGT} mean $F_1 = 0.501$, \texttt{HGT-QoS} $0.503$) than homogeneous message passing (\texttt{GAT} $0.391$, \texttt{GAT-QoS} $0.346$) and structural baselines (\texttt{Topo} $0.379$, \texttt{Topo-QoS} $0.390$), demonstrating higher representational capacity on seen graphs rather than inductive transfer. Notably, in-distribution $F_1$ evaluation reveals fitting behaviors obscured by rank correlation alone. In Healthcare, \texttt{Topo-QoS} achieves $\rho = 0.399$ but fails at critical triage ($F_1 = 0.000$); in Microservices, unaugmented \texttt{HGT} suffers degradation ($\rho = 0.141, F_1 = 0.300$), whereas \texttt{HGT-QoS} recovers both ranking monotonicity ($\rho = 0.664$) and top-$K$ overlap ($F_1@K = 0.600$). These $F_1@K$ figures are set-overlap measures, not recall against an independently sized critical set: both sets have exactly $K$ members, so precision, recall and $F_1$ take the same value by construction (Section~\ref{sec:6.3}).
 
 \subsubsection{Out-of-Distribution (LOSO) Generalization}
 \label{sec:7.1.1}
@@ -51,25 +51,25 @@ In inductive Leave-One-Scenario-Out (LOSO) cross-validation, models are assessed
 \begin{table}[htbp]
 \centering
 \small
-\caption{Inductive LOSO evaluation, Application population, twelve folds. Learned variants share training set, the native multigraph substrate (hence the \texttt{-N} infix; Section~\ref{sec:6.2}), depth, and selection rule (Section~\ref{sec:6.3}), differing in typing and edge channel; parameter budget and message-passing directionality remain unmatched confounds that Table~\ref{tab:contrasts} controls for (Section~\ref{sec:8.4}). Fold score = mean over five seeds; \textbf{Fold $\sigma$} = spread of the twelve fold means; \textbf{Seed $\sigma$} = median within-fold spread (zero by construction for deterministic baselines); CI = bootstrap over folds ($B = 2{,}000$).}
+\caption{Inductive LOSO evaluation, Application population, twelve folds. Learned variants share training set, the native multigraph substrate (hence the \texttt{-N} infix; Section~\ref{sec:6.2}), depth, and selection rule (Section~\ref{sec:6.3}), differing in typing and edge channel; parameter budget and message-passing directionality remain unmatched confounds that Table~\ref{tab:contrasts} controls for (Section~\ref{sec:8.4}). Fold score = mean over five seeds; \textbf{Fold $\sigma$} = spread of the twelve fold means; \textbf{Seed $\sigma$} = median within-fold spread (zero by construction for deterministic baselines); CI = bootstrap over folds ($B = 2{,}000$). \textbf{$\Delta\rho$} is paired by fold against \texttt{Topo-QoS}, the pre-registered comparator (Section~\ref{sec:6.3}), with its own bootstrap interval; an interval spanning zero means the contrast is not resolved at twelve folds, which is the case for every learned variant. \textbf{Critical-Set $F_1@K$} is top-$K$ set overlap: the predicted and reference sets are both of size $K$, so precision, recall and $F_1$ coincide identically (Section~\ref{sec:6.3}).}
 \label{tab:7}
 \resizebox{\linewidth}{!}{%
-\begin{tabular}{lcccccc}
+\begin{tabular}{lccccccc}
 \toprule
-\textbf{Predictor / Reference} & \textbf{Mean LOSO $\rho$} & \textbf{95\% CI} & \textbf{Fold $\sigma$} & \textbf{Seed $\sigma$} & \textbf{Critical-Set $F_1@K$} & \textbf{Requires Training} \\
+\textbf{Predictor / Reference} & \textbf{Mean LOSO $\rho$} & \textbf{95\% CI} & \textbf{$\Delta\rho$ vs \texttt{Topo-QoS}} & \textbf{Fold $\sigma$} & \textbf{Seed $\sigma$} & \textbf{Critical-Set $F_1@K$} & \textbf{Requires Training} \\
 \midrule
-\multicolumn{7}{l}{\textit{Training-free structural baselines}} \\
-\textbf{Topo} & 0.349 & $[0.254, 0.452]$ & 0.173 & — & 0.366 & No \\
-\textbf{Topo-QoS} & 0.553 & $[0.443, 0.657]$ & 0.192 & — & 0.388 & No \\
+\multicolumn{8}{l}{\textit{Training-free structural baselines}} \\
+\textbf{Topo} & 0.349 & $[0.254, 0.452]$ & $-$0.204 $[-0.286, -0.122]$ & 0.173 & — & 0.366 & No \\
+\textbf{Topo-QoS} & 0.553 & $[0.443, 0.657]$ & — (reference) & 0.192 & — & 0.388 & No \\
 \midrule
-\multicolumn{7}{l}{\textit{Learned predictors (shared native substrate, matched training set)}} \\
-\textbf{GAT-N} & 0.317 & $[0.254, 0.381]$ & \textbf{0.111} & 0.298 & 0.328 & Yes \\
-\textbf{GAT-N-QoS} & 0.604 & $[0.538, 0.665]$ & 0.112 & \textbf{0.024} & \textbf{0.431} & Yes \\
-\textbf{HGT} & 0.551 & $[0.474, 0.617]$ & 0.124 & 0.114 & 0.427 & Yes \\
-\textbf{HGT-QoS} & \textbf{0.638} & $[0.561, 0.710]$ & 0.133 & 0.052 & 0.424 & Yes \\
+\multicolumn{8}{l}{\textit{Learned predictors (shared native substrate, matched training set)}} \\
+\textbf{GAT-N} & 0.317 & $[0.254, 0.381]$ & $-$0.236 $[-0.342, -0.125]$ & \textbf{0.111} & 0.298 & 0.328 & Yes \\
+\textbf{GAT-N-QoS} & 0.604 & $[0.538, 0.665]$ & $+$0.051 $[-0.067, +0.169]$ & 0.112 & \textbf{0.024} & \textbf{0.431} & Yes \\
+\textbf{HGT} & 0.551 & $[0.474, 0.617]$ & $-$0.002 $[-0.066, +0.072]$ & 0.124 & 0.114 & 0.427 & Yes \\
+\textbf{HGT-QoS} & \textbf{0.638} & $[0.561, 0.710]$ & $+$0.085 $[-0.029, +0.194]$ & 0.133 & 0.052 & 0.424 & Yes \\
 \midrule
-\multicolumn{7}{l}{\textit{Diagnostic reference — not a ranking model}} \\
-\textbf{RM / $Q(v)$} & 0.205 & $[0.092, 0.320]$ & 0.195 & — & 0.322 & No \\
+\multicolumn{8}{l}{\textit{Diagnostic reference — not a ranking model}} \\
+\textbf{RM / $Q(v)$} & 0.205 & $[0.092, 0.320]$ & $-$0.348 $[-0.432, -0.265]$ & 0.195 & — & 0.322 & No \\
 \bottomrule
 \end{tabular}%
 }

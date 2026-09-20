@@ -163,6 +163,7 @@ make -f reproduce/Makefile smoke-test EPOCHS=50
 | `render_results_figure.py` (`make jss-fig3`) | `docs/research/jss/latex/figures/Figure_3.pdf` | **Figure 3 (`fig:3`)** | Results at a glance |
 | `render_shrinkage_figure.py` (`make jss-figS1`) | `docs/research/jss/latex/figures/Figure_S1.pdf` | **Figure S1** | AHP shrinkage curve |
 | `extract_attention.py` + `render_attention_subgraph.py` (`make jss-figS2`) | `docs/research/jss/latex/figures/Figure_S2.pdf` | **Figure S2** | HGT attention case study |
+| `cut_results_bundle.py` (`make bundle`) | `results/SaG_JSS_Results_<stamp>/` | — (shipped alongside the paper) | Every artifact the manuscript cites, plus `MANIFEST.json` with a SHA-256 and provenance stamp per file |
 
 ---
 
