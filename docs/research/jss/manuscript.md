@@ -653,7 +653,7 @@ To assess generalization outside the generator, `HGT-QoS` was trained on all twe
 
 2.  **On the active stratum, five systems cannot resolve the question.** The learned model is the only predictor whose active-stratum estimate stays positive ($\rho_{>0} = +0.236$ against $-0.055$ to $-0.092$), but its interval $[-0.053, +0.525]$ spans zero and so does every baseline’s (Table 10). We therefore claim only that its point estimate is positive, not that it transfers. The one consistent pattern is directional: $\rho_{>0}$ is positive on all three asynchronous pub-sub systems (Home Assistant $+0.702$, Autoware $+0.517$, EdgeX $+0.183$) and non-positive on both synchronous call trees (Online Boutique $-0.031$, Train-Ticket $-0.192$). A 3–2 split is a pattern worth naming, not a tested effect.
 
-3.  **Identification is where the learned model separates most clearly.** On top-$K$ overlap it averages $0.470$ $[0.410, 0.540]$ against $0.248$ $[0.09, 0.46]$ for the structural baselines, whose interval overlaps it; on the threshold-free measures of Supplementary Table S13 the gap is wider ($F_1@\tau$ $0.520$ vs. $0.29$–$0.33$; PR-AUC $0.749$ vs. $0.47$–$0.52$). The mechanism is visible on EdgeX, where symmetric star connections from peripheral adapters to brokers produce identical betweenness ties that collapse structural triage entirely ($F_1@K = 0.000$) while relational attention still separates components.
+3.  **Identification is where the learned model separates most clearly.** On top-$K$ overlap it averages $0.470$ $[0.410, 0.540]$ against $0.248$ $[0.09, 0.46]$ for the structural baselines, whose interval overlaps it; on the threshold-free measures of Supplementary Table S13 the gap is wider ($F_1@\tau$ $0.473$ vs. $0.29$–$0.33$; PR-AUC $0.713$ vs. $0.47$–$0.52$). The mechanism is visible on EdgeX, where symmetric star connections from peripheral adapters to brokers produce identical betweenness ties that collapse structural triage entirely ($F_1@K = 0.000$) while relational attention still separates components.
 
 4.  **Architectural boundary condition and ingestion boundary.** Synchronous RPC architectures propagate failures *backward* along invocation trees via timeouts and thread starvation [48], whereas pub-sub architectures cascade forward via queue saturation. Trained on pub-sub semantics, the model’s directional bias does not transfer to call trees. We therefore state an ingestion boundary: SaG’s learned pipeline applies to asynchronous, event-driven architectures (ROS 2, Kafka, DDS, MQTT), and static call-graph reachability tools should be used for synchronous RPC/REST meshes. The closed-form baselines are not the substitute there either — `Topo-QoS` leads on Online Boutique only on the full population ($0.888$) and is negative on its active components ($-0.072$), so its advantage lies in identifying inert services rather than ranking propagating ones.
 
@@ -665,14 +665,14 @@ To assess generalization outside the generator, `HGT-QoS` was trained on all twe
 
 RQ5 quantifies computing overhead and sustainability during CI/CD evaluation, with per-stage latencies reported in Table 11:
 
-**Table 11.** Per-stage latency of the inference pipeline across scaling graph sizes (CPU, median of 3 runs).
+**Table 11.** Per-stage latency of the inference pipeline across scaling graph sizes (CPU, median of 3 runs; 5 for the forward pass). The analysis stage is stable across repeats (p10–p90 within $1\%$ of the median everywhere) while the forward pass is not, which is why its column carries a spread: at $56\,\text{ms}$ the measurement is dominated by interpreter and dispatch overhead rather than by the graph.
 
-| **$|V|$** | **$|E|$** | **Analyze (s)** | **Graph $\to$ Tensor (s)** | **HGT Forward (ms)** | **Analyze : Forward** |
-|:---------:|:---------:|:---------------:|:--------------------------:|:--------------------:|:---------------------:|
-|    249    |   1,127   |      1.74       |           0.010            |         26.5         |          66×          |
-|    499    |   2,402   |      8.32       |           0.022            |         16.4         |         509×          |
-|    999    |   6,422   |      44.54      |           0.056            |         21.1         |        2,108×         |
-|   1,998   |  19,301   |     239.34      |           0.157            |         56.2         |      **4,259×**       |
+| **$|V|$** | **$|E|$** | **Analyze (s)** | **Graph $\to$ Tensor (s)** | **HGT Forward (ms)** | **Analyze : Forward** | **Forward p10–p90** |
+|:---------:|:---------:|:---------------:|:--------------------------:|:--------------------:|:---------------------:|:-------------------:|
+|    249    |   1,127   |      1.74       |           0.010            |         26.5         |          66×          |      13.0–34.4      |
+|    499    |   2,402   |      8.32       |           0.022            |         16.4         |         509×          |      15.6–16.4      |
+|    999    |   6,422   |      44.54      |           0.056            |         21.1         |        2,108×         |      19.1–36.5      |
+|   1,998   |  19,301   |     239.34      |           0.157            |         56.2         |      **4,259×**       |      43.8–57.8      |
 
 The neural stage is the cheapest by a wide margin and the deterministic one is not. At 2,000 components the HGT forward pass takes $56\,\text{ms}$ against $239\,\text{s}$ for structural analysis, a ratio of $4{,}259\times$ — but that is a ratio between pipeline stages, not a cost of evaluation, because indices 0–17 of every node feature vector are produced by the analysis stage the forward pass depends on. End-to-end evaluation of an unseen 2,000-component architecture takes about four minutes, of which the learned model is $0.02\%$; the $56\,\text{ms}$ is the marginal cost of re-scoring an already-analysed graph. Across the corpus the complete gate (structural analysis plus 18 anti-pattern detectors, whose share is $\le 0.19\,\text{s}$) executes in $0.16$–$79.3\,\text{s}$ (Table 12).
 
