@@ -1039,6 +1039,100 @@ def render_rq2_controls_md(loso_data: Dict, output: Path):
 
 # ── Table: per-domain k-fold results (5 variants) ────────────────────────────
 
+def render_loso_identification_tex(
+    loso_data: Dict, output: Path, realworld_data: Optional[Dict] = None
+):
+    """Identification quality on operating points where precision != recall.
+
+    Every ``F1@K`` in the manuscript is a set-overlap measure: the predicted
+    and reference sets both have exactly K members, so precision, recall and F1
+    collapse to one number. That is a legitimate quantity and the manuscript
+    says so four times, but it cannot answer whether a predictor finds the
+    critical components without also asking how many it names. These three can:
+
+    ``F1@tau``  top-K prediction against the labels' own critical set,
+                 thresholded on the labels rather than sized to match.
+    ``PR-AUC``   threshold-free, so it does not depend on K at all.
+    ``nDCG@10``  rank-weighted, so a near-miss at rank 11 is not a total loss.
+
+    Both harnesses are rendered into one table because the comparison a reader
+    wants is between them: whether the identification ordering under
+    distribution shift survives transfer to graphs from outside the generator.
+    """
+    per_variant = loso_data.get("per_variant_results", {})
+    if not per_variant:
+        print("  No LOSO per-variant results found.")
+        return
+
+    def _mean(variant: str, key: str) -> Optional[float]:
+        vals = [
+            f.get("mean_metrics", {}).get(key)
+            for f in per_variant.get(variant, {}).get("folds", [])
+        ]
+        vals = [v for v in vals if v is not None]
+        return sum(vals) / len(vals) if vals else None
+
+    def _cell(x: Optional[float]) -> str:
+        return f"{x:.3f}" if x is not None else "—"
+
+    lines = [
+        r"\begin{table}[t]",
+        r"\centering",
+        r"\caption{Identification quality at operating points where precision "
+        r"and recall are free to differ, so that none of these columns is the "
+        r"top-$K$ overlap measure reported as $F_1@K$ elsewhere. $F_1@\tau$ "
+        r"scores the top-$K$ prediction against the labels' own critical set "
+        r"($I^*(v) \ge 0.5\max I^*$); PR-AUC is threshold-free; nDCG@10 is "
+        r"rank-weighted. LOSO figures are means over the twelve inductive "
+        r"folds; real-world figures are means over the five transcribed "
+        r"systems, scored zero-shot against the same oracle.}",
+        r"\label{tab:identification}",
+        r"\begin{tabular}{lccc}",
+        r"\toprule",
+        r"Predictor & $F_1@\tau$ & PR-AUC & nDCG@10 \\",
+        r"\midrule",
+        r"\multicolumn{4}{l}{\textit{Inductive LOSO, twelve folds}} \\",
+    ]
+    for var in _LOSO_VARIANT_ORDER:
+        if var not in per_variant:
+            continue
+        label = _NATIVE_VARIANT_LABELS.get(var, var)
+        lines.append(
+            rf"{label} & {_cell(_mean(var, 'f1_at_tau'))} & "
+            rf"{_cell(_mean(var, 'pr_auc'))} & {_cell(_mean(var, 'ndcg_10'))} \\"
+        )
+
+    if realworld_data:
+        per_system = realworld_data.get("per_system", {})
+        references = realworld_data.get("references", {})
+
+        def _rw(values) -> Optional[float]:
+            values = [v for v in values if v is not None]
+            return sum(values) / len(values) if values else None
+
+        lines += [
+            r"\midrule",
+            r"\multicolumn{4}{l}{\textit{Zero-shot transfer, five open-source "
+            r"systems}} \\",
+        ]
+        for name, block in references.items():
+            lines.append(
+                rf"{name} & {_cell(_rw([s.get('f1_at_tau') for s in block.values()]))} & "
+                rf"{_cell(_rw([s.get('pr_auc') for s in block.values()]))} & — \\"
+            )
+        learned = realworld_data.get("label", "learned")
+        lines.append(
+            rf"{learned} & "
+            rf"{_cell(_rw([s.get('mean_f1_at_tau') for s in per_system.values()]))} & "
+            rf"{_cell(_rw([s.get('mean_pr_auc') for s in per_system.values()]))} & — \\"
+        )
+
+    lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("\n".join(lines) + "\n")
+    print(f"  Saved LaTeX identification table: {output}")
+
+
 def render_table4kfold_tex(kfold_data: Dict, output: Path):
     """LaTeX booktabs table: per-domain k-fold in-domain ρ × variant."""
     table = kfold_data.get("comparison_table", {})
@@ -1226,6 +1320,18 @@ def main():
         if not args.console:
             if not args.no_tex:
                 render_table4_tex(loso_data, out / "table4_loso_results.tex", sig_data)
+                # The identification family belongs beside the LOSO table
+                # rather than inside it: adding a column to the body table
+                # would say these measure the same thing as F1@K, and the
+                # point of the table is that they do not.
+                rw_data = (
+                    json.loads(args.realworld.read_text())
+                    if args.realworld is not None and args.realworld.exists()
+                    else None
+                )
+                render_loso_identification_tex(
+                    loso_data, out / "table_identification.tex", rw_data
+                )
             if not args.tex_only:
                 render_table4_md(loso_data, out / "table4_loso_results.md", sig_data)
         table = loso_data.get("comparison_table", {})

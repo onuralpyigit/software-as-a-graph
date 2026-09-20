@@ -191,6 +191,7 @@ def check_table4_corpus(rep: Report) -> None:
         "Industrial SCADA": "industrial_scada_system", "Real-Time Gaming": "realtime_gaming_system",
         "Logistics Fleet": "logistics_fleet_system", "Air Traffic Management (ATM)": "atm_system",
         "Autoware.universe": "realworld_autoware_ros2", "Cloud Microservices": "realworld_cloud_microservices",
+        "Online Boutique": "realworld_cloud_microservices",
         "Train-Ticket": "realworld_trainticket", "Home Assistant": "realworld_homeassistant",
         "EdgeX Foundry": "realworld_edgex",
     }
@@ -236,6 +237,7 @@ TABLE5_SCENARIOS = {
     "IoT Smart City": "iot_smart_city_system",
     "Logistics Fleet": "logistics_fleet_system",
     "Microservices": "microservices_system",
+    "Microservices (synthetic)": "microservices_system",
     "Real-Time Gaming": "realtime_gaming_system",
     "Telecom RAN": "telecom_ran_system",
 }
@@ -248,7 +250,15 @@ TABLE5_VARIANTS = ["topo_baseline", "topo_qos", "gl", "gl_qos", "hgl", "hgl_qos"
 
 
 def check_table5_indist(rep: Report, artifact: str = "main_table.json") -> None:
-    """Table 5's in-distribution cells and column means."""
+    """The in-distribution per-scenario cells and column means.
+
+    This table was moved from the body to the supplement during the revision
+    that added the protocol-matched real-world arm: its columns are not
+    comparable to each other, so it documents per-scenario fitting rather than
+    supporting a contrast. The check follows it rather than lapsing into a
+    silent skip, which is the failure mode ``tests/test_reconcile_guards.py``
+    exists to catch.
+    """
     d = _load(artifact)
     if d is None:
         rep.skipped.append(f"tab:5: {artifact} absent")
@@ -267,8 +277,9 @@ def check_table5_indist(rep: Report, artifact: str = "main_table.json") -> None:
         variants = ["topo_baseline", "topo_qos", "gl_full", "gl_full_qos", "hgl", "hgl_qos"]
     labels = {v: _registry.label(v, harness="in_distribution") for v in variants}
 
-    tex = _tex("sec7_results.tex")
-    rows = _rows(tex, r"\textbf{Scenario} & \textbf{$n$}")
+    tex = _supp()
+    rows = _rows(tex, r"\textbf{Scenario} & \textbf{$n$}",
+                 after_label=r"\label{tab:supp-indist-cells}")
     seen = {}
     for row in rows:
         cells = _cells(row)
@@ -370,8 +381,8 @@ def check_table5_columns(rep: Report, artifact: str = "main_table.json") -> None
         rep.skipped.append(f"tab:5 columns: {artifact} records no variant list")
         return
 
-    tex = _tex("sec7_results.tex")
-    header = _rows(tex, r"\toprule", after_label="tab:5")
+    tex = _supp()
+    header = _rows(tex, r"\toprule", after_label="tab:supp-indist-cells")
     if not header:
         m = re.search(r"\\textbf\{Scenario\} & \\textbf\{\$n\$\}([^\\]*(?:\\(?!\\)[^\\]*)*)",
                       tex)
@@ -703,14 +714,15 @@ def check_scale_table(rep: Report) -> None:
 
 def check_realworld(rep: Report) -> None:
     """Table 9b full-population and active-stratum correlations."""
-    d = (_load("realworld_zeroshot_v6.json") or _load("realworld_zeroshot_v5.json")
-         or _load("realworld_zeroshot.json"))
+    d = (_load("realworld_zeroshot_v7.json") or _load("realworld_zeroshot_v6.json")
+         or _load("realworld_zeroshot_v5.json") or _load("realworld_zeroshot.json"))
     if d is None:
         rep.skipped.append("tab:9b: realworld_zeroshot.json absent")
         return
     per = d["per_system"]
     name_to_key = {
         "Cloud Microservices Mesh": "realworld_cloud_microservices",
+        "Online Boutique (microservices)": "realworld_cloud_microservices",
         "Train-Ticket Booking Mesh": "realworld_trainticket",
         "Autoware.universe (ROS~2)": "realworld_autoware_ros2",
         "EdgeX Foundry (Industrial IoT)": "realworld_edgex",
@@ -769,8 +781,8 @@ def check_table9c_active(rep: Report) -> None:
     comparison and is checked against the same file Table 9b is, so the two
     cannot come from different runs.
     """
-    d = (_load("realworld_zeroshot_v6.json") or _load("realworld_zeroshot_v5.json")
-         or _load("realworld_zeroshot.json"))
+    d = (_load("realworld_zeroshot_v7.json") or _load("realworld_zeroshot_v6.json")
+         or _load("realworld_zeroshot_v5.json") or _load("realworld_zeroshot.json"))
     if d is None:
         rep.skipped.append("tab:9c: realworld_zeroshot.json absent")
         return
@@ -832,7 +844,7 @@ def check_table9c_active(rep: Report) -> None:
 #: against the artifact that actually backs it (``check_table5_indist``).
 FRESHNESS_TARGETS = {
     "loso_all_variants_v5.json": "Tables 7/7c",
-    "realworld_zeroshot_v6.json": "Tables 9b/9c",
+    "realworld_zeroshot_v7.json": "Tables 9b/9c (protocol-matched)",
     "detection_validation_jss12.json": "7.3 stratification",
     # S1.2 cited this by filename while nothing checked it and the bundle never
     # shipped it; it also ran on a different scenario suite than the section it
@@ -878,6 +890,7 @@ CORPUS_INDEPENDENT_ARTIFACTS = {
 #: together, on one machine, or leave both; ``oracle_timing.py --gate-file``
 #: names the half it was paired with, and the artifact records it.
 PAIRED_TIMING_ARTIFACTS = {
+    "gate_oracle_ratio.json": "Table gate_ratio (Section 7.5)",
     "oracle_timing_jss12.json": "detection_validation_timed_jss12.json",
 }
 
@@ -972,6 +985,55 @@ def check_oracle_timing(rep: Report) -> None:
         if expected is None or f"roughly {expected} times" not in tex:
             rep.findings.append(Finding("sec:7.5.oracle", "gate/oracle", "ratio",
                                         "see text", f"{ratio}x -> 'roughly {expected} times'"))
+
+
+def check_gate_ratio_table(rep: Report) -> None:
+    """Table `tab:gate_ratio`: the per-scenario gate/oracle cost distribution.
+
+    Section 7.5 previously reported this comparison as one number taken at the
+    joint maximum. The table states the distribution behind it, so each row has
+    to agree with the pairing artifact rather than with a remembered figure.
+    """
+    d = _load("gate_oracle_ratio.json")
+    if d is None:
+        rep.skipped.append("tab:gate_ratio: gate_oracle_ratio.json absent")
+        return
+    by_scenario = {r["scenario"]: r for r in d.get("per_scenario", [])}
+    name_to_key = {
+        "Enterprise": "enterprise_system",
+        "Enterprise Integration (ESB)": "hub_and_spoke_system",
+        "AV System": "av_system",
+        "Financial Trading": "financial_trading_system",
+        "Real-Time Gaming": "realtime_gaming_system",
+        "Healthcare": "healthcare_system",
+        "IoT Smart City": "iot_smart_city_system",
+        "Telecom RAN": "telecom_ran_system",
+        "Logistics Fleet": "logistics_fleet_system",
+        "Microservices (synthetic)": "microservices_system",
+        "Industrial SCADA": "industrial_scada_system",
+        "ATM System": "atm_system",
+    }
+    tex = _tex("sec7_results.tex")
+    rows = _rows(tex, r"\midrule", after_label=r"\label{tab:gate_ratio}")
+    seen = 0
+    for row in rows:
+        cells = _cells(row)
+        if len(cells) < 5:
+            continue
+        key = name_to_key.get(_label(cells[0]))
+        if key is None or key not in by_scenario:
+            continue
+        seen += 1
+        truth = by_scenario[key]
+        for col, field, tol in ((1, "projection_edges", 0.5), (2, "gate_s", 0.02),
+                                (3, "oracle_s", 0.002), (4, "ratio", 0.05)):
+            got, want = _num(cells[col]), truth.get(field)
+            rep.checked += 1
+            if want is not None and (got is None or abs(got - want) > tol):
+                rep.findings.append(
+                    Finding("tab:gate_ratio", _label(cells[0]), field, got, want))
+    if seen == 0:
+        rep.skipped.append("tab:gate_ratio: no row matched; the table moved or was renamed")
 
 
 def check_qos_label_ablation(rep: Report) -> None:
@@ -1075,6 +1137,7 @@ def main() -> int:
     check_realworld(rep)
     check_table9c_active(rep)
     check_oracle_timing(rep)
+    check_gate_ratio_table(rep)
     check_qos_label_ablation(rep)
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts "

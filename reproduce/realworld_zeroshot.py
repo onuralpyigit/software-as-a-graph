@@ -339,6 +339,58 @@ def _finite(value):
     return value
 
 
+def bootstrap_over_systems(
+    per_system: Dict[str, Any], references: Dict[str, Any],
+    b: int = 2000, alpha: float = 0.05, seed: int = 42,
+) -> Dict[str, Any]:
+    """Percentile bootstrap over the five systems, for every predictor.
+
+    Five systems is a small sample and resampling cannot make it larger. What
+    the interval does is stop a five-point mean from being read as if it were
+    an estimate with negligible error: the headline transfer figures are
+    averages over five numbers that range across half the scale, and an
+    interval that spans most of that range says so where a point estimate does
+    not. Resampling is over systems because the system is the unit the mean is
+    taken over, matching the unit of analysis used for folds under LOSO.
+
+    The intervals are descriptive. At n = 5 the percentile bootstrap has no
+    coverage guarantee worth quoting, and we do not attach a significance
+    claim to it.
+    """
+    import numpy as np
+
+    rng = np.random.default_rng(seed)
+
+    def _ci(values: List[float]) -> Optional[Dict[str, float]]:
+        vals = np.array([v for v in values if v is not None], dtype=float)
+        if vals.size < 2:
+            return None
+        draws = vals[rng.integers(0, vals.size, size=(b, vals.size))].mean(axis=1)
+        lo, hi = np.percentile(draws, [100 * alpha / 2, 100 * (1 - alpha / 2)])
+        return {"mean": float(vals.mean()), "lo": float(lo), "hi": float(hi),
+                "n_systems": int(vals.size)}
+
+    out: Dict[str, Any] = {
+        "method": f"percentile bootstrap over systems, B={b}, seed={seed}",
+        "caveat": ("n = 5 systems. Descriptive only: no coverage guarantee and "
+                   "no significance claim is attached to these intervals."),
+        "learned": {
+            "rho": _ci([s.get("mean_rho") for s in per_system.values()]),
+            "rho_positive": _ci([s.get("mean_rho_positive") for s in per_system.values()]),
+            "f1_at_k": _ci([s.get("mean_f1_at_k") for s in per_system.values()]),
+            "pr_auc": _ci([s.get("mean_pr_auc") for s in per_system.values()]),
+        },
+    }
+    for name, block in references.items():
+        out[name] = {
+            "rho": _ci([s.get("rho") for s in block.values()]),
+            "rho_positive": _ci([s.get("rho_positive") for s in block.values()]),
+            "f1_at_k": _ci([s.get("f1_at_k") for s in block.values()]),
+            "pr_auc": _ci([s.get("pr_auc") for s in block.values()]),
+        }
+    return out
+
+
 def _identification_summary(runs: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Mean/std of the identification family over the seeds where it is defined."""
     out: Dict[str, Any] = {}
@@ -523,6 +575,10 @@ def main() -> int:
         ),
         "mean_rho_across_systems": mean_rho_all,
         "mean_hybrid_rho_across_systems": mean_hybrid_rho_all,
+        # Five systems averaged into one number, with the spread that average
+        # conceals. Reported for the training-free references too, so the
+        # comparison down the column carries the same uncertainty statement.
+        "bootstrap_ci": bootstrap_over_systems(summary, references),
     }
 
     args.output.parent.mkdir(parents=True, exist_ok=True)

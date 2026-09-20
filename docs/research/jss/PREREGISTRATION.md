@@ -257,3 +257,52 @@ and the abstract's +0.114 is withdrawn — with the added constraint, from this
 amendment, that the replacement claim must name the artifact it reproduces from.
 An artifact that does not reproduce from a commit is not reportable, which is
 the rule v3 failed and the reason this amendment exists.
+
+---
+
+## Amendment 4 — peer-review revision (2026-09-20, after the v5 results existed)
+
+**Status when written:** the twelve-fold v5 results and the manuscript built on
+them existed. Everything recorded here is therefore a *post-hoc* change made in
+response to reviewer comments, and nothing in it is pre-registered. It is written
+down for the same reason the earlier amendments are: so that the difference
+between what was planned and what was added afterwards stays legible.
+
+### Terminology correction
+
+This file was described in the manuscript as a *pre-registration*. It is not one
+in the sense a reader would infer: it lives in the authors' own repository, has
+no third-party timestamp, and — as its own Motivation section records — a prior
+eight-fold run of the primary contrast predates it. Section 6.3 now calls it a
+*registered analysis plan* and states both limitations. What the registration
+establishes is that the analysis was fixed before the twelve-fold result existed;
+what it cannot establish is that the question was asked in ignorance of any
+earlier estimate.
+
+### RQ4 protocol re-match
+
+The real-world arm had been reported from a 2-layer, 150-epoch configuration
+chosen to limit over-smoothing on the transcribed meshes. No target label or
+gradient reached the model, but the *reasoning* appeals to a property of the
+evaluation systems, so the arm was not blind to them. It is replaced as the
+primary RQ4 result by a re-run at the 3-layer, 300-epoch budget used for every
+other learned result in this paper (`results/realworld_zeroshot_v7.json`). The
+matched protocol is uniformly slightly weaker (ρ 0.760 vs 0.792; ρ₊ +0.236 vs
++0.281; F1@K 0.470 vs 0.533) and changes no qualitative conclusion. The earlier
+configuration is retained as a reported sensitivity, not as a headline.
+
+### Analyses added after the fact, all exploratory
+
+| Addition | Why | Pre-registered? |
+|:---|:---|:---|
+| Fisher-z recomputation of the 2×2 (`loso_significance.py --fisher-z`) | A difference of differences on bounded Spearman ρ can read as sub-additive through scale compression alone. The interaction survives and grows (−0.199 → −0.233), so the substitution claim is a property of the mechanisms, not the metric. | No |
+| Bootstrap CIs over the five real systems | A five-point mean was being reported as if its error were negligible. The active-stratum interval spans zero for every predictor, which changes the RQ4 verdict from "qualified positive" to "unresolved". | No |
+| Per-scenario gate:oracle ratio table | The cost claim was stated at the joint maximum (≈18×). The distribution is 2.0–17.7×, median 5.6×, and the premium tracks derived projection size (ρ = 0.95) rather than component count. | No |
+| Revision-drift ledger (`reproduce/rerun_drift.py`) | Section 8.3 carried drift figures that reproduce from no committed artifact pair. They are replaced by a measured v4→v5 comparison at identical corpus digest. | No |
+| Energy upper bound (`reproduce/energy_estimate.py`) | The sustainability argument was unquantified. Nameplate TDP × measured wall-clock is an upper bound, labelled as such, not a RAPL measurement. | No |
+
+### What is unchanged
+
+The primary and secondary contrasts, their unit of analysis, the five fixed
+seeds, the prohibition on pairing at (fold × seed), and Amendment 2's decision
+rule for the control arms — which remain implemented, registered, and unrun.
