@@ -28,8 +28,8 @@ p = 0.0015) but interacting sub-additively (−0.199, negative on all twelve fol
 established once tied labels are excluded, and inverts on two of five architectures; that a
 label-free confidence signal previously reported does not replicate; that the explanation layer's
 elicited AHP weights are anti-predictive and three of its five AHP matrices are rank-one by
-construction; and that the static gate is roughly eleven times more expensive than the simulation it
-was intended to displace. Each of these is a claim *against* our own framework, and each required the
+construction; and that the static gate is roughly eighteen times slower than the discrete-event simulation it
+was intended to displace ($79.3\,\text{s}$ vs. $4.5\,\text{s}$). Each of these is a claim *against* our own framework, and each required the
 ablation, the corrected baseline, or the sensitivity analysis that establishes it. A paper reporting
 a clean positive result would be shorter; it would also be less useful.
 

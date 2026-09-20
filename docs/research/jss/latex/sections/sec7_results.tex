@@ -92,7 +92,7 @@ Figure~\ref{fig:3} summarizes these results alongside critical-set identificatio
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.80\linewidth]{figures/Figure_3}
+\includegraphics[width=0.72\linewidth]{figures/Figure_3}
 \caption{Results at a glance: Application population. \textbf{(A)} Out-of-distribution rank correlation per predictor across the twelve LOSO folds. \textbf{(B)} Critical-set identification at $K = 20\%$, where the typed model does not separate from untyped learning. \textbf{(C)} Pairwise rank agreement between the three simulation oracles, against the chance baseline. \textbf{(D)} The typing $\times$ QoS interaction per fold, negative on all twelve (Section~\ref{sec:7.2}); the dashed line is the mean and the band its bootstrap 95\% CI. Panels A and B are read from the same artifact as Table~\ref{tab:7}, C from the convergent-validity artifact, and D from the significance artifact behind Table~\ref{tab:contrasts}.}
 \label{fig:3}
 \end{figure}
@@ -221,19 +221,19 @@ One result governs how every other number in this paper is read. Measured agains
 
 Aggregated by relation type over the ATM case study, first-layer mean HGT attention orders \texttt{USES} into libraries ($0.227$) above publish–subscribe channels ($0.163$–$0.176$). However, the spread across all seven relation types is narrow ($0.15$–$0.23$) and driven substantially by destination in-degree artifacts. Typed attention remains active across relation types without establishing a statistically distinct ordering.
 
-\subsection{RQ4: Real-World Distributed Architecture Validation}
+\subsection{RQ4: Out-of-Family Topological Transfer on Transcribed Open-Source Architectures}
 \label{sec:7.4}
 
 \paragraph{RQ4 Summary (Real-World Transfer):} \emph{Full-population transfer ($\rho = 0.792$) is inflated by separating inert components from active ones: restricted to components that actually propagate failures, every predictor loses roughly $0.5$--$0.6$ of correlation. \texttt{HGT-QoS} is the only one that stays positive ($\rho_{>0} = +0.281$); all three training-free baselines turn negative ($-0.055$ RM, $-0.083$ \texttt{Topo}, $-0.092$ \texttt{Topo-QoS}), so the collapse is a property of the active-stratum task rather than of relational learning. We therefore report RQ4 as a qualified positive: the typed model is the only predictor to retain any active-stratum signal on transcribed architectures, but $+0.281$ is too weak to establish transfer, and it still inverts on the synchronous Train-Ticket call tree.}
 
-We evaluated the framework on five open-source distributed systems transcribed from public repositories: Online Boutique, Train-Ticket, Home Assistant, Autoware Universe (ROS~2), and EdgeX Foundry. All carry labels from the same simulation oracles used throughout, testing out-of-family topological transfer rather than agreement with field incident telemetry.
+We evaluated the framework on five open-source distributed systems transcribed from public repositories: Online Boutique, Train-Ticket, Home Assistant, Autoware Universe (ROS~2), and EdgeX Foundry. All carry labels from the same simulation oracles used throughout, testing out-of-family topological transfer against simulated reachability rather than agreement with field incident telemetry.
 
 Two evaluations are conducted. The first is an exploratory evaluation of the closed-form explanation layer $Q(v)$ against the composite oracle $I_{\text{comp}}(v)$ ($\rho = 0.514$–$0.800$); as noted in Section~\ref{sec:4.3}, $I_{\text{comp}}$'s four severity weights are unswept heuristics. The second, Section~\ref{sec:7.4.learned}, evaluates learned predictors zero-shot against $I^*(v)$ (where RM achieves a lower mean $\rho = 0.516$). \texttt{Topo-QoS} is scored here on the flow projection, for the reason given in Section~\ref{sec:8.4}. Standard middleware default contract profiles (e.g., ROS~2 Best-Effort/Reliable, MQTT QoS 0/1) were applied uniformly across edges lacking explicit manifests to ensure identical graph representations across baselines.
 
 \subsubsection{Zero-Shot Transfer of the Learned Model}
 \label{sec:7.4.learned}
 
-To assess generalization outside the generator, \texttt{HGT-QoS} was trained on all twelve synthetic scenarios and evaluated zero-shot across five open-source systems versus $I^*(v)$ (five seeds; evaluated in an exploratory 2-layer, 150-epoch configuration with within-graph rank normalization; no open-source graphs contributed training gradients or checkpoint selection). Table~\ref{tab:9b} reports the transfer performance, visually partitioned by communication paradigm into asynchronous pub-sub architectures and synchronous microservice call trees.
+To assess generalization outside the generator, \texttt{HGT-QoS} was trained on all twelve synthetic scenarios and evaluated zero-shot across five open-source systems versus $I^*(v)$ (five seeds; evaluated in an exploratory 2-layer, 150-epoch configuration with within-graph rank normalization to prevent over-smoothing across the smaller topological diameters of these transcribed meshes, where $|V_{\text{app}}| \le 41$; no open-source graphs contributed training gradients or checkpoint selection). Table~\ref{tab:9b} reports the transfer performance, visually partitioned by communication paradigm into asynchronous pub-sub architectures and synchronous microservice call trees.
 
 \begin{table}[htbp]
 \centering

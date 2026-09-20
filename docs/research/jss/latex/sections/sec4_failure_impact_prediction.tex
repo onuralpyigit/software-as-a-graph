@@ -31,14 +31,11 @@ Models are optimized end-to-end using AdamW with an initial learning rate of $\e
 
 From the final node embeddings $h_v^{(L)}$, SaG utilizes specialized multi-task prediction heads:
 
-\begin{itemize}
+\begin{itemize}\tightlist
     \item \textbf{Reliability Head:} $\hat{R}(v) = \sigma(\text{MLP}_R(h_v)) \in [0, 1]$
-
     \item \textbf{Maintainability Head:} $\hat{M}(v) = \sigma(\text{MLP}_M(h_v)) \in [0, 1]$
-
     \item \textbf{Composite Failure Impact Head:} $\hat{I}^*(v) = \sigma(\text{MLP}_C(h_v \parallel \hat{R}(v) \parallel \hat{M}(v))) \in [0, 1]$
-
-    \item \textbf{Relationship Criticality Head:} $\hat{Q}(u,v) = \sigma(\text{TypedEdgeEncoder}_{\phi(e)}(h_u, h_v, e_{uv})) \in [0, 1]$. This head is part of the released architecture but is \emph{disabled throughout the evaluation reported here}. Every harness that produces a number in this paper instantiates the model with edge prediction switched off, so $\hat{Q}(u,v)$ is neither trained nor scored, and the edge term is absent from the objective below. We describe it for completeness with the implementation and make no edge-level claim on its basis.
+    \item \textbf{Relationship Criticality Head:} $\hat{Q}(u,v) = \sigma(\text{TypedEdgeEncoder}_{\phi(e)}(h_u, h_v, e_{uv})) \in [0, 1]$. Disabled throughout the evaluation reported here; every harness instantiates the model with edge prediction switched off, so $\hat{Q}(u,v)$ is neither trained nor scored. Described for completeness.
 \end{itemize}
 
 \subsubsection{Dimension-Masked Loss Formulation}
@@ -92,7 +89,7 @@ To evaluate predictive accuracy before deployment without relying on production 
 
 \begin{table}[htbp]
 \centering
-\small
+\footnotesize
 \caption{Simulation oracles, operational constructs, and evaluation roles.}
 \label{tab:oracle_roles}
 \begin{tabular}{llll}
@@ -107,7 +104,7 @@ $I_M(v)$ & Reverse \texttt{DEPENDS\_ON} traversal & Deterministic & Unsupervised
 \end{tabular}
 \end{table}
 
-\begin{itemize}
+\begin{itemize}\tightlist
     \item \textbf{Cascade Reachability Oracle ($I^*(v)$)}, evaluated via discrete-event cascade fault injection: crashes component $v$, propagates outages across dependent topics, brokers, and links by breadth-first traversal, and returns the mean fractional feed loss over the subscriber population, each subscriber contributing the unweighted mean loss of the topics it subscribes to. A topic's feed loss is the fraction of its publishers that have failed (for a topic with no publisher, the fraction of its failed routers), scaled by a QoS ladder ($\times 1.2$ \texttt{RELIABLE}, $\times 1.15$ high/urgent priority, $\times 1.05$ medium) and clamped to $[0,1]$. The denominator is the full subscriber set of the intact graph, so subscribers that themselves fail are retained in the average rather than excluded. The implementation admits a per-publisher rate weighting, but rates are declared per topic throughout our corpus, so it reduces exactly to this publisher fraction. This is the \textbf{primary continuous target label} throughout.
 
     \emph{How much QoS is in this label.} The ladder reads reliability and transport priority only; durability does not enter $I^*$ at all, despite carrying the largest of the three QoS sub-weights in the framework's own elicited vector ($0.62$, against $0.24$ for reliability as well as $0.14$ for priority; Section~\ref{sec:3.2}). That omission does not limit the label's QoS content. Re-running the labeler with QoS scaling disabled entirely leaves the Application ordering very nearly intact --- mean Spearman $\rho = 0.965$ against the ladder across the twelve folds (range $0.891$--$0.999$) --- and substituting a durability-aware $w(t)$ scaling moves it less still ($\rho = 0.977$). Neither parameterization materially reorders the target. The top-$K$ critical set is the more sensitive construct: ladder and topology-only labels agree at mean Jaccard $0.678$, so QoS does change \emph{which} components are named critical without changing their order. $I^*$ should therefore be read as a near-topological target that carries a QoS term at its threshold boundaries rather than through its ranking, which bounds what any QoS-encoding result can be crediting (Section~\ref{sec:7.3.1}).
@@ -115,7 +112,7 @@ $I_M(v)$ & Reverse \texttt{DEPENDS\_ON} traversal & Deterministic & Unsupervised
     \item \textbf{Multi-Metric Composite Oracle ($I_{\text{comp}}(v)$)}, evaluated via multi-metric failure simulation: a severity-weighted mixture of reachability loss, fragmentation, throughput loss and flow disruption, with AHP-derived coefficients $(0.35, 0.25, 0.25, 0.15)$. Those coefficients come from a rank-one comparison matrix, so they record their origin without independently justifying them. They are not swept in our sensitivity analysis --- a gap worth naming because $I_{\text{comp}}$ supplies the labels for the explanation layer's evaluation. It is reserved for Validate-stage gates and prescriptive verification, never for forecasting ranking.
  
     \item \textbf{Dynamic Queue-Flow Oracle ($I_{\text{dyn}}(v)$)}, evaluated via discrete-event message-flow queue simulation (built on SimPy \cite{team2020simpy}): simulates emission rates, stochastic latencies, broker buffer saturation, and queue drops under fault injection, extracting the drop in delivered message rate to surviving consumers. To provide complete observability, the engine instruments Google Site Reliability Engineering (SRE)'s \emph{Four Golden Signals} (latency, traffic, errors, saturation) across pre- and post-fault execution windows:
-    \begin{enumerate}[(i)]
+    \begin{enumerate}[(i)]\tightlist
         \item \emph{Latency:} decomposes end-to-end traversal latency ($t_{\text{e2e}}$) into private queue waiting time ($t_{\text{wait}} = t_{\text{dequeue}} - t_{\text{created}}$) and compute service time ($t_{\text{service}} = t_{\text{delivery}} - t_{\text{dequeue}}$), profiling p50, p95, and p99 percentiles;
         \item \emph{Traffic:} monitors topic emission and subscriber delivery frequencies (Hz) alongside byte throughput (KB/s, Kbps);
         \item \emph{Errors:} accounts for QoS deadline violations, queue overflow discards, best-effort network drops, and unserved message demand;
@@ -143,6 +140,6 @@ To prevent data leakage, SaG applies strict architectural separation. Feature Sp
 
 The separation rules out circular feature construction: no predictor can read a transformation of the quantity it is scored against. It does not establish probabilistic independence between features and labels, and we do not claim it does. $G_{\text{analysis}}$ is a deterministic projection of $G_{\text{structural}}$ (Section~\ref{sec:3.2}). Hence, the labels are --- up to the simulator seed --- a deterministic function of the same topology from which the features are computed. Two consequences follow, and both bound the results of Section~\ref{sec:7}.
 
-First, $I^*(v)$ is a topological functional, defined as a breadth-first reachability computation over $G_{\text{structural}}$ scaled by a QoS ladder. The predictive task is therefore to recover a closed-form graph function from features derived from the same graph. As a result, an unparameterized centrality score is expected to perform competitively with a trained model (Section~\ref{sec:7.1}). The observed parity is an anticipated outcome of the experimental design rather than an unexpected limitation of graph learning. We state this explicitly to guarantee clarity.
+First, $I^*(v)$ is a topological functional, defined as a breadth-first reachability computation over $G_{\text{structural}}$ scaled by a QoS ladder. The predictive task is therefore to recover a closed-form graph function from features derived from the same graph. Because the 18-dimensional feature block provides pre-computed global centrality indicators, the GNN's role is synthesizing these positional and structural cues across heterogeneous relations rather than discovering global topology from scratch. As a result, an unparameterized centrality score is expected to perform competitively with a trained model (Section~\ref{sec:7.1}). The observed parity is an anticipated outcome of the experimental design rather than an unexpected limitation of graph learning. We state this explicitly to guarantee clarity.
 
 Second, and more restrictively, no result in this paper is validated against an observed failure. Every label --- on synthetic topologies and on the five open-source systems alike --- is simulator-derived. The evaluation can establish whether a learned model recovers a simulator's ordering on architectures it was not trained on. Whether that ordering corresponds to which components actually fail in production is a question this design cannot answer, and Section~\ref{sec:8.3} treats it as the study's principal construct-validity threat.

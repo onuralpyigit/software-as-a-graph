@@ -17,18 +17,13 @@ $$\tag{1}
 
 where:
 
--   $V$ is the set of system entities, partitioned into five disjoint categories $\mathcal{T}_V = \{\text{app}, \text{broker}, \text{topic}, \text{host}, \text{lib}\}$ such that $V = \bigcup_{t \in \mathcal{T}_V} V_t$:
-
-    $$\tag{2}
-    V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\text{host}} \cup V_{\text{lib}}$$
-
-    To prevent conflation of graph vertices with physical compute machines, $V_{\text{host}}$ is designated as *Execution Hosts* (physical hosts or virtualized execution nodes).
+-   $V$ is the set of system entities, partitioned into five disjoint categories $\mathcal{T}_V = \{\text{app}, \text{broker}, \text{topic}, \text{host}, \text{lib}\}$ such that $V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\text{host}} \cup V_{\text{lib}}$. To prevent conflation with physical compute machines, $V_{\text{host}}$ is designated as *Execution Hosts* (physical hosts or virtualized nodes).
 
 -   $E$ is the set of directed edges connecting entities.
 
 -   $\tau_V: V \to \mathcal{T}_V$ and $\tau_E: E \to \mathcal{T}_E$ are typing functions assigning entity and relationship categories.
 
--   $w_V: V \to (0, 1]$ and $w_E: E \to (0, 1]$ are weighting functions representing entity criticality and connection strength. For applications and shared libraries, $w_V(v)$ is initialized from static code metrics as $w_V(v) = 1 - \text{CQP}(v)$ (where $\text{CQP}$ denotes the Code Quality Penalty, §3.4). It defaults to $1.0$ when static code metrics are absent or for infrastructure entities ($w_V(\text{host}) = 1.0$).
+-   $w_V: V \to (0, 1]$ and $w_E: E \to (0, 1]$ are weighting functions representing entity criticality and connection strength. For applications and shared libraries, $w_V(v)$ is initialized from static code metrics as $w_V(v) = 1 - \text{CQP}(v)$ (§3.4). It defaults to $1.0$ when static code metrics are absent or for infrastructure entities ($w_V(\text{host}) = 1.0$).
 
 Table 1 summarizes the five entity types and six structural edge types defined in the SaG model, together with their semantics and representative distributed-system implementations.
 
@@ -67,13 +62,11 @@ In distributed middleware, communication links differ in strength according to t
 
 Each topic $t$ carries an intrinsic criticality weight $w(t) \in (0, 1]$ combining its declared QoS semantics with two runtime-stress modulators: payload size and publication frequency:
 
-$$\tag{3}
+$$\tag{2}
 w(t) = \alpha_{\text{top}} \cdot \text{QoS}(t) + \beta_{\text{top}} \cdot \text{SizeNorm}(t) + \gamma_{\text{top}} \cdot \text{FreqNorm}(t),
-\quad (\alpha_{\text{top}},\, \beta_{\text{top}},\, \gamma_{\text{top}}) = (0.75,\, 0.15,\, 0.10)$$
+\quad (\alpha_{\text{top}},\, \beta_{\text{top}},\, \gamma_{\text{top}}) = (0.75,\, 0.15,\, 0.10)$$ where $(\alpha_{\text{top}}, \beta_{\text{top}}, \gamma_{\text{top}})$ is a convex combination satisfying $\alpha_{\text{top}} + \beta_{\text{top}} + \gamma_{\text{top}} = 1.0$. The QoS term is an AHP-weighted aggregate of the declared contract:
 
-where the QoS term is an AHP-weighted aggregate of the declared contract:
-
-$$\tag{4}
+$$\tag{3}
 \text{QoS}(t) = w_{\text{rel}} \cdot q_{\text{rel}} + w_{\text{dur}} \cdot q_{\text{dur}} + w_{\text{prio}} \cdot q_{\text{prio}},
 \quad (w_{\text{rel}}, w_{\text{dur}}, w_{\text{prio}}) = (0.24,\, 0.62,\, 0.14)$$
 
@@ -81,7 +74,7 @@ Here, $q_{\text{rel}}, q_{\text{dur}}, q_{\text{prio}} \in [0, 1]$ represent nor
 
 The modulators $\text{SizeNorm}(t)$ and $\text{FreqNorm}(t)$ are logarithmically compressed and clamped to $[0, 1]$:
 
-$$\tag{5}
+$$\tag{4}
 \text{SizeNorm}(t) = \min\left(1.0, \frac{\log_2(1 + B(t))}{20}\right), \quad
 \text{FreqNorm}(t) = \min\left(1.0, \frac{\log_{10}(1 + F(t))}{3}\right)$$
 
@@ -126,4 +119,4 @@ $G_{\text{analysis}}$ is further organized into four analytical layers (Applicat
 
 Within the SaG architecture, both the predictive pathway (§4) and the explanation layer (§5) utilize the same unified typed node properties from $G_{\text{analysis}}$. The predictive pathway projects these properties per entity type before heterogeneous message passing, while the explanation layer aggregates them into its quality profile. All five entity types share indices 0–17, an 18-dimensional block of topological metrics. The block comprises PageRank (0), reverse PageRank (1), betweenness centrality (2), closeness centrality (3), eigenvector centrality (4), in-degree and out-degree centralities (5–6), clustering coefficient (7), undirected articulation score (8), bridge ratio (9), total, in-bound, and out-bound QoS weights (10–12), multi-path connectivity index (13), path complexity (14), fan-out criticality (15), directed articulation score (16), and the Connectivity Degradation Index (CDI, index 17). CDI is the single most expensive metric in the block and dominates the deterministic analysis cost characterized in §7.5. Because it is a predictor input and not only a term of the Availability score (§5.2), it cannot be gated away without changing both pathways. The deterministic analysis stage produces these metrics, and § 7.5 describes its computationally demanding cost. All topological metrics in this block are normalized to $[0, 1]$ within each graph: degrees are normalized by $|V|-1$, betweenness and closeness follow standard network formulations, and reverse PageRank is normalized to unit sum. This normalization prevents raw graph size and component counts from controlling multi-layer perceptron projections during cross-scenario inductive transfer. Type-specific blocks extend the feature set to between 19 and 25 dimensions. These add source-code metrics and the Code Quality Penalty for Applications, two reverse-`USES` blast-radius drivers for Libraries, queue capacity for Brokers, publisher/subscriber counts and ordinal QoS criticality for Topics, and CPU and memory allocation for Execution Hosts ($V_{\text{host}}$).
 
-The shared block includes the graph composition, which is relevant to understanding §7: betweenness, closeness, reverse PageRank, and articulation score are topological summaries computed before model evaluation. Consequently, a learned model is not the only way to derive a criticality score from structure, which ensures that the closed-form baselines serve as fair comparators rather than strawman alternatives.
+The shared block provides the GNN with global structural and positional context—analogous to positional and structural encodings in Graph Transformers—enabling relational message passing to modulate multi-hop representations based on global network role rather than local immediate adjacency alone. Crucially, because betweenness, closeness, reverse PageRank, and articulation scores are topological summaries computed before model evaluation, a learned model is not the only way to derive a criticality score from structure. This design guarantees that the closed-form baselines serve as fair, competitive comparators rather than strawman alternatives, while making deterministic feature extraction the dominant computational bottleneck ($O(|V|^2 + |V||E|)$) analyzed in §7.5.
