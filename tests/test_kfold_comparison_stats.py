@@ -102,7 +102,42 @@ def test_build_comparison_table_paired_delta_replaces_pooled_mean_diff():
     paired = table["hgl_qos"]["paired_delta_vs_baseline"]["topo_qos"]
     assert paired["mean_delta"] == pytest.approx(0.1)
     assert paired["n_paired_scenarios"] == 2
-    assert table["hgl_qos"]["delta_vs_best_baseline"] == pytest.approx(0.1)
+    assert table["hgl_qos"]["delta_vs_baseline"] == pytest.approx(0.1)
+    assert table["hgl_qos"]["delta_baseline"] == "topo_qos"
+
+
+def test_delta_is_measured_against_the_preregistered_baseline_not_the_best_row():
+    """The k-fold twin of the LOSO defect.
+
+    ``hgl_qos`` (0.60) trails ``gl_qos`` (0.70) and leads ``topo_qos`` (0.50),
+    so a max-over-rows comparator reports -0.10 where the pre-registered one
+    reports +0.10. That sign flip is the defect this pins.
+    """
+    results_by_variant = {
+        "hgl_qos":  _fake_variant_result({"atm_system": 0.5, "av_system": 0.7}),
+        "gl_qos":   _fake_variant_result({"atm_system": 0.6, "av_system": 0.8}),
+        "topo_qos": _fake_variant_result({"atm_system": 0.4, "av_system": 0.6}),
+    }
+    table = _build_comparison_table(results_by_variant)
+
+    assert table["hgl_qos"]["delta_vs_baseline"] == pytest.approx(0.1)
+    # Every variant gets a delta against the same reference, so a row that loses
+    # to the training-free baseline is in the table rather than inferred.
+    assert table["gl_qos"]["delta_vs_baseline"] == pytest.approx(0.2)
+    assert "delta_vs_baseline" not in table["topo_qos"]
+    # The interval comes from the harness's own paired deltas, no separate
+    # significance artifact needed.
+    assert len(table["hgl_qos"]["delta_vs_baseline_ci95"]) == 2
+    assert table["hgl_qos"]["delta_n_scenarios"] == 2
+
+
+def test_kfold_and_loso_share_one_comparator():
+    """One name, three harnesses. Drifting them apart is how the defect got in."""
+    from reproduce.loso_all_variants import PREREGISTERED_BASELINE as loso_baseline
+    from reproduce.loso_significance import BASELINE as significance_baseline
+    from reproduce.kfold_all_variants import PREREGISTERED_BASELINE as kfold_baseline
+
+    assert kfold_baseline == loso_baseline == significance_baseline
 
 
 def test_build_comparison_table_single_scenario_atm_only():

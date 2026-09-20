@@ -28,9 +28,12 @@ obtained by exhaustive single-component removal. This is the oracle the
 Validate-stage gates and the prescriptive acceptance criterion already run on, so
 detection and remediation are scored against the same yardstick.
 
-``I_comp`` is *not* ``I*`` (``FaultInjector``), and the two agree only moderately
-— mean Spearman rho 0.4046 in ``results/convergent_validity.json``. A number
-produced here is therefore not evidence for a claim measured against ``I*``.
+``I_comp`` is *not* ``I*`` (``FaultInjector``), and the two agree only moderately.
+The current figure is read from ``results/convergent_validity.json`` at write time
+and copied into the artifact's ``note`` — it was previously hardcoded here as
+0.4046 and went stale silently, matching no convergent-validity artifact under
+any version (the run on the present corpus reports a different value). A number
+produced here is not evidence for a claim measured against ``I*``.
 
 Three predictors are scored against that oracle on the same node set:
 
@@ -438,6 +441,32 @@ def evaluate(
 # Aggregation and CLI
 # =============================================================================
 
+def _icomp_istar_agreement() -> str:
+    """How far I_comp and I* agree, read from the artifact that measures it.
+
+    This sentence used to carry a literal 0.4046. That number matched no
+    convergent-validity artifact on disk under any version — the figure moved
+    when the oracle was recalibrated and the string did not, so every detection
+    artifact shipped a cross-reference to a measurement that no longer existed.
+    Reading it costs one file open and cannot go stale; when the artifact is
+    absent the sentence says so rather than inventing a value.
+    """
+    path = RESULTS_DIR / "convergent_validity.json"
+    try:
+        summary = json.loads(path.read_text())["summary"]["i_comp__i_star"]
+        rho = summary["mean_spearman_rho"]
+        n = summary.get("n_scenarios_measured")
+    except (OSError, ValueError, KeyError, TypeError):
+        return ("agreement between I_comp and I* is unmeasured here "
+                "(results/convergent_validity.json absent or unreadable)")
+    if rho is None:
+        return ("agreement between I_comp and I* is unmeasured in "
+                "results/convergent_validity.json")
+    scope = f" over {n} scenarios" if n else ""
+    return (f"I_comp and I* agree at mean rho {rho:.4f}{scope} "
+            "(results/convergent_validity.json)")
+
+
 def _summarize(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Cross-scenario means, plus the size split the 'improves at scale' claim needs."""
     scored = [r for r in rows if "predictors" in r]
@@ -631,9 +660,8 @@ def main():
         "note": (
             "All metrics are rank-based and therefore invariant to the monotone "
             "robust_sigmoid rescaling ValidationService applies internally. Scored "
-            "against I_comp only; I_comp and I* agree at mean rho 0.4046 "
-            "(results/convergent_validity.json), so these figures do not transfer to "
-            "claims measured against I*."
+            f"against I_comp only; {_icomp_istar_agreement()}, so these figures do "
+            "not transfer to claims measured against I*."
         ),
     }
 

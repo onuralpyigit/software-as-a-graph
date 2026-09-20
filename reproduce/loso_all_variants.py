@@ -60,10 +60,10 @@ CONTROL_VARIANTS = [
     # same folds, and only meaningful paired against the GNNs it is compared to.
     "tab_gbm",
 ]
-#: The comparator every reported Δρ is measured against. One name, shared with
-#: reproduce/loso_significance.py's BASELINE, because a table and the test that
-#: licenses it must not quietly use different reference points.
-PREREGISTERED_BASELINE = "topo_qos"
+#: The comparator every reported Δρ is measured against, re-exported from the
+#: registry that owns it so this harness, the k-fold harness, the significance
+#: tests and the renderer cannot drift apart.
+PREREGISTERED_BASELINE = _registry.PREREGISTERED_BASELINE
 
 #: Dispatch order, measured rather than assumed (one 12-fold x 5-seed sweep on a
 #: Tesla T4: hgl 12635 s, gl_qos 5096 s, gl 3432 s, topology_rm 214 s, topo_qos

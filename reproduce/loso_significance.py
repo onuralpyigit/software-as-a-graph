@@ -42,7 +42,7 @@ if __name__ == "__main__" and __package__ is None:
 
 from saag.evaluation import variant_registry as _registry
 
-BASELINE = "topo_qos"
+BASELINE = _registry.PREREGISTERED_BASELINE
 PRIMARY = ("hgl_qos", BASELINE)
 SECONDARY = ("hgl", BASELINE)
 

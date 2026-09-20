@@ -733,10 +733,8 @@ def print_id_metrics_console(data: Dict):
 
 # ── Table 4: LOSO results (4 variants) ───────────────────────────────────────
 
-#: The comparator every LOSO Δρ is measured against, matching
-#: reproduce/loso_significance.py's BASELINE and loso_all_variants.py's
-#: PREREGISTERED_BASELINE.
-_LOSO_DELTA_BASELINE = "topo_qos"
+#: The comparator every Δρ is measured against, from the registry that owns it.
+_LOSO_DELTA_BASELINE = _registry.PREREGISTERED_BASELINE
 
 
 def _loso_contrasts(sig_data: Optional[Dict]) -> Dict[str, Dict]:
@@ -781,6 +779,39 @@ def _delta_cell(var: str, row: Dict, contrasts: Dict[str, Dict], latex: bool) ->
     cell = f"+{delta:.4f}" if delta > 0 else f"{delta:.4f}"
     ci = contrast.get("ci95")
     if ci and len(ci) == 2:
+        lo, hi = ci
+        cell += (rf" $[{lo:+.3f}, {hi:+.3f}]$" if latex else f" [{lo:+.3f}, {hi:+.3f}]")
+    return cell
+
+
+def _kfold_best_variant(table: Dict) -> Optional[str]:
+    """The variant that actually wins on mean rho.
+
+    The k-fold captions promise "best per row" while both renderers bolded
+    ``hgl_qos`` unconditionally, so a table in which a baseline outscored the
+    proposed model would have said the opposite of what it showed. Table 4's
+    renderer already picks the winner rather than assuming it.
+    """
+    candidates = [v for v in _VARIANT_ORDER
+                  if v in table and table[v].get("mean_rho") is not None]
+    return max(candidates, key=lambda v: table[v]["mean_rho"], default=None)
+
+
+def _kfold_delta_cell(var: str, row: Dict, latex: bool) -> str:
+    """One k-fold Δρ cell: the paired mean against the pre-registered baseline.
+
+    The k-fold harness pairs by scenario and stores the interval alongside the
+    mean (``_paired_deltas``), so unlike Table 4 this cell needs no separate
+    significance artifact to show one.
+    """
+    if var == _LOSO_DELTA_BASELINE:
+        return "—"
+    delta = row.get("delta_vs_baseline")
+    if delta is None:
+        return "—"
+    cell = f"+{delta:.4f}" if delta > 0 else f"{delta:.4f}"
+    ci = row.get("delta_vs_baseline_ci95")
+    if ci and len(ci) == 2 and all(c is not None for c in ci):
         lo, hi = ci
         cell += (rf" $[{lo:+.3f}, {hi:+.3f}]$" if latex else f" [{lo:+.3f}, {hi:+.3f}]")
     return cell
@@ -1023,7 +1054,7 @@ def render_table4kfold_tex(kfold_data: Dict, output: Path):
         r"\label{tab:kfold_results}",
         r"\begin{tabular}{lcccc}",
         r"\toprule",
-        r"Variant & Mean $\rho$ & Std $\rho$ & Mean F1@K & $\Delta\rho$ vs best baseline \\",
+        r"Variant & Mean $\rho$ & Std $\rho$ & Mean F1@K & $\Delta\rho$ vs \texttt{Topo-QoS} (95\% CI) \\",
         r"\midrule",
     ]
 
@@ -1035,14 +1066,13 @@ def render_table4kfold_tex(kfold_data: Dict, output: Path):
         mean_r = r.get("mean_rho")
         std_r  = r.get("std_rho")
         f1     = r.get("mean_f1")
-        delta  = r.get("delta_vs_best_baseline")
 
         mean_s  = f"{mean_r:.4f}" if mean_r is not None else "—"
         std_s   = f"{std_r:.4f}" if std_r is not None else "—"
         f1_s    = f"{f1:.4f}" if f1 is not None else "—"
-        delta_s = (f"+{delta:.4f}" if delta > 0 else f"{delta:.4f}") if delta is not None else "—"
+        delta_s = _kfold_delta_cell(var, r, latex=True)
 
-        if var == "hgl_qos":
+        if var == _kfold_best_variant(table):
             mean_s = rf"\textbf{{{mean_s}}}"
         lines.append(rf"{label} & {mean_s} & {std_s} & {f1_s} & {delta_s} \\")
 
@@ -1059,7 +1089,7 @@ def render_table4kfold_tex(kfold_data: Dict, output: Path):
 def render_table4kfold_md(kfold_data: Dict, output: Path):
     table = kfold_data.get("comparison_table", {})
     rows = [
-        "| Variant | Mean ρ | Std ρ | F1@K | Δρ vs best baseline |",
+        f"| Variant | Mean ρ | Std ρ | F1@K | Δρ vs {_NATIVE_VARIANT_LABELS_PLAIN.get(_LOSO_DELTA_BASELINE, _LOSO_DELTA_BASELINE)} (95% CI) |",
         "|---|---|---|---|---|",
     ]
     for var in _VARIANT_ORDER:
@@ -1070,14 +1100,13 @@ def render_table4kfold_md(kfold_data: Dict, output: Path):
         mean_r = r.get("mean_rho")
         std_r  = r.get("std_rho")
         f1     = r.get("mean_f1")
-        delta  = r.get("delta_vs_best_baseline")
 
         mean_s  = f"{mean_r:.4f}" if mean_r is not None else "—"
         std_s   = f"{std_r:.4f}" if std_r is not None else "—"
         f1_s    = f"{f1:.4f}" if f1 is not None else "—"
-        delta_s = (f"+{delta:.4f}" if delta and delta > 0 else f"{delta:.4f}") if delta is not None else "—"
+        delta_s = _kfold_delta_cell(var, r, latex=False)
 
-        if var == "hgl_qos":
+        if var == _kfold_best_variant(table):
             mean_s = f"**{mean_s}**"
         rows.append(f"| {label} | {mean_s} | {std_s} | {f1_s} | {delta_s} |")
 
@@ -1232,8 +1261,10 @@ def main():
                 render_table4kfold_md(kfold_data, out / "table4_kfold_results.md")
         table = kfold_data.get("comparison_table", {})
         print("\n  Per-Domain K-Fold Results")
-        print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'Δρ vs best baseline'}")
-        print("  " + "─" * 55)
+        baseline_label = _NATIVE_VARIANT_LABELS_PLAIN.get(
+            _LOSO_DELTA_BASELINE, _LOSO_DELTA_BASELINE)
+        print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'Δρ vs ' + baseline_label}")
+        print("  " + "─" * 70)
         for var in _VARIANT_ORDER:
             if var not in table:
                 continue
@@ -1241,10 +1272,9 @@ def main():
             label = _NATIVE_VARIANT_LABELS_PLAIN.get(var, var)
             mean_r = r.get("mean_rho")
             std_r  = r.get("std_rho")
-            delta  = r.get("delta_vs_best_baseline")
             mean_s  = f"{mean_r:.4f}" if mean_r is not None else "—"
             std_s   = f"{std_r:.4f}" if std_r is not None else "—"
-            delta_s = (f"+{delta:.4f}" if delta and delta > 0 else f"{delta:.4f}") if delta is not None else "—"
+            delta_s = _kfold_delta_cell(var, r, latex=False)
             print(f"  {label:<25} {mean_s:<10} {std_s:<10} {delta_s}")
     else:
         print(f"\n  [K-Fold] Not found: {args.table_kfold}")

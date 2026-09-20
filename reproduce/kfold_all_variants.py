@@ -45,6 +45,10 @@ from saag.evaluation import variant_registry as _registry
 # Structural baselines first: training-free, so their score is the bar a
 # learned variant must clear to justify being trained at all.
 ALL_VARIANTS = ["topo_baseline", "topo_qos", "topology_rm", "gl", "gl_qos", "hgl", "hgl_qos"]
+#: The comparator every reported Δρ is measured against, re-exported from the
+#: registry that owns it so this harness, the LOSO harness, the significance
+#: tests and the renderer cannot drift apart.
+PREREGISTERED_BASELINE = _registry.PREREGISTERED_BASELINE
 #: RQ2 confound controls (Section 7.2). Held apart from ALL_VARIANTS so a plain
 #: sweep still produces exactly the manuscript's variant set; pass them
 #: explicitly via --variants to run the controls. They must be run in the SAME
@@ -227,9 +231,9 @@ def _build_comparison_table(
             ],
         }
 
-    # Paired per-scenario delta (hgl_qos vs each baseline), replacing the
-    # single difference-of-pooled-means figure: pairing by scenario controls
-    # for scenario difficulty instead of comparing two independent spreads.
+    # Paired per-scenario delta, replacing the single difference-of-pooled-means
+    # figure: pairing by scenario controls for scenario difficulty instead of
+    # comparing two independent spreads.
     if "hgl_qos" in table:
         hq_by_scenario = rho_by_scenario_by_variant.get("hgl_qos", {})
         deltas_vs_baseline = {}
@@ -241,15 +245,30 @@ def _build_comparison_table(
                 deltas_vs_baseline[variant] = paired
         table["hgl_qos"]["paired_delta_vs_baseline"] = deltas_vs_baseline
 
-        best_baseline_variant = max(
-            deltas_vs_baseline,
-            key=lambda v: table[v].get("mean_rho") or float("-inf"),
-            default=None,
-        )
-        if best_baseline_variant is not None:
-            table["hgl_qos"]["delta_vs_best_baseline"] = (
-                deltas_vs_baseline[best_baseline_variant]["mean_delta"]
-            )
+    # Δρ against the *pre-registered* comparator, for every variant.
+    #
+    # This replaces "delta_vs_best_baseline", which was `max` over every other
+    # row — including the learned ones. On the LOSO artifact the same expression
+    # selected GAT-N-QoS and rendered HGT-QoS's margin as +0.0346 under a column
+    # heading that says "baseline"; the pre-registered contrast against Topo-QoS
+    # is +0.0851 with an interval that includes zero. Reporting it for every
+    # variant rather than only for hgl_qos also puts the rows that *lose* to the
+    # training-free baseline in the table instead of leaving them to be inferred.
+    #
+    # _paired_deltas already carries the interval, so unlike the LOSO harness
+    # this one needs no separate significance artifact to render a CI.
+    baseline_by_scenario = rho_by_scenario_by_variant.get(PREREGISTERED_BASELINE, {})
+    for variant, row in table.items():
+        if variant == PREREGISTERED_BASELINE or not baseline_by_scenario:
+            continue
+        paired = _paired_deltas(
+            rho_by_scenario_by_variant.get(variant, {}), baseline_by_scenario)
+        if paired is None:
+            continue
+        row["delta_vs_baseline"] = paired["mean_delta"]
+        row["delta_vs_baseline_ci95"] = paired["ci_95"]
+        row["delta_baseline"] = PREREGISTERED_BASELINE
+        row["delta_n_scenarios"] = paired["n_paired_scenarios"]
 
     return table
 
@@ -257,7 +276,8 @@ def _build_comparison_table(
 def _print_comparison_table(table: Dict):
     print("\n  ═══════════════════════════════════════════════════════════════")
     print(f"  Table: Per-Domain K-Fold In-Domain Evaluation — 5 Variants")
-    print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'F1@K':<8} {'Δρ vs best BL'}")
+    print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'F1@K':<8} "
+          f"{'Δρ vs ' + PREREGISTERED_BASELINE}")
     print("  " + "─" * 65)
     order = [v for v in ALL_VARIANTS if v in table]
     for variant in order:
@@ -267,7 +287,7 @@ def _print_comparison_table(table: Dict):
         rho  = f"{r.get('mean_rho', 0):.4f}" if r.get('mean_rho') is not None else "—"
         std  = f"{r.get('std_rho', 0):.4f}" if r.get('std_rho') is not None else "—"
         f1   = f"{r.get('mean_f1', 0):.4f}" if r.get('mean_f1') is not None else "—"
-        delta = r.get("delta_vs_best_baseline")
+        delta = r.get("delta_vs_baseline")
         delta_s = f"{delta:+.4f}" if delta is not None else "—"
         label = r.get("label", variant)
         print(f"  {label:<25} {rho:<10} {std:<10} {f1:<8} {delta_s}")
