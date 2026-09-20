@@ -203,12 +203,18 @@ RQ5 quantifies computing overhead and sustainability during CI/CD evaluation, wi
 
 **Table 11.** Per-stage latency of the inference pipeline across scaling graph sizes (CPU, median of 3 runs; 5 for the forward pass). The analysis stage is stable across repeats (p10–p90 within $1\%$ of the median everywhere) while the forward pass is not, which is why its column carries a spread: at $56\,\text{ms}$ the measurement is dominated by interpreter and dispatch overhead rather than by the graph.
 
-| **$|V|$** | **$|E|$** | **Analyze (s)** | **Graph $\to$ Tensor (s)** | **HGT Forward (ms)** | **Analyze : Forward** | **Forward p10–p90** |
-|:---------:|:---------:|:---------------:|:--------------------------:|:--------------------:|:---------------------:|:-------------------:|
-|    249    |   1,127   |      1.74       |           0.010            |         26.5         |          66×          |      13.0–34.4      |
-|    499    |   2,402   |      8.32       |           0.022            |         16.4         |         509×          |      15.6–16.4      |
-|    999    |   6,422   |      44.54      |           0.056            |         21.1         |        2,108×         |      19.1–36.5      |
-|   1,998   |  19,301   |     239.34      |           0.157            |         56.2         |      **4,259×**       |      43.8–57.8      |
+|              |           |        |       |      |            |           |
+|:------------:|:---------:|:------:|:-----:|:----:|:----------:|:---------:|
+|  **$|V|$**   | **$|E|$** |        |       |      |            |           |
+|    \(s\)     |           |        |       |      |            |           |
+|  Tensor (s)  |           |        |       |      |            |           |
+| Forward (ms) |           |        |       |      |            |           |
+|   Forward    |           |        |       |      |            |           |
+| p10–p90 (ms) |           |        |       |      |            |           |
+|     249      |   1,127   |  1.74  | 0.010 | 26.5 |    66×     | 13.0–34.4 |
+|     499      |   2,402   |  8.32  | 0.022 | 16.4 |    509×    | 15.6–16.4 |
+|     999      |   6,422   | 44.54  | 0.056 | 21.1 |   2,108×   | 19.1–36.5 |
+|    1,998     |  19,301   | 239.34 | 0.157 | 56.2 | **4,259×** | 43.8–57.8 |
 
 The neural stage is the cheapest by a wide margin and the deterministic one is not. At 2,000 components the HGT forward pass takes $56\,\text{ms}$ against $239\,\text{s}$ for structural analysis, a ratio of $4{,}259\times$ — but that is a ratio between pipeline stages, not a cost of evaluation, because indices 0–17 of every node feature vector are produced by the analysis stage the forward pass depends on. End-to-end evaluation of an unseen 2,000-component architecture takes about four minutes, of which the learned model is $0.02\%$; the $56\,\text{ms}$ is the marginal cost of re-scoring an already-analysed graph. Across the corpus the complete gate (structural analysis plus 18 anti-pattern detectors, whose share is $\le 0.19\,\text{s}$) executes in $0.16$–$79.3\,\text{s}$ (Table 12).
 

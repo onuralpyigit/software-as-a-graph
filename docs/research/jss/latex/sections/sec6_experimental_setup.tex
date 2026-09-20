@@ -29,7 +29,7 @@ Synthetic case study — ATM (1)    &    74 &    26 &  27 &  5 &   8 &   8 &   2
 \subsubsection{Reproducibility of the Corpus}
 \label{sec:6.1.repro}
 
-The benchmark corpus is designed to be fully regenerable rather than statically archived. Each dataset is deterministically generated from its configuration file via \path{python cli/generate_graph.py batch --input-dir data/scenarios --output-dir <path>}. A companion manifest records the random seed, entity counts, git commit hash, and a SHA-256 cryptographic digest for each emitted topology. Continuous integration regression tests verify that every committed dataset regenerates byte-identically from its configuration and that all disk digests match the manifest. This procedure makes sure that third parties can reproduce the exact graphs used in these experiments, rather than sampling from similar distributions.
+The benchmark corpus is designed to be fully regenerable rather than statically archived. Each dataset is deterministically generated from its configuration file via \texttt{python cli/generate\_graph.py batch} \texttt{--input-dir data/scenarios} \texttt{--output-dir <path>}. A companion manifest records the random seed, entity counts, git commit hash, and a SHA-256 cryptographic digest for each emitted topology. Continuous integration regression tests verify that every committed dataset regenerates byte-identically from its configuration and that all disk digests match the manifest. This procedure makes sure that third parties can reproduce the exact graphs used in these experiments, rather than sampling from similar distributions.
 
 \subsection{Baselines and Evaluated Predictors}
 \label{sec:6.2}

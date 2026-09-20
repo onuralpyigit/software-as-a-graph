@@ -192,7 +192,8 @@ To assess generalization outside the generator, \texttt{HGT-QoS} was trained on 
 
 \begin{table}[htbp]
 \centering
-\small
+\footnotesize
+\setlength{\tabcolsep}{4.5pt}
 \caption{Zero-shot out-of-family transfer to five transcribed open-source systems, scored against $I^*(v)$ on the Application population under the protocol used throughout this paper (3 layers, 300 epochs; five seeds, $\pm$ = spread over seeds). No open-source graph contributed gradients or checkpoint selection. Training-free references are deterministic and are scored on identical labels, populations and node sets. Systems are grouped by communication paradigm: active-stratum correlation $\rho_{>0}$ is positive on all three asynchronous pub-sub systems and non-positive on both synchronous call trees. Where a system declares no explicit QoS manifest, default middleware contract profiles (ROS~2 Best-Effort/Reliable, MQTT QoS 0/1) are applied uniformly across baselines. Identification metrics for the same runs are in Supplementary Table~S13.}
 \label{tab:9b}
 \begin{tabular}{lrrrrrcr}
@@ -252,12 +253,13 @@ RQ5 quantifies computing overhead and sustainability during CI/CD evaluation, wi
 
 \begin{table}[htbp]
 \centering
-\small
+\footnotesize
+\setlength{\tabcolsep}{3pt}
 \caption{Per-stage latency of the inference pipeline across scaling graph sizes (CPU, median of 3 runs; 5 for the forward pass). The analysis stage is stable across repeats (p10--p90 within $1\%$ of the median everywhere) while the forward pass is not, which is why its column carries a spread: at $56\,\text{ms}$ the measurement is dominated by interpreter and dispatch overhead rather than by the graph.}
 \label{tab:scale}
 \begin{tabular}{ccccccc}
 \toprule
-\textbf{$|V|$} & \textbf{$|E|$} & \textbf{Analyze (s)} & \textbf{Graph $\to$ Tensor (s)} & \textbf{HGT Forward (ms)} & \textbf{Analyze : Forward} & \textbf{Forward p10--p90} \\
+\textbf{$|V|$} & \textbf{$|E|$} & \textbf{\shortstack{Analyze\\(s)}} & \textbf{\shortstack{Graph $\to$\\Tensor (s)}} & \textbf{\shortstack{HGT\\Forward (ms)}} & \textbf{\shortstack{Analyze :\\Forward}} & \textbf{\shortstack{Forward\\p10--p90 (ms)}} \\
 \midrule
 249   & 1{,}127  & 1.74   & 0.010 & 26.5 & 66× & 13.0--34.4 \\
 499   & 2{,}402  & 8.32   & 0.022 & 16.4 & 509× & 15.6--16.4 \\
