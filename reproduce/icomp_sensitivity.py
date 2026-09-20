@@ -35,7 +35,7 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from scipy.stats import spearmanr
@@ -49,16 +49,12 @@ RESULTS_DIR = Path("results")
 CACHE_FILE = RESULTS_DIR / "icomp_scenario_cache.json"
 OUTPUT_FILE = RESULTS_DIR / "icomp_sensitivity.json"
 
-DETECTION_SCENARIOS = [
-    "av_system",
-    "iot_smart_city_system",
-    "financial_trading_system",
-    "healthcare_system",
-    "hub_and_spoke_system",
-    "microservices_system",
-    "enterprise_system",
-    "tiny_system",
-]
+#: The scenario suite, imported rather than restated. This file used to carry
+#: its own copy of the eight-scenario AuSE list, and the duplicate is what let
+#: the two drift: Supplementary S1.2 described a corpus that Section 7.3 no
+#: longer used, including a 17-component regression fixture absent from every
+#: other table in the manuscript. One definition, selected by ``--scenarios``.
+from reproduce.detection_validation import DETECTION_SCENARIOS  # noqa: E402
 
 SHIPPED_WEIGHTS = {
     "reachability": 0.35,
@@ -126,25 +122,45 @@ def extract_scenario_data(scenario: str) -> Dict[str, Any]:
     }
 
 
-def build_or_load_cache(force_refresh: bool = False) -> List[Dict[str, Any]]:
-    """Build or load the scenario cache."""
-    if CACHE_FILE.exists() and not force_refresh:
-        logger.info(f"Loading cached scenario data from {CACHE_FILE}")
-        with open(CACHE_FILE, "r", encoding="utf8") as f:
-            return json.load(f)
+def build_or_load_cache(
+    force_refresh: bool = False,
+    scenarios: Optional[List[str]] = None,
+    cache_file: Optional[Path] = None,
+) -> List[Dict[str, Any]]:
+    """Build or load the per-scenario severity-component cache.
 
-    logger.info("Building scenario cache across 8 detection topologies...")
+    The cache is keyed to the scenario set it was built from, and a cache built
+    for one set silently answers for another: that is how a sweep could report
+    ranges over eight topologies while its caption named a different corpus.
+    A cache whose scenarios do not match the request is rebuilt rather than
+    reused, and the set it describes is stored alongside it.
+    """
+    scenarios = list(scenarios or DETECTION_SCENARIOS)
+    cache_file = Path(cache_file or CACHE_FILE)
+
+    if cache_file.exists() and not force_refresh:
+        with open(cache_file, "r", encoding="utf8") as f:
+            cached = json.load(f)
+        cached_ids = [c.get("scenario") for c in cached]
+        if cached_ids == scenarios:
+            logger.info(f"Loading cached scenario data from {cache_file}")
+            return cached
+        logger.warning(
+            "Cache %s describes %d scenario(s) %s, not the %d requested — rebuilding.",
+            cache_file, len(cached_ids), cached_ids[:3], len(scenarios))
+
+    logger.info(f"Building scenario cache across {len(scenarios)} topologies...")
     cache = []
-    for sc in DETECTION_SCENARIOS:
+    for sc in scenarios:
         t0 = time.time()
         data = extract_scenario_data(sc)
         logger.info(f"Scenario {sc} completed in {time.time() - t0:.2f}s ({data['n_scored']} components)")
         cache.append(data)
 
-    CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(CACHE_FILE, "w", encoding="utf8") as f:
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(cache_file, "w", encoding="utf8") as f:
         json.dump(cache, f, indent=2)
-    logger.info(f"Saved scenario cache to {CACHE_FILE}")
+    logger.info(f"Saved scenario cache to {cache_file}")
     return cache
 
 
@@ -337,13 +353,25 @@ def run_morris(
 
 def main():
     parser = argparse.ArgumentParser(description="Sensitivity sweep of I_comp severity weights")
+    parser.add_argument("--scenarios", nargs="+", default=None,
+                        help="Scenarios to sweep. Default: the AuSE detection suite "
+                             f"{DETECTION_SCENARIOS}. Pass the manuscript's own corpus "
+                             "explicitly when the sweep is to back a JSS table.")
+    parser.add_argument("--cache-file", default=str(CACHE_FILE),
+                        help="Per-scenario severity-component cache. Keyed to the "
+                             "scenario set, so a different --scenarios needs a "
+                             "different cache file or --force-refresh.")
+    parser.add_argument("--output", default=str(OUTPUT_FILE))
     parser.add_argument("--force-refresh", action="store_true", help="Force rebuild scenario cache")
     parser.add_argument("--dirichlet-n", type=int, default=1000, help="Number of Dirichlet simplex samples")
     parser.add_argument("--morris-r", type=int, default=15, help="Number of Morris trajectories")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
-    cache = build_or_load_cache(force_refresh=args.force_refresh)
+    scenarios = args.scenarios or DETECTION_SCENARIOS
+    cache = build_or_load_cache(force_refresh=args.force_refresh,
+                                scenarios=scenarios,
+                                cache_file=Path(args.cache_file))
 
     baseline = evaluate_weights(SHIPPED_WEIGHTS, cache)
     logger.info(f"Baseline (shipped AHP weights {SHIPPED_WEIGHTS}): {baseline}")
@@ -362,9 +390,11 @@ def main():
     }
     output["provenance"] = stamp()
 
-    with open(OUTPUT_FILE, "w", encoding="utf8") as f:
+    out_path = Path(args.output)
+    output["scenarios"] = scenarios
+    with open(out_path, "w", encoding="utf8") as f:
         json.dump(output, f, indent=2)
-    logger.info(f"Results written to {OUTPUT_FILE}")
+    logger.info(f"Results written to {out_path}")
 
     print("\n" + "=" * 60)
     print("I_comp(v) SENSITIVITY SWEEP SUMMARY")
