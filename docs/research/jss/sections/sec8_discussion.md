@@ -24,9 +24,9 @@
 | **Relational heterogeneity** | Typing is essential where shared hosts or libraries induce blast radii, but substitutes for QoS once contracts are declared. | Untyped GNNs drop to $\rho = 0.317$ (§7.2).                                                                                                  |
 | **Inert-node base rates**    | Zero-impact sinks inflate full-population correlation through trivial inertness filtering.                                   | $21\%$–$52\%$ of applications carry $I^*(v) = 0$; $\rho_{>0}/\rho \approx 51\%$–$56\%$.                                                      |
 
-**Dual-Engine Consensus Protocol.** Prediction dispersion does not separate the folds the learned model loses from those it wins (§7.2.1), so automated fallback is withdrawn. SaG instead runs `HGT-QoS` and `Topo-QoS` concurrently, flagging unanimous top-$K$ nodes and surfacing divergent rankings for review.
+**Dual-Engine Consensus Protocol.** Because dispersion fails to identify lost folds (§7.2.1), automated fallback is withdrawn. SaG runs `HGT-QoS` and `Topo-QoS` concurrently, flagging unanimous top-$K$ components and surfacing divergences for review. Given non-zero retraining drift ($0.041$ on fold mean, §8.3), CI/CD deployments should freeze version-controlled checkpoints rather than retraining on commit hooks.
 
-**Role of the Explanation Layer.** The RM profile ($Q(v)$, §5) decomposes structural mechanics under ISO/IEC 25010 to inform refactoring — distinguishing Availability-driven replication from Fault-Tolerance circuit breakers — while neural and centrality predictors govern triage priority. Its elicited AHP weights rank worse than a uniform prior, which we recommend instead pending user studies.
+**Role of the Explanation Layer.** The RM profile ($Q(v)$, §5) decomposes ISO/IEC 25010 structural mechanics to inform refactoring (distinguishing Availability replication from Fault-Tolerance circuit breakers), while neural and centrality predictors govern triage. Its elicited AHP weights trail a uniform prior, which we recommend pending user studies.
 
 ## 8.2 Performance and Computational Sustainability Implications
 

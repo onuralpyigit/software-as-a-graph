@@ -37,10 +37,10 @@ Across seventeen architectures, graph neural network performance is governed by 
 \end{table}
 
 \noindent\textbf{Dual-Engine Consensus Protocol.}
-Prediction dispersion does not separate the folds the learned model loses from those it wins (Section~\ref{sec:7.2.1}), so automated fallback is withdrawn. SaG instead runs \texttt{HGT-QoS} and \texttt{Topo-QoS} concurrently, flagging unanimous top-$K$ nodes and surfacing divergent rankings for review.
+Because dispersion fails to identify lost folds (Section~\ref{sec:7.2.1}), automated fallback is withdrawn. SaG runs \texttt{HGT-QoS} and \texttt{Topo-QoS} concurrently, flagging unanimous top-$K$ components and surfacing divergences for review. Given non-zero retraining drift ($0.041$ on fold mean, Section~\ref{sec:8.3}), CI/CD deployments should freeze version-controlled checkpoints rather than retraining on commit hooks.
 
 \noindent\textbf{Role of the Explanation Layer.}
-The RM profile ($Q(v)$, Section~\ref{sec:5}) decomposes structural mechanics under ISO/IEC 25010 to inform refactoring --- distinguishing Availability-driven replication from Fault-Tolerance circuit breakers --- while neural and centrality predictors govern triage priority. Its elicited AHP weights rank worse than a uniform prior, which we recommend instead pending user studies.
+The RM profile ($Q(v)$, Section~\ref{sec:5}) decomposes ISO/IEC 25010 structural mechanics to inform refactoring (distinguishing Availability replication from Fault-Tolerance circuit breakers), while neural and centrality predictors govern triage. Its elicited AHP weights trail a uniform prior, which we recommend pending user studies.
 
 \subsection{Performance and Computational Sustainability Implications}
 \label{sec:8.2}
