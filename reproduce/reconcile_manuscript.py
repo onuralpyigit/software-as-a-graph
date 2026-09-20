@@ -862,17 +862,18 @@ CORPUS_INDEPENDENT_ARTIFACTS = {
 #: Wall-clock artifacts, deliberately outside FRESHNESS_TARGETS.
 #:
 #: The corpus-freshness rule does not apply to them and applying it is actively
-#: harmful. ``oracle_timing_v4.json`` measures how long the labeler takes over a
+#: harmful. ``oracle_timing_v*.json`` measures how long the labeler takes over a
 #: node population the corpus change left identical (39/104/360/... before and
 #: after), so it is not corpus-stale in any meaningful sense; what its numbers
 #: depend on is the machine and its load. Worse, its ratio pairs an oracle time
 #: it measures itself against a gate time it reads from
-#: ``detection_validation_timed_v3.json``. Refreshing one half alone silently
-#: produces a ratio from two different measurement sessions --- doing exactly
-#: that moved it from 11.45x to 15.35x with no change to the work being timed.
-#: Re-measure the pair together, on an idle machine, or leave both.
+#: the timed detection run. Refreshing one half alone silently produces a ratio
+#: from two different measurement sessions --- doing exactly that moved it from
+#: 11.45x to 15.35x with no change to the work being timed. Re-measure the pair
+#: together, on one machine, or leave both; ``oracle_timing.py --gate-file``
+#: names the half it was paired with, and the artifact records it.
 PAIRED_TIMING_ARTIFACTS = {
-    "oracle_timing_v4.json": "detection_validation_timed_v3.json",
+    "oracle_timing_v5.json": "detection_validation_timed_v4.json",
 }
 
 
@@ -937,9 +938,9 @@ def check_oracle_timing(rep: Report) -> None:
     expensive than the simulation it was meant to displace --- and because they
     previously had no committed artifact at all.
     """
-    art = _load("oracle_timing_v4.json")
+    art = _load("oracle_timing_v5.json") or _load("oracle_timing_v4.json")
     if art is None:
-        rep.skipped.append("oracle_timing_v4.json absent; 7.5.1 unchecked")
+        rep.skipped.append("oracle_timing_v*.json absent; 7.5.1 unchecked")
         return
     tex = _tex("sec7_results.tex")
     summary = art["summary"]
@@ -958,7 +959,9 @@ def check_oracle_timing(rep: Report) -> None:
 
     ratio = summary.get("gate_over_oracle_at_max")
     if ratio is not None:
-        words = {10: "ten", 11: "eleven", 12: "twelve", 13: "thirteen", 14: "fourteen"}
+        words = {8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve",
+                 13: "thirteen", 14: "fourteen", 15: "fifteen", 16: "sixteen",
+                 17: "seventeen", 18: "eighteen", 19: "nineteen", 20: "twenty"}
         expected = words.get(round(ratio))
         rep.checked += 1
         if expected is None or f"roughly {expected} times" not in tex:
@@ -1033,7 +1036,7 @@ PROSE_NOTES = [
     "QoS ablation deltas in 7.3.1 <- loso_all_variants_v*.json",
     "sigma-hat diagnostic in 7.2.3 <- output/loso_v*/<variant>/inductive_predictions.json",
     "label-noise ceiling in 7.1 <- output/loso_cache/*/failure_impact.json label_stability",
-    "gate range in 7.5 <- results/detection_validation_timed_v3.json gate_seconds",
+    "gate range in 7.5 <- results/detection_validation_timed_v4.json gate_seconds",
 ]
 
 
