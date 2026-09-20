@@ -38,6 +38,8 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import numpy as np
+
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -58,6 +60,10 @@ CONTROL_VARIANTS = [
     # same folds, and only meaningful paired against the GNNs it is compared to.
     "tab_gbm",
 ]
+#: The comparator every reported Δρ is measured against, re-exported from the
+#: registry that owns it so this harness, the k-fold harness, the significance
+#: tests and the renderer cannot drift apart.
+PREREGISTERED_BASELINE = _registry.PREREGISTERED_BASELINE
 
 #: Dispatch order, measured rather than assumed (one 12-fold x 5-seed sweep on a
 #: Tesla T4: hgl 12635 s, gl_qos 5096 s, gl 3432 s, topology_rm 214 s, topo_qos
@@ -262,7 +268,6 @@ def _build_comparison_table(
         rho_vals = [f.get("mean_metrics", {}).get("spearman_rho", 0.0) for f in folds]
         f1_vals  = [f.get("mean_metrics", {}).get("f1_at_k", 0.0) for f in folds]
 
-        import numpy as np
         n = len(rho_vals)
         table[variant] = {
             "label": label,
@@ -286,16 +291,39 @@ def _build_comparison_table(
             ],
         }
 
-    # Compute Δρ (hgl_qos vs best baseline)
-    if "hgl_qos" in table:
-        hq_rho = table["hgl_qos"].get("mean_rho", 0.0)
-        baseline_rhos = [
-            v.get("mean_rho", 0.0)
-            for k, v in table.items()
-            if k != "hgl_qos" and v.get("mean_rho") is not None
+    # Δρ against the *pre-registered* comparator, paired by fold.
+    #
+    # This was previously "vs best baseline", where "baseline" meant `max` over
+    # every other row — including the learned ones. On the v5 artifact that
+    # picked GAT-N-QoS and rendered HGT-QoS's margin as +0.0346, under a column
+    # heading that says "baseline", with no interval. The pre-registered test
+    # (PREREGISTRATION.md, reproduce/loso_significance.py) compares against
+    # topo_qos, where the same gap is +0.0851 with a 95% CI of [-0.029, +0.194]
+    # — an interval that includes zero. The smaller number under the wrong
+    # comparator read as a positive result the paper does not claim.
+    #
+    # Pairing by fold is what makes this the quantity the Wilcoxon test ranks;
+    # with complete folds it equals the difference of the means, and with an
+    # incomplete variant it stays honest instead of differencing unequal sets.
+    # The interval belongs to loso_significance.py, which owns the statistics.
+    baseline_folds = {
+        f["holdout"]: f["mean_rho"]
+        for f in table.get(PREREGISTERED_BASELINE, {}).get("per_fold", [])
+        if f.get("holdout") and f.get("mean_rho") is not None
+    }
+    for variant, row in table.items():
+        if variant == PREREGISTERED_BASELINE or not baseline_folds:
+            continue
+        paired = [
+            f["mean_rho"] - baseline_folds[f["holdout"]]
+            for f in row.get("per_fold", [])
+            if f.get("holdout") in baseline_folds and f.get("mean_rho") is not None
         ]
-        best_baseline = max(baseline_rhos, default=0.0)
-        table["hgl_qos"]["delta_vs_best_baseline"] = round(hq_rho - best_baseline, 4)
+        if not paired:
+            continue
+        row["delta_vs_baseline"] = round(float(np.mean(paired)), 4)
+        row["delta_baseline"] = PREREGISTERED_BASELINE
+        row["delta_n_folds"] = len(paired)
 
     return table
 
@@ -303,7 +331,8 @@ def _build_comparison_table(
 def _print_comparison_table(table: Dict):
     print("\n  ═══════════════════════════════════════════════════════════════")
     print("  Table 4: LOSO Inductive Evaluation")
-    print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'F1@K':<8} {'Δρ vs best BL'}")
+    print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'F1@K':<8} "
+          f"{'Δρ vs ' + PREREGISTERED_BASELINE}")
     print("  " + "─" * 65)
     order = [v for v in ALL_VARIANTS if v in table]
     for variant in order:
@@ -313,8 +342,8 @@ def _print_comparison_table(table: Dict):
         rho  = f"{r.get('mean_rho', 0):.4f}" if r.get('mean_rho') is not None else "—"
         std  = f"{r.get('std_rho', 0):.4f}" if r.get('std_rho') is not None else "—"
         f1   = f"{r.get('mean_f1', 0):.4f}" if r.get('mean_f1') is not None else "—"
-        delta = r.get("delta_vs_best_baseline")
-        delta_s = f"+{delta:.4f}" if delta is not None else "—"
+        delta = r.get("delta_vs_baseline")
+        delta_s = (f"+{delta:.4f}" if delta > 0 else f"{delta:.4f}") if delta is not None else "—"
         label = r.get("label", variant)
         print(f"  {label:<25} {rho:<10} {std:<10} {f1:<8} {delta_s}")
     print("  ═══════════════════════════════════════════════════════════════")

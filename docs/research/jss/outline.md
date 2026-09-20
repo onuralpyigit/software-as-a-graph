@@ -22,7 +22,7 @@
 * **Scale:** 35 pages, 9 sections, 11 tables, 3 figures, 93 references, plus an 8-page supplement
   (S1–S8, 6 tables, 2 figures). Take these from the build:
   `pdfinfo latex/manuscript.pdf`, `grep -c 'begin{table' latex/sections/*.tex`.
-* **Build:** zero LaTeX errors, zero undefined references or citations; 403
+* **Build:** zero LaTeX errors, zero undefined references or citations; 417
   reported table figures reconcile against their artifacts via
   `reproduce/reconcile_manuscript.py`, which now also covers `supplementary.tex` and fails on a
   missing or dirty-provenance artifact

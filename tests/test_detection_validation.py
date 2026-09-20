@@ -42,3 +42,34 @@ def test_evaluate_scenario_atm_system():
     assert 0.0 <= spof["f1"] <= 1.0
     assert "ia_threshold" in spof
     assert "ia_max" in spof
+
+
+def test_icomp_istar_agreement_is_read_not_hardcoded(tmp_path, monkeypatch):
+    """The cross-reference reports the artifact's value, whatever it is.
+
+    A literal 0.4046 used to be baked into every detection artifact's ``note``.
+    The figure moved when the oracle was recalibrated and the string did not, so
+    the artifacts shipped a pointer to a measurement that existed in no
+    convergent-validity file under any version.
+    """
+    import json
+
+    from reproduce import detection_validation as dv
+
+    (tmp_path / "convergent_validity.json").write_text(json.dumps(
+        {"summary": {"i_comp__i_star": {"mean_spearman_rho": 0.1234,
+                                        "n_scenarios_measured": 7}}}))
+    monkeypatch.setattr(dv, "RESULTS_DIR", tmp_path)
+    sentence = dv._icomp_istar_agreement()
+    assert "0.1234" in sentence and "7 scenarios" in sentence
+    assert "0.4046" not in sentence
+
+
+def test_icomp_istar_agreement_says_so_when_unmeasured(tmp_path, monkeypatch):
+    """An absent artifact yields an admission, never an invented number."""
+    from reproduce import detection_validation as dv
+
+    monkeypatch.setattr(dv, "RESULTS_DIR", tmp_path)
+    sentence = dv._icomp_istar_agreement()
+    assert "unmeasured" in sentence
+    assert not any(ch.isdigit() for ch in sentence.replace("I_comp", "").replace("I*", ""))

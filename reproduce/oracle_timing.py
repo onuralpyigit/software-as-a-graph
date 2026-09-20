@@ -68,6 +68,12 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--repeats", type=int, default=3)
     ap.add_argument("--output", default="results/oracle_timing_v4.json")
+    ap.add_argument(
+        "--gate-file", default="results/detection_validation_timed_v3.json",
+        help="Detection run supplying the gate side of the ratio. The two halves "
+             "must come from one measurement session on one machine: refreshing "
+             "only one produced a ratio spanning two sessions and moved it from "
+             "11.45x to 15.35x with no change to the work being timed.")
     args = ap.parse_args()
 
     scenarios = sorted(d.name for d in CACHE.iterdir()
@@ -120,11 +126,24 @@ def main() -> int:
         },
     }
 
-    gate_path = ROOT / "results" / "detection_validation_timed_v3.json"
+    # The gate half of the ratio. Its path was hardcoded to a ``_v3`` spelling,
+    # so re-running the detection benchmark under any later version left this
+    # silently reading the superseded file — and when the file was absent the
+    # ratio was dropped without comment, taking a headline claim's only
+    # mechanical check with it (reconcile_manuscript skips a null ratio).
+    gate_path = Path(args.gate_file)
+    if not gate_path.is_absolute():
+        gate_path = ROOT / gate_path
     if gate_path.exists():
         gate = json.load(open(gate_path))["summary"]["gate_seconds"]
         payload["summary"]["gate_seconds"] = gate
         payload["summary"]["gate_over_oracle_at_max"] = round(gate["max"] / max(medians), 2)
+        # Name the paired artifact in the artifact, so a reader can tell whether
+        # the two halves came from one session without reconstructing it.
+        payload["summary"]["gate_source"] = str(gate_path.relative_to(ROOT))
+    else:
+        print(f"WARNING: gate file {gate_path} absent — the gate/oracle ratio, "
+              f"which Section 7.5.1 reports, is NOT in this artifact.", file=sys.stderr)
 
     out = ROOT / args.output
     out.parent.mkdir(parents=True, exist_ok=True)

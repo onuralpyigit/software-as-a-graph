@@ -18,6 +18,7 @@
 #   make jss-figures     — Figure_1..3 (manuscript) + Figure_S1..S2 (supplement)
 #   make jss-tables      — JSS Table 5: generator-parameter table (tab_genparams.tex)
 #   make all             — full end-to-end pipeline (tables + JSS figures)
+#   make bundle          — reconcile, then cut the results bundle that ships with the paper
 #   make clean           — remove generated outputs (keeps checkpoints)
 #   make clean-all       — remove everything including checkpoints
 
@@ -46,7 +47,7 @@ OUTPUT_DIR    ?= output
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 \
-        jss-figures jss-figS1 jss-figS2 jss-tables all smoke-test clean clean-all
+        jss-figures jss-figS1 jss-figS2 jss-tables all bundle smoke-test clean clean-all
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 0. Environment
@@ -119,10 +120,11 @@ table4:
 	    --jobs $(JOBS) \
 	    --output $(RESULTS_DIR)/loso_all_variants.json \
 	    --resume
+	$(MAKE) -f reproduce/Makefile significance
 	$(PYTHON) reproduce/render_table.py \
 	    --table4 $(RESULTS_DIR)/loso_all_variants.json \
+	    --significance $(RESULTS_DIR)/loso_significance.json \
 	    --output-dir $(RESULTS_DIR)
-	$(MAKE) -f reproduce/Makefile significance
 	@echo "✓ Table 4 ready: $(RESULTS_DIR)/table4_loso_results.tex"
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -337,6 +339,17 @@ all: setup scenarios block0 table3 table4 jss-tables jss-figures
 	@echo "  Generator Params (JSS Tab. 5): docs/research/jss/latex/sections/tab_genparams.tex"
 	@echo "  Figures (JSS Figs. 1-5)      : docs/research/jss/latex/figures/Figure_*.pdf"
 	@echo ""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Release bundle — the copy of results/ that ships with the manuscript.
+# results/ is gitignored, so this is the only place the numbers exist outside
+# the author's disk. Cutting it by hand shipped a crashed artifact and omitted
+# ten the manuscript cites; the script refuses both.
+# ─────────────────────────────────────────────────────────────────────────────
+
+bundle:
+	$(PYTHON) reproduce/reconcile_manuscript.py
+	$(PYTHON) reproduce/cut_results_bundle.py
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Fast smoke-test (50 epochs, 2 seeds, 3 scenarios only)

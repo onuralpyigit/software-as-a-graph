@@ -733,7 +733,91 @@ def print_id_metrics_console(data: Dict):
 
 # ── Table 4: LOSO results (4 variants) ───────────────────────────────────────
 
-def render_table4_tex(loso_data: Dict, output: Path):
+#: The comparator every Δρ is measured against, from the registry that owns it.
+_LOSO_DELTA_BASELINE = _registry.PREREGISTERED_BASELINE
+
+
+def _loso_contrasts(sig_data: Optional[Dict]) -> Dict[str, Dict]:
+    """Per-variant Δρ against the pre-registered baseline, with its interval.
+
+    The interval is the point of this. Table 4 used to print a bare "+0.0346"
+    under the heading "Δρ vs best baseline", where "best baseline" was `max`
+    over every other row and had selected GAT-N-QoS — a *learned* variant. The
+    pre-registered contrast is against Topo-QoS, is +0.0851, and its 95% CI
+    includes zero. The bare number under the wrong comparator read as a positive
+    result that the abstract explicitly declines to claim.
+
+    The statistics stay in loso_significance.py; this only reads them, and
+    returns {} when that artifact is absent so the column degrades to the
+    artifact's own paired Δ rather than disappearing.
+    """
+    if not sig_data:
+        return {}
+    out: Dict[str, Dict] = {}
+    for section in ("preregistered", "exploratory"):
+        for row in sig_data.get(section) or []:
+            if row.get("baseline") != _LOSO_DELTA_BASELINE:
+                continue
+            out[row["variant"]] = {
+                "mean_delta": row.get("mean_delta"),
+                "ci95": row.get("delta_ci95"),
+                "role": row.get("role", section),
+            }
+    return out
+
+
+def _delta_cell(var: str, row: Dict, contrasts: Dict[str, Dict], latex: bool) -> str:
+    """One Δρ cell: the paired mean, and its CI when the significance artifact has one."""
+    if var == _LOSO_DELTA_BASELINE:
+        return "—"
+    contrast = contrasts.get(var, {})
+    delta = contrast.get("mean_delta")
+    if delta is None:
+        delta = row.get("delta_vs_baseline")
+    if delta is None:
+        return "—"
+    cell = f"+{delta:.4f}" if delta > 0 else f"{delta:.4f}"
+    ci = contrast.get("ci95")
+    if ci and len(ci) == 2:
+        lo, hi = ci
+        cell += (rf" $[{lo:+.3f}, {hi:+.3f}]$" if latex else f" [{lo:+.3f}, {hi:+.3f}]")
+    return cell
+
+
+def _kfold_best_variant(table: Dict) -> Optional[str]:
+    """The variant that actually wins on mean rho.
+
+    The k-fold captions promise "best per row" while both renderers bolded
+    ``hgl_qos`` unconditionally, so a table in which a baseline outscored the
+    proposed model would have said the opposite of what it showed. Table 4's
+    renderer already picks the winner rather than assuming it.
+    """
+    candidates = [v for v in _VARIANT_ORDER
+                  if v in table and table[v].get("mean_rho") is not None]
+    return max(candidates, key=lambda v: table[v]["mean_rho"], default=None)
+
+
+def _kfold_delta_cell(var: str, row: Dict, latex: bool) -> str:
+    """One k-fold Δρ cell: the paired mean against the pre-registered baseline.
+
+    The k-fold harness pairs by scenario and stores the interval alongside the
+    mean (``_paired_deltas``), so unlike Table 4 this cell needs no separate
+    significance artifact to show one.
+    """
+    if var == _LOSO_DELTA_BASELINE:
+        return "—"
+    delta = row.get("delta_vs_baseline")
+    if delta is None:
+        return "—"
+    cell = f"+{delta:.4f}" if delta > 0 else f"{delta:.4f}"
+    ci = row.get("delta_vs_baseline_ci95")
+    if ci and len(ci) == 2 and all(c is not None for c in ci):
+        lo, hi = ci
+        cell += (rf" $[{lo:+.3f}, {hi:+.3f}]$" if latex else f" [{lo:+.3f}, {hi:+.3f}]")
+    return cell
+
+
+def render_table4_tex(loso_data: Dict, output: Path, sig_data: Optional[Dict] = None):
     """LaTeX booktabs Table 4: LOSO per-fold ρ × variant."""
     table = loso_data.get("comparison_table", {})
     if not table:
@@ -758,15 +842,22 @@ def render_table4_tex(loso_data: Dict, output: Path):
     pop_note = (rf" Scored on the \texttt{{{population}}} node population."
                 if population else "")
 
+    contrasts = _loso_contrasts(sig_data)
+    baseline_label = _NATIVE_VARIANT_LABELS.get(_LOSO_DELTA_BASELINE, _LOSO_DELTA_BASELINE)
+    ci_note = (" 95\\% CIs are bootstrap intervals on the paired per-fold difference"
+               " (reproduce/loso\\_significance.py)." if contrasts else "")
+
     lines = [
         r"\begin{table}[t]",
         r"\centering",
         r"\caption{LOSO inductive evaluation (Leave-One-Scenario-Out), mean Spearman $\rho \pm \sigma$",
-        rf"         across folds and seeds.{pop_note} \textbf{{Bold}} = best per row.}}",
+        rf"         across folds and seeds.{pop_note} \textbf{{Bold}} = best per row.",
+        rf"         $\Delta\rho$ is paired by fold against {baseline_label},",
+        rf"         the pre-registered comparator.{ci_note}}}",
         r"\label{tab:loso_results}",
         r"\begin{tabular}{lcccc}",
         r"\toprule",
-        r"Variant & Mean $\rho$ & Std $\rho$ & Mean F1@K & $\Delta\rho$ vs best baseline \\",
+        rf"Variant & Mean $\rho$ & Std $\rho$ & Mean F1@K & $\Delta\rho$ vs {baseline_label} (95\% CI) \\",
         r"\midrule",
     ]
 
@@ -778,12 +869,11 @@ def render_table4_tex(loso_data: Dict, output: Path):
         mean_r = r.get("mean_rho")
         std_r  = r.get("std_rho")
         f1     = r.get("mean_f1")
-        delta  = r.get("delta_vs_best_baseline")
 
         mean_s  = f"{mean_r:.4f}" if mean_r is not None else "—"
         std_s   = f"{std_r:.4f}" if std_r is not None else "—"
         f1_s    = f"{f1:.4f}" if f1 is not None else "—"
-        delta_s = (f"+{delta:.4f}" if delta > 0 else f"{delta:.4f}") if delta is not None else "—"
+        delta_s = _delta_cell(var, r, contrasts, latex=True)
 
         if var == best_var:
             mean_s = rf"\textbf{{{mean_s}}}"
@@ -799,15 +889,17 @@ def render_table4_tex(loso_data: Dict, output: Path):
     print(f"  Saved LaTeX Table 4: {output}")
 
 
-def render_table4_md(loso_data: Dict, output: Path):
+def render_table4_md(loso_data: Dict, output: Path, sig_data: Optional[Dict] = None):
     table = loso_data.get("comparison_table", {})
     best_var = max(
         (v for v in _LOSO_VARIANT_ORDER if v in table and table[v].get("mean_rho") is not None),
         key=lambda v: table[v]["mean_rho"],
         default=None,
     )
+    contrasts = _loso_contrasts(sig_data)
+    baseline_label = _NATIVE_VARIANT_LABELS_PLAIN.get(_LOSO_DELTA_BASELINE, _LOSO_DELTA_BASELINE)
     rows = [
-        "| Variant | Mean ρ | Std ρ | F1@K | Δρ vs best baseline |",
+        f"| Variant | Mean ρ | Std ρ | F1@K | Δρ vs {baseline_label} (95% CI) |",
         "|---|---|---|---|---|",
     ]
     for var in _LOSO_VARIANT_ORDER:
@@ -818,16 +910,25 @@ def render_table4_md(loso_data: Dict, output: Path):
         mean_r = r.get("mean_rho")
         std_r  = r.get("std_rho")
         f1     = r.get("mean_f1")
-        delta  = r.get("delta_vs_best_baseline")
 
         mean_s  = f"{mean_r:.4f}" if mean_r is not None else "—"
         std_s   = f"{std_r:.4f}" if std_r is not None else "—"
         f1_s    = f"{f1:.4f}" if f1 is not None else "—"
-        delta_s = (f"+{delta:.4f}" if delta and delta > 0 else f"{delta:.4f}") if delta is not None else "—"
+        delta_s = _delta_cell(var, r, contrasts, latex=False)
 
         if var == best_var:
             mean_s = f"**{mean_s}**"
         rows.append(f"| {label} | {mean_s} | {std_s} | {f1_s} | {delta_s} |")
+
+    rows.append("")
+    rows.append(f"Δρ is paired by fold against {baseline_label}, the pre-registered comparator "
+                "(PREREGISTRATION.md). Intervals are bootstrap 95% CIs on the per-fold "
+                "difference, from reproduce/loso_significance.py; one that spans zero means "
+                "the contrast is not resolved at this fold count."
+                if contrasts else
+                f"Δρ is paired by fold against {baseline_label}, the pre-registered comparator. "
+                "No significance artifact was supplied, so no intervals are shown — pass "
+                "--significance to include them.")
 
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text("\n".join(rows) + "\n")
@@ -953,7 +1054,7 @@ def render_table4kfold_tex(kfold_data: Dict, output: Path):
         r"\label{tab:kfold_results}",
         r"\begin{tabular}{lcccc}",
         r"\toprule",
-        r"Variant & Mean $\rho$ & Std $\rho$ & Mean F1@K & $\Delta\rho$ vs best baseline \\",
+        r"Variant & Mean $\rho$ & Std $\rho$ & Mean F1@K & $\Delta\rho$ vs \texttt{Topo-QoS} (95\% CI) \\",
         r"\midrule",
     ]
 
@@ -965,14 +1066,13 @@ def render_table4kfold_tex(kfold_data: Dict, output: Path):
         mean_r = r.get("mean_rho")
         std_r  = r.get("std_rho")
         f1     = r.get("mean_f1")
-        delta  = r.get("delta_vs_best_baseline")
 
         mean_s  = f"{mean_r:.4f}" if mean_r is not None else "—"
         std_s   = f"{std_r:.4f}" if std_r is not None else "—"
         f1_s    = f"{f1:.4f}" if f1 is not None else "—"
-        delta_s = (f"+{delta:.4f}" if delta > 0 else f"{delta:.4f}") if delta is not None else "—"
+        delta_s = _kfold_delta_cell(var, r, latex=True)
 
-        if var == "hgl_qos":
+        if var == _kfold_best_variant(table):
             mean_s = rf"\textbf{{{mean_s}}}"
         lines.append(rf"{label} & {mean_s} & {std_s} & {f1_s} & {delta_s} \\")
 
@@ -989,7 +1089,7 @@ def render_table4kfold_tex(kfold_data: Dict, output: Path):
 def render_table4kfold_md(kfold_data: Dict, output: Path):
     table = kfold_data.get("comparison_table", {})
     rows = [
-        "| Variant | Mean ρ | Std ρ | F1@K | Δρ vs best baseline |",
+        f"| Variant | Mean ρ | Std ρ | F1@K | Δρ vs {_NATIVE_VARIANT_LABELS_PLAIN.get(_LOSO_DELTA_BASELINE, _LOSO_DELTA_BASELINE)} (95% CI) |",
         "|---|---|---|---|---|",
     ]
     for var in _VARIANT_ORDER:
@@ -1000,14 +1100,13 @@ def render_table4kfold_md(kfold_data: Dict, output: Path):
         mean_r = r.get("mean_rho")
         std_r  = r.get("std_rho")
         f1     = r.get("mean_f1")
-        delta  = r.get("delta_vs_best_baseline")
 
         mean_s  = f"{mean_r:.4f}" if mean_r is not None else "—"
         std_s   = f"{std_r:.4f}" if std_r is not None else "—"
         f1_s    = f"{f1:.4f}" if f1 is not None else "—"
-        delta_s = (f"+{delta:.4f}" if delta and delta > 0 else f"{delta:.4f}") if delta is not None else "—"
+        delta_s = _kfold_delta_cell(var, r, latex=False)
 
-        if var == "hgl_qos":
+        if var == _kfold_best_variant(table):
             mean_s = f"**{mean_s}**"
         rows.append(f"| {label} | {mean_s} | {std_s} | {f1_s} | {delta_s} |")
 
@@ -1030,6 +1129,10 @@ def parse_args():
                    help="Path to loso_all_variants.json (Block E output)")
     p.add_argument("--table-kfold", type=Path, default=_RESULTS_DIR / "kfold_all_variants.json",
                    help="Path to kfold_all_variants.json (per-domain k-fold output)")
+    p.add_argument("--significance", type=Path, default=None,
+                   help="Path to loso_significance*.json. Supplies the 95%% CI on "
+                        "Table 4's paired Δρ column; without it the column shows "
+                        "the point estimate alone.")
     p.add_argument("--realworld", type=Path,
                    default=_RESULTS_DIR / "realworld_zeroshot.json",
                    help="Path to realworld_zeroshot.json; renders the zero-shot "
@@ -1113,15 +1216,25 @@ def main():
     if args.table4.exists():
         print(f"\n  [Table 4] {args.table4}")
         loso_data = json.loads(args.table4.read_text())
+        sig_data = None
+        if args.significance is not None:
+            if args.significance.exists():
+                sig_data = json.loads(args.significance.read_text())
+                print(f"  [Table 4 CIs] {args.significance}")
+            else:
+                print(f"  [Table 4 CIs] Not found: {args.significance} — Δρ without intervals")
         if not args.console:
             if not args.no_tex:
-                render_table4_tex(loso_data, out / "table4_loso_results.tex")
+                render_table4_tex(loso_data, out / "table4_loso_results.tex", sig_data)
             if not args.tex_only:
-                render_table4_md(loso_data, out / "table4_loso_results.md")
+                render_table4_md(loso_data, out / "table4_loso_results.md", sig_data)
         table = loso_data.get("comparison_table", {})
+        contrasts = _loso_contrasts(sig_data)
+        baseline_label = _NATIVE_VARIANT_LABELS_PLAIN.get(
+            _LOSO_DELTA_BASELINE, _LOSO_DELTA_BASELINE)
         print("\n  Table 4: LOSO Results")
-        print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'Δρ vs best baseline'}")
-        print("  " + "─" * 55)
+        print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'Δρ vs ' + baseline_label}")
+        print("  " + "─" * 70)
         for var in _LOSO_VARIANT_ORDER:
             if var not in table:
                 continue
@@ -1129,10 +1242,9 @@ def main():
             label = _NATIVE_VARIANT_LABELS_PLAIN.get(var, var)
             mean_r = r.get("mean_rho")
             std_r  = r.get("std_rho")
-            delta  = r.get("delta_vs_best_baseline")
             mean_s  = f"{mean_r:.4f}" if mean_r is not None else "—"
             std_s   = f"{std_r:.4f}" if std_r is not None else "—"
-            delta_s = (f"+{delta:.4f}" if delta and delta > 0 else f"{delta:.4f}") if delta is not None else "—"
+            delta_s = _delta_cell(var, r, contrasts, latex=False)
             print(f"  {label:<25} {mean_s:<10} {std_s:<10} {delta_s}")
     else:
         print(f"\n  [Table 4] Not found: {args.table4}")
@@ -1149,8 +1261,10 @@ def main():
                 render_table4kfold_md(kfold_data, out / "table4_kfold_results.md")
         table = kfold_data.get("comparison_table", {})
         print("\n  Per-Domain K-Fold Results")
-        print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'Δρ vs best baseline'}")
-        print("  " + "─" * 55)
+        baseline_label = _NATIVE_VARIANT_LABELS_PLAIN.get(
+            _LOSO_DELTA_BASELINE, _LOSO_DELTA_BASELINE)
+        print(f"  {'Variant':<25} {'Mean ρ':<10} {'Std ρ':<10} {'Δρ vs ' + baseline_label}")
+        print("  " + "─" * 70)
         for var in _VARIANT_ORDER:
             if var not in table:
                 continue
@@ -1158,10 +1272,9 @@ def main():
             label = _NATIVE_VARIANT_LABELS_PLAIN.get(var, var)
             mean_r = r.get("mean_rho")
             std_r  = r.get("std_rho")
-            delta  = r.get("delta_vs_best_baseline")
             mean_s  = f"{mean_r:.4f}" if mean_r is not None else "—"
             std_s   = f"{std_r:.4f}" if std_r is not None else "—"
-            delta_s = (f"+{delta:.4f}" if delta and delta > 0 else f"{delta:.4f}") if delta is not None else "—"
+            delta_s = _kfold_delta_cell(var, r, latex=False)
             print(f"  {label:<25} {mean_s:<10} {std_s:<10} {delta_s}")
     else:
         print(f"\n  [K-Fold] Not found: {args.table_kfold}")

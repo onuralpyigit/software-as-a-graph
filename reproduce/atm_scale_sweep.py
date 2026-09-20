@@ -50,6 +50,7 @@ if __name__ == "__main__" and __package__ is None:
 
 import numpy as np
 
+from reproduce._provenance import stamp
 from reproduce.detection_validation import DEFAULT_EXCLUDED_PATTERNS, evaluate
 
 logger = logging.getLogger("atm_scale_sweep")
@@ -262,6 +263,9 @@ def main():
     args.output_json.parent.mkdir(parents=True, exist_ok=True)
     with open(args.output_json, "w") as f:
         json.dump({
+            # Supplementary S6 cites this sweep; say what produced it.
+            "provenance": stamp(seeds=args.seeds, layer=args.layer,
+                                propagation_threshold=args.propagation_threshold),
             "config": {
                 "seeds": args.seeds, "layer": args.layer,
                 "propagation_threshold": args.propagation_threshold,

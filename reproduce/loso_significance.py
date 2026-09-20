@@ -40,9 +40,10 @@ from scipy.stats import wilcoxon
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from reproduce._provenance import stamp
 from saag.evaluation import variant_registry as _registry
 
-BASELINE = "topo_qos"
+BASELINE = _registry.PREREGISTERED_BASELINE
 PRIMARY = ("hgl_qos", BASELINE)
 SECONDARY = ("hgl", BASELINE)
 
@@ -453,6 +454,10 @@ def main() -> int:
         "rq2_controls": controls,
         "qos_stratified_ablation": stratified,
     }
+    # Say which commit and which corpus produced these contrasts. Without it
+    # reconcile_manuscript.py falls back to comparing timestamps, and a table's
+    # licensing statistics are the last place that should be guesswork.
+    payload["provenance"] = stamp(input=str(args.input), alpha=args.alpha)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, indent=2))
     print(f"\n  Wrote {args.output}")

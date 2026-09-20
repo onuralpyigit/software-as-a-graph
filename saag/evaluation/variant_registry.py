@@ -250,6 +250,20 @@ _VARIANT_LIST = [
 
 VARIANTS: Dict[str, Variant] = {v.variant_id: v for v in _VARIANT_LIST}
 
+#: The variant every reported Δρ is measured against, in every harness.
+#:
+#: It lives here, beside the variant identities, because four places need to
+#: agree on it: the LOSO and k-fold comparison tables, the significance tests
+#: that license those tables, and the renderer that typesets them. They did not
+#: agree. Both harnesses computed "Δρ vs best baseline" as ``max`` over every
+#: *other* row — which on the shipped LOSO artifact selected GAT-N-QoS, a
+#: learned variant, and printed HGT-QoS's margin as +0.0346 under a heading
+#: that says "baseline", with no interval. The pre-registered comparator is
+#: Topo-QoS, where the same gap is +0.0851 with a 95% CI that includes zero.
+#: A table and the test that licenses it must not quietly use different
+#: reference points, and one name is how that is enforced.
+PREREGISTERED_BASELINE = "topo_qos"
+
 #: Variants the LOSO and k-fold harnesses run on the native graph even though
 #: their id spells the projection arm. Labelling only — never a data-lookup key.
 _NATIVE_ALIASES = {"gl": "gl_full", "gl_qos": "gl_full_qos"}

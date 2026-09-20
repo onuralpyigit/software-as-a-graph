@@ -423,9 +423,10 @@ def check_supplement_stratification(rep: Report) -> None:
     and when detection_validation was refreshed the body was corrected while
     both supplement copies kept the superseded pooled rho and degree comparison.
     """
-    art = _load("detection_validation_v3.json")
+    art = (_load("detection_validation_jss12.json")
+           or _load("detection_validation_v4.json"))
     if art is None:
-        rep.skipped.append("detection_validation_v3.json absent; S6/S7 unchecked")
+        rep.skipped.append("detection_validation_v*.json absent; S6/S7 unchecked")
         return
     summ = art.get("summary") or {}
     pooled = (summ.get("pooling_check") or {}).get("pooled_mean_rho")
@@ -496,21 +497,68 @@ def check_table7_loso(rep: Report, artifact: str) -> None:
         return
     ct = d["comparison_table"]
     tex = _tex("sec7_results.tex")
-    rows = _rows(tex, r"\multicolumn{7}{l}{\textit{Training-free structural baselines}}")
+    rows = _rows(tex, r"\multicolumn{8}{l}{\textit{Training-free structural baselines}}")
+    if not rows:
+        # _rows returns [] for a marker it cannot find, which would otherwise
+        # report as a clean run over rows nobody checked -- the exact silent
+        # pass this script exists to prevent. The marker carries the column
+        # count, so it moves whenever a column is added to Table 7.
+        rep.skipped.append("tab:7: group marker not found in sec7_results.tex "
+                           "(did the column count change?)")
+        return
     by_label = {LOSO_LABELS[k]: v for k, v in ct.items() if k in LOSO_LABELS}
     for row in rows:
         cells = _cells(row)
-        if len(cells) < 7:
+        if len(cells) < 8:
             continue
         label = _label(cells[0])
         blk = by_label.get(label) or by_label.get(label.replace("RM / Q(v)", "RM / $Q(v)$"))
         if blk is None:
             continue
-        for idx, key, tol in ((1, "mean_rho", 0.001), (5, "mean_f1", 0.001)):
+        # Column order: label | mean rho | CI | delta vs baseline | fold sd |
+        # seed sd | F1@K | requires training.
+        for idx, key, tol in ((1, "mean_rho", 0.001), (6, "mean_f1", 0.001)):
             got, truth = _num(cells[idx]), blk.get(key)
             rep.checked += 1
             if truth is not None and (got is None or abs(got - truth) > tol):
                 rep.findings.append(Finding("tab:7", label, key, got, round(truth, 4)))
+
+
+def check_table7_delta(rep: Report, artifact: str = "loso_significance_v5.json") -> None:
+    """Table 7's Δρ column against the pre-registered contrasts that license it.
+
+    The column previously rendered in the artifact tables was "Δρ vs best
+    baseline", computed as ``max`` over every other row -- which selected a
+    *learned* variant and reported +0.0346 where the pre-registered contrast
+    against Topo-QoS is +0.0851 with an interval that includes zero. Checking the
+    manuscript's column against the significance artifact, rather than against
+    the variants artifact it sits next to, is what pins the comparator.
+    """
+    d = _load(artifact)
+    if d is None:
+        rep.skipped.append(f"tab:7 Δρ: {artifact} absent")
+        return
+    truth = {}
+    for section in ("preregistered", "exploratory"):
+        for r in d.get(section) or []:
+            if r.get("baseline") == "topo_qos" and r.get("variant") in LOSO_LABELS:
+                truth[LOSO_LABELS[r["variant"]]] = r.get("mean_delta")
+    tex = _tex("sec7_results.tex")
+    rows = _rows(tex, r"\multicolumn{8}{l}{\textit{Training-free structural baselines}}")
+    for row in rows:
+        cells = _cells(row)
+        if len(cells) < 8:
+            continue
+        label = _label(cells[0])
+        want = truth.get(label) or truth.get(label.replace("RM / Q(v)", "RM / $Q(v)$"))
+        if want is None:
+            # The baseline row itself has no delta against itself; its cell reads
+            # "(reference)" and there is nothing to check.
+            continue
+        got = _num(cells[3])
+        rep.checked += 1
+        if got is None or abs(got - want) > 0.001:
+            rep.findings.append(Finding("tab:7", label, "delta_vs_topo_qos", got, round(want, 4)))
 
 
 def check_table7c_active(rep: Report, artifact: str) -> None:
@@ -655,7 +703,8 @@ def check_scale_table(rep: Report) -> None:
 
 def check_realworld(rep: Report) -> None:
     """Table 9b full-population and active-stratum correlations."""
-    d = _load("realworld_zeroshot_v5.json") or _load("realworld_zeroshot.json")
+    d = (_load("realworld_zeroshot_v6.json") or _load("realworld_zeroshot_v5.json")
+         or _load("realworld_zeroshot.json"))
     if d is None:
         rep.skipped.append("tab:9b: realworld_zeroshot.json absent")
         return
@@ -709,6 +758,67 @@ def check_realworld(rep: Report) -> None:
                     rep.findings.append(Finding("tab:9b", label, nm, got, round(truth, 4)))
 
 
+def check_table9c_active(rep: Report) -> None:
+    """Table 9c: the real-world active stratum, for every predictor.
+
+    Table 9b reports ``rho_>0`` for the learned model alone, which leaves its
+    headline decline with nothing to be a decline *relative to*. The training-free
+    references are scored on the same labels, population and node set, so their
+    active-stratum figures are computable from the same artifact -- they were
+    simply absent from the artifact version that shipped. This table carries the
+    comparison and is checked against the same file Table 9b is, so the two
+    cannot come from different runs.
+    """
+    d = (_load("realworld_zeroshot_v6.json") or _load("realworld_zeroshot_v5.json")
+         or _load("realworld_zeroshot.json"))
+    if d is None:
+        rep.skipped.append("tab:9c: realworld_zeroshot.json absent")
+        return
+    tex = _tex("sec7_results.tex")
+    if r"\label{tab:9c}" not in tex:
+        rep.skipped.append("tab:9c: table not present in sec7_results.tex")
+        return
+    per, refs = d["per_system"], d.get("references", {})
+    systems = sorted(per)
+
+    def _mean(vals: List[Optional[float]]) -> Optional[float]:
+        vals = [v for v in vals if v is not None]
+        return sum(vals) / len(vals) if len(vals) == len(systems) else None
+
+    learned = _registry.label(d.get("variant", "hgl_qos"), harness="loso")
+    truth = {
+        learned: (_mean([per[s].get("mean_rho") for s in systems]),
+                  _mean([per[s].get("mean_rho_positive") for s in systems])),
+    }
+    for name, block in refs.items():
+        truth[name] = (_mean([(block.get(s) or {}).get("rho") for s in systems]),
+                       _mean([(block.get(s) or {}).get("rho_positive") for s in systems]))
+
+    rows = _rows(tex, r"\textbf{RM / $Q(v)$}", after_label=r"\label{tab:9c}")
+    if not rows:
+        rep.skipped.append("tab:9c: no rows matched in sec7_results.tex")
+        return
+    # The manuscript spells the diagnostic row with its maths ("RM / $Q(v)$");
+    # the artifact keys the same predictor "RM". Resolving that by hand rather
+    # than by a `.replace` that quietly no-ops: an unresolved row is reported,
+    # never skipped, because a row nobody checks reads as a row that passed.
+    row_to_key = {"RM / $Q(v)$": "RM"}
+    for row in rows:
+        cells = _cells(row)
+        if len(cells) < 3:
+            continue
+        label = _label(cells[0])
+        pair = truth.get(row_to_key.get(label, label))
+        if pair is None:
+            rep.skipped.append(f"tab:9c: row {label!r} matches no predictor in the artifact")
+            continue
+        for idx, want, nm in ((1, pair[0], "rho"), (2, pair[1], "rho_positive")):
+            got = _num(cells[idx])
+            rep.checked += 1
+            if want is not None and (got is None or abs(got - want) > 0.002):
+                rep.findings.append(Finding("tab:9c", label, nm, got, round(want, 4)))
+
+
 #: Artifacts whose freshness is checked, and what each one backs. Only artifacts
 #: that are actually consumed belong here: a superseded version left on disk
 #: (``*_v3`` once ``*_v4`` is in use) describes a corpus nobody reads it against,
@@ -722,8 +832,12 @@ def check_realworld(rep: Report) -> None:
 #: against the artifact that actually backs it (``check_table5_indist``).
 FRESHNESS_TARGETS = {
     "loso_all_variants_v5.json": "Tables 7/7c",
-    "realworld_zeroshot_v5.json": "Table 9b",
-    "detection_validation_v3.json": "7.3 stratification",
+    "realworld_zeroshot_v6.json": "Tables 9b/9c",
+    "detection_validation_jss12.json": "7.3 stratification",
+    # S1.2 cited this by filename while nothing checked it and the bundle never
+    # shipped it; it also ran on a different scenario suite than the section it
+    # backs, which is exactly what an undeclared backing artifact hides.
+    "icomp_sensitivity_jss12.json": "Supplementary S1.2 sensitivity sweep",
     "convergent_validity.json": "Supplementary S9",
     "label_stability.json": "7.1 label-noise ceiling",
     "topic_weight_sensitivity_v3.json": "Supplementary S1",
@@ -753,17 +867,18 @@ CORPUS_INDEPENDENT_ARTIFACTS = {
 #: Wall-clock artifacts, deliberately outside FRESHNESS_TARGETS.
 #:
 #: The corpus-freshness rule does not apply to them and applying it is actively
-#: harmful. ``oracle_timing_v4.json`` measures how long the labeler takes over a
+#: harmful. ``oracle_timing_v*.json`` measures how long the labeler takes over a
 #: node population the corpus change left identical (39/104/360/... before and
 #: after), so it is not corpus-stale in any meaningful sense; what its numbers
 #: depend on is the machine and its load. Worse, its ratio pairs an oracle time
 #: it measures itself against a gate time it reads from
-#: ``detection_validation_timed_v3.json``. Refreshing one half alone silently
-#: produces a ratio from two different measurement sessions --- doing exactly
-#: that moved it from 11.45x to 15.35x with no change to the work being timed.
-#: Re-measure the pair together, on an idle machine, or leave both.
+#: the timed detection run. Refreshing one half alone silently produces a ratio
+#: from two different measurement sessions --- doing exactly that moved it from
+#: 11.45x to 15.35x with no change to the work being timed. Re-measure the pair
+#: together, on one machine, or leave both; ``oracle_timing.py --gate-file``
+#: names the half it was paired with, and the artifact records it.
 PAIRED_TIMING_ARTIFACTS = {
-    "oracle_timing_v4.json": "detection_validation_timed_v3.json",
+    "oracle_timing_jss12.json": "detection_validation_timed_jss12.json",
 }
 
 
@@ -828,9 +943,9 @@ def check_oracle_timing(rep: Report) -> None:
     expensive than the simulation it was meant to displace --- and because they
     previously had no committed artifact at all.
     """
-    art = _load("oracle_timing_v4.json")
+    art = _load("oracle_timing_jss12.json") or _load("oracle_timing_v5.json")
     if art is None:
-        rep.skipped.append("oracle_timing_v4.json absent; 7.5.1 unchecked")
+        rep.skipped.append("oracle_timing_v*.json absent; 7.5.1 unchecked")
         return
     tex = _tex("sec7_results.tex")
     summary = art["summary"]
@@ -849,7 +964,9 @@ def check_oracle_timing(rep: Report) -> None:
 
     ratio = summary.get("gate_over_oracle_at_max")
     if ratio is not None:
-        words = {10: "ten", 11: "eleven", 12: "twelve", 13: "thirteen", 14: "fourteen"}
+        words = {8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve",
+                 13: "thirteen", 14: "fourteen", 15: "fifteen", 16: "sixteen",
+                 17: "seventeen", 18: "eighteen", 19: "nineteen", 20: "twenty"}
         expected = words.get(round(ratio))
         rep.checked += 1
         if expected is None or f"roughly {expected} times" not in tex:
@@ -924,7 +1041,7 @@ PROSE_NOTES = [
     "QoS ablation deltas in 7.3.1 <- loso_all_variants_v*.json",
     "sigma-hat diagnostic in 7.2.3 <- output/loso_v*/<variant>/inductive_predictions.json",
     "label-noise ceiling in 7.1 <- output/loso_cache/*/failure_impact.json label_stability",
-    "gate range in 7.5 <- results/detection_validation_timed_v3.json gate_seconds",
+    "gate range in 7.5 <- results/detection_validation_timed_jss12.json gate_seconds",
 ]
 
 
@@ -951,10 +1068,12 @@ def main() -> int:
     check_supplement_stratification(rep)
     check_supplement_shrinkage(rep)
     check_table7_loso(rep, args.loso)
+    check_table7_delta(rep)
     check_table7c_active(rep, args.loso)
     check_contrasts(rep)
     check_scale_table(rep)
     check_realworld(rep)
+    check_table9c_active(rep)
     check_oracle_timing(rep)
     check_qos_label_ablation(rep)
 
