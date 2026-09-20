@@ -717,7 +717,7 @@ def check_realworld(rep: Report) -> None:
         "Home Assistant (Smart Home)": "realworld_homeassistant",
     }
     tex = _tex("sec7_results.tex")
-    rows = _rows(tex, r"\textbf{Cloud Microservices Mesh}", after_label=r"\label{tab:9b}")
+    rows = _rows(tex, r"\midrule", after_label=r"\label{tab:9b}")
     refs = d.get("references", {})
     for row in rows:
         cells = _cells(row)
