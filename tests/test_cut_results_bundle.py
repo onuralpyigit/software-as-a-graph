@@ -57,6 +57,14 @@ def test_bundle_ships_every_artifact_the_reconciler_consumes():
     copy of it reappearing here should fail this test rather than pass silently.
     """
     shipped = set(FRESHNESS_TARGETS) | set(EXTRA_ARTIFACTS)
-    assert "detection_validation_v3.json" in shipped, "§7.3's backing artifact"
+    # Assert on what each artifact *backs*, not on its filename: these are
+    # versioned (``_v3`` -> ``_v4`` when a benchmark is re-run), and pinning the
+    # literal spelling here would recreate the hand-written mirror this file
+    # exists to argue against — it would fail on a legitimate re-run while still
+    # not noticing a table that lost its backing artifact entirely.
+    backs = " | ".join(shipped | set(FRESHNESS_TARGETS.values()) | set(EXTRA_ARTIFACTS.values()))
+    assert "7.3 stratification" in backs, "§7.3 has no backing artifact"
+    assert any(n.startswith("detection_validation") for n in shipped), \
+        "§7.3's backing artifact is a detection_validation run"
     assert "main_table.json" in shipped, "Tables 3/5's backing artifact"
     assert not shipped & set(RENDERED), "rendered files are not artifacts"

@@ -423,9 +423,9 @@ def check_supplement_stratification(rep: Report) -> None:
     and when detection_validation was refreshed the body was corrected while
     both supplement copies kept the superseded pooled rho and degree comparison.
     """
-    art = _load("detection_validation_v3.json")
+    art = _load("detection_validation_v4.json") or _load("detection_validation_v3.json")
     if art is None:
-        rep.skipped.append("detection_validation_v3.json absent; S6/S7 unchecked")
+        rep.skipped.append("detection_validation_v*.json absent; S6/S7 unchecked")
         return
     summ = art.get("summary") or {}
     pooled = (summ.get("pooling_check") or {}).get("pooled_mean_rho")
@@ -832,7 +832,7 @@ def check_table9c_active(rep: Report) -> None:
 FRESHNESS_TARGETS = {
     "loso_all_variants_v5.json": "Tables 7/7c",
     "realworld_zeroshot_v6.json": "Tables 9b/9c",
-    "detection_validation_v3.json": "7.3 stratification",
+    "detection_validation_v4.json": "7.3 stratification",
     "convergent_validity.json": "Supplementary S9",
     "label_stability.json": "7.1 label-noise ceiling",
     "topic_weight_sensitivity_v3.json": "Supplementary S1",
