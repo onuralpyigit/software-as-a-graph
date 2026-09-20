@@ -33,7 +33,7 @@ latex/
 ├── sections/            — one .tex per manuscript section (sec1..sec9) + declarations.tex
 │                         NOTE: sec4_* is the PREDICTIVE pathway (HGT), sec5_* the EXPLANATION layer (RM)
 ├── supplementary.tex    — SEPARATE document, Sections S1–S8 (see below); builds standalone
-├── refs.bib             — 91 references, shared by the manuscript and the supplement
+├── refs.bib             — 93 references, shared by the manuscript and the supplement
 ├── title_page.tex       — SEPARATE, non-anonymous title page for Editorial Manager
 ├── highlights.tex       — SEPARATE file, 5 bullets ≤85 chars (Elsevier requires "highlights" in the name)
 ├── LENGTH_JUSTIFICATION.md — text for the "Comments to the Editor" field
@@ -80,9 +80,9 @@ the layout JSS's "<36 pages single-column" guidance reads naturally against.
 | `[preprint,review,3p]` | — | 1.5-spaced reviewing copy; add `review` back if the editor asks for one |
 | `[preprint]` | — | Elsevier's generic preprint layout (larger type/margins) |
 
-Of the 39 pages, the reference list is the last 5. Reaching the 36 the Guide encourages would require
-dropping an evaluation condition; `LENGTH_JUSTIFICATION.md` argues the case for the current length
-and lists what has already been moved to the supplement.
+Of the 35 pages, the reference list is the last 3. The manuscript is inside the "less than 36 pages
+single-column" the Guide encourages; `LENGTH_JUSTIFICATION.md` records what was moved to the
+supplement to keep it there.
 
 **Re-measure, do not restate.** This file previously carried three different page counts at once (43,
 43 and 36) against an actual 39. Take every count here from the build: `pdfinfo manuscript.pdf`,
@@ -90,7 +90,7 @@ and lists what has already been moved to the supplement.
 
 ## Supplementary material
 
-`supplementary.tex` (8 pages, Sections S1--S8) carries the material moved out of the body during condensation:
+`supplementary.tex` (16 pages, Sections S1--S19) carries the material moved out of the body during condensation:
 
 | § | Content |
 |---|---|
@@ -137,7 +137,7 @@ judging by eye.
 python ../../../../reproduce/reconcile_manuscript.py --verbose
 ```
 
-Reconciles every reported table figure — currently **417** — against the artifact that produced it,
+Reconciles every reported table figure — currently **415** — against the artifact that produced it,
 and flags any that is missing, stale against the corpus, or was produced from a dirty working tree.
 It covers `supplementary.tex` as well as the body: the supplement restates body figures as literal
 text (it cannot `\ref` across documents), and that is how S6/S7 once kept a superseded pooled ρ after
@@ -150,9 +150,9 @@ revision:
 grep -rnE '0\.680|0\.160|0\.695|0\.581|0\.568|0\.114|0\.054|0\.127|2,461|2,812' sections/ ../manuscript.md
 ```
 
-Current state of the build: **39 pages**, 9 sections, 12 tables, 3 figures, 91 references (all cited),
+Current state of the build: **35 pages**, 9 sections, 14 tables, 1 figure, 93 references (all cited),
 **zero LaTeX errors, zero undefined references, zero undefined citations, zero overfull boxes**. The
-supplement builds to 8 pages (S1--S8, 6 tables, 2 figures), also with zero undefined references.
+supplement builds to 16 pages (S1--S19, 16 tables, 4 figures), also with zero undefined references.
 
 ## What's still a placeholder
 
@@ -174,5 +174,6 @@ supplement builds to 8 pages (S1--S8, 6 tables, 2 figures), also with zero undef
   own section directly before the reference list (and before the generative-AI declaration).
 - **Graphical abstract** — encouraged by the Guide, not required; not produced here. If added:
   531 × 1328 px (h × w) or proportionally more, TIFF/EPS/PDF/MS Office, separate file.
-- **Length** — 39 pages, over the "less than 36 pages single-column" the Guide encourages, so
-  `LENGTH_JUSTIFICATION.md` must go into the "Comments to the Editor" field at submission.
+- **Length** — 35 pages, inside the "less than 36 pages single-column" the Guide encourages. No
+  explanation is required in "Comments to the Editor"; `LENGTH_JUSTIFICATION.md` is kept as a record
+  of what was moved to the supplement.

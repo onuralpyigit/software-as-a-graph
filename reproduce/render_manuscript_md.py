@@ -155,7 +155,9 @@ def render_frontmatter() -> tuple[str, str, str]:
         keywords = re.sub(r"\s+", " ", keywords).replace("--", "–")
     else:
         keywords = ""
-    keywords_md = f"**Keywords:** {keywords}."
+    # No trailing period: the keyword list is an indexing field, not a
+    # sentence, and the stop was being read as part of the last keyword.
+    keywords_md = f"**Keywords:** {keywords}"
 
     return header, abstract_md, keywords_md
 

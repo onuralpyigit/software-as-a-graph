@@ -19,10 +19,10 @@
   (primary); *Explainable, Interpretable, and Robust AI* (secondary, §5 and §7.3); *AI for Automated
   Performance Tasks* (RQ5, §7.5)
 * **Review model:** single-anonymised (confirmed against the Elsevier Guide for Authors, September 2026); authors are named in the manuscript, `title_page.tex` uploaded separately
-* **Scale:** 35 pages, 9 sections, 11 tables, 3 figures, 93 references, plus an 8-page supplement
+* **Scale:** 35 pages, 9 sections, 15 tables, 3 figures, 93 references, plus an online supplement
   (S1–S8, 6 tables, 2 figures). Take these from the build:
   `pdfinfo latex/manuscript.pdf`, `grep -c 'begin{table' latex/sections/*.tex`.
-* **Build:** zero LaTeX errors, zero undefined references or citations; 417
+* **Build:** zero LaTeX errors, zero undefined references or citations; 415
   reported table figures reconcile against their artifacts via
   `reproduce/reconcile_manuscript.py`, which now also covers `supplementary.tex` and fails on a
   missing or dirty-provenance artifact
@@ -59,7 +59,7 @@ if an edit ever softens one back into a claim, that is a regression.
 | **vs Topo-QoS (LOSO)** | +0.085, 9/12, p = 0.151 | §7.1 |
 | vs Topo-QoS, critical set | F₁@K +0.037, 7/12, p = 0.470 | §7.1 |
 | Active-stratum retention — Topo-QoS / HGT-QoS | 51% / 56% | §7.1.2 (Table 7c) |
-| Real-world zero-shot, full population / active stratum | 0.767 / **+0.265**, negative on 2 of 5 | §7.4.1 (Table 9b) |
+| Real-world zero-shot, full population / active stratum | 0.792 / **+0.281**, negative on 2 of 5 | §7.4.1 (Table 11/12) |
 | Real-world training-free references — RM / Topo / Topo-QoS | 0.516 / 0.511 / 0.526 | §7.4.1, §8.4 |
 | Oracle agreement — I_dyn·I\* / I_comp·I\* / I_comp·I_dyn | 0.627 / 0.395 / 0.411 (12 folds) | §7.3 (Table 10) |
 | Stratified vs pooled RM ρ | 0.566 (App) / 0.119 (Broker) / 0.244 (Node) vs pooled **0.098** (Simpson's) | §7.3.6 |

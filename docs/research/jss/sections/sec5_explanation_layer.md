@@ -1,8 +1,8 @@
 # 5. The Explanation Layer: Standards-Grounded Criticality Attribution
 
-The predictor described in §4 identifies risk concentration but does not address remediation strategies. SaG’s core claim is that a component may be critical because it is an unreplicated single point of failure, an error-propagating cascade hub, or a high-coupling maintainability bottleneck. Each structural cause requires a distinct remediation approach: broker replication, circuit-breaker insertion, or refactoring module dependencies. This section formalizes the diagnostic layer that attributes these causes. SaG decomposes component criticality into a standards-grounded quality profile, calculated using the same typed node properties (§3.4) but without parameter sharing with the neural predictor. It applies this profile to flagged components through triage rather than data flow (Figure 1).
+The predictor of §4 locates risk but says nothing about remedy. A component may be critical because it is an unreplicated single point of failure, an error-propagating cascade hub, or a high-coupling maintainability bottleneck, and each calls for a different intervention: replication, a circuit breaker, or refactoring. This section formalizes the layer that attributes those causes, decomposing criticality into a standards-grounded quality profile computed from the same typed node properties (§3.4) without sharing parameters with the predictor, and reaching flagged components through triage rather than data flow (Figure 1).
 
-This layer is explicitly unvalidated and intended as a design pattern for qualitative attribution rather than quantitative ranking. As shown in §7.1, its standalone rank correlation is low ($\rho = 0.205$, consistently below unweighted centrality). Its elicited AHP weights underperform a uniform prior (§7.3), and no human-subject studies have yet assessed developer adoption. This layer maps topological properties to standardized ISO/IEC concepts.
+**What this section is, and is not.** This layer is a design pattern, not a validated contribution, and it is deliberately absent from the list of contributions in §1.5. Three results bound it. Its standalone rank correlation is low ($\rho = 0.205$, below unweighted centrality on every fold, §7.1); its elicited AHP weights rank worse than a uniform prior, monotonically so as they approach raw elicited judgment (§7.3); and no human-subject study has tested whether its archetypes change what a developer does. What it offers is a worked mapping from topological properties to standardized ISO/IEC sub-characteristics, and an existence proof that such a mapping can be computed from a manifest. Whether the mapping is *right* is the open question, and §8.4 names the two experiments that would answer it.
 
 ## 5.1 Grounding in ISO/IEC Standards
 
@@ -14,48 +14,15 @@ Criticality is assessed across two orthogonal characteristics: **Reliability ($R
 
 All raw metrics are rank-normalized to the interval $[0, 1]$ within the graph. Quality sub-characteristics are formulated hierarchically using the Analytic Hierarchy Process (AHP) [63]:
 
-1.  **Fault Tolerance ($FT(v)$):** Evaluates error cascade potential on transpose graph $G_{\text{analysis}}^\top$:
+-   **Fault Tolerance ($FT(v)$):** Evaluates error cascade potential on transpose graph $G_{\text{analysis}}^\top$: $FT(v) = 0.45 \cdot \text{RPR}(v) + 0.30 \cdot \text{Deg}_{\text{in}}(v) + 0.25 \cdot \text{CDPot}_{\text{enh}}(v)$, where $\text{RPR}(v)$ is Reverse PageRank, $\text{Deg}_{\text{in}}(v) = d_{\text{in}}(v)/(|V|-1)$ is normalized in-degree, and $\text{CDPot}_{\text{enh}}(v) = \text{depth}(v) / \max_{u \in V} \text{depth}(u)$ is normalized cascade depth potential on $G_{\text{analysis}}^\top$.
 
-    $$\tag{10}
-    FT(v) = 0.45 \cdot \text{RPR}(v) + 0.30 \cdot \text{Deg}_{\text{in}}(v) + 0.25 \cdot \text{CDPot}_{\text{enh}}(v)$$
+-   **Availability ($A(v)$):** Identifies structural single points of failure across five terms: $A(v) = 0.25 \cdot \text{AP}_c^{\text{dir}}(v) + 0.20 \cdot \text{QSPOF}(v) + 0.20 \cdot \text{BR}(v) + 0.25 \cdot \text{CDI}(v) + 0.10 \cdot w(v)$, where $\text{AP}_c^{\text{dir}}(v)$ is Directed Articulation Point severity, $\text{QSPOF}(v)$ is QoS-weighted SPOF severity, $\text{BR}(v)$ is Bridge Ratio, $\text{CDI}(v)$ is Connectivity Degradation Index, and $w(v)$ is intrinsic QoS weight.
 
-    where $\text{RPR}(v)$ is Reverse PageRank (RPR), $\text{Deg}_{\text{in}}(v) = d_{\text{in}}(v)/(|V|-1)$ is normalized in-degree, and $\text{CDPot}_{\text{enh}}(v) = \text{depth}(v) / \max_{u \in V} \text{depth}(u)$ is the normalized cascade depth potential, measuring the longest reachable directed failure-propagation chain from $v$ on $G_{\text{analysis}}^\top$.
+-   **Reliability ($R(v)$):** Blends Fault Tolerance and Availability: $R(v) = r_{\text{FT}} \cdot FT(v) + (1 - r_{\text{FT}}) \cdot A(v)$ with $r_{\text{FT}} = 0.36$. Intra-dimension weights apply $\lambda = 0.70$ shrinkage blending with a uniform prior. Three of the framework’s five comparison matrices (Impact, Maintainability, Availability) are rank-one by construction, so their Consistency Ratios are uninformative; the remaining two (Topic QoS and Fault Tolerance) carry genuine second-eigenvalue spread and their $CR$ figures do mean what $CR$ normally means. Supplementary §S4 separates them. Elicited AHP weights rank worse than a uniform prior against dynamic simulation (§7.3), and we recommend the uniform prior. The shipped default nonetheless remains $\lambda = 0.70$, because the same constant parameterises the $I_{\text{comp}}$ severity weights: changing it would re-label the composite oracle and with it every figure scored against that oracle. Decoupling the two is a prerequisite for changing the default, not a reason to defend it.
 
-2.  **Availability ($A(v)$):** Identifies structural single points of failure across five terms:
+-   **Maintainability ($M(v)$):** Blends structural coupling with static code analysis: $M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))$, where $\text{BT}(v)$ is Betweenness Centrality, $w_{\text{out}}(v)$ is QoS-weighted efferent coupling, $\text{CQP}(v)$ is Code Quality Penalty, and $\text{CC}(v)$ is local Clustering Coefficient.
 
-    $$\tag{11}
-    A(v) = 0.25 \cdot \text{AP}_c^{\text{dir}}(v) + 0.20 \cdot \text{QSPOF}(v) + 0.20 \cdot \text{BR}(v) + 0.25 \cdot \text{CDI}(v) + 0.10 \cdot w(v)$$
-
-    where $\text{AP}_c^{\text{dir}}(v)$ is Directed Articulation Point (AP) severity, $\text{QSPOF}(v)$ is QoS-weighted Single Point of Failure (QSPOF) severity, $\text{BR}(v)$ is Bridge Ratio (BR), $\text{CDI}(v)$ is Connectivity Degradation Index (CDI), and $w(v)$ is the intrinsic QoS weight.
-
-3.  **Reliability ($R(v)$):** Blends Fault Tolerance and Availability:
-
-    $$\tag{12}
-    R(v) = r_{\text{FT}} \cdot FT(v) + (1 - r_{\text{FT}}) \cdot A(v), \quad r_{\text{FT}} = 0.36$$
-
-    The intra-dimension weights apply $\lambda = 0.70$ shrinkage blending with a uniform prior. Because comparison matrices are rank-one by construction, these weights are documented conventions rather than independently elicited consensus. The elicited AHP weights rank worse than a uniform prior against dynamic simulation (§7.3); whether they attribute better is untested, and we recommend the uniform prior pending a formal user study.
-
-4.  **Maintainability ($M(v)$):** Blends structural coupling with static code analysis:
-
-    $$\tag{13}
-    M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))$$
-
-    where $\text{BT}(v)$ is Betweenness Centrality (BT), $w_{\text{out}}(v)$ is QoS-weighted efferent coupling, $\text{CQP}(v)$ is Code Quality Penalty (CQP), and $\text{CC}(v)$ is local Clustering Coefficient (CC).
-
-The baseline composite quality score integrates both dimensions as follows: $Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)$. When evaluated under an ISO/IEC 25019 Context of Use vector $\vec{\omega} = [q_R, q_M]^\top$, the score is dynamically reweighted: $Q_{\text{domain}}(v) = q_R \cdot R(v) + q_M \cdot M_{\text{static}}(v)$. Components are partitioned into Tukey tiers: CRITICAL ($Q > Q_3 + 1.5 \cdot \text{IQR}$), HIGH, MEDIUM, and MINIMAL. Across the benchmark topologies, this conservative Tukey upper fence flags an empirical mean of $4.2\%$ of components (range $1.8\%$–$8.3\%$), deliberately isolating the extreme right tail of architectural risk to prioritize developer intervention. High Availability ($A$) combined with low Fault Tolerance ($FT$) indicates a single point of failure that necessitates replication. In contrast, high Fault Tolerance ($FT$) identifies an error-cascade hub that requires circuit breakers (§8.4). Table 4 illustrates a representative Diagnostic Remediation Card generated for a flagged component, demonstrating how standardized quality sub-characteristics translate raw topological metrics into concrete refactoring actions.
-
-**Table 4.** Illustrative Diagnostic Remediation Card for a flagged component (`TransactionProcessor` in the ATM System case study). The explanation layer maps structural metrics to ISO/IEC sub-characteristics to guide engineering intervention.
-
-| **Diagnostic Attribute**                             | **Evaluated Value**                                                                 | **Structural Interpretation**                                                 |
-|:-----------------------------------------------------|:------------------------------------------------------------------------------------|:------------------------------------------------------------------------------|
-| **Component ID**                                     | `TransactionProcessor`                                                              | Core transaction coordinator ($V_{\text{app}}$)                               |
-| **Tukey Risk Tier**                                  | **CRITICAL**                                                                        | $Q(v) = 0.84 > Q_3 + 1.5 \cdot \text{IQR}$                                    |
-| *ISO/IEC 25010 Structural Quality Profile Breakdown* |                                                                                     |                                                                               |
-| **Availability ($A$)**                               | $0.89$ [High SPOF Risk]                                                           | $\text{AP}_c^{\text{dir}} = 1.00$, $\text{QSPOF} = 0.92$, $\text{CDI} = 0.78$ |
-| **Fault Tolerance ($FT$)**                           | $0.31$ [Low Cascade Propagation]                                                  | $\text{RPR} = 0.25$, $\text{Deg}_{\text{in}} = 0.30$, $\text{CDPot} = 0.38$   |
-| **Maintainability ($M$)**                            | $0.65$ [Moderate Structural Coupling]                                             | $\text{BT} = 0.70$, $w_{\text{out}} = 0.60$, $\text{CQP} = 0.40$              |
-| **Structural Diagnosis**                             | Isolated Single Point of Failure (Severe $A$ deficit, low downstream cascade reach) |                                                                               |
-| **Prescriptive Action**                              | Deploy warm-standby replica and establish redundant message broker routing          |                                                                               |
+The baseline composite quality score integrates both dimensions as follows: $Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)$. When evaluated under an ISO/IEC 25019 Context of Use vector $\vec{\omega} = [q_R, q_M]^\top$, the score is dynamically reweighted: $Q_{\text{domain}}(v) = q_R \cdot R(v) + q_M \cdot M_{\text{static}}(v)$. Components are partitioned into Tukey tiers: CRITICAL ($Q > Q_3 + 1.5 \cdot \text{IQR}$), HIGH, MEDIUM, and MINIMAL. Across the benchmark topologies, this conservative Tukey upper fence flags an empirical mean of $4.2\%$ of components (range $1.8\%$–$8.3\%$), deliberately isolating the extreme right tail of architectural risk to prioritize developer intervention. High Availability ($A$) combined with low Fault Tolerance ($FT$) indicates a single point of failure that necessitates replication. In contrast, high Fault Tolerance ($FT$) identifies an error-cascade hub that requires circuit breakers (§8.4). Supplementary Table S16 shows a representative Diagnostic Remediation Card, illustrating how the sub-characteristics translate topological metrics into refactoring actions.
 
 ## 5.3 Prescriptive Remediation and Counterfactual Verification
 

@@ -179,8 +179,24 @@ FACTORIAL_CELLS = {
 }
 
 
-def factorial(table: Dict[str, Any]) -> List[Dict[str, Any]]:
+def factorial(table: Dict[str, Any], *, fisher_z: bool = False) -> List[Dict[str, Any]]:
     """The three orthogonal quantities of the 2x2, tested per fold.
+
+    With ``fisher_z=True`` every cell's per-fold rho is transformed by
+    ``arctanh`` before the contrasts are formed. This matters for exactly one
+    of the three quantities. Spearman rho is bounded on [-1, 1] and its scale
+    compresses as it approaches either end, so a difference of differences
+    computed on raw rho is not scale-free: two mechanisms that each move a
+    predictor toward the attainable ceiling will appear to interact
+    sub-additively even when they contribute independently on any monotone
+    rescaling. The interaction row is the paper's substitution claim, so it has
+    to survive the transformation that removes that artefact. Main effects are
+    reported on both scales for completeness; they are differences, not
+    differences of differences, and are far less exposed to it.
+
+    The transform is applied per fold per cell, never to an already-averaged
+    rho. No cell in the shipped artifact reaches |rho| = 1, so arctanh is
+    finite throughout; a cell that did would return inf and is guarded below.
 
     The four pairwise contrasts in ARCHITECTURE_CONTRASTS are *simple effects*,
     and they are algebraically linked: given the four cell means, any three
@@ -215,6 +231,15 @@ def factorial(table: Dict[str, Any]) -> List[Dict[str, Any]]:
     t01 = np.array([cells[("T0", "Q1")][f] for f in folds])
     t11 = np.array([cells[("T1", "Q1")][f] for f in folds])
 
+    if fisher_z:
+        for name, arr in (("gl", t00), ("hgl", t10), ("gl_qos", t01), ("hgl_qos", t11)):
+            if np.any(np.abs(arr) >= 1.0):
+                raise ValueError(
+                    f"{name} carries |rho| = 1 on some fold; arctanh is undefined "
+                    "there and the z-scale contrast cannot be formed."
+                )
+        t00, t10, t01, t11 = (np.arctanh(a) for a in (t00, t10, t01, t11))
+
     quantities = (
         ("main_typing", "Typing (main effect)", ((t10 - t00) + (t11 - t01)) / 2.0),
         ("main_qos", "QoS edge channel (main effect)", ((t01 - t00) + (t11 - t10)) / 2.0),
@@ -231,9 +256,10 @@ def factorial(table: Dict[str, Any]) -> List[Dict[str, Any]]:
         except ValueError:                     # all-zero differences
             stat, p = float("nan"), 1.0
         out.append({
-            "quantity": key,
-            "label": label,
-            "role": "factorial",
+            "quantity": f"{key}_z" if fisher_z else key,
+            "label": f"{label}, Fisher z" if fisher_z else label,
+            "role": "factorial_fisher_z" if fisher_z else "factorial",
+            "scale": "fisher_z" if fisher_z else "spearman_rho",
             "not_preregistered": True,
             "n_folds": n,
             "mean_delta": float(diff.mean()),
@@ -376,6 +402,11 @@ def main() -> int:
         return out
 
     factors = factorial(table)
+    # The same three quantities on the variance-stabilised scale. Reported
+    # beside the rho-scale block rather than instead of it: the manuscript
+    # states the interaction in rho units, and the z-scale row is what says
+    # whether that interaction is a property of the mechanisms or of the metric.
+    factors_z = factorial(table, fisher_z=True)
     # Simple effects are reported descriptively: they are algebraically linked
     # to each other and to the interaction, so correcting across them would
     # treat one structural fact as four questions. The correction lives on the
@@ -408,6 +439,19 @@ def main() -> int:
                   f"{r['p']:>9.4f}{r['p_holm']:>9.4f}")
         ci = next(r for r in factors if r["quantity"] == "interaction")["delta_ci95"]
         print(f"  interaction bootstrap 95% CI: [{ci[0]:+.4f}, {ci[1]:+.4f}]")
+
+    if factors_z:
+        print(f"\n  2x2 factorial on Fisher z   [POST-HOC]   "
+              f"rho is bounded; z is not")
+        print("  " + "─" * 78)
+        print(f"  {'quantity':<34}{'d z':>9}{'wins':>7}{'W':>7}{'p':>9}{'p_holm':>9}")
+        for r in factors_z:
+            print(f"  {r['label']:<34}{r['mean_delta']:>+9.4f}"
+                  f"{r['wins']:>4}/{r['n_folds']:<2}{r['W']:>7.1f}"
+                  f"{r['p']:>9.4f}{r['p_holm']:>9.4f}")
+        ciz = next(r for r in factors_z
+                   if r["quantity"] == "interaction_z")["delta_ci95"]
+        print(f"  interaction bootstrap 95% CI (z): [{ciz[0]:+.4f}, {ciz[1]:+.4f}]")
 
     print("\n  Per-fold deltas (primary):")
     for fold, d in sorted(family[0]["per_fold_delta"].items(),
@@ -447,6 +491,12 @@ def main() -> int:
         # The 2x2's three orthogonal quantities, Holm-corrected across them.
         # This is where the substitution claim is tested.
         "factorial": factors,
+        # The same three quantities with each fold's rho passed through
+        # arctanh first. Spearman rho is bounded, so a difference of
+        # differences on it can read as sub-additive purely because the cells
+        # sit at different points on a compressing scale. This block is what
+        # distinguishes a mechanism-level interaction from a metric artefact.
+        "factorial_fisher_z": factors_z,
         # Post-hoc simple effects (RQ2 typing, RQ3 QoS edge ablation), reported
         # descriptively: algebraically linked, so not separately corrected.
         "architecture": architecture,

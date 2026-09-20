@@ -8,10 +8,10 @@ justified."*
 ---
 
 The manuscript runs to **35 single-column pages** in the `elsarticle` preprint class, of which
-**2.8 pages are the reference list** (93 entries). The main text and declarations occupy 32.2 pages.
+**3 pages are the reference list** (93 entries). The main text and declarations occupy 32 pages.
 The manuscript strictly conforms to the journal's recommended limit of less than 36 single-column pages.
 
-We have already moved substantial material out of the body. Fourteen supplementary sections now
+We have already moved substantial material out of the body. Nineteen supplementary sections now
 carry the parameter-sensitivity sweeps (OFAT and Morris screening), the AHP matrices and their
 consistency diagnostics, the generative corpus parameters, the per-scenario corpus composition, the
 typed node feature schema, the anti-pattern detection benchmark, the explanation layer's real-world
@@ -28,8 +28,8 @@ p = 0.0015) but interacting sub-additively (−0.199, negative on all twelve fol
 established once tied labels are excluded, and inverts on two of five architectures; that a
 label-free confidence signal previously reported does not replicate; that the explanation layer's
 elicited AHP weights are anti-predictive and three of its five AHP matrices are rank-one by
-construction; and that the static gate is roughly eleven times more expensive than the simulation it
-was intended to displace. Each of these is a claim *against* our own framework, and each required the
+construction; and that the static gate is roughly eighteen times slower than the discrete-event simulation it
+was intended to displace ($79.3\,\text{s}$ vs. $4.5\,\text{s}$). Each of these is a claim *against* our own framework, and each required the
 ablation, the corrected baseline, or the sensitivity analysis that establishes it. A paper reporting
 a clean positive result would be shorter; it would also be less useful.
 
@@ -42,7 +42,7 @@ demonstrated Simpson's paradox. Compressing further would mean dropping an evalu
 leaving the reader unable to reconstruct which comparison rests on which data.
 
 **3. Reproducibility claims are load-bearing and stated in the text.** The corpus regenerates
-byte-identically from committed configurations; 417 reported table values are mechanically
+byte-identically from committed configurations; 415 reported table values are mechanically
 reconciled against the JSON artifacts that produced them by a committed script that refuses a clean
 run when an artifact is absent or was produced from a modified working tree; the input–label
 independence guarantee is asserted in continuous integration; and the primary out-of-distribution
