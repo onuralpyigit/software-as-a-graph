@@ -42,7 +42,7 @@ demonstrated Simpson's paradox. Compressing further would mean dropping an evalu
 leaving the reader unable to reconstruct which comparison rests on which data.
 
 **3. Reproducibility claims are load-bearing and stated in the text.** The corpus regenerates
-byte-identically from committed configurations; 403 reported table values are mechanically
+byte-identically from committed configurations; 417 reported table values are mechanically
 reconciled against the JSON artifacts that produced them by a committed script that refuses a clean
 run when an artifact is absent or was produced from a modified working tree; the input–label
 independence guarantee is asserted in continuous integration; and the primary out-of-distribution

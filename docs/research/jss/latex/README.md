@@ -137,7 +137,7 @@ judging by eye.
 python ../../../../reproduce/reconcile_manuscript.py --verbose
 ```
 
-Reconciles every reported table figure — currently **237** — against the artifact that produced it,
+Reconciles every reported table figure — currently **417** — against the artifact that produced it,
 and flags any that is missing, stale against the corpus, or was produced from a dirty working tree.
 It covers `supplementary.tex` as well as the body: the supplement restates body figures as literal
 text (it cannot `\ref` across documents), and that is how S6/S7 once kept a superseded pooled ρ after

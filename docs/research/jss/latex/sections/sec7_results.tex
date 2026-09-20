@@ -224,7 +224,7 @@ Aggregated by relation type over the ATM case study, first-layer mean HGT attent
 \subsection{RQ4: Real-World Distributed Architecture Validation}
 \label{sec:7.4}
 
-\paragraph{RQ4 Summary (Real-World Transfer):} \emph{Full-population transfer ($\rho = 0.767$) is inflated by separating inert components from active ones. On the active stratum the mean drops to $+0.265$ and both synchronous microservice call trees invert, while the three pub-sub systems hold up. We therefore report RQ4 as a negative result: learned relational transfer to authentic open-source architectures is not established.}
+\paragraph{RQ4 Summary (Real-World Transfer):} \emph{Full-population transfer ($\rho = 0.792$) is inflated by separating inert components from active ones: restricted to components that actually propagate failures, every predictor loses roughly $0.5$--$0.6$ of correlation. \texttt{HGT-QoS} is the only one that stays positive ($\rho_{>0} = +0.281$); all three training-free baselines turn negative ($-0.055$ RM, $-0.083$ \texttt{Topo}, $-0.092$ \texttt{Topo-QoS}), so the collapse is a property of the active-stratum task rather than of relational learning. We therefore report RQ4 as a qualified positive: the typed model is the only predictor to retain any active-stratum signal on transcribed architectures, but $+0.281$ is too weak to establish transfer, and it still inverts on the synchronous Train-Ticket call tree.}
 
 We evaluated the framework on five open-source distributed systems transcribed from public repositories: Online Boutique, Train-Ticket, Home Assistant, Autoware Universe (ROS~2), and EdgeX Foundry. All carry labels from the same simulation oracles used throughout, testing out-of-family topological transfer rather than agreement with field incident telemetry.
 
@@ -247,25 +247,42 @@ To assess generalization outside the generator, \texttt{HGT-QoS} was trained on 
 \cmidrule(lr){4-5} \cmidrule(lr){6-7} \cmidrule(lr){8-9} \cmidrule(lr){10-12}
 & & & $\rho$ & $F_1$ & $\rho$ & $F_1$ & $\rho$ & $F_1$ & $\rho$ (Full) & $\rho_{>0}$ (Active) & $F_1@K$ \\
 \midrule
-\textbf{Cloud Microservices Mesh} & 22 & 18 & 0.777 & 0.250 & \textbf{0.891} & 0.250 & 0.888 & 0.250 & 0.649 $\pm$ 0.131 & \textbf{-0.029} & \textbf{0.400 $\pm$ 0.255} \\
-\textbf{Train-Ticket Booking Mesh} & 41 & 22 & 0.713 & \textbf{0.625} & 0.528 & \textbf{0.625} & 0.541 & \textbf{0.625} & \textbf{0.776 $\pm$ 0.004} & \textbf{-0.213} & 0.450 $\pm$ 0.100 \\
-\textbf{Autoware.universe (ROS 2)} & 32 & 28 & 0.357 & 0.167 & 0.307 & 0.167 & 0.378 & 0.167 & \textbf{0.734 $\pm$ 0.054} & \textbf{+0.559} & \textbf{0.633 $\pm$ 0.163} \\
-\textbf{EdgeX Foundry (Industrial IoT)} & 22 & 19 & 0.470 & 0.000 & 0.534 & 0.000 & 0.534 & 0.000 & \textbf{0.804 $\pm$ 0.040} & \textbf{+0.304} & \textbf{0.500 $\pm$ 0.000} \\
-\textbf{Home Assistant (Smart Home)} & 24 & 23 & 0.265 & 0.200 & 0.297 & 0.200 & 0.289 & 0.200 & \textbf{0.872 $\pm$ 0.035} & \textbf{+0.704} & \textbf{0.600 $\pm$ 0.000} \\
+\textbf{Cloud Microservices Mesh} & 22 & 8 & 0.777 & 0.250 & \textbf{0.891} & 0.250 & 0.888 & 0.250 & 0.769 $\pm$ 0.054 & $+$0.031 & \textbf{0.500 $\pm$ 0.158} \\
+\textbf{Train-Ticket Booking Mesh} & 41 & 14 & 0.713 & \textbf{0.625} & 0.528 & \textbf{0.625} & 0.541 & \textbf{0.625} & \textbf{0.775 $\pm$ 0.016} & $-$0.173 & 0.400 $\pm$ 0.050 \\
+\textbf{Autoware.universe (ROS 2)} & 32 & 19 & 0.357 & 0.167 & 0.307 & 0.167 & 0.378 & 0.167 & \textbf{0.745 $\pm$ 0.070} & $+$0.516 & \textbf{0.667 $\pm$ 0.149} \\
+\textbf{EdgeX Foundry (Industrial IoT)} & 22 & 10 & 0.470 & 0.000 & 0.534 & 0.000 & 0.534 & 0.000 & \textbf{0.772 $\pm$ 0.055} & $+$0.262 & \textbf{0.500 $\pm$ 0.000} \\
+\textbf{Home Assistant (Smart Home)} & 24 & 17 & 0.265 & 0.200 & 0.297 & 0.200 & 0.289 & 0.200 & \textbf{0.902 $\pm$ 0.020} & $+$0.770 & \textbf{0.600 $\pm$ 0.000} \\
 \midrule
-\textbf{Mean} & — & — & 0.516 & 0.248 & 0.511 & 0.248 & 0.526 & 0.248 & \textbf{0.767} & \textbf{+0.265} & \textbf{0.517} \\
+\textbf{Mean} & — & — & 0.516 & 0.248 & 0.511 & 0.248 & 0.526 & 0.248 & \textbf{0.792} & $+$0.281 & \textbf{0.533} \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
+\begin{table}[htbp]
+\centering
+\small
+\caption{Real-world active stratum: means over the five open-source systems on the full Application population ($\rho$) and restricted to components with strictly positive ground-truth impact ($\rho_{>0}$), the counterpart of Table~\ref{tab:7c} on transcribed rather than generated architectures. All four predictors are scored against identical labels, populations and node sets from a single run, so the columns are commensurable. $\Delta$ is $\rho_{>0} - \rho$; a retention ratio is not reported because three of the four active-stratum means are negative, which makes a percentage of the full-population figure uninterpretable.}
+\label{tab:9c}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Predictor} & \textbf{$\rho$ (full)} & \textbf{$\rho_{>0}$ (active)} & \textbf{$\Delta$} \\
+\midrule
+\textbf{RM / $Q(v)$} & $0.516$ & $-0.055$ & $-0.571$ \\
+\textbf{Topo} & $0.511$ & $-0.083$ & $-0.595$ \\
+\textbf{Topo-QoS} & $0.526$ & $-0.092$ & $-0.618$ \\
+\textbf{HGT-QoS} & $\mathbf{0.792}$ & $\mathbf{0.281}$ & $-0.511$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \noindent\textbf{Key Insights for Real-World Transfer:}
 \begin{enumerate}\tightlist
-\item \textbf{The full-population figure is not a ranking result.} On all Applications, \texttt{HGT-QoS} reaches $\rho = 0.767$ vs. $0.511$ (Topo), $0.526$ (\texttt{Topo-QoS}), and $0.516$ (RM), leading on 4/5 systems. However, between $4\%$ (Home Assistant) and $46\%$ (Train-Ticket) of Applications carry zero simulated impact; full correlation heavily rewards separating inert from active components rather than ranking active ones.
-\item \textbf{Restricted to components that actually propagate failures, transfer is not established.} On the active stratum the mean drops to $+0.265$, and both microservice call trees invert: Cloud Microservices ($\rho_{>0} = -0.029$, $n = 18$) and Train-Ticket ($-0.213$, $n = 22$). The three pub-sub systems hold up ($+0.559$ Autoware, $+0.704$ Home Assistant, $+0.304$ EdgeX). \textbf{We therefore report RQ4 as a negative result:} learned relational transfer to authentic open-source architectures is not established.
-\item \textbf{The QoS-weighted baseline is now scored, and it sharpens one comparison.} \texttt{Topo-QoS} reaches $\rho = 0.888$ on Cloud Microservices, where the learned model scores worst ($0.649$) and inverts on active components, sharpening the deficit on synchronous call trees.
-\item \textbf{Critical-set identification shows higher top-$K$ overlap in edge cases.} On operational triage ($F_1@K$), \texttt{HGT-QoS} averages $0.517$ across the five benchmarks compared to $0.248$ for structural baselines. Given the small $K$ ($4$--$8$ components) and the cross-seed Jaccard instability, these metric differences should be viewed descriptively. $F_1$ does highlight structural blind spots: on EdgeX Foundry, structural baselines score $F_1 = 0.000$ ($\rho \approx 0.47$--$0.53$), while \texttt{HGT-QoS} identifies 2 of the top 4 components ($F_1 = 0.500$). In EdgeX's IoT topology, symmetric star connections from peripheral adapters to brokers produce identical betweenness ties that collapse triage at $K = 20\%$ ($K=4$), whereas relational attention differentiates components via message flow features. Similarly, on Autoware.universe, \texttt{HGT-QoS} captures more top-$K$ components ($0.633$ vs.\ $0.167$), and on Cloud Microservices it achieves $F_1 = 0.400$ vs.\ $0.250$.
-\item \textbf{Architectural Ingestion Boundary.} The active-stratum inversion on microservices reveals a fundamental domain mismatch: synchronous RPC architectures propagate chain failures backward along invocation trees via timeouts and thread starvation \cite{zhou2021fault}, whereas asynchronous pub-sub architectures cascade forward via queue saturation and topic starvation. Because \texttt{HGT-QoS} was trained on pub-sub semantics, its directional bias inverts on synchronous call trees. A strict ingestion boundary is therefore required: SaG’s learned GNN pipeline applies to asynchronous and event-driven architectures (ROS 2, Kafka, DDS, MQTT), while closed-form baselines (\texttt{Topo-QoS}, $\rho = 0.888$) or call-graph analyzers should be used for synchronous RPC/REST microservice meshes.
+\item \textbf{The full-population figure is not a ranking result.} On all Applications, \texttt{HGT-QoS} reaches $\rho = 0.792$ vs. $0.511$ (Topo), $0.526$ (\texttt{Topo-QoS}), and $0.516$ (RM), leading on 4/5 systems. However, between $29\%$ (Home Assistant) and $66\%$ (Train-Ticket) of Applications carry zero simulated impact; full correlation heavily rewards separating inert from active components rather than ranking active ones. Table~\ref{tab:9c} therefore reports the active stratum for every predictor, not only the learned one.
+\item \textbf{On the active stratum every predictor collapses, and only the typed model survives it.} Restricting to components with strictly positive impact costs \texttt{HGT-QoS} $0.511$ of correlation, leaving $\rho_{>0} = +0.281$; it costs the training-free baselines more than they have, leaving all three negative ($-0.055$ RM, $-0.083$ \texttt{Topo}, $-0.092$ \texttt{Topo-QoS}; Table~\ref{tab:9c}). The pub-sub systems carry the learned model's margin ($+0.770$ Home Assistant, $+0.516$ Autoware, $+0.262$ EdgeX); Cloud Microservices is now indistinguishable from chance ($+0.031$, $n = 8$) and Train-Ticket still inverts ($-0.173$, $n = 14$). \textbf{We therefore report RQ4 as a qualified positive:} relational learning is the only approach here that retains active-stratum signal at all, but the magnitude does not establish transfer, and the synchronous inversion persists.
+\item \textbf{The QoS-weighted baseline wins on the full population of one system, and loses the stratum that matters.} \texttt{Topo-QoS} reaches $\rho = 0.888$ on Cloud Microservices against the learned model's $0.769$. On that same system's active components it scores $-0.072$ while \texttt{HGT-QoS} scores $+0.031$: the baseline's full-population lead there comes from separating inert components, which is precisely the effect the active stratum removes.
+\item \textbf{Critical-set identification shows higher top-$K$ overlap in edge cases.} On operational triage ($F_1@K$), \texttt{HGT-QoS} averages $0.533$ across the five benchmarks compared to $0.248$ for structural baselines. Given the small $K$ ($4$--$8$ components) and the cross-seed Jaccard instability, these metric differences should be viewed descriptively. $F_1$ does highlight structural blind spots: on EdgeX Foundry, structural baselines score $F_1 = 0.000$ ($\rho \approx 0.47$--$0.53$), while \texttt{HGT-QoS} identifies 2 of the top 4 components ($F_1 = 0.500$). In EdgeX's IoT topology, symmetric star connections from peripheral adapters to brokers produce identical betweenness ties that collapse triage at $K = 20\%$ ($K=4$), whereas relational attention differentiates components via message flow features. Similarly, on Autoware.universe, \texttt{HGT-QoS} captures more top-$K$ components ($0.667$ vs.\ $0.167$), and on Cloud Microservices it achieves $F_1 = 0.500$ vs.\ $0.250$.
+\item \textbf{Architectural Ingestion Boundary.} The active-stratum inversion on microservices reveals a fundamental domain mismatch: synchronous RPC architectures propagate chain failures backward along invocation trees via timeouts and thread starvation \cite{zhou2021fault}, whereas asynchronous pub-sub architectures cascade forward via queue saturation and topic starvation. Because \texttt{HGT-QoS} was trained on pub-sub semantics, its directional bias inverts on synchronous call trees. A strict ingestion boundary is therefore required: SaG’s learned GNN pipeline applies to asynchronous and event-driven architectures (ROS 2, Kafka, DDS, MQTT), while call-graph analyzers should be used for synchronous RPC/REST microservice meshes. We do not recommend the closed-form baselines as the substitute there: \texttt{Topo-QoS} leads on Cloud Microservices only on the full population ($\rho = 0.888$) and is itself negative on that system's active components ($-0.072$), so its advantage lies in identifying inert services rather than in ranking the ones that propagate.
 \end{enumerate}
 
 \subsection{RQ5: Analysis Cost and Its Comparison Against Simulation}
