@@ -53,6 +53,8 @@ if __name__ == "__main__" and __package__ is None:
 import numpy as np
 from scipy.stats import spearmanr
 
+from reproduce._provenance import stamp
+
 logger = logging.getLogger("qos_label_ablation")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -266,6 +268,8 @@ def main(argv: List[str] | None = None) -> int:
         "node_types": NODE_TYPES,
         "scenarios": results,
     }
+    # Which commit and which corpus produced this ablation. Section 4.3 cites it.
+    payload["provenance"] = stamp(label_arms=list(LABEL_ARMS), seeds=SEEDS)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(payload, indent=2))
     logger.info("Wrote %s", args.out)
