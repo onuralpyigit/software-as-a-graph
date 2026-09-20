@@ -71,7 +71,14 @@ The coefficients in Eq.~\eqref{eq:loss} ($0.5$ dimension, $0.3$ listwise rank, $
 
 This mask ensures the unobserved maintainability head is not artificially penalized or driven toward zero during backpropagation.
 
-\noindent\textbf{Auxiliary Nature of the Reliability Head:} The surviving term deserves to be stated plainly, because it operates as an auxiliary feature pathway rather than multi-dimensional supervision. The cascade fault injection oracle emits a single continuous scalar per component, and the label extractor assigns that same scalar to both the composite and reliability targets: $R^*(v) = I^*(v)$ identically. $\mathcal{L}_{\text{dimension}}$ under $m = [1,0]$ therefore regresses $\hat{R}$ toward the exact same target $\mathcal{L}_{\text{composite}}$ regresses $\hat{I}^*$ toward. The two terms are not redundant --- they train separate heads, and $\hat{R}$ re-enters the composite head as an input ($\hat{I}^* = \sigma(\text{MLP}_C(h_v \parallel \hat{R} \parallel \hat{M}))$), functioning as a feature-enrichment pathway rather than independent multi-task supervision. This oracle decomposes no second dimension of ground-truth; a distinct reliability score would require an independent oracle separating fault-tolerance from availability, which $I^*(v)$ does not do. We report the objective as implemented rather than claiming multi-dimensional supervisory ground truth.
+\noindent\textbf{Auxiliary Nature of the Reliability Head and Active Loss:} Under the headline experimental protocol, this general formulation simplifies significantly: with $\lambda_{\text{RM}} = 0$ (preserving strict pathway independence) and dimension mask $m = [1, 0]$, the cascade fault injection oracle emits a single scalar assigned to both targets: $R^*(v) = I^*(v)$ identically. $\mathcal{L}_{\text{dimension}}$ regresses $\hat{R}$ toward the same target as $\mathcal{L}_{\text{composite}}$. The effectively optimized loss reduces to:
+
+\begin{equation}
+\label{eq:loss_active}
+\mathcal{L}_{\text{active}} = \text{MSE}(\hat{I}^*(v), I^*(v)) + 0.5 \cdot \text{MSE}(\hat{R}(v), I^*(v)) + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}}
+\end{equation}
+
+Here, $\hat{R}$ re-enters the composite head as an input ($\hat{I}^* = \sigma(\text{MLP}_C(h_v \parallel \hat{R} \parallel \hat{M}))$), functioning as a feature-enrichment auxiliary pathway rather than independent multi-task supervision. We report the objective as implemented rather than claiming multi-dimensional supervisory ground truth.
 
 \subsubsection{Domain-Reweighted Criticality}
 \label{sec:4.2.2}
@@ -81,7 +88,24 @@ ISO/IEC 25019's Context of Use specifies that the relative weighting of reliabil
 \subsection{Ground-Truth Simulation Oracles}
 \label{sec:4.3}
 
-To evaluate predictive accuracy before deployment without relying on production runtime telemetry, SaG executes discrete-event failure simulations over the raw structural multigraph $G_{\text{structural}}$. We create a formal taxonomy of four component-level oracles and one relationship-level oracle:
+To evaluate predictive accuracy before deployment without relying on production runtime telemetry, SaG executes discrete-event failure simulations over the raw structural multigraph $G_{\text{structural}}$. Table~\ref{tab:oracle_roles} summarizes the four component-level oracles and their distinct roles across the evaluation program.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Simulation oracles, operational constructs, and evaluation roles.}
+\label{tab:oracle_roles}
+\begin{tabular}{llll}
+\toprule
+\textbf{Oracle} & \textbf{Physical Mechanism} & \textbf{Nature} & \textbf{Role in Evaluation} \\
+\midrule
+$I^*(v)$ & BFS cascade reachability + QoS ladder & Deterministic & Primary ranking target (RQ1, RQ2, RQ4) \\
+$I_{\text{comp}}(v)$ & Severity mixture: reachability + fragmentation & Deterministic & Explanation layer / Validate gate \\
+$I_{\text{dyn}}(v)$ & Discrete-event SimPy message queuing & Stochastic & Convergent-validity probe (RQ3) \\
+$I_M(v)$ & Reverse \texttt{DEPENDS\_ON} traversal & Deterministic & Unsupervised maintainability reference \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \begin{itemize}
     \item \textbf{Cascade Reachability Oracle ($I^*(v)$)}, evaluated via discrete-event cascade fault injection: crashes component $v$, propagates outages across dependent topics, brokers, and links by breadth-first traversal, and returns the mean fractional feed loss over the subscriber population, each subscriber contributing the unweighted mean loss of the topics it subscribes to. A topic's feed loss is the fraction of its publishers that have failed (for a topic with no publisher, the fraction of its failed routers), scaled by a QoS ladder ($\times 1.2$ \texttt{RELIABLE}, $\times 1.15$ high/urgent priority, $\times 1.05$ medium) and clamped to $[0,1]$. The denominator is the full subscriber set of the intact graph, so subscribers that themselves fail are retained in the average rather than excluded. The implementation admits a per-publisher rate weighting, but rates are declared per topic throughout our corpus, so it reduces exactly to this publisher fraction. This is the \textbf{primary continuous target label} throughout.

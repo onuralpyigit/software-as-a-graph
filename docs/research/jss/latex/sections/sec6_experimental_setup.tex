@@ -38,14 +38,31 @@ A companion manifest records the random seed, entity counts, git commit hash, an
 \subsection{Baselines and Evaluated Predictors}
 \label{sec:6.2}
 
-Four primary predictor configurations, drawn from three families, are evaluated. Predictor names indicate the family and substrate: an -N suffix denotes a model trained on the native multigraph, its absence denotes the obtained Application–Library flow projection, and a -QoS suffix denotes a configuration that consumes declared QoS contracts. SaG throughout denotes the framework, not an individual predictor.
-\begin{enumerate}
-\item \textbf{Heterogeneous graph learning (typed \texttt{HGT}).} \textbf{HGT-QoS} (proposed): relation-specific Heterogeneous Graph Transformer (Section~\ref{sec:4}) ingesting the complete native multigraph with 16-dimensional continuous-categorical edge features that encode middleware QoS contracts. We report its ablation, HGT, which masks those QoS dimensions, in Section~\ref{sec:7.3.1}.
-\item \textbf{Homogeneous graph learning (untyped \texttt{GAT}).} \textbf{GAT-N-QoS}: homogeneous Graph Attention Network \cite{velickovic2018graph} trained on the identical native multigraph substrate with per-type input projections, but untyped, single-relation message passing. Its edge channel carries the scalar QoS aggregate $w(e)$ — dimension $0$ of the same 16-D encoding \texttt{HGT-QoS} consumes — rather than the per-dimension decomposition; no homogeneous architecture in our suite ingests the full 16-D vector. The \texttt{HGT-QoS}–\texttt{GAT-N-QoS} contrast therefore isolates the joint contribution of relational typing and per-dimension QoS encoding. Section~\ref{sec:7.3.1} separates the second factor within the typed architecture, and the corresponding unweighted ablation is \texttt{GAT-N}. The -N suffix denotes the native substrate and is load-bearing: the same homogeneous architecture run on the \texttt{DEPENDS\_ON} projection is reported as GAT / GAT-QoS, and Table~\ref{tab:5} reports that pair.
-\item \textbf{QoS-weighted structural baseline (training-free).} \textbf{Topo-QoS}: QoS-weighted topological centrality evaluated on the obtained application flow projection.
-\item \textbf{Unweighted structural baseline (training-free).} \textbf{Topo}: structural centrality combining unweighted betweenness centrality and articulation point scoring on the flow projection.
-\end{enumerate}
-Additionally, the out-of-distribution evaluation (Table~\ref{tab:7}) reports RM ($Q(v)$, the deterministic hierarchical quality attribution model of Section~\ref{sec:5}) as a diagnostic reference baseline. RM is not fitted to rank failure impact; its inclusion shows the added value of learned relational prediction compared with static structural attribution (Section~\ref{sec:1.2}). Deterministic RM scoring also drives every sensitivity sweep in Section~\ref{sec:7.3}, where closed-form formulations isolate parameter effects from neural training stochasticity.
+Four primary predictor configurations, drawn from three distinct families, are evaluated alongside reference baselines. Table~\ref{tab:predictor_taxonomy} provides a structured taxonomy of the evaluated predictors, their underlying graph representations, edge feature encodings, and empirical roles. Predictor names indicate the model family and substrate: an \texttt{-N} suffix denotes a model trained on the complete native multigraph, its absence denotes the obtained Application–Library flow projection, and a \texttt{-QoS} suffix denotes a configuration that consumes declared QoS contracts. SaG throughout denotes the overall framework, not an individual predictor.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Taxonomy of evaluated predictors and reference baselines. The \texttt{-N} suffix denotes execution on the complete native multigraph; \texttt{-QoS} indicates inclusion of middleware QoS attributes.}
+\label{tab:predictor_taxonomy}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llccccl}
+\toprule
+\textbf{Predictor} & \textbf{Evaluation Substrate} & \textbf{Typing} & \textbf{Edge Features} & \textbf{Parameters} & \textbf{Trained?} & \textbf{Empirical Role} \\
+\midrule
+\textbf{Topo} & $G_{\text{analysis}}$ (Flow Projection) & No & None & 0 & No & Unweighted topological baseline \\
+\textbf{Topo-QoS} & $G_{\text{analysis}}$ (Flow Projection) & No & Scalar $w(e)$ & 0 & No & QoS-weighted closed-form benchmark \\
+\textbf{GAT-N} & Native Multigraph & Homogeneous & None & 28{,}168 & Yes & Untyped, unweighted GNN floor \\
+\textbf{GAT-N-QoS} & Native Multigraph & Homogeneous & Scalar $w(e)$ & 28{,}168 & Yes & Isolates QoS channel without typing \\
+\textbf{HGT} & Native Multigraph & Heterogeneous & Relation 1-hot & 434{,}620 & Yes & Isolates relational typing without QoS \\
+\textbf{HGT-QoS} & Native Multigraph & Heterogeneous & 16-D QoS Vector & 434{,}620 & Yes & Proposed full learned model \\
+\textbf{RM / $Q(v)$} & $G_{\text{analysis}}$ (Analysis Graph) & Per-type rules & Scalar $w(e)$ & 0 & No & Diagnostic attribution reference \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Table~\ref{tab:predictor_taxonomy} summarizes the evaluated predictors, graph representations, and empirical roles across three families: heterogeneous graph learning (\texttt{HGT-QoS} with 16-D QoS edge vectors, and its ablation \texttt{HGT}), homogeneous graph learning (\texttt{GAT-N-QoS} with scalar $w(e)$, and unweighted \texttt{GAT-N}), and training-free structural baselines (\texttt{Topo-QoS} and unweighted \texttt{Topo} on the \texttt{DEPENDS\_ON} flow projection). The \texttt{-N} suffix denotes the native multigraph substrate; on flow projections, homogeneous variants are denoted \texttt{GAT}/\texttt{GAT-QoS} (Table~\ref{tab:5}). The out-of-distribution evaluation (Table~\ref{tab:7}) additionally reports \textbf{RM} ($Q(v)$, Section~\ref{sec:5}) as a diagnostic reference baseline. Deterministic RM scoring also drives sensitivity sweeps in Section~\ref{sec:7.3}.
 
 \subsubsection{Evaluation Substrates and Parity Guarantee}
 \label{sec:6.2.substrate}

@@ -16,34 +16,47 @@ All raw metrics are rank-normalized to the interval $[0, 1]$ within the graph. Q
 
 1.  **Fault Tolerance ($FT(v)$):** Evaluates error cascade potential on transpose graph $G_{\text{analysis}}^\top$:
 
-    $$\tag{9}
+    $$\tag{10}
     FT(v) = 0.45 \cdot \text{RPR}(v) + 0.30 \cdot \text{Deg}_{\text{in}}(v) + 0.25 \cdot \text{CDPot}_{\text{enh}}(v)$$
 
     where $\text{RPR}(v)$ is Reverse PageRank (RPR), $\text{Deg}_{\text{in}}(v) = d_{\text{in}}(v)/(|V|-1)$ is normalized in-degree, and $\text{CDPot}_{\text{enh}}(v) = \text{depth}(v) / \max_{u \in V} \text{depth}(u)$ is the normalized cascade depth potential, measuring the longest reachable directed failure-propagation chain from $v$ on $G_{\text{analysis}}^\top$.
 
 2.  **Availability ($A(v)$):** Identifies structural single points of failure across five terms:
 
-    $$\tag{10}
+    $$\tag{11}
     A(v) = 0.25 \cdot \text{AP}_c^{\text{dir}}(v) + 0.20 \cdot \text{QSPOF}(v) + 0.20 \cdot \text{BR}(v) + 0.25 \cdot \text{CDI}(v) + 0.10 \cdot w(v)$$
 
     where $\text{AP}_c^{\text{dir}}(v)$ is Directed Articulation Point (AP) severity, $\text{QSPOF}(v)$ is QoS-weighted Single Point of Failure (QSPOF) severity, $\text{BR}(v)$ is Bridge Ratio (BR), $\text{CDI}(v)$ is Connectivity Degradation Index (CDI), and $w(v)$ is the intrinsic QoS weight.
 
 3.  **Reliability ($R(v)$):** Blends Fault Tolerance and Availability:
 
-    $$\tag{11}
+    $$\tag{12}
     R(v) = r_{\text{FT}} \cdot FT(v) + (1 - r_{\text{FT}}) \cdot A(v), \quad r_{\text{FT}} = 0.36$$
 
     The intra-dimension weights apply $\lambda = 0.70$ shrinkage blending with a uniform prior. Because comparison matrices are rank-one by construction, these weights are documented conventions rather than independently elicited consensus. The elicited AHP weights rank worse than a uniform prior against dynamic simulation (§7.3); whether they attribute better is untested, and we recommend the uniform prior pending a formal user study.
 
 4.  **Maintainability ($M(v)$):** Blends structural coupling with static code analysis:
 
-    $$\tag{12}
+    $$\tag{13}
     M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))$$
 
     where $\text{BT}(v)$ is Betweenness Centrality (BT), $w_{\text{out}}(v)$ is QoS-weighted efferent coupling, $\text{CQP}(v)$ is Code Quality Penalty (CQP), and $\text{CC}(v)$ is local Clustering Coefficient (CC).
 
-The baseline composite quality score integrates both dimensions as follows: $Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)$. When evaluated under an ISO/IEC 25019 Context of Use vector $\vec{\omega} = [q_R, q_M]^\top$, the score is dynamically reweighted: $Q_{\text{domain}}(v) = q_R \cdot R(v) + q_M \cdot M_{\text{static}}(v)$. Components are partitioned into Tukey tiers: CRITICAL ($Q > Q_3 + 1.5 \cdot \text{IQR}$), HIGH, MEDIUM, and MINIMAL. Across the benchmark topologies, this conservative Tukey upper fence flags an empirical mean of $4.2\%$ of components (range $1.8\%$–$8.3\%$), deliberately isolating the extreme right tail of architectural risk to prioritize developer intervention. High Availability ($A$) combined with low Fault Tolerance ($FT$) indicates a single point of failure that necessitates replication. In contrast, high Fault Tolerance ($FT$) identifies an error-cascade hub that requires circuit breakers (§8.4).
+The baseline composite quality score integrates both dimensions as follows: $Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)$. When evaluated under an ISO/IEC 25019 Context of Use vector $\vec{\omega} = [q_R, q_M]^\top$, the score is dynamically reweighted: $Q_{\text{domain}}(v) = q_R \cdot R(v) + q_M \cdot M_{\text{static}}(v)$. Components are partitioned into Tukey tiers: CRITICAL ($Q > Q_3 + 1.5 \cdot \text{IQR}$), HIGH, MEDIUM, and MINIMAL. Across the benchmark topologies, this conservative Tukey upper fence flags an empirical mean of $4.2\%$ of components (range $1.8\%$–$8.3\%$), deliberately isolating the extreme right tail of architectural risk to prioritize developer intervention. High Availability ($A$) combined with low Fault Tolerance ($FT$) indicates a single point of failure that necessitates replication. In contrast, high Fault Tolerance ($FT$) identifies an error-cascade hub that requires circuit breakers (§8.4). Table 4 illustrates a representative Diagnostic Remediation Card generated for a flagged component, demonstrating how standardized quality sub-characteristics translate raw topological metrics into concrete refactoring actions.
+
+**Table 4.** Illustrative Diagnostic Remediation Card for a flagged component (`TransactionProcessor` in the ATM System case study). The explanation layer maps structural metrics to ISO/IEC sub-characteristics to guide engineering intervention.
+
+| **Diagnostic Attribute**                             | **Evaluated Value**                                                                 | **Structural Interpretation**                                                 |
+|:-----------------------------------------------------|:------------------------------------------------------------------------------------|:------------------------------------------------------------------------------|
+| **Component ID**                                     | `TransactionProcessor`                                                              | Core transaction coordinator ($V_{\text{app}}$)                               |
+| **Tukey Risk Tier**                                  | **CRITICAL**                                                                        | $Q(v) = 0.84 > Q_3 + 1.5 \cdot \text{IQR}$                                    |
+| *ISO/IEC 25010 Structural Quality Profile Breakdown* |                                                                                     |                                                                               |
+| **Availability ($A$)**                               | $0.89$ [High SPOF Risk]                                                           | $\text{AP}_c^{\text{dir}} = 1.00$, $\text{QSPOF} = 0.92$, $\text{CDI} = 0.78$ |
+| **Fault Tolerance ($FT$)**                           | $0.31$ [Low Cascade Propagation]                                                  | $\text{RPR} = 0.25$, $\text{Deg}_{\text{in}} = 0.30$, $\text{CDPot} = 0.38$   |
+| **Maintainability ($M$)**                            | $0.65$ [Moderate Structural Coupling]                                             | $\text{BT} = 0.70$, $w_{\text{out}} = 0.60$, $\text{CQP} = 0.40$              |
+| **Structural Diagnosis**                             | Isolated Single Point of Failure (Severe $A$ deficit, low downstream cascade reach) |                                                                               |
+| **Prescriptive Action**                              | Deploy warm-standby replica and establish redundant message broker routing          |                                                                               |
 
 ## 5.3 Prescriptive Remediation and Counterfactual Verification
 
-After attributing root causes, automated refactoring operators generate candidate repair manifests, such as broker replication, circuit breaker insertion, or topic decoupling. A counterfactual verification routine constructs the mutated graph $G'$ in memory and counterfactually re-simulates multi-threshold cascades. Candidate repairs are accepted only if they reduce systemic impact beyond simulation seed noise ($\Delta \bar{I}_{\text{comp}} > \kappa \cdot \sigma_{\text{seed}}$, $\kappa \ge 1.0$) and do not introduce new articulation points. This counterfactual verification loop illustrates the architectural pattern linking diagnosis to remediation. This study does not evaluate standalone empirical claims about prescriptive repair efficacy or production patch synthesis, and reserves formal developer user studies and automated refactoring benchmarks for future work.
+After attributing root causes, candidate repairs (broker replication, circuit breaker insertion, topic decoupling) are generated and counterfactually verified in memory. Mutations are accepted only if they reduce systemic impact beyond simulation seed noise ($\Delta \bar{I}_{\text{comp}} > \kappa \cdot \sigma_{\text{seed}}$, $\kappa \ge 1.0$) without introducing new articulation points. This counterfactual verification loop illustrates the architectural pattern linking diagnosis to remediation; formal developer studies and automated patch synthesis benchmarks are reserved for future work.
