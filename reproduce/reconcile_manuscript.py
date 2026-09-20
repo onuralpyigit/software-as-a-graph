@@ -878,7 +878,7 @@ CORPUS_INDEPENDENT_ARTIFACTS = {
 #: together, on one machine, or leave both; ``oracle_timing.py --gate-file``
 #: names the half it was paired with, and the artifact records it.
 PAIRED_TIMING_ARTIFACTS = {
-    "oracle_timing_v5.json": "detection_validation_timed_v4.json",
+    "oracle_timing_jss12.json": "detection_validation_timed_jss12.json",
 }
 
 
@@ -943,7 +943,7 @@ def check_oracle_timing(rep: Report) -> None:
     expensive than the simulation it was meant to displace --- and because they
     previously had no committed artifact at all.
     """
-    art = _load("oracle_timing_v5.json") or _load("oracle_timing_v4.json")
+    art = _load("oracle_timing_jss12.json") or _load("oracle_timing_v5.json")
     if art is None:
         rep.skipped.append("oracle_timing_v*.json absent; 7.5.1 unchecked")
         return
@@ -1041,7 +1041,7 @@ PROSE_NOTES = [
     "QoS ablation deltas in 7.3.1 <- loso_all_variants_v*.json",
     "sigma-hat diagnostic in 7.2.3 <- output/loso_v*/<variant>/inductive_predictions.json",
     "label-noise ceiling in 7.1 <- output/loso_cache/*/failure_impact.json label_stability",
-    "gate range in 7.5 <- results/detection_validation_timed_v4.json gate_seconds",
+    "gate range in 7.5 <- results/detection_validation_timed_jss12.json gate_seconds",
 ]
 
 
