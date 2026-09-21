@@ -37,10 +37,32 @@ Across seventeen architectures, graph neural network performance is governed by 
 \end{table}
 
 \noindent\textbf{Dual-Engine Consensus Protocol.}
-Because dispersion fails to identify lost folds (Section~\ref{sec:7.2.1}), automated fallback is withdrawn. SaG runs \texttt{HGT-QoS} and \texttt{Topo-QoS} concurrently, flagging unanimous top-$K$ components and surfacing divergences for review. Given non-zero retraining drift ($0.041$ on fold mean, Section~\ref{sec:8.3}), CI/CD deployments should freeze version-controlled checkpoints rather than retraining on commit hooks.
+In pre-deployment continuous integration, an automated heuristic fallback that conditionally routes predictions to a closed-form baseline based on label-free prediction dispersion $\hat{\sigma}$ is unviable because prediction variance exhibits a slightly negative correlation with out-of-distribution advantage ($\rho_s = -0.126$, Section~\ref{sec:7.2.1}). Rather than relying on fragile single-model uncertainty heuristics, SaG addresses this boundary through a principled \textbf{Dual-Engine Consensus Protocol}. The pipeline evaluates the learned relational model (\texttt{HGT-QoS}) and the closed-form topological baseline (\texttt{Topo-QoS}) concurrently. Entities identified in the top-$K$ critical set by both engines are classified as unanimous high-priority risks, while rank divergences are surfaced for architectural review. Given non-zero retraining drift across GPU sweeps ($0.041$ on fold mean, Section~\ref{sec:8.3}), production CI/CD deployments should freeze version-controlled model checkpoints rather than retraining on commit hooks.
 
 \noindent\textbf{Role of the Explanation Layer.}
-The RM profile ($Q(v)$, Section~\ref{sec:5}) decomposes ISO/IEC 25010 structural mechanics to inform refactoring (distinguishing Availability replication from Fault-Tolerance circuit breakers), while neural and centrality predictors govern triage. Its elicited AHP weights trail a uniform prior, which we recommend pending user studies.
+The RM profile ($Q(v)$, Section~\ref{sec:5}) decomposes ISO/IEC 25010 structural mechanics to inform targeted refactoring (distinguishing Availability replication from Fault-Tolerance circuit breakers), while neural and centrality predictors govern triage priority. Its elicited AHP weights trail a uniform prior, which we recommend pending user studies.
+
+\noindent\textbf{Practitioner Decision Matrix.}
+Table~\ref{tab:guidance} provides an operational decision guide summarizing when each analytical instrument in the SaG portfolio should be applied.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Operational decision matrix for applying the Software-as-a-Graph method portfolio across software engineering workflows.}
+\label{tab:guidance}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}p{0.22\linewidth}p{0.32\linewidth}p{0.46\linewidth}@{}}
+\toprule
+\textbf{Instrument} & \textbf{Target Architecture / Context} & \textbf{Operational Role and Output} \\
+\midrule
+\textbf{\texttt{HGT-QoS}} (Learned Relational) & Asynchronous pub-sub meshes under distribution shift & Forecasts multi-hop cascade blast radii across topics, brokers, and shared libraries ($\Delta\rho = +0.234$). \\
+\textbf{\texttt{Topo-QoS}} (Closed-Form) & Lightweight CI/CD commits, resource-constrained environments & Instantaneous, training-free ranking ($\rho = 0.553$) without GPU requirements or checkpoint drift. \\
+\textbf{Dual-Engine Consensus} & Production gating and deployment-readiness sign-offs & Concurrently executes \texttt{HGT-QoS} and \texttt{Topo-QoS}; prioritizes unanimous top-$K$ components for triage. \\
+\textbf{RM Explanation Layer} & Architectural refactoring and root-cause analysis & Standardized ISO/IEC 25010/25019 structural attribution (Availability vs.\ Fault-Tolerance vs.\ Maintainability). \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
 
 \subsection{Performance and Computational Sustainability Implications}
 \label{sec:8.2}
@@ -62,7 +84,7 @@ We withdraw the efficiency claim: cold static analysis does not reduce CPU compu
 
 \noindent\textbf{Conclusion Validity.} Distributions are evaluated using a non-parametric correlation (Spearman $\rho$), bootstrap intervals ($B = 2{,}000$), and Wilcoxon signed-rank tests. Analyses are stratified because pooling node types conflates disparate strata (Execution Host $\rho = 0.138$ vs.\ Application $0.597$), leaving the pooled figure ($0.217$) at less than two fifths of the evaluated stratum. Because folds share training graphs, nominal Wilcoxon $p$-values are optimistic and interpreted descriptively alongside 12-fold sign consistency; synthetic graphs derive from a single generator family.
 
-\noindent\textbf{Repeatability.} Seed spread and run-to-run displacement are distinct quantities; only the former is reported in Table~\ref{tab:7}. At fixed code and seeds the pipeline is deterministic: consecutive runs reproduced every reported figure identically. Across code revisions it is not, and that matters more. Between the two most recent committed sweeps --- different commits, identical corpus digest, so the difference is attributable to code --- all $180$ training-free cells reproduce exactly ($|\Delta\rho| = 0.000000$) while the $240$ learned cells move by up to $0.519$ at seed level and $0.172$ at fold mean (\texttt{GAT-N} on Healthcare, $0.600 \rightarrow 0.428$). The movement is largest for the weakest arm and smallest for \texttt{HGT-QoS} ($0.041$), which is what keeps the primary contrast interpretable --- but only just, since $0.172$ is twice the $+0.085$ margin RQ1 turns on. Read the sign of that result as robust and its magnitude as pinned to these artifacts. The Table~\ref{tab:contrasts} contrasts are better placed, being differences within one sweep. The per-arm ledger is in the replication package (\path{reproduce/rerun_drift.py}). Revisions also altered the active stratum ($n_{>0}$ shift $26\%$--$56\%$), making $\rho_{>0}$ non-comparable across revisions. Learned figures are pinned to commit artifacts; provenance tracking in Data Availability makes this auditable.
+\noindent\textbf{Repeatability and GPU Re-Baseline.} Seed spread and run-to-run displacement are distinct quantities; only the former is reported in Table~\ref{tab:7}. At fixed code and seeds the pipeline is deterministic: consecutive runs reproduced every reported figure identically. Across hardware platforms and code revisions, non-zero displacement occurs. Between the two most recent committed sweeps --- transitioning from initial CPU runs to a full clean GPU (CUDA) re-baseline on an identical corpus digest --- all $180$ training-free cells reproduced identically ($|\Delta\rho| = 0.000000$), confirming absolute determinism of graph extraction. In contrast, the $240$ learned cells shifted by up to $0.519$ at seed level and $0.172$ at fold mean (\texttt{GAT-N} on Healthcare, $0.600 \rightarrow 0.428$). This displacement stems from three documented technical factors: (1)~resolving an upstream PyTorch Geometric device-placement bug in \texttt{HGTConv} (\path{saag/prediction/models/core.py}) that was masked on CPU; (2)~eliminating stale checkpoint resumption artifacts by enforcing clean cache regeneration across all 12 folds; and (3)~hardware non-determinism in CUDA atomic scatter/gather reductions during message passing. Crucially, under clean full GPU convergence, \texttt{HGT-QoS} consistently outperforms \texttt{HGT} ($0.638$ vs.\ $0.551$), while displacement is smallest for \texttt{HGT-QoS} ($0.041$ on fold mean). Read the sign of that result as robust and its magnitude as pinned to these artifacts. The Table~\ref{tab:contrasts} contrasts are better placed, being differences within one sweep. The per-arm ledger is in the replication package (\path{reproduce/rerun_drift.py}). Revisions also altered the active stratum ($n_{>0}$ shift $26\%$--$56\%$), making $\rho_{>0}$ non-comparable across revisions. Learned figures are pinned to commit artifacts; provenance tracking in Data Availability makes this auditable.
 
 \subsection{Limitations and Future Work}
 \label{sec:8.4}

@@ -404,8 +404,42 @@ Paired tests over the twelve in-distribution scenarios of Table 5 of the main ma
 \section{Typed Node Feature Schema}
 \label{supp:features}
 
-Both pathways read the same typed node properties from $G_{\text{analysis}}$: the predictive pathway (Section 4 of the main manuscript) projects them per entity type before heterogeneous message passing, and the explanation layer (Section 5 of the main manuscript) aggregates them into its quality profile. All five entity types share indices 0--17, a common block of topological metrics (in/out degree, betweenness, closeness, reverse PageRank, clustering coefficient, articulation score, bridge load) produced by the deterministic analysis stage whose cost is characterized in Section 7.5 of the main manuscript. Type-specific features extend that block:
+Both pathways read the same typed node properties from $G_{\text{analysis}}$: the predictive pathway (Section~4 of the main manuscript) projects them per entity type before heterogeneous message passing, and the explanation layer (Section~5 of the main manuscript) aggregates them into its quality profile. All five entity types share indices 0--17, an 18-dimensional base block of deterministic topological metrics produced by the static analysis stage whose execution cost is characterized in Section~7.5 of the main manuscript. Table~\ref{tab:supp-features} lists the complete 18-dimensional base schema.
 
+\begin{table}[htbp]
+\centering
+\small
+\caption{The 18-dimensional base topological feature schema (indices 0--17) shared across all entity types, computed on $G_{\text{analysis}}$. Every metric is normalized to $[0, 1]$ within its graph.}
+\label{tab:supp-features}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{cllp{0.55\linewidth}}
+\toprule
+\textbf{Index} & \textbf{Symbol} & \textbf{Metric Name} & \textbf{Description and Architectural Role} \\
+\midrule
+0 & $PR(v)$ & PageRank & Downstream authority under random walk with restart ($\alpha = 0.85$). \\
+1 & $RPR(v)$ & Reverse PageRank & Upstream dependency exposure (transposed graph random walk). \\
+2 & $BT(v)$ & Betweenness Centrality & Fraction of all-pairs shortest dependency paths traversing entity $v$. \\
+3 & $CL(v)$ & Closeness Centrality & Reciprocal of average shortest-path distance to all reachable entities. \\
+4 & $EV(v)$ & Eigenvector Centrality & Influence score weighted by principal eigenvector of adjacency matrix. \\
+5 & $DG_{\text{in}}(v)$ & In-Degree Centrality & Normalized count of incoming dependency edges ($\deg^-(v) / (|V| - 1)$). \\
+6 & $DG_{\text{out}}(v)$ & Out-Degree Centrality & Normalized count of outgoing dependency edges ($\deg^+(v) / (|V| - 1)$). \\
+7 & $CC(v)$ & Clustering Coefficient & Local transitivity and interconnectivity among neighboring entities. \\
+8 & $AP(v)$ & Undirected Articulation & Biconnected component cut-vertex indicator (binary cut score). \\
+9 & $BR(v)$ & Bridge Ratio & Fraction of incident edges that constitute structural bridges. \\
+10 & $w(v)$ & Node QoS Weight & Normalized aggregate criticality of incident transport contracts. \\
+11 & $w_{\text{in}}(v)$ & QoS In-Degree & Sum of QoS coupling weights on incoming dependencies ($\sum_u w(u, v)$). \\
+12 & $w_{\text{out}}(v)$ & QoS Out-Degree & Sum of QoS coupling weights on outgoing dependencies ($\sum_u w(v, u)$). \\
+13 & $MPCI(v)$ & Multi-Path Coupling & Afferent multi-topic channel density across alternative paths. \\
+14 & $PC(v)$ & Path Complexity & Mean efferent channel multiplicity: $\frac{1}{|\text{Out}(v)|}\sum_{e} \log_2(1 + \text{path\_count}(e))$. \\
+15 & $FOC(v)$ & Fan-Out Criticality & Topic-modulated subscriber blast radius ($0.0$ for non-topic entities). \\
+16 & $AP_c^{\text{dir}}(v)$ & Directed Articulation & Strongly connected component cut-vertex indicator. \\
+17 & $CDI(v)$ & Connectivity Degradation & Change in all-pairs reachability when entity $v$ is removed. \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Type-specific features extend that block:
 \begin{itemize}
     \item \textbf{Application (23 dims):} indices 18--22 add source-code metrics from SCA --- lines of code, cyclomatic complexity, Martin's instability $I_{\text{code}} = C_e/(C_a + C_e)$ \cite{martin2003agile}, Lack of Cohesion in Methods, and the composite Code Quality Penalty (CQP).
     \item \textbf{Library (25 dims):} the Application block plus two library-specific blast-radius drivers (23--24): the normalized size of the transitive reverse-\texttt{USES} closure, and the normalized count of distinct subscribers reachable from topics published within that closure.
