@@ -4,7 +4,6 @@ The predictor of §4 locates risk but says nothing about remedy. A component may
 
 **What this section is, and is not.** This layer functions strictly as a diagnostic attribution instrument and design pattern for post-ranking triage, rather than an empirical ranking model. It is deliberately omitted from the primary predictive contributions in §1.5. Three empirical results bound its scope: (1) its standalone ranking correlation is modest ($\rho = 0.205$, trailing unweighted topological centrality on every fold, §7.1); (2) its elicited AHP weights are anti-predictive relative to an uninformative uniform prior ($\rho = 0.200$ vs. $0.319$, §7.3); and (3) no human-subject study has yet measured developer efficiency under its guidance. What it provides is a rigorous, audited mapping from graph topology metrics to standardized ISO/IEC 25010/25019 quality sub-characteristics, providing actionable diagnostic rationales to guide refactoring.
 
-
 ## 5.1 Grounding in ISO/IEC Standards
 
 In accordance with ISO/IEC 25010:2023 [13] and ISO/IEC 25019:2023 [14], SaG formalizes two primary criticality dimensions. Component Criticality ($D_1$) is service loss upon component failure; Relationship Criticality ($D_2$) is service decline upon channel severance.

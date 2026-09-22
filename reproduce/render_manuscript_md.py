@@ -59,6 +59,7 @@ def preprocess(tex: str, labels: dict, cites: dict) -> str:
     tex = re.sub(r"\\resizebox\{[^}]*\}\{[^}]*\}\{%?\n", "", tex)
     tex = re.sub(r"\n\}%?\n(\\end\{table\})", r"\n\1", tex)
     tex = re.sub(r"\\cmidrule(\([^)]*\))?\{[^}]*\}", "", tex)
+    tex = re.sub(r"\\shortstack\{((?:[^{}]|\{[^{}]*\})+)\}", lambda m: " ".join(m.group(1).split(r"\\")), tex)
 
     def head(m):
         cmd, title, lbl = m.group(1), m.group(2), m.group(3)

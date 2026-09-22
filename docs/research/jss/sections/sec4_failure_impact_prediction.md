@@ -56,11 +56,12 @@ $$\tag{7}
 where $\mathcal{L}_{\text{dimension}} = \frac{1}{\sum_{d} m_d} \sum_{d \in \{R, M\}} m_d \cdot \text{MSE}(\hat{d}(v), d^*(v))$ uses a boolean dimension mask $m = [m_R, m_M]$, and $\mathcal{L}_{\text{consistency}} = \text{MSE}\big([\hat{R}(v), \hat{M}(v)]_{v \in \text{unlabeled}}, [R_{\text{RM}}(v), M_{\text{RM}}(v)]_{v \in \text{unlabeled}}\big)$ provides optional semi-supervised alignment with the explanation layer on unlabeled nodes.
 
 In our evaluation, two principled constraints govern this general envelope:
-1. **Strict Pathway Independence:** We enforce $\lambda_{\text{RM}} = 0$ throughout all training sweeps, guaranteeing that the predictive GNN and the diagnostic explanation layer (§5) share zero parameters and remain strictly decoupled.
-2. **Dimension Masking for Unobserved Maintainability:** Because dynamic cascade simulation ($I^*(v)$) observes runtime failure reachability rather than source-code maintainability, maintainability ground truth is unobserved during dynamic simulation. Setting $m = [1, 0]$ ensures the unobserved maintainability head is not artificially penalized or driven toward zero during backpropagation.
+
+1.  **Strict Pathway Independence:** We enforce $\lambda_{\text{RM}} = 0$ throughout all training sweeps, guaranteeing that the predictive GNN and the diagnostic explanation layer (§5) share zero parameters and remain strictly decoupled.
+
+2.  **Dimension Masking for Unobserved Maintainability:** Because dynamic cascade simulation ($I^*(v)$) observes runtime failure reachability rather than source-code maintainability, maintainability ground truth is unobserved during dynamic simulation. Setting $m = [1, 0]$ ensures the unobserved maintainability head is not artificially penalized or driven toward zero during backpropagation.
 
 Consequently, setting $m_M = 0$ and assigning the cascade reachability target to both supervised heads ($R^*(v) \equiv I^*(v)$) causes $\mathcal{L}$ to reduce exactly to $\mathcal{L}_{\text{active}}$ (Eq. 5). Here, $\hat{R}(v)$ re-enters the composite head as an input ($\hat{I}^* = \sigma(\text{MLP}_C(h_v \parallel \hat{R} \parallel \hat{M}))$), functioning as a feature-enrichment auxiliary representation rather than independent multi-task supervision. We report this objective as implemented to avoid any pretense of multi-dimensional ground truth.
-
 
 ### 4.2.2 Domain-Reweighted Criticality
 
