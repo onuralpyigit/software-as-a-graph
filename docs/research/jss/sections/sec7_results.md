@@ -161,18 +161,17 @@ To assess generalization outside the generator, `HGT-QoS` was trained on all twe
 
 **Table 9.** Zero-shot out-of-family transfer to five transcribed open-source systems, scored against $I^*(v)$ on the Application population under the protocol used throughout this paper (3 layers, 300 epochs; five seeds, $\pm$ = spread over seeds). No open-source graph contributed gradients or checkpoint selection. Training-free references are deterministic and are scored on identical labels, populations and node sets. Systems are grouped by communication paradigm: active-stratum correlation $\rho_{>0}$ is positive on all three asynchronous pub-sub systems and non-positive on both synchronous call trees. Where a system declares no explicit QoS manifest, default middleware contract profiles (ROS 2 Best-Effort/Reliable, MQTT QoS 0/1) are applied uniformly across baselines. Identification metrics for the same runs are in Supplementary Table S13.
 
-|                                                                   |                        |              |        |           |              |                       |                  |
-|:------------------------------------------------------------------|-----------------------:|-------------:|-------:|----------:|-------------:|:---------------------:|-----------------:|
-| **Real-World Architecture**                                       | **$|V_{\text{app}}|$** | **$n_{>0}$** | **RM** |  **Topo** | **Topo-QoS** |      **HGT-QoS**      |  **$\rho_{>0}$** |
-|                                                                   |                        |              | $\rho$ |    $\rho$ |       $\rho$ |        $\rho$         |        (HGT-QoS) |
-| *Asynchronous pub-sub systems — forward failure cascades*         |                        |              |        |           |              |                       |                  |
-| **Autoware.universe (ROS 2)**                                     |                     32 |           19 |  0.357 |     0.307 |        0.378 | **0.716 $\pm$ 0.081** | $+$0.517 |
-| **EdgeX Foundry (Industrial IoT)**                                |                     22 |           10 |  0.470 |     0.534 |        0.534 | **0.793 $\pm$ 0.037** | $+$0.183 |
-| **Home Assistant (Smart Home)**                                   |                     24 |           17 |  0.265 |     0.297 |        0.289 | **0.864 $\pm$ 0.063** | $+$0.702 |
-| *Synchronous microservice call trees — backward timeout cascades* |                        |              |        |           |              |                       |                  |
-| **Online Boutique (microservices)**                               |                     22 |            8 |  0.777 | **0.891** |        0.888 |   0.710 $\pm$ 0.070   | -0.031 |
-| **Train-Ticket Booking Mesh**                                     |                     41 |           14 |  0.713 |     0.528 |        0.541 | **0.717 $\pm$ 0.096** | -0.192 |
-| **Mean**                                                          |                      — |            — |  0.516 |     0.511 |        0.526 |       **0.760**       | $+$0.236 |
+| **Real-World Architecture** | **$|V_{\text{app}}|$** | **$n_{>0}$** | **RM ($\rho$)** | **Topo ($\rho$)** | **Topo-QoS ($\rho$)** | **HGT-QoS ($\rho$)** | **HGT-QoS ($\rho_{>0}$)** |
+|:----------------------------|-----------------------:|-------------:|----------------:|------------------:|----------------------:|:--------------------:|---------------------------:|
+| *Asynchronous pub-sub systems — forward failure cascades* | | | | | | | |
+| **Autoware.universe (ROS 2)** | 32 | 19 | 0.357 | 0.307 | 0.378 | **0.716 $\pm$ 0.081** | $+$0.517 |
+| **EdgeX Foundry (Industrial IoT)** | 22 | 10 | 0.470 | 0.534 | 0.534 | **0.793 $\pm$ 0.037** | $+$0.183 |
+| **Home Assistant (Smart Home)** | 24 | 17 | 0.265 | 0.297 | 0.289 | **0.864 $\pm$ 0.063** | $+$0.702 |
+| *Synchronous microservice call trees — backward timeout cascades* | | | | | | | |
+| **Online Boutique (microservices)** | 22 | 8 | 0.777 | **0.891** | 0.888 | 0.710 $\pm$ 0.070 | -0.031 |
+| **Train-Ticket Booking Mesh** | 41 | 14 | 0.713 | 0.528 | 0.541 | **0.717 $\pm$ 0.096** | -0.192 |
+| **Mean** | — | — | 0.516 | 0.511 | 0.526 | **0.760** | $+$0.236 |
+
 
 **Table 10.** Means over the five transcribed systems on the full Application population ($\rho$) and restricted to components with strictly positive ground-truth impact ($\rho_{>0}$), with percentile bootstrap intervals over the five systems ($B = 2{,}000$). All four predictors are scored on identical labels, populations and node sets from one run, so the columns are commensurable. At $n = 5$ the intervals are descriptive and carry no significance claim. **The full-population intervals separate the learned model from all three baselines; every active-stratum interval spans zero**, which is why RQ4 is reported as established on the full population and unresolved on the active one.
 
@@ -203,18 +202,13 @@ RQ5 quantifies computing overhead and sustainability during CI/CD evaluation, wi
 
 **Table 11.** Per-stage latency of the inference pipeline across scaling graph sizes (CPU, median of 3 runs; 5 for the forward pass). The analysis stage is stable across repeats (p10–p90 within $1\%$ of the median everywhere) while the forward pass is not, which is why its column carries a spread: at $56\,\text{ms}$ the measurement is dominated by interpreter and dispatch overhead rather than by the graph.
 
-|              |           |        |       |      |            |           |
-|:------------:|:---------:|:------:|:-----:|:----:|:----------:|:---------:|
-|  **$|V|$**   | **$|E|$** |        |       |      |            |           |
-|    \(s\)     |           |        |       |      |            |           |
-|  Tensor (s)  |           |        |       |      |            |           |
-| Forward (ms) |           |        |       |      |            |           |
-|   Forward    |           |        |       |      |            |           |
-| p10–p90 (ms) |           |        |       |      |            |           |
-|     249      |   1,127   |  1.74  | 0.010 | 26.5 |    66×     | 13.0–34.4 |
-|     499      |   2,402   |  8.32  | 0.022 | 16.4 |    509×    | 15.6–16.4 |
-|     999      |   6,422   | 44.54  | 0.056 | 21.1 |   2,108×   | 19.1–36.5 |
-|    1,998     |  19,301   | 239.34 | 0.157 | 56.2 | **4,259×** | 43.8–57.8 |
+| **$|V|$** | **$|E|$** | **Analyze (s)** | **Graph $\to$ Tensor (s)** | **HGT Forward (ms)** | **Analyze : Forward** | **Forward p10–p90 (ms)** |
+|:---------:|:---------:|:---------------:|:--------------------------:|:--------------------:|:---------------------:|:------------------------:|
+| 249 | 1,127 | 1.74 | 0.010 | 26.5 | 66× | 13.0–34.4 |
+| 499 | 2,402 | 8.32 | 0.022 | 16.4 | 509× | 15.6–16.4 |
+| 999 | 6,422 | 44.54 | 0.056 | 21.1 | 2,108× | 19.1–36.5 |
+| 1,998 | 19,301 | 239.34 | 0.157 | 56.2 | **4,259×** | 43.8–57.8 |
+
 
 The neural stage is the cheapest by a wide margin and the deterministic one is not. At 2,000 components the HGT forward pass takes $56\,\text{ms}$ against $239\,\text{s}$ for structural analysis, a ratio of $4{,}259\times$ — but that is a ratio between pipeline stages, not a cost of evaluation, because indices 0–17 of every node feature vector are produced by the analysis stage the forward pass depends on. End-to-end evaluation of an unseen 2,000-component architecture takes about four minutes, of which the learned model is $0.02\%$; the $56\,\text{ms}$ is the marginal cost of re-scoring an already-analysed graph. Across the corpus the complete gate (structural analysis plus 18 anti-pattern detectors, whose share is $\le 0.19\,\text{s}$) executes in $0.16$–$79.3\,\text{s}$ (Table 12).
 
@@ -242,4 +236,5 @@ The neural stage is the cheapest by a wide margin and the deterministic one is n
 
 The framing that motivated this analysis — static gating as a low-cost substitute for dynamic simulation — does not survive measurement against our own oracle. Timing the cascade reachability labeling sweep (five seeds, node types Application/Broker/Library, the full ground-truth run) over all twelve scenarios, on the same machine, at the same commit and in the same measurement session as the gate, gives $0.08$–$4.49\,\text{s}$ per scenario against $0.16$–$79.3\,\text{s}$ for the analysis gate. Both maxima occur in the 520-component Enterprise mesh, so the largest scenario compares $4.5\,\text{s}$ of simulation against $79.3\,\text{s}$ of static analysis: there the gate costs roughly eighteen times as much as the simulation it is meant to replace. That is the extreme, not the centre. Pairing the sweeps scenario by scenario (Table 12) gives $2.0$–$17.7\times$, median $5.6\times$. Two things follow, in opposite directions: the headline is weaker than one number suggests, and the finding is stronger, because the gate is more expensive on *all twelve* scenarios. What predicts the premium is the derived projection’s size, not the component count — the ratio correlates with $|E_{\text{proj}}|$ at $\rho = 0.95$ against $0.79$ for cost against $|V|$. Enterprise is the outlier because its 300 applications share only 120 topics, so Rule 1 derives a near-complete graph of $26{,}276$ edges, while IoT Smart City has more components, an eighth of the edges and a third of the cost. These are wall-clock figures on one commodity CPU, read to one significant figure: across sessions the gate maximum ranges over $77$–$83\,\text{s}$ and the oracle maximum over $4.5$–$4.8\,\text{s}$, giving $16.7\times$ and $17.7\times$ on two independently paired sessions. Two earlier pairings are superseded rather than reconciled, one unstamped and one pairing this corpus’s oracle against a companion study’s eight-scenario gate; Table 12 uses only the twelve-scenario pairing, whose halves share a commit and corpus digest.
 
-This finding refutes the assumption that static analysis is computationally cheaper than in-process simulation: breadth-first cascade traversal is simpler than computing all-pairs connectivity degradation ($O(|V|^2 + |V||E|)$). Two deployment trade-offs survive it. Static analysis scores components (shared libraries, hosts) and dependency edges that node-level simulation leaves unscored, and its deterministic metrics can in principle be cached across commits, recomputing only the $k$-hop neighbourhood a pull request touches. Table 11 times full from-scratch recomputation; caching is not implemented, and without it direct simulation is strictly faster.
+This finding refutes the assumption that static analysis is computationally cheaper than in-process simulation: breadth-first cascade traversal is simpler than computing all-pairs connectivity degradation ($O(|V|^2 + |V||E|)$). Two deployment trade-offs survive it. Static analysis scores infrastructure components (physical execution hosts, network interconnects) and dependency edges that node-level message flow simulation leaves unscored without dedicated physical failure models, and its deterministic metrics can in principle be cached across commits, recomputing only the $k$-hop neighbourhood a pull request touches. Table 11 times full from-scratch recomputation; caching is an engineering hypothesis not yet implemented, and without it direct simulation is strictly faster.
+

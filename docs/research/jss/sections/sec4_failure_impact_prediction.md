@@ -34,35 +34,33 @@ From the final node embeddings $h_v^{(L)}$, SaG utilizes specialized multi-task 
 
 -   **Relationship Criticality Head:** $\hat{Q}(u,v) = \sigma(\text{TypedEdgeEncoder}_{\phi(e)}(h_u, h_v, e_{uv})) \in [0, 1]$. Disabled throughout the evaluation reported here; every harness instantiates the model with edge prediction switched off, so $\hat{Q}(u,v)$ is neither trained nor scored. Described for completeness.
 
-### 4.2.1 Dimension-Masked Loss Formulation
+### 4.2.1 Optimization Objective and Dimension Masking
 
-The combined optimization objective integrates regression accuracy, multi-task dimension learning, ranking fidelity, and pairwise ordering:
+Under our headline experimental protocol, the active optimization objective directly balances cascade impact regression accuracy, auxiliary representation learning, global listwise ranking monotonicity, and fine-grained pairwise margin constraints:
 
 $$\tag{5}
-\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{dimension}} + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}} + \lambda_{\text{RM}} \cdot \mathcal{L}_{\text{consistency}}$$
+\mathcal{L}_{\text{active}} = \text{MSE}(\hat{I}^*(v), I^*(v)) + 0.5 \cdot \text{MSE}(\hat{R}(v), I^*(v)) + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}}$$
 
-where $I^*(v)$ is the simulated cascade impact defined by the primary oracle (§4.3), $\mathcal{L}_{\text{composite}} = \text{MSE}(\hat{I}^*(v), I^*(v))$, $\mathcal{L}_{\text{rank}}$ is the ListMLE listwise ranking loss [83] parameterized by temperature $\tau$:
+where $I^*(v)$ is the simulated cascade impact defined by the primary oracle (§4.3), $\mathcal{L}_{\text{rank}}$ is the ListMLE listwise ranking loss [83] parameterized by temperature $\tau$:
 
 $$\tag{6}
 \mathcal{L}_{\text{rank}} = -\frac{1}{N}\sum_{i=1}^N \left( \frac{\hat{s}_{\pi_i}}{\tau} - \log \sum_{j=i}^N \exp\left(\frac{\hat{s}_{\pi_j}}{\tau}\right) \right)$$
 
-where $\pi = (\pi_1, \dots, \pi_N)$ denotes the permutation of nodes sorted in descending order of ground-truth impact $I^*(v)$, and $\hat{s}_v = \hat{I}^*(v)$. At the baseline default $\tau = 1.0$, the formulation reduces to standard ListMLE; the temperature parameter $\tau < 1.0$ is a configurable hyperparameter that sharpens probability distributions over narrow prediction margins. Pairwise ordering fidelity is guided by margin-ranking loss $\mathcal{L}_{\text{pairwise}} = \frac{1}{|P|} \sum_{(u,v) \in P} \max\big(0, \gamma - (\hat{s}_u - \hat{s}_v)\big)$ with margin $\gamma = 0.05$ over pairs $P = \{(u, v) \mid I^*(u) - I^*(v) > \gamma\}$, and $\mathcal{L}_{\text{consistency}} = \text{MSE}\big([\hat{R}(v), \hat{M}(v)]_{v \in \text{unlabeled}}, [R_{\text{RM}}(v), M_{\text{RM}}(v)]_{v \in \text{unlabeled}}\big)$ regresses predicted heads toward the diagnostic pathway’s baseline on unlabeled nodes, where $R_{\text{RM}}(v)$ and $M_{\text{RM}}(v)$ denote the deterministic Reliability and Maintainability scores from the explanation layer (§5). Headline results use $\lambda_{\text{RM}} = 0$, guaranteeing that the predictive and elucidative pathways remain strictly independent.
+where $\pi = (\pi_1, \dots, \pi_N)$ denotes the permutation of nodes sorted in descending order of ground-truth impact $I^*(v)$, and $\hat{s}_v = \hat{I}^*(v)$. At the baseline default $\tau = 1.0$, the formulation reduces to standard ListMLE; the temperature parameter $\tau < 1.0$ is a configurable hyperparameter that sharpens probability distributions over narrow prediction margins. Pairwise ordering fidelity is guided by margin-ranking loss $\mathcal{L}_{\text{pairwise}} = \frac{1}{|P|} \sum_{(u,v) \in P} \max\big(0, \gamma - (\hat{s}_u - \hat{s}_v)\big)$ with margin $\gamma = 0.05$ over pairs $P = \{(u, v) \mid I^*(u) - I^*(v) > \gamma\}$. Permutation-level ListMLE ($\mathcal{L}_{\text{rank}}$) provides the primary gradient force for global rank monotonicity ($\rho$), while pairwise margin ($\mathcal{L}_{\text{pairwise}}$) penalizes small-margin inversions among adjacent components.
 
-The coefficients in Eq. 5 ($0.5$ dimension, $0.3$ listwise rank, $0.1$ pairwise margin) balance composite regression with relative node ordering. Permutation-level ListMLE ($\mathcal{L}_{\text{rank}}$) provides the primary gradient force for global rank monotonicity ($\rho$), while pairwise margin ($\mathcal{L}_{\text{pairwise}}$) penalizes small-margin inversions among adjacent components. Across all seeds, gradient norms remain well-conditioned, preventing individual objectives from overpowering optimization.
-
-**Dimension Masking and Head Roles:** Because dynamic cascade simulation ($I^*(v)$ via discrete-event cascade fault injection) observes runtime failure reachability rather than source-code maintainability, maintainability ground truth is unobserved during dynamic simulation. A separate change-propagation oracle $I_M(v)$ evaluates static structural change ripple at the Validate stage, but is never used as a training label to avoid circular supervision. We introduce a boolean dimension mask $m = [m_R, m_M] = [1, 0]$:
+**General Architectural Envelope and Dimension Masking:** This active loss is the operational instance of a generalized multi-task framework:
 
 $$\tag{7}
-\mathcal{L}_{\text{dimension}} = \frac{1}{\sum_{d} m_d} \sum_{d \in \{R, M\}} m_d \cdot \text{MSE}(\hat{d}(v), d^*(v))$$
+\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{dimension}} + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}} + \lambda_{\text{RM}} \cdot \mathcal{L}_{\text{consistency}}$$
 
-This mask ensures the unobserved maintainability head is not artificially penalized or driven toward zero during backpropagation.
+where $\mathcal{L}_{\text{dimension}} = \frac{1}{\sum_{d} m_d} \sum_{d \in \{R, M\}} m_d \cdot \text{MSE}(\hat{d}(v), d^*(v))$ uses a boolean dimension mask $m = [m_R, m_M]$, and $\mathcal{L}_{\text{consistency}} = \text{MSE}\big([\hat{R}(v), \hat{M}(v)]_{v \in \text{unlabeled}}, [R_{\text{RM}}(v), M_{\text{RM}}(v)]_{v \in \text{unlabeled}}\big)$ provides optional semi-supervised alignment with the explanation layer on unlabeled nodes.
 
-**Auxiliary Nature of the Reliability Head and Active Loss:** Under the headline experimental protocol, this general formulation simplifies significantly. With $\lambda_{\text{RM}} = 0$ (preserving strict pathway independence) and dimension mask $m = [1, 0]$, the cascade fault injection oracle emits a single scalar assigned to both targets: $R^*(v) = I^*(v)$ identically. $\mathcal{L}_{\text{dimension}}$ regresses $\hat{R}$ toward the same target as $\mathcal{L}_{\text{composite}}$. The effectively optimized loss reduces to:
+In our evaluation, two principled constraints govern this general envelope:
+1. **Strict Pathway Independence:** We enforce $\lambda_{\text{RM}} = 0$ throughout all training sweeps, guaranteeing that the predictive GNN and the diagnostic explanation layer (§5) share zero parameters and remain strictly decoupled.
+2. **Dimension Masking for Unobserved Maintainability:** Because dynamic cascade simulation ($I^*(v)$) observes runtime failure reachability rather than source-code maintainability, maintainability ground truth is unobserved during dynamic simulation. Setting $m = [1, 0]$ ensures the unobserved maintainability head is not artificially penalized or driven toward zero during backpropagation.
 
-$$\tag{8}
-\mathcal{L}_{\text{active}} = \text{MSE}(\hat{I}^*(v), I^*(v)) + 0.5 \cdot \text{MSE}(\hat{R}(v), I^*(v)) + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}}$$
+Consequently, setting $m_M = 0$ and assigning the cascade reachability target to both supervised heads ($R^*(v) \equiv I^*(v)$) causes $\mathcal{L}$ to reduce exactly to $\mathcal{L}_{\text{active}}$ (Eq. 5). Here, $\hat{R}(v)$ re-enters the composite head as an input ($\hat{I}^* = \sigma(\text{MLP}_C(h_v \parallel \hat{R} \parallel \hat{M}))$), functioning as a feature-enrichment auxiliary representation rather than independent multi-task supervision. We report this objective as implemented to avoid any pretense of multi-dimensional ground truth.
 
-Here, $\hat{R}$ re-enters the composite head as an input ($\hat{I}^* = \sigma(\text{MLP}_C(h_v \parallel \hat{R} \parallel \hat{M}))$), functioning as a feature-enrichment auxiliary pathway rather than independent multi-task supervision. We report the objective as implemented rather than claiming multi-dimensional supervisory ground truth.
 
 ### 4.2.2 Domain-Reweighted Criticality
 
