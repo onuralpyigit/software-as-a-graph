@@ -44,7 +44,7 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -151,22 +151,141 @@ def train_once(
     return service
 
 
+class HomogeneousScorer:
+    """A trained untyped GAT arm, exposing just what ``score`` needs.
+
+    Built by :func:`train_once_homogeneous`. ``topo_prior`` is always False: the
+    hybrid prior exists only for the HGT arm.
+    """
+
+    topo_prior = False
+
+    def __init__(self, model, device, rank_normalize_features: bool):
+        self.model = model
+        self.device = device
+        self.rank_normalize_features = rank_normalize_features
+
+    def predict_scores(self, bundle: ScenarioBundle, use_qos: bool) -> Dict[str, float]:
+        import torch
+        from saag.prediction.data_preparation import networkx_to_hetero_data
+
+        graph, sm = _prepare_bundle_graph(bundle, use_qos)
+        conv = networkx_to_hetero_data(
+            graph, sm, bundle.simulation, bundle.rm,
+            qos_enabled=use_qos, rank_normalize_features=self.rank_normalize_features,
+        )
+        data = conv.hetero_data.to(self.device)
+        self.model.eval()
+        with torch.no_grad():
+            x = {nt: data[nt].x for nt in data.node_types if hasattr(data[nt], "x")}
+            ei = {r: data[r].edge_index for r in data.edge_types}
+            ea = {r: data[r].edge_attr for r in data.edge_types if hasattr(data[r], "edge_attr")}
+            out = self.model(x, ei, ea)
+        pred: Dict[str, float] = {}
+        for nt, preds in out.items():
+            for i, nid in enumerate(conv.node_id_map.get(nt, [])):
+                if i < preds.shape[0]:
+                    pred[nid] = float(preds[i, 0])
+        return pred
+
+
+def train_once_homogeneous(
+    bundles: List[ScenarioBundle],
+    seed: int,
+    ckpt_dir: Path,
+    *,
+    variant: str,
+    epochs: int,
+    layers: int,
+    rank_normalize_features: bool,
+    rank_normalize_labels: bool,
+    device: Optional[str] = "auto",
+) -> HomogeneousScorer:
+    """Train one untyped GAT arm on the whole synthetic corpus.
+
+    Mirrors the homogeneous branch of ``cli.loso_evaluate.run_one_fold`` (same
+    model builder, width and edge channel from the registry, same trainer,
+    label normalisation and dimension mask) with ``train_once``'s split of the
+    corpus: largest scenario as primary, median-sized one for early stopping,
+    the rest as inductive graphs.
+    """
+    import torch
+    from torch_geometric.loader import DataLoader as _PyGDataLoader
+    from saag.prediction.data_preparation import (
+        create_node_splits, networkx_to_hetero_data, normalize_labels_robust,
+    )
+    from saag.prediction.models.baselines import build_baseline
+    from saag.prediction.trainer import GNNTrainer
+
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    target_device = torch.device(
+        "cuda" if (device == "cuda" or (device in ("auto", None) and torch.cuda.is_available())) else "cpu"
+    )
+    primary = max(bundles, key=lambda b: b.n_nodes)
+    inductives = [b for b in bundles if b.scenario_id != primary.scenario_id]
+    val_bundle = _select_val_bundle(inductives, "auto")
+    if val_bundle is not None:
+        inductives = [b for b in inductives if b.scenario_id != val_bundle.scenario_id]
+
+    edge_dim = _registry.edge_dim(variant, "loso")
+    use_qos = edge_dim is not None
+    train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
+    conv = networkx_to_hetero_data(
+        train_graph, train_sm, primary.simulation, primary.rm,
+        qos_enabled=use_qos, rank_normalize_features=rank_normalize_features,
+    )
+    data = conv.hetero_data
+    create_node_splits(data, seed=seed)
+    inductive_data = [
+        _build_training_hetero(b, use_qos, rank_normalize_features) for b in inductives
+    ]
+    for ig in inductive_data:
+        create_node_splits(ig, seed=seed)
+    normalize_labels_robust(data, rank_normalize=rank_normalize_labels)
+    for ig in inductive_data:
+        normalize_labels_robust(ig, rank_normalize=rank_normalize_labels)
+    val_data = None
+    if val_bundle is not None:
+        val_data = _build_validation_hetero(val_bundle, use_qos, rank_normalize_features)
+        normalize_labels_robust(val_data, rank_normalize=rank_normalize_labels)
+
+    model = build_baseline(
+        "homo_unweighted" if edge_dim is None else "homo_scalar",
+        hidden_channels=_registry.hidden_for(variant, 64, "loso"),
+        num_heads=4, num_layers=layers, dropout=0.2, edge_dim=edge_dim,
+    )
+    model.to(target_device)
+    trainer = GNNTrainer(
+        model=model, checkpoint_dir=str(ckpt_dir), lr=3e-4, num_epochs=epochs,
+        patience=min(60, epochs), dimension_mask=conv.dimension_mask,
+    )
+    trainer.train(
+        _PyGDataLoader([data] + inductive_data, batch_size=1, shuffle=True),
+        primary_data=data, val_data=val_data,
+    )
+    return HomogeneousScorer(model, target_device, rank_normalize_features)
+
+
 def score(service: GNNService, bundle: ScenarioBundle, *, use_qos: bool,
           population: str, rank_normalize_features: bool = True) -> Dict[str, Any]:
     """Zero-shot predict on one real system and score against its I*(v) labels."""
-    graph, sm = _prepare_bundle_graph(bundle, use_qos)
-    if service.topo_prior:
-        sm = _with_prior(bundle, sm)
-    result = service.predict(
-        graph=graph,
-        structural_metrics=sm,
-        rm_scores=bundle.rm,
-        eval_labels=bundle.simulation,
-        mode="gnn",
-        qos_enabled=use_qos,
-        rank_normalize_features=rank_normalize_features,
-    )
-    pred = {nid: float(ns.composite_score) for nid, ns in result.node_scores.items()}
+    if isinstance(service, HomogeneousScorer):
+        pred = service.predict_scores(bundle, use_qos)
+    else:
+        graph, sm = _prepare_bundle_graph(bundle, use_qos)
+        if service.topo_prior:
+            sm = _with_prior(bundle, sm)
+        result = service.predict(
+            graph=graph,
+            structural_metrics=sm,
+            rm_scores=bundle.rm,
+            eval_labels=bundle.simulation,
+            mode="gnn",
+            qos_enabled=use_qos,
+            rank_normalize_features=rank_normalize_features,
+        )
+        pred = {nid: float(ns.composite_score) for nid, ns in result.node_scores.items()}
     true_impact = {
         nid: float(d.get("composite", 0.0)) for nid, d in bundle.simulation.items()
     }
@@ -416,7 +535,8 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--synthetic-cache", type=Path, default=Path("output/loso_cache"))
     p.add_argument("--realworld-cache", type=Path, default=Path("output/realworld_cache"))
-    p.add_argument("--variant", default="hgl_qos", choices=["hgl_qos", "hgl", "hgl_qos_prior"])
+    p.add_argument("--variant", default="hgl_qos", choices=["hgl_qos", "hgl", "hgl_qos_prior",
+                            "gl_full_cap", "gl_full_qos16_cap"])
     p.add_argument("--seeds", default="42,123,456,789,2024")
     p.add_argument("--epochs", type=int, default=150)
     p.add_argument("--layers", type=int, default=2)
@@ -446,7 +566,11 @@ def main() -> int:
         return 2
 
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()]
-    use_qos = args.variant in ("hgl_qos", "hgl_qos_prior")
+    homogeneous = args.variant in ("gl_full_cap", "gl_full_qos16_cap")
+    use_qos = (
+        _registry.edge_dim(args.variant, "loso") is not None if homogeneous
+        else args.variant in ("hgl_qos", "hgl_qos_prior")
+    )
     topo_prior = args.variant == "hgl_qos_prior"
 
     synthetic = discover_scenarios(args.synthetic_cache, [])
@@ -467,14 +591,23 @@ def main() -> int:
     for seed in seeds:
         ckpt = args.workdir / args.variant / f"seed_{seed}"
         ckpt.mkdir(parents=True, exist_ok=True)
-        service = train_once(
-            synthetic, seed, ckpt,
-            use_qos=use_qos, epochs=args.epochs, layers=args.layers,
-            rank_normalize_features=args.rank_normalize_features,
-            rank_normalize_labels=args.rank_normalize_labels,
-            device=args.device,
-            topo_prior=topo_prior,
-        )
+        if homogeneous:
+            service = train_once_homogeneous(
+                synthetic, seed, ckpt, variant=args.variant,
+                epochs=args.epochs, layers=args.layers,
+                rank_normalize_features=args.rank_normalize_features,
+                rank_normalize_labels=args.rank_normalize_labels,
+                device=args.device,
+            )
+        else:
+            service = train_once(
+                synthetic, seed, ckpt,
+                use_qos=use_qos, epochs=args.epochs, layers=args.layers,
+                rank_normalize_features=args.rank_normalize_features,
+                rank_normalize_labels=args.rank_normalize_labels,
+                device=args.device,
+                topo_prior=topo_prior,
+            )
         for b in real:
             try:
                 m = score(service, b, use_qos=use_qos,
