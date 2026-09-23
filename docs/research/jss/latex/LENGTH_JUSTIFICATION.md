@@ -7,52 +7,29 @@ justified."*
 
 ---
 
-The manuscript runs to **35 single-column pages** in the `elsarticle` preprint class, of which
-**3 pages are the reference list** (93 entries). The main text and declarations occupy 32 pages.
-The manuscript strictly conforms to the journal's recommended limit of less than 36 single-column pages.
+The manuscript runs to **33 single-column pages** in the `elsarticle` preprint class, including all
+declarations and the reference list (96 entries). It is within the journal's recommended limit of
+fewer than 36 single-column pages.
 
-We have already moved substantial material out of the body. Nineteen supplementary sections now
-carry the parameter-sensitivity sweeps (OFAT and Morris screening), the AHP matrices and their
-consistency diagnostics, the generative corpus parameters, the per-scenario corpus composition, the
-typed node feature schema, the anti-pattern detection benchmark, the explanation layer's real-world
-evaluation, the HGT attention distributions, the cross-oracle convergent-validity analysis, the
-in-distribution significance tests, the corpus-subset map, and the running-example figure. What
-remains in the body is what a referee needs in order to check a claim without leaving the page.
+Twenty-two supplementary sections carry the material a referee may want but a reader does not need
+in the body:
+- the parameter-sensitivity sweeps (OFAT and Morris screening);
+- the AHP matrices and their consistency diagnostics;
+- the generative corpus parameters and the per-scenario corpus composition;
+- the typed node feature schema;
+- the anti-pattern detection benchmark;
+- the explanation layer on the open-source system models;
+- the HGT attention distributions;
+- the cross-oracle convergent-validity analysis;
+- the in-distribution results and significance tests;
+- the variance-stabilized and seed-robust versions of the 2×2 factorial;
+- the general multi-task objective.
 
-**1. The paper's contribution is a set of negative and boundary results, and those cost pages to
-state precisely.** JSS explicitly welcomes "studies with negative results". This study reports that
-its proposed model does *not* significantly outperform an unparameterized QoS-weighted centrality
-baseline; that its two architectural mechanisms — relation typing and QoS edge encoding — are
-*substitutes rather than complements*, each carrying a main effect (+0.134 and +0.187, Holm-corrected
-p = 0.0015) but interacting sub-additively (−0.199, negative on all twelve folds, p = 0.0005); that zero-shot transfer to real systems is not
-established once tied labels are excluded, and inverts on two of five architectures; that a
-label-free confidence signal previously reported does not replicate; that the explanation layer's
-elicited AHP weights are anti-predictive and three of its five AHP matrices are rank-one by
-construction; and that the static gate is roughly eighteen times slower than the discrete-event simulation it
-was intended to displace ($79.3\,\text{s}$ vs. $4.5\,\text{s}$). Each of these is a claim *against* our own framework, and each required the
-ablation, the corrected baseline, or the sensitivity analysis that establishes it. A paper reporting
-a clean positive result would be shorter; it would also be less useful.
+The body keeps what a referee needs to check each claim without leaving the page:
+- the QoS-aware projection's gain over unweighted centrality on all twelve held-out architectures;
+- the typed learned engine's gains over untyped graph networks;
+- the hybrid engine's registered result against closed-form ranking;
+- zero-shot transfer to five independently authored system models;
+- the cost profile.
 
-**2. The empirical program is broad, and each result is scoped to a stated population.** Seven
-predictor configurations are evaluated across twelve synthetic architectures under inductive
-leave-one-scenario-out cross-validation, twelve more in-distribution, and five authentic open-source
-systems zero-shot — 2,812 components against four simulation oracles. Every research question is
-answered on an explicitly bounded corpus subset, because pooling entity types triggers a
-demonstrated Simpson's paradox. Compressing further would mean dropping an evaluation condition or
-leaving the reader unable to reconstruct which comparison rests on which data.
-
-**3. Reproducibility claims are load-bearing and stated in the text.** The corpus regenerates
-byte-identically from committed configurations; 415 reported table values are mechanically
-reconciled against the JSON artifacts that produced them by a committed script that refuses a clean
-run when an artifact is absent or was produced from a modified working tree; the input–label
-independence guarantee is asserted in continuous integration; and the primary out-of-distribution
-comparison was pre-registered before any result existed, with three dated amendments recording every
-subsequent protocol change. Supporting these claims requires stating protocols — evaluation
-populations, oracle assignment, substrate parity, model-selection rules — that a shorter paper would
-leave implicit and a referee could not check.
-
-**In alignment with the 36-page limit**, the manuscript incorporated the planned trims: the
-Reliability–Maintainability decomposition table (Section~5.1 $\to$ Table~S3) and the formal heterogeneous message-passing
-equations (Section~4.1.2 $\to$ Section~S1.1) now reside in the online supplementary material, alongside
-concise inline syntheses of repetitive experimental protocols, bringing the complete manuscript
-comfortably to **35 single-column pages** (including all declarations and 93 references).
+Every table value is mechanically reconciled against the artifact that produced it.

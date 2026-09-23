@@ -240,12 +240,12 @@ Availability & 5 & $-0.0029$ & $0.0006$ \\
 \section{Generative Parameters of the Synthetic Corpus}
 \label{supp:genparams}
 
-Table~\ref{tab:genparams} records the configuration behind each synthetic scenario of Table~4 in the main manuscript. It is replication detail rather than a result: the corpus shape a reader needs to interpret the evaluation is in Table~4 itself, and every configuration is committed in the replication package.
+Table~\ref{tab:genparams} records the configuration behind each synthetic scenario of Table~6 in the main manuscript. It is replication detail rather than a result: the corpus shape a reader needs to interpret the evaluation is in Table~6 itself, and every configuration is committed in the replication package.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Generative parameters of the twelve synthetic scenarios (eleven evaluation scenarios plus the ATM case study). Seed and fan-out figures are read from the committed configurations; per-entity counts are in Table~5 of the main manuscript. The modal QoS column gives the most common reliability/durability/priority value and the range of topic shares carrying them, computed from the committed topology rather than the config's declared QoS targets, which domain-driven assignment does not always realize (Section~6.1 of the main manuscript).}
+\caption{Generative parameters of the twelve synthetic scenarios (eleven evaluation scenarios plus the ATM case study). Seed and fan-out figures are read from the committed configurations; per-entity counts are in Table~6 of the main manuscript. The modal QoS column gives the most common reliability/durability/priority value and the range of topic shares carrying them, computed from the committed topology rather than the config's declared QoS targets, which domain-driven assignment does not always realize (Section~6.1 of the main manuscript).}
 \label{tab:genparams}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lrrrl}
@@ -276,10 +276,10 @@ Validated against $I_{\text{comp}}(v)$, the rule-based anti-pattern catalog reac
 
 \noindent\textbf{Stratification vs. Pooling:} Measured against the composite oracle $I_{\text{comp}}(v)$ over the twelve scenarios of the corpus, stratified RM rank correlations are $\rho = 0.597$ (Application, 12 scenarios), $0.317$ (Broker, 11 scenarios), and $0.138$ (Execution Host, 12 scenarios), while pooled correlation across all types is $\rho = 0.217$. Pooling node types conflates disparate structural base rates across architectural layers, leaving the pooled figure at less than two fifths of the Application stratum. It is not a strict Simpson reversal on this corpus: pooled correlation sits above the Node stratum ($0.138$). This is why every evaluation in this paper is reported on a single stratum, and why pooled critical-set numbers should be read as inflated wherever they appear (Section~7.4 of the main manuscript). On that same pooled benchmark, unweighted degree centrality attains $\rho = 0.314$ and $F_1 = 0.459$ against RM's $0.217$ and $0.350$ --- RM is beaten by degree on both, confirming that it serves as an attribution instrument rather than an unconstrained global ranker.
 
-\section{Real-World Evaluation of the Explanation Layer}
+\section{Explanation Layer on the Open-Source System Models}
 \label{supp:rq4}
 
-We evaluated the framework on five open-source distributed systems transcribed from their public repositories by dedicated architectural adapters, with results presented in Table~\ref{tab:9supp}. We note the scope of this evaluation before reporting it. Online Boutique is a vendor demonstration application and Train-Ticket an academic benchmark, Home Assistant is an authentic open-source IoT automation platform, and EdgeX Foundry is an industrial edge computing reference implementation; each is an abstraction of its upstream repository rather than a complete transcription; and their labels come from the same simulation oracle used throughout, so what follows tests topological generalization, not agreement with observed field failures. Two further limits bound what this table can support. First, the predictor scored in Table~\ref{tab:9supp} is the deterministic explanation layer $Q(v)$ together with the two training-free topological baselines; the learned model is evaluated separately in Section~7.4.1 of the main manuscript. Both are scored against $I^*(v)$, but under different injector settings (see the caption), so the two tables are not commensurable. Second, the labels are strongly tied at zero in several architectures --- 13 of 32 Applications in Autoware, 14 of 22 in Cloud Microservices, 27 of 41 in Train-Ticket, and 12 of 22 in EdgeX carry zero simulated impact (the complement of the ``Impactful Apps'' column), whereas Home Assistant exhibits much lower zero-inflation with 17 of 24 applications actively participating in failure cascades. Spearman $\rho$ over populations that are heavily tied is dominated by how those ties are handled; the values below use midrank ties throughout.
+We evaluated the framework on hand-authored architecture models of five open-source systems (Section~6.1 of the main manuscript), written as dedicated adapters from the systems' public documentation, with results presented in Table~\ref{tab:9supp}. We note the scope of this evaluation before reporting it. Online Boutique is a vendor demonstration application and Train-Ticket an academic benchmark, Home Assistant is an authentic open-source IoT automation platform, and EdgeX Foundry is an industrial edge computing reference implementation; each is an abstraction of its upstream repository rather than a complete transcription; and their labels come from the same simulation oracle used throughout, so what follows tests topological generalization, not agreement with observed field failures. Two further limits bound what this table can support. First, the predictor scored in Table~\ref{tab:9supp} is the deterministic explanation layer $Q(v)$ together with the two training-free topological baselines; the learned model is evaluated separately in Section~7.4.1 of the main manuscript. Both are scored against $I^*(v)$, but under different injector settings (see the caption), so the two tables are not commensurable. Second, the labels are strongly tied at zero in several architectures --- 13 of 32 Applications in Autoware, 14 of 22 in Cloud Microservices, 27 of 41 in Train-Ticket, and 12 of 22 in EdgeX carry zero simulated impact (the complement of the ``Impactful Apps'' column), whereas Home Assistant exhibits much lower zero-inflation with 17 of 24 applications actively participating in failure cascades. Spearman $\rho$ over populations that are heavily tied is dominated by how those ties are handled; the values below use midrank ties throughout.
 
 \begin{table}[htbp]
 \centering
@@ -289,7 +289,7 @@ We evaluated the framework on five open-source distributed systems transcribed f
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lcccccccc}
 \toprule
-\textbf{Real-World Architecture} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{Spearman $\rho$} & \textbf{Kendall $\tau$} & \textbf{App $F_1@K$} & \textbf{Pooled $F_1@K$} & \textbf{Impactful Apps} & \textbf{Gain vs.\ Deg} \\
+\textbf{System model} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{Spearman $\rho$} & \textbf{Kendall $\tau$} & \textbf{App Overlap@$K$} & \textbf{Pooled Overlap@$K$} & \textbf{Impactful Apps} & \textbf{Gain vs.\ Deg} \\
 \midrule
 \textbf{Autoware.universe (ROS 2)} & 75 & 32 & \textbf{0.685 $\pm$ 0.010} & 0.513 & 0.333 & 0.800 & 19 / 32 & +0.357 \\
 \textbf{Cloud Microservices Mesh} & 60 & 22 & \textbf{0.778 $\pm$ 0.001} & 0.639 & 0.500 & 1.000 & 8 / 22 & +0.014 \\
@@ -305,12 +305,12 @@ We evaluated the framework on five open-source distributed systems transcribed f
 \begin{enumerate}
     \item \textbf{The explanation layer ranks unseen architectures well, but this is not a learned-transfer result.} RM / $Q(v)$ attains $\rho = 0.800$ on EdgeX Foundry, $0.778$ on Cloud Microservices, $0.759$ on Train-Ticket, $0.685$ on Autoware.universe, and $0.514$ on Home Assistant. Because $Q(v)$ is a closed-form scoring function rather than a fitted model, applying it to a new architecture involves no transfer in the inductive sense of Section~7.2 of the main manuscript: nothing was trained, and no distribution shift is being survived. What this table establishes is that the deterministic attribution of Section~5 of the main manuscript remains informative on architectures we did not generate. The learned model is a separate question, answered in Section~7.4.1 of the main manuscript.
 
-    Table~\ref{tab:9supp} is not commensurable with Table~8's RM column ($\rho = 0.133$) of the main manuscript, but the cause is not the oracle: Table~8, Table~11 and Table~\ref{tab:9supp} all score against $I^*(v)$ (cascade reachability injection). Table~8 is the synthetic LOSO corpus, whereas Table~\ref{tab:9supp} and Table~11 both score the five transcribed systems on the Application stratum; under Table~11's unlimited-depth labels RM attains $\rho = 0.516$ on those same systems. What separates the figures is therefore a real-versus-generated difference together with the injector configuration recorded in the caption, with the tied-label structure described above contributing to both. The practical consequence is that no RM figure in this paper should be compared across tables without checking which population and which injector configuration produced it.
+    Table~\ref{tab:9supp} is not commensurable with Table~8's RM column ($\rho = 0.133$) of the main manuscript, but the cause is not the oracle: Table~8, Table~11 and Table~\ref{tab:9supp} all score against $I^*(v)$ (cascade reachability injection). Table~8 is the synthetic LOSO corpus, whereas Table~\ref{tab:9supp} and Table~11 both score the five system models on the Application stratum; under Table~11's unlimited-depth labels RM attains $\rho = 0.516$ on those same systems. What separates the figures is therefore a real-versus-generated difference together with the injector configuration recorded in the caption, with the tied-label structure described above contributing to both. The practical consequence is that no RM figure in this paper should be compared across tables without checking which population and which injector configuration produced it.
 
-    \item \textbf{Stratified vs.\ Pooled Critical Set Identification:} On the stratified Application population ($V_{\text{app}}$ with $K = \text{round}(0.20 \cdot |V_{\text{app}}|)$), $Q(v)$ identifies the top-20\% critical services with $F_1@K = 0.333$ in Autoware, $0.500$ in Cloud Microservices, $0.625$ in Train-Ticket, $0.250$ in Home Assistant, and $0.000$ in EdgeX Foundry (where failure impact is dispersed broadly across active device services). When evaluated across the pooled multigraph ($K = \text{round}(0.20 \cdot |V|)$), the pooled $F_1@K$ reaches $0.800$, $1.000$, $1.000$, $0.667$, and $1.000$, respectively. This disparity is the base-rate phenomenon of Section~6.3 of the main manuscript: the passive infrastructure entities (Topics, Nodes, Libraries) carry constant zero failure impact under the injector configuration used for these runs, so a pooled top-$K$ set is largely populated by correctly identifying inert nodes. The pooled column is therefore inflated and we do not read it; the stratified $V_{\text{app}}$ column is the operational figure.
+    \item \textbf{Stratified vs.\ Pooled Critical Set Identification:} On the stratified Application population ($V_{\text{app}}$ with $K = \text{round}(0.20 \cdot |V_{\text{app}}|)$), $Q(v)$ identifies the top-20\% critical services with $F_1@K = 0.333$ in Autoware, $0.500$ in Cloud Microservices, $0.625$ in Train-Ticket, $0.250$ in Home Assistant, and $0.000$ in EdgeX Foundry (where failure impact is dispersed broadly across active device services). When evaluated across the pooled multigraph ($K = \text{round}(0.20 \cdot |V|)$), the pooled Overlap@$K$ reaches $0.800$, $1.000$, $1.000$, $0.667$, and $1.000$, respectively. This disparity is the base-rate phenomenon of Section~6.3 of the main manuscript: the passive infrastructure entities (Topics, Nodes, Libraries) carry constant zero failure impact under the injector configuration used for these runs, so a pooled top-$K$ set is largely populated by correctly identifying inert nodes. The pooled column is therefore inflated and we do not read it; the stratified $V_{\text{app}}$ column is the operational figure.
     \item \textbf{Framework Acceptance Gates and Cross-Domain Disparities:} The framework ships a four-condition release gate ($\rho \ge 0.75$, $\text{Overlap@}K \ge 0.70$, $\text{SPOF } F_1 \ge 0.60$, prediction gain $\ge 0.02$). EdgeX Foundry passes all four gates across all five seeds ($100\%$ pass rate), driven by strong rank correlation ($\rho = 0.800$), pooled $F_1 = 1.00$, and robust articulation detection ($\text{SPOF } F_1 = 0.80$). In contrast, the pass rate is zero on the other four architectures: Autoware fails the $\rho$ and SPOF conditions, Cloud Microservices fails SPOF and prediction gain, Train-Ticket fails SPOF, and Home Assistant misses the $\rho$ gate ($\rho = 0.514$) despite scoring a perfect $\text{SPOF } F_1 = 1.00$. What this establishes is a negative result about thresholds, not a positive one about ordering: a gate calibrated on our synthetic corpus fires correctly on one architecture in five, so its absolute cut-offs are domain-specific and do not transfer as shipped. The ordering half of the question --- whether the ranking underneath those thresholds transfers --- is not answered here and is answered negatively in Section~7.4.1 of the main manuscript, once the population is restricted to components that actually propagate a failure.
 
-    \item \textbf{Predictive Advantage over Structural Heuristics:} The ``Gain vs.\ Deg'' column reports $Q(v)$'s rank-correlation margin over an unweighted degree centrality baseline ($+0.427$ on EdgeX Foundry, $+0.357$ on Autoware, $+0.289$ on Home Assistant, $+0.264$ on Train-Ticket, $+0.014$ on Cloud Microservices), so on this population and this oracle the hierarchical attribution of Section~5 of the main manuscript orders components better than degree centrality does. The margin does not generalize beyond those conditions, and we scope it accordingly: on the pooled synthetic detection benchmark of Section~7.3.6 of the main manuscript --- which is measured against $I_{\text{comp}}(v)$ (composite failure simulation) rather than the $I^*(v)$ used here, and across all entity types --- degree \emph{beats} RM on both rank correlation ($0.314$ vs.\ $0.217$) and $F_1@K$ ($0.459$ vs.\ $0.350$). The two findings are not in conflict --- one is stratified on Applications in five transcribed systems under $I^*(v)$, the other pooled across types in eight generated ones under $I_{\text{comp}}(v)$ --- but neither supports a general claim that RM dominates degree. Wilcoxon signed-rank tests over the five systems do not reach significance ($p \ge 0.33$), which at $n = 5$ they could hardly do; we report them for completeness rather than as support.
+    \item \textbf{Predictive Advantage over Structural Heuristics:} The ``Gain vs.\ Deg'' column reports $Q(v)$'s rank-correlation margin over an unweighted degree centrality baseline ($+0.427$ on EdgeX Foundry, $+0.357$ on Autoware, $+0.289$ on Home Assistant, $+0.264$ on Train-Ticket, $+0.014$ on Cloud Microservices), so on this population and this oracle the hierarchical attribution of Section~5 of the main manuscript orders components better than degree centrality does. The margin does not generalize beyond those conditions, and we scope it accordingly: on the pooled synthetic detection benchmark of Section~7.3.6 of the main manuscript --- which is measured against $I_{\text{comp}}(v)$ (composite failure simulation) rather than the $I^*(v)$ used here, and across all entity types --- degree \emph{beats} RM on both rank correlation ($0.314$ vs.\ $0.217$) and Overlap@$K$ ($0.459$ vs.\ $0.350$). The two findings are not in conflict --- one is stratified on Applications in five hand-authored system models under $I^*(v)$, the other pooled across types in eight generated ones under $I_{\text{comp}}(v)$ --- but neither supports a general claim that RM dominates degree. Wilcoxon signed-rank tests over the five systems do not reach significance ($p \ge 0.33$), which at $n = 5$ they could hardly do; we report them for completeness rather than as support.
 
     \item \textbf{The QoS-weighted heuristic was initially unscorable here, and the fix is the substrate.} On the raw multigraph the unweighted \texttt{Topo} reference is computable ($\rho = 0.307 / 0.891 / 0.528$ on Autoware, Online Boutique and Train-Ticket; mean $0.511$) while \texttt{Topo-QoS} is not. The obstacle is not missing QoS data --- every topic in all five adapters carries declared \texttt{durability}, \texttt{reliability} and \texttt{transport\_priority} profiles, and projecting $w(t)$ onto the structural edges yields non-unit weights on $45.3$--$62.2\%$ of them. It is that \texttt{Topo} reads betweenness off the cached \texttt{DEPENDS\_ON} projection, whereas the QoS-weighted variant must recompute it on the raw multigraph, where Applications never route messages and betweenness is identically zero for all of them --- the same degeneracy Section~6.2.1 of the main manuscript gives as the reason topological baselines are run on the projection at all. This is resolved in the reported evaluation: both baselines are scored on the \texttt{DEPENDS\_ON} flow projection, as Section~6.2.1 of the main manuscript prescribes, and Table~11 of the main manuscript therefore carries \texttt{Topo-QoS} on all five systems ($0.289$--$0.888$). Earlier drafts measured the real-world margin against the unweighted reference alone; that gap is closed, and Section~8.4 of the main manuscript records the correction. Separately, projection-based baselines assign constant zero to Applications carrying no derived \texttt{DEPENDS\_ON} edge, accentuating sensitivity to tied ground truth.
 \end{enumerate}
@@ -404,7 +404,7 @@ Paired tests over the twelve in-distribution scenarios of Table 5 of the main ma
 \section{Typed Node Feature Schema}
 \label{supp:features}
 
-Both pathways read the same typed node properties from $G_{\text{analysis}}$: the predictive pathway (Section~4 of the main manuscript) projects them per entity type before heterogeneous message passing, and the explanation layer (Section~5 of the main manuscript) aggregates them into its quality profile. All five entity types share indices 0--17, an 18-dimensional base block of deterministic topological metrics produced by the static analysis stage whose execution cost is characterized in Section~7.5 of the main manuscript. Table~\ref{tab:supp-features} lists the complete 18-dimensional base schema.
+Both pathways read the same typed node properties from $G_{\text{analysis}}$: the predictive pathway (Section~4 of the main manuscript) projects them per entity type before heterogeneous message passing, and the explanation layer (Section~5 of the main manuscript) aggregates them into its quality profile. All five entity types share indices 0--17, an 18-dimensional base block of deterministic topological metrics produced by the static analysis stage whose execution cost is characterized in Section~7.6 of the main manuscript. Table~\ref{tab:supp-features} lists the complete 18-dimensional base schema.
 
 \begin{table}[htbp]
 \centering
@@ -507,15 +507,15 @@ Entity and edge counts for every scenario, read from the committed topology file
 \multicolumn{9}{l}{\textit{Synthetic case study (LOSO fold; \texttt{case\_study} role in the manifest)}} \\
 \textbf{Air Traffic Management (ATM)} & ICAO Global ATM Concept & 74 & 26 & 27 & 5 & 8 & 8 & 261 \\
 \midrule
-\multicolumn{9}{l}{\textit{Real-world reference systems (never used as training folds)}} \\
-\textbf{Autoware.universe \cite{kato2018autoware}} & Real-World ROS~2 Autoware & 75 & 32 & 24 & 3 & 6 & 10 & 179 \\
-\textbf{Cloud Microservices \cite{google2024onlineboutique}} & Real-World GCP Boutique & 60 & 22 & 20 & 4 & 6 & 8 & 128 \\
-\textbf{Train-Ticket \cite{zhou2021fault}} & Real-World Microservices & 90 & 41 & 30 & 3 & 8 & 8 & 162 \\
-\textbf{Home Assistant \cite{homeassistant2024}} & Real-World Smart Home & 63 & 24 & 22 & 3 & 6 & 8 & 119 \\
-\textbf{EdgeX Foundry \cite{edgexfoundry2024}} & Real-World Industrial IoT & 63 & 22 & 24 & 3 & 6 & 8 & 112 \\
+\multicolumn{9}{l}{\textit{Hand-authored open-source system models (never used as training folds)}} \\
+\textbf{Autoware.universe \cite{kato2018autoware}} & Model of ROS~2 Autoware & 75 & 32 & 24 & 3 & 6 & 10 & 179 \\
+\textbf{Cloud Microservices \cite{google2024onlineboutique}} & Pub-sub model after GCP Online Boutique & 60 & 22 & 20 & 4 & 6 & 8 & 128 \\
+\textbf{Train-Ticket \cite{zhou2021fault}} & Model of Train-Ticket booking & 90 & 41 & 30 & 3 & 8 & 8 & 162 \\
+\textbf{Home Assistant \cite{homeassistant2024}} & Model of Smart Home & 63 & 24 & 22 & 3 & 6 & 8 & 119 \\
+\textbf{EdgeX Foundry \cite{edgexfoundry2024}} & Model of Industrial IoT & 63 & 22 & 24 & 3 & 6 & 8 & 112 \\
 \midrule
 \textbf{Synthetic subtotal (12 LOSO folds)} & & \textbf{2{,}461} & 1{,}321 & 615 & 65 & 202 & 258 & \textbf{10{,}918} \\
-\textbf{Real-world subtotal (5 systems)} & & \textbf{351} & 141 & 120 & 16 & 32 & 42 & \textbf{700} \\
+\textbf{Open-source system models (5)} & & \textbf{351} & 141 & 120 & 16 & 32 & 42 & \textbf{700} \\
 \textbf{Total} & & \textbf{2{,}812} & & & & & & \textbf{11{,}618} \\
 \bottomrule
 \end{tabular}%
@@ -535,7 +535,7 @@ Entity and edge counts for every scenario, read from the committed topology file
 \section{Identification Quality Beyond Top-$K$ Overlap}
 \label{supp:identification}
 
-Every $F_1@K$ figure in the main manuscript is a set-overlap measure: the
+Every Overlap@$K$ figure in the main manuscript is a set-overlap measure: the
 predicted and reference sets both contain exactly $K = \operatorname{round}(0.20
 \cdot |V_{\text{app}}|)$ members, so precision, recall and $F_1$ take the same
 value by construction. That quantity is well defined and we report it as
@@ -559,7 +559,7 @@ caveat, that five systems cannot establish it.
 \centering
 \small
 \centering
-\caption{Identification quality at operating points where precision and recall are free to differ, so that none of these columns is the top-$K$ overlap measure reported as $F_1@K$ elsewhere. $F_1@\tau$ scores the top-$K$ prediction against the labels' own critical set ($I^*(v) \ge 0.5\max I^*$); PR-AUC is threshold-free; nDCG@10 is rank-weighted. LOSO figures are means over the twelve inductive folds; real-world figures are means over the five transcribed systems, scored zero-shot against the same oracle.}
+\caption{Identification quality at operating points where precision and recall are free to differ, so that none of these columns is the top-$K$ overlap measure reported as Overlap@$K$ elsewhere. $F_1@\tau$ scores the top-$K$ prediction against the labels' own critical set ($I^*(v) \ge 0.5\max I^*$); PR-AUC is threshold-free; nDCG@10 is rank-weighted. LOSO figures are means over the twelve inductive folds; real-world figures are means over the five transcribed systems, scored zero-shot against the same oracle.}
 \label{tab:identification}
 \begin{tabular}{lccc}
 \toprule
@@ -592,7 +592,7 @@ Spearman $\rho$ is bounded on $[-1, 1]$ and compresses toward either end. A
 difference of differences computed on it is therefore not scale-free: two
 mechanisms that each move a predictor toward the attainable ceiling can appear
 sub-additive even if they contribute independently under any monotone
-rescaling. Since the substitution claim of Section~7.2 of the main manuscript
+rescaling. Since the sub-additivity claim of Section~7.2 of the main manuscript
 \emph{is} a claim about an interaction, it has to survive the transformation
 that removes that artefact.
 
@@ -638,7 +638,7 @@ This table was moved out of the body because no comparison can be drawn down its
 \begin{table}[htbp]
 \centering
 \small
-\caption{In-distribution held-out evaluation across all twelve distributed architecture scenarios, reporting both Spearman rank correlation ($\rho$) and critical-set identification ($F_1@K$, with $K = \text{round}(0.20 \cdot n)$): mean over five seeds; $n$ = held-out Application test count. $F_1@K$ is top-$K$ set overlap throughout (Section 6.3 of the main manuscript). Substrates differ in-distribution and are listed per predictor in Table 6 (Section 6.2 of the main manuscript). Each seed redraws the 60/20/20 split and model initialization. The held-out set is small on several scenarios --- $n = 5$ on ATM, giving $K = 1$ --- so a single rank swap moves $\rho$ substantially and the per-scenario cells on the smaller topologies are coarsely quantized; they are reported for completeness and the row means, not individual cells, carry the comparison.}
+\caption{In-distribution held-out evaluation across all twelve distributed architecture scenarios, reporting both Spearman rank correlation ($\rho$) and critical-set identification (Overlap@$K$, with $K = \text{round}(0.20 \cdot n)$): mean over five seeds; $n$ = held-out Application test count. Overlap@$K$ is top-$K$ set overlap throughout (Section 6.3 of the main manuscript). Substrates differ in-distribution and are listed per predictor in Table 6 (Section 6.2 of the main manuscript). Each seed redraws the 60/20/20 split and model initialization. The held-out set is small on several scenarios --- $n = 5$ on ATM, giving $K = 1$ --- so a single rank swap moves $\rho$ substantially and the per-scenario cells on the smaller topologies are coarsely quantized; they are reported for completeness and the row means, not individual cells, carry the comparison.}
 \label{tab:supp-indist-cells}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lrcccccccccccc}
@@ -706,6 +706,115 @@ The card below is composed by hand from the ATM topology to show the shape of th
 \bottomrule
 \end{tabular}%
 }
+\end{table}
+
+
+\section{General Multi-Task Objective}
+\label{supp:objective}
+
+The implementation supports a more general objective than the one optimized in every reported run (Eq.~5 of the main manuscript):
+\begin{equation}
+\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{dimension}} + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}} + \lambda_{\text{RM}} \cdot \mathcal{L}_{\text{consistency}},
+\end{equation}
+where $\mathcal{L}_{\text{dimension}} = \frac{1}{\sum_{d} m_d} \sum_{d \in \{R, M\}} m_d \cdot \text{MSE}(\hat{d}(v), d^*(v))$ uses a boolean dimension mask $m = [m_R, m_M]$, and $\mathcal{L}_{\text{consistency}}$ is an optional mean-squared alignment of the two auxiliary heads with the explanation layer's $R$ and $M$ scores on unlabeled nodes. Every reported run sets $\lambda_{\text{RM}} = 0$, so the predictor and the explanation layer share no parameters, and $m = [1, 0]$ with $R^*(v) \equiv I^*(v)$, because no simulated maintainability label exists. Under these settings $\mathcal{L}$ reduces exactly to the active objective. The code also provides a domain reweighting $\hat{Q}_{\text{domain}}(v) = q_R \hat{a}_1(v) + q_M M_{\text{static}}(v)$ for an ISO/IEC 25019 context-of-use vector; it is not evaluated in this study.
+
+\section{Seed-Aggregation Robustness of the \texorpdfstring{$2\times2$}{2x2}}
+\label{supp:seed-robust}
+
+\texttt{GAT-N}, the floor cell of the reported $2\times2$, has a median within-fold seed standard deviation of $0.298$, against $0.114$ (\texttt{HGT}), $0.024$ (\texttt{GAT-N-QoS}) and $0.052$ (\texttt{HGT-QoS}). If a few collapsed seeds pull its fold means down, both main effects and the interaction inherit that optimization failure. Table~\ref{tab:supp-seed-robust} re-forms each fold score from the per-seed results of the same twelve-fold artifact under three aggregations and recomputes the three orthogonal quantities, Holm-corrected across the three within each aggregation. No model is retrained (\path{reproduce/factorial_seed_robustness.py}; \path{results/factorial_seed_robustness_v5.json}).
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{The $2\times2$ quantities of Table~8 (main manuscript) under three seed aggregations. \emph{Mean} reproduces the reported table; \emph{median} is robust to one or two collapsed seeds per fold; \emph{trimmed} drops each arm's worst seed in every fold before averaging. CI: bootstrap over folds ($B = 2{,}000$).}
+\label{tab:supp-seed-robust}
+\begin{tabular}{llrcccc}
+\toprule
+\textbf{Aggregation} & \textbf{Quantity} & \textbf{$\Delta\rho$} & \textbf{Won} & \textbf{$p$} & \textbf{$p_{\text{Holm}}$} & \textbf{95\% CI} \\
+\midrule
+Mean & Typing (main) & $+0.134$ & 12/12 & 0.0005 & 0.0015 & $[+0.095, +0.176]$ \\
+ & QoS channel (main) & $+0.187$ & 11/12 & 0.0015 & 0.0015 & $[+0.108, +0.244]$ \\
+ & Interaction & $-0.199$ & 0/12 & 0.0005 & 0.0015 & $[-0.258, -0.147]$ \\
+\midrule
+Median & Typing (main) & $+0.118$ & 11/12 & 0.0010 & 0.0020 & $[+0.067, +0.175]$ \\
+ & QoS channel (main) & $+0.145$ & 11/12 & 0.0093 & 0.0093 & $[+0.070, +0.206]$ \\
+ & Interaction & $-0.168$ & 0/12 & 0.0005 & 0.0015 & $[-0.231, -0.112]$ \\
+\midrule
+Trimmed & Typing (main) & $+0.118$ & 11/12 & 0.0010 & 0.0020 & $[+0.077, +0.160]$ \\
+ & QoS channel (main) & $+0.128$ & 11/12 & 0.0093 & 0.0093 & $[+0.060, +0.179]$ \\
+ & Interaction & $-0.146$ & 0/12 & 0.0005 & 0.0015 & $[-0.177, -0.115]$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent The interaction shrinks by a sixth (median) to a quarter (trimmed) and stays negative on every fold, and the QoS-channel main effect shrinks most. Collapsed \texttt{GAT-N} seeds therefore inflate the reported effects but do not produce them. The check cannot address under-training that affects every seed alike, which requires per-arm tuning under an equal budget.
+
+
+\section{Closed-Form Scores With the Articulation Term Restored}
+\label{supp:ap-sensitivity}
+
+The closed-form scores are specified as $0.6\cdot\text{BT} + 0.4\cdot\text{AP}$ (Section~6.2.1 of the main manuscript). In the evaluated implementation the articulation term reads zero for every node, because the cached structural metrics carry no articulation score. Table~\ref{tab:supp-ap} recomputes both scores on the same twelve holdouts, Application population and $I^*(v)$ labels, with the articulation term taken from the articulation severity SaG computes on the projection (\path{reproduce/topo_ap_sensitivity.py}; \path{results/topo_ap_sensitivity.json}). The \emph{as run} columns reproduce the published per-fold values exactly (maximum absolute difference $<10^{-15}$).
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Spearman $\rho$ of the closed-form scores per LOSO holdout, as run (articulation term zero) and with the articulation term restored. $n_{\text{AP}}$ counts nodes with non-zero articulation severity on the projection.}
+\label{tab:supp-ap}
+\begin{tabular}{lrcccc}
+\toprule
+\textbf{Holdout} & $n_{\text{AP}}$ & \textbf{Topo, as run} & \textbf{Topo, AP restored} & \textbf{Topo-QoS, as run} & \textbf{Topo-QoS, AP restored} \\
+\midrule
+ATM & 1 & 0.256 & 0.083 & 0.311 & 0.132 \\
+AV System & 0 & 0.468 & 0.468 & 0.753 & 0.753 \\
+Enterprise & 0 & 0.431 & 0.431 & 0.795 & 0.795 \\
+Financial Trading & 0 & 0.237 & 0.237 & 0.586 & 0.586 \\
+Healthcare & 0 & 0.077 & 0.077 & 0.369 & 0.369 \\
+Enterprise Integration (ESB) & 0 & 0.112 & 0.112 & 0.430 & 0.430 \\
+Industrial SCADA & 10 & 0.608 & 0.563 & 0.650 & 0.609 \\
+IoT Smart City & 6 & 0.251 & 0.234 & 0.351 & 0.331 \\
+Logistics Fleet & 2 & 0.576 & 0.578 & 0.741 & 0.742 \\
+Microservices & 0 & 0.229 & 0.229 & 0.265 & 0.265 \\
+Real-Time Gaming & 0 & 0.377 & 0.377 & 0.810 & 0.810 \\
+Telecom RAN & 0 & 0.562 & 0.562 & 0.576 & 0.576 \\
+\midrule
+\textbf{Mean} & & \textbf{0.349} & \textbf{0.329} & \textbf{0.553} & \textbf{0.533} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Articulation points are rare on these projections (four of twelve scenarios have any), and where they exist the binary term lowers the ranking correlation. The evaluated, betweenness-only form is therefore the stronger reference, and every comparison in the main manuscript is made against it.
+
+
+\section{SaG-Hybrid Per-Fold Results}
+\label{supp:hybrid-folds}
+
+Table~\ref{tab:supp-hybrid} lists the per-fold Spearman $\rho$ behind Table~13 of the main manuscript: one CPU sweep, twelve LOSO folds, fold score = mean over five seeds, Application population (\path{results/loso_hybrid_cpu.json}). Folds are ordered by the closed-form engine's own score. SaG-Hybrid outperforms \texttt{Topo-QoS} on every fold except Enterprise, and keeps most of the closed-form engine's strength on the folds where \texttt{HGT-QoS} loses to it.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Per-fold LOSO $\rho$ for SaG's closed-form, learned and hybrid engines (CPU sweep; bold marks the best of the three).}
+\label{tab:supp-hybrid}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Holdout} & \textbf{Topo-QoS} & \textbf{HGT-QoS} & \textbf{SaG-Hybrid} & \textbf{Hybrid $-$ Topo-QoS} \\
+\midrule
+Real-Time Gaming & 0.810 & 0.789 & \textbf{0.837} & $+0.026$ \\
+Enterprise & \textbf{0.795} & 0.426 & 0.734 & $-0.061$ \\
+AV System & 0.753 & 0.704 & \textbf{0.782} & $+0.029$ \\
+Logistics Fleet & 0.741 & 0.771 & \textbf{0.792} & $+0.051$ \\
+Industrial SCADA & 0.650 & 0.684 & \textbf{0.758} & $+0.108$ \\
+Financial Trading & 0.586 & 0.695 & \textbf{0.754} & $+0.167$ \\
+Telecom RAN & 0.576 & 0.427 & \textbf{0.648} & $+0.071$ \\
+Enterprise Integration (ESB) & 0.430 & 0.548 & \textbf{0.564} & $+0.135$ \\
+Healthcare & 0.369 & \textbf{0.730} & 0.625 & $+0.256$ \\
+IoT Smart City & 0.351 & \textbf{0.688} & 0.590 & $+0.239$ \\
+ATM & 0.311 & \textbf{0.523} & 0.429 & $+0.118$ \\
+Microservices & 0.265 & \textbf{0.475} & 0.366 & $+0.100$ \\
+\midrule
+\textbf{Mean} & 0.553 & 0.622 & \textbf{0.657} & $+0.103$ \\
+\bottomrule
+\end{tabular}
 \end{table}
 
 \end{document}

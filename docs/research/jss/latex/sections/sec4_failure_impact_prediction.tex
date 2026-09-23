@@ -1,7 +1,7 @@
 \section{Graph Learning for Failure-Impact Prediction}
 \label{sec:4}
 
-Cascading failure impact in distributed software systems indicates non-linear, multi-hop, and relation-dependent characteristics. Outages propagate through architectural relations and dependencies beyond immediate neighbors. Whether a closed-form combination of standard centrality indices can adequately capture these complicated dynamics remains an open empirical question. Consequently, the primary predictive approach described in Section~\ref{sec:1.2} utilizes a learned graph model, which is evaluated in Section~\ref{sec:7.1} against a closed-form baseline. The learned model does not manifest significant improvement over the baseline in out-of-distribution ranking.
+Cascading failure impact in distributed software systems indicates non-linear, multi-hop, and relation-dependent characteristics. Outages propagate through architectural relations and dependencies beyond immediate neighbors. SaG therefore pairs its closed-form engine with a learned graph model that can combine structural cues across relation types; Section~\ref{sec:7} evaluates both.
 
 This section presents the Heterogeneous Graph Transformer (HGT) architecture and its typed edge encodings (Section~\ref{sec:4.1}), the multi-task prediction heads and dimension-masked loss formulation (Section~\ref{sec:4.2}), the ground-truth simulation oracles (Section~\ref{sec:4.3}), and the input--label independence guarantee designed to prevent data leakage (Section~\ref{sec:4.4}).
 
@@ -29,14 +29,7 @@ Models are optimized end-to-end with AdamW ($\eta = 3 \times 10^{-4}$, weight de
 \subsection{Multi-Task Prediction Heads and Dimension Masking}
 \label{sec:4.2}
 
-From the final node embeddings $h_v^{(L)}$, SaG utilizes specialized multi-task prediction heads:
-
-\begin{itemize}\tightlist
-    \item \textbf{Reliability Head:} $\hat{R}(v) = \sigma(\text{MLP}_R(h_v)) \in [0, 1]$
-    \item \textbf{Maintainability Head:} $\hat{M}(v) = \sigma(\text{MLP}_M(h_v)) \in [0, 1]$
-    \item \textbf{Composite Failure Impact Head:} $\hat{I}^*(v) = \sigma(\text{MLP}_C(h_v \parallel \hat{R}(v) \parallel \hat{M}(v))) \in [0, 1]$
-    \item \textbf{Relationship Criticality Head:} $\hat{Q}(u,v) = \sigma(\text{TypedEdgeEncoder}_{\phi(e)}(h_u, h_v, e_{uv})) \in [0, 1]$. Disabled throughout the evaluation reported here; every harness instantiates the model with edge prediction switched off, so $\hat{Q}(u,v)$ is neither trained nor scored. Described for completeness.
-\end{itemize}
+From the final node embeddings $h_v^{(L)}$, a composite head predicts cascade impact, $\hat{I}^*(v) = \sigma(\text{MLP}_C(h_v \parallel \hat{a}_1(v) \parallel \hat{a}_2(v))) \in [0, 1]$, where $\hat{a}_1(v) = \sigma(\text{MLP}_1(h_v))$ and $\hat{a}_2(v) = \sigma(\text{MLP}_2(h_v))$ are two auxiliary heads. The code names them after Reliability and Maintainability, but in the evaluated configuration neither is supervised on its namesake: $\hat{a}_1$ is supervised on $I^*$ and $\hat{a}_2$ is unsupervised, so both act only as learned feature enrichment for the composite head. An optional relationship-criticality edge head is disabled in every harness and is neither trained nor scored.
 
 \subsubsection{Optimization Objective and Dimension Masking}
 \label{sec:4.2.1}
@@ -45,7 +38,7 @@ Under our headline experimental protocol, the active optimization objective dire
 
 \begin{equation}
 \label{eq:loss_active}
-\mathcal{L}_{\text{active}} = \text{MSE}(\hat{I}^*(v), I^*(v)) + 0.5 \cdot \text{MSE}(\hat{R}(v), I^*(v)) + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}}
+\mathcal{L}_{\text{active}} = \text{MSE}(\hat{I}^*(v), I^*(v)) + 0.5 \cdot \text{MSE}(\hat{a}_1(v), I^*(v)) + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}}
 \end{equation}
 
 where $I^*(v)$ is the simulated cascade impact defined by the primary oracle (Section~\ref{sec:4.3}), $\mathcal{L}_{\text{rank}}$ is the ListMLE listwise ranking loss \cite{xia2008listwise} parameterized by temperature $\tau$:
@@ -57,27 +50,7 @@ where $I^*(v)$ is the simulated cascade impact defined by the primary oracle (Se
 
 where $\pi = (\pi_1, \dots, \pi_N)$ denotes the permutation of nodes sorted in descending order of ground-truth impact $I^*(v)$, and $\hat{s}_v = \hat{I}^*(v)$. At the baseline default $\tau = 1.0$, the formulation reduces to standard ListMLE; the temperature parameter $\tau < 1.0$ is a configurable hyperparameter that sharpens probability distributions over narrow prediction margins. Pairwise ordering fidelity is guided by margin-ranking loss $\mathcal{L}_{\text{pairwise}} = \frac{1}{|P|} \sum_{(u,v) \in P} \max\big(0, \gamma - (\hat{s}_u - \hat{s}_v)\big)$ with margin $\gamma = 0.05$ over pairs $P = \{(u, v) \mid I^*(u) - I^*(v) > \gamma\}$. Permutation-level ListMLE ($\mathcal{L}_{\text{rank}}$) provides the primary gradient force for global rank monotonicity ($\rho$), while pairwise margin ($\mathcal{L}_{\text{pairwise}}$) penalizes small-margin inversions among adjacent components.
 
-\noindent\textbf{General Architectural Envelope and Dimension Masking:} This active loss is the operational instance of a generalized multi-task framework:
-
-\begin{equation}
-\label{eq:loss}
-\mathcal{L} = \mathcal{L}_{\text{composite}} + 0.5 \cdot \mathcal{L}_{\text{dimension}} + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}} + \lambda_{\text{RM}} \cdot \mathcal{L}_{\text{consistency}}
-\end{equation}
-
-where $\mathcal{L}_{\text{dimension}} = \frac{1}{\sum_{d} m_d} \sum_{d \in \{R, M\}} m_d \cdot \text{MSE}(\hat{d}(v), d^*(v))$ uses a boolean dimension mask $m = [m_R, m_M]$, and $\mathcal{L}_{\text{consistency}} = \text{MSE}\big([\hat{R}(v), \hat{M}(v)]_{v \in \text{unlabeled}}, [R_{\text{RM}}(v), M_{\text{RM}}(v)]_{v \in \text{unlabeled}}\big)$ provides optional semi-supervised alignment with the explanation layer on unlabeled nodes.
-
-In our evaluation, two principled constraints govern this general envelope:
-\begin{enumerate}\tightlist
-\item \textbf{Strict Pathway Independence:} We enforce $\lambda_{\text{RM}} = 0$ throughout all training sweeps, guaranteeing that the predictive GNN and the diagnostic explanation layer (Section~\ref{sec:5}) share zero parameters and remain strictly decoupled.
-\item \textbf{Dimension Masking for Unobserved Maintainability:} Because dynamic cascade simulation ($I^*(v)$) observes runtime failure reachability rather than source-code maintainability, maintainability ground truth is unobserved during dynamic simulation. Setting $m = [1, 0]$ ensures the unobserved maintainability head is not artificially penalized or driven toward zero during backpropagation.
-\end{enumerate}
-
-Consequently, setting $m_M = 0$ and assigning the cascade reachability target to both supervised heads ($R^*(v) \equiv I^*(v)$) causes $\mathcal{L}$ to reduce exactly to $\mathcal{L}_{\text{active}}$ (Eq.~\eqref{eq:loss_active}). Here, $\hat{R}(v)$ re-enters the composite head as an input ($\hat{I}^* = \sigma(\text{MLP}_C(h_v \parallel \hat{R} \parallel \hat{M}))$), functioning as a feature-enrichment auxiliary representation rather than independent multi-task supervision. We report this objective as implemented to avoid any pretense of multi-dimensional ground truth.
-
-\subsubsection{Domain-Reweighted Criticality}
-\label{sec:4.2.2}
-
-ISO/IEC 25019's Context of Use specifies that the relative weighting of reliability and maintainability is determined by deployment requirements rather than being fixed. The framework delivers a reweighting $\hat{Q}_{\text{domain}}(v) = q_R \hat{R}(v) + q_M M_{\text{static}}(v)$ to capture this flexibility. Because maintainability is unobserved during dynamic simulation ($m = [1,0]$), headline results report $\hat{I}^*(v)$ directly; sensitivity relative to the static RM baseline is evaluated in Section~\ref{sec:7.3}.
+The implementation also supports a general multi-task objective with a maintainability term and an optional consistency term tying the auxiliary heads to the explanation layer. Both are switched off throughout ($m_M = 0$, $\lambda_{\text{RM}} = 0$), so the two pathways share no parameters and Eq.~\eqref{eq:loss_active} is the objective actually optimized. The general form is given in Supplementary Section~S20 for completeness.
 
 \subsection{Ground-Truth Simulation Oracles}
 \label{sec:4.3}
@@ -89,20 +62,22 @@ To evaluate predictive accuracy before deployment without relying on production 
 \footnotesize
 \caption{Simulation oracles, operational constructs, and evaluation roles.}
 \label{tab:oracle_roles}
+\resizebox{\linewidth}{!}{%
 \begin{tabular}{llll}
 \toprule
 \textbf{Oracle} & \textbf{Physical Mechanism} & \textbf{Nature} & \textbf{Role in Evaluation} \\
 \midrule
-$I^*(v)$ & BFS cascade reachability + QoS ladder & Deterministic & Primary ranking target (RQ1, RQ2, RQ4) \\
+$I^*(v)$ & BFS cascade reachability + QoS ladder & Seeded tie-breaking & Primary ranking target (RQ1, RQ2, RQ4) \\
 $I_{\text{comp}}(v)$ & Severity mixture: reachability + fragmentation & Deterministic & Explanation layer / Validate gate \\
 $I_{\text{dyn}}(v)$ & Discrete-event SimPy message queuing & Stochastic & Convergent-validity probe (RQ3) \\
 $I_M(v)$ & Reverse \texttt{DEPENDS\_ON} traversal & Deterministic & Unsupervised maintainability reference \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \begin{itemize}\tightlist
-    \item \textbf{Cascade Reachability Oracle ($I^*(v)$)}, evaluated via discrete-event cascade fault injection: crashes component $v$, propagates outages across dependent topics, brokers, and links by breadth-first traversal, and returns the mean fractional feed loss over the subscriber population, each subscriber contributing the unweighted mean loss of the topics it subscribes to. A topic's feed loss is the fraction of its publishers that have failed (for a topic with no publisher, the fraction of its failed routers), scaled by a QoS ladder ($\times 1.2$ \texttt{RELIABLE}, $\times 1.15$ high/urgent priority, $\times 1.05$ medium) and clamped to $[0,1]$. The denominator is the full subscriber set of the intact graph, so subscribers that themselves fail are retained in the average rather than excluded. The implementation admits a per-publisher rate weighting, but rates are declared per topic throughout our corpus, so it reduces exactly to this publisher fraction. This is the \textbf{primary continuous target label} throughout.
+    \item \textbf{Cascade Reachability Oracle ($I^*(v)$)}, evaluated via discrete-event cascade fault injection: crashes component $v$, propagates outages across dependent topics, brokers, and links by breadth-first traversal, and returns the mean fractional feed loss over the subscriber population, each subscriber contributing the unweighted mean loss of the topics it subscribes to. A topic's feed loss is the fraction of its publishers that have failed (for a topic with no publisher, the fraction of its failed routers), scaled by a QoS ladder ($\times 1.2$ \texttt{RELIABLE}, $\times 1.15$ high/urgent priority, $\times 1.05$ medium) and clamped to $[0,1]$. The ladder encodes a severity judgment rather than a physical mechanism: a subscriber that declared a reliable or high-priority contract depends on every sample, so losing that feed is scored as more harmful than losing a best-effort one. The factors are declared constants, not calibrated values; removing them leaves the Application ordering nearly unchanged (below). The denominator is the full subscriber set of the intact graph, so subscribers that themselves fail are retained in the average rather than excluded. The implementation admits a per-publisher rate weighting, but rates are declared per topic throughout our corpus, so it reduces exactly to this publisher fraction. Five seeds $\{42, 123, 456, 789, 2024\}$ drive a seeded shuffle that breaks ties in wave-propagation order, and $I^*(v)$ is the mean over them. The label is therefore reproducible given the seed set but not seed-invariant, which is what the label-noise ceiling of Section~\ref{sec:7.1} measures. This is the \textbf{primary continuous target label} throughout.
 
     \emph{How much QoS is in this label.} The ladder reads reliability and transport priority only; durability never enters $I^*$, despite carrying the largest of the three elicited sub-weights ($0.62$; Section~\ref{sec:3.2}). That omission does not bound the label's QoS content, because disabling QoS scaling entirely leaves the Application ordering nearly intact --- mean Spearman $\rho = 0.965$ against the ladder across the twelve folds (range $0.891$--$0.999$) --- and substituting a durability-aware $w(t)$ scaling moves it less still ($\rho = 0.977$). The top-$K$ set is the sensitive construct: ladder and topology-only labels agree at mean Jaccard $0.678$, so QoS changes \emph{which} components are named critical without changing their order. $I^*$ is therefore a near-topological target carrying a QoS term at its threshold boundaries, which bounds what any QoS-encoding result can be crediting (Section~\ref{sec:7.3.1}).
 
@@ -123,7 +98,7 @@ $I_M(v)$ & Reverse \texttt{DEPENDS\_ON} traversal & Deterministic & Unsupervised
 
 The multi-metric failure simulator can incorporate declared topic criticality into its severity term. This feature is disabled, however, because topic criticality is a GNN input feature: using it would result in the predictor being measured against a transformation of its own input.
 
-\noindent\textbf{Primary Oracle Declaration and Role Assignment.} The three reliability-facing oracles measure separate constructs, so we designate \textbf{$I^*(v)$ the primary continuous target} for all predictive ranking results (Tables~\ref{tab:7}--\ref{tab:7c}, RQ1--RQ3): it has zero seed-to-seed variance, which is what deterministic CI/CD gating requires, whereas $I_{\text{dyn}}$ adds stochastic latencies, bursty arrivals and synthetic buffer limits. That choice has a cost, since it makes the target a topological functional of the predictors' own input (Section~\ref{sec:4.4}). $I_{\text{comp}}(v)$ is reserved for Validate-stage gates and prescriptive verification, $I_{\text{dyn}}(v)$ is an independent convergent-validity probe (Section~\ref{sec:7.3.convergent}), and $I_M(v)$ a structural maintainability reference.
+\noindent\textbf{Primary Oracle Declaration and Role Assignment.} The three reliability-facing oracles measure separate constructs, so we designate \textbf{$I^*(v)$ the primary continuous target} for all predictive ranking results (Tables~\ref{tab:7}--\ref{tab:7c}, RQ1--RQ3): it is reproducible from a fixed seed set, as CI/CD gating requires, and its seed-to-seed variation is limited to tie-breaking, whereas $I_{\text{dyn}}$ adds stochastic latencies, bursty arrivals and synthetic buffer limits. That choice has a cost, since it makes the target a topological functional of the predictors' own input (Section~\ref{sec:4.4}). $I_{\text{comp}}(v)$ is reserved for Validate-stage gates and prescriptive verification, $I_{\text{dyn}}(v)$ is an independent convergent-validity probe (Section~\ref{sec:7.3.convergent}), and $I_M(v)$ a structural maintainability reference.
 
 \noindent\textbf{Cross-Oracle Convergent Validity.} As detailed in Section~\ref{sec:7.3.convergent}, the three reliability oracles show substantial but sub-ceiling agreement on Applications ($\rho = 0.627$ for $(I_{\text{dyn}}, I^*)$ against a $0.811$--$1.000$ label noise floor), confirming distinct constructs. Consequently, results established against one oracle are never transferred to another; every evaluation explicitly references its underlying simulation oracle.
 
@@ -132,10 +107,4 @@ The multi-metric failure simulator can incorporate declared topic criticality in
 
 To prevent data leakage, SaG applies strict architectural separation. Feature Space is constructed exclusively from $G_{\text{analysis}}$ using static structural topology, static code metrics, and declared QoS contracts. Label Space is evaluated exclusively on raw $G_{\text{structural}}$ through independent simulation oracles (cascade reachability injection, composite failure simulation, and dynamic message-flow simulation). No simulation outputs, failure trace histories, or dynamic execution telemetry are exposed as input attributes to the GNN or the explanation layer.
 
-\subsubsection*{What this guarantee does and does not establish}
-
-The separation rules out circular feature construction: no predictor can read a transformation of the quantity it is scored against. It does not establish probabilistic independence between features and labels, and we do not claim it does. $G_{\text{analysis}}$ is a deterministic projection of $G_{\text{structural}}$ (Section~\ref{sec:3.2}). Hence, the labels are --- up to the simulator seed --- a deterministic function of the same topology from which the features are computed. Two consequences follow, and both bound the results of Section~\ref{sec:7}.
-
-First, $I^*(v)$ is a topological functional, defined as a breadth-first reachability computation over $G_{\text{structural}}$ scaled by a QoS ladder. The predictive task is therefore to recover a closed-form graph function from features derived from the same graph. Because the 18-dimensional feature block provides pre-computed global centrality indicators, the GNN's role is synthesizing these positional and structural cues across heterogeneous relations rather than discovering global topology from scratch. As a result, an unparameterized centrality score is expected to perform competitively with a trained model (Section~\ref{sec:7.1}). The observed parity is an anticipated outcome of the experimental design rather than an unexpected limitation of graph learning. We state this explicitly to guarantee clarity.
-
-Second, and more restrictively, no result in this paper is validated against an observed failure. Every label --- on synthetic topologies and on the five open-source systems alike --- is simulator-derived. The evaluation can establish whether a learned model recovers a simulator's ordering on architectures it was not trained on. Whether that ordering corresponds to which components actually fail in production is a question this design cannot answer, and Section~\ref{sec:8.3} treats it as the study's principal construct-validity threat.
+\noindent\textbf{Scope of the guarantee.} The separation rules out circular feature construction: no predictor reads a transformation of the quantity it is scored against. Because $G_{\text{analysis}}$ is itself a projection of $G_{\text{structural}}$, features and labels still derive from the same topology, and $I^*(v)$ is a reachability functional of it. The learning task is therefore to synthesize pre-computed structural cues across heterogeneous relations into a ranking that matches the simulator, which is also why SaG's closed-form engine is a strong reference point (Section~\ref{sec:7.1}). All labels are simulator-derived; validation against field incidents is discussed in Section~\ref{sec:8.3}.

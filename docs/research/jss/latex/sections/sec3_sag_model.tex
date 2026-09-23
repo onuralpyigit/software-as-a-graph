@@ -36,12 +36,12 @@ where:
     \item $w_V: V \to (0, 1]$ and $w_E: E \to (0, 1]$ are weighting functions that show how critical an entity is and how strong a connection is. For applications and shared libraries, $w_V(v)$ is set using static code metrics: $w_V(v) = 1 - \text{CQP}(v)$ (Section~\ref{sec:3.4}). When static code metrics are unavailable, or for infrastructure entities, set the weight to $1.0$ ($w_V(\text{host}) = 1.0$).
 \end{itemize}
 
-Table~\ref{tab:1} summarizes the five entity types and six structural edge types in the SaG model, together with their semantics and representative distributed-system implementations.
+Tables~\ref{tab:1} and~\ref{tab:1b} summarize the five entity types and six structural edge types in the SaG model, with representative distributed-system implementations.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Entity and structural edge types in the SaG model.}
+\caption{Entity types in the SaG model.}
 \label{tab:1}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lll}
@@ -53,7 +53,18 @@ Table~\ref{tab:1} summarizes the five entity types and six structural edge types
 \textbf{Topic} ($V_{\text{topic}}$) & Named logical communication channel & \texttt{/sensor/lidar}, \texttt{orders.payment.completed} \\
 \textbf{Execution Host} ($V_{\text{host}}$) & Physical host or virtualized execution environment & Bare-metal server, Kubernetes worker, Cloud VM \\
 \textbf{Library} ($V_{\text{lib}}$) & Shared software package or runtime dependency & Kafka client, OpenCV, Protobuf runtime \\
-\midrule
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Structural edge types in the SaG model.}
+\label{tab:1b}
+\begin{tabular}{lll}
+\toprule
 \textbf{Structural Edge ($\mathcal{T}_E$)} & \textbf{Direction} & \textbf{Semantic Meaning} \\
 \midrule
 \texttt{PUBLISHES\_TO} & App/Library $\to$ Topic & Component publishes messages to topic \\
@@ -63,8 +74,7 @@ Table~\ref{tab:1} summarizes the five entity types and six structural edge types
 \texttt{CONNECTS\_TO} & Host $\to$ Host & Physical network link between hosts \\
 \texttt{USES} & App $\to$ Library & Application links to shared library dependency \\
 \bottomrule
-\end{tabular}%
-}
+\end{tabular}
 \end{table}
 
 Application and Library entities use static code metrics from Static Code Analysis (SCA) tools, including lines of code, cyclomatic complexity, coupling between objects, and method cohesion. Together, these metrics show how code-level fragility connects to topological analysis.
@@ -72,13 +82,14 @@ Application and Library entities use static code metrics from Static Code Analys
 \begin{table}[htbp]
 \centering
 \small
-\noindent\textbf{Notation.} Entity and edge types: Table~\ref{tab:1}. Simulation oracles: Table~\ref{tab:oracle_roles}.
+\caption{Notation used throughout. Entity and edge types: Tables~\ref{tab:1}--\ref{tab:1b}; simulation oracles: Table~\ref{tab:oracle_roles}.}
+\label{tab:notation}
 \begin{tabular}{@{}l@{\hspace{5pt}}l@{\hspace{10pt}}l@{\hspace{5pt}}l@{}}
 \toprule
 $G_{\text{structural}}$ & Raw multigraph; oracles only & $Q(v)$ & RM composite quality score \\
 $G_{\text{analysis}}$ & \texttt{DEPENDS\_ON} projection; predictor input & $\rho$ & Spearman $\rho$, full population \\
 $V_{\text{app}}$ & Application nodes; the scored population & $\rho_{>0}$ & Spearman $\rho$, active stratum ($I^* > 0$) \\
-$w(t)$, $w(e)$ & QoS topic weight, edge weight & $F_1@K$ & Critical-set overlap, $K = 0.20\,|V_{\text{app}}|$ \\
+$w(t)$, $w(e)$ & QoS topic weight, edge weight & Overlap@$K$ & Top-$K$ set overlap, $K = 0.20\,|V_{\text{app}}|$ \\
 $I^*(v)$ & Primary cascade-reachability oracle & $I_{\text{comp}}$, $I_{\text{dyn}}$, $I_M$ & Further oracles (Table~\ref{tab:oracle_roles}) \\
 \bottomrule
 \end{tabular}
@@ -146,14 +157,14 @@ Rules 1 and 2 combine the set of topics $T$ connecting a pair of components usin
 
 A central principle of the SaG model is the distinction between two degradation modes. In a \textbf{Sequential Cascade (Rule 1)}, a failed publisher starves downstream subscribers sequentially through message queues and topic buffers. In a \textbf{Simultaneous Blast (Rule 5)}, a crashed library or execution host causes all consuming applications and colocated brokers to fail instantaneously in a single shared-fate event. Preserving entity types and relation-specific projection rules lets the SaG model represent both mechanisms, whereas untyped homogeneous graphs collapse them into indistinguishable edges.
 
-Rule 6 is the only symmetric rule: two brokers colocated on the same host share that host's physical failure domain ($w = w_V(\text{host})$). Colocated brokers compete for resources, and host crashes halt them simultaneously. Rule 6 applies in four of the eight scenarios of a companion study's detection benchmark (12 directed edges); that suite is not this paper's corpus, and the figure is quoted only to indicate how rarely the rule fires. Because simulation oracles operate strictly on $G_{\text{structural}}$ (Section~\ref{sec:4.4}), Rule 6 has zero influence on ground-truth failure labels.
+Rule 6 is the only symmetric rule: two brokers colocated on the same host share that host's physical failure domain ($w = w_V(\text{host})$). Colocated brokers compete for resources, and host crashes halt them simultaneously. Because simulation oracles operate strictly on $G_{\text{structural}}$ (Section~\ref{sec:4.4}), Rule 6 has zero influence on ground-truth failure labels.
 
 \subsection{Dual Graph Views and Architectural Layers}
 \label{sec:3.3}
 
 The SaG framework consists of two distinct representations. The \textbf{Structural Graph} ($G_{\text{structural}}$) is the raw deployment graph containing physical and structural relations (\texttt{PUBLISHES\_TO}, \texttt{ROUTES}, \texttt{RUNS\_ON}, \texttt{USES}), preserving the untransformed deployment topology. The \textbf{Analysis Graph} ($G_{\text{analysis}}$) is the projected graph containing derived \texttt{DEPENDS\_ON} edges annotated with QoS weights and ingested SCA metrics. We compute all GNN embeddings and analytical metrics on the analysis graph (Supplementary Figure~S3).
 
-$G_{\text{analysis}}$ is further organized into four analytical layers (Application, Middleware, Infrastructure, and Global System), enabling criticality evaluation at subsystem levels consistent with hierarchical frameworks such as MIL-STD-498 \cite{dod1994milstd498}.
+$G_{\text{analysis}}$ is further organized into four analytical layers (Application, Middleware, Infrastructure, and Global System), so that criticality can be evaluated per subsystem.
 
 \subsection{Typed Node Feature Encoding}
 \label{sec:3.4}
@@ -177,6 +188,6 @@ Both the predictive pathway (Section~\ref{sec:4}) and the explanation layer (Sec
 (15)~Fan-Out Criticality ($FOC$),
 (16)~Directed Articulation Point ($AP_c^{\text{dir}}$), and
 (17)~Connectivity Degradation Index ($CDI$).
-The full mathematical schema, definitions, and normalizations for each of these eighteen metrics are detailed in Supplementary Table~S11 (Supplementary Section~S11). CDI is by far the most expensive of these and dominates the analysis cost of Section~\ref{sec:7.5}; because it is a predictor input and not only a term of the Availability score, it cannot be gated away without changing both pathways. Every metric in the block is normalized to $[0, 1]$ within its graph, which stops raw graph size from driving the per-type projections under cross-scenario transfer. Type-specific blocks extend the vector to 19--25 dimensions, adding source-code metrics and the Code Quality Penalty for Applications, reverse-\texttt{USES} blast-radius drivers for Libraries, queue capacity for Brokers, publisher/subscriber counts and ordinal QoS criticality for Topics, and CPU and memory allocation for Execution Hosts.
+The full mathematical schema, definitions, and normalizations for each of these eighteen metrics are detailed in Supplementary Table~S11 (Supplementary Section~S11). CDI is by far the most expensive of these and dominates the analysis cost of Section~\ref{sec:7.5}; because it is a predictor input and not only a term of the Availability score, it cannot be gated away without changing both pathways. PageRank, Reverse PageRank, betweenness and eigenvector centrality are computed on the QoS-weighted projection, so these four features carry QoS information into every predictor, including the arms reported as ``QoS-off'', which lack only the explicit QoS edge channel and QoS node columns (10--12). Every metric in the block is normalized to $[0, 1]$ within its graph, which stops raw graph size from driving the per-type projections under cross-scenario transfer. Type-specific blocks extend the vector to 19--25 dimensions, adding source-code metrics and the Code Quality Penalty for Applications, reverse-\texttt{USES} blast-radius drivers for Libraries, queue capacity for Brokers, publisher/subscriber counts and ordinal QoS criticality for Topics, and CPU and memory allocation for Execution Hosts.
 
-The shared block provides the GNN with global structural and positional context---analogous to positional and structural encodings in Graph Transformers---enabling relational message passing to modulate multi-hop representations based on global network role rather than local immediate adjacency alone. Crucially, because betweenness, closeness, reverse PageRank, and articulation scores are topological summaries computed before model evaluation, a learned model is not the only way to derive a criticality score from structure. This design guarantees that the closed-form baselines serve as fair, competitive comparators rather than strawman alternatives, while making deterministic feature extraction the dominant computational bottleneck ($O(|V|^2 + |V||E|)$) analyzed in Section~\ref{sec:7.5}.
+The shared block provides the GNN with global structural and positional context---analogous to positional and structural encodings in Graph Transformers---enabling relational message passing to modulate multi-hop representations based on global network role rather than local immediate adjacency alone. Crucially, because betweenness, closeness, reverse PageRank, and articulation scores are topological summaries computed before model evaluation, a learned model is not the only way to derive a criticality score from structure. The closed-form baselines are therefore competitive comparators rather than strawman alternatives, while making deterministic feature extraction the dominant computational bottleneck ($O(|V|^2 + |V||E|)$) analyzed in Section~\ref{sec:7.5}.

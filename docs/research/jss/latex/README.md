@@ -33,7 +33,7 @@ latex/
 ├── sections/            — one .tex per manuscript section (sec1..sec9) + declarations.tex
 │                         NOTE: sec4_* is the PREDICTIVE pathway (HGT), sec5_* the EXPLANATION layer (RM)
 ├── supplementary.tex    — SEPARATE document, Sections S1–S8 (see below); builds standalone
-├── refs.bib             — 93 references, shared by the manuscript and the supplement
+├── refs.bib             — bibliography, shared by the manuscript and the supplement
 ├── title_page.tex       — SEPARATE, non-anonymous title page for Editorial Manager
 ├── highlights.tex       — SEPARATE file, 5 bullets ≤85 chars (Elsevier requires "highlights" in the name)
 ├── LENGTH_JUSTIFICATION.md — text for the "Comments to the Editor" field
@@ -76,7 +76,7 @@ the layout JSS's "<36 pages single-column" guidance reads naturally against.
 
 | Class options | Pages | Note |
 |---|---:|---|
-| **`[preprint,3p]`** | **39** | **current setting** |
+| **`[preprint,3p]`** | **33** | **current setting** |
 | `[preprint,review,3p]` | — | 1.5-spaced reviewing copy; add `review` back if the editor asks for one |
 | `[preprint]` | — | Elsevier's generic preprint layout (larger type/margins) |
 
@@ -137,7 +137,7 @@ judging by eye.
 python ../../../../reproduce/reconcile_manuscript.py --verbose
 ```
 
-Reconciles every reported table figure — currently **415** — against the artifact that produced it,
+Reconciles every reported table figure — currently **430** — against the artifact that produced it,
 and flags any that is missing, stale against the corpus, or was produced from a dirty working tree.
 It covers `supplementary.tex` as well as the body: the supplement restates body figures as literal
 text (it cannot `\ref` across documents), and that is how S6/S7 once kept a superseded pooled ρ after
@@ -150,7 +150,7 @@ revision:
 grep -rnE '0\.680|0\.160|0\.695|0\.581|0\.568|0\.114|0\.054|0\.127|2,461|2,812' sections/ ../manuscript.md
 ```
 
-Current state of the build: **35 pages**, 9 sections, 14 tables, 1 figure, 93 references (all cited),
+Current state of the build: **33 pages**, 9 sections, 17 tables, 1 figure, 96 references,
 **zero LaTeX errors, zero undefined references, zero undefined citations, zero overfull boxes**. The
 supplement builds to 16 pages (S1--S19, 16 tables, 4 figures), also with zero undefined references.
 
