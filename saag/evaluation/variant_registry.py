@@ -93,13 +93,14 @@ class Variant:
     control_for: Optional[str] = None
 
 
-FAMILY_ORDER = ["structural", "tabular", "homogeneous", "heterogeneous", "control"]
+FAMILY_ORDER = ["structural", "tabular", "homogeneous", "heterogeneous", "hybrid", "control"]
 
 FAMILY_LABELS = {
     "structural": "Structural baselines (training-free)",
     "tabular": "Non-graph learned baseline (no message passing)",
     "homogeneous": "Homogeneous graph learning (untyped GAT)",
     "heterogeneous": "Heterogeneous graph learning (typed HGT)",
+    "hybrid": "Hybrid engine (typed HGT correcting the closed-form score)",
     "control": "RQ2 confound controls (not manuscript columns)",
 }
 
@@ -232,6 +233,17 @@ _VARIANT_LIST = [
               "control for RQ2",
         hidden_channels=288,
         control_for="edge_channel",
+    ),
+    Variant(
+        # PREREGISTRATION.md Amendment 5. HGT-QoS reading the rank-normalised
+        # Topo-QoS score as an extra input and learning a correction to its
+        # logit. Opt-in: not part of the manuscript's default sweep.
+        variant_id="hgl_qos_prior",
+        family="hybrid",
+        substrate="native",
+        qos="full16",
+        label="SaG-Hybrid",
+        blurb="HGT-QoS learning a residual correction on the closed-form Topo-QoS score",
     ),
     Variant(
         # qos stays "full16": this *is* a full-QoS HGT. The arm varies

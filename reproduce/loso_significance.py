@@ -60,6 +60,15 @@ CONTROL_CONTRASTS = (
     ("hgl", "gl_full_cap", "capacity_qos_off"),
 )
 
+#: SaG-Hybrid (PREREGISTRATION.md Amendment 5): primary against the
+#: closed-form engine it corrects, secondary against the learned engine it
+#: extends. Holm-corrected across these two only. Skipped when the artifact
+#: lacks the arm, so existing sweeps reproduce their previous output.
+HYBRID_CONTRASTS = (
+    ("hgl_qos_prior", "topo_qos", "hybrid_vs_closed_form"),
+    ("hgl_qos_prior", "hgl_qos", "hybrid_vs_learned"),
+)
+
 #: The architecture contrasts the manuscript actually headlines: RQ2 is a
 #: typed-vs-untyped comparison and RQ3's ablation is QoS-on vs QoS-off, and
 #: neither is a comparison against BASELINE. Both were reported with p-values
@@ -179,7 +188,12 @@ FACTORIAL_CELLS = {
 }
 
 
-def factorial(table: Dict[str, Any], *, fisher_z: bool = False) -> List[Dict[str, Any]]:
+def factorial(
+    table: Dict[str, Any],
+    *,
+    fisher_z: bool = False,
+    cells: Optional[Dict[Tuple[str, str], str]] = None,
+) -> List[Dict[str, Any]]:
     """The three orthogonal quantities of the 2x2, tested per fold.
 
     With ``fisher_z=True`` every cell's per-fold rho is transformed by
@@ -218,8 +232,14 @@ def factorial(table: Dict[str, Any], *, fisher_z: bool = False) -> List[Dict[str
 
     Main effects are averaged over the other factor's levels, which is what a
     main effect means in a balanced 2x2 -- not the simple effect at one level.
+
+    ``cells`` maps each (T, Q) level to a variant id and defaults to
+    FACTORIAL_CELLS. Passing the capacity- and channel-matched arms instead
+    (gl_full_cap, hgl, gl_full_qos16_cap, hgl_qos) forms the matched 2x2 of
+    PREREGISTRATION.md Amendment 2.
     """
-    cells = {k: _per_fold(table, v) for k, v in FACTORIAL_CELLS.items()}
+    names = cells or FACTORIAL_CELLS
+    cells = {k: _per_fold(table, v) for k, v in names.items()}
     if not all(cells.values()):
         return []
     folds = sorted(set.intersection(*(set(c) for c in cells.values())))
@@ -232,7 +252,8 @@ def factorial(table: Dict[str, Any], *, fisher_z: bool = False) -> List[Dict[str
     t11 = np.array([cells[("T1", "Q1")][f] for f in folds])
 
     if fisher_z:
-        for name, arr in (("gl", t00), ("hgl", t10), ("gl_qos", t01), ("hgl_qos", t11)):
+        for name, arr in ((names[("T0", "Q0")], t00), (names[("T1", "Q0")], t10),
+                          (names[("T0", "Q1")], t01), (names[("T1", "Q1")], t11)):
             if np.any(np.abs(arr) >= 1.0):
                 raise ValueError(
                     f"{name} carries |rho| = 1 on some fold; arctanh is undefined "
@@ -358,7 +379,18 @@ def main() -> int:
                          "ablation into QoS-varying and QoS-degenerate strata. "
                          "Reported as exploratory; pass a non-existent path to "
                          "suppress the block.")
+    ap.add_argument("--factorial-cells", default=None,
+                    help="Comma-separated variant ids for the 2x2 cells in the "
+                         "order T0Q0,T1Q0,T0Q1,T1Q1 (default: gl,hgl,gl_qos,hgl_qos).")
     args = ap.parse_args()
+
+    cells = None
+    if args.factorial_cells:
+        ids = [v.strip() for v in args.factorial_cells.split(",")]
+        if len(ids) != 4:
+            print("Error: --factorial-cells needs exactly four variant ids.", file=sys.stderr)
+            return 2
+        cells = dict(zip((("T0", "Q0"), ("T1", "Q0"), ("T0", "Q1"), ("T1", "Q1")), ids))
 
     if not args.input.exists():
         print(f"Error: {args.input} not found.", file=sys.stderr)
@@ -401,18 +433,19 @@ def main() -> int:
             holm(out)
         return out
 
-    factors = factorial(table)
+    factors = factorial(table, cells=cells)
     # The same three quantities on the variance-stabilised scale. Reported
     # beside the rho-scale block rather than instead of it: the manuscript
     # states the interaction in rho units, and the z-scale row is what says
     # whether that interaction is a property of the mechanisms or of the metric.
-    factors_z = factorial(table, fisher_z=True)
+    factors_z = factorial(table, fisher_z=True, cells=cells)
     # Simple effects are reported descriptively: they are algebraically linked
     # to each other and to the interaction, so correcting across them would
     # treat one structural fact as four questions. The correction lives on the
     # three orthogonal quantities in `factors`.
     architecture = _family(ARCHITECTURE_CONTRASTS, "architecture", correct=False)
     controls = _family(CONTROL_CONTRASTS, "control")
+    hybrid = _family(HYBRID_CONTRASTS, "hybrid")
 
     n = family[0]["n_folds"]
     print(f"\n  Pre-registered LOSO comparisons vs "
@@ -423,7 +456,7 @@ def main() -> int:
     print("  " + "─" * 78)
     print(f"  {'variant':<12}{'role':<13}{'d rho':>9}{'wins':>7}{'W':>7}"
           f"{'p':>9}{'p_holm':>9}")
-    for r in family + exploratory + architecture + controls:  # noqa: E501
+    for r in family + exploratory + architecture + controls + hybrid:  # noqa: E501
         holm_s = f"{r['p_holm']:.4f}" if "p_holm" in r else "—"
         print(f"  {r['label']:<12}{r['role']:<13}{r['mean_delta']:>+9.4f}"
               f"{r['wins']:>4}/{r['n_folds']:<2}{r['W']:>7.1f}"
@@ -504,6 +537,11 @@ def main() -> int:
         "rq2_controls": controls,
         "qos_stratified_ablation": stratified,
     }
+    if hybrid:
+        # Amendment 5's registered pair, Holm-corrected within itself.
+        payload["hybrid"] = hybrid
+    if cells:
+        payload["factorial_cells"] = {f"{t}{q}": v for (t, q), v in cells.items()}
     # Say which commit and which corpus produced these contrasts. Without it
     # reconcile_manuscript.py falls back to comparing timestamps, and a table's
     # licensing statistics are the last place that should be guesswork.

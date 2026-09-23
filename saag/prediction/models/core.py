@@ -271,6 +271,10 @@ class TypedEdgeEncoder(nn.Module):
         return torch.sigmoid(self.out_head(fused))
 
 
+#: Node types that carry a closed-form Topo-QoS score, and so a prior.
+_PRIOR_NODE_TYPES = ("Application", "Library")
+
+
 class NodeCriticalityGNN(nn.Module):
     """Heterogeneous Graph Transformer (HGT) for node-level criticality prediction.
 
@@ -291,6 +295,7 @@ class NodeCriticalityGNN(nn.Module):
         dropout: float = 0.2,
         use_bidirectional: bool = True,
         qos_injection: str = "pooled",
+        topo_prior: bool = False,
     ):
         _require_pyg()
         super().__init__()
@@ -307,11 +312,16 @@ class NodeCriticalityGNN(nn.Module):
         if qos_injection not in ("pooled", "typed"):
             raise ValueError(f"qos_injection must be 'pooled' or 'typed', got {qos_injection!r}")
         self.qos_injection = qos_injection
+        # SaG-Hybrid (PREREGISTRATION.md, Amendment 5): the last input column
+        # of every node type carries the rank-normalised closed-form Topo-QoS
+        # score, and the composite head learns a correction on its logit.
+        self.topo_prior = topo_prior
+        extra = 1 if topo_prior else 0
 
         # Per-type input projections — dims sourced from data_preparation constants
         self.input_proj = nn.ModuleDict({
             nt: nn.Sequential(
-                nn.Linear(NODE_TYPE_TO_DIM.get(nt, 18), hidden_channels),
+                nn.Linear(NODE_TYPE_TO_DIM.get(nt, 18) + extra, hidden_channels),
                 nn.LayerNorm(hidden_channels),
                 nn.GELU(),
             )
@@ -371,6 +381,8 @@ class NodeCriticalityGNN(nn.Module):
             for dim in ["reliability", "maintainability"]
         })
         self.composite_head = ResidualMLP(hidden_channels + 2, hidden_channels // 2, 1, dropout)
+        if topo_prior:
+            self.prior_alpha = nn.Parameter(torch.tensor(1.0))
 
     def _apply_reverse_pass(
         self, h: Dict[str, Tensor], edge_index_dict: Dict
@@ -415,19 +427,28 @@ class NodeCriticalityGNN(nn.Module):
 
         return h
 
-    def decode(self, h_dict: Dict[str, Tensor]) -> Dict[str, Tensor]:
+    def decode(
+        self, h_dict: Dict[str, Tensor], prior_dict: Optional[Dict[str, Tensor]] = None
+    ) -> Dict[str, Tensor]:
         out: Dict[str, Tensor] = {}
         for nt, h in h_dict.items():
             r = torch.sigmoid(self.rm_heads["reliability"](h))
             m = torch.sigmoid(self.rm_heads["maintainability"](h))
             composite_in = torch.cat([h, r, m], dim=-1)
-            composite = torch.sigmoid(self.composite_head(composite_in))
+            z = self.composite_head(composite_in)
+            if self.topo_prior and prior_dict is not None and nt in _PRIOR_NODE_TYPES:
+                p = prior_dict[nt].clamp(0.01, 0.99).unsqueeze(-1)
+                z = z + self.prior_alpha * torch.logit(p)
+            composite = torch.sigmoid(z)
             out[nt] = torch.cat([composite, r, m], dim=-1)
         return out
 
     def forward(self, x_dict, edge_index_dict, edge_attr_dict=None):
         h_dict = self.encode(x_dict, edge_index_dict, edge_attr_dict)
-        return self.decode(h_dict)
+        prior_dict = (
+            {nt: x[:, -1] for nt, x in x_dict.items()} if self.topo_prior else None
+        )
+        return self.decode(h_dict, prior_dict)
 
     def get_embeddings(self, x_dict, edge_index_dict, edge_attr_dict=None):
         return self.encode(x_dict, edge_index_dict, edge_attr_dict)
@@ -454,7 +475,10 @@ class EdgeCriticalityGNN(nn.Module):
 
     def forward(self, x_dict, edge_index_dict, edge_attr_dict=None):
         h_dict = self.node_gnn.get_embeddings(x_dict, edge_index_dict, edge_attr_dict)
-        node_preds = self.node_gnn.decode(h_dict)
+        prior_dict = (
+            {nt: x[:, -1] for nt, x in x_dict.items()} if self.node_gnn.topo_prior else None
+        )
+        node_preds = self.node_gnn.decode(h_dict, prior_dict)
         edge_preds = {}
         for rel, edge_index in edge_index_dict.items():
             src_type, _, dst_type = rel
@@ -619,10 +643,12 @@ def build_node_gnn(
     dropout: float = 0.2,
     use_bidirectional: bool = True,
     qos_injection: str = "pooled",
+    topo_prior: bool = False,
 ) -> NodeCriticalityGNN:
     return NodeCriticalityGNN(
         metadata, hidden_channels, num_heads, num_layers, dropout,
         use_bidirectional=use_bidirectional, qos_injection=qos_injection,
+        topo_prior=topo_prior,
     )
 
 
@@ -634,9 +660,10 @@ def build_edge_gnn(
     dropout: float = 0.2,
     use_bidirectional: bool = True,
     qos_injection: str = "pooled",
+    topo_prior: bool = False,
 ) -> EdgeCriticalityGNN:
     node_gnn = build_node_gnn(
         metadata, hidden_channels, num_heads, num_layers, dropout, use_bidirectional,
-        qos_injection=qos_injection,
+        qos_injection=qos_injection, topo_prior=topo_prior,
     )
     return EdgeCriticalityGNN(node_gnn, hidden_channels=hidden_channels, dropout=dropout)

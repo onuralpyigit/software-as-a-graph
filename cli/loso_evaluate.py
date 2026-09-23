@@ -149,7 +149,9 @@ _STRUCTURAL_VARIANTS = ("topo_baseline", "topo_qos")
 _HOMOGENEOUS_VARIANTS = (
     "gl", "gl_qos", "gl_full_cap", "gl_full_qos_cap", "gl_full_qos16_cap",
 )
-_HGT_VARIANTS = ("hgl", "hgl_qos", "hgl_qos_uni", "topology_rm")
+_HGT_VARIANTS = ("hgl", "hgl_qos", "hgl_qos_uni", "hgl_qos_prior", "topology_rm")
+#: HGT arms that receive the closed-form Topo-QoS prior (Amendment 5).
+_PRIOR_VARIANTS = ("hgl_qos_prior",)
 #: Learned, but not a graph model: gradient boosting on the same typed node
 #: features the GNNs read. Its own branch because it has no HeteroData forward
 #: pass, no checkpoint and no epochs -- see saag/prediction/models/tabular.py.
@@ -182,6 +184,9 @@ class ScenarioBundle:
     #: unsupervised rather than substituting a structural proxy for a
     #: measurement — see ``networkx_to_hetero_data``.
     edge_simulation: Dict[Any, float] = field(default_factory=dict)
+    #: Cache directory the bundle was loaded from; the SaG-Hybrid prior is
+    #: recomputed from it on demand (see ``_with_prior``).
+    cache_dir: Optional[Path] = None
 
 
 @dataclass
@@ -312,6 +317,7 @@ def load_scenario_bundle(scenario_dir: Path) -> Optional[ScenarioBundle]:
         label_stability=sim_raw.get("label_stability", {}) if isinstance(sim_raw, dict) else {},
         labeler=sim_raw.get("labeler", "") if isinstance(sim_raw, dict) else "",
         edge_simulation=edge_simulation,
+        cache_dir=scenario_dir,
     )
     logger.info(
         "  [%s] %d nodes, %d edges, %d labelled%s",
@@ -388,21 +394,48 @@ def _prepare_bundle_graph(
     return _mask_qos_in_graph(bundle.graph), _mask_qos_in_structural(bundle.structural)
 
 
+_PRIOR_CACHE: Dict[str, Dict[str, float]] = {}
+
+
+def _with_prior(bundle: ScenarioBundle, sm: Dict[str, Any]) -> Dict[str, Any]:
+    """Copy of ``sm`` with each node's ``topo_prior`` added (Amendment 5).
+
+    The prior is the rank-normalised published Topo-QoS score, computed once per
+    scenario and memoised per process. ``sm`` itself is never mutated: it may be
+    the bundle's own structural dict, shared with every other variant.
+    """
+    from reproduce.main_table import topo_qos_prior
+
+    key = f"{bundle.cache_dir}::{bundle.scenario_id}"
+    if key not in _PRIOR_CACHE:
+        _PRIOR_CACHE[key] = topo_qos_prior(bundle.scenario_id, cache_dir=bundle.cache_dir)
+    prior = _PRIOR_CACHE[key]
+    out = {nid: dict(vals) for nid, vals in sm.items()}
+    for nid, p in prior.items():
+        out.setdefault(nid, {})["topo_prior"] = p
+    return out
+
+
 def _build_training_hetero(
-    bundle: ScenarioBundle, use_qos: bool, rank_normalize_features: bool
+    bundle: ScenarioBundle, use_qos: bool, rank_normalize_features: bool,
+    append_prior: bool = False,
 ) -> HeteroData:
     """HeteroData for one training scenario, splits left to the caller."""
     graph, sm = _prepare_bundle_graph(bundle, use_qos)
+    if append_prior:
+        sm = _with_prior(bundle, sm)
     return networkx_to_hetero_data(
         graph, sm, bundle.simulation, bundle.rm,
         qos_enabled=use_qos,
         rank_normalize_features=rank_normalize_features,
         edge_simulation_results=bundle.edge_simulation or None,
+        append_prior=append_prior,
     ).hetero_data
 
 
 def _build_validation_hetero(
-    bundle: ScenarioBundle, use_qos: bool, rank_normalize_features: bool
+    bundle: ScenarioBundle, use_qos: bool, rank_normalize_features: bool,
+    append_prior: bool = False,
 ) -> HeteroData:
     """HeteroData for the inner validation scenario.
 
@@ -414,7 +447,7 @@ def _build_validation_hetero(
     """
     from saag.prediction.data_preparation import _labelled_index_mask
 
-    data = _build_training_hetero(bundle, use_qos, rank_normalize_features)
+    data = _build_training_hetero(bundle, use_qos, rank_normalize_features, append_prior)
     for store in data.node_stores:
         n = store.num_nodes
         if hasattr(store, "y") and store.y.numel() > 0:
@@ -942,9 +975,13 @@ def _run_seed(
         elif variant in _HGT_VARIANTS:
             # hgl_qos (default), hgl, hgl_qos_uni or topology_rm → GNNService
             effective_mode = "rm" if variant == "topology_rm" else mode
-            use_qos = variant in ("hgl_qos", "hgl_qos_uni")
+            use_qos = variant in ("hgl_qos", "hgl_qos_uni", "hgl_qos_prior")
+            use_prior = variant in _PRIOR_VARIANTS
             train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
             holdout_graph, holdout_sm = _prepare_bundle_graph(holdout, use_qos)
+            if use_prior:
+                train_sm = _with_prior(primary, train_sm)
+                holdout_sm = _with_prior(holdout, holdout_sm)
 
             best_path = ckpt_dir / "best_model.pt"
             if best_path.exists():
@@ -968,6 +1005,7 @@ def _run_seed(
                     # cross-cutting CLI ablation. The directionality control
                     # is the only arm that turns this off.
                     use_bidirectional=_registry.bidirectional_for(variant),
+                    topo_prior=use_prior,
                 )
                 service.train(
                     graph=train_graph,
@@ -976,12 +1014,14 @@ def _run_seed(
                     edge_simulation_results=primary.edge_simulation or None,
                     rm_scores=primary.rm,
                     inductive_graphs=[
-                        _build_training_hetero(b, use_qos, rank_normalize_features)
+                        _build_training_hetero(
+                            b, use_qos, rank_normalize_features, use_prior
+                        )
                         for b in inductives
                     ],
                     val_graph=(
                         _build_validation_hetero(
-                            val_bundle, use_qos, rank_normalize_features
+                            val_bundle, use_qos, rank_normalize_features, use_prior
                         )
                         if val_bundle is not None else None
                     ),

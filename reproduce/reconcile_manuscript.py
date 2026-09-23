@@ -1107,6 +1107,51 @@ PROSE_NOTES = [
 ]
 
 
+def check_hybrid_table(rep: Report) -> None:
+    """Table tab:hybrid: SaG-Hybrid and its same-invocation CPU comparators.
+
+    Every LOSO cell comes from one CPU sweep (``loso_hybrid_cpu.json``) and its
+    significance artifact; the system-model columns come from the two CPU
+    zero-shot artifacts. Checked here so the hybrid table cannot drift from
+    the runs registered under PREREGISTRATION.md Amendment 5.
+    """
+    loso = _load("loso_hybrid_cpu.json")
+    sig = _load("loso_significance_hybrid_cpu.json")
+    rw = {v: _load(f"realworld_zeroshot_{v}_cpu.json") for v in ("hgl_qos", "hgl_qos_prior")}
+    tex = _tex("sec7_results.tex")
+    if loso is None or sig is None or r"\label{tab:hybrid}" not in tex:
+        rep.skipped.append("tab:hybrid: hybrid artifacts or table absent")
+        return
+    table = loso["comparison_table"]
+    deltas = {r["variant"]: r for r in sig.get("exploratory", []) + sig.get("preregistered", [])}
+    ref = next(iter(r for r in rw.values() if r), None) or {}
+    boot = ref.get("bootstrap_ci", {})
+    rw_rho = {
+        "topo_baseline": boot.get("Topo", {}).get("rho", {}).get("mean"),
+        "topo_qos": boot.get("Topo-QoS", {}).get("rho", {}).get("mean"),
+        "hgl_qos": (rw["hgl_qos"] or {}).get("mean_rho_across_systems"),
+        "hgl_qos_prior": (rw["hgl_qos_prior"] or {}).get("mean_rho_across_systems"),
+    }
+    labels = {"Topo": "topo_baseline", "Topo-QoS": "topo_qos",
+              "HGT-QoS": "hgl_qos", "SaG-Hybrid": "hgl_qos_prior"}
+    for row in _rows(tex, r"\midrule", after_label=r"\label{tab:hybrid}"):
+        cells = _cells(row)
+        v = labels.get(_label(cells[0]))
+        if v is None or v not in table:
+            continue
+        checks = [(1, table[v]["mean_rho"], "mean_rho"), (5, table[v]["mean_f1"], "overlap_at_k"),
+                  (6, rw_rho[v], "systems_rho")]
+        if v in deltas:
+            checks.append((2, deltas[v]["mean_delta"], "delta_vs_topo_qos"))
+        for idx, truth, nm in checks:
+            if truth is None:
+                continue
+            got = _num(cells[idx]) if idx < len(cells) else None
+            rep.checked += 1
+            if got is None or abs(got - truth) > 0.001:
+                rep.findings.append(Finding("tab:hybrid", _label(cells[0]), nm, got, round(truth, 4)))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1139,6 +1184,7 @@ def main() -> int:
     check_oracle_timing(rep)
     check_gate_ratio_table(rep)
     check_qos_label_ablation(rep)
+    check_hybrid_table(rep)
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts "
           f"({len(rep.skipped)} check(s) skipped).\n")

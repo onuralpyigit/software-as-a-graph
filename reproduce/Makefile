@@ -12,6 +12,9 @@
 #   make table4          — JSS Table 8: LOSO × 4 variants
 #   make kfold           — Per-domain k-fold × 5 variants (opt-in; primary validation protocol)
 #   make significance    — pre-registered Wilcoxon tests + attainable-p floor (no training)
+#   make rq2-matched     — capacity- and channel-matched 2x2 (Amendment 2; GPU, ~10 h)
+#   make seed-robustness — 2x2 under median / trimmed seed aggregation (no training)
+#   make rq-hybrid       — SaG-Hybrid vs Topo-QoS vs HGT-QoS, one CPU sweep (Amendment 5)
 #   make nested-search   — nested-CV config search (opt-in, expensive; GRID=stage1|stage2|full)
 #   make convergent-validity — JSS Table 13: Three-oracle rank agreement (opt-in; expensive)
 #   make passive-strata  — Topic / host-Node ground truth + trivial-baseline controls
@@ -43,7 +46,7 @@ SCENARIOS_DIR ?= data/scenarios
 RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
-.PHONY: setup scenarios cache block0 table3 table4 significance nested-search kfold convergent-validity \
+.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness rq-hybrid nested-search kfold convergent-validity \
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 \
@@ -136,6 +139,51 @@ significance:
 	$(PYTHON) reproduce/loso_significance.py \
 	    --input $(RESULTS_DIR)/loso_all_variants.json \
 	    --output $(RESULTS_DIR)/loso_significance.json
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The capacity- and channel-matched 2x2 (PREREGISTRATION.md, Amendment 2):
+# GAT-N-C and GAT-N-QoS16-C are the ~430k-parameter untyped arms, the second
+# reading the same 16-D edge channel as HGT-QoS. All four cells run in ONE
+# invocation on ONE device, because the tests downstream pair them by fold and
+# CPU and GPU rows are never compared. topo_qos is included only because the
+# significance script requires the pre-registered comparator to be present.
+# ─────────────────────────────────────────────────────────────────────────────
+
+RQ2_DEVICE ?= cuda
+
+rq2-matched:
+	$(PYTHON) reproduce/loso_all_variants.py \
+	    --variants topo_qos gl_full_cap gl_full_qos16_cap hgl hgl_qos \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --epochs $(EPOCHS) --seeds $(SEEDS) --device $(RQ2_DEVICE) --jobs $(JOBS) \
+	    --output-base $(OUTPUT_DIR)/loso_rq2_matched \
+	    --output $(RESULTS_DIR)/loso_rq2_matched.json
+	$(PYTHON) reproduce/loso_significance.py \
+	    --input $(RESULTS_DIR)/loso_rq2_matched.json \
+	    --output $(RESULTS_DIR)/loso_significance_rq2_matched.json \
+	    --factorial-cells gl_full_cap,hgl,gl_full_qos16_cap,hgl_qos
+
+# SaG-Hybrid (PREREGISTRATION.md, Amendment 5): all four arms in ONE invocation
+# on ONE device, because the registered contrasts pair them by fold and the
+# rows are never compared with the v5 GPU sweep.
+HYBRID_JOBS ?= 10
+
+rq-hybrid:
+	$(PYTHON) reproduce/loso_all_variants.py \
+	    --variants topo_baseline topo_qos hgl_qos hgl_qos_prior \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --epochs $(EPOCHS) --seeds $(SEEDS) --device cpu \
+	    --jobs $(HYBRID_JOBS) --torch-threads 1 \
+	    --output-base $(OUTPUT_DIR)/loso_cpu_hybrid \
+	    --output $(RESULTS_DIR)/loso_hybrid_cpu.json
+	$(PYTHON) reproduce/loso_significance.py \
+	    --input $(RESULTS_DIR)/loso_hybrid_cpu.json \
+	    --output $(RESULTS_DIR)/loso_significance_hybrid_cpu.json
+
+seed-robustness:
+	$(PYTHON) reproduce/factorial_seed_robustness.py \
+	    --input $(RESULTS_DIR)/loso_all_variants_v5.json \
+	    --output $(RESULTS_DIR)/factorial_seed_robustness_v5.json
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Nested-CV configuration search. Selection happens inside each outer fold's

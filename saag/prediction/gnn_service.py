@@ -300,6 +300,7 @@ class GNNService:
         device: Optional[torch.device] = None,
         qos_injection: str = "pooled",
         use_bidirectional: bool = True,
+        topo_prior: bool = False,
     ):
         self.hidden_channels = hidden_channels
         self.num_heads = num_heads
@@ -312,6 +313,10 @@ class GNNService:
         # resumed checkpoint silently rebuilds the *other* architecture and
         # leaves rev_conv.* at random initialisation -- see _load_model_weights.
         self.use_bidirectional = use_bidirectional
+        #: SaG-Hybrid (PREREGISTRATION.md, Amendment 5). When set, every
+        #: conversion appends the ``topo_prior`` structural metric as one extra
+        #: node-feature column and the model adds a learned correction to it.
+        self.topo_prior = topo_prior
         self.checkpoint_dir = Path(checkpoint_dir)
         self.device = device if device else torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -349,6 +354,7 @@ class GNNService:
                 metadata, self.hidden_channels, self.num_heads, self.num_layers, self.dropout,
                 qos_injection=self.qos_injection,
                 use_bidirectional=self.use_bidirectional,
+                topo_prior=self.topo_prior,
             )
             self._node_model = self._edge_model.node_gnn
             self._edge_model.to(self.device)
@@ -358,6 +364,7 @@ class GNNService:
                 metadata, self.hidden_channels, self.num_heads, self.num_layers, self.dropout,
                 qos_injection=self.qos_injection,
                 use_bidirectional=self.use_bidirectional,
+                topo_prior=self.topo_prior,
             )
             self._node_model.to(self.device)
 
@@ -487,6 +494,7 @@ class GNNService:
             graph, structural_metrics, simulation_results, rm_scores, qos_enabled=qos_enabled,
             rank_normalize_features=rank_normalize_features,
             edge_simulation_results=edge_simulation_results,
+            append_prior=self.topo_prior,
         )
         self._conversion_result = conv
         self._pinned_splits = node_splits
@@ -655,6 +663,7 @@ class GNNService:
                 self._rank_normalize_features
                 if rank_normalize_features is None else rank_normalize_features
             ),
+            append_prior=self.topo_prior,
         )
         self._conversion_result = conv
         # ── Run prediction ────────────────────────────────────────────────────
@@ -970,6 +979,7 @@ class GNNService:
                     # into the model that produced it.
                     "use_bidirectional": self.use_bidirectional,
                     "qos_injection": self.qos_injection,
+                    "topo_prior": self.topo_prior,
                     "node_feature_dims": NODE_TYPE_TO_DIM,
                     "best_seed": self._best_seed,
                     "layer": self.layer,
@@ -1141,6 +1151,7 @@ class GNNService:
             # it always did.
             use_bidirectional=cfg.get("use_bidirectional", True),
             qos_injection=cfg.get("qos_injection", "pooled"),
+            topo_prior=cfg.get("topo_prior", False),
         )
         service._best_seed = cfg.get("best_seed", 42)
         service._rank_normalize_features = cfg.get("rank_normalize_features", False)

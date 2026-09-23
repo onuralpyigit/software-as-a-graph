@@ -306,3 +306,57 @@ configuration is retained as a reported sensitivity, not as a headline.
 The primary and secondary contrasts, their unit of analysis, the five fixed
 seeds, the prohibition on pairing at (fold × seed), and Amendment 2's decision
 rule for the control arms — which remain implemented, registered, and unrun.
+
+---
+
+## Amendment 5 — hybrid engine (2026-09-23, before any hybrid result)
+
+**Status when written:** the hybrid variant is not yet implemented. No hybrid
+outcome exists, so the design and decision rule below are commitments, not
+descriptions.
+
+**Why it exists.** HGT-QoS's two largest LOSO losses to Topo-QoS (Enterprise,
+Telecom RAN) fall on folds where the closed-form score is strongest, which
+suggests the learned engine discards structural signal the closed-form engine
+keeps. The hybrid gives the learned engine that signal explicitly and asks it
+to learn only a correction to it.
+
+**Design, fixed before any run. No tuning and no search.**
+
+| Element | Choice |
+|:---|:---|
+| Variant id / label | `hgl_qos_prior` / SaG-Hybrid |
+| Base model | HGT-QoS exactly as reported: 3 layers, D = 64, H = 4, 16-D QoS edge channel, bidirectional, same optimiser, schedule, loss (Eq. 5), epochs (300), early stopping |
+| Prior $p(v)$ | The LOSO-path Topo-QoS score of each Application and Library, computed on each graph (training, validation and held-out alike) by the same code that produces the published Topo-QoS baseline, then rank-normalised to $[0, 1]$ within the graph (average ranks for ties). Every other entity type gets $p = 0$. |
+| Input | $p(v)$ appended as one extra node-feature column, after feature rank normalisation |
+| Output | $\hat{I}^*(v) = \sigma\big(z(v) + \alpha \cdot \operatorname{logit}(\operatorname{clip}(p(v), 0.01, 0.99))\big)$ for Applications and Libraries, where $z$ is HGT-QoS's composite-head logit and $\alpha$ is one learnable scalar initialised to 1.0 |
+
+**Run.** One CPU invocation (`--device cpu`), 12 LOSO folds × 5 seeds
+{42, 123, 456, 789, 2024}, Application population, containing `topo_baseline`,
+`topo_qos`, `hgl_qos` and `hgl_qos_prior`. The rows are never compared with
+the v5 GPU rows (Amendment 2, "Corpus and device").
+
+**Contrasts.** Two-sided Wilcoxon signed-rank over folds, with Holm correction
+across these two only:
+- **Primary:** `hgl_qos_prior` vs `topo_qos`.
+- **Secondary:** `hgl_qos_prior` vs `hgl_qos`.
+
+The same model is also evaluated zero-shot on the five open-source system
+models, under the protocol of `results/realworld_zeroshot_v7.json`.
+That evaluation is descriptive, with bootstrap intervals and no test.
+
+### Decision rule
+
+| Outcome | What we will report |
+|:---|:---|
+| Primary contrast significant (Holm p < 0.05) | SaG-Hybrid becomes the headline learned engine in the abstract and §7, with this amendment cited. |
+| Not significant | SaG-Hybrid is reported in its own subsection with the same numbers. HGT-QoS remains the headline learned engine, and no claim of superiority over Topo-QoS is made. |
+
+**Reporting commitment.** The hybrid is reported whichever way it comes out.
+It may be dropped only for a stated technical failure.
+
+**Also recorded here:** the published Topo and Topo-QoS baselines never used
+their articulation-point term. The cached `structural_metrics.json` carries no
+`ap_c_score`, so `reproduce/main_table._parse_structural_metrics` sets it to 0
+for every node. The registered comparator is left exactly as it ran. An
+AP-corrected version is computed separately as a sensitivity analysis.

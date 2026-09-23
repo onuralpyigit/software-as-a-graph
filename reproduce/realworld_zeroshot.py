@@ -59,6 +59,7 @@ from cli.loso_evaluate import (  # noqa: E402
     _build_validation_hetero,
     _prepare_bundle_graph,
     _select_val_bundle,
+    _with_prior,
     compute_inductive_metrics,
     discover_scenarios,
 )
@@ -85,6 +86,7 @@ def train_once(
     rank_normalize_features: bool,
     rank_normalize_labels: bool,
     device: Optional[str] = "auto",
+    topo_prior: bool = False,
 ) -> GNNService:
     """Train one HGT on the whole synthetic corpus.
 
@@ -112,6 +114,8 @@ def train_once(
     )
 
     train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
+    if topo_prior:
+        train_sm = _with_prior(primary, train_sm)
     service = GNNService(
         checkpoint_dir=str(ckpt_dir),
         hidden_channels=64,
@@ -120,6 +124,7 @@ def train_once(
         dropout=0.2,
         predict_edges=False,
         device=target_device,
+        topo_prior=topo_prior,
     )
     service.train(
         graph=train_graph,
@@ -127,11 +132,11 @@ def train_once(
         simulation_results=primary.simulation,
         rm_scores=primary.rm,
         inductive_graphs=[
-            _build_training_hetero(b, use_qos, rank_normalize_features)
+            _build_training_hetero(b, use_qos, rank_normalize_features, topo_prior)
             for b in inductives
         ],
         val_graph=(
-            _build_validation_hetero(val_bundle, use_qos, rank_normalize_features)
+            _build_validation_hetero(val_bundle, use_qos, rank_normalize_features, topo_prior)
             if val_bundle is not None else None
         ),
         seeds=[seed],
@@ -150,6 +155,8 @@ def score(service: GNNService, bundle: ScenarioBundle, *, use_qos: bool,
           population: str, rank_normalize_features: bool = True) -> Dict[str, Any]:
     """Zero-shot predict on one real system and score against its I*(v) labels."""
     graph, sm = _prepare_bundle_graph(bundle, use_qos)
+    if service.topo_prior:
+        sm = _with_prior(bundle, sm)
     result = service.predict(
         graph=graph,
         structural_metrics=sm,
@@ -409,7 +416,7 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--synthetic-cache", type=Path, default=Path("output/loso_cache"))
     p.add_argument("--realworld-cache", type=Path, default=Path("output/realworld_cache"))
-    p.add_argument("--variant", default="hgl_qos", choices=["hgl_qos", "hgl"])
+    p.add_argument("--variant", default="hgl_qos", choices=["hgl_qos", "hgl", "hgl_qos_prior"])
     p.add_argument("--seeds", default="42,123,456,789,2024")
     p.add_argument("--epochs", type=int, default=150)
     p.add_argument("--layers", type=int, default=2)
@@ -439,7 +446,8 @@ def main() -> int:
         return 2
 
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()]
-    use_qos = (args.variant == "hgl_qos")
+    use_qos = args.variant in ("hgl_qos", "hgl_qos_prior")
+    topo_prior = args.variant == "hgl_qos_prior"
 
     synthetic = discover_scenarios(args.synthetic_cache, [])
     real = discover_scenarios(args.realworld_cache, [], min_scenarios=1)
@@ -465,6 +473,7 @@ def main() -> int:
             rank_normalize_features=args.rank_normalize_features,
             rank_normalize_labels=args.rank_normalize_labels,
             device=args.device,
+            topo_prior=topo_prior,
         )
         for b in real:
             try:

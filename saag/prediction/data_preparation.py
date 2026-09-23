@@ -632,8 +632,14 @@ def networkx_to_hetero_data(
     qos_enabled: bool = True,
     rank_normalize_features: bool = False,
     edge_simulation_results: Optional[Dict[Tuple[str, str], float]] = None,
+    append_prior: bool = False,
 ) -> GraphConversionResult:
     """Convert a NetworkX DiGraph to a PyG HeteroData object.
+
+    With ``append_prior`` set, every node type gets one extra last column
+    holding ``structural_metrics[node]["topo_prior"]`` (0.0 when absent): the
+    SaG-Hybrid prior of PREREGISTRATION.md Amendment 5. It is appended after
+    rank normalisation so the already-normalised prior is not re-ranked.
 
     Parameters
     ----------
@@ -781,6 +787,14 @@ def networkx_to_hetero_data(
 
         if rank_normalize_features:
             _rank_normalize_base_columns(feat_matrix)
+
+        if append_prior:
+            prior_col = np.array(
+                [[float((structural_metrics or {}).get(name, {}).get("topo_prior", 0.0))]
+                 for name in nodes],
+                dtype=np.float32,
+            ).reshape(n, 1)
+            feat_matrix = np.concatenate([feat_matrix, prior_col], axis=1)
 
         data[node_type].x = torch.from_numpy(feat_matrix)
         data[node_type].num_nodes = n

@@ -407,11 +407,15 @@ class TestControlArmCapacityParity:
         # their purpose. "tabular" is excluded because it is not a GNN at all:
         # it has no hidden dimension and no message-passing direction, so the
         # accessors below are vacuous for it rather than meaningful.
+        # "hybrid" (Amendment 5) is opt-in and not a manuscript column by
+        # default; it keeps the default width and direction, checked below.
         reported = [
             v for v, spec in registry.VARIANTS.items()
-            if spec.family not in ("control", "tabular")
+            if spec.family not in ("control", "tabular", "hybrid")
         ]
         assert len(reported) == 9
+        assert registry.hidden_for("hgl_qos_prior", 64) == 64
+        assert registry.bidirectional_for("hgl_qos_prior") is True
         for v in reported:
             assert registry.hidden_for(v, 64) == 64, v
             assert registry.hidden_for(v, 128) == 128, v

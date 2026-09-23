@@ -45,6 +45,9 @@ CODE_FILES = (
     "saag/evaluation/metrics.py",
     "saag/evaluation/variant_registry.py",
     "cli/loso_evaluate.py",
+    # Produces the Topo/Topo-QoS scores and, through topo_qos_prior, the
+    # SaG-Hybrid input column.
+    "reproduce/main_table.py",
 )
 
 

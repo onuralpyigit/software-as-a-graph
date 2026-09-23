@@ -550,7 +550,9 @@ def _assert_cache_matches_dataset(scenario: str, cached: Dict, dataset_path: Pat
     raise ValueError(msg)
 
 
-def _load_scenario_data(scenario: str, substrate: str = "projection") -> Tuple[Any, Dict, Dict, Dict, bool]:
+def _load_scenario_data(
+    scenario: str, substrate: str = "projection", cache_dir: Optional[Path] = None
+) -> Tuple[Any, Dict, Dict, Dict, bool]:
     """Load graph + structural/simulation/RM data for a scenario.
 
     Topology source priority: (1) LOSO cache topology.json, (2) data/scenarios/<name>.json.
@@ -569,7 +571,7 @@ def _load_scenario_data(scenario: str, substrate: str = "projection") -> Tuple[A
     """
     from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
 
-    cache_dir = _find_cache_dir(scenario)
+    cache_dir = Path(cache_dir) if cache_dir is not None else _find_cache_dir(scenario)
 
     # Prefer cache topology for feature/label consistency
     cache_topo_path = cache_dir / "topology.json" if cache_dir.exists() else None
@@ -916,6 +918,30 @@ def _compute_topo_baseline_scores(
     predictor = TopoQoSPredictor() if use_qos else TopoPredictor()
     pred = predictor.predict(nx_graph, structural_dict)
     return pred if pred else None
+
+
+def topo_qos_prior(scenario: str, cache_dir: Optional[Path] = None) -> Dict[str, float]:
+    """SaG-Hybrid prior: the published Topo-QoS score, rank-normalised to [0, 1].
+
+    Computed by exactly the two calls the ``topo_qos`` LOSO branch makes
+    (``_load_scenario_data`` on the projection, then
+    ``_compute_topo_baseline_scores``), so the prior cannot drift from the
+    closed-form engine it encodes. Average ranks for ties, scaled by (n - 1).
+    Only Applications and Libraries are scored; callers treat absent ids as 0.
+    """
+    from scipy.stats import rankdata
+
+    graph, struct, _sim, _rm, _gt = _load_scenario_data(
+        scenario, substrate="projection", cache_dir=cache_dir
+    )
+    raw = _compute_topo_baseline_scores(graph, struct, use_qos=True) or {}
+    if not raw:
+        return {}
+    ids = sorted(raw)
+    if len(ids) == 1:
+        return {ids[0]: 0.5}
+    ranks = rankdata([raw[i] for i in ids], method="average")
+    return {i: float((r - 1.0) / (len(ids) - 1.0)) for i, r in zip(ids, ranks)}
 
 
 def _get_per_type_rho(keys, y_pred, y_true, nx_graph):
