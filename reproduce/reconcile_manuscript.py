@@ -859,6 +859,13 @@ FRESHNESS_TARGETS = {
     "atm_scale_sweep_v3.json": "Supplementary S6",
     "qos_label_ablation.json": "Section 4.3",
     "loso_significance_v5.json": "Table 8 contrasts",
+    # SaG-Hybrid (PREREGISTRATION.md Amendment 5): Table 13 and Supplementary S21-S23.
+    "loso_hybrid_cpu.json": "Table 13 LOSO (hybrid CPU sweep)",
+    "loso_significance_hybrid_cpu.json": "Table 13 contrasts",
+    "realworld_zeroshot_hgl_qos_cpu.json": "Table 13 system models (HGT-QoS, CPU)",
+    "realworld_zeroshot_hgl_qos_prior_cpu.json": "Table 13 system models (SaG-Hybrid)",
+    "topo_ap_sensitivity.json": "Section 6.2.1 / Supplementary S22",
+    "factorial_seed_robustness_v5.json": "Section 7.2 / Supplementary S21",
 }
 
 #: Artifacts that never read the corpus, so the corpus-freshness rule cannot
