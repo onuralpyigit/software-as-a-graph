@@ -27,7 +27,7 @@ in the body:
 
 The body keeps what a referee needs to check each claim without leaving the page:
 - the QoS-aware projection's gain over unweighted centrality on all twelve held-out architectures;
-- the typed learned engine's gains over untyped graph networks;
+- the capacity-matched control that isolates what the learned engine needs;
 - the hybrid engine's registered result against closed-form ranking;
 - zero-shot transfer to five independently authored system models;
 - the cost profile.

@@ -866,6 +866,10 @@ FRESHNESS_TARGETS = {
     "realworld_zeroshot_hgl_qos_prior_cpu.json": "Table 13 system models (SaG-Hybrid)",
     "topo_ap_sensitivity.json": "Section 6.2.1 / Supplementary S22",
     "factorial_seed_robustness_v5.json": "Section 7.2 / Supplementary S21",
+    # Amendment 2's capacity- and channel-matched 2x2 and its zero-shot arm.
+    "loso_rq2_matched.json": "Table 11 matched 2x2 (CPU sweep)",
+    "loso_significance_rq2_matched.json": "Table 11 matched contrasts",
+    "realworld_zeroshot_gl_full_qos16_cap_cpu.json": "Section 7.4 (GAT-N-QoS16-C transfer)",
 }
 
 #: Artifacts that never read the corpus, so the corpus-freshness rule cannot
@@ -1159,6 +1163,50 @@ def check_hybrid_table(rep: Report) -> None:
                 rep.findings.append(Finding("tab:hybrid", _label(cells[0]), nm, got, round(truth, 4)))
 
 
+def check_contrasts_matched(rep: Report) -> None:
+    """Table tab:contrasts_matched: the capacity- and channel-matched 2x2.
+
+    The three orthogonal quantities come from the significance artifact's
+    ``factorial`` block; the simple effects are recomputed from the same sweep
+    with the same paired test, so the table cannot drift from the run
+    registered under PREREGISTRATION.md Amendment 2.
+    """
+    from reproduce.loso_significance import compare
+
+    loso = _load("loso_rq2_matched.json")
+    sig = _load("loso_significance_rq2_matched.json")
+    tex = _tex("sec7_results.tex")
+    if loso is None or sig is None or r"\label{tab:contrasts_matched}" not in tex:
+        rep.skipped.append("tab:contrasts_matched: artifacts or table absent")
+        return
+    table = loso["comparison_table"]
+    factorial = {r["quantity"]: r for r in sig.get("factorial", [])}
+    simple = {
+        "Typing, QoS absent": ("hgl", "gl_full_cap"),
+        "Typing, QoS present": ("hgl_qos", "gl_full_qos16_cap"),
+        "QoS channel, typing absent": ("gl_full_qos16_cap", "gl_full_cap"),
+        "QoS channel, typing present": ("hgl_qos", "hgl"),
+    }
+    rowmap = {"Typing (main effect)": "main_typing",
+              "QoS channel (main effect)": "main_qos",
+              "Typing $times$ QoS interaction": "interaction"}
+    for row in _rows(tex, r"\midrule", after_label=r"\label{tab:contrasts_matched}"):
+        cells = _cells(row)
+        label = _label(cells[0])
+        if label in rowmap and rowmap[label] in factorial:
+            truth = factorial[rowmap[label]]
+        elif label in simple:
+            truth = compare(table, *simple[label])
+        else:
+            continue
+        for idx, key, tol in ((2, "mean_delta", 0.001), (6, "p", 0.001)):
+            got = _num(cells[idx]) if idx < len(cells) else None
+            rep.checked += 1
+            if got is None or abs(got - truth[key]) > tol:
+                rep.findings.append(Finding("tab:contrasts_matched", label, key, got,
+                                            round(truth[key], 4)))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1192,6 +1240,7 @@ def main() -> int:
     check_gate_ratio_table(rep)
     check_qos_label_ablation(rep)
     check_hybrid_table(rep)
+    check_contrasts_matched(rep)
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts "
           f"({len(rep.skipped)} check(s) skipped).\n")

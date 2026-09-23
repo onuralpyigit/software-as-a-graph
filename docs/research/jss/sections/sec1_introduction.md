@@ -32,15 +32,15 @@ Across twelve synthetic architectures under leave-one-scenario-out (LOSO) cross-
 
 1.  **QoS-aware dependency modeling pays off.** Ranking on SaG’s QoS-weighted `DEPENDS_ON` projection raises the Spearman correlation with simulated cascade impact from $0.349$ (unweighted centrality) to $0.553$, improving all twelve held-out architectures ($+0.204$, $p = 0.0005$; §7.1).
 
-2.  **Typed learning outperforms untyped learning.** The heterogeneous graph transformer improves on an untyped graph attention network by $+0.234$ on all twelve folds, and the QoS edge channel adds $+0.287$ to an untyped model (§7.2). The full model, `HGT-QoS`, attains the highest mean correlation of the reported main-sweep predictors ($\rho = 0.638$); on its own it is statistically on par with SaG’s closed-form engine ($+0.085$, $p = 0.151$).
+2.  **The QoS edge channel is what learned engines need.** In a control that matches model capacity and edge-channel width, SaG’s 16-D QoS edge encoding improves learned ranking by about $0.07$ on 10 of 12 folds, while relation-specific weights add nothing beyond it (§7.2). Learned engines with the QoS channel reach $\rho = 0.62$–$0.64$ out of distribution, statistically on par with SaG’s closed-form engine on their own ($+0.085$, $p = 0.151$ for `HGT-QoS`).
 
-3.  **The learned engine transfers to unseen systems.** Trained only on synthetic scenarios, `HGT-QoS` reaches $\rho = 0.760$ $[0.714, 0.819]$ zero-shot on the five open-source system models against $0.51$–$0.53$ for every training-free score, with non-overlapping intervals, and it nearly doubles top-$K$ critical-set overlap ($0.470$ against $0.248$), raising PR-AUC from $0.47$–$0.52$ to $0.713$ (§7.4).
+3.  **Learned engines transfer to unseen systems.** Trained only on synthetic scenarios, learned engines rank components zero-shot on the five open-source system models at $\rho = 0.760$ (`HGT-QoS`) and $0.805$ (capacity-matched untyped GAT with the QoS channel), against $0.51$–$0.53$ for every training-free score, with non-overlapping intervals. They roughly double top-$K$ critical-set overlap ($0.47$–$0.52$ against $0.248$) and raise PR-AUC from $0.47$–$0.52$ to $0.71$–$0.79$ (§7.4).
 
 4.  **A hybrid engine significantly outperforms closed-form ranking.** SaG-Hybrid, which lets the learned engine correct SaG’s closed-form score rather than replace it, reaches $\rho = 0.657$ and beats the closed-form engine on 11 of 12 held-out architectures ($+0.103$, CI $[+0.055, +0.152]$, Holm $p = 0.0068$), meeting a decision rule registered before the run (§7.5).
 
 #### Why a learned engine
 
-The simulation oracle that labels the training data is available at design time only when the manifest declares every operational parameter it needs. A trained engine instead scores a new architecture in $56\,\text{ms}$ once its features exist (§7.6), generalizes to architectures outside its training distribution (§7.4), and exposes per-relation attention that has no closed-form counterpart. §8.4 lists the uses of learning that this study does not yet evaluate.
+The simulation oracle that labels the training data is available at design time only when the manifest declares every operational parameter it needs. A trained engine instead scores a new architecture in $56\,\text{ms}$ once its features exist (§7.6), generalizes to architectures outside its training distribution (§7.4), and can be combined with the closed-form engine (§7.5). §8.4 lists the uses of learning that this study does not yet evaluate.
 
 ## 1.4 Research Questions
 
@@ -60,7 +60,7 @@ This empirical study considers five research questions:
 
 This paper makes three main contributions:
 
-1.  **Heterogeneous graph learning for failure-impact ranking:** A relation-specific Heterogeneous Graph Transformer with 16-D QoS edge encodings (§4). It outperforms untyped graph neural networks under LOSO cross-validation ($+0.234$, 12/12 folds), and transfers zero-shot to independently authored system models ($\rho = 0.760$ against $0.51$–$0.53$). A hybrid variant that learns a correction to SaG’s closed-form score (SaG-Hybrid) significantly outperforms closed-form ranking out of distribution ($+0.103$, 11/12 folds, Holm $p = 0.0068$; §7.5).
+1.  **Learned failure-impact ranking over QoS-annotated architecture graphs:** Graph learning engines that read SaG’s typed multigraph with 16-D QoS edge encodings (§4), together with a capacity-matched control showing that the QoS channel, not relation-specific weights, drives their accuracy (§7.2). They transfer zero-shot to independently authored system models ($\rho = 0.76$–$0.81$ against $0.51$–$0.53$). A hybrid variant that learns a correction to SaG’s closed-form score (SaG-Hybrid) significantly outperforms closed-form ranking out of distribution ($+0.103$, 11/12 folds, Holm $p = 0.0068$; §7.5).
 
 2.  **A QoS-aware typed architecture model:** A multigraph representation that derives logical dependencies from physical pub-sub linkages, weights them by declared QoS contracts, and distinguishes sequential cascades from simultaneous multi-consumer failures (§3). Ranking on this projection improves over unweighted centrality on every held-out architecture ($+0.204$).
 
