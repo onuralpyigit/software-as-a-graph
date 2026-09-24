@@ -383,7 +383,7 @@ def check_table5_columns(rep: Report, artifact: str = "main_table.json") -> None
         return
 
     tex = _supp()
-    header = _rows(tex, r"\toprule", after_label="tab:supp-indist-cells")
+    header = _rows(tex, r"\toprule", after_label=r"\label{tab:supp-indist-cells}")
     if not header:
         m = re.search(r"\\textbf\{Scenario\} & \\textbf\{\$n\$\}([^\\]*(?:\\(?!\\)[^\\]*)*)",
                       tex)
@@ -586,7 +586,7 @@ def check_table7c_active(rep: Report, artifact: str) -> None:
         return
     ct = d["comparison_table"]
     pv = d["per_variant_results"]
-    tex = _tex("sec7_results.tex")
+    tex = _supp()  # moved to the supplement (S25-S28)
     rows = _rows(tex, r"\textbf{RM / $Q(v)$}", after_label=r"\label{tab:7c}")
     by_label = {LOSO_LABELS[k]: k for k in ct if k in LOSO_LABELS}
     for row in rows:
@@ -654,7 +654,7 @@ def check_contrasts(rep: Report, artifact: str = "loso_significance_v5.json") ->
         "QoS channel, typing present":     "hgl_qos|hgl",
     }
 
-    tex = _tex("sec7_results.tex")
+    tex = _supp()  # moved to the supplement (S25-S28)
     rows = _rows(tex, r"\multicolumn{7}{l}{\textit{The $2\times2$",
                  after_label=r"\label{tab:contrasts}")
     seen = 0
@@ -787,7 +787,7 @@ def check_table9c_active(rep: Report) -> None:
     if d is None:
         rep.skipped.append("tab:9c: realworld_zeroshot.json absent")
         return
-    tex = _tex("sec7_results.tex")
+    tex = _supp()  # moved to the supplement (S25-S28)
     if r"\label{tab:9c}" not in tex:
         rep.skipped.append("tab:9c: table not present in sec7_results.tex")
         return
@@ -978,7 +978,7 @@ def check_oracle_timing(rep: Report) -> None:
     if art is None:
         rep.skipped.append("oracle_timing_v*.json absent; 7.5.1 unchecked")
         return
-    tex = _tex("sec7_results.tex")
+    tex = _supp()  # moved to the supplement (S25-S28)
     summary = art["summary"]
     lo, hi = summary["oracle_seconds"]["min"], summary["oracle_seconds"]["max"]
 
@@ -1031,7 +1031,7 @@ def check_gate_ratio_table(rep: Report) -> None:
         "Industrial SCADA": "industrial_scada_system",
         "ATM System": "atm_system",
     }
-    tex = _tex("sec7_results.tex")
+    tex = _supp()  # moved to the supplement (S25-S28)
     rows = _rows(tex, r"\midrule", after_label=r"\label{tab:gate_ratio}")
     seen = 0
     for row in rows:
@@ -1118,10 +1118,9 @@ def check_qos_label_ablation(rep: Report) -> None:
 
 
 PROSE_NOTES = [
-    "QoS ablation deltas in 7.3.1 <- loso_all_variants_v*.json",
-    "sigma-hat diagnostic in 7.2.3 <- output/loso_v*/<variant>/inductive_predictions.json",
-    "label-noise ceiling in 7.1 <- output/loso_cache/*/failure_impact.json label_stability",
-    "gate range in 7.5 <- results/detection_validation_timed_jss12.json gate_seconds",
+    "QoS-channel seed spreads in sec:rq2 <- loso_all_variants_v*.json",
+    "label-noise ceiling in sec:rq1 <- output/loso_cache/*/failure_impact.json label_stability",
+    "gate range in sec:rq4 <- results/detection_validation_timed_jss12.json gate_seconds",
 ]
 
 
@@ -1227,9 +1226,7 @@ def check_contrasts_matched(rep: Report) -> None:
 #: (file, pattern). Each pattern captures (SaG-Hybrid, SaG-Hybrid-GAT) in that
 #: order; the sites that name one engine first say so in the pattern.
 OMNIBUS_PROSE = [
-    ("sec1_introduction.tex", r"eleven registered contrasts of the study \(adjusted \$p = ([\d.]+)\$ and \$([\d.]+)\$"),
     ("sec7_results.tex", r"eleven registered contrasts of the study \(\$p_\{\\text\{omni\}\} = ([\d.]+)\$ and \$([\d.]+)\$"),
-    ("sec9_conclusion.tex", r"all eleven registered contrasts \(\$p = ([\d.]+)\$ and \$([\d.]+)\$"),
 ]
 
 

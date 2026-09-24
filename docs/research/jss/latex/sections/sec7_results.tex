@@ -1,24 +1,22 @@
-\section{Results and Empirical Analysis}
+\section{Results}
 \label{sec:7}
 
-Empirical results for RQ1–RQ5 are presented across the twelve-fold inductive benchmark and five architecture models of open-source systems. The evaluated populations are strictly stratified on the Application service set ($V_{\text{app}}$) under the input–label independence guarantee (Section~\ref{sec:4.4}).
+All results are reported on the Application population ($V_{\text{app}}$) against the primary oracle $I^*(v)$, under the input--label independence guarantee (Section~\ref{sec:4.4}). Per-fold results, secondary strata and extended protocol notes are in the Supplementary Material and the experiment pages of the replication repository (Section~\ref{sec:6.1}).
 
-\subsection{RQ1: Graph Learning vs.\ Structural Baselines}
-\label{sec:7.1}
+\subsection{RQ1: SaG's Engines Against Structural Baselines}
+\label{sec:rq1}
 
-\paragraph{RQ1 Summary (Predictive Efficacy):} \emph{SaG's QoS-weighted closed-form engine (\texttt{Topo-QoS}, $\rho = 0.553$) outperforms unweighted centrality ($\rho = 0.349$) on all twelve held-out architectures ($+0.204$, $p = 0.0005$). The learned heterogeneous engine (\texttt{HGT-QoS}) attains the highest mean correlation in Table~\ref{tab:7} ($\rho = 0.638$) but does not outperform the closed-form engine: on their own, the two SaG engines are statistically on par ($+0.085$, $p = 0.151$, Holm $0.303$); combined in the hybrid engines they significantly outperform the closed-form engine ($+0.103$ and $+0.130$, each on 11/12 folds, Holm $p \le 0.0068$; Section~\ref{sec:7.6}).}
+\paragraph{Summary} \emph{SaG's QoS-weighted closed-form engine (\texttt{Topo-QoS}, $\rho = 0.553$) outperforms unweighted centrality ($\rho = 0.349$) on all twelve held-out architectures ($+0.204$, $p = 0.0005$). The learned engine \texttt{HGT-QoS} has the highest mean of the single engines ($\rho = 0.638$) but is statistically on par with the closed-form engine ($+0.085$, $p = 0.151$, Holm $0.303$). The hybrid engines, in which a learned engine corrects the closed-form score, significantly outperform it ($+0.103$ and $+0.130$, each on 11/12 folds, Holm $p \le 0.0068$).}
 
-\textbf{What the in-distribution results can and cannot support.} Per-scenario in-distribution figures are reported in Supplementary Table~S15 rather than here, because no comparison can be drawn down their columns: \texttt{GAT}/\texttt{GAT-QoS} consume the Application--Library projection while \texttt{HGT}/\texttt{HGT-QoS} consume the native multigraph (Section~\ref{sec:6.2.substrate}), so a difference between the families confounds message passing with multi-entity visibility. Within a predictor the cells are still informative. In Healthcare, \texttt{Topo-QoS} achieves $\rho = 0.399$ but fails at critical triage (Overlap@$K = 0.000$); in the synthetic Microservices fold, \texttt{HGT} degrades ($\rho = 0.141$, Overlap@$K = 0.300$) where \texttt{HGT-QoS} does not ($\rho = 0.664$, Overlap@$K = 0.600$).
+\subsubsection{Single Engines Under LOSO}
+\label{sec:rq1-loso}
 
-\subsubsection{Out-of-Distribution (LOSO) Generalization}
-\label{sec:7.1.1}
-
-Inductive Leave-One-Scenario-Out cross-validation asks each model to predict cascading criticality on an entirely unseen topology, and the twelve folds are this paper's primary anchor for generalization across architectural archetypes. Per-fold breakdowns are in the Supplementary Material (Table~S12, Section~S10); the main text reports the cross-fold summary (Table~\ref{tab:7}) and the active-stratum contrast (Table~\ref{tab:7c}):
+Each of the twelve folds holds out one scenario and trains on the remaining eleven; all variants are scored on the same Application node set (26 to 300 nodes, $K$ between 5 and 60). Table~\ref{tab:7} gives the cross-fold summary; per-fold values for the CPU re-runs of the SaG engines are in Supplementary Section~\ref{S-supp:hybrid-folds}.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Inductive LOSO evaluation, Application population, twelve folds. Learned variants share training set, the native multigraph substrate (hence the \texttt{-N} infix; Section~\ref{sec:6.2}), depth, and selection rule (Section~\ref{sec:6.3}), differing in typing and edge channel; parameter budget, message-passing directionality and edge-channel width remain unmatched, and neither this table nor Table~\ref{tab:contrasts} controls for them (Section~\ref{sec:8.3}). Fold score = mean over five seeds; \textbf{Fold $\sigma$} = spread of the twelve fold means; \textbf{Seed $\sigma$} = median within-fold spread (zero by construction for deterministic baselines); CI = bootstrap over folds ($B = 2{,}000$). \textbf{$\Delta\rho$} is paired by fold against \texttt{Topo-QoS}, the registered comparator (Section~\ref{sec:6.3}), with its own bootstrap interval; an interval spanning zero means the contrast is not resolved at twelve folds, which is the case for every learned variant.}
+\caption{Inductive LOSO evaluation, Application population, twelve folds. Learned variants share training set, the native multigraph substrate (\texttt{-N}), depth and selection rule (Section~\ref{sec:6.2}). Fold score = mean over five seeds; \textbf{Fold $\sigma$} = spread of the twelve fold means; \textbf{Seed $\sigma$} = median within-fold spread (zero for deterministic baselines); CI = bootstrap over folds ($B = 2{,}000$). \textbf{$\Delta\rho$} is paired by fold against the registered comparator \texttt{Topo-QoS}, with its own bootstrap interval; for every learned variant the interval spans zero.}
 \label{tab:7}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lccccccc}
@@ -42,87 +40,59 @@ Inductive Leave-One-Scenario-Out cross-validation asks each model to predict cas
 }
 \end{table}
 
-Each of the twelve folds holds out one scenario for zero-shot testing and trains on the remaining eleven, with all variants scored on the same Application node set (26 to 300 nodes, giving $K$ between 5 and 60) and paired Wilcoxon tests over folds. For Overlap@$K$, \texttt{HGT-QoS} achieved $0.424$ compared to \texttt{Topo-QoS}'s $0.388$ ($\Delta = +0.037$, prevailing in 7 of 12 folds, $W = 29.0$, $p = 0.470$). The untyped \texttt{GAT-N-QoS} attained $0.431$ ($\Delta = -0.006$, prevailing in 5 of 12 folds, 1 tie, $W = 27.5$, $p = 0.653$), indicating that critical-set identification does not statistically distinguish the typed model from either untyped learning or the QoS-weighted baseline.
+\noindent\textbf{The QoS-aware projection is the largest single gain.} Re-weighting shortest paths by declared QoS contracts lifts closed-form ranking from $\rho = 0.349$ to $0.553$ on every held-out architecture. Learned engines without the QoS channel reach only about this level (\texttt{HGT} $0.551$; capacity-matched untyped GAT $0.563$, Section~\ref{sec:rq2}), so the representation carries much of the signal.
 
-\noindent\textbf{Label-noise ceiling.} No predictor can exceed the reproducibility of its own labels. Re-running the oracle across the five seeds gives a test--retest rank correlation of $0.811$--$1.000$ (median $0.982$), so \texttt{HGT-QoS}'s $\rho = 0.638$ recovers roughly $65\%$ of the attainable signal. Top-$K$ sets are far noisier --- cross-seed Jaccard median $0.847$, falling to $0.370$ on Logistics Fleet --- which is why the Overlap@$K$ margins are less stable than the ranking ones. The least reproducible fold (Microservices, $0.811$) is not one the typed model loses; on this corpus the low-ceiling folds and the lost folds are disjoint.
+\noindent\textbf{The learned engine leads numerically but does not significantly outperform the closed-form engine.} \texttt{HGT-QoS} wins 9 of 12 folds against \texttt{Topo-QoS} ($+0.085$, CI $[-0.029, +0.194]$), but the registered confirmatory contrast is not significant ($p = 0.151$, Holm $0.303$; \texttt{HGT}: $-0.002$, $p = 0.470$). On Overlap@$K$ the learned engines lead ($0.424$--$0.431$ against $0.388$), but the fold-level differences are not significant either ($\Delta = +0.037$, $p = 0.470$ for \texttt{HGT-QoS}). RM/$Q(v)$ is listed for reference only; its role is attribution (Section~\ref{sec:5}).
 
-\noindent\textbf{Key Insights concerning RQ1:}
-\begin{enumerate}\tightlist
-\item \textbf{SaG's QoS-aware projection is the largest single gain.} Re-weighting shortest paths by declared QoS contracts lifts closed-form ranking from $\rho = 0.349$ to $0.553$ and improves every one of the twelve held-out architectures ($+0.204$, $p = 0.0005$). Learned engines without the QoS channel reach only about this level (capacity-matched untyped GAT $0.563$, \texttt{HGT} $0.551$; Section~\ref{sec:7.2}), so the QoS-aware representation carries much of the signal.
-\item \textbf{The learned engine leads, and matches the closed-form engine.} \texttt{HGT-QoS} has the highest mean correlation in Table~\ref{tab:7} ($\rho = 0.638$) and wins 9 of 12 folds against \texttt{Topo-QoS} ($+0.085$, CI $[-0.029, +0.194]$). The registered confirmatory contrast does not reach significance ($p = 0.151$, Holm $0.303$; un-augmented \texttt{HGT}: $-0.002$, $p = 0.470$), so we treat the two engines as comparable on this corpus. Section~\ref{sec:7.6} evaluates a hybrid that combines them.
-\item \textbf{Learned engines identify critical sets best.} On Overlap@$K$, \texttt{HGT-QoS} ($0.424$), \texttt{HGT} ($0.427$) and \texttt{GAT-N-QoS} ($0.431$) all lead \texttt{Topo-QoS} ($0.388$) and Topo ($0.366$), although the fold-level differences are not significant ($\Delta = +0.037$, $p = 0.470$ for \texttt{HGT-QoS}).
-\item \textbf{Where the engines differ.} \texttt{HGT-QoS} wins most clearly where the closed-form engine is weakest (Microservices $+0.229$, ATM $+0.210$) and loses where it is strongest (Enterprise $-0.335$, Telecom RAN $-0.169$; Section~\ref{sec:7.2.1}). The two engines are therefore complementary, which motivates the hybrid of Section~\ref{sec:7.6}.
-\item \textbf{The explanation layer is an attribution instrument.} RM/$Q(v)$ is listed for reference ($\rho = 0.205$, interval above zero); its role is to explain flagged components, not to rank them (Section~\ref{sec:5}).
-\end{enumerate}
+\noindent\textbf{Label noise and inert components.} Re-running the oracle across five seeds gives a test--retest rank correlation of $0.811$--$1.000$ (median $0.982$), so \texttt{HGT-QoS} recovers roughly $65\%$ of the attainable signal. Between $21\%$ and $52\%$ of each held-out population carries zero simulated impact. Restricting the evaluation to components with positive impact halves every predictor's correlation, learned or not, and leaves the method ordering unchanged (Supplementary Section~\ref{S-supp:loso-active}).
 
-\subsubsection{The Active Stratum: Ranking Quality Separated From Inertness Detection}
-\label{sec:7.1.active}
+\noindent\textbf{The engines are complementary.} \texttt{HGT-QoS} loses substantively on only two folds, Enterprise ($0.461$ vs.\ $0.795$) and Telecom RAN ($0.407$ vs.\ $0.576$). Both are folds where \texttt{Topo-QoS} is at or above its mean. Conversely, on the two folds where \texttt{Topo-QoS} is weakest (Microservices $0.265$, ATM $0.311$), the learned engine wins by $+0.229$ and $+0.210$. Enterprise is the largest graph ($520$ nodes) and has by far the densest derived projection ($26{,}276$ edges). However, neither graph size ($\rho = -0.434$ with the margin, $p = 0.159$) nor density predicts in advance which engine wins on an unseen architecture. This complementarity motivates the hybrids.
 
-Between $21\%$ (Microservices) and $52\%$ (Healthcare) of each held-out Application population carries exactly zero simulated impact, so a predictor can score well by separating components that can propagate a failure from those that cannot, without ordering the propagating ones correctly. These are different capabilities, so we re-score all twelve folds on the \emph{active stratum} --- the $n_{>0}$ components with strictly positive impact --- using the same predictions, folds and seeds. Table~\ref{tab:7c} reports both.
+\subsubsection{Hybrid Engines: Learning a Correction to the Closed-Form Score}
+\label{sec:rq1-hybrid}
+
+Each hybrid takes a learned engine and gives it one extra input per Application and Library: the \texttt{Topo-QoS} score, rank-normalized within the graph. Its output adds a learned correction to that score on the logit scale, $\hat{I}^*(v) = \sigma\big(z(v) + \alpha\,\operatorname{logit}(p(v))\big)$, with a single learnable $\alpha$. Architecture, loss, epochs, early stopping and seeds are otherwise identical to the underlying engine. \textbf{SaG-Hybrid} is built on \texttt{HGT-QoS} (Amendment~5; $321$ extra parameters). \textbf{SaG-Hybrid-GAT} is built on \texttt{GAT-N-QoS16-C}, the capacity-matched untyped GAT with the QoS channel (Amendment~6; $1{,}441$ extra parameters). Each was registered with its contrasts and decision rule before any run, with no setting tuned. Each was evaluated in its own CPU sweep, with its comparators re-run in the same invocation. The comparator rows are bit-identical across these sweeps, and \texttt{HGT-QoS} reaches $0.622$ on CPU against $0.638$ on GPU.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{LOSO means over twelve folds on the full Application population ($\rho$) and restricted to components with strictly positive ground-truth impact ($\rho_{>0}$). Same predictions, folds, and seeds; only the evaluated subset differs. Retained is defined as the active-stratum ratio $\rho_{>0}/\rho$ (percentage of full-population correlation preserved).}
-\label{tab:7c}
-\begin{tabular}{lccc}
-\toprule
-\textbf{Predictor} & \textbf{$\rho$ (full)} & \textbf{$\rho_{>0}$ (active)} & \textbf{Retained} \\
-\midrule
-\textbf{RM / $Q(v)$} & $0.205$ & $0.102$ & $49\%$ \\
-\textbf{Topo} & $0.349$ & $0.181$ & $52\%$ \\
-\textbf{Topo-QoS} & $0.553$ & $0.280$ & $51\%$ \\
-\textbf{GAT-N} & $0.317$ & $0.159$ & $50\%$ \\
-\textbf{GAT-N-QoS} & $0.604$ & $0.328$ & $54\%$ \\
-\textbf{HGT} & $0.551$ & $0.299$ & $54\%$ \\
-\textbf{HGT-QoS} & $\mathbf{0.638}$ & $\mathbf{0.356}$ & $56\%$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Two consequences follow.
-
-\begin{enumerate}\tightlist
-\item \textbf{The restriction costs every predictor roughly half its correlation, learned or not.} Retained fractions run from $49\%$ (RM) to $56\%$ (\texttt{HGT-QoS}) with no systematic separation between the training-free and learned families (\texttt{Topo-QoS} $51\%$, \texttt{GAT-N} $50\%$, HGT $54\%$). Roughly half of every predictor’s full-population correlation reflects separating inert components from active ones, a property of the label distribution rather than a discriminator between methods.
-\item \textbf{The method ordering is unchanged.} On the active stratum \texttt{HGT-QoS} still leads numerically ($\rho_{>0} = 0.356$), ahead of \texttt{GAT-N-QoS} ($0.328$) and \texttt{Topo-QoS} ($0.280$). No significance test is reported on this stratum, so it supports the full-population ordering descriptively and adds no new verdict.
-\end{enumerate}
-
-\subsection{RQ2: What the Learned Engine Needs}
-\label{sec:7.2}
-
-\paragraph{RQ2 Summary (Typing vs. QoS):} \emph{With model capacity and edge-channel width matched, the QoS edge channel is what improves learned ranking ($+0.073$ main effect, 10 of 12 folds; $+0.072$ for untyped models, $p = 0.016$), and relation-specific weights add nothing beyond it (typing main effect $-0.014$, interaction $+0.001$). A capacity-matched untyped GAT with the QoS channel ($\rho = 0.635$) performs as well as \texttt{HGT-QoS} ($0.622$). The large typing gains of the unmatched comparison ($+0.234$) came from a $15\times$ capacity gap, not from typing.}
-
-Table~\ref{tab:contrasts} gives the $2\times2$ over relation typing (T) and the QoS edge channel (Q) for the four reported learned arms. The untyped arms there have $28{,}168$ parameters against $434{,}620$ for HGT, and read a 1-dimensional edge channel against HGT-QoS's 16 dimensions. The control arms registered in Amendment~2 remove both differences. \texttt{GAT-N-C} and \texttt{GAT-N-QoS16-C} are untyped GATs widened to HGT's parameter budget ($437{,}496$ and $429{,}992$), and the latter reads the same 16-D edge channel as \texttt{HGT-QoS}, including the relation one-hot as an edge feature. All four matched arms ran in one CPU sweep (Table~\ref{tab:contrasts_matched}), and the decision rule was fixed before any control result existed.
-
-\begin{table}[htbp]
-\centering
-\small
-\caption{\emph{Naive} $2 \times 2$ over relation typing (T) and the QoS edge channel (Q), unmatched in capacity ($15.4\times$) and edge-channel width; superseded for all typing claims by Table~\ref{tab:contrasts_matched}. Cells are the four reported learned arms: GAT-N ($\neg$T$\neg$Q), HGT (T$\neg$Q), GAT-N-QoS ($\neg$TQ), HGT-QoS (TQ). \textbf{Holm correction is applied across the three orthogonal quantities in the upper block only}; the four simple effects below are algebraically determined by those three and are reported descriptively (Section~\ref{sec:7.3.1}). Main effects average over the other factor’s levels; the typing effect reflects the joint transition to HGT and is confounded (Section~\ref{sec:8.4}). \textbf{Won} counts folds with $\Delta > 0$; the interaction is \emph{negative} on all twelve. All quantities are post-hoc, and none were registered in advance. Fold overlap makes the reported $p$-values nominal (Section~\ref{sec:8.3}).}
-\label{tab:contrasts}
+\caption{Hybrid engines under the LOSO protocol of Table~\ref{tab:7} (twelve folds, five seeds, Application population, CPU sweeps), and zero-shot on the five open-source system models under the protocol of Table~\ref{tab:9b}. $\Delta\rho$ is paired by fold against \texttt{Topo-QoS}, with a bootstrap 95\% CI and a two-sided Wilcoxon test. Holm correction is within each hybrid's registered family: vs.\ \texttt{Topo-QoS} and vs.\ its own underlying engine. Per-fold values: Supplementary Section~\ref{S-supp:hybrid-folds}.}
+\label{tab:hybrid}
 \resizebox{\linewidth}{!}{%
-\begin{tabular}{llrcccl}
+\begin{tabular}{lccccccc}
 \toprule
-\textbf{Quantity} & \textbf{Contrast} & \textbf{$\Delta\rho$} & \textbf{Won} & \textbf{$W$} & \textbf{$p$} & \textbf{$p_{\text{Holm}}$} \\
+ & \multicolumn{5}{c}{\textbf{LOSO, twelve synthetic architectures}} & \multicolumn{2}{c}{\textbf{Five system models}} \\
+\cmidrule(lr){2-6}\cmidrule(lr){7-8}
+\textbf{Predictor} & \textbf{Mean $\rho$ [95\% CI]} & \textbf{$\Delta\rho$ vs \texttt{Topo-QoS} [95\% CI]} & \textbf{Won} & \textbf{$p$ ($p_{\text{Holm}}$)} & \textbf{Overlap@$K$} & \textbf{$\rho$ [95\% CI]} & \textbf{PR-AUC} \\
 \midrule
-\multicolumn{7}{l}{\textit{The $2\times2$: three orthogonal quantities, Holm-corrected across these three}} \\
-\textbf{Typing (main effect)} & averaged over Q & $\mathbf{+0.134}$ & \textbf{12/12} & 0.0 & \textbf{0.0005} & \textbf{0.0015} \\
-\textbf{QoS channel (main effect)} & averaged over T & $\mathbf{+0.187}$ & 11/12 & 2.0 & \textbf{0.0015} & \textbf{0.0015} \\
-\textbf{Typing $\times$ QoS interaction} & difference of differences & $\mathbf{-0.199}$ & 0/12 & 0.0 & \textbf{0.0005} & \textbf{0.0015} \\
-\midrule
-\multicolumn{7}{l}{\textit{Simple effects — descriptive, not separately corrected}} \\
-\textbf{Typing, QoS absent} & HGT vs.\ GAT-N           & $+0.234$ & 12/12 & 0.0 & 0.0005 & — \\
-\textbf{Typing, QoS present} & HGT-QoS vs.\ GAT-N-QoS   & $+0.035$ & 9/12  & 19.0 & 0.1294 & — \\
-\textbf{QoS channel, typing absent} & GAT-N-QoS vs.\ GAT-N & $+0.287$ & 11/12 & 1.0 & 0.0010 & — \\
-\textbf{QoS channel, typing present} & HGT-QoS vs.\ HGT     & $+0.087$ & 10/12 & 22.0 & 0.2036 & — \\
+\textbf{Topo} & 0.349 $[0.254, 0.452]$ & $-0.204$ $[-0.286, -0.122]$ & 0/12 & 0.0005 & 0.366 & 0.511 $[0.346, 0.703]$ & 0.474 \\
+\textbf{Topo-QoS} & 0.553 $[0.443, 0.657]$ & --- & --- & --- & 0.388 & 0.526 $[0.357, 0.699]$ & 0.474 \\
+\textbf{HGT-QoS} & 0.622 $[0.547, 0.690]$ & $+0.069$ $[-0.046, +0.174]$ & 8/12 & 0.266 & 0.426 & 0.760 $[0.714, 0.819]$ & 0.713 \\
+\textbf{GAT-N-QoS16-C} & 0.635 $[0.567, 0.696]$ & $+0.082$ $[-0.046, +0.201]$ & 7/12 & 0.233 & 0.438 & \textbf{0.805} $[0.759, 0.868]$ & \textbf{0.790} \\
+\textbf{SaG-Hybrid} & 0.657 $[0.572, 0.733]$ & $+0.103$ $[+0.055, +0.152]$ & 11/12 & 0.0034 (0.0068) & 0.435 & 0.695 $[0.643, 0.730]$ & 0.602 \\
+\textbf{SaG-Hybrid-GAT} & \textbf{0.683} $[0.603, 0.753]$ & $\mathbf{+0.130}$ $[+0.075, +0.190]$ & \textbf{11/12} & \textbf{0.0015} (\textbf{0.0029}) & \textbf{0.450} & 0.662 $[0.597, 0.727]$ & 0.600 \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
+\noindent\textbf{Both hybrids significantly outperform the closed-form engine.} SaG-Hybrid reaches $\rho = 0.657$ ($+0.103$, Holm $p = 0.0068$) and SaG-Hybrid-GAT reaches $\rho = 0.683$ ($+0.130$, CI $[+0.075, +0.190]$, Holm $p = 0.0029$), each on 11 of 12 folds. Each meets the decision rule registered before its run. Both remain significant under one Holm correction pooled over all eleven registered contrasts of the study ($p_{\text{omni}} = 0.034$ and $0.016$; Section~\ref{sec:6.3}). They are the only engines in this study that significantly beat closed-form ranking. SaG-Hybrid-GAT also has the highest Overlap@$K$ ($0.450$) under LOSO.
+
+\noindent\textbf{The prior removes the learned engines' failure mode.} On Enterprise, \texttt{HGT-QoS} and \texttt{GAT-N-QoS16-C} score $0.426$ and $0.407$ against \texttt{Topo-QoS}'s $0.795$; with the prior they reach $0.735$ and $0.768$. Telecom RAN turns from a loss into a win for both.
+
+\noindent\textbf{Anchoring trades transfer for in-distribution accuracy.} On the five independently authored system models, both hybrids stay well above every training-free score ($0.695$ and $0.662$ vs.\ $0.511$--$0.526$) but below the pure learned engines ($0.760$ and $0.805$; Section~\ref{sec:rq3}). By the rule registered in Amendment~6, SaG-Hybrid-GAT therefore does not replace SaG-Hybrid as the recommended hybrid ($0.662 < 0.695$).
+
+\subsection{RQ2: What Learned Engines Need}
+\label{sec:rq2}
+
+\paragraph{Summary} \emph{With model capacity and edge-channel width matched, the QoS edge channel is what improves learned ranking ($+0.073$ main effect, 10 of 12 folds), and relation-specific weights add nothing beyond it (typing main effect $-0.014$, interaction $+0.001$). A capacity-matched untyped GAT with the QoS channel ($\rho = 0.635$) performs as well as \texttt{HGT-QoS} ($0.622$).}
+
+In Table~\ref{tab:7}, the untyped arms have $28{,}168$ parameters against $434{,}620$ for HGT, and they read a 1-dimensional edge channel against HGT-QoS's 16 dimensions. A $2\times2$ over those four arms therefore credits typing with a large gain ($+0.234$ without QoS). That gain is an effect of capacity and channel width (Supplementary Section~\ref{S-supp:naive-2x2}). The control registered in Amendment~2 removes both differences. \texttt{GAT-N-C} and \texttt{GAT-N-QoS16-C} are untyped GATs widened to HGT's parameter budget ($437{,}496$ and $429{,}992$). The latter reads the same 16-D edge channel as \texttt{HGT-QoS}, including the relation one-hot as an edge feature. All four matched arms ran in one CPU sweep, and the decision rule was fixed before any control result existed (Table~\ref{tab:contrasts_matched}).
+
 \begin{table}[htbp]
 \centering
 \small
-\caption{The $2\times2$ with capacity and edge-channel width matched (PREREGISTRATION Amendment~2): \texttt{GAT-N-C} ($\neg$T$\neg$Q, $437{,}496$ parameters), \texttt{HGT} (T$\neg$Q, $434{,}620$), \texttt{GAT-N-QoS16-C} ($\neg$TQ, $429{,}992$), \texttt{HGT-QoS} (TQ, $434{,}620$). One CPU sweep, twelve LOSO folds, five seeds, Application population. Holm correction across the three orthogonal quantities; simple effects are descriptive. Cell means: $0.563$, $0.548$, $0.635$, $0.622$.}
+\caption{The $2\times2$ with capacity and edge-channel width matched (Amendment~2): \texttt{GAT-N-C} ($\neg$T$\neg$Q, $437{,}496$ parameters), \texttt{HGT} (T$\neg$Q, $434{,}620$), \texttt{GAT-N-QoS16-C} ($\neg$TQ, $429{,}992$), \texttt{HGT-QoS} (TQ, $434{,}620$). One CPU sweep, twelve LOSO folds, five seeds, Application population. Holm correction across the three orthogonal quantities; simple effects are descriptive. Cell means: $0.563$, $0.548$, $0.635$, $0.622$.}
 \label{tab:contrasts_matched}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{llrccccl}
@@ -144,76 +114,24 @@ Table~\ref{tab:contrasts} gives the $2\times2$ over relation typing (T) and the 
 }
 \end{table}
 
-\noindent\textbf{Key insights concerning RQ2:}
-\begin{enumerate}\tightlist
-\item \textbf{The QoS edge channel is the learned engine's working ingredient.} At matched capacity, adding the 16-D QoS channel raises ranking by $+0.073$ with or without typing, on 10 of 12 folds each time, and significantly for the untyped pair ($+0.072$, CI $[+0.028, +0.109]$, $p = 0.016$). The channel also stabilizes training: the seed spread of the untyped model falls from $0.083$ to $0.010$.
-\item \textbf{Relation-specific weights add nothing once capacity is matched.} \texttt{HGT} and \texttt{HGT-QoS} are within $0.015$ of their capacity-matched untyped counterparts and win only 4--5 of 12 folds against them. Because \texttt{GAT-N-QoS16-C} receives each edge's relation type as a feature, the result is specifically that relation-typed \emph{parameters} add nothing beyond relation-typed \emph{inputs}. Message directionality (the \texttt{HGT-QoS-U} control) remains unmatched.
-\item \textbf{The unmatched comparison overstated typing.} The $28{,}168$-parameter \texttt{GAT-N} of Table~\ref{tab:contrasts} reaches $\rho = 0.317$; at HGT's capacity the same untyped design reaches $0.563$. Its $+0.234$ typing gain and $-0.199$ interaction are therefore effects of capacity and channel width. Table~\ref{tab:contrasts} is kept as the naive comparison it is, and it is not used for any claim about typing.
-\end{enumerate}
+\noindent\textbf{The QoS edge channel is the working ingredient.} At matched capacity, adding the 16-D QoS channel raises ranking by $+0.073$ with or without typing, on 10 of 12 folds each time, and significantly for the untyped pair ($+0.072$, CI $[+0.028, +0.109]$, $p = 0.016$). The channel also stabilizes training: the median within-fold seed spread falls from $0.083$ to $0.010$ for the matched untyped pair, from $0.298$ to $0.024$ for the small GAT, and from $0.114$ to $0.052$ for HGT.
 
-Neither the Fisher-$z$ transform nor robust seed aggregation (Supplementary Sections~S14 and~S21), which left the unmatched interaction intact, could detect this confound: both hold the four unmatched arms fixed.
+\noindent\textbf{Relation-specific weights add nothing once capacity is matched.} \texttt{HGT} and \texttt{HGT-QoS} are within $0.015$ of their capacity-matched untyped counterparts and win only 4--5 of 12 folds against them. Because \texttt{GAT-N-QoS16-C} receives each edge's relation type as a feature, the precise finding is that relation-typed \emph{parameters} add nothing beyond relation-typed \emph{inputs}. Message directionality (the \texttt{HGT-QoS-U} control) remains unmatched.
 
-\subsubsection{Where the Two SaG Engines Differ}
-\label{sec:7.2.1}
-\label{sec:7.2.3}
+\noindent\textbf{How much QoS the target can reward.} $I^*(v)$ is a near-topological target: a topology-only relabeling recovers its ordering at mean $\rho = 0.965$, and QoS acts mainly at its top-$K$ boundary (Section~\ref{sec:4.3}). On this target the QoS edge channel therefore acts largely as a relation-identity and coupling-strength signal. Oracles that express deadline misses, durability replay or priority inversion would let the encodings contribute contract semantics as well.
 
-\texttt{HGT-QoS} wins nine of twelve folds against \texttt{Topo-QoS}. Of its three losses, two are substantive --- Enterprise ($\rho = 0.461$ vs.\ $0.795$) and Telecom RAN ($0.407$ vs.\ $0.576$) --- and AV System is a near-tie ($-0.030$). All three losses fall where \texttt{Topo-QoS} is at its own strongest. Enterprise, AV and Telecom RAN are its 2nd, 3rd and 7th best folds of twelve ($0.795$, $0.753$, $0.576$), each at or above its mean of $0.553$. Conversely, on the two folds where \texttt{Topo-QoS} is weakest (Microservices $0.265$, ATM $0.311$) the learned engine wins by $+0.229$ and $+0.210$. The engines are thus complementary: the learned model gains most where closed-form structure is least informative, and gives up ground where it is most informative. Section~\ref{sec:7.6} exploits this directly.
+\subsection{RQ3: Zero-Shot Transfer to Models of Open-Source Systems}
+\label{sec:rq3}
 
-Two properties of Enterprise may explain its deficit: it is the largest graph ($520$ nodes), so three rounds of message passing cover less of its diameter, and its derived projection is by far the densest in the corpus ($26{,}276$ edges, Table~\ref{tab:gate_ratio}). Neither graph size ($\rho = -0.434$ with the margin, $p = 0.159$), connection density, nor prediction dispersion predicts in advance which engine will win on an unseen architecture.
+\paragraph{Summary} \emph{Learned engines trained only on synthetic scenarios transfer to independently authored system models: \texttt{HGT-QoS} reaches $\rho = 0.760$ $[0.714, 0.819]$ and the capacity-matched untyped GAT with the same QoS channel reaches $0.805$ $[0.759, 0.868]$, against $0.511$--$0.526$ for every training-free score, and both nearly double top-$K$ critical-set overlap. On components that actually propagate failures, the differences remain unresolved at five systems.}
 
-\subsection{RQ3: Ablations and Sensitivity Analysis}
-\label{sec:7.3}
-
-\paragraph{RQ3 Summary (Ablations and Sensitivity):} \emph{The reported orderings are robust. No configuration of the topic-weight or QoS sub-weight constants changes any comparison, only two of ten declared constants matter under Morris screening, and the behavioral queue-flow oracle agrees substantially with the cascade oracle ($\rho = 0.627$), which supports $I^*(v)$ as a valid ranking target.}
-
-This section presents ablations relevant to the primary claims, including the QoS edge encoding, cross-oracle agreement, and per-type stratification that informs the interpretation of the results that follow. Of the ten constants, only the AHP shrinkage $\lambda$ and the Fault-Tolerance/Availability blend $r_{\text{FT}}$ exhibit appreciable influence on $\rho$ ($\mu^* = 0.134$ and $0.132$ under Morris screening, compared to $\le 0.025$ for the remaining eight). No configuration of the topic-weight or QoS sub-weight constants alters any comparison reported above. For the explanation layer, a uniform intra-dimension prior ranks better than the elicited AHP weights ($0.319$ vs.\ $0.200$) and is recommended when $Q(v)$ is used to rank (Supplementary Section~S1).
-
-\subsubsection{QoS Feature Ablation}
-\label{sec:7.3.1}
-\label{sec:7.3.qos}
-
-To isolate the contribution of the continuous-categorical QoS edge features (Section~\ref{sec:4.1.1}) we evaluated \textbf{HGT}, an ablation whose edge features carry a constant unit weight and the relation one-hot. In the main sweep, \texttt{HGT-QoS} leads \texttt{HGT} by $+0.087$ (10/12 folds, $p = 0.204$). In the capacity-matched design the QoS channel adds $+0.073$ to typed and $+0.072$ to untyped models, each on 10 of 12 folds, with no interaction (Table~\ref{tab:contrasts_matched}). This is a consistent gain of $0.073$ regardless of architecture. The larger $+0.287$ of the unmatched untyped pair mostly reflects the small model's instability, which the channel repairs.
-
-The encodings also stabilise optimization, and there the asymmetry runs the other way: the median within-fold standard deviation over five seeds is $0.024$ for \texttt{GAT-N-QoS} against $0.298$ for \texttt{GAT-N}, and $0.052$ for \texttt{HGT-QoS} against $0.114$ for \texttt{HGT}. At matched capacity the same holds: $0.083$ for \texttt{GAT-N-C} against $0.010$ for \texttt{GAT-N-QoS16-C}. The QoS channel is the most reliable stabilizer of learned training.
-
-\paragraph{How much QoS the target expresses.} These gains are earned against $I^*(v)$, whose ordering a topology-only relabeling recovers at mean $\rho = 0.965$ across the same twelve folds with no QoS term in the labeler (Section~\ref{sec:4.3}). On this target the QoS edge channel acts mainly as a relation-identity signal; QoS changes the label chiefly at its top-$K$ boundary (Jaccard $0.678$ between labels with and without QoS). Oracles that express QoS-driven impact in their ordering --- deadline misses, durability replay, priority inversion --- would let the encodings contribute contract semantics as well.
-
-\paragraph{QoS Parameter Variance} Modal QoS shares range from 29\% to 89\% across the twelve scenarios, so every fold carries genuine variation in declared reliability, durability, and priority. As noted in Section~\ref{sec:4.1.1}, one schema dimension (\texttt{max\_blocking\_ms\_log}) remains zero throughout the corpus as a reserved extension point, while the declared deadline populates the other two (\texttt{has\_deadline}, \texttt{deadline\_ns\_log}) on $75\%$ of topics. Reported gains therefore stem from six active dimensions.
-
-\subsubsection{Convergent Validity Over Simulation Oracles}
-\label{sec:7.3.convergent}
-
-The three reliability-facing oracles measure distinct constructs, so we checked whether they agree before treating any as ground truth. Over the twelve inductive folds on the Application population, the behavioural queue-flow oracle and the topological cascade injector agree at mean Spearman $\rho = 0.627$ (top-$K$ Jaccard $0.370$ against $0.111$ expected by chance), against $I^*$'s own seed-to-seed test–retest of $0.811$–$1.000$. The agreement is therefore substantial but distinctly below label noise, which is the reading we want: an oracle reproducing another to within its own reproducibility would be re-measuring the same topology rather than corroborating it. Two boundaries qualify this — a large share of the agreement is the two oracles concurring on which components are \emph{harmless}, and $I_{\text{dyn}}$ has a measured noise floor of its own that the headline does not correct for.
-
-The Four Golden Signals captured during execution show the mechanism behind the separation: crashing a critical publisher degrades delivery to surviving consumers ($I_{\text{dyn}} > 0$) while \emph{reducing} their queue waits through contention relief ($\rho = -0.499$ against tail-latency delta). Since $I^*$ is a deterministic breadth-first reachability computation and $I_{\text{dyn}}$ a stochastic queue simulation, their moderate agreement is convergent validity between two independent formulations rather than re-measurement, and it places the learned predictors as surrogates for topological cascade reach, not detectors of queue dynamics (Section~\ref{sec:8.3}).
-
-\subsubsection{Node-Type Stratification and Attention}
-\label{sec:7.3.6}
-\label{sec:7.3.4}
-
-One result governs how every other number in this paper is read. Measured against $I_{\text{comp}}(v)$ over the twelve scenarios of the corpus, stratified RM rank correlations are $\rho = 0.597$ (Application), $0.317$ (Broker), and $0.138$ (Execution Host), while pooling all types gives $\rho = 0.217$ — less than two fifths of the Application figure it is supposed to summarise. This is why every evaluation is reported on a single stratum, and why pooled figures should not be read as summaries of any one entity type. Pooled correlation sits above the Execution Host stratum ($0.138$), so this is aggregation bias rather than a strict Simpson reversal. A global sensitivity sweep of $I_{\text{comp}}$'s four severity weights ($N = 1{,}000$ Dirichlet draws; Supplementary Section~S1.2) shows Application correlation exceeding pooled on \emph{all} draws ($\rho \in [0.441, 0.599]$ vs.\ $[0.096, 0.351]$), while the strict condition holds on only $13.9\%$ of the simplex. The stratification argument rests on the former, which is weight-invariant. A rule-based anti-pattern catalog on the same benchmark flags $93.4\%$ of scored components and so does not discriminate; critical-set identification is delegated to the continuous rankers of Sections~\ref{sec:7.1}--\ref{sec:7.2}.
-
-Aggregated by relation type over the ATM case study, first-layer mean HGT attention orders \texttt{USES} into libraries ($0.227$) above publish–subscribe channels ($0.163$–$0.176$). However, the spread across all seven relation types is narrow ($0.15$–$0.23$) and driven substantially by destination in-degree artifacts. Typed attention remains active across relation types without establishing a statistically distinct ordering.
-
-\subsection{RQ4: Zero-Shot Transfer to Models of Open-Source Systems}
-\label{sec:7.4}
-
-\paragraph{RQ4 Summary (Out-of-Generator Transfer):} \emph{Learned engines trained only on synthetic scenarios transfer to systems they have never seen. On five independently authored models of open-source systems, \texttt{HGT-QoS} reaches $\rho = 0.760$ $[0.714, 0.819]$ and the capacity-matched untyped GAT with the same QoS channel reaches $0.805$ $[0.759, 0.868]$, against $0.511$--$0.526$ for every training-free score. Both nearly double top-$K$ critical-set overlap. On components that actually propagate failures, both learned engines keep positive correlation where every training-free score turns negative; with five systems these active-stratum differences remain unresolved.}
-
-We evaluated the framework on hand-authored architecture models of five open-source systems: Autoware.universe (ROS~2), EdgeX Foundry, Home Assistant, and meshes modelled after Online Boutique and Train-Ticket (Section~\ref{sec:6.1}). They were written independently of the scenario generator, which is what makes them a transfer test, but they are models rather than extractions, and all carry labels from the same simulation oracles used throughout. The test is therefore transfer to independently authored topologies under simulated reachability, not agreement with field incident telemetry.
-
-Two evaluations are conducted. The first is an exploratory evaluation of the closed-form explanation layer $Q(v)$ against the composite oracle $I_{\text{comp}}(v)$ ($\rho = 0.514$–$0.800$); as noted in Section~\ref{sec:4.3}, $I_{\text{comp}}$'s four severity weights are unswept heuristics. The second, Section~\ref{sec:7.4.learned}, evaluates learned predictors zero-shot against $I^*(v)$ (where RM achieves a lower mean $\rho = 0.516$). \texttt{Topo-QoS} is scored here on the flow projection, as everywhere else, because on the raw multigraph Application betweenness vanishes (Section~\ref{sec:6.2.substrate}). Standard middleware default contract profiles (e.g., ROS~2 Best-Effort/Reliable, MQTT QoS 0/1) were applied uniformly across edges lacking explicit manifests to ensure identical graph representations across baselines.
-
-\subsubsection{Zero-Shot Transfer of the Learned Model}
-\label{sec:7.4.learned}
-
-To assess generalization outside the generator, \texttt{HGT-QoS} was trained on all twelve synthetic scenarios and evaluated zero-shot across five open-source systems versus $I^*(v)$ (five seeds; no open-source graph contributed training gradients or checkpoint selection). Tables~\ref{tab:9b}--\ref{tab:9c} report this arm at the 3-layer, 300-epoch budget used for every other learned result in this paper. An earlier configuration used 2 layers and 150 epochs, chosen to limit over-smoothing across the smaller diameters of these meshes ($|V_{\text{app}}| \le 41$); that reasoning appeals to a property of the evaluation targets, so although no target label or gradient reached the model, the configuration was not blind to the test systems and we do not report it as the primary result. It is uniformly slightly stronger ($\rho = 0.792$ against $0.760$; $\rho_{>0} = +0.281$ against $+0.236$; Overlap@$K = 0.533$ against $0.470$) and leaves every qualitative conclusion unchanged, which is the sensitivity we draw from it.
+The five systems are hand-authored models of Autoware.universe (ROS~2), EdgeX Foundry and Home Assistant, plus meshes modelled after Online Boutique and Train-Ticket (Section~\ref{sec:6.1}). They were written independently of the scenario generator but are models rather than extractions, and they carry labels from the same oracles. The test is therefore transfer to independently authored topologies under simulated reachability. \texttt{HGT-QoS} was trained on all twelve synthetic scenarios and evaluated zero-shot at the same 3-layer, 300-epoch budget as every other learned result. No system model contributed gradients or checkpoint selection. Where a system declares no QoS manifest, standard middleware defaults (ROS~2 Best-Effort/Reliable, MQTT QoS 0/1) are applied uniformly across all predictors.
 
 \begin{table}[htbp]
 \centering
 \footnotesize
 \setlength{\tabcolsep}{4.5pt}
-\caption{Zero-shot transfer to hand-authored models of five open-source systems, scored against $I^*(v)$ on the Application population under the protocol used throughout this paper (3 layers, 300 epochs; five seeds, $\pm$ = spread over seeds). No open-source graph contributed gradients or checkpoint selection. Training-free references are deterministic and are scored on identical labels, populations and node sets. Systems are grouped by the communication paradigm of the \emph{original} system. All five models, including the two in the second group, are encoded as publish--subscribe graphs (Section~\ref{sec:6.1}). Where a system declares no explicit QoS manifest, default middleware contract profiles (ROS~2 Best-Effort/Reliable, MQTT QoS 0/1) are applied uniformly across baselines. Identification metrics for the same runs are in Supplementary Table~S13.}
+\caption{Zero-shot transfer to hand-authored models of five open-source systems, scored against $I^*(v)$ on the Application population (3 layers, 300 epochs; five seeds, $\pm$ = spread over seeds). Training-free references are deterministic and scored on identical labels and node sets. All five models are encoded as publish--subscribe graphs; the grouping follows the paradigm of the \emph{original} system. Identification metrics: Supplementary Table~\ref{S-tab:identification}; bootstrap intervals and the active stratum for every predictor: Supplementary Section~\ref{S-supp:transfer-active}.}
 \label{tab:9b}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lrrrrrcr}
@@ -235,90 +153,20 @@ To assess generalization outside the generator, \texttt{HGT-QoS} was trained on 
 }
 \end{table}
 
-\begin{table}[htbp]
-\centering
-\small
-\caption{Means over the five system models on the full Application population ($\rho$) and restricted to components with strictly positive ground-truth impact ($\rho_{>0}$), with percentile bootstrap intervals over the five systems ($B = 2{,}000$). All four predictors are scored on identical labels, populations and node sets from one run, so the columns are commensurable. At $n = 5$ the intervals are descriptive and carry no significance claim. \textbf{The full-population intervals separate the learned model from all three baselines; every active-stratum interval spans zero}, which is why RQ4 is reported as established on the full population and unresolved on the active one.}
-\label{tab:9c}
-\begin{tabular}{lcc}
-\toprule
-\textbf{Predictor} & \textbf{$\rho$ (full), 95\% CI} & \textbf{$\rho_{>0}$ (active), 95\% CI} \\
-\midrule
-\textbf{RM / $Q(v)$} & $0.516$ $[0.343, 0.680]$ & $-0.055$ $[-0.292, +0.213]$ \\
-\textbf{Topo} & $0.511$ $[0.346, 0.703]$ & $-0.083$ $[-0.269, +0.108]$ \\
-\textbf{Topo-QoS} & $0.526$ $[0.357, 0.699]$ & $-0.092$ $[-0.268, +0.094]$ \\
-\textbf{HGT-QoS} & $\mathbf{0.760}$ $[0.714, 0.819]$ & $\mathbf{+0.236}$ $[-0.053, +0.525]$ \\
-\bottomrule
-\end{tabular}
-\end{table}
+\noindent\textbf{Strong full-population transfer that does not depend on typing.} \texttt{HGT-QoS} leads on 4 of 5 systems, and its interval does not overlap those of the training-free scores. The capacity-matched untyped \texttt{GAT-N-QoS16-C} does better still on all five systems ($\rho = 0.805$). It also scores higher on Overlap@$K$ ($0.519$ vs.\ $0.470$) and PR-AUC ($0.790$ vs.\ $0.713$). Consistent with RQ2, what transfers is learning over SaG's QoS-annotated graph, not relation-specific parameters. Identification separates the engines most clearly: top-$K$ overlap averages $0.470$ against $0.248$ for the closed-form scores, and PR-AUC $0.713$ against $0.474$--$0.521$. On EdgeX, symmetric adapter-to-broker stars create betweenness ties that collapse closed-form triage entirely (Overlap@$K = 0.000$).
 
-\noindent\textbf{Key insights for out-of-generator transfer:}
-\begin{enumerate}\tightlist
-\item \textbf{Strong full-population transfer.} On all Applications, \texttt{HGT-QoS} reaches $\rho = 0.760$ $[0.714, 0.819]$ against $0.511$ (Topo), $0.526$ (\texttt{Topo-QoS}) and $0.516$ (RM), leading on 4 of 5 systems with a non-overlapping interval. Between $29\%$ and $66\%$ of Applications carry zero simulated impact, so part of this reflects correctly separating inert from active components --- itself a useful triage property.
+\noindent\textbf{Active components.} Restricted to components that propagate failures, the learned engine keeps a positive mean correlation ($\rho_{>0} = +0.236$) where every training-free score turns negative. Every interval spans zero at five systems, so this comparison is unresolved. $\rho_{>0}$ is positive on the three models of publish--subscribe systems and non-positive on the two modelled after RPC systems. Because both RPC-derived models are encoded as publish--subscribe graphs, this split cannot be attributed to call-tree semantics (Section~\ref{sec:limitations}). An earlier, non-blind 2-layer configuration leaves every conclusion unchanged (Supplementary Section~\ref{S-supp:taxonomy}).
 
-\item \textbf{Transfer does not depend on relation typing.} Trained and scored under the same zero-shot protocol, the capacity-matched untyped GAT with the 16-D QoS channel (\texttt{GAT-N-QoS16-C}) outperforms \texttt{HGT-QoS} on all five systems ($\rho = 0.805$ $[0.759, 0.868]$ vs.\ $0.760$; mean paired difference $-0.045$ for \texttt{HGT-QoS}). It also scores higher on Overlap@$K$ ($0.519$ vs.\ $0.470$), PR-AUC ($0.790$ vs.\ $0.713$) and active-stratum correlation ($+0.319$ $[0.001, 0.638]$ vs.\ $+0.236$). Consistent with Section~\ref{sec:7.2}, what transfers is learning over SaG's QoS-annotated graph, not relation-specific parameters.
-\item \textbf{Active components.} Restricted to components that propagate failures, the learned model keeps a positive mean correlation ($\rho_{>0} = +0.236$) where every training-free score turns negative ($-0.055$ to $-0.092$). Its interval $[-0.053, +0.525]$ spans zero, as do the baselines', so this comparison is unresolved at five systems. $\rho_{>0}$ is positive on the three models of publish--subscribe systems (Home Assistant $+0.702$, Autoware $+0.517$, EdgeX $+0.183$) and non-positive on the two modelled after RPC systems (Online Boutique $-0.031$, Train-Ticket $-0.192$).
+\subsection{RQ4: Analysis Cost}
+\label{sec:rq4}
 
-\item \textbf{Identification is where the learned engine separates most clearly.} On top-$K$ overlap it averages $0.470$ $[0.410, 0.540]$ against $0.248$ $[0.09, 0.46]$ for the closed-form scores; on threshold-free measures the gap is wider ($F_1@\tau$ $0.473$ vs.\ $0.287$--$0.329$; PR-AUC $0.713$ vs.\ $0.474$--$0.521$; Supplementary Table~S13). On EdgeX, symmetric adapter-to-broker star connections create betweenness ties that collapse closed-form triage entirely (Overlap@$K = 0.000$), while the learned engine still separates components.
-
-\item \textbf{Scope of the 3--2 split.} Both RPC-derived models are encoded with topics and brokers and labelled by the same forward-reachability oracle, so the split cannot be attributed to call-tree semantics; testing that hypothesis requires synchronous edges in the schema and a backward-propagating oracle (Section~\ref{sec:8.4}). On the Online Boutique model the closed-form scores lead only on the full population (\texttt{Topo-QoS} $0.888$) and are negative on its active components ($-0.072$).
-
-\end{enumerate}
-
-\subsection{SaG-Hybrid: Learning a Correction to the Closed-Form Engine}
-\label{sec:7.6}
-
-Section~\ref{sec:7.2.1} showed that the learned and closed-form engines are complementary: the learned engine gains most where closed-form structure is least informative, and gives up ground where it is most informative. The hybrid engines combine them directly. Each takes a learned engine and gives it one extra input per Application and Library --- the closed-form \texttt{Topo-QoS} score, rank-normalized within the graph --- together with an output that adds a learned correction to that score on the logit scale, $\hat{I}^*(v) = \sigma\big(z(v) + \alpha\,\operatorname{logit}(p(v))\big)$, with a single learnable $\alpha$. Everything else (architecture, loss, epochs, early stopping, seeds) is identical to the underlying engine. Two hybrids were evaluated, each registered with its contrasts and decision rule before any run, with no setting tuned:
-\begin{itemize}\tightlist
-\item \textbf{SaG-Hybrid} is built on \texttt{HGT-QoS} (Amendment~5; $434{,}941$ parameters, $321$ more than \texttt{HGT-QoS}).
-\item \textbf{SaG-Hybrid-GAT} is built on \texttt{GAT-N-QoS16-C}, the capacity-matched untyped GAT with the QoS channel (Amendment~6; $431{,}433$ parameters, $1{,}441$ more). It was added after the matched control of Section~\ref{sec:7.2} showed that relation-typed weights add nothing at matched capacity.
-\end{itemize}
-
-Each hybrid was evaluated in its own CPU sweep, with its comparators re-run in the same invocation and never mixed with the GPU rows of Table~\ref{tab:7}. The \texttt{Topo-QoS}, \texttt{HGT-QoS} and \texttt{GAT-N-QoS16-C} rows are bit-identical across the CPU sweeps that contain them, so the rows of Table~\ref{tab:hybrid} are directly comparable. \texttt{HGT-QoS} reaches $\rho = 0.622$ on CPU against $0.638$ on GPU, within the run-to-run displacement of Section~\ref{sec:8.3}.
-
-\begin{table}[htbp]
-\centering
-\small
-\caption{Hybrid engines under the LOSO protocol of Table~\ref{tab:7} (twelve folds, five seeds, Application population, CPU sweeps), and zero-shot on the five open-source system models under the protocol of Table~\ref{tab:9b}. $\Delta\rho$ is paired by fold against \texttt{Topo-QoS}, with a bootstrap 95\% CI and a two-sided Wilcoxon test. Holm correction is within each hybrid's registered family: vs.\ \texttt{Topo-QoS} and vs.\ its own underlying engine.}
-\label{tab:hybrid}
-\resizebox{\linewidth}{!}{%
-\begin{tabular}{lccccccc}
-\toprule
- & \multicolumn{5}{c}{\textbf{LOSO, twelve synthetic architectures}} & \multicolumn{2}{c}{\textbf{Five system models}} \\
-\cmidrule(lr){2-6}\cmidrule(lr){7-8}
-\textbf{Predictor} & \textbf{Mean $\rho$ [95\% CI]} & \textbf{$\Delta\rho$ vs \texttt{Topo-QoS} [95\% CI]} & \textbf{Won} & \textbf{$p$ ($p_{\text{Holm}}$)} & \textbf{Overlap@$K$} & \textbf{$\rho$ [95\% CI]} & \textbf{PR-AUC} \\
-\midrule
-\textbf{Topo} & 0.349 $[0.254, 0.452]$ & $-0.204$ $[-0.286, -0.122]$ & 0/12 & 0.0005 & 0.366 & 0.511 $[0.346, 0.703]$ & 0.474 \\
-\textbf{Topo-QoS} & 0.553 $[0.443, 0.657]$ & --- & --- & --- & 0.388 & 0.526 $[0.357, 0.699]$ & 0.474 \\
-\textbf{HGT-QoS} & 0.622 $[0.547, 0.690]$ & $+0.069$ $[-0.046, +0.174]$ & 8/12 & 0.266 & 0.426 & 0.760 $[0.714, 0.819]$ & 0.713 \\
-\textbf{GAT-N-QoS16-C} & 0.635 $[0.567, 0.696]$ & $+0.082$ $[-0.046, +0.201]$ & 7/12 & 0.233 & 0.438 & \textbf{0.805} $[0.759, 0.868]$ & \textbf{0.790} \\
-\textbf{SaG-Hybrid} & 0.657 $[0.572, 0.733]$ & $+0.103$ $[+0.055, +0.152]$ & 11/12 & 0.0034 (0.0068) & 0.435 & 0.695 $[0.643, 0.730]$ & 0.602 \\
-\textbf{SaG-Hybrid-GAT} & \textbf{0.683} $[0.603, 0.753]$ & $\mathbf{+0.130}$ $[+0.075, +0.190]$ & \textbf{11/12} & \textbf{0.0015} (\textbf{0.0029}) & \textbf{0.450} & 0.662 $[0.597, 0.727]$ & 0.600 \\
-\bottomrule
-\end{tabular}%
-}
-\end{table}
-
-\noindent\textbf{Key insights for the hybrid engines:}
-\begin{enumerate}\tightlist
-\item \textbf{Both hybrids significantly outperform the closed-form engine out of distribution.} SaG-Hybrid reaches $\rho = 0.657$ ($+0.103$, 11/12 folds, Holm $p = 0.0068$) and SaG-Hybrid-GAT $\rho = 0.683$ ($+0.130$, CI $[+0.075, +0.190]$, 11/12 folds, Holm $p = 0.0029$), against $0.553$ for \texttt{Topo-QoS}. Each meets the decision rule registered before its run, and both remain significant under one Holm correction pooled over all eleven registered contrasts of the study ($p_{\text{omni}} = 0.034$ and $0.016$; Section~\ref{sec:6.3}). All of these $p$-values are nominal, because the folds share training scenarios. The hybrids are the only engines in this study that significantly beat closed-form ranking, and they do so on architectures from the training generator (see the fourth insight for transfer).
-\item \textbf{SaG-Hybrid-GAT is the most accurate engine on unseen synthetic architectures.} It has the highest mean correlation, Overlap@$K$ ($0.450$), active-stratum correlation ($\rho_{>0} = 0.398$) and PR-AUC ($0.525$) of any engine under LOSO. It leads SaG-Hybrid on 11 of 12 folds ($+0.027$, CI $[+0.013, +0.041]$; a descriptive comparison, not a registered test), and it leads its own untyped engine by $+0.048$ (7/12, Holm $p = 0.30$).
-\item \textbf{The prior removes the learned engines' failure mode.} The folds that held the pure learned engines back were those where closed-form structure is most informative. On Enterprise, \texttt{HGT-QoS} scores $0.426$ and \texttt{GAT-N-QoS16-C} $0.407$ against \texttt{Topo-QoS}'s $0.795$; with the prior they reach $0.735$ and $0.768$. Enterprise is each hybrid's only loss to the closed-form engine ($-0.061$ and $-0.027$). Telecom RAN turns from a loss into a win for both.
-\item \textbf{Anchoring trades transfer for in-distribution accuracy.} On the folds where the closed-form engine is weakest (Healthcare, IoT Smart City, ATM, Microservices), both hybrids give up some of the learned engines' gains. On the five independently authored system models, both stay well above every training-free score ($0.695$ and $0.662$ vs.\ $0.511$--$0.526$) but below the pure learned engines ($0.760$ and $0.805$). By the rule registered in Amendment~6, SaG-Hybrid-GAT therefore does not replace SaG-Hybrid as the recommended hybrid, since it transfers less well ($0.662 < 0.695$). For systems unlike the training corpus, the pure untyped engine with the QoS channel remains the best choice.
-\end{enumerate}
-
-\subsection{RQ5: Analysis Cost and Its Comparison Against Simulation}
-\label{sec:7.5}
-
-\paragraph{RQ5 Summary (Analysis Cost):} \emph{Neural inference is effectively free ($56\,\text{ms}$ for a 2{,}000-node architecture, $0.02\%$ of pipeline time). Cost is dominated by deterministic feature extraction, specifically the $O(|V|^2 + |V||E|)$ Connectivity Degradation Index, and tracks the density of the derived dependency projection rather than component count. Cold extraction takes $0.16$--$79.3\,\text{s}$ per scenario, $2$--$18\times$ (median $5.6\times$) the in-process cascade simulation, so SaG's advantage is avoiding staging infrastructure rather than CPU time.}
-
-RQ5 quantifies computing overhead and sustainability during CI/CD evaluation, with per-stage latencies reported in Table~\ref{tab:scale}:
+\paragraph{Summary} \emph{Neural inference is effectively free ($56\,\text{ms}$ for a 2{,}000-node architecture, $0.02\%$ of pipeline time). Cost is dominated by deterministic feature extraction, specifically the $O(|V|^2 + |V||E|)$ Connectivity Degradation Index, and it tracks the density of the derived dependency projection. Cold extraction takes $2$--$18\times$ (median $5.6\times$) as long as the in-process cascade simulation, so SaG's advantage is avoiding staging infrastructure rather than saving CPU time.}
 
 \begin{table}[htbp]
 \centering
 \footnotesize
 \setlength{\tabcolsep}{3pt}
-\caption{Per-stage latency of the inference pipeline across scaling graph sizes (CPU, median of 3 runs; 5 for the forward pass). The analysis stage is stable across repeats (p10--p90 within $1\%$ of the median everywhere) while the forward pass is not, which is why its column carries a spread: at $56\,\text{ms}$ the measurement is dominated by interpreter and dispatch overhead rather than by the graph. The 249-node row is slower than the 499-node row for the same reason: it is measured first, and its median still carries first-call allocation and dispatch warm-up.}
+\caption{Per-stage latency of the inference pipeline across graph sizes (CPU, median of 3 runs; 5 for the forward pass). The analysis stage is stable across repeats (p10--p90 within $1\%$ of the median), while the forward pass is dominated by interpreter and dispatch overhead; the 249-node row still carries first-call warm-up.}
 \label{tab:scale}
 \begin{tabular}{ccccccc}
 \toprule
@@ -332,42 +180,6 @@ RQ5 quantifies computing overhead and sustainability during CI/CD evaluation, wi
 \end{tabular}
 \end{table}
 
-The neural stage is the cheapest by a wide margin and the deterministic one is not. At 2,000 components the HGT forward pass takes $56\,\text{ms}$ against $239\,\text{s}$ for structural analysis, a ratio of $4{,}259\times$ --- but that is a ratio between pipeline stages, not a cost of evaluation, because indices 0--17 of every node feature vector are produced by the analysis stage the forward pass depends on. End-to-end evaluation of an unseen 2,000-component architecture takes about four minutes, of which the learned model is $0.02\%$; the $56\,\text{ms}$ is the marginal cost of re-scoring an already-analysed graph. Across the corpus the complete gate (structural analysis plus 18 anti-pattern detectors, whose share is $\le 0.19\,\text{s}$) executes in $0.16$--$79.3\,\text{s}$ (Table~\ref{tab:gate_ratio}).
+At 2,000 components the HGT forward pass takes $56\,\text{ms}$ against $239\,\text{s}$ for structural analysis (Table~\ref{tab:scale}). Because the analysis stage produces the node features the forward pass consumes, end-to-end evaluation of an unseen 2,000-component architecture takes about four minutes, of which the learned model is $0.02\%$. The $56\,\text{ms}$ is the marginal cost of re-scoring an already-analysed graph. The dominant term is the Connectivity Degradation Index, computed for every node in the main connected component. That is a correctness requirement: restricting CDI to articulation points leaves it identically zero in redundant multi-publisher topologies and makes $A(v)$ near-constant.
 
-\noindent\textbf{One metric dominates cost.} Across the endpoints of Table~\ref{tab:scale} the measured cost is consistent with the stage's $O(|V|^2 + |V||E|)$ bound: from 249 to 1{,}998 components wall-clock rises $138\times$ against a $137\times$ growth in $|V||E|$. That is an endpoint coincidence rather than a tracked curve: between the middle rows the component count doubles ($499 \to 999$) while wall-clock rises $5.4\times$, faster than the bound requires, and the series varies $|V|$ and $|E|$ together so it cannot separate them --- Table~\ref{tab:gate_ratio} does that on the corpus. The dominant term is the Connectivity Degradation Index, computed for every node in the main connected component rather than for articulation points alone. That is a correctness requirement, not an oversight: gating CDI to articulation points leaves it identically zero wherever removal does not literally disconnect the graph, driving $A(v)$ to a near-constant in exactly the redundant multi-publisher topologies this system targets. The cost is the price of a non-degenerate Availability score.
-
-\begin{table}[htbp]
-\centering
-\small
-\caption{Static analysis gate against the cascade-reachability oracle, per scenario, from one paired measurement session. \textbf{Gate} is structural analysis plus the 18 anti-pattern detectors, whose own share is negligible ($\le 0.19\,\text{s}$ everywhere). \textbf{Oracle} is the full five-seed ground-truth labelling sweep over Application, Broker and Library nodes. $|E_{\text{proj}}|$ is the number of derived \texttt{DEPENDS\_ON} edges in the Application--Library projection the analysis stage traverses, read from the committed cache. The ratio is $2.0$--$17.7\times$ with a median of $5.6\times$: the eighteen-fold figure quoted elsewhere in this section is the maximum, not the typical case. Ordering by $|E_{\text{proj}}|$ rather than by $|V|$ is what makes the column monotone --- Enterprise carries 300 applications over only 120 topics, so its Rule-1 projection is near-complete, while IoT Smart City has more components and a sixth of the edges at a third of the cost.}
-\label{tab:gate_ratio}
-\begin{tabular}{lrrrr}
-\toprule
-\textbf{Scenario} & \textbf{$|E_{\text{proj}}|$} & \textbf{Gate (s)} & \textbf{Oracle (s)} & \textbf{Ratio} \\
-\midrule
-\textbf{Enterprise} & 26{,}276 & 79.27 & 4.487 & 17.7$\times$ \\
-\textbf{Enterprise Integration (ESB)} & 4{,}641 & 3.17 & 0.245 & 12.9$\times$ \\
-\textbf{AV System} & 3{,}073 & 2.61 & 0.355 & 7.4$\times$ \\
-\textbf{Financial Trading} & 2{,}657 & 1.71 & 0.239 & 7.1$\times$ \\
-\textbf{Real-Time Gaming} & 2{,}318 & 2.43 & 0.379 & 6.4$\times$ \\
-\textbf{Healthcare} & 1{,}590 & 0.92 & 0.149 & 6.2$\times$ \\
-\textbf{IoT Smart City} & 1{,}835 & 5.48 & 1.104 & 5.0$\times$ \\
-\textbf{Telecom RAN} & 2{,}116 & 3.70 & 1.065 & 3.5$\times$ \\
-\textbf{Logistics Fleet} & 1{,}660 & 2.74 & 0.939 & 2.9$\times$ \\
-\textbf{Microservices (synthetic)} & 1{,}524 & 2.29 & 0.828 & 2.8$\times$ \\
-\textbf{Industrial SCADA} & 897 & 2.43 & 1.191 & 2.0$\times$ \\
-\textbf{ATM System} & 155 & 0.16 & 0.080 & 2.0$\times$ \\
-\midrule
-\textbf{Median} & — & — & — & \textbf{5.6$\times$} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsubsection{Comparison With Direct Simulation}
-\label{sec:7.5.oracle}
-
-Timing the cascade reachability labeling sweep (five seeds, node types Application/Broker/Library, the full ground-truth run) over all twelve scenarios, on the same machine, at the same commit and in the same measurement session as the gate, gives $0.08$--$4.49\,\text{s}$ per scenario against $0.16$--$79.3\,\text{s}$ for the analysis gate. Both maxima occur in the 520-component Enterprise mesh, so the largest scenario compares $4.5\,\text{s}$ of simulation against $79.3\,\text{s}$ of static analysis: there the gate costs roughly eighteen times as much as the simulation. Pairing the sweeps scenario by scenario (Table~\ref{tab:gate_ratio}) gives $2.0$--$17.7\times$, median $5.6\times$. The typical premium is therefore far below the maximum, but the gate is more expensive on \emph{all twelve} scenarios. What predicts the premium is the derived projection's size, not the component count --- the ratio correlates with $|E_{\text{proj}}|$ at $\rho = 0.951$ against $0.792$ for cost against $|V|$. Enterprise is the outlier because its 300 applications share only 120 topics, so Rule~1 derives a near-complete graph of $26{,}276$ edges, while IoT Smart City has more components, an eighth of the edges and a third of the cost. These are wall-clock figures on one commodity CPU, read to one significant figure: across sessions the gate maximum ranges over $77$--$83\,\text{s}$ and the oracle maximum over $4.5$--$4.8\,\text{s}$, giving $16.7\times$ and $17.7\times$ on two independently paired sessions. Both halves of Table~\ref{tab:gate_ratio} share a commit and corpus digest.
-
-Breadth-first cascade traversal is cheaper than all-pairs connectivity degradation ($O(|V|^2 + |V||E|)$), so on raw CPU time direct simulation is faster wherever its parameters are available. SaG's analysis additionally scores infrastructure components and dependency edges that node-level message-flow simulation leaves unscored, and its metrics are amenable to caching across commits so that only the $k$-hop neighbourhood of a change is recomputed (not implemented here; Table~\ref{tab:scale} times full recomputation).
-
-\noindent\textbf{Training cost.} The figures above are inference costs. Training is a separate, one-off cost per model version: the last sweep with recorded per-arm wall-clock (CPU, sequential, 12 folds $\times$ 5 seeds $= 60$ fits per arm) took $0.6\,\text{h}$ for \texttt{GAT-N}, $0.9\,\text{h}$ for \texttt{GAT-N-QoS}, $1.4\,\text{h}$ for \texttt{HGT} and $4.9\,\text{h}$ for \texttt{HGT-QoS}, $7.7$ CPU-hours in all. The GPU sweep behind Table~\ref{tab:7} did not record per-fit durations.
+Across the corpus, the complete analysis gate (structural analysis plus 18 anti-pattern detectors) runs in $0.16$--$79.3\,\text{s}$ per scenario. That is $2.0$--$17.7\times$ (median $5.6\times$) the five-seed cascade labeling sweep measured in the same session, and the gate is more expensive on all twelve scenarios. The premium tracks the size of the derived projection rather than component count; Enterprise, with 300 applications on 120 topics, is the maximum (Supplementary Section~\ref{S-supp:gate-ratio}). On raw CPU time, direct simulation is therefore faster wherever its parameters are available. SaG additionally scores infrastructure components and dependency edges and avoids staging infrastructure. Training the four learned arms once took $7.7$ CPU-hours, amortized over every later evaluation.

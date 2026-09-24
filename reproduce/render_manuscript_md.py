@@ -49,12 +49,27 @@ def load_numbering() -> tuple[dict, dict]:
     labels: dict[str, str] = {}
     for m in re.finditer(r"\\newlabel\{([^}]+)\}\{\{([^}]*)\}", aux):
         labels.setdefault(m.group(1), re.sub(r"\\[a-zA-Z]+\s*", "", m.group(2)).strip())
+    # The manuscript cites supplement labels through xr-hyper as S-<label>.
+    supp = LATEX / "supplementary.aux"
+    if supp.exists():
+        for m in re.finditer(r"\\newlabel\{([^}]+)\}\{\{([^}]*)\}", supp.read_text(encoding="utf8")):
+            labels.setdefault("S-" + m.group(1), m.group(2).strip())
     bbl = (LATEX / "manuscript.bbl").read_text(encoding="utf8")
     cites = {k: i + 1 for i, k in enumerate(re.findall(r"\\bibitem\{([^}]+)\}", bbl))}
     return labels, cites
 
 
+def expand_macros(tex: str) -> str:
+    """Expand the experiment-pages URL macro defined in the manuscript preamble."""
+    url = re.search(r"\\newcommand\{\\sagexperimentsurl\}\{([^}]+)\}",
+                    (LATEX / "manuscript.tex").read_text(encoding="utf8"))
+    if url:
+        tex = tex.replace(r"\sagexperiments", r"\url{" + url.group(1) + "}")
+    return tex
+
+
 def preprocess(tex: str, labels: dict, cites: dict) -> str:
+    tex = expand_macros(tex)
     # resizebox wrappers hide whole tables from pandoc; unwrap them.
     tex = re.sub(r"\\resizebox\{[^}]*\}\{[^}]*\}\{%?\n", "", tex)
     tex = re.sub(r"\n\}%?\n(\\end\{table\})", r"\n\1", tex)
@@ -99,7 +114,7 @@ def to_markdown(tex: str, name: str = "") -> str:
 
 
 def render_declarations(cites: dict) -> str:
-    tex = (SEC / "declarations.tex").read_text(encoding="utf8")
+    tex = expand_macros((SEC / "declarations.tex").read_text(encoding="utf8"))
     tex = re.sub(r"\\section\*\{([^}]+)\}", r"\\section{\1}", tex)
     tex = re.sub(r"\\(?:smallskip|noindent)\s*", "", tex)
     tex = re.sub(r"\\cite\{([^}]+)\}",

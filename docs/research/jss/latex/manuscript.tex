@@ -16,7 +16,11 @@
 \usepackage{lineno}
 \usepackage{xcolor}
 \usepackage{textcomp}
+\usepackage{xr-hyper}
 \usepackage{hyperref}
+% Supplement labels are referenced as S-<label>; this reads supplementary.aux,
+% so build the supplement before the final pass (see Makefile).
+\externaldocument[S-]{supplementary}
 \usepackage{microtype}
 
 % Float packing: the default Elsevier preprint parameters strand large tables and
@@ -34,6 +38,10 @@
 \setlength{\floatsep}{6pt plus 2pt minus 2pt}
 \setlength{\abovecaptionskip}{3pt}
 \setlength{\belowcaptionskip}{1pt}
+
+% Experiment pages in the public replication repository, pinned to the submission tag.
+\newcommand{\sagexperimentsurl}{https://github.com/onuralpyigit/software-as-a-graph/tree/jss-submission-v4/docs/research/jss/experiments}
+\newcommand{\sagexperiments}{\url{\sagexperimentsurl}}
 
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}

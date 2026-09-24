@@ -1,5 +1,8 @@
 # Experimental Harness & Evaluation Suite
 
+> **Per-experiment protocols, commands and artifacts for the JSS paper** are in
+> [`docs/research/jss/experiments/`](../docs/research/jss/experiments/README.md). This page covers harness internals.
+
 This document provides a technical deep-dive into the reproducibility infrastructure for the paper
 **"Software-as-a-Graph: Pre-Deployment Dependability Analysis of Publish–Subscribe Systems with QoS-Aware Architecture Graphs and Hybrid Learning"** (JSS special issue VSI:AI4MSS — see
 `docs/research/jss/manuscript.md`).

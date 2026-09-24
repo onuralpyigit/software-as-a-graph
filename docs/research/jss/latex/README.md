@@ -76,13 +76,13 @@ the layout JSS's "<36 pages single-column" guidance reads naturally against.
 
 | Class options | Pages | Note |
 |---|---:|---|
-| **`[preprint,3p]`** | **34** | **current setting** |
+| **`[preprint,3p]`** | **20** | **current setting** |
 | `[preprint,review,3p]` | — | 1.5-spaced reviewing copy; add `review` back if the editor asks for one |
 | `[preprint]` | — | Elsevier's generic preprint layout (larger type/margins) |
 
-Of the 35 pages, the reference list is the last 3. The manuscript is inside the "less than 36 pages
-single-column" the Guide encourages; `LENGTH_JUSTIFICATION.md` records what was moved to the
-supplement to keep it there.
+Of the 20 pages, the reference list is the last 3. `LENGTH_JUSTIFICATION.md` records what was moved
+to the supplement and to the public experiment pages ([`../experiments/`](../experiments/README.md))
+when the body was condensed from 35 pages.
 
 **Re-measure, do not restate.** This file previously carried three different page counts at once (43,
 43 and 36) against an actual 39. Take every count here from the build: `pdfinfo manuscript.pdf`,
@@ -90,7 +90,7 @@ supplement to keep it there.
 
 ## Supplementary material
 
-`supplementary.tex` (16 pages, Sections S1--S19) carries the material moved out of the body during condensation:
+`supplementary.tex` (25 pages, Sections S1--S29) carries the material moved out of the body during condensation. S1--S8 are:
 
 | § | Content |
 |---|---|
@@ -103,9 +103,11 @@ supplement to keep it there.
 | S7 | Real-world evaluation of the explanation layer (RM / Q(v) against I_comp) |
 | S8 | HGT relational attention-weight analysis, Figure S2 |
 
-The two documents do not share an `.aux`, so cross-references from the supplement into the body are
-written as literal text ("Section 7.1 of the main manuscript"), never as `\ref`. Keep it that way —
-`\ref` into the other document renders as `??`.
+The two documents cross-reference each other through `xr-hyper`: the manuscript cites supplement
+labels as `\ref{S-<label>}` and the supplement cites body labels as `\ref{M-<label>}`, each reading
+the other's `.aux`. Never write a literal "Section 7.1" or "Table S12" across documents — literal
+numbers went stale repeatedly when sections moved. `make` builds in the order that resolves both
+directions, and `make zip` ships both `.aux` files so the portal build resolves them too.
 
 ## Figures
 
@@ -137,7 +139,7 @@ judging by eye.
 python ../../../../reproduce/reconcile_manuscript.py --verbose
 ```
 
-Reconciles every reported table figure — currently **430** — against the artifact that produced it,
+Reconciles every reported table figure — currently **511** — against the artifact that produced it,
 and flags any that is missing, stale against the corpus, or was produced from a dirty working tree.
 It covers `supplementary.tex` as well as the body: the supplement restates body figures as literal
 text (it cannot `\ref` across documents), and that is how S6/S7 once kept a superseded pooled ρ after
@@ -150,9 +152,10 @@ revision:
 grep -rnE '0\.680|0\.160|0\.695|0\.581|0\.568|0\.114|0\.054|0\.127|2,461|2,812' sections/ ../manuscript.md
 ```
 
-Current state of the build: **35 pages**, 9 sections, 18 tables, 1 figure, 96 references,
+Current state of the build: **20 pages**, 9 sections, 12 tables, 1 figure, 90 references,
 **zero LaTeX errors, zero undefined references, zero undefined citations, zero overfull boxes**. The
-supplement builds to 21 pages (S1--S24, 22 tables, 4 figures), also with zero undefined references.
+supplement builds to 25 pages (S1--S29, 27 tables, 4 figures), also with zero undefined references
+(its four overfull boxes predate the condensation).
 
 ## What's still a placeholder
 
@@ -174,6 +177,8 @@ supplement builds to 21 pages (S1--S24, 22 tables, 4 figures), also with zero un
   own section directly before the reference list (and before the generative-AI declaration).
 - **Graphical abstract** — encouraged by the Guide, not required; not produced here. If added:
   531 × 1328 px (h × w) or proportionally more, TIFF/EPS/PDF/MS Office, separate file.
-- **Length** — 35 pages, inside the "less than 36 pages single-column" the Guide encourages. No
+- **Length** — 20 pages, inside the "less than 36 pages single-column" the Guide encourages. No
   explanation is required in "Comments to the Editor"; `LENGTH_JUSTIFICATION.md` is kept as a record
-  of what was moved to the supplement.
+  of what was moved to the supplement and the experiment pages.
+- **Experiment-pages tag** — `\sagexperimentsurl` in `manuscript.tex` points at the tag
+  `jss-submission-v4`, which does not exist yet. Create and push it at submission, or change the URL.

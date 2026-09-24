@@ -66,9 +66,10 @@ def test_table7_delta_is_checked_against_the_significance_artifact():
 
 def test_table9c_skips_loudly_when_the_table_is_absent(monkeypatch):
     """A table the manuscript does not carry is a skip, not a silent success."""
-    original = R._tex
+    # Table 9c lives in the supplement (S27) since the body was condensed.
+    original = R._supp
     monkeypatch.setattr(
-        R, "_tex", lambda name: original(name).replace(r"\label{tab:9c}", r"\label{tab:9c-absent}")
+        R, "_supp", lambda: original().replace(r"\label{tab:9c}", r"\label{tab:9c-absent}")
     )
     rep = R.Report()
     R.check_table9c_active(rep)
