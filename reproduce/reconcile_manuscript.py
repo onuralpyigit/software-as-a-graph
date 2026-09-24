@@ -44,6 +44,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from reproduce._provenance import corpus_digest  # noqa: E402
+from reproduce.omnibus_holm import collect, omnibus  # noqa: E402
 from saag.evaluation import variant_registry as _registry  # noqa: E402
 
 SECTIONS = ROOT / "docs/research/jss/latex/sections"
@@ -874,6 +875,8 @@ FRESHNESS_TARGETS = {
     "loso_hybrid_gat_cpu.json": "Table 14 SaG-Hybrid-GAT LOSO (CPU sweep)",
     "loso_significance_hybrid_gat_cpu.json": "Table 14 SaG-Hybrid-GAT contrasts",
     "realworld_zeroshot_gl_qos16_prior_cpu.json": "Table 14 SaG-Hybrid-GAT system models",
+    # Holm over every registered contrast of the plan and its amendments.
+    "omnibus_registered_holm.json": "Section 6.3 / Supplementary S24 omnibus correction",
 }
 
 #: Artifacts that never read the corpus, so the corpus-freshness rule cannot
@@ -1220,6 +1223,93 @@ def check_contrasts_matched(rep: Report) -> None:
                                             round(truth[key], 4)))
 
 
+#: Prose sites quoting the omnibus-adjusted p of the two hybrid primaries, as
+#: (file, pattern). Each pattern captures (SaG-Hybrid, SaG-Hybrid-GAT) in that
+#: order; the sites that name one engine first say so in the pattern.
+OMNIBUS_PROSE = [
+    ("sec1_introduction.tex", r"eleven registered contrasts of the study \(adjusted \$p = ([\d.]+)\$ and \$([\d.]+)\$"),
+    ("sec7_results.tex", r"eleven registered contrasts of the study \(\$p_\{\\text\{omni\}\} = ([\d.]+)\$ and \$([\d.]+)\$"),
+    ("sec9_conclusion.tex", r"all eleven registered contrasts \(\$p = ([\d.]+)\$ and \$([\d.]+)\$"),
+]
+
+
+def check_omnibus_holm(rep: Report) -> None:
+    """Omnibus Holm over every registered contrast (Section 6.3, Supplementary S24).
+
+    Three things are checked. The artifact must still equal a fresh pooling of
+    the significance artifacts it reads, so a re-run hybrid sweep cannot leave
+    the omnibus figures behind. The supplement's table must match it row by row.
+    The prose quotes in Sections 1, 6.3, 7.5 and 9 must match it at their
+    printed precision.
+    """
+    art = _load("omnibus_registered_holm.json")
+    if art is None:
+        rep.skipped.append("omnibus_registered_holm.json absent; omnibus figures unchecked")
+        return
+    try:
+        fresh = {r["contrast"]: r for r in omnibus(collect(RESULTS))}
+    except (FileNotFoundError, KeyError) as exc:
+        rep.skipped.append(f"omnibus: source significance artifact unreadable ({exc})")
+        fresh = {}
+    by_contrast = {r["contrast"]: r for r in art["contrasts"]}
+    for name, r in fresh.items():
+        rep.checked += 1
+        old = by_contrast.get(name)
+        if old is None or abs(old["p_holm_omnibus"] - r["p_holm_omnibus"]) > 1e-9:
+            rep.findings.append(Finding("omnibus", name, "p_holm_omnibus",
+                                        None if old is None else old["p_holm_omnibus"],
+                                        r["p_holm_omnibus"], "artifact stale"))
+
+    def plain(tex: str) -> str:
+        tex = re.sub(r"\\texttt\{([^}]*)\}", r"\1", tex)
+        return tex.replace(r" $\times$ ", " x ").strip()
+
+    supp = _supp()
+    if r"\label{tab:supp-omnibus}" not in supp:
+        rep.skipped.append("tab:supp-omnibus: table absent from supplementary.tex")
+    else:
+        i = supp.index(r"\midrule", supp.index(r"\label{tab:supp-omnibus}"))
+        body = supp[i:supp.index(r"\bottomrule", i)]
+        for line in body.split("\n")[1:]:
+            cells = _cells(line.strip())
+            if len(cells) < 6:
+                continue
+            truth = by_contrast.get(plain(cells[1]))
+            if truth is None:
+                rep.findings.append(Finding("tab:supp-omnibus", cells[1], "contrast",
+                                            cells[1], None, "no such registered contrast"))
+                continue
+            for idx, key, tol in ((2, "mean_delta", 0.0006), (3, "p", 0.00006),
+                                  (4, "p_holm_family", 0.00006), (5, "p_holm_omnibus", 0.00006)):
+                got, want = _num(cells[idx]), truth[key]
+                rep.checked += 1
+                if got is None or abs(got - want) > tol:
+                    rep.findings.append(Finding("tab:supp-omnibus", cells[1], key, got, round(want, 4)))
+
+    want = {v: next(r["p_holm_omnibus"] for r in art["contrasts"]
+                    if r["contrast"] == f"{v} vs Topo-QoS")
+            for v in ("SaG-Hybrid", "SaG-Hybrid-GAT")}
+    sec6 = _tex("sec6_experimental_setup.tex")
+    m6 = re.search(r"SaG-Hybrid-GAT \$p_\{\\text\{omni\}\} = ([\d.]+)\$, SaG-Hybrid \$p_\{\\text\{omni\}\} = ([\d.]+)\$", sec6)
+    found = [("sec6_experimental_setup.tex", m6.group(2), m6.group(1))] if m6 else []
+    if not m6:
+        rep.findings.append(Finding("omnibus prose", "sec6_experimental_setup.tex", "p_omni",
+                                    "not found", None, "quote moved or reworded"))
+    for f, pat in OMNIBUS_PROSE:
+        m = re.search(pat, _tex(f))
+        if m is None:
+            rep.findings.append(Finding("omnibus prose", f, "p_omni", "not found", None,
+                                        "quote moved or reworded"))
+            continue
+        found.append((f, m.group(1), m.group(2)))
+    for f, hyb, gat in found:
+        for got, v in ((hyb, "SaG-Hybrid"), (gat, "SaG-Hybrid-GAT")):
+            rep.checked += 1
+            decimals = len(got.split(".")[1])
+            if round(want[v], decimals) != float(got):
+                rep.findings.append(Finding("omnibus prose", f, v, float(got), round(want[v], 4)))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1254,6 +1344,7 @@ def main() -> int:
     check_qos_label_ablation(rep)
     check_hybrid_table(rep)
     check_contrasts_matched(rep)
+    check_omnibus_holm(rep)
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts "
           f"({len(rep.skipped)} check(s) skipped).\n")

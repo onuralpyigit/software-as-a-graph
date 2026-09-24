@@ -16,6 +16,7 @@
 #   make seed-robustness — 2x2 under median / trimmed seed aggregation (no training)
 #   make rq-hybrid       — SaG-Hybrid vs Topo-QoS vs HGT-QoS, one CPU sweep (Amendment 5)
 #   make rq-hybrid-gat   — SaG-Hybrid-GAT vs Topo-QoS vs GAT-N-QoS16-C, one CPU sweep (Amendment 6)
+#   make omnibus         — one Holm correction over every registered contrast (no training)
 #   make nested-search   — nested-CV config search (opt-in, expensive; GRID=stage1|stage2|full)
 #   make convergent-validity — JSS Table 13: Three-oracle rank agreement (opt-in; expensive)
 #   make passive-strata  — Topic / host-Node ground truth + trivial-baseline controls
@@ -47,7 +48,7 @@ SCENARIOS_DIR ?= data/scenarios
 RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
-.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness rq-hybrid rq-hybrid-gat nested-search kfold convergent-validity \
+.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat nested-search kfold convergent-validity \
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 \
@@ -197,6 +198,13 @@ seed-robustness:
 	$(PYTHON) reproduce/factorial_seed_robustness.py \
 	    --input $(RESULTS_DIR)/loso_all_variants_v5.json \
 	    --output $(RESULTS_DIR)/factorial_seed_robustness_v5.json
+
+# Each registration Holm-corrects only its own contrasts; this pools all of them
+# (plan + Amendments 2, 5, 6). Reads the four significance artifacts above.
+omnibus:
+	$(PYTHON) reproduce/omnibus_holm.py \
+	    --results-dir $(RESULTS_DIR) \
+	    --output $(RESULTS_DIR)/omnibus_registered_holm.json
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Nested-CV configuration search. Selection happens inside each outer fold's

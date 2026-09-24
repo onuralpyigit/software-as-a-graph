@@ -7,11 +7,11 @@ justified."*
 
 ---
 
-The manuscript runs to **34 single-column pages** in the `elsarticle` preprint class, including all
+The manuscript runs to **35 single-column pages** in the `elsarticle` preprint class, including all
 declarations and the reference list (96 entries). It is within the journal's recommended limit of
 fewer than 36 single-column pages.
 
-Twenty-three supplementary sections carry the material a referee may want but a reader does not need
+Twenty-four supplementary sections carry the material a referee may want but a reader does not need
 in the body:
 - the parameter-sensitivity sweeps (OFAT and Morris screening);
 - the AHP matrices and their consistency diagnostics;
@@ -25,7 +25,8 @@ in the body:
 - the variance-stabilized and seed-robust versions of the 2×2 factorial;
 - the general multi-task objective;
 - the closed-form scores with the articulation term restored;
-- the per-fold results of the hybrid engines.
+- the per-fold results of the hybrid engines;
+- the dated log of every amendment to the registered analysis plan, with one Holm correction over all registered contrasts.
 
 The body keeps what a referee needs to check each claim without leaving the page:
 - the QoS-aware projection's gain over unweighted centrality on all twelve held-out architectures;

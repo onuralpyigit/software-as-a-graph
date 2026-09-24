@@ -150,9 +150,9 @@ revision:
 grep -rnE '0\.680|0\.160|0\.695|0\.581|0\.568|0\.114|0\.054|0\.127|2,461|2,812' sections/ ../manuscript.md
 ```
 
-Current state of the build: **34 pages**, 9 sections, 18 tables, 1 figure, 96 references,
+Current state of the build: **35 pages**, 9 sections, 18 tables, 1 figure, 96 references,
 **zero LaTeX errors, zero undefined references, zero undefined citations, zero overfull boxes**. The
-supplement builds to 19 pages (S1--S23, 20 tables, 4 figures), also with zero undefined references.
+supplement builds to 21 pages (S1--S24, 22 tables, 4 figures), also with zero undefined references.
 
 ## What's still a placeholder
 

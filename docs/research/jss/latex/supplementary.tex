@@ -13,6 +13,7 @@
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{multirow}
+\usepackage{array}
 \usepackage{hyperref}
 \usepackage{microtype}
 
@@ -821,6 +822,61 @@ Microservices & 0.265 & 0.475 & 0.366 & \textbf{0.479} & 0.429 \\
 \bottomrule
 \end{tabular}%
 }
+\end{table}
+
+\section{Analysis-Plan Amendment Log}
+\label{supp:amendments}
+
+The registered analysis plan (Section~6.3 of the main manuscript) was amended six times. Table~\ref{tab:supp-amendments} lists the plan and every amendment, with its date, whether it was written before or after the results it governs, what it changed, the contrasts it registered, and its outcome. The full text, with each design and decision rule as committed, is \path{docs/research/jss/PREREGISTRATION.md} in the replication package.
+
+\noindent\textbf{Completeness.} No amendment was issued and left out of this table. The log is under version control, and its history shows the plan and Amendments~1--6 added in order, one commit each. No amendment was removed, and no registered design or decision rule was edited after its commit. Only two passages were edited later: the plan's motivation paragraph, rewritten once the pre-revision artifact it cited was withdrawn, and the plan's outcome note, which is marked as recorded after the fact.
+
+\noindent\textbf{Registered arms not run.} Two of the four model arms that Amendment~2 registered were not run. These are \texttt{GAT-N-QoS-C} (a capacity-only control) and \texttt{HGT-QoS-U} (a directionality control). The matched $2\times2$ reported in the main manuscript uses the two arms that were run, \texttt{GAT-N-C} and \texttt{GAT-N-QoS16-C}. Amendment~2's label-side arm, a LOSO sweep against a label cache with the oracle's QoS ladder disabled, was also not run as a sweep. Section~4.3 of the main manuscript bounds the label's QoS content instead, using the rank agreement between labels computed with and without the ladder. Amendment~2's reporting commitment covers every arm that is run. The directionality control is listed as open work in Sections~8.3--8.4 of the main manuscript.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{The registered plan and its six amendments. ``Before'' means no outcome of the analysis the entry governs existed when it was committed. Contrast counts are the decision-bearing contrasts the entry registered; the exploratory analyses it added are not counted.}
+\label{tab:supp-amendments}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.9cm}>{\raggedright\arraybackslash}p{1.35cm}>{\raggedright\arraybackslash}p{1.6cm}>{\raggedright\arraybackslash}p{4.3cm}>{\raggedright\arraybackslash}p{1.9cm}>{\raggedright\arraybackslash}p{3.4cm}}
+\toprule
+\textbf{Entry} & \textbf{Date} & \textbf{Written} & \textbf{What it fixed or changed} & \textbf{Registered contrasts} & \textbf{Outcome (where reported)} \\
+\midrule
+Plan & 2026-09-06 & Before any twelve-fold result & Primary \texttt{HGT-QoS} vs \texttt{Topo-QoS}; secondary \texttt{HGT} vs \texttt{Topo-QoS}; LOSO, five seeds, fold as unit; nested selection rule & 2, Holm within & Neither significant ($+0.085$, Holm $p = 0.303$) (main \S7.1) \\
+A1 & 2026-09-06 & Before any outer result & Inner selection on a two-fold inner holdout instead of full inner LOSO (compute budget) & None & Selection rule of every learned result (replication package) \\
+A2 & 2026-09-12 & Before any control result & Capacity-, edge-channel- and directionality-matched control arms, a label-side arm, and a four-row decision rule for the typing claim & 5 (matched $2\times2$ and two controls), Holm within & ``Margin does not survive'': typing claims withdrawn; QoS channel $+0.073$ (main \S7.2) \\
+A3 & 2026-09-13 & Before any v5 result & Re-baseline as the v5 sweep after artifact drift; withdrawal of an unbacked control-arm paragraph; exploratory GBM baseline, architecture contrasts, contrast CIs, extra populations & None & v5 is the reported sweep; the withdrawn paragraph is not reported (main \S7.1--7.2) \\
+A4 & 2026-09-20 & \emph{After} the v5 results & Peer-review revision: ``registered'' replaces ``pre-registered''; RQ4 re-run at the common 3-layer, 300-epoch protocol; Fisher-$z$ $2\times2$, real-system CIs, cost-ratio table, drift ledger, energy bound, all exploratory & None & Reported as exploratory (main \S6.3, \S7.4, \S7.6, \S8.2--8.3) \\
+A5 & 2026-09-23 & Before any hybrid result & SaG-Hybrid (Topo-QoS prior on \texttt{HGT-QoS}); CPU sweep; decision rule & 2, Holm within & Primary significant ($+0.103$, Holm $p = 0.0068$): headline hybrid (main \S7.5, Section~\ref{supp:hybrid-folds}) \\
+A6 & 2026-09-24 & Before any result, but after A2's result & SaG-Hybrid-GAT (same prior on \texttt{GAT-N-QoS16-C}); decision rule including a transfer criterion & 2, Holm within & Primary significant ($+0.130$, Holm $p = 0.0029$); transfers less well ($0.662 < 0.695$), so it does not replace SaG-Hybrid (main \S7.5) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Omnibus correction.} Each registration Holm-corrects only its own contrasts. The sequence is adaptive: Amendment~6 was proposed because of Amendment~2's result. Table~\ref{tab:supp-omnibus} therefore pools all eleven registered contrasts under one Holm correction (\path{reproduce/omnibus_holm.py}, \path{results/omnibus_registered_holm.json}). Both hybrid primaries stay below $\alpha = 0.05$, and no other registered contrast is close. As everywhere in this study, the $p$-values are nominal, because LOSO folds share training scenarios.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Every registered contrast under its own family's Holm correction and under one Holm correction over all eleven. Two-sided Wilcoxon signed-rank over twelve LOSO folds. The plan's contrasts come from the v5 sweep (main Table~8), and the amendments' contrasts from the CPU sweeps that registered them. Bold marks omnibus-adjusted $p < 0.05$.}
+\label{tab:supp-omnibus}
+\begin{tabular}{llcccc}
+\toprule
+\textbf{Entry} & \textbf{Contrast} & \textbf{$\Delta\rho$} & \textbf{$p$} & \textbf{$p_{\text{Holm}}$ (family)} & \textbf{$p_{\text{Holm}}$ (omnibus)} \\
+\midrule
+A6 & SaG-Hybrid-GAT vs \texttt{Topo-QoS} & $+0.130$ & 0.0015 & 0.0029 & \textbf{0.0161} \\
+A5 & SaG-Hybrid vs \texttt{Topo-QoS} & $+0.103$ & 0.0034 & 0.0068 & \textbf{0.0342} \\
+A2 & QoS edge channel (main effect) & $+0.073$ & 0.0425 & 0.1274 & 0.3823 \\
+Plan & \texttt{HGT-QoS} vs \texttt{Topo-QoS} & $+0.085$ & 0.1514 & 0.3027 & 1.000 \\
+A6 & SaG-Hybrid-GAT vs \texttt{GAT-N-QoS16-C} & $+0.048$ & 0.3013 & 0.3013 & 1.000 \\
+A2 & \texttt{HGT-QoS} vs \texttt{GAT-N-QoS16-C} & $-0.013$ & 0.3804 & 0.7607 & 1.000 \\
+Plan & \texttt{HGT} vs \texttt{Topo-QoS} & $-0.002$ & 0.4697 & 0.4697 & 1.000 \\
+A2 & Typing (main effect) & $-0.014$ & 0.4697 & 0.9395 & 1.000 \\
+A2 & \texttt{HGT} vs \texttt{GAT-N-C} & $-0.015$ & 0.5693 & 0.7607 & 1.000 \\
+A2 & Typing $\times$ QoS interaction & $+0.001$ & 0.7334 & 0.9395 & 1.000 \\
+A5 & SaG-Hybrid vs \texttt{HGT-QoS} & $+0.035$ & 0.7334 & 0.7334 & 1.000 \\
+\bottomrule
+\end{tabular}
 \end{table}
 
 \end{document}
