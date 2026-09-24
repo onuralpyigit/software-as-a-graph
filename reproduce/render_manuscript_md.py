@@ -192,7 +192,8 @@ def postprocess_markdown(body: str, labels: dict) -> str:
         cap = re.search(r"<figcaption[^>]*>(.*?)</figcaption>", block, re.S)
         cap = re.sub(r"<[^>]+>", "", cap.group(1)) if cap else ""
         cap = re.sub(r"\s+", " ", cap).strip()
-        return f"![Figure {num}](latex/{src}.png)\n\n*Figure {num}. {cap}*"
+        # Relative to sections/; build_manuscript rebases it for manuscript.md.
+        return f"![Figure {num}](../latex/{src}.png)\n\n*Figure {num}. {cap}*"
 
     body = re.sub(r"<figure>.*?</figure>", fig, body, flags=re.S)
     body = body.replace("<!-- -->", "").replace("$-$", "-")
@@ -260,6 +261,8 @@ def build_manuscript(sections: dict[str, str] | None = None) -> tuple[str, dict[
         f"---\n\n"
         f"{ref}\n"
     )
+    # Section files sit in sections/, one level below manuscript.md.
+    rendered = rendered.replace("](../latex/", "](latex/")
     return rendered, sections
 
 
