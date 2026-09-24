@@ -407,13 +407,12 @@ def main() -> int:
 
     family = [compare(table, *PRIMARY), compare(table, *SECONDARY)]
     family = [r for r in family if r]
-    if not family:
-        print("Error: neither pre-registered comparison is present in the artifact.",
-              file=sys.stderr)
-        return 2
-    holm(family)
-    for r, role in zip(family, ("primary", "secondary")):
-        r["role"] = role
+    # An amendment's sweep (e.g. Amendment 6) may omit the HGT arms of the
+    # original pair; it is still analysable through its own registered family.
+    if family:
+        holm(family)
+        for r, role in zip(family, ("primary", "secondary")):
+            r["role"] = role
 
     exploratory = [
         r for v in table
@@ -455,9 +454,14 @@ def main() -> int:
     hybrid = _family(HYBRID_CONTRASTS, "hybrid")
     hybrid_gat = _family(HYBRID_GAT_CONTRASTS, "hybrid_gat")
 
-    n = family[0]["n_folds"]
+    anchor = family or hybrid or hybrid_gat or controls or architecture or exploratory
+    if not anchor:
+        print("Error: no registered comparison is present in the artifact.",
+              file=sys.stderr)
+        return 2
+    n = anchor[0]["n_folds"]
     print(f"\n  Pre-registered LOSO comparisons vs "
-          f"{family[0]['baseline_label']}   (n = {n} folds)")
+          f"{_registry.label(BASELINE, harness='loso')}   (n = {n} folds)")
     print(f"  Attainable two-sided p floor at n={n}: {attainable_floor(n):.4f}")
     print(f"  Folds that may be lost and still reach a={args.alpha} "
           f"(best case, smallest |d|): {loss_budget(n, args.alpha)}")
@@ -494,10 +498,11 @@ def main() -> int:
                    if r["quantity"] == "interaction_z")["delta_ci95"]
         print(f"  interaction bootstrap 95% CI (z): [{ciz[0]:+.4f}, {ciz[1]:+.4f}]")
 
-    print("\n  Per-fold deltas (primary):")
-    for fold, d in sorted(family[0]["per_fold_delta"].items(),
-                          key=lambda kv: kv[1]):
-        print(f"    {fold:<32}{d:>+8.4f}")
+    if family:
+        print("\n  Per-fold deltas (primary):")
+        for fold, d in sorted(family[0]["per_fold_delta"].items(),
+                              key=lambda kv: kv[1]):
+            print(f"    {fold:<32}{d:>+8.4f}")
 
     stratified = stratified_qos_ablation(table, args.stratify)
     if stratified:
