@@ -393,13 +393,13 @@ Paired tests over the twelve in-distribution scenarios of Table~\ref{tab:supp-in
 \midrule
 \textbf{HGT-QoS vs. Topo} & \textbf{+0.291} & 11/12 & 2.0 & \textbf{0.0015} & \textbf{Significant} ($p < 0.01$) \\
 \textbf{Topo-QoS vs. Topo} & \textbf{+0.198} & 12/12 & 0.0 & \textbf{0.0005} & \textbf{Significant} ($p < 0.001$) \\
-\textbf{HGT-QoS vs. GAT-QoS} & \textbf{+0.222} & 11/12 & 3.0 & \textbf{0.0024} & \textbf{Significant} ($p < 0.01$) \\
+\textbf{HGT-QoS vs. GAT-S-P-w} & \textbf{+0.222} & 11/12 & 3.0 & \textbf{0.0024} & \textbf{Significant} ($p < 0.01$) \\
 \midrule
-\textbf{HGT-QoS vs. GAT} & $+0.118$ & 9/12 & 21.0 & 0.1763 & Not significant \\
+\textbf{HGT-QoS vs. GAT-S-P} & $+0.118$ & 9/12 & 21.0 & 0.1763 & Not significant \\
 \textbf{HGT-QoS vs. Topo-QoS} & $+0.093$ & 9/12 & 23.0 & 0.2334 & Not significant \\
-\textbf{HGT vs. GAT} & $+0.082$ & 8/12 & 29.0 & 0.4697 & Not significant \\
+\textbf{HGT vs. GAT-S-P} & $+0.082$ & 8/12 & 29.0 & 0.4697 & Not significant \\
 \textbf{HGT-QoS vs. HGT} & $+0.037$ & 8/12 & 32.0 & 0.6221 & Not significant \\
-\textbf{GAT-QoS vs. Topo-QoS} & $-0.129$ & 4/12 & 21.0 & 0.1763 & Not significant \\
+\textbf{GAT-S-P-w vs. Topo-QoS} & $-0.129$ & 4/12 & 21.0 & 0.1763 & Not significant \\
 \bottomrule
 \end{tabular}%
 }
@@ -545,7 +545,7 @@ recall are free to differ.
 
 The LOSO block reproduces the paper's central negative finding on a different
 family of metrics: \texttt{HGT-QoS} ($F_1@\tau = 0.383$, PR-AUC $0.471$),
-\texttt{GAT-N-QoS} ($0.384$, $0.460$) and \texttt{Topo-QoS} ($0.358$, $0.469$)
+\texttt{GAT-S-w} ($0.384$, $0.460$) and \texttt{Topo-QoS} ($0.358$, $0.469$)
 are indistinguishable, and \texttt{HGT} attains the best PR-AUC of the seven
 ($0.477$). Identification therefore separates the predictors no better than
 ranking does. The real-world block is where the two harnesses disagree: there
@@ -568,8 +568,8 @@ Predictor & $F_1@\tau$ & PR-AUC & nDCG@10 \\
 \textsc{Topo} & 0.336 & 0.442 & 0.522 \\
 \textsc{Topo-QoS} & 0.358 & 0.469 & 0.524 \\
 \textsc{RM} & 0.302 & 0.403 & 0.469 \\
-\textsc{GAT-N} & 0.294 & 0.388 & 0.409 \\
-\textsc{GAT-N-QoS} & 0.384 & 0.460 & 0.498 \\
+\textsc{GAT-S} & 0.294 & 0.388 & 0.409 \\
+\textsc{GAT-S-w} & 0.384 & 0.460 & 0.498 \\
 \textsc{HGT} & 0.372 & 0.477 & 0.553 \\
 \textbf{HGT-QoS} & 0.383 & 0.471 & 0.501 \\
 \midrule
@@ -644,7 +644,7 @@ This table was moved out of the body because no comparison can be drawn down its
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lrcccccccccccc}
 \toprule
-\textbf{Scenario} & \textbf{$n$} & \multicolumn{2}{c}{\textbf{Topo}} & \multicolumn{2}{c}{\textbf{Topo-QoS}} & \multicolumn{2}{c}{\textbf{GAT}} & \multicolumn{2}{c}{\textbf{GAT-QoS}} & \multicolumn{2}{c}{\textbf{HGT}} & \multicolumn{2}{c}{\textbf{HGT-QoS}} \\
+\textbf{Scenario} & \textbf{$n$} & \multicolumn{2}{c}{\textbf{Topo}} & \multicolumn{2}{c}{\textbf{Topo-QoS}} & \multicolumn{2}{c}{\textbf{GAT-S-P}} & \multicolumn{2}{c}{\textbf{GAT-S-P-w}} & \multicolumn{2}{c}{\textbf{HGT}} & \multicolumn{2}{c}{\textbf{HGT-QoS}} \\
 \cmidrule(lr){3-4} \cmidrule(lr){5-6} \cmidrule(lr){7-8} \cmidrule(lr){9-10} \cmidrule(lr){11-12} \cmidrule(lr){13-14}
 & & $\rho$ & $F_1$ & $\rho$ & $F_1$ & $\rho$ & $F_1$ & $\rho$ & $F_1$ & $\rho$ & $F_1$ & $\rho$ & $F_1$ \\
 \midrule
@@ -717,7 +717,7 @@ where $\mathcal{L}_{\text{dimension}} = \frac{1}{\sum_{d} m_d} \sum_{d \in \{R, 
 
 \noindent\textbf{Scope note.} This section analyses the \emph{unmatched} $2\times2$ of Table~\ref{tab:contrasts} (Section~\ref{supp:naive-2x2}). The capacity- and channel-matched control (Table~\ref{M-tab:contrasts_matched} of the main manuscript) removes the interaction and the typing effect entirely, so these robustness checks establish only that the unmatched interaction is not a metric or seed artefact, not that it reflects typing.
 
-\texttt{GAT-N}, the floor cell of the reported $2\times2$, has a median within-fold seed standard deviation of $0.298$, against $0.114$ (\texttt{HGT}), $0.024$ (\texttt{GAT-N-QoS}) and $0.052$ (\texttt{HGT-QoS}). If a few collapsed seeds pull its fold means down, both main effects and the interaction inherit that optimization failure. Table~\ref{tab:supp-seed-robust} re-forms each fold score from the per-seed results of the same twelve-fold artifact under three aggregations and recomputes the three orthogonal quantities, Holm-corrected across the three within each aggregation. No model is retrained (\path{reproduce/factorial_seed_robustness.py}; \path{results/factorial_seed_robustness_v5.json}).
+\texttt{GAT-S}, the floor cell of the reported $2\times2$, has a median within-fold seed standard deviation of $0.298$, against $0.114$ (\texttt{HGT}), $0.024$ (\texttt{GAT-S-w}) and $0.052$ (\texttt{HGT-QoS}). If a few collapsed seeds pull its fold means down, both main effects and the interaction inherit that optimization failure. Table~\ref{tab:supp-seed-robust} re-forms each fold score from the per-seed results of the same twelve-fold artifact under three aggregations and recomputes the three orthogonal quantities, Holm-corrected across the three within each aggregation. No model is retrained (\path{reproduce/factorial_seed_robustness.py}; \path{results/factorial_seed_robustness_v5.json}).
 
 \begin{table}[htbp]
 \centering
@@ -743,7 +743,7 @@ Trimmed & Typing (main) & $+0.118$ & 11/12 & 0.0010 & 0.0020 & $[+0.077, +0.160]
 \end{tabular}
 \end{table}
 
-\noindent The interaction shrinks by a sixth (median) to a quarter (trimmed) and stays negative on every fold, and the QoS-channel main effect shrinks most. Collapsed \texttt{GAT-N} seeds therefore inflate the reported effects but do not produce them. The check cannot address under-training that affects every seed alike, which requires per-arm tuning under an equal budget.
+\noindent The interaction shrinks by a sixth (median) to a quarter (trimmed) and stays negative on every fold, and the QoS-channel main effect shrinks most. Collapsed \texttt{GAT-S} seeds therefore inflate the reported effects but do not produce them. The check cannot address under-training that affects every seed alike, which requires per-arm tuning under an equal budget.
 
 
 \section{Closed-Form Scores With the Articulation Term Restored}
@@ -781,7 +781,7 @@ Telecom RAN & 0 & 0.562 & 0.562 & 0.576 & 0.576 \\
 \noindent Articulation points are rare on these projections (four of twelve scenarios have any), and where they exist the binary term lowers the ranking correlation. The evaluated, betweenness-only form is therefore the stronger reference, and every comparison in the main manuscript is made against it.
 
 
-\section{SaG-Hybrid Per-Fold Results}
+\section{Hybrid-HGT Per-Fold Results}
 \label{supp:hybrid-folds}
 
 Table~\ref{tab:supp-hybrid} lists the per-fold Spearman $\rho$ behind Table~\ref{M-tab:hybrid} of the main manuscript: CPU sweeps, twelve LOSO folds, fold score = mean over five seeds, Application population (\path{results/loso_hybrid_cpu.json}, \path{results/loso_hybrid_gat_cpu.json}). The \texttt{Topo-QoS} column is bit-identical across the two sweeps. Folds are ordered by the closed-form engine's own score. Each hybrid outperforms \texttt{Topo-QoS} on every fold except Enterprise, and keeps most of the closed-form engine's strength on the folds where its underlying learned engine loses to it.
@@ -794,7 +794,7 @@ Table~\ref{tab:supp-hybrid} lists the per-fold Spearman $\rho$ behind Table~\ref
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lccccc}
 \toprule
-\textbf{Holdout} & \textbf{Topo-QoS} & \textbf{HGT-QoS} & \textbf{SaG-Hybrid} & \textbf{GAT-N-QoS16-C} & \textbf{SaG-Hybrid-GAT} \\
+\textbf{Holdout} & \textbf{Topo-QoS} & \textbf{HGT-QoS} & \textbf{Hybrid-HGT} & \textbf{GAT-QoS} & \textbf{Hybrid-GAT} \\
 \midrule
 Real-Time Gaming & 0.810 & 0.789 & \textbf{0.837} & 0.685 & 0.825 \\
 Enterprise & \textbf{0.795} & 0.426 & 0.735 & 0.407 & 0.768 \\
@@ -822,7 +822,9 @@ The registered analysis plan (Section~\ref{M-sec:6.3} of the main manuscript) wa
 
 \noindent\textbf{Completeness.} No amendment was issued and left out of this table. The log is under version control, and its history shows the plan and Amendments~1--6 added in order, one commit each. No amendment was removed, and no registered design or decision rule was edited after its commit. Only two passages were edited later: the plan's motivation paragraph, rewritten once the pre-revision artifact it cited was withdrawn, and the plan's outcome note, which is marked as recorded after the fact.
 
-\noindent\textbf{Registered arms not run.} Two of the four model arms that Amendment~2 registered were not run. These are \texttt{GAT-N-QoS-C} (a capacity-only control) and \texttt{HGT-QoS-U} (a directionality control). The matched $2\times2$ reported in the main manuscript uses the two arms that were run, \texttt{GAT-N-C} and \texttt{GAT-N-QoS16-C}. Amendment~2's label-side arm, a LOSO sweep against a label cache with the oracle's QoS ladder disabled, was also not run as a sweep. Section~\ref{M-sec:4.3} of the main manuscript bounds the label's QoS content instead, using the rank agreement between labels computed with and without the ladder. Amendment~2's reporting commitment covers every arm that is run. The directionality control is listed as open work in Sections~\ref{M-sec:threats}--\ref{M-sec:limitations} of the main manuscript.
+\noindent\textbf{Registered arms not run.} Two of the four model arms that Amendment~2 registered were not run. These are \texttt{GAT-w} (a capacity-only control) and \texttt{HGT-QoS-U} (a directionality control). The matched $2\times2$ reported in the main manuscript uses the two arms that were run, \texttt{GAT} and \texttt{GAT-QoS}. Amendment~2's label-side arm, a LOSO sweep against a label cache with the oracle's QoS ladder disabled, was also not run as a sweep. Section~\ref{M-sec:4.3} of the main manuscript bounds the label's QoS content instead, using the rank agreement between labels computed with and without the ladder. Amendment~2's reporting commitment covers every arm that is run. The directionality control is listed as open work in Sections~\ref{M-sec:threats}--\ref{M-sec:limitations} of the main manuscript.
+
+\noindent\textbf{Predictor names.} The plan and its amendments name predictors with the earlier labels; this log uses the main manuscript's names, and Table~\ref{tab:supp-names} maps the two.
 
 \noindent\textbf{Research-question numbering.} The plan and its amendments number five research questions. The main manuscript consolidates them into four. The plan's RQ1 and RQ2 keep their numbers. Its RQ3 (QoS encoding and robustness) is answered within the main manuscript's RQ2 and threats to validity. Its RQ4 (transfer) and RQ5 (cost) are the main manuscript's RQ3 and RQ4. RQ numbers in Table~\ref{tab:supp-amendments} follow the plan.
 
@@ -840,8 +842,8 @@ A1 & 2026-09-06 & Before any outer result & Inner selection on a two-fold inner 
 A2 & 2026-09-12 & Before any control result & Capacity-, edge-channel- and directionality-matched control arms, a label-side arm, and a four-row decision rule for the typing claim & 5 (matched $2\times2$ and two controls), Holm within & ``Margin does not survive'': typing claims withdrawn; QoS channel $+0.073$ (main \S\ref{M-sec:rq2}) \\
 A3 & 2026-09-13 & Before any v5 result & Re-baseline as the v5 sweep after artifact drift; withdrawal of an unbacked control-arm paragraph; exploratory GBM baseline, architecture contrasts, contrast CIs, extra populations & None & v5 is the reported sweep; the withdrawn paragraph is not reported (main \S\ref{M-sec:rq1}--\ref{M-sec:rq2}) \\
 A4 & 2026-09-20 & \emph{After} the v5 results & Peer-review revision: ``registered'' replaces ``pre-registered''; RQ4 re-run at the common 3-layer, 300-epoch protocol; Fisher-$z$ $2\times2$, real-system CIs, cost-ratio table, drift ledger, energy bound, all exploratory & None & Reported as exploratory (main \S\ref{M-sec:6.3}, \S\ref{M-sec:rq3}, \S\ref{M-sec:rq4}, \S\ref{M-sec:8.1}--\ref{M-sec:threats}) \\
-A5 & 2026-09-23 & Before any hybrid result & SaG-Hybrid (Topo-QoS prior on \texttt{HGT-QoS}); CPU sweep; decision rule & 2, Holm within & Primary significant ($+0.103$, Holm $p = 0.0068$): headline hybrid (main \S\ref{M-sec:rq1-hybrid}, Section~\ref{supp:hybrid-folds}) \\
-A6 & 2026-09-24 & Before any result, but after A2's result & SaG-Hybrid-GAT (same prior on \texttt{GAT-N-QoS16-C}); decision rule including a transfer criterion & 2, Holm within & Primary significant ($+0.130$, Holm $p = 0.0029$); transfers less well ($0.662 < 0.695$), so it does not replace SaG-Hybrid (main \S\ref{M-sec:rq1-hybrid}) \\
+A5 & 2026-09-23 & Before any hybrid result & Hybrid-HGT (Topo-QoS prior on \texttt{HGT-QoS}); CPU sweep; decision rule & 2, Holm within & Primary significant ($+0.103$, Holm $p = 0.0068$): headline hybrid (main \S\ref{M-sec:rq1-hybrid}, Section~\ref{supp:hybrid-folds}) \\
+A6 & 2026-09-24 & Before any result, but after A2's result & Hybrid-GAT (same prior on \texttt{GAT-QoS}); decision rule including a transfer criterion & 2, Holm within & Primary significant ($+0.130$, Holm $p = 0.0029$); transfers less well ($0.662 < 0.695$), so it does not replace Hybrid-HGT (main \S\ref{M-sec:rq1-hybrid}) \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -857,17 +859,17 @@ A6 & 2026-09-24 & Before any result, but after A2's result & SaG-Hybrid-GAT (sam
 \toprule
 \textbf{Entry} & \textbf{Contrast} & \textbf{$\Delta\rho$} & \textbf{$p$} & \textbf{$p_{\text{Holm}}$ (family)} & \textbf{$p_{\text{Holm}}$ (omnibus)} \\
 \midrule
-A6 & SaG-Hybrid-GAT vs \texttt{Topo-QoS} & $+0.130$ & 0.0015 & 0.0029 & \textbf{0.0161} \\
-A5 & SaG-Hybrid vs \texttt{Topo-QoS} & $+0.103$ & 0.0034 & 0.0068 & \textbf{0.0342} \\
+A6 & Hybrid-GAT vs \texttt{Topo-QoS} & $+0.130$ & 0.0015 & 0.0029 & \textbf{0.0161} \\
+A5 & Hybrid-HGT vs \texttt{Topo-QoS} & $+0.103$ & 0.0034 & 0.0068 & \textbf{0.0342} \\
 A2 & QoS edge channel (main effect) & $+0.073$ & 0.0425 & 0.1274 & 0.3823 \\
 Plan & \texttt{HGT-QoS} vs \texttt{Topo-QoS} & $+0.085$ & 0.1514 & 0.3027 & 1.000 \\
-A6 & SaG-Hybrid-GAT vs \texttt{GAT-N-QoS16-C} & $+0.048$ & 0.3013 & 0.3013 & 1.000 \\
-A2 & \texttt{HGT-QoS} vs \texttt{GAT-N-QoS16-C} & $-0.013$ & 0.3804 & 0.7607 & 1.000 \\
+A6 & Hybrid-GAT vs \texttt{GAT-QoS} & $+0.048$ & 0.3013 & 0.3013 & 1.000 \\
+A2 & \texttt{HGT-QoS} vs \texttt{GAT-QoS} & $-0.013$ & 0.3804 & 0.7607 & 1.000 \\
 Plan & \texttt{HGT} vs \texttt{Topo-QoS} & $-0.002$ & 0.4697 & 0.4697 & 1.000 \\
 A2 & Typing (main effect) & $-0.014$ & 0.4697 & 0.9395 & 1.000 \\
-A2 & \texttt{HGT} vs \texttt{GAT-N-C} & $-0.015$ & 0.5693 & 0.7607 & 1.000 \\
+A2 & \texttt{HGT} vs \texttt{GAT} & $-0.015$ & 0.5693 & 0.7607 & 1.000 \\
 A2 & Typing $\times$ QoS interaction & $+0.001$ & 0.7334 & 0.9395 & 1.000 \\
-A5 & SaG-Hybrid vs \texttt{HGT-QoS} & $+0.035$ & 0.7334 & 0.7334 & 1.000 \\
+A5 & Hybrid-HGT vs \texttt{HGT-QoS} & $+0.035$ & 0.7334 & 0.7334 & 1.000 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -889,8 +891,8 @@ Between $21\%$ (Microservices) and $52\%$ (Healthcare) of each held-out Applicat
 \textbf{RM / $Q(v)$} & $0.205$ & $0.102$ & $49\%$ \\
 \textbf{Topo} & $0.349$ & $0.181$ & $52\%$ \\
 \textbf{Topo-QoS} & $0.553$ & $0.280$ & $51\%$ \\
-\textbf{GAT-N} & $0.317$ & $0.159$ & $50\%$ \\
-\textbf{GAT-N-QoS} & $0.604$ & $0.328$ & $54\%$ \\
+\textbf{GAT-S} & $0.317$ & $0.159$ & $50\%$ \\
+\textbf{GAT-S-w} & $0.604$ & $0.328$ & $54\%$ \\
 \textbf{HGT} & $0.551$ & $0.299$ & $54\%$ \\
 \textbf{HGT-QoS} & $\mathbf{0.638}$ & $\mathbf{0.356}$ & $56\%$ \\
 \bottomrule
@@ -907,7 +909,7 @@ Table~\ref{tab:contrasts} is the $2\times2$ over relation typing and the QoS edg
 \begin{table}[htbp]
 \centering
 \small
-\caption{\emph{Naive} $2 \times 2$ over relation typing (T) and the QoS edge channel (Q), unmatched in capacity ($15.4\times$) and edge-channel width; superseded for all typing claims by Table~\ref{M-tab:contrasts_matched} of the main manuscript. Cells are the four reported learned arms: GAT-N ($\neg$T$\neg$Q), HGT (T$\neg$Q), GAT-N-QoS ($\neg$TQ), HGT-QoS (TQ). \textbf{Holm correction is applied across the three orthogonal quantities in the upper block only}; the four simple effects below are algebraically determined by those three and are reported descriptively. Main effects average over the other factor’s levels; the typing effect reflects the joint transition to HGT and is confounded with capacity and channel width. \textbf{Won} counts folds with $\Delta > 0$; the interaction is \emph{negative} on all twelve. All quantities are post-hoc, and none were registered in advance. Fold overlap makes the reported $p$-values nominal (Section~\ref{M-sec:threats} of the main manuscript).}
+\caption{\emph{Naive} $2 \times 2$ over relation typing (T) and the QoS edge channel (Q), unmatched in capacity ($15.4\times$) and edge-channel width; superseded for all typing claims by Table~\ref{M-tab:contrasts_matched} of the main manuscript. Cells are the four reported learned arms: GAT-S ($\neg$T$\neg$Q), HGT (T$\neg$Q), GAT-S-w ($\neg$TQ), HGT-QoS (TQ). \textbf{Holm correction is applied across the three orthogonal quantities in the upper block only}; the four simple effects below are algebraically determined by those three and are reported descriptively. Main effects average over the other factor’s levels; the typing effect reflects the joint transition to HGT and is confounded with capacity and channel width. \textbf{Won} counts folds with $\Delta > 0$; the interaction is \emph{negative} on all twelve. All quantities are post-hoc, and none were registered in advance. Fold overlap makes the reported $p$-values nominal (Section~\ref{M-sec:threats} of the main manuscript).}
 \label{tab:contrasts}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{llrcccl}
@@ -920,9 +922,9 @@ Table~\ref{tab:contrasts} is the $2\times2$ over relation typing and the QoS edg
 \textbf{Typing $\times$ QoS interaction} & difference of differences & $\mathbf{-0.199}$ & 0/12 & 0.0 & \textbf{0.0005} & \textbf{0.0015} \\
 \midrule
 \multicolumn{7}{l}{\textit{Simple effects — descriptive, not separately corrected}} \\
-\textbf{Typing, QoS absent} & HGT vs.\ GAT-N           & $+0.234$ & 12/12 & 0.0 & 0.0005 & — \\
-\textbf{Typing, QoS present} & HGT-QoS vs.\ GAT-N-QoS   & $+0.035$ & 9/12  & 19.0 & 0.1294 & — \\
-\textbf{QoS channel, typing absent} & GAT-N-QoS vs.\ GAT-N & $+0.287$ & 11/12 & 1.0 & 0.0010 & — \\
+\textbf{Typing, QoS absent} & HGT vs.\ GAT-S           & $+0.234$ & 12/12 & 0.0 & 0.0005 & — \\
+\textbf{Typing, QoS present} & HGT-QoS vs.\ GAT-S-w   & $+0.035$ & 9/12  & 19.0 & 0.1294 & — \\
+\textbf{QoS channel, typing absent} & GAT-S-w vs.\ GAT-S & $+0.287$ & 11/12 & 1.0 & 0.0010 & — \\
 \textbf{QoS channel, typing present} & HGT-QoS vs.\ HGT     & $+0.087$ & 10/12 & 22.0 & 0.2036 & — \\
 \bottomrule
 \end{tabular}%
@@ -987,17 +989,25 @@ Timing the cascade reachability labeling sweep (five seeds, node types Applicati
 
 \noindent Breadth-first cascade traversal is cheaper than all-pairs connectivity degradation, so on raw CPU time direct simulation is faster wherever its parameters are available. SaG's analysis additionally scores infrastructure components and dependency edges that node-level message-flow simulation leaves unscored, and its metrics are amenable to caching across commits (not implemented here).
 
-\noindent\textbf{Training cost.} Training is a separate, one-off cost per model version: the last sweep with recorded per-arm wall-clock (CPU, sequential, 12 folds $\times$ 5 seeds $= 60$ fits per arm) took $0.6\,\text{h}$ for \texttt{GAT-N}, $0.9\,\text{h}$ for \texttt{GAT-N-QoS}, $1.4\,\text{h}$ for \texttt{HGT} and $4.9\,\text{h}$ for \texttt{HGT-QoS}, $7.7$ CPU-hours in all. The GPU sweep behind Table~\ref{M-tab:7} of the main manuscript did not record per-fit durations.
+\noindent\textbf{Training cost.} Training is a separate, one-off cost per model version: the last sweep with recorded per-arm wall-clock (CPU, sequential, 12 folds $\times$ 5 seeds $= 60$ fits per arm) took $0.6\,\text{h}$ for \texttt{GAT-S}, $0.9\,\text{h}$ for \texttt{GAT-S-w}, $1.4\,\text{h}$ for \texttt{HGT} and $4.9\,\text{h}$ for \texttt{HGT-QoS}, $7.7$ CPU-hours in all. The GPU sweep behind Table~\ref{M-tab:7} of the main manuscript did not record per-fit durations.
 
 \section{Predictor Taxonomy and Substrate Details}
 \label{supp:taxonomy}
 
-Table~\ref{tab:supp-taxonomy} lists every predictor run in the study; the main manuscript's taxonomy keeps only those it reports. An \texttt{-N} infix denotes a model trained on the complete native multigraph, its absence the Application--Library flow projection, and a \texttt{-QoS} suffix a configuration that consumes declared QoS contracts.
+Table~\ref{tab:supp-taxonomy} lists every predictor run in the study; the main manuscript's taxonomy keeps only those it reports. A name gives the architecture and then what distinguishes it:
+\begin{itemize}\itemsep0pt
+\item \texttt{-QoS}: QoS-weighted distances for Topo, the 16-D QoS edge vector for a GNN;
+\item \texttt{-w}: a scalar QoS edge weight $w(e)$;
+\item \texttt{-S}: a small GAT (28k parameters);
+\item \texttt{-P}: the Application--Library flow projection instead of the native multigraph;
+\item \texttt{Hybrid-X}: engine X corrected by the \texttt{Topo-QoS} prior.
+\end{itemize}
+Unsuffixed \texttt{GAT} and \texttt{GAT-QoS} are matched to HGT's parameter budget.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Full taxonomy of every predictor run in this study, including the in-distribution flow-projection variants of Section~S15. The \texttt{-N} infix denotes execution on the complete native multigraph; \texttt{-QoS} indicates inclusion of middleware QoS attributes.}
+\caption{Full taxonomy of every predictor run in this study, including the in-distribution flow-projection variants of Section~\ref{supp:indist-table}.}
 \label{tab:supp-taxonomy}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{llccccl}
@@ -1006,25 +1016,48 @@ Table~\ref{tab:supp-taxonomy} lists every predictor run in the study; the main m
 \midrule
 \textbf{Topo} & $G_{\text{analysis}}$ (Flow Projection) & No & None & 0 & No & Standard centrality baseline \\
 \textbf{Topo-QoS} & $G_{\text{analysis}}$ (Flow Projection) & No & Scalar $w(e)$ & 0 & No & SaG closed-form engine \\
-\textbf{GAT} & $G_{\text{analysis}}$ (Flow Projection) & Homogeneous & None & 28{,}168 & Yes & In-distribution counterpart of GAT-N (Table~S15) \\
-\textbf{GAT-QoS} & $G_{\text{analysis}}$ (Flow Projection) & Homogeneous & Scalar $w(e)$ & 28{,}168 & Yes & In-distribution counterpart of GAT-N-QoS (Table~S15) \\
-\textbf{GAT-N} & Native Multigraph & Homogeneous & None & 28{,}168 & Yes & Untyped, unweighted GNN floor \\
-\textbf{GAT-N-QoS} & Native Multigraph & Homogeneous & Scalar $w(e)$ & 28{,}168 & Yes & Isolates QoS channel without typing \\
-\textbf{GAT-N-C} & Native Multigraph & Homogeneous & None & 437{,}496 & Yes & Capacity-matched untyped control \\
-\textbf{GAT-N-QoS16-C} & Native Multigraph & Homogeneous & 16-D QoS Vector & 429{,}992 & Yes & Capacity- and channel-matched control \\
+\textbf{GAT-S-P} & $G_{\text{analysis}}$ (Flow Projection) & Homogeneous & None & 28{,}168 & Yes & In-distribution counterpart of GAT-S (Table~\ref{tab:supp-indist-cells}) \\
+\textbf{GAT-S-P-w} & $G_{\text{analysis}}$ (Flow Projection) & Homogeneous & Scalar $w(e)$ & 28{,}168 & Yes & In-distribution counterpart of GAT-S-w (Table~\ref{tab:supp-indist-cells}) \\
+\textbf{GAT-S} & Native Multigraph & Homogeneous & None & 28{,}168 & Yes & Untyped, unweighted GNN floor \\
+\textbf{GAT-S-w} & Native Multigraph & Homogeneous & Scalar $w(e)$ & 28{,}168 & Yes & Adds a scalar QoS weight \\
+\textbf{GAT} & Native Multigraph & Homogeneous & None & 437{,}496 & Yes & Untyped, matched to HGT; no QoS channel \\
+\textbf{GAT-QoS} & Native Multigraph & Homogeneous & 16-D QoS Vector & 429{,}992 & Yes & Untyped, matched to HGT-QoS; SaG learned engine \\
 \textbf{HGT} & Native Multigraph & Heterogeneous & Relation 1-hot; $w(e){=}1$ & 434{,}620 & Yes & Isolates relational typing without QoS \\
 \textbf{HGT-QoS} & Native Multigraph & Heterogeneous & 16-D QoS Vector & 434{,}620 & Yes & SaG learned engine \\
-\textbf{SaG-Hybrid} & Native Multigraph & Heterogeneous & 16-D QoS Vector & 434{,}941 & Yes & HGT-QoS correcting the closed-form engine \\
-\textbf{SaG-Hybrid-GAT} & Native Multigraph & Homogeneous & 16-D QoS Vector & 431{,}433 & Yes & GAT-N-QoS16-C correcting the closed-form engine \\
+\textbf{Hybrid-HGT} & Native Multigraph & Heterogeneous & 16-D QoS Vector & 434{,}941 & Yes & HGT-QoS correcting the closed-form engine \\
+\textbf{Hybrid-GAT} & Native Multigraph & Homogeneous & 16-D QoS Vector & 431{,}433 & Yes & GAT-QoS correcting the closed-form engine \\
 \textbf{RM / $Q(v)$} & $G_{\text{analysis}}$ (Analysis Graph) & Per-type rules & Scalar $w(e)$ & 0 & No & Diagnostic attribution reference \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-\noindent\textbf{Substrates.} Under LOSO all learned predictors ingest the complete native typed multigraph across all five entity types. In distribution (Section~S15), \texttt{GAT}/\texttt{GAT-QoS} consume the Application--Library \texttt{DEPENDS\_ON} projection, which confounds typing with multi-entity visibility, so no comparison is drawn between those families. \texttt{GAT-N-QoS} uses per-type projection with untyped GATConv across edges and a scalar $w(e)$; \texttt{HGT-QoS} uses relation-specific \texttt{HGTConv} weights and all 16 edge dimensions. Besides parameter budget ($434{,}620$ vs.\ $28{,}168$), message directionality also differs ($103{,}725$ reverse parameters). In QoS-off arms every edge weight is set to 1 and the QoS node columns are zeroed, but four node centralities are computed on the QoS-weighted projection, so ``QoS-off'' means ``no explicit QoS channel'', not ``no QoS information''. Amendment~2 registered four control arms (\texttt{GAT-N-C}, \texttt{GAT-N-QoS-C}, \texttt{GAT-N-QoS16-C}, \texttt{HGT-QoS-U}); the two that were run form, with \texttt{HGT} and \texttt{HGT-QoS}, the matched $2\times2$ of the main manuscript (\texttt{make -f reproduce/Makefile rq2-matched}).
+\noindent\textbf{Earlier names.} The registered analysis plan (\path{docs/research/jss/PREREGISTRATION.md}) and the published result artifacts use the labels of an earlier naming scheme. Table~\ref{tab:supp-names} maps them; \path{saag/evaluation/variant_registry.py} holds the same map (\texttt{LEGACY\_LABELS}), and the internal variant identifiers that key every artifact are unchanged.
 
-\noindent\textbf{Closed-form projection.} The closed-form scores are computed on the Application--Library projection, which carries Rule~1 (a subscriber joined to each publisher of a topic it consumes, at $w = 1 - \prod_{t \in T}(1 - w(t))$) and Rule~5 (an application joined to each library it uses). On this projection the Rule~5 edge carries a neutral constant, the graph's median topic weight, rather than the harmonic coupling of code-quality weights, so that the closed-form baselines consume no code metrics. The $0.6/0.4$ split between the betweenness and articulation terms is a declared convention and is not tuned; Section~S22 shows the effect of the articulation term.
+\begin{table}[htbp]
+\centering
+\small
+\caption{Current predictor names and the earlier labels used by the registered plan and the result artifacts.}
+\label{tab:supp-names}
+\begin{tabular}{lll}
+\toprule
+\textbf{Current name} & \textbf{Earlier label} & \textbf{Variant identifier} \\
+\midrule
+\texttt{GAT-S} & \texttt{GAT-N} & \texttt{gl\_full} (\texttt{gl} under LOSO) \\
+\texttt{GAT-S-w} & \texttt{GAT-N-QoS} & \texttt{gl\_full\_qos} (\texttt{gl\_qos} under LOSO) \\
+\texttt{GAT-S-P} / \texttt{GAT-S-P-w} & \texttt{GAT} / \texttt{GAT-QoS} (in-distribution only) & \texttt{gl} / \texttt{gl\_qos} \\
+\texttt{GAT} & \texttt{GAT-N-C} & \texttt{gl\_full\_cap} \\
+\texttt{GAT-w} & \texttt{GAT-N-QoS-C} & \texttt{gl\_full\_qos\_cap} \\
+\texttt{GAT-QoS} & \texttt{GAT-N-QoS16-C} & \texttt{gl\_full\_qos16\_cap} \\
+\texttt{Hybrid-HGT} & \texttt{SaG-Hybrid} & \texttt{hgl\_qos\_prior} \\
+\texttt{Hybrid-GAT} & \texttt{SaG-Hybrid-GAT} & \texttt{gl\_qos16\_prior} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Substrates.} Under LOSO all learned predictors ingest the complete native typed multigraph across all five entity types. In distribution (Section~\ref{supp:indist-table}), \texttt{GAT-S-P}/\texttt{GAT-S-P-w} consume the Application--Library \texttt{DEPENDS\_ON} projection, which confounds typing with multi-entity visibility, so no comparison is drawn between those families. \texttt{GAT-S-w} uses per-type projection with untyped GATConv across edges and a scalar $w(e)$; \texttt{HGT-QoS} uses relation-specific \texttt{HGTConv} weights and all 16 edge dimensions. Besides parameter budget ($434{,}620$ vs.\ $28{,}168$), message directionality also differs ($103{,}725$ reverse parameters). In QoS-off arms every edge weight is set to 1 and the QoS node columns are zeroed, but four node centralities are computed on the QoS-weighted projection, so ``QoS-off'' means ``no explicit QoS channel'', not ``no QoS information''. Amendment~2 registered four control arms (\texttt{GAT}, \texttt{GAT-w}, \texttt{GAT-QoS}, \texttt{HGT-QoS-U}); the two that were run form, with \texttt{HGT} and \texttt{HGT-QoS}, the matched $2\times2$ of the main manuscript (\texttt{make -f reproduce/Makefile rq2-matched}).
+
+\noindent\textbf{Closed-form projection.} The closed-form scores are computed on the Application--Library projection, which carries Rule~1 (a subscriber joined to each publisher of a topic it consumes, at $w = 1 - \prod_{t \in T}(1 - w(t))$) and Rule~5 (an application joined to each library it uses). On this projection the Rule~5 edge carries a neutral constant, the graph's median topic weight, rather than the harmonic coupling of code-quality weights, so that the closed-form baselines consume no code metrics. The $0.6/0.4$ split between the betweenness and articulation terms is a declared convention and is not tuned; Section~\ref{supp:ap-sensitivity} shows the effect of the articulation term.
 
 \noindent\textbf{Zero-shot configuration sensitivity.} An earlier zero-shot configuration used 2 layers and 150 epochs, chosen to limit over-smoothing across the smaller diameters of the system models ($|V_{\text{app}}| \le 41$). Because that reasoning appeals to a property of the evaluation targets, it is not reported as the primary result. It is uniformly slightly stronger ($\rho = 0.792$ against $0.760$; $\rho_{>0} = +0.281$ against $+0.236$; Overlap@$K = 0.533$ against $0.470$) and leaves every qualitative conclusion unchanged.
 

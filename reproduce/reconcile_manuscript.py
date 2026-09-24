@@ -860,21 +860,21 @@ FRESHNESS_TARGETS = {
     "atm_scale_sweep_v3.json": "Supplementary S6",
     "qos_label_ablation.json": "Section 4.3",
     "loso_significance_v5.json": "Table 8 contrasts",
-    # SaG-Hybrid (PREREGISTRATION.md Amendment 5): Table 13 and Supplementary S21-S23.
+    # Hybrid-HGT (PREREGISTRATION.md Amendment 5): Table 13 and Supplementary S21-S23.
     "loso_hybrid_cpu.json": "Table 13 LOSO (hybrid CPU sweep)",
     "loso_significance_hybrid_cpu.json": "Table 13 contrasts",
     "realworld_zeroshot_hgl_qos_cpu.json": "Table 13 system models (HGT-QoS, CPU)",
-    "realworld_zeroshot_hgl_qos_prior_cpu.json": "Table 13 system models (SaG-Hybrid)",
+    "realworld_zeroshot_hgl_qos_prior_cpu.json": "Table 13 system models (Hybrid-HGT)",
     "topo_ap_sensitivity.json": "Section 6.2.1 / Supplementary S22",
     "factorial_seed_robustness_v5.json": "Section 7.2 / Supplementary S21",
     # Amendment 2's capacity- and channel-matched 2x2 and its zero-shot arm.
     "loso_rq2_matched.json": "Table 11 matched 2x2 (CPU sweep)",
     "loso_significance_rq2_matched.json": "Table 11 matched contrasts",
-    "realworld_zeroshot_gl_full_qos16_cap_cpu.json": "Section 7.4 (GAT-N-QoS16-C transfer)",
-    # Amendment 6: SaG-Hybrid-GAT.
-    "loso_hybrid_gat_cpu.json": "Table 14 SaG-Hybrid-GAT LOSO (CPU sweep)",
-    "loso_significance_hybrid_gat_cpu.json": "Table 14 SaG-Hybrid-GAT contrasts",
-    "realworld_zeroshot_gl_qos16_prior_cpu.json": "Table 14 SaG-Hybrid-GAT system models",
+    "realworld_zeroshot_gl_full_qos16_cap_cpu.json": "Section 7.4 (GAT-QoS transfer)",
+    # Amendment 6: Hybrid-GAT.
+    "loso_hybrid_gat_cpu.json": "Table 14 Hybrid-GAT LOSO (CPU sweep)",
+    "loso_significance_hybrid_gat_cpu.json": "Table 14 Hybrid-GAT contrasts",
+    "realworld_zeroshot_gl_qos16_prior_cpu.json": "Table 14 Hybrid-GAT system models",
     # Holm over every registered contrast of the plan and its amendments.
     "omnibus_registered_holm.json": "Section 6.3 / Supplementary S24 omnibus correction",
 }
@@ -1157,9 +1157,9 @@ def check_hybrid_table(rep: Report) -> None:
         "gl_full_qos16_cap": (rw["gl_full_qos16_cap"] or {}).get("mean_rho_across_systems"),
         "gl_qos16_prior": (rw["gl_qos16_prior"] or {}).get("mean_rho_across_systems"),
     }
-    labels = {"Topo": "topo_baseline", "Topo-QoS": "topo_qos",
-              "HGT-QoS": "hgl_qos", "SaG-Hybrid": "hgl_qos_prior",
-              "GAT-N-QoS16-C": "gl_full_qos16_cap", "SaG-Hybrid-GAT": "gl_qos16_prior"}
+    labels = {_registry.label(v, "loso"): v
+              for v in ("topo_baseline", "topo_qos", "hgl_qos", "hgl_qos_prior",
+                        "gl_full_qos16_cap", "gl_qos16_prior")}
     for row in _rows(tex, r"\midrule", after_label=r"\label{tab:hybrid}"):
         cells = _cells(row)
         v = labels.get(_label(cells[0]))
@@ -1248,7 +1248,9 @@ def check_omnibus_holm(rep: Report) -> None:
     except (FileNotFoundError, KeyError) as exc:
         rep.skipped.append(f"omnibus: source significance artifact unreadable ({exc})")
         fresh = {}
-    by_contrast = {r["contrast"]: r for r in art["contrasts"]}
+    # The artifacts predate the 2026-09-24 relabelling; compare in current labels.
+    fresh = {_registry.relabel(k): v for k, v in fresh.items()}
+    by_contrast = {_registry.relabel(r["contrast"]): r for r in art["contrasts"]}
     for name, r in fresh.items():
         rep.checked += 1
         old = by_contrast.get(name)
@@ -1283,11 +1285,11 @@ def check_omnibus_holm(rep: Report) -> None:
                 if got is None or abs(got - want) > tol:
                     rep.findings.append(Finding("tab:supp-omnibus", cells[1], key, got, round(want, 4)))
 
-    want = {v: next(r["p_holm_omnibus"] for r in art["contrasts"]
-                    if r["contrast"] == f"{v} vs Topo-QoS")
-            for v in ("SaG-Hybrid", "SaG-Hybrid-GAT")}
+    hyb, gat = _registry.label("hgl_qos_prior", "loso"), _registry.label("gl_qos16_prior", "loso")
+    want = {v: by_contrast[f"{v} vs Topo-QoS"]["p_holm_omnibus"] for v in (hyb, gat)}
     sec6 = _tex("sec6_experimental_setup.tex")
-    m6 = re.search(r"SaG-Hybrid-GAT \$p_\{\\text\{omni\}\} = ([\d.]+)\$, SaG-Hybrid \$p_\{\\text\{omni\}\} = ([\d.]+)\$", sec6)
+    m6 = re.search(re.escape(gat) + r" \$p_\{\\text\{omni\}\} = ([\d.]+)\$, "
+                   + re.escape(hyb) + r" \$p_\{\\text\{omni\}\} = ([\d.]+)\$", sec6)
     found = [("sec6_experimental_setup.tex", m6.group(2), m6.group(1))] if m6 else []
     if not m6:
         rep.findings.append(Finding("omnibus prose", "sec6_experimental_setup.tex", "p_omni",
@@ -1299,8 +1301,8 @@ def check_omnibus_holm(rep: Report) -> None:
                                         "quote moved or reworded"))
             continue
         found.append((f, m.group(1), m.group(2)))
-    for f, hyb, gat in found:
-        for got, v in ((hyb, "SaG-Hybrid"), (gat, "SaG-Hybrid-GAT")):
+    for f, p_hyb, p_gat in found:
+        for got, v in ((p_hyb, hyb), (p_gat, gat)):
             rep.checked += 1
             decimals = len(got.split(".")[1])
             if round(want[v], decimals) != float(got):

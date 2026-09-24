@@ -13,18 +13,28 @@ published number. Only the printed string is owned by this module.
 
 Naming scheme
 -------------
-Four families, with the substrate made explicit because RQ2's parity argument
-rests on it:
+A label is the architecture followed by what distinguishes it:
 
     Structural baselines (training-free)   Topo | Topo-QoS | RM
-    Homogeneous graph learning (GAT)       GAT  | GAT-QoS  | GAT-N | GAT-N-QoS
+    Homogeneous graph learning (GAT)       GAT-S | GAT-S-w           (native)
+                                           GAT-S-P | GAT-S-P-w       (projection)
     Heterogeneous graph learning (HGT)     HGT  | HGT-QoS
-    RQ2 confound controls                  GAT-N-C | GAT-N-QoS-C |
-                                           GAT-N-QoS16-C | HGT-QoS-U
+    Hybrid engines                         Hybrid-HGT | Hybrid-GAT
+    RQ2 confound controls                  GAT | GAT-w | GAT-QoS | HGT-QoS-U
 
-The ``-N`` infix marks the native multigraph; its absence marks the derived
-Application--Library ``DEPENDS_ON`` projection. ``SaG`` is reserved for the
-framework and is never a variant name.
+    -S     small GAT (28,168 parameters)
+    -w     scalar QoS edge weight w(e)
+    -QoS   on a GNN, the 16-D QoS edge vector; on Topo, QoS-weighted distances
+    -P     the Application--Library DEPENDS_ON projection (default: native graph)
+    Hybrid-X   engine X reading the Topo-QoS prior and correcting its logit
+
+Unsuffixed GAT and GAT-QoS are the capacity-matched controls, at HGT's
+parameter budget, so the matched 2x2 reads {GAT, HGT} x {-, -QoS}. ``SaG`` is
+reserved for the framework and is never a variant name.
+
+The labels changed on 2026-09-24. :data:`LEGACY_LABELS` maps each earlier label
+to its current one, and :func:`relabel` applies it. Published artifacts and
+PREREGISTRATION.md still carry the earlier labels.
 
 The ``control`` family is deliberately separate rather than folded into the
 homogeneous and heterogeneous ones. Its members are not manuscript columns: they
@@ -45,12 +55,15 @@ variants through the projection and hand ``gl``/``gl_qos`` the native graph.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional
 
 __all__ = [
     "Variant",
     "VARIANTS",
+    "LEGACY_LABELS",
+    "relabel",
     "FAMILY_ORDER",
     "FAMILY_LABELS",
     "HARNESSES",
@@ -100,7 +113,7 @@ FAMILY_LABELS = {
     "tabular": "Non-graph learned baseline (no message passing)",
     "homogeneous": "Homogeneous graph learning (untyped GAT)",
     "heterogeneous": "Heterogeneous graph learning (typed HGT)",
-    "hybrid": "Hybrid engine (typed HGT correcting the closed-form score)",
+    "hybrid": "Hybrid engines (a learned engine correcting the closed-form score)",
     "control": "RQ2 confound controls (not manuscript columns)",
 }
 
@@ -138,7 +151,7 @@ _VARIANT_LIST = [
         family="homogeneous",
         substrate="projection",
         qos="none",
-        label="GAT",
+        label="GAT-S-P",
         blurb="unweighted homogeneous GAT on the projection",
     ),
     Variant(
@@ -146,7 +159,7 @@ _VARIANT_LIST = [
         family="homogeneous",
         substrate="projection",
         qos="scalar",
-        label="GAT-QoS",
+        label="GAT-S-P-w",
         blurb="homogeneous GAT with scalar w(e) on the projection",
     ),
     Variant(
@@ -154,7 +167,7 @@ _VARIANT_LIST = [
         family="homogeneous",
         substrate="native",
         qos="none",
-        label="GAT-N",
+        label="GAT-S",
         blurb="unweighted homogeneous GAT on the native multigraph",
     ),
     Variant(
@@ -162,7 +175,7 @@ _VARIANT_LIST = [
         family="homogeneous",
         substrate="native",
         qos="scalar",
-        label="GAT-N-QoS",
+        label="GAT-S-w",
         blurb="homogeneous GAT with scalar w(e) on the native multigraph",
     ),
     Variant(
@@ -195,7 +208,7 @@ _VARIANT_LIST = [
         family="control",
         substrate="native",
         qos="none",
-        label="GAT-N-C",
+        label="GAT",
         blurb="GAT-N widened to 296 channels (437,496 params, 1.01x HGT); "
               "capacity control for the QoS-off replication of RQ2",
         hidden_channels=296,
@@ -216,7 +229,7 @@ _VARIANT_LIST = [
         family="control",
         substrate="native",
         qos="scalar",
-        label="GAT-N-QoS-C",
+        label="GAT-w",
         blurb="GAT-N-QoS widened to 296 channels (439,272 params, 1.01x HGT's "
               "434,620, against 28,168 as published); capacity control for RQ2",
         hidden_channels=296,
@@ -227,7 +240,7 @@ _VARIANT_LIST = [
         family="control",
         substrate="native",
         qos="full16",
-        label="GAT-N-QoS16-C",
+        label="GAT-QoS",
         blurb="capacity-matched GAT-N reading all 16 edge-feature dims, the "
               "same channel HGT-QoS gets (429,992 params); edge-channel "
               "control for RQ2",
@@ -242,7 +255,7 @@ _VARIANT_LIST = [
         family="hybrid",
         substrate="native",
         qos="full16",
-        label="SaG-Hybrid",
+        label="Hybrid-HGT",
         blurb="HGT-QoS learning a residual correction on the closed-form Topo-QoS score",
     ),
     Variant(
@@ -252,7 +265,7 @@ _VARIANT_LIST = [
         family="hybrid",
         substrate="native",
         qos="full16",
-        label="SaG-Hybrid-GAT",
+        label="Hybrid-GAT",
         blurb="capacity-matched untyped GAT (16-D QoS) learning a residual "
               "correction on the closed-form Topo-QoS score",
         hidden_channels=288,
@@ -273,6 +286,36 @@ _VARIANT_LIST = [
 ]
 
 VARIANTS: Dict[str, Variant] = {v.variant_id: v for v in _VARIANT_LIST}
+
+#: Earlier display labels -> current ones. Result artifacts written before the
+#: 2026-09-24 relabelling embed the earlier strings (``label``, ``contrast``,
+#: ``baseline_label``), as does PREREGISTRATION.md; this is the one place that
+#: translates them. The in-distribution ``GAT``/``GAT-QoS`` of the old scheme are
+#: deliberately absent: those strings are *current* labels of other variants, so
+#: text using them cannot be relabelled mechanically.
+LEGACY_LABELS: Dict[str, str] = {
+    "GAT-N-QoS16-C": "GAT-QoS",
+    "GAT-N-QoS-C": "GAT-w",
+    "GAT-N-C": "GAT",
+    "GAT-N-QoS": "GAT-S-w",
+    "GAT-N": "GAT-S",
+    "SaG-Hybrid-GAT": "Hybrid-GAT",
+    "SaG-Hybrid": "Hybrid-HGT",
+}
+
+_LEGACY_RE = re.compile(
+    r"(?<![\w-])(" + "|".join(re.escape(k) for k in sorted(LEGACY_LABELS, key=len, reverse=True))
+    + r")(?![\w-])"
+)
+
+
+def relabel(text: str) -> str:
+    """Rewrite every earlier label inside ``text`` to its current label.
+
+    Longest match first and on token boundaries, so ``GAT-N-QoS16-C`` becomes
+    ``GAT-QoS`` rather than ``GAT-S-w16-C``. Current labels pass through unchanged.
+    """
+    return _LEGACY_RE.sub(lambda m: LEGACY_LABELS[m.group(1)], text)
 
 #: The variant every reported Δρ is measured against, in every harness.
 #:

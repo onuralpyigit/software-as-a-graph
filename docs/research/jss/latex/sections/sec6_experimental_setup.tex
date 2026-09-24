@@ -33,29 +33,36 @@ Synthetic case study — ATM (1)    &    74 &    26 &  27 &  5 &   8 &   8 &   2
 \subsection{Predictors}
 \label{sec:6.2}
 
-SaG's closed-form engine (\texttt{Topo-QoS}), learned engines (\texttt{HGT-QoS}, \texttt{GAT-N-QoS16-C}) and hybrids are compared against unweighted centrality (Topo) and untyped GNNs (Table~\ref{tab:predictor_taxonomy}). All learned predictors ingest the native typed multigraph under LOSO. They differ in typing (relation-specific \texttt{HGTConv} vs.\ untyped GATConv), edge channel (none, scalar $w(e)$, or the 16-D vector) and capacity. The \texttt{-C} controls registered in Amendment~2 match HGT's capacity and edge-channel width. In QoS-off arms every edge weight is 1 and the QoS node columns are zeroed, though four centralities still carry QoS (Section~\ref{sec:3.4}).
+SaG's closed-form engine (\texttt{Topo-QoS}), learned engines (\texttt{HGT-QoS}, \texttt{GAT-QoS}) and hybrid engines are compared against unweighted centrality (Topo) and untyped GNNs (Table~\ref{tab:predictor_taxonomy}). A predictor's name gives its architecture and then what distinguishes it. \texttt{-QoS} on a GNN means the 16-D QoS edge vector (Section~\ref{sec:4.1.1}); \texttt{-w} means a scalar QoS edge weight $w(e)$; \texttt{-S} marks a small GAT (28k parameters); and \texttt{Hybrid-X} is engine X corrected by the closed-form prior. Unsuffixed \texttt{GAT} and \texttt{GAT-QoS} are matched to HGT in parameter budget, and \texttt{GAT-QoS} reads the same 16-D edge vector as \texttt{HGT-QoS}, so the four matched models form a $2\times2$ over typing (GAT vs.\ HGT) and the QoS channel. All learned predictors ingest the native typed multigraph under LOSO. In QoS-off arms every edge weight is 1 and the QoS node columns are zeroed, though four centralities still carry QoS (Section~\ref{sec:3.4}).
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Predictors reported in this paper. \texttt{-N}: trained on the complete native multigraph; \texttt{-QoS}: consumes declared QoS contracts; \texttt{-C}: widened to HGT's parameter budget. Every predictor run in the study, including in-distribution variants: Supplementary Section~\ref{S-supp:taxonomy}.}
+\caption{Predictors reported in this paper. Names: \texttt{-QoS}, QoS-weighted distances (Topo) or the 16-D QoS edge vector (GNNs); \texttt{-w}, scalar QoS edge weight; \texttt{-S}, small GAT; \texttt{Hybrid-X}, engine X corrected by the \texttt{Topo-QoS} prior. Every predictor run in the study, with the earlier names used by the registered plan and the artifacts: Supplementary Section~\ref{S-supp:taxonomy}.}
 \label{tab:predictor_taxonomy}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{llccccl}
 \toprule
 \textbf{Predictor} & \textbf{Evaluation Substrate} & \textbf{Typing} & \textbf{Edge Features} & \textbf{Parameters} & \textbf{Trained?} & \textbf{Empirical Role} \\
 \midrule
+\multicolumn{7}{l}{\textit{Training-free}} \\
 \textbf{Topo} & $G_{\text{analysis}}$ (Flow Projection) & No & None & 0 & No & Standard centrality baseline \\
 \textbf{Topo-QoS} & $G_{\text{analysis}}$ (Flow Projection) & No & Scalar $w(e)$ & 0 & No & SaG closed-form engine \\
-\textbf{GAT-N} & Native Multigraph & Homogeneous & None & 28{,}168 & Yes & Untyped, unweighted GNN floor \\
-\textbf{GAT-N-QoS} & Native Multigraph & Homogeneous & Scalar $w(e)$ & 28{,}168 & Yes & Isolates QoS channel without typing \\
-\textbf{GAT-N-C} & Native Multigraph & Homogeneous & None & 437{,}496 & Yes & Capacity-matched untyped control \\
-\textbf{GAT-N-QoS16-C} & Native Multigraph & Homogeneous & 16-D QoS Vector & 429{,}992 & Yes & Capacity- and channel-matched control \\
-\textbf{HGT} & Native Multigraph & Heterogeneous & Relation 1-hot; $w(e){=}1$ & 434{,}620 & Yes & Isolates relational typing without QoS \\
-\textbf{HGT-QoS} & Native Multigraph & Heterogeneous & 16-D QoS Vector & 434{,}620 & Yes & SaG learned engine \\
-\textbf{SaG-Hybrid} & Native Multigraph & Heterogeneous & 16-D QoS Vector & 434{,}941 & Yes & HGT-QoS correcting the closed-form engine \\
-\textbf{SaG-Hybrid-GAT} & Native Multigraph & Homogeneous & 16-D QoS Vector & 431{,}433 & Yes & GAT-N-QoS16-C correcting the closed-form engine \\
 \textbf{RM / $Q(v)$} & $G_{\text{analysis}}$ (Analysis Graph) & Per-type rules & Scalar $w(e)$ & 0 & No & Diagnostic attribution reference \\
+\midrule
+\multicolumn{7}{l}{\textit{Small untyped GNNs}} \\
+\textbf{GAT-S} & Native Multigraph & Homogeneous & None & 28{,}168 & Yes & Untyped, unweighted GNN floor \\
+\textbf{GAT-S-w} & Native Multigraph & Homogeneous & Scalar $w(e)$ & 28{,}168 & Yes & Adds a scalar QoS weight \\
+\midrule
+\multicolumn{7}{l}{\textit{Matched $2\times2$: typing $\times$ QoS channel at HGT's parameter budget}} \\
+\textbf{GAT} & Native Multigraph & Homogeneous & None & 437{,}496 & Yes & Untyped, no QoS channel \\
+\textbf{GAT-QoS} & Native Multigraph & Homogeneous & 16-D QoS Vector & 429{,}992 & Yes & Untyped SaG learned engine \\
+\textbf{HGT} & Native Multigraph & Heterogeneous & Relation 1-hot; $w(e){=}1$ & 434{,}620 & Yes & Typed, no QoS channel \\
+\textbf{HGT-QoS} & Native Multigraph & Heterogeneous & 16-D QoS Vector & 434{,}620 & Yes & Typed SaG learned engine \\
+\midrule
+\multicolumn{7}{l}{\textit{Hybrid engines: a learned engine corrected by the \texttt{Topo-QoS} prior}} \\
+\textbf{Hybrid-HGT} & Native Multigraph & Heterogeneous & 16-D QoS Vector & 434{,}941 & Yes & \texttt{HGT-QoS} + prior \\
+\textbf{Hybrid-GAT} & Native Multigraph & Homogeneous & 16-D QoS Vector & 431{,}433 & Yes & \texttt{GAT-QoS} + prior \\
 \bottomrule
 \end{tabular}%
 }
@@ -80,4 +87,4 @@ where BT is normalized betweenness, $\text{BT}_{w}$ is betweenness over edge dis
 
 \noindent\textbf{Statistics.} We use paired Wilcoxon signed-rank tests \cite{wilcoxon1945individual} and bootstrap 95\% CIs ($B = 2{,}000$) over folds \cite{efron1993introduction,spearman1904proof}; with 12 folds, the smallest attainable two-sided $p$ is $0.00049$. Folds share ten of eleven training scenarios, so the tests are anti-conservative \cite{nadeau2003inference}, and we read all $p$-values as nominal.
 
-\noindent\textbf{Registered analysis plan.} Before the twelve-fold harness produced any result, we registered the primary contrast, \texttt{HGT-QoS} vs.\ \texttt{Topo-QoS}, together with \texttt{HGT} vs.\ \texttt{Topo-QoS} and Holm correction across the two. We call it \emph{registered} rather than pre-registered, because the plan is a file in our repository with no third-party timestamp. Three amendments registered further contrasts, each before its run and each Holm-corrected within its own family: the matched $2\times2$ (Amendment~2), SaG-Hybrid (Amendment~5) and SaG-Hybrid-GAT (Amendment~6). Every other contrast is exploratory. Because the sequence was adaptive (Amendment~6 followed Amendment~2's result), we also pool all eleven registered contrasts under one Holm correction (\path{reproduce/omnibus_holm.py}). Both hybrid primaries remain significant (SaG-Hybrid-GAT $p_{\text{omni}} = 0.016$, SaG-Hybrid $p_{\text{omni}} = 0.034$), and no other registered contrast reaches $\alpha = 0.05$ ($p_{\text{omni}} \ge 0.38$). Supplementary Section~\ref{S-supp:amendments} lists all six amendments with dates and outcomes.
+\noindent\textbf{Registered analysis plan.} Before the twelve-fold harness produced any result, we registered the primary contrast, \texttt{HGT-QoS} vs.\ \texttt{Topo-QoS}, together with \texttt{HGT} vs.\ \texttt{Topo-QoS} and Holm correction across the two. We call it \emph{registered} rather than pre-registered, because the plan is a file in our repository with no third-party timestamp. Three amendments registered further contrasts, each before its run and each Holm-corrected within its own family: the matched $2\times2$ (Amendment~2), Hybrid-HGT (Amendment~5) and Hybrid-GAT (Amendment~6). Every other contrast is exploratory. Because the sequence was adaptive (Amendment~6 followed Amendment~2's result), we also pool all eleven registered contrasts under one Holm correction (\path{reproduce/omnibus_holm.py}). Both hybrid primaries remain significant (Hybrid-GAT $p_{\text{omni}} = 0.016$, Hybrid-HGT $p_{\text{omni}} = 0.034$), and no other registered contrast reaches $\alpha = 0.05$ ($p_{\text{omni}} \ge 0.38$). Supplementary Section~\ref{S-supp:amendments} lists all six amendments with dates and outcomes.

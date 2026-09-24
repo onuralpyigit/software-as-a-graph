@@ -25,8 +25,8 @@ does not show that the question was asked without any prior estimate.
 | A2 | Before any control result | Capacity/channel/directionality-matched controls, label-side arm | 5 |
 | A3 | Before any v5 result | Re-baseline as the v5 sweep; withdraw an unbacked paragraph | — |
 | A4 | **After** the v5 results | Peer-review revision; every analysis it added is exploratory | — |
-| A5 | Before any hybrid result | SaG-Hybrid | 2 |
-| A6 | Before its result, after A2's | SaG-Hybrid-GAT, with a transfer criterion | 2 |
+| A5 | Before any hybrid result | Hybrid-HGT | 2 |
+| A6 | Before its result, after A2's | Hybrid-GAT, with a transfer criterion | 2 |
 
 Dates, outcomes and the completeness statement are in Supplement S24. The sequence is adaptive:
 Amendment 6 followed Amendment 2's result. Correcting within each family therefore does not bound the

@@ -28,7 +28,7 @@ root.
 | Paper | Experiment | Page | Command | Extended results |
 |---|---|---|---|---|
 | §7.1.1, Table 7 | LOSO ranking of single engines vs. baselines | [rq1-engines-loso.md](rq1-engines-loso.md) | `make -f reproduce/Makefile table4` | Supp. S23, S25 |
-| §7.1.2, Table 8 | SaG-Hybrid and SaG-Hybrid-GAT | [rq1-hybrid.md](rq1-hybrid.md) | `make -f reproduce/Makefile rq-hybrid rq-hybrid-gat` | Supp. S23, S24 |
+| §7.1.2, Table 8 | Hybrid-HGT and Hybrid-GAT | [rq1-hybrid.md](rq1-hybrid.md) | `make -f reproduce/Makefile rq-hybrid rq-hybrid-gat` | Supp. S23, S24 |
 | §7.2, Table 9 | Capacity- and channel-matched typing × QoS control | [rq2-matched-control.md](rq2-matched-control.md) | `make -f reproduce/Makefile rq2-matched` | Supp. S16, S21, S26 |
 | §7.3, Table 10 | Zero-shot transfer to five open-source system models | [rq3-zero-shot-transfer.md](rq3-zero-shot-transfer.md) | `python reproduce/realworld_zeroshot.py` | Supp. S7, S15, S27, S29 |
 | §7.4, Table 11 | Analysis cost and comparison with direct simulation | [rq4-cost.md](rq4-cost.md) | `make -f reproduce/Makefile inference-latency` | Supp. S28 |
@@ -38,6 +38,28 @@ root.
 Section and table numbers are those of the compiled manuscript at the submission tag. The LaTeX
 sources refer to them by label (`sec:rq1`, `tab:7`, …), so `manuscript.aux` is the authoritative
 mapping if they drift.
+
+## Predictor names
+
+A name gives the architecture and then what distinguishes it:
+- `-QoS` means QoS-weighted distances for `Topo`, and the 16-D QoS edge vector for a GNN.
+- `-w` means a scalar QoS edge weight.
+- `-S` means a small GAT (28k parameters).
+- `-P` means the flow projection rather than the native multigraph.
+- `Hybrid-X` means engine X corrected by the `Topo-QoS` prior.
+
+Unsuffixed `GAT` and `GAT-QoS` are matched to HGT's parameter budget.
+
+The registered plan and the result artifacts use earlier labels. The map below mirrors
+`LEGACY_LABELS` in [`saag/evaluation/variant_registry.py`](../../../../saag/evaluation/variant_registry.py).
+Internal variant ids never changed.
+
+| Current | Earlier label | Variant id |
+|---|---|---|
+| `GAT-S` / `GAT-S-w` | `GAT-N` / `GAT-N-QoS` | `gl_full` / `gl_full_qos` (`gl` / `gl_qos` under LOSO) |
+| `GAT-S-P` / `GAT-S-P-w` | `GAT` / `GAT-QoS` (in-distribution only) | `gl` / `gl_qos` |
+| `GAT` / `GAT-w` / `GAT-QoS` | `GAT-N-C` / `GAT-N-QoS-C` / `GAT-N-QoS16-C` | `gl_full_cap` / `gl_full_qos_cap` / `gl_full_qos16_cap` |
+| `Hybrid-HGT` / `Hybrid-GAT` | `SaG-Hybrid` / `SaG-Hybrid-GAT` | `hgl_qos_prior` / `gl_qos16_prior` |
 
 ## Research-question numbering
 

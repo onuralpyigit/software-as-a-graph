@@ -5,7 +5,7 @@ CPU re-runs), S22 (articulation term), S17 (in-distribution per-scenario).
 
 ## Question
 
-How accurately do SaG's closed-form engine (`Topo-QoS`) and learned engines (`HGT-QoS`, `GAT-N-QoS`)
+How accurately do SaG's closed-form engine (`Topo-QoS`) and learned engines (`HGT-QoS`, `GAT-S-w`)
 rank Applications by simulated cascade impact $I^*(v)$ on architectures they have never seen,
 compared with unweighted centrality (`Topo`) and untyped GNNs?
 
@@ -63,7 +63,7 @@ single-engine mean (0.638), but the registered contrast against `Topo-QoS` is no
   - The least reproducible fold (Microservices) is not one the learned engine loses.
   - Artifact: `label_stability.json` (`reproduce/label_stability_check.py`).
 - **In-distribution results** (60/20/20 node splits) are in Supplement S17. They are not compared
-  across model families, because `GAT`/`GAT-QoS` read the flow projection while HGT reads the native
+  across model families, because `GAT-S-P`/`GAT-S-P-w` read the flow projection while HGT reads the native
   multigraph (Supplement S29).
 - **Where the engines differ.** `HGT-QoS` wins most on the folds where `Topo-QoS` is weakest
   (Microservices, ATM) and loses on its strongest (Enterprise, Telecom RAN). Neither graph size,

@@ -38,8 +38,8 @@ paired measurement session at one commit and corpus digest.
   - Enterprise is the maximum: its 300 applications share 120 topics, so Rule 1 derives a
     near-complete graph of 26,276 edges.
   - Across sessions the maxima range over 77–83 s (gate) and 4.5–4.8 s (oracle).
-- **Training cost** (one-off per model version, CPU, 60 fits per arm): 0.6 h `GAT-N`, 0.9 h
-  `GAT-N-QoS`, 1.4 h `HGT`, 4.9 h `HGT-QoS`, 7.7 CPU-hours in all. The GPU sweep behind Table 7 did
+- **Training cost** (one-off per model version, CPU, 60 fits per arm): 0.6 h `GAT-S`, 0.9 h
+  `GAT-S-w`, 1.4 h `HGT`, 4.9 h `HGT-QoS`, 7.7 CPU-hours in all. The GPU sweep behind Table 7 did
   not record per-fit durations.
 - **Energy bound.** At 28 W base SoC power, one gate pass over the twelve scenarios costs ≤ 3.0 kJ
   (0.83 Wh), and training the four arms once costs about 0.78 MJ (0.22 kWh).

@@ -11,9 +11,11 @@ from saag.evaluation.variant_registry import (
     FAMILY_LABELS,
     FAMILY_ORDER,
     HARNESSES,
+    LEGACY_LABELS,
     VARIANTS,
     label,
     order,
+    relabel,
     resolve,
 )
 
@@ -54,11 +56,11 @@ def test_loso_and_kfold_report_gl_on_the_native_substrate():
     for harness in ("loso", "kfold"):
         assert resolve("gl", harness) == "gl_full"
         assert resolve("gl_qos", harness) == "gl_full_qos"
-        assert label("gl_qos", harness) == "GAT-N-QoS"
+        assert label("gl_qos", harness) == "GAT-S-w"
         assert VARIANTS[resolve("gl_qos", harness)].substrate == "native"
 
     assert resolve("gl_qos", "in_distribution") == "gl_qos"
-    assert label("gl_qos", "in_distribution") == "GAT-QoS"
+    assert label("gl_qos", "in_distribution") == "GAT-S-P-w"
     assert VARIANTS["gl_qos"].substrate == "projection"
 
 
@@ -101,3 +103,22 @@ def test_unknown_inputs_raise():
         resolve("hgl_qos", "not_a_harness")
     with pytest.raises(KeyError):
         label("no_such_variant")
+
+
+def test_legacy_labels_map_onto_current_labels():
+    """Every earlier label must translate to a label some variant prints today."""
+    current = {v.label for v in VARIANTS.values()}
+    assert set(LEGACY_LABELS.values()) <= current
+    assert not set(LEGACY_LABELS) & current, "an earlier label is still a current label"
+
+
+def test_relabel_prefers_the_longest_earlier_label():
+    """GAT-N-QoS16-C must not be rewritten through its GAT-N-QoS prefix."""
+    assert relabel("SaG-Hybrid-GAT vs Topo-QoS") == "Hybrid-GAT vs Topo-QoS"
+    assert relabel("HGT-QoS vs GAT-N-QoS16-C") == "HGT-QoS vs GAT-QoS"
+    assert relabel("HGT vs GAT-N-C") == "HGT vs GAT"
+
+
+def test_relabel_leaves_current_labels_alone():
+    for v in VARIANTS.values():
+        assert relabel(v.label) == v.label

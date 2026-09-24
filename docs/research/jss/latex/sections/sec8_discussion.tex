@@ -6,7 +6,7 @@
 
 \noindent\textbf{The representation carries the signal.} The most robust result is that SaG's QoS-aware dependency projection makes criticality legible to simple and learned analyzers alike. Closed-form centrality on the projection improves every held-out architecture over its unweighted form ($+0.204$). For learned engines, the QoS edge channel is the component that matters ($+0.073$ at matched capacity). Practitioners therefore gain most from modeling their architecture with typed entities and declared QoS contracts, whichever engine they then run.
 
-\noindent\textbf{Choosing an engine.} Table~\ref{tab:guidance} summarizes where each instrument fits. The closed-form engine needs no training and is the natural default for lightweight CI gates. The hybrids are the most accurate choice for architectures resembling the training corpus: they keep the closed-form engine's strength on dense projections such as Enterprise while adding the learned engines' gains elsewhere. SaG-Hybrid is the registered recommendation because it transfers better of the two. For substantially different systems, a pure learned engine with the QoS channel transfers best. Because relation-specific weights add nothing at matched capacity, a sufficiently wide untyped GAT is the simpler choice. The explanation layer then names a remediation class for each flagged component.
+\noindent\textbf{Choosing an engine.} Table~\ref{tab:guidance} summarizes where each instrument fits. The closed-form engine needs no training and is the natural default for lightweight CI gates. The hybrids are the most accurate choice for architectures resembling the training corpus: they keep the closed-form engine's strength on dense projections such as Enterprise while adding the learned engines' gains elsewhere. Hybrid-HGT is the registered recommendation because it transfers better of the two. For substantially different systems, a pure learned engine with the QoS channel transfers best; because relation-specific weights add nothing at matched capacity, the untyped \texttt{GAT-QoS} is the simpler choice. The explanation layer then names a remediation class for each flagged component.
 
 \begin{table}[htbp]
 \centering
@@ -19,8 +19,8 @@
 \textbf{Instrument} & \textbf{Context} & \textbf{Role and evidence} \\
 \midrule
 \textbf{\texttt{Topo-QoS}} (Closed-form) & Lightweight CI gates & Training-free, $\rho = 0.553$ out of distribution; $+0.204$ over unweighted centrality on 12/12 folds. \\
-\textbf{Learned + QoS channel} & Substantially different or irregular architectures & Best transfer (\texttt{GAT-N-QoS16-C} $0.805$, \texttt{HGT-QoS} $0.760$) and identification (PR-AUC $0.71$--$0.79$). \\
-\textbf{SaG-Hybrid / SaG-Hybrid-GAT} & Architectures resembling the training corpus & Best LOSO ranking ($\rho = 0.657$ / $0.683$); significantly above \texttt{Topo-QoS} ($+0.103$ / $+0.130$, 11/12 folds). \\
+\textbf{Learned + QoS channel} & Substantially different or irregular architectures & Best transfer (\texttt{GAT-QoS} $0.805$, \texttt{HGT-QoS} $0.760$) and identification (PR-AUC $0.71$--$0.79$). \\
+\textbf{Hybrid-HGT / Hybrid-GAT} & Architectures resembling the training corpus & Best LOSO ranking ($\rho = 0.657$ / $0.683$); significantly above \texttt{Topo-QoS} ($+0.103$ / $+0.130$, 11/12 folds). \\
 \textbf{RM explanation layer} & Refactoring and root-cause discussion & ISO/IEC 25010 attribution (Availability vs.\ Fault Tolerance vs.\ Maintainability). \\
 \bottomrule
 \end{tabular}%

@@ -47,7 +47,7 @@ PYTHONPATH=. python reproduce/realworld_zeroshot.py --variant hgl_qos --layers 3
 
 ## Headline result
 
-Learned engines rank zero-shot at ρ = 0.760 (`HGT-QoS`) and 0.805 (`GAT-N-QoS16-C`), against
+Learned engines rank zero-shot at ρ = 0.760 (`HGT-QoS`) and 0.805 (`GAT-QoS`), against
 0.511–0.526 for every training-free score. They roughly double top-K overlap. On the active stratum
 (components with $I^* > 0$), every interval spans zero at five systems, so that comparison is
 unresolved.

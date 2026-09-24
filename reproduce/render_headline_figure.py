@@ -9,7 +9,7 @@ carry the paper's three findings at a glance:
     A. Accuracy on unseen synthetic architectures (LOSO) against zero-shot
        transfer to the five system models, per engine, with 95% CIs.
        -> hybrids lead in distribution, pure learned engines transfer best.
-    B. Per-fold Delta-rho against Topo-QoS for HGT-QoS and SaG-Hybrid, folds
+    B. Per-fold Delta-rho against Topo-QoS for HGT-QoS and Hybrid-HGT, folds
        ordered by the closed-form engine's own score.
        -> the engines are complementary; the prior removes the learned
           engine's losses on the folds where closed-form structure is strongest.
@@ -50,6 +50,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
 
 from reproduce.loso_significance import _bootstrap_delta_ci  # noqa: E402
+from saag.evaluation.variant_registry import label  # noqa: E402
 
 RESULTS = Path("results")
 OUT = Path("docs/research/jss/latex/figures/Figure_5")
@@ -57,13 +58,15 @@ OUT = Path("docs/research/jss/latex/figures/Figure_5")
 INK, INK2, GRID = "#1F2937", "#475569", "#E5E7EB"
 # Engine identity, fixed across the paper's figures (Okabe-Ito; validated with
 # the dataviz palette checker: CVD and normal-vision separation pass).
-ENGINES = [  # (variant, printed label, colour)
-    ("topo_baseline", "Topo", "#999999"),
-    ("topo_qos", "Topo-QoS", "#0072B2"),
-    ("hgl_qos", "HGT-QoS", "#E69F00"),
-    ("gl_full_qos16_cap", "GAT-N-QoS16-C", "#CC79A7"),
-    ("hgl_qos_prior", "SaG-Hybrid", "#D55E00"),
-    ("gl_qos16_prior", "SaG-Hybrid-GAT", "#009E73"),
+ENGINES = [  # (variant, printed label from the registry, colour)
+    (v, label(v, "loso"), c) for v, c in (
+        ("topo_baseline", "#999999"),
+        ("topo_qos", "#0072B2"),
+        ("hgl_qos", "#E69F00"),
+        ("gl_full_qos16_cap", "#CC79A7"),
+        ("hgl_qos_prior", "#D55E00"),
+        ("gl_qos16_prior", "#009E73"),
+    )
 ]
 COLOUR = {v: c for v, _, c in ENGINES}
 FOLD = {  # two-line tick labels for panel B
@@ -155,22 +158,22 @@ def panel_b(ax, loso):
     ax.set_xlabel("held-out fold, ordered by Topo-QoS ρ (in brackets): closed-form engine strongest → weakest",
                   fontsize=6.4, color=INK2)
     ax.legend(handles=[
-        Line2D([], [], marker="o", color=COLOUR["hgl_qos"], ls="none", ms=5, label="HGT-QoS"),
+        Line2D([], [], marker="o", color=COLOUR["hgl_qos"], ls="none", ms=5, label=label("hgl_qos", "loso")),
         Line2D([], [], marker="o", color=COLOUR["hgl_qos_prior"], ls="none", ms=5,
-               label="SaG-Hybrid (HGT-QoS + closed-form prior)"),
+               label=f"{label('hgl_qos_prior', 'loso')} ({label('hgl_qos', 'loso')} + closed-form prior)"),
     ], loc="upper left", frameon=False, fontsize=6.2, handletextpad=0.2, borderaxespad=0.1, ncol=2)
-    ax.set_title("B. Per fold: the prior repairs the learned engine where closed form is strong",
+    ax.set_title("B. Per fold: the prior repairs HGT-QoS where the closed form is strong",
                  loc="left", fontsize=7.6, fontweight="bold", color=INK)
 
 
 def panel_c(ax, matched):
     x = [0, 1]
-    for (a, b), label, c, marker, dy in ((("gl_full_cap", "gl_full_qos16_cap"), "untyped (GAT-N-C)",
-                                           COLOUR["gl_full_qos16_cap"], "s", 0.0035),
-                                          (("hgl", "hgl_qos"), "typed (HGT)", COLOUR["hgl_qos"], "o", -0.0035)):
+    for (a, b), name, c, marker, dy in ((("gl_full_cap", "gl_full_qos16_cap"), "untyped (GAT)",
+                                          COLOUR["gl_full_qos16_cap"], "s", 0.0035),
+                                         (("hgl", "hgl_qos"), "typed (HGT)", COLOUR["hgl_qos"], "o", -0.0035)):
         y = [matched[a]["mean_rho"], matched[b]["mean_rho"]]
         ax.plot(x, y, color=c, lw=1.6, marker=marker, ms=5, mec="white", mew=0.8)
-        ax.text(1.08, y[1] + dy, label, color=INK2, fontsize=6.0, va="center")
+        ax.text(1.08, y[1] + dy, name, color=INK2, fontsize=6.0, va="center")
     ref = matched["topo_qos"]["mean_rho"]
     ax.axhline(ref, color=COLOUR["topo_qos"], lw=0.9, ls=(0, (4, 2)))
     ax.text(1.08, ref + 0.002, "Topo-QoS", color=INK2, fontsize=6.0, va="bottom")

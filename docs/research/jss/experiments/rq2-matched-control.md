@@ -8,20 +8,20 @@ Supplement S26 (the unmatched 2×2), S16 (Fisher-z scale), S21 (seed-aggregation
 
 The four learned arms of Table 7 cross relation typing (T) with the QoS edge channel (Q). However,
 they are unmatched in two ways:
-- **Capacity.** The untyped GATs have 28,168 parameters against HGT's 434,620 (15.4×).
-- **Edge-channel width.** The GATs read a scalar edge weight; `HGT-QoS` reads the 16-D vector.
+- **Capacity.** The small untyped GATs (`GAT-S`, `GAT-S-w`) have 28,168 parameters against HGT's 434,620 (15.4×).
+- **Edge-channel width.** `GAT-S-w` reads a scalar edge weight; `HGT-QoS` reads the 16-D vector.
 
 The unmatched 2×2 therefore credited typing with +0.234 (QoS absent) and a strongly negative
 interaction (Supplement S26). Amendment 2 registered controls that remove both differences.
 
 | Cell | Arm (code name) | Parameters | Edge channel |
 |---|---|---|---|
-| ¬T ¬Q | `GAT-N-C` (`gl_full_cap`) | 437,496 | none |
+| ¬T ¬Q | `GAT` (`gl_full_cap`) | 437,496 | none |
 | T ¬Q | `HGT` (`hgl`) | 434,620 | relation one-hot, $w(e)=1$ |
-| ¬T Q | `GAT-N-QoS16-C` (`gl_full_qos16_cap`) | 429,992 | full 16-D vector, including relation one-hot |
+| ¬T Q | `GAT-QoS` (`gl_full_qos16_cap`) | 429,992 | full 16-D vector, including relation one-hot |
 | T Q | `HGT-QoS` (`hgl_qos`) | 434,620 | full 16-D vector |
 
-`GAT-N-QoS16-C` receives each edge's relation type as an input feature. The precise conclusion is
+`GAT-QoS` receives each edge's relation type as an input feature. The precise conclusion is
 therefore that relation-typed *parameters* add nothing beyond relation-typed *inputs*.
 
 ## Reproduce
@@ -37,21 +37,21 @@ because the tests pair them by fold.
 ## Headline result
 
 At matched capacity, the QoS channel adds about +0.073 with or without typing (10/12 folds each). Typing
-has no main effect (−0.014) and no interaction (+0.001). A capacity-matched untyped GAT with the
-QoS channel (0.635) performs as well as `HGT-QoS` (0.622).
+has no main effect (−0.014) and no interaction (+0.001). The untyped `GAT-QoS` (0.635) performs as
+well as the typed `HGT-QoS` (0.622).
 
 ## Notes cut from the paper
 
 - **Seed stability.** The QoS channel is the most reliable stabiliser of training. Median
   within-fold seed SD:
-  - 0.298 → 0.024 for the small GAT (`GAT-N` → `GAT-N-QoS`);
+  - 0.298 → 0.024 for the small GAT (`GAT-S` → `GAT-S-w`);
   - 0.114 → 0.052 for HGT;
   - 0.083 → 0.010 for the matched untyped pair.
 - **Why earlier robustness checks missed the confound.** The Fisher-z transform (S16) and robust
   seed aggregation (S21) both left the unmatched interaction intact, because both hold the four
   unmatched arms fixed.
 - **Controls not run.** Two registered arms were never run:
-  - `GAT-N-QoS-C`, a capacity-only QoS control;
+  - `GAT-w`, a capacity-only QoS control;
   - `HGT-QoS-U`, a directionality control, since HGT has 103,725 reverse-direction parameters.
   
   Amendment 2's label-side sweep, with the oracle's QoS ladder disabled, was also not run. The
