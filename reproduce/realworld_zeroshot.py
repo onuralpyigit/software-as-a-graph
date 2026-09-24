@@ -154,25 +154,27 @@ def train_once(
 class HomogeneousScorer:
     """A trained untyped GAT arm, exposing just what ``score`` needs.
 
-    Built by :func:`train_once_homogeneous`. ``topo_prior`` is always False: the
-    hybrid prior exists only for the HGT arm.
+    Built by :func:`train_once_homogeneous`.
     """
 
-    topo_prior = False
-
-    def __init__(self, model, device, rank_normalize_features: bool):
+    def __init__(self, model, device, rank_normalize_features: bool, topo_prior: bool = False):
         self.model = model
         self.device = device
         self.rank_normalize_features = rank_normalize_features
+        #: SaG-Hybrid-GAT (Amendment 6) reads the Topo-QoS prior column.
+        self.topo_prior = topo_prior
 
     def predict_scores(self, bundle: ScenarioBundle, use_qos: bool) -> Dict[str, float]:
         import torch
         from saag.prediction.data_preparation import networkx_to_hetero_data
 
         graph, sm = _prepare_bundle_graph(bundle, use_qos)
+        if self.topo_prior:
+            sm = _with_prior(bundle, sm)
         conv = networkx_to_hetero_data(
             graph, sm, bundle.simulation, bundle.rm,
             qos_enabled=use_qos, rank_normalize_features=self.rank_normalize_features,
+            append_prior=self.topo_prior,
         )
         data = conv.hetero_data.to(self.device)
         self.model.eval()
@@ -230,15 +232,20 @@ def train_once_homogeneous(
 
     edge_dim = _registry.edge_dim(variant, "loso")
     use_qos = edge_dim is not None
+    topo_prior = _registry.VARIANTS[variant].family == "hybrid"
     train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
+    if topo_prior:
+        train_sm = _with_prior(primary, train_sm)
     conv = networkx_to_hetero_data(
         train_graph, train_sm, primary.simulation, primary.rm,
         qos_enabled=use_qos, rank_normalize_features=rank_normalize_features,
+        append_prior=topo_prior,
     )
     data = conv.hetero_data
     create_node_splits(data, seed=seed)
     inductive_data = [
-        _build_training_hetero(b, use_qos, rank_normalize_features) for b in inductives
+        _build_training_hetero(b, use_qos, rank_normalize_features, topo_prior)
+        for b in inductives
     ]
     for ig in inductive_data:
         create_node_splits(ig, seed=seed)
@@ -247,13 +254,16 @@ def train_once_homogeneous(
         normalize_labels_robust(ig, rank_normalize=rank_normalize_labels)
     val_data = None
     if val_bundle is not None:
-        val_data = _build_validation_hetero(val_bundle, use_qos, rank_normalize_features)
+        val_data = _build_validation_hetero(
+            val_bundle, use_qos, rank_normalize_features, topo_prior
+        )
         normalize_labels_robust(val_data, rank_normalize=rank_normalize_labels)
 
     model = build_baseline(
         "homo_unweighted" if edge_dim is None else "homo_scalar",
         hidden_channels=_registry.hidden_for(variant, 64, "loso"),
         num_heads=4, num_layers=layers, dropout=0.2, edge_dim=edge_dim,
+        topo_prior=topo_prior,
     )
     model.to(target_device)
     trainer = GNNTrainer(
@@ -264,7 +274,7 @@ def train_once_homogeneous(
         _PyGDataLoader([data] + inductive_data, batch_size=1, shuffle=True),
         primary_data=data, val_data=val_data,
     )
-    return HomogeneousScorer(model, target_device, rank_normalize_features)
+    return HomogeneousScorer(model, target_device, rank_normalize_features, topo_prior)
 
 
 def score(service: GNNService, bundle: ScenarioBundle, *, use_qos: bool,
@@ -536,7 +546,7 @@ def main() -> int:
     p.add_argument("--synthetic-cache", type=Path, default=Path("output/loso_cache"))
     p.add_argument("--realworld-cache", type=Path, default=Path("output/realworld_cache"))
     p.add_argument("--variant", default="hgl_qos", choices=["hgl_qos", "hgl", "hgl_qos_prior",
-                            "gl_full_cap", "gl_full_qos16_cap"])
+                            "gl_full_cap", "gl_full_qos16_cap", "gl_qos16_prior"])
     p.add_argument("--seeds", default="42,123,456,789,2024")
     p.add_argument("--epochs", type=int, default=150)
     p.add_argument("--layers", type=int, default=2)
@@ -566,7 +576,7 @@ def main() -> int:
         return 2
 
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()]
-    homogeneous = args.variant in ("gl_full_cap", "gl_full_qos16_cap")
+    homogeneous = args.variant in ("gl_full_cap", "gl_full_qos16_cap", "gl_qos16_prior")
     use_qos = (
         _registry.edge_dim(args.variant, "loso") is not None if homogeneous
         else args.variant in ("hgl_qos", "hgl_qos_prior")

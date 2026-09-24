@@ -46,7 +46,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from saag.prediction.models.core import NUM_LABEL_DIMS
+from saag.prediction.models.core import NUM_LABEL_DIMS, _PRIOR_NODE_TYPES
 from saag.prediction.data_preparation import NODE_TYPE_TO_DIM
 
 logger = logging.getLogger(__name__)
@@ -93,9 +93,15 @@ class _HomoGATBase(nn.Module):
         num_layers: int,
         dropout: float,
         edge_dim: Optional[int],  # None → no edge features
+        topo_prior: bool = False,
     ):
         super().__init__()
         self._require_pyg()
+        #: SaG-Hybrid-GAT (PREREGISTRATION.md, Amendment 6): the last input
+        #: column carries the rank-normalised Topo-QoS score and the composite
+        #: head learns a correction on its logit, exactly as in the HGT hybrid.
+        self.topo_prior = topo_prior
+        extra = 1 if topo_prior else 0
 
         self.node_types = list(node_type_dims.keys())
         self.hidden_channels = hidden_channels
@@ -109,7 +115,7 @@ class _HomoGATBase(nn.Module):
         # Per-type input projections → common hidden space
         self.input_proj = nn.ModuleDict({
             nt: nn.Sequential(
-                nn.Linear(dim, hidden_channels),
+                nn.Linear(dim + extra, hidden_channels),
                 nn.LayerNorm(hidden_channels),
                 nn.GELU(),
             )
@@ -140,6 +146,8 @@ class _HomoGATBase(nn.Module):
             for dim in ["reliability", "maintainability"]
         })
         self.composite_head = _ResidualMLP(hidden_channels + 2, hidden_channels // 2, 1, dropout)
+        if topo_prior:
+            self.prior_alpha = nn.Parameter(torch.tensor(1.0))
 
     @staticmethod
     def _require_pyg():
@@ -201,12 +209,32 @@ class _HomoGATBase(nn.Module):
 
         return x_flat, edge_index_flat, offsets
 
-    def _decode(self, h: Tensor) -> Tensor:
+    def _prior_logit(
+        self, x_dict: Dict[str, Tensor], offsets: Dict[str, Tuple[int, int]], device
+    ) -> Optional[Tensor]:
+        """Flat ``logit(prior)`` column, zero for types that carry no prior.
+
+        Returns None unless the model was built with ``topo_prior``.
+        """
+        if not self.topo_prior or not offsets:
+            return None
+        n = max(end for _, end in offsets.values())
+        out = torch.zeros(n, 1, device=device)
+        for nt, (start, end) in offsets.items():
+            if nt in _PRIOR_NODE_TYPES:
+                p = x_dict[nt][:, -1].to(device).clamp(0.01, 0.99)
+                out[start:end, 0] = torch.logit(p)
+        return out
+
+    def _decode(self, h: Tensor, prior_logit: Optional[Tensor] = None) -> Tensor:
         """RM output heads → (N, NUM_LABEL_DIMS) tensor."""
         r = torch.sigmoid(self.rm_heads["reliability"](h))
         m = torch.sigmoid(self.rm_heads["maintainability"](h))
         composite_in = torch.cat([h, r, m], dim=-1)
-        composite = torch.sigmoid(self.composite_head(composite_in))
+        z = self.composite_head(composite_in)
+        if prior_logit is not None:
+            z = z + self.prior_alpha * prior_logit
+        composite = torch.sigmoid(z)
         return torch.cat([composite, r, m], dim=-1)  # (N, NUM_LABEL_DIMS)
 
     def _scatter_to_types(
@@ -263,7 +291,7 @@ class HomogeneousGAT_Unweighted(_HomoGATBase):
             h_new = conv(h, ei_flat)           # no edge_attr
             h = F.dropout(F.gelu(norm(h_new + h)), p=self.dropout_p, training=self.training)
 
-        out_flat = self._decode(h)
+        out_flat = self._decode(h, self._prior_logit(x_dict, offsets, device))
         return self._scatter_to_types(out_flat, offsets)
 
 
@@ -294,11 +322,13 @@ class HomogeneousGAT_ScalarWeighted(_HomoGATBase):
         num_layers: int = 3,
         dropout: float = 0.2,
         edge_dim: int = 1,
+        topo_prior: bool = False,
         **kwargs,
     ):
         dims = node_type_dims or NODE_TYPE_TO_DIM
         super().__init__(
-            dims, hidden_channels, num_heads, num_layers, dropout, edge_dim=edge_dim
+            dims, hidden_channels, num_heads, num_layers, dropout, edge_dim=edge_dim,
+            topo_prior=topo_prior,
         )
 
     def _build_homo_edge_attr(
@@ -351,7 +381,7 @@ class HomogeneousGAT_ScalarWeighted(_HomoGATBase):
             h_new = conv(h, ei_flat, edge_attr=ea_flat)
             h = F.dropout(F.gelu(norm(h_new + h)), p=self.dropout_p, training=self.training)
 
-        out_flat = self._decode(h)
+        out_flat = self._decode(h, self._prior_logit(x_dict, offsets, device))
         return self._scatter_to_types(out_flat, offsets)
 
 
@@ -365,6 +395,7 @@ def build_baseline(
     num_layers: int = 3,
     dropout: float = 0.2,
     edge_dim: Optional[int] = None,
+    topo_prior: bool = False,
 ) -> nn.Module:
     """Instantiate a baseline model by variant name.
 
@@ -393,7 +424,7 @@ def build_baseline(
     elif variant == "homo_scalar":
         if edge_dim is not None:
             kwargs["edge_dim"] = edge_dim
-        return HomogeneousGAT_ScalarWeighted(**kwargs)
+        return HomogeneousGAT_ScalarWeighted(topo_prior=topo_prior, **kwargs)
     else:
         raise ValueError(
             f"Unknown baseline variant '{variant}'. "

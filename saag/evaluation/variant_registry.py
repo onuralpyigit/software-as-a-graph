@@ -246,6 +246,18 @@ _VARIANT_LIST = [
         blurb="HGT-QoS learning a residual correction on the closed-form Topo-QoS score",
     ),
     Variant(
+        # PREREGISTRATION.md Amendment 6. gl_full_qos16_cap with the same
+        # Topo-QoS prior and logit correction as hgl_qos_prior. Opt-in.
+        variant_id="gl_qos16_prior",
+        family="hybrid",
+        substrate="native",
+        qos="full16",
+        label="SaG-Hybrid-GAT",
+        blurb="capacity-matched untyped GAT (16-D QoS) learning a residual "
+              "correction on the closed-form Topo-QoS score",
+        hidden_channels=288,
+    ),
+    Variant(
         # qos stays "full16": this *is* a full-QoS HGT. The arm varies
         # directionality alone, and `qos` describes the edge channel.
         variant_id="hgl_qos_uni",

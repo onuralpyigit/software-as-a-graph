@@ -15,6 +15,7 @@
 #   make rq2-matched     — capacity- and channel-matched 2x2 (Amendment 2; GPU, ~10 h)
 #   make seed-robustness — 2x2 under median / trimmed seed aggregation (no training)
 #   make rq-hybrid       — SaG-Hybrid vs Topo-QoS vs HGT-QoS, one CPU sweep (Amendment 5)
+#   make rq-hybrid-gat   — SaG-Hybrid-GAT vs Topo-QoS vs GAT-N-QoS16-C, one CPU sweep (Amendment 6)
 #   make nested-search   — nested-CV config search (opt-in, expensive; GRID=stage1|stage2|full)
 #   make convergent-validity — JSS Table 13: Three-oracle rank agreement (opt-in; expensive)
 #   make passive-strata  — Topic / host-Node ground truth + trivial-baseline controls
@@ -46,7 +47,7 @@ SCENARIOS_DIR ?= data/scenarios
 RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
-.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness rq-hybrid nested-search kfold convergent-validity \
+.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness rq-hybrid rq-hybrid-gat nested-search kfold convergent-validity \
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 \
@@ -179,6 +180,18 @@ rq-hybrid:
 	$(PYTHON) reproduce/loso_significance.py \
 	    --input $(RESULTS_DIR)/loso_hybrid_cpu.json \
 	    --output $(RESULTS_DIR)/loso_significance_hybrid_cpu.json
+
+rq-hybrid-gat:
+	$(PYTHON) reproduce/loso_all_variants.py \
+	    --variants topo_qos gl_full_qos16_cap gl_qos16_prior \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --epochs $(EPOCHS) --seeds $(SEEDS) --device cpu \
+	    --jobs $(HYBRID_JOBS) --torch-threads 1 \
+	    --output-base $(OUTPUT_DIR)/loso_cpu_hybrid_gat \
+	    --output $(RESULTS_DIR)/loso_hybrid_gat_cpu.json
+	$(PYTHON) reproduce/loso_significance.py \
+	    --input $(RESULTS_DIR)/loso_hybrid_gat_cpu.json \
+	    --output $(RESULTS_DIR)/loso_significance_hybrid_gat_cpu.json
 
 seed-robustness:
 	$(PYTHON) reproduce/factorial_seed_robustness.py \

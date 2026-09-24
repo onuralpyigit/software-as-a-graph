@@ -108,3 +108,51 @@ def test_prior_is_rank_normalised_topo_qos():
     ids = sorted(raw)
     rho = spearmanr([prior[i] for i in ids], [raw[i] for i in ids]).correlation
     assert rho == pytest.approx(1.0)
+
+
+# ── SaG-Hybrid-GAT (PREREGISTRATION.md Amendment 6) ──────────────────────────
+
+def _gat(topo_prior):
+    from saag.prediction.models.baselines import build_baseline
+
+    torch.manual_seed(0)
+    dims = {"Application": NODE_TYPE_TO_DIM["Application"], "Topic": NODE_TYPE_TO_DIM["Topic"]}
+    return build_baseline("homo_scalar", node_type_dims=dims, hidden_channels=16,
+                          num_heads=2, num_layers=1, edge_dim=16, topo_prior=topo_prior)
+
+
+def _gat_inputs():
+    x = {
+        "Application": torch.rand(3, NODE_TYPE_TO_DIM["Application"] + 1),
+        "Topic": torch.rand(1, NODE_TYPE_TO_DIM["Topic"] + 1),
+    }
+    rel = ("Application", "PUBLISHES_TO", "Topic")
+    return x, {rel: torch.tensor([[0, 1, 2], [0, 0, 0]])}, {rel: torch.rand(3, 16)}
+
+
+def test_gat_prior_adds_one_input_per_type_plus_alpha():
+    base, hyb = _gat(False), _gat(True)
+    n_base = sum(p.numel() for p in base.parameters())
+    n_hyb = sum(p.numel() for p in hyb.parameters())
+    assert n_hyb - n_base == 2 * 16 + 1
+    assert not hasattr(base, "prior_alpha")
+
+
+def test_gat_zero_alpha_matches_plain_decode_and_prior_is_monotone():
+    model = _gat(True).eval()
+    x, ei, ea = _gat_inputs()
+    with torch.no_grad():
+        model.prior_alpha.fill_(0.0)
+        with_prior = model(x, ei, ea)["Application"]
+        model.topo_prior = False          # same weights, prior path disabled
+        plain = model(x, ei, ea)["Application"]
+        model.topo_prior = True
+        assert torch.allclose(with_prior, plain)
+        model.prior_alpha.fill_(5.0)
+        x["Application"][:, -1] = torch.tensor([0.05, 0.5, 0.95])
+        lo_hi = model(x, ei, ea)["Application"][:, 0]
+        x["Application"][:, -1] = torch.tensor([0.95, 0.5, 0.05])
+        hi_lo = model(x, ei, ea)["Application"][:, 0]
+        # The prior column also feeds the input projection, so compare only
+        # the direction of the change, which alpha = 5 dominates.
+        assert lo_hi[2] > hi_lo[2] and lo_hi[0] < hi_lo[0]

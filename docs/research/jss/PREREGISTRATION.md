@@ -360,3 +360,48 @@ their articulation-point term. The cached `structural_metrics.json` carries no
 `ap_c_score`, so `reproduce/main_table._parse_structural_metrics` sets it to 0
 for every node. The registered comparator is left exactly as it ran. An
 AP-corrected version is computed separately as a sensitivity analysis.
+
+---
+
+## Amendment 6 — hybrid on the untyped QoS engine (2026-09-24, before any result)
+
+**Status when written:** the variant is not yet implemented. No outcome exists.
+
+**Why it exists.** The matched control (Amendment 2) showed that relation-typed
+weights add nothing at matched capacity. It also showed that the capacity-matched
+untyped GAT with the 16-D QoS channel (`gl_full_qos16_cap`) transfers best
+zero-shot. Amendment 5's hybrid was built on HGT. This amendment asks whether
+the same correction, applied to the untyped engine, keeps the hybrid's LOSO
+gain and also keeps the untyped engine's transfer.
+
+**Design, fixed before any run. No tuning and no search.**
+
+| Element | Choice |
+|:---|:---|
+| Variant id / label | `gl_qos16_prior` / SaG-Hybrid-GAT |
+| Base model | `gl_full_qos16_cap` exactly as run in Amendment 2's sweep: untyped GAT, 288 hidden channels, 4 heads, 3 layers, 16-D edge channel, same trainer, loss, epochs (300) and early stopping |
+| Prior | Identical to Amendment 5: the LOSO-path Topo-QoS score of each Application and Library, rank-normalised within the graph (average ranks); 0 for other types; appended as the last node-feature column |
+| Output | $\hat{I}^*(v) = \sigma\big(z(v) + \alpha \cdot \operatorname{logit}(\operatorname{clip}(p(v), 0.01, 0.99))\big)$ for Applications and Libraries, with one learnable $\alpha$ initialised to 1.0 |
+
+**Run.** One CPU invocation, 12 LOSO folds × 5 seeds
+{42, 123, 456, 789, 2024}, Application population, containing `topo_qos`,
+`gl_full_qos16_cap` and `gl_qos16_prior`. The same model is also evaluated
+zero-shot on the five open-source system models under the Table 12 protocol.
+
+**Contrasts.** Two-sided Wilcoxon over folds, with Holm correction across these
+two only. This family is separate from Amendment 5's.
+- **Primary:** `gl_qos16_prior` vs `topo_qos`.
+- **Secondary:** `gl_qos16_prior` vs `gl_full_qos16_cap`.
+
+The comparison with SaG-Hybrid (`hgl_qos_prior`) is descriptive only; its
+Topo-QoS and HGT-QoS comparators are bit-identical across CPU sweeps.
+
+### Decision rule
+
+| Outcome | What we will report |
+|:---|:---|
+| Primary significant (Holm p < 0.05) | SaG-Hybrid-GAT is reported as a second engine that significantly outperforms closed-form ranking. It replaces SaG-Hybrid as the recommended hybrid only if it is also at least as good zero-shot (mean ρ on the five system models ≥ SaG-Hybrid's 0.695). |
+| Not significant | Reported in the hybrid section with the same numbers. SaG-Hybrid remains the headline hybrid. |
+
+**Reporting commitment.** Reported whichever way it comes out, in the manuscript
+and supplement. It may be dropped only for a stated technical failure.

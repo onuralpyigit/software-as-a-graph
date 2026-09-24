@@ -69,6 +69,13 @@ HYBRID_CONTRASTS = (
     ("hgl_qos_prior", "hgl_qos", "hybrid_vs_learned"),
 )
 
+#: SaG-Hybrid-GAT (PREREGISTRATION.md Amendment 6): its own two-contrast
+#: family, Holm-corrected within itself and never pooled with Amendment 5's.
+HYBRID_GAT_CONTRASTS = (
+    ("gl_qos16_prior", "topo_qos", "hybrid_gat_vs_closed_form"),
+    ("gl_qos16_prior", "gl_full_qos16_cap", "hybrid_gat_vs_learned"),
+)
+
 #: The architecture contrasts the manuscript actually headlines: RQ2 is a
 #: typed-vs-untyped comparison and RQ3's ablation is QoS-on vs QoS-off, and
 #: neither is a comparison against BASELINE. Both were reported with p-values
@@ -446,6 +453,7 @@ def main() -> int:
     architecture = _family(ARCHITECTURE_CONTRASTS, "architecture", correct=False)
     controls = _family(CONTROL_CONTRASTS, "control")
     hybrid = _family(HYBRID_CONTRASTS, "hybrid")
+    hybrid_gat = _family(HYBRID_GAT_CONTRASTS, "hybrid_gat")
 
     n = family[0]["n_folds"]
     print(f"\n  Pre-registered LOSO comparisons vs "
@@ -456,7 +464,7 @@ def main() -> int:
     print("  " + "─" * 78)
     print(f"  {'variant':<12}{'role':<13}{'d rho':>9}{'wins':>7}{'W':>7}"
           f"{'p':>9}{'p_holm':>9}")
-    for r in family + exploratory + architecture + controls + hybrid:  # noqa: E501
+    for r in family + exploratory + architecture + controls + hybrid + hybrid_gat:  # noqa: E501
         holm_s = f"{r['p_holm']:.4f}" if "p_holm" in r else "—"
         print(f"  {r['label']:<12}{r['role']:<13}{r['mean_delta']:>+9.4f}"
               f"{r['wins']:>4}/{r['n_folds']:<2}{r['W']:>7.1f}"
@@ -540,6 +548,9 @@ def main() -> int:
     if hybrid:
         # Amendment 5's registered pair, Holm-corrected within itself.
         payload["hybrid"] = hybrid
+    if hybrid_gat:
+        # Amendment 6's registered pair, Holm-corrected within itself.
+        payload["hybrid_gat"] = hybrid_gat
     if cells:
         payload["factorial_cells"] = {f"{t}{q}": v for (t, q), v in cells.items()}
     # Say which commit and which corpus produced these contrasts. Without it

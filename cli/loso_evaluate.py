@@ -148,10 +148,11 @@ logger = logging.getLogger("loso_evaluate")
 _STRUCTURAL_VARIANTS = ("topo_baseline", "topo_qos")
 _HOMOGENEOUS_VARIANTS = (
     "gl", "gl_qos", "gl_full_cap", "gl_full_qos_cap", "gl_full_qos16_cap",
+    "gl_qos16_prior",
 )
 _HGT_VARIANTS = ("hgl", "hgl_qos", "hgl_qos_uni", "hgl_qos_prior", "topology_rm")
 #: HGT arms that receive the closed-form Topo-QoS prior (Amendment 5).
-_PRIOR_VARIANTS = ("hgl_qos_prior",)
+_PRIOR_VARIANTS = ("hgl_qos_prior", "gl_qos16_prior")
 #: Learned, but not a graph model: gradient boosting on the same typed node
 #: features the GNNs read. Its own branch because it has no HeteroData forward
 #: pass, no checkpoint and no epochs -- see saag/prediction/models/tabular.py.
@@ -857,13 +858,18 @@ def _run_seed(
             # Any arm with an edge channel needs QoS on the graph; the
             # registry owns which those are.
             use_qos = _registry.edge_dim(variant, "loso") is not None
+            use_prior = variant in _PRIOR_VARIANTS
             train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
             holdout_graph, holdout_sm = _prepare_bundle_graph(holdout, use_qos)
+            if use_prior:
+                train_sm = _with_prior(primary, train_sm)
+                holdout_sm = _with_prior(holdout, holdout_sm)
 
             conv = networkx_to_hetero_data(
                 train_graph, train_sm, primary.simulation, primary.rm,
                 qos_enabled=use_qos,
                 rank_normalize_features=rank_normalize_features,
+                append_prior=use_prior,
             )
             data = conv.hetero_data
             create_node_splits(data, seed=seed)
@@ -875,7 +881,7 @@ def _run_seed(
             # training graphs against one with a single graph. Same folds,
             # same substrate, same graph count.
             inductive_data = [
-                _build_training_hetero(b, use_qos, rank_normalize_features)
+                _build_training_hetero(b, use_qos, rank_normalize_features, use_prior)
                 for b in inductives
             ]
             for ig in inductive_data:
@@ -892,7 +898,7 @@ def _run_seed(
             val_data = None
             if val_bundle is not None:
                 val_data = _build_validation_hetero(
-                    val_bundle, use_qos, rank_normalize_features
+                    val_bundle, use_qos, rank_normalize_features, use_prior
                 )
                 normalize_labels_robust(val_data, rank_normalize=rank_normalize_labels)
 
@@ -913,7 +919,7 @@ def _run_seed(
                                    hidden_channels=_registry.hidden_for(variant, hidden, "loso"),
                                    num_heads=heads,
                                    num_layers=layers, dropout=dropout,
-                                   edge_dim=edge_dim)
+                                   edge_dim=edge_dim, topo_prior=use_prior)
             model.to(target_device)
             best_path = ckpt_dir / "best_model.pt"
             if best_path.exists():
@@ -944,6 +950,7 @@ def _run_seed(
                 holdout_graph, holdout_sm, holdout.simulation, holdout.rm,
                 qos_enabled=use_qos,
                 rank_normalize_features=rank_normalize_features,
+                append_prior=use_prior,
             )
             data_h = conv_h.hetero_data
             create_node_splits(data_h, seed=seed)
