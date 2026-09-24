@@ -7,11 +7,11 @@ justified."*
 
 ---
 
-The manuscript runs to **20 single-column pages** in the `elsarticle` preprint class, including all
+The manuscript runs to **22 single-column pages** in the `elsarticle` preprint class, including all
 declarations and the reference list (90 entries), well within the recommended limit. No explanation
 is required.
 
-The body keeps each headline result with the evidence needed to check it (12 tables, 1 figure).
+The body keeps each headline result with the evidence needed to check it (12 tables, 5 figures).
 Detail was moved out in two directions:
 - **Supplementary Material (S1–S29):** sensitivity sweeps, AHP matrices, corpus parameters and
   composition, the feature schema, anti-pattern and attention analyses, convergent validity,

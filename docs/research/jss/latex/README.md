@@ -76,11 +76,11 @@ the layout JSS's "<36 pages single-column" guidance reads naturally against.
 
 | Class options | Pages | Note |
 |---|---:|---|
-| **`[preprint,3p]`** | **20** | **current setting** |
+| **`[preprint,3p]`** | **22** | **current setting** |
 | `[preprint,review,3p]` | — | 1.5-spaced reviewing copy; add `review` back if the editor asks for one |
 | `[preprint]` | — | Elsevier's generic preprint layout (larger type/margins) |
 
-Of the 20 pages, the reference list is the last 3. `LENGTH_JUSTIFICATION.md` records what was moved
+Of the 22 pages, the reference list is the last 3. `LENGTH_JUSTIFICATION.md` records what was moved
 to the supplement and to the public experiment pages ([`../experiments/`](../experiments/README.md))
 when the body was condensed from 35 pages.
 
@@ -90,7 +90,7 @@ when the body was condensed from 35 pages.
 
 ## Supplementary material
 
-`supplementary.tex` (25 pages, Sections S1--S29) carries the material moved out of the body during condensation. S1--S8 are:
+`supplementary.tex` (23 pages, Sections S1--S29) carries the material moved out of the body during condensation. S1--S8 are:
 
 | § | Content |
 |---|---|
@@ -111,27 +111,33 @@ directions, and `make zip` ships both `.aux` files so the portal build resolves 
 
 ## Figures
 
-Three figures in the manuscript, each `\includegraphics`'d from a live section and cross-referenced
+Five figures in the manuscript, each `\includegraphics`'d from a live section and cross-referenced
 with `\ref`, plus two in the supplement:
 
 | Fig. | File | Content | Section | Generator |
 |:---:|---|---|---|---|
-| 1 | `Figure_1.pdf` | end-to-end SaG pipeline | §1.3 | `figures/src/figure1_pipeline.dot` |
-| 2 | `Figure_2.pdf` | running example: structural graph + `DEPENDS_ON` | §3.3 | `figures/src/figure2_running_example.dot` |
-| 3 | `Figure_3.pdf` | results at a glance (LOSO ρ, F1@K, oracle agreement) | §7.1 | `reproduce/render_results_figure.py` |
+| 1 | `Figure_1.pdf` | end-to-end SaG pipeline | §3 | `figures/src/figure1_pipeline.dot` |
+| 2 | `Figure_2.pdf` | running example: structural graph → `DEPENDS_ON` (cascade vs. blast) | §3.2 | `reproduce/render_jss_diagrams.py` |
+| 3 | `Figure_3.pdf` | the three ranking engines (hybrid mechanism) and the evaluation design | §4 | `reproduce/render_jss_diagrams.py` |
+| 4 | `Figure_4.pdf` | explanation layer: metrics → FT/A/M → Q(v) → remediation | §5.2 | `reproduce/render_jss_diagrams.py` |
+| 5 | `Figure_5.pdf` | results at a glance: LOSO vs. transfer, per-fold hybrid effect, matched 2×2 | §7 | `reproduce/render_headline_figure.py` |
 | S1 | `Figure_S1.pdf` | AHP shrinkage sensitivity | Supp. S1 | `reproduce/render_shrinkage_figure.py` |
 | S2 | `Figure_S2.pdf` | HGT attention-weight case study | Supp. S8 | `reproduce/extract_attention.py` + `render_attention_subgraph.py` |
 
-File numbering and printed numbering now agree, as the JSS Guide for Authors requires ("number images
-according to the order they appear within your article"): the manuscript's artwork is `Figure_1..3`
-and the supplement's is kept in a separate `Figure_S*` series. Both generators default to the current
-(`_v4`/`_v3`) artifacts, so `make figures` reproduces what is shipped; they previously defaulted to
-superseded ones, which is how the figures went stale before.
+`make figures` (→ `reproduce/Makefile jss-figures`) regenerates all of them. File numbering and
+printed numbering agree, as the JSS Guide for Authors requires.
 
-The Graphviz figures must keep their **natural canvas width near the text block (~468pt)**. They are
-included at `width=\linewidth`, so a canvas twice that width is scaled to ~0.5 and every font inside
-is halved with it. After editing a `.dot`, re-measure with `pdfinfo figures/Figure_N.pdf` rather than
-judging by eye.
+- **Figure 5 reads `results/`.** It uses the same artifacts, and the same fold bootstrap, as
+  Tables 8 and 9, so it cannot disagree with them. Re-run it whenever those artifacts change.
+- **Figures 2–4 are drawn at the text width** (6.5 in = 468 pt) and included at
+  `width=\linewidth`, so their 6–8 pt fonts print at size. Keep them there.
+- **Figure 1 is Graphviz.** Its canvas (605 pt) is included at `0.70\linewidth`, so its labels
+  print at about 6 pt. After editing its `.dot`, re-measure with `pdfinfo figures/Figure_1.pdf`
+  rather than judging by eye.
+- **Figure colours.** Colours follow the Okabe–Ito palette, and each engine keeps one colour across
+  Figures 3 and 5.
+- **Retired figure.** The former results figure (`reproduce/render_results_figure.py`) is retired.
+  Its typing × QoS panel showed the unmatched interaction that the matched control overturned.
 
 ## Verifying a revision
 
@@ -152,9 +158,9 @@ revision:
 grep -rnE '0\.680|0\.160|0\.695|0\.581|0\.568|0\.114|0\.054|0\.127|2,461|2,812' sections/ ../manuscript.md
 ```
 
-Current state of the build: **20 pages**, 9 sections, 12 tables, 1 figure, 90 references,
+Current state of the build: **22 pages**, 9 sections, 12 tables, 5 figures, 90 references,
 **zero LaTeX errors, zero undefined references, zero undefined citations, zero overfull boxes**. The
-supplement builds to 25 pages (S1--S29, 27 tables, 4 figures), also with zero undefined references
+supplement builds to 23 pages (S1--S29, 27 tables, 2 figures), also with zero undefined references
 (its four overfull boxes predate the condensation).
 
 ## What's still a placeholder
@@ -177,7 +183,7 @@ supplement builds to 25 pages (S1--S29, 27 tables, 4 figures), also with zero un
   own section directly before the reference list (and before the generative-AI declaration).
 - **Graphical abstract** — encouraged by the Guide, not required; not produced here. If added:
   531 × 1328 px (h × w) or proportionally more, TIFF/EPS/PDF/MS Office, separate file.
-- **Length** — 20 pages, inside the "less than 36 pages single-column" the Guide encourages. No
+- **Length** — 22 pages, inside the "less than 36 pages single-column" the Guide encourages. No
   explanation is required in "Comments to the Editor"; `LENGTH_JUSTIFICATION.md` is kept as a record
   of what was moved to the supplement and the experiment pages.
 - **Experiment-pages tag** — `\sagexperimentsurl` in `manuscript.tex` points at the tag

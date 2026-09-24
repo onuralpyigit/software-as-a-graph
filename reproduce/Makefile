@@ -20,7 +20,7 @@
 #   make nested-search   — nested-CV config search (opt-in, expensive; GRID=stage1|stage2|full)
 #   make convergent-validity — JSS Table 13: Three-oracle rank agreement (opt-in; expensive)
 #   make passive-strata  — Topic / host-Node ground truth + trivial-baseline controls
-#   make jss-figures     — Figure_1..3 (manuscript) + Figure_S1..S2 (supplement)
+#   make jss-figures     — Figure_1..5 (manuscript) + Figure_S1..S2 (supplement)
 #   make jss-tables      — JSS Table 5: generator-parameter table (tab_genparams.tex)
 #   make all             — full end-to-end pipeline (tables + JSS figures)
 #   make bundle          — reconcile, then cut the results bundle that ships with the paper
@@ -51,7 +51,7 @@ OUTPUT_DIR    ?= output
 .PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat nested-search kfold convergent-validity \
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency \
-        figure4 figure5 jss-fig1 jss-fig2 jss-fig3 \
+        figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 \
         jss-figures jss-figS1 jss-figS2 jss-tables all bundle smoke-test clean clean-all
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -319,16 +319,18 @@ figure5:
 # ─────────────────────────────────────────────────────────────────────────────
 # JSS submission figures (docs/research/jss/latex/figures/Figure_1..5).
 #
-# Since the manuscript was condensed to four figures, printed number, filename
-# and draft.md's own caption label all agree -- the old 1,2,6,3,4,5 mismatch is
-# gone, because the two floats that caused it (pooled-vs-per-type ρ and the
-# propagation-threshold sweep) are no longer in the paper.
+# Printed number and filename agree: Figure_N is the N-th figure in the body.
+#   1  pipeline                      figures/src/figure1_pipeline.dot
+#   2  running example               reproduce/render_jss_diagrams.py
+#   3  engines + evaluation design   reproduce/render_jss_diagrams.py
+#   4  explanation layer             reproduce/render_jss_diagrams.py
+#   5  results at a glance           reproduce/render_headline_figure.py (reads results/)
 #
-# The two retired generators are kept, not deleted: their analyses still live
-# in docs/research/thesis/material/, and either figure is one command from
-# coming back. They are simply not part of `jss-figures` any more.
+# Retired generators are kept, not deleted, but are not part of `jss-figures`:
 #   reproduce/render_pooled_vs_pertype_figure.py  (was Figure_4)
 #   reproduce/render_threshold_figure.py          (was Figure_6)
+#   reproduce/render_results_figure.py            (was Figure_3; its panel D showed
+#       the unmatched typing x QoS interaction, superseded by the matched control)
 # ─────────────────────────────────────────────────────────────────────────────
 
 jss-fig1:
@@ -339,15 +341,16 @@ jss-fig1:
 	@echo "✓ Figure 1 (pipeline) ready."
 
 jss-fig2:
-	dot -Tpdf docs/research/jss/latex/figures/src/figure2_running_example.dot \
-	    -o docs/research/jss/latex/figures/Figure_2.pdf
-	dot -Tpng -Gdpi=300 docs/research/jss/latex/figures/src/figure2_running_example.dot \
-	    -o docs/research/jss/latex/figures/Figure_2.png
-	@echo "✓ Figure 2 (running example) ready."
+	$(PYTHON) reproduce/render_jss_diagrams.py --only 2
 
 jss-fig3:
-	$(PYTHON) reproduce/render_results_figure.py
-	@echo "✓ Figure 3 (results at a glance) ready."
+	$(PYTHON) reproduce/render_jss_diagrams.py --only 3
+
+jss-fig4:
+	$(PYTHON) reproduce/render_jss_diagrams.py --only 4
+
+jss-fig5:
+	PYTHONPATH=. $(PYTHON) reproduce/render_headline_figure.py
 
 jss-figS1:
 	$(PYTHON) reproduce/render_shrinkage_figure.py
@@ -371,8 +374,8 @@ jss-figS2:
 	    --output docs/research/jss/latex/figures/Figure_S2
 	@echo "✓ Figure S2 (HGT attention subgraph) ready."
 
-jss-figures: jss-fig1 jss-fig2 jss-fig3 jss-figS1 jss-figS2
-	@echo "✓ All JSS figures ready (3 in the manuscript, 2 supplementary)."
+jss-figures: jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 jss-figS1 jss-figS2
+	@echo "✓ All JSS figures ready (5 in the manuscript, 2 supplementary)."
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Manuscript tables generated from committed configs/artifacts rather than by

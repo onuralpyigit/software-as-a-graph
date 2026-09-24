@@ -6,7 +6,7 @@
 #
 # Usage:
 #   make            — full build (pdflatex -> bibtex -> pdflatex x2)
-#   make figures    — regenerate all 5 figures, 3 body + 2 supplementary
+#   make figures    — regenerate all 7 figures, 5 body + 2 supplementary
 #                     (delegates to reproduce/Makefile jss-figures)
 #   make flat       — single-file manuscript_flat.tex, if a submission portal
 #                     rejects \input
@@ -26,7 +26,7 @@ export TEXINPUTS BSTINPUTS
 all: $(MAIN).pdf
 
 $(MAIN).pdf: $(MAIN).tex sections/*.tex refs.bib figures/Figure_1.pdf figures/Figure_2.pdf \
-             figures/Figure_3.pdf
+             figures/Figure_3.pdf figures/Figure_4.pdf figures/Figure_5.pdf
 	$(PDFLATEX) -interaction=nonstopmode $(MAIN).tex
 	$(BIBTEX) $(MAIN)
 	@# The two documents cross-reference each other through xr-hyper

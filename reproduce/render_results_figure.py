@@ -44,7 +44,9 @@ if __name__ == "__main__" and __package__ is None:
 from saag.evaluation import variant_registry as _registry
 
 RESULTS_DIR = Path("results")
-_DEFAULT_OUTPUT = Path("docs/research/jss/latex/figures/Figure_3")
+# Retired from the manuscript (superseded by render_headline_figure.py). The
+# default no longer points at figures/Figure_3, which is now the engines diagram.
+_DEFAULT_OUTPUT = Path("output/figures/results_at_a_glance_retired")
 
 #: Printed labels, and the colour family each variant belongs to. Labels come
 #: from saag/evaluation/variant_registry.py under the "loso" harness — this
