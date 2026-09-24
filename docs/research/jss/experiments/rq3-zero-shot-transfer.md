@@ -1,6 +1,6 @@
 # RQ3 — Zero-shot transfer to five open-source system models
 
-**Paper:** §7.3, Table 10 (and the transfer columns of Table 8). **Extended results:** Supplement
+**Paper:** §7.3, Table 9 (and the transfer columns of Table 7). **Extended results:** Supplement
 S27 (bootstrap intervals and active stratum), S15 (PR-AUC, F1@τ, nDCG), S7 (explanation layer on
 the same models), S29 (2-layer configuration).
 
@@ -42,8 +42,8 @@ PYTHONPATH=. python reproduce/realworld_zeroshot.py --variant hgl_qos --layers 3
 
 `--variant` also accepts `hgl`, `hgl_qos_prior`, `gl_full_qos16_cap` and `gl_qos16_prior` (see
 `--help`). The published artifacts are:
-- `realworld_zeroshot_v7.json` (`HGT-QoS`, Table 10);
-- `realworld_zeroshot_*_cpu.json` (the CPU rows of Table 8).
+- `realworld_zeroshot_v7.json` (`HGT-QoS`, Table 9);
+- `realworld_zeroshot_*_cpu.json` (the CPU rows of Table 7 and the `GAT-QoS` column of Table 9).
 
 ## Headline result
 

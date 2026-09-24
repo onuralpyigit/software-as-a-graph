@@ -90,7 +90,7 @@ when the body was condensed from 35 pages.
 
 ## Supplementary material
 
-`supplementary.tex` (23 pages, Sections S1--S29) carries the material moved out of the body during condensation. S1--S8 are:
+`supplementary.tex` (25 pages, Sections S1--S30) carries the material moved out of the body during condensation. S1--S8 are:
 
 | § | Content |
 |---|---|
@@ -128,7 +128,7 @@ with `\ref`, plus two in the supplement:
 printed numbering agree, as the JSS Guide for Authors requires.
 
 - **Figure 5 reads `results/`.** It uses the same artifacts, and the same fold bootstrap, as
-  Tables 8 and 9, so it cannot disagree with them. Re-run it whenever those artifacts change.
+  Tables 7 and 8, so it cannot disagree with them. Re-run it whenever those artifacts change.
 - **Figures 2–4 are drawn at the text width** (6.5 in = 468 pt) and included at
   `width=\linewidth`, so their 6–8 pt fonts print at size. Keep them there.
 - **Figure 1 is Graphviz.** Its canvas (605 pt) is included at `0.70\linewidth`, so its labels
@@ -158,9 +158,9 @@ revision:
 grep -rnE '0\.680|0\.160|0\.695|0\.581|0\.568|0\.114|0\.054|0\.127|2,461|2,812' sections/ ../manuscript.md
 ```
 
-Current state of the build: **22 pages**, 9 sections, 12 tables, 5 figures, 90 references,
+Current state of the build: **22 pages**, 9 sections, 11 tables, 5 figures, 90 references,
 **zero LaTeX errors, zero undefined references, zero undefined citations, zero overfull boxes**. The
-supplement builds to 23 pages (S1--S29, 27 tables, 2 figures), also with zero undefined references
+supplement builds to 25 pages (S1--S30, 29 tables, 2 figures), also with zero undefined references
 (its four overfull boxes predate the condensation).
 
 ## What's still a placeholder

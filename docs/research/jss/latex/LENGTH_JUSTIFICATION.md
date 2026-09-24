@@ -11,11 +11,11 @@ The manuscript runs to **22 single-column pages** in the `elsarticle` preprint c
 declarations and the reference list (90 entries), well within the recommended limit. No explanation
 is required.
 
-The body keeps each headline result with the evidence needed to check it (12 tables, 5 figures).
+The body keeps each headline result with the evidence needed to check it (11 tables, 5 figures).
 Detail was moved out in two directions:
 - **Supplementary Material (S1–S29):** sensitivity sweeps, AHP matrices, corpus parameters and
   composition, the feature schema, anti-pattern and attention analyses, convergent validity,
-  in-distribution results, the unmatched 2×2, active-stratum and bootstrap tables, the gate-vs-oracle
+  in-distribution results, the unmatched 2×2, active-stratum and bootstrap tables, the registered GPU LOSO sweep with the small GATs, the gate-vs-oracle
   cost table, the full predictor taxonomy, per-fold hybrid results, and the amendment log with the
   omnibus Holm correction.
 - **Public experiment pages** (`docs/research/jss/experiments/` at the submission tag): protocols,

@@ -1,6 +1,6 @@
 # RQ4 — Analysis cost and comparison with direct simulation
 
-**Paper:** §7.4, Table 11, and the sustainability paragraph of §8.1. **Extended results:**
+**Paper:** §7.4, Table 10, and the sustainability paragraph of §8.1. **Extended results:**
 Supplement S28 (per-scenario gate vs. oracle, training cost).
 
 ## Reproduce
@@ -39,11 +39,11 @@ paired measurement session at one commit and corpus digest.
     near-complete graph of 26,276 edges.
   - Across sessions the maxima range over 77–83 s (gate) and 4.5–4.8 s (oracle).
 - **Training cost** (one-off per model version, CPU, 60 fits per arm): 0.6 h `GAT-S`, 0.9 h
-  `GAT-S-w`, 1.4 h `HGT`, 4.9 h `HGT-QoS`, 7.7 CPU-hours in all. The GPU sweep behind Table 7 did
+  `GAT-S-w`, 1.4 h `HGT`, 4.9 h `HGT-QoS`, 7.7 CPU-hours in all. The GPU sweep behind Supplement Table S29 did
   not record per-fit durations.
 - **Energy bound.** At 28 W base SoC power, one gate pass over the twelve scenarios costs ≤ 3.0 kJ
   (0.83 Wh), and training the four arms once costs about 0.78 MJ (0.22 kWh).
   - Both figures are upper bounds from wall-clock time, not RAPL/NVML measurements.
   - SaG's sustainability case is avoided staging infrastructure, not CPU time.
-- **Not implemented.** Incremental re-scoring of only the $k$-hop neighbourhood of a change. Table 11
+- **Not implemented.** Incremental re-scoring of only the $k$-hop neighbourhood of a change. Table 10
   times full recomputation.

@@ -20,15 +20,16 @@ import reproduce.reconcile_manuscript as R
 @pytest.fixture
 def moved_marker(monkeypatch):
     """Simulate Table 7 gaining a column without its check being updated."""
-    original = R._tex
+    # Table 7 (the registered GPU sweep) lives in the supplement, S30.
+    original = R._supp
 
-    def patched(name: str) -> str:
-        return original(name).replace(
+    def patched() -> str:
+        return original().replace(
             r"\multicolumn{8}{l}{\textit{Training-free structural baselines}}",
             r"\multicolumn{9}{l}{\textit{Training-free structural baselines}}",
         )
 
-    monkeypatch.setattr(R, "_tex", patched)
+    monkeypatch.setattr(R, "_supp", patched)
 
 
 def test_table7_reports_a_skip_when_its_marker_moves(moved_marker):

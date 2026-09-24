@@ -1,6 +1,6 @@
 # 4. Ranking Engines and Ground Truth
 
-SaG ranks components with three kinds of engine. The **closed-form engine** `Topo-QoS` is QoS-weighted betweenness on the dependency projection (§6.2). The **learned engines** are graph neural networks over the typed multigraph (this section). The **hybrid engines** are learned engines that correct the closed-form score (§7.1.2). All are trained or scored against simulation oracles that run on a separate graph view (§§4.3–4.4). Figure 3 shows how the three engines relate and how they are evaluated. Full hyperparameters and training commands are on the experiment pages of the replication repository (§6.1).
+SaG ranks components with three kinds of engine. The **closed-form engine** `Topo-QoS` is QoS-weighted betweenness on the dependency projection (§6.2). The **learned engines** are graph neural networks over the typed multigraph (this section). The **hybrid engines** are learned engines that correct the closed-form score (§7.1.1). All are trained or scored against simulation oracles that run on a separate graph view (§§4.3–4.4). Figure 3 shows how the three engines relate and how they are evaluated. Full hyperparameters and training commands are on the experiment pages of the replication repository (§6.1).
 
 ![Figure 3](latex/figures/Figure_3.png)
 

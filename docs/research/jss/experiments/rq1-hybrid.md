@@ -1,6 +1,6 @@
 # RQ1 — Hybrid engines (Hybrid-HGT, Hybrid-GAT)
 
-**Paper:** §7.1.2, Table 8. **Registration:** [`../PREREGISTRATION.md`](../PREREGISTRATION.md),
+**Paper:** §7.1, Table 7. **Registration:** [`../PREREGISTRATION.md`](../PREREGISTRATION.md),
 Amendments 5 and 6. **Extended results:** Supplement S23 (per-fold), S24 (amendment log and omnibus
 Holm).
 
@@ -32,8 +32,8 @@ make -f reproduce/Makefile omnibus          # omnibus_registered_holm.json (all 
 
 Both sweeps run on CPU (`--device cpu --torch-threads 1`), with their comparators in the same
 invocation. The `Topo-QoS`, `HGT-QoS` and `GAT-QoS` rows are bit-identical across the CPU
-sweeps that contain them. They are never mixed with the GPU rows of Table 7: `HGT-QoS` is 0.622 on
-CPU against 0.638 on GPU. The zero-shot columns of Table 8 come from
+sweeps that contain them. They are never mixed with the GPU rows of Supplement Table S29: `HGT-QoS` is 0.622 on
+CPU against 0.638 on GPU. The zero-shot columns of Table 7 come from
 `realworld_zeroshot_{hgl_qos,hgl_qos_prior,gl_full_qos16_cap,gl_qos16_prior}_cpu.json`
 (see [rq3-zero-shot-transfer.md](rq3-zero-shot-transfer.md)).
 

@@ -508,14 +508,14 @@ def check_table7_loso(rep: Report, artifact: str) -> None:
         rep.skipped.append(f"tab:7: {artifact} absent")
         return
     ct = d["comparison_table"]
-    tex = _tex("sec7_results.tex")
+    tex = _supp()  # the registered GPU sweep, Supplementary S30
     rows = _rows(tex, r"\multicolumn{8}{l}{\textit{Training-free structural baselines}}")
     if not rows:
         # _rows returns [] for a marker it cannot find, which would otherwise
         # report as a clean run over rows nobody checked -- the exact silent
         # pass this script exists to prevent. The marker carries the column
         # count, so it moves whenever a column is added to Table 7.
-        rep.skipped.append("tab:7: group marker not found in sec7_results.tex "
+        rep.skipped.append("tab:7: group marker not found in supplementary.tex "
                            "(did the column count change?)")
         return
     by_label = {LOSO_LABELS[k]: v for k, v in ct.items() if k in LOSO_LABELS}
@@ -555,7 +555,7 @@ def check_table7_delta(rep: Report, artifact: str = "loso_significance_v5.json")
         for r in d.get(section) or []:
             if r.get("baseline") == "topo_qos" and r.get("variant") in LOSO_LABELS:
                 truth[LOSO_LABELS[r["variant"]]] = r.get("mean_delta")
-    tex = _tex("sec7_results.tex")
+    tex = _supp()  # the registered GPU sweep, Supplementary S30
     rows = _rows(tex, r"\multicolumn{8}{l}{\textit{Training-free structural baselines}}")
     for row in rows:
         cells = _cells(row)
@@ -714,61 +714,54 @@ def check_scale_table(rep: Report) -> None:
 
 
 def check_realworld(rep: Report) -> None:
-    """Table 9b full-population and active-stratum correlations."""
+    """Table tab:9b: per-system zero-shot correlations of the training-free and learned engines.
+
+    Column order: system | |V_app| | n_>0 | Topo | Topo-QoS | HGT-QoS rho (+/- seeds) |
+    GAT-QoS rho (+/- seeds) | HGT-QoS rho_>0. The table previously had eight columns
+    while this check skipped any row shorter than nine, so none of its rows was ever
+    checked; a check that matches nothing now reports a skip instead.
+    """
     d = (_load("realworld_zeroshot_v7.json") or _load("realworld_zeroshot_v6.json")
          or _load("realworld_zeroshot_v5.json") or _load("realworld_zeroshot.json"))
-    if d is None:
-        rep.skipped.append("tab:9b: realworld_zeroshot.json absent")
+    gat = _load("realworld_zeroshot_gl_full_qos16_cap_cpu.json")
+    if d is None or gat is None:
+        rep.skipped.append("tab:9b: realworld zero-shot artifacts absent")
         return
-    per = d["per_system"]
+    per, per_gat, refs = d["per_system"], gat["per_system"], d.get("references", {})
     name_to_key = {
-        "Cloud Microservices Mesh": "realworld_cloud_microservices",
-        "Online Boutique (microservices)": "realworld_cloud_microservices",
-        "Train-Ticket Booking Mesh": "realworld_trainticket",
-        "Autoware.universe (ROS~2)": "realworld_autoware_ros2",
-        "EdgeX Foundry (Industrial IoT)": "realworld_edgex",
-        "Home Assistant (Smart Home)": "realworld_homeassistant",
+        "Online Boutique": "realworld_cloud_microservices",
+        "Train-Ticket": "realworld_trainticket",
+        "Autoware.universe": "realworld_autoware_ros2",
+        "EdgeX Foundry": "realworld_edgex",
+        "Home Assistant": "realworld_homeassistant",
     }
     tex = _tex("sec7_results.tex")
-    rows = _rows(tex, r"\midrule", after_label=r"\label{tab:9b}")
-    refs = d.get("references", {})
-    for row in rows:
+    seen = 0
+    for row in _rows(tex, r"\midrule", after_label=r"\label{tab:9b}"):
         cells = _cells(row)
-        if len(cells) < 9:
+        if len(cells) != 8:
             continue
         label = _label(cells[0])
-        key = next((v for k, v in name_to_key.items() if label.startswith(k.split(" (")[0])), None)
+        key = next((v for k, v in name_to_key.items() if label.startswith(k)), None)
         if key is None or key not in per:
             continue
-        s = per[key]
-        if len(cells) >= 12:
-            # Dual-metric column order: name | |V_app| | n_>0 | RM rho | RM F1 | Topo rho | Topo F1 | Topo-QoS rho | Topo-QoS F1 | HGT rho | rho_>0 | F1@K
-            checks = (
-                (2, s.get("n_positive"), 0.5, "n_positive"),
-                (3, refs.get("RM", {}).get(key, {}).get("rho"), 0.002, "rm_rho"),
-                (4, refs.get("RM", {}).get(key, {}).get("f1_at_k"), 0.002, "rm_f1"),
-                (5, refs.get("Topo", {}).get(key, {}).get("rho"), 0.002, "topo_rho"),
-                (6, refs.get("Topo", {}).get(key, {}).get("f1_at_k"), 0.002, "topo_f1"),
-                (7, refs.get("Topo-QoS", {}).get(key, {}).get("rho"), 0.002, "topoqos_rho"),
-                (8, refs.get("Topo-QoS", {}).get(key, {}).get("f1_at_k"), 0.002, "topoqos_f1"),
-                (9, s.get("mean_rho"), 0.002, "rho"),
-                (10, s.get("mean_rho_positive"), 0.002, "rho_positive"),
-                (11, s.get("mean_f1_at_k"), 0.002, "f1_at_k"),
-            )
-            for idx, truth, tol, nm in checks:
-                got = _num(cells[idx]) if idx < len(cells) else None
-                rep.checked += 1
-                if truth is not None and (got is None or abs(got - truth) > tol):
-                    rep.findings.append(Finding("tab:9b", label, nm, got, round(truth, 4)))
-        else:
-            for idx, k, tol, nm in ((5, "mean_rho", 0.002, "rho"),
-                                    (6, "mean_rho_positive", 0.002, "rho_positive"),
-                                    (7, "n_positive", 0.5, "n_positive"),
-                                    (8, "mean_f1_at_k", 0.002, "f1_at_k")):
-                got, truth = _num(cells[idx]), s.get(k)
-                rep.checked += 1
-                if truth is not None and (got is None or abs(got - truth) > tol):
-                    rep.findings.append(Finding("tab:9b", label, nm, got, round(truth, 4)))
+        seen += 1
+        checks = (
+            (2, per[key].get("n_positive"), 0.5, "n_positive"),
+            (3, refs.get("Topo", {}).get(key, {}).get("rho"), 0.002, "topo_rho"),
+            (4, refs.get("Topo-QoS", {}).get(key, {}).get("rho"), 0.002, "topoqos_rho"),
+            (5, per[key].get("mean_rho"), 0.002, "hgt_qos_rho"),
+            (6, per_gat.get(key, {}).get("mean_rho"), 0.002, "gat_qos_rho"),
+            (7, per[key].get("mean_rho_positive"), 0.002, "hgt_qos_rho_positive"),
+        )
+        for idx, truth, tol, nm in checks:
+            got = _num(cells[idx])
+            rep.checked += 1
+            if truth is None or got is None or abs(got - truth) > tol:
+                rep.findings.append(Finding("tab:9b", label, nm, got,
+                                            None if truth is None else round(truth, 4)))
+    if seen == 0:
+        rep.skipped.append("tab:9b: no row matched; the table moved or its columns changed")
 
 
 def check_table9c_active(rep: Report) -> None:

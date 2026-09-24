@@ -1,6 +1,6 @@
 # 5. The Explanation Layer: Standards-Grounded Criticality Attribution
 
-A ranking says where risk is highest, not how to reduce it. A component may be critical because it is an unreplicated single point of failure, an error-propagating cascade hub, or a high-coupling maintainability bottleneck. Each of these calls for a different intervention: replication, circuit breakers, or decoupling. The explanation layer attributes these causes after ranking. It reads the same node properties (§3.4), shares no parameters with the engines, and is not used as a ranker; its ranking correlation appears in Table 7 for reference only.
+A ranking says where risk is highest, not how to reduce it. A component may be critical because it is an unreplicated single point of failure, an error-propagating cascade hub, or a high-coupling maintainability bottleneck. Each of these calls for a different intervention: replication, circuit breakers, or decoupling. The explanation layer attributes these causes after ranking. It reads the same node properties (§3.4), shares no parameters with the engines, and is not used as a ranker; its ranking correlation is reported for reference in Supplementary §§S30 and S7.
 
 ## 5.1 Grounding in ISO/IEC Standards
 

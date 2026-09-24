@@ -1,6 +1,6 @@
 # RQ1 — Single engines under leave-one-scenario-out (LOSO)
 
-**Paper:** §7.1.1, Table 7. **Extended results:** Supplement S25 (active stratum), S23 (per-fold,
+**Paper:** §7.1, Table 7 (CPU runs of the six engines); the registered GPU sweep described here is Supplement Table S29 (Section S30). **Extended results:** Supplement S25 (active stratum), S23 (per-fold,
 CPU re-runs), S22 (articulation term), S17 (in-distribution per-scenario).
 
 ## Question
@@ -43,7 +43,7 @@ make -f reproduce/Makefile cache
 make -f reproduce/Makefile table4          # loso_all_variants.json + loso_significance.json
 ```
 
-The paper's Table 7 is the v5 GPU sweep: artifacts `loso_all_variants_v5.json` and
+Supplement Table S29 is the v5 GPU sweep: artifacts `loso_all_variants_v5.json` and
 `loso_significance_v5.json`. Learned cells move across devices and code revisions (see
 [repeatability-and-amendments.md](repeatability-and-amendments.md)), so compare new runs within
 one sweep, not against the published cells.

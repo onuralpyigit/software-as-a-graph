@@ -348,7 +348,7 @@ Consequently, Figure~\ref{fig:S2} serves as an illustrative artifact confirming 
 \section{Convergent Validity Over Simulation Oracles}
 \label{supp:convergent}
 
-We evaluated inter-oracle agreement across $I^*(v)$ (cascade reachability injection), $I_{\text{comp}}(v)$ (composite failure simulation), and $I_{\text{dyn}}(v)$ (dynamic queue-flow simulation) over the twelve inductive folds of Table~\ref{M-tab:7} of the main manuscript, summarized in Table~S3.1:
+We evaluated inter-oracle agreement across $I^*(v)$ (cascade reachability injection), $I_{\text{comp}}(v)$ (composite failure simulation), and $I_{\text{dyn}}(v)$ (dynamic queue-flow simulation) over the twelve inductive folds of Table~\ref{tab:7}, summarized in Table~S3.1:
 
 \begin{table}[htbp]
 \centering
@@ -468,7 +468,7 @@ Not every analysis in Section~\ref{M-sec:7} of the main manuscript runs on the f
 \textbf{Analysis} & \textbf{Scenario subset} & \textbf{$n$} & \textbf{Reported in} \\
 \midrule
 In-distribution ranking & Eleven evaluation scenarios $+$ ATM & 12 & Tables~\ref{tab:supp-indist-cells}, \ref{tab:supp-indist-wilcoxon} \\
-Inductive LOSO & Eleven evaluation scenarios $+$ ATM & 12 & Main Table~\ref{M-tab:7}, Sections~\ref{M-sec:rq1}--\ref{M-sec:rq2} \\
+Inductive LOSO & Eleven evaluation scenarios $+$ ATM & 12 & Table~\ref{tab:7}, main Sections~\ref{M-sec:rq1}--\ref{M-sec:rq2} \\
 QoS edge-feature ablation & Same twelve LOSO folds & 12 & Main Section~\ref{M-sec:rq2} \\
 Weight sweeps and Morris screening & Six--seven core synthetic domains & 6--7 & Supplementary S1 \\
 Cross-oracle convergent validity & Same twelve LOSO folds & 12 & Main Section~\ref{M-sec:4.3}, Section~\ref{supp:convergent} \\
@@ -488,7 +488,7 @@ Entity and edge counts for every scenario, read from the committed topology file
 \begin{table}[htbp]
 \centering
 \small
-\caption{Experimental evaluation corpus. The twelve synthetic topologies are the inductive Leave-One-Scenario-Out folds of Table~\ref{M-tab:7} of the main manuscript; the five real-world systems are withheld from every training fold and used only for zero-shot transfer (Section~\ref{M-sec:rq3} of the main manuscript). Counts are read from the committed topology files rather than from the generator configurations.}
+\caption{Experimental evaluation corpus. The twelve synthetic topologies are the inductive Leave-One-Scenario-Out folds of Table~\ref{tab:7}; the five real-world systems are withheld from every training fold and used only for zero-shot transfer (Section~\ref{M-sec:rq3} of the main manuscript). Counts are read from the committed topology files rather than from the generator configurations.}
 \label{tab:supp-corpus}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{llrrrrrrr}
@@ -853,7 +853,7 @@ A6 & 2026-09-24 & Before any result, but after A2's result & Hybrid-GAT (same pr
 \begin{table}[htbp]
 \centering
 \small
-\caption{Every registered contrast under its own family's Holm correction and under one Holm correction over all eleven. Two-sided Wilcoxon signed-rank over twelve LOSO folds. The plan's contrasts come from the v5 sweep (main Table~\ref{M-tab:7}), and the amendments' contrasts from the CPU sweeps that registered them. Bold marks omnibus-adjusted $p < 0.05$.}
+\caption{Every registered contrast under its own family's Holm correction and under one Holm correction over all eleven. Two-sided Wilcoxon signed-rank over twelve LOSO folds. The plan's contrasts come from the v5 sweep (Table~\ref{tab:7}), and the amendments' contrasts from the CPU sweeps that registered them. Bold marks omnibus-adjusted $p < 0.05$.}
 \label{tab:supp-omnibus}
 \begin{tabular}{llcccc}
 \toprule
@@ -877,7 +877,7 @@ A5 & Hybrid-HGT vs \texttt{HGT-QoS} & $+0.035$ & 0.7334 & 0.7334 & 1.000 \\
 \section{LOSO Active-Stratum Results}
 \label{supp:loso-active}
 
-Between $21\%$ (Microservices) and $52\%$ (Healthcare) of each held-out Application population carries exactly zero simulated impact, so a predictor can score well by separating components that can propagate a failure from those that cannot, without ordering the propagating ones correctly. Table~\ref{tab:7c} re-scores all twelve LOSO folds of Table~\ref{M-tab:7} of the main manuscript on the \emph{active stratum} --- the $n_{>0}$ components with strictly positive impact --- using the same predictions, folds and seeds.
+Between $21\%$ (Microservices) and $52\%$ (Healthcare) of each held-out Application population carries exactly zero simulated impact, so a predictor can score well by separating components that can propagate a failure from those that cannot, without ordering the propagating ones correctly. Table~\ref{tab:7c} re-scores all twelve LOSO folds of Table~\ref{tab:7} on the \emph{active stratum} --- the $n_{>0}$ components with strictly positive impact --- using the same predictions, folds and seeds.
 
 \begin{table}[htbp]
 \centering
@@ -904,7 +904,7 @@ Between $21\%$ (Microservices) and $52\%$ (Healthcare) of each held-out Applicat
 \section{The Unmatched (Naive) \texorpdfstring{$2\times2$}{2x2}}
 \label{supp:naive-2x2}
 
-Table~\ref{tab:contrasts} is the $2\times2$ over relation typing and the QoS edge channel formed by the four learned arms of Table~\ref{M-tab:7} of the main manuscript. The untyped arms there have $28{,}168$ parameters against $434{,}620$ for HGT and read a 1-dimensional edge channel against HGT-QoS's 16 dimensions. The capacity- and channel-matched control (Table~\ref{M-tab:contrasts_matched} of the main manuscript) removes both differences, and at matched capacity the same untyped design reaches $0.563$ rather than $0.317$. The $+0.234$ typing gain and $-0.199$ interaction below are therefore effects of capacity and channel width, and this table is not used for any claim about typing. Neither the Fisher-$z$ transform nor robust seed aggregation (Sections~S14 and~S21), which left the unmatched interaction intact, could detect this confound: both hold the four unmatched arms fixed.
+Table~\ref{tab:contrasts} is the $2\times2$ over relation typing and the QoS edge channel formed by the four learned arms of Table~\ref{tab:7}. The untyped arms there have $28{,}168$ parameters against $434{,}620$ for HGT and read a 1-dimensional edge channel against HGT-QoS's 16 dimensions. The capacity- and channel-matched control (Table~\ref{M-tab:contrasts_matched} of the main manuscript) removes both differences, and at matched capacity the same untyped design reaches $0.563$ rather than $0.317$. The $+0.234$ typing gain and $-0.199$ interaction below are therefore effects of capacity and channel width, and this table is not used for any claim about typing. Neither the Fisher-$z$ transform nor robust seed aggregation (Sections~S14 and~S21), which left the unmatched interaction intact, could detect this confound: both hold the four unmatched arms fixed.
 
 \begin{table}[htbp]
 \centering
@@ -989,7 +989,7 @@ Timing the cascade reachability labeling sweep (five seeds, node types Applicati
 
 \noindent Breadth-first cascade traversal is cheaper than all-pairs connectivity degradation, so on raw CPU time direct simulation is faster wherever its parameters are available. SaG's analysis additionally scores infrastructure components and dependency edges that node-level message-flow simulation leaves unscored, and its metrics are amenable to caching across commits (not implemented here).
 
-\noindent\textbf{Training cost.} Training is a separate, one-off cost per model version: the last sweep with recorded per-arm wall-clock (CPU, sequential, 12 folds $\times$ 5 seeds $= 60$ fits per arm) took $0.6\,\text{h}$ for \texttt{GAT-S}, $0.9\,\text{h}$ for \texttt{GAT-S-w}, $1.4\,\text{h}$ for \texttt{HGT} and $4.9\,\text{h}$ for \texttt{HGT-QoS}, $7.7$ CPU-hours in all. The GPU sweep behind Table~\ref{M-tab:7} of the main manuscript did not record per-fit durations.
+\noindent\textbf{Training cost.} Training is a separate, one-off cost per model version: the last sweep with recorded per-arm wall-clock (CPU, sequential, 12 folds $\times$ 5 seeds $= 60$ fits per arm) took $0.6\,\text{h}$ for \texttt{GAT-S}, $0.9\,\text{h}$ for \texttt{GAT-S-w}, $1.4\,\text{h}$ for \texttt{HGT} and $4.9\,\text{h}$ for \texttt{HGT-QoS}, $7.7$ CPU-hours in all. The GPU sweep behind Table~\ref{tab:7} did not record per-fit durations.
 
 \section{Predictor Taxonomy and Substrate Details}
 \label{supp:taxonomy}
@@ -1061,5 +1061,41 @@ Unsuffixed \texttt{GAT} and \texttt{GAT-QoS} are matched to HGT's parameter budg
 
 \noindent\textbf{Zero-shot configuration sensitivity.} An earlier zero-shot configuration used 2 layers and 150 epochs, chosen to limit over-smoothing across the smaller diameters of the system models ($|V_{\text{app}}| \le 41$). Because that reasoning appeals to a property of the evaluation targets, it is not reported as the primary result. It is uniformly slightly stronger ($\rho = 0.792$ against $0.760$; $\rho_{>0} = +0.281$ against $+0.236$; Overlap@$K = 0.533$ against $0.470$) and leaves every qualitative conclusion unchanged.
 
+
+\section{Registered LOSO Sweep}
+\label{supp:loso-gpu}
+
+The analysis plan registered its two confirmatory contrasts, \texttt{HGT-QoS} and \texttt{HGT} against \texttt{Topo-QoS}, on the GPU sweep of Table~\ref{tab:7}. The main manuscript reports the CPU runs of the same protocol instead (Table~\ref{M-tab:hybrid} of the main manuscript). Those runs are the ones the hybrid and matched-control registrations were evaluated on, and their comparator rows are bit-identical across the CPU sweeps. The two sweeps agree on every conclusion: \texttt{HGT-QoS} reaches $0.638$ here and $0.622$ on CPU, within the run-to-run displacement of Section~\ref{M-sec:threats} of the main manuscript. Table~\ref{tab:7} also carries the small GATs, whose comparison with HGT is the unmatched $2\times2$ of Section~\ref{supp:naive-2x2}, and the explanation layer's ranking correlation, which is listed for reference only.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{The registered LOSO sweep (GPU), Application population, twelve folds. Learned variants share training set, the native multigraph, depth and selection rule; \texttt{GAT-S}/\texttt{GAT-S-w} are the small (28k-parameter) GATs (Section~\ref{supp:taxonomy}). Fold score = mean over five seeds; \textbf{Fold $\sigma$} = spread of the twelve fold means; \textbf{Seed $\sigma$} = median within-fold spread (zero for deterministic baselines); CI = bootstrap over folds ($B = 2{,}000$). \textbf{$\Delta\rho$} is paired by fold against the registered comparator \texttt{Topo-QoS}, with its own bootstrap interval; for every learned variant the interval spans zero.}
+\label{tab:7}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lccccccc}
+\toprule
+\textbf{Predictor / Reference} & \textbf{Mean LOSO $\rho$} & \textbf{95\% CI} & \textbf{$\Delta\rho$ vs \texttt{Topo-QoS}} & \textbf{Fold $\sigma$} & \textbf{Seed $\sigma$} & \textbf{Overlap@$K$} & \textbf{Requires Training} \\
+\midrule
+\multicolumn{8}{l}{\textit{Training-free structural baselines}} \\
+\textbf{Topo} & 0.349 & $[0.254, 0.452]$ & $-$0.204 $[-0.286, -0.122]$ & 0.173 & — & 0.366 & No \\
+\textbf{Topo-QoS} & 0.553 & $[0.443, 0.657]$ & — (reference) & 0.192 & — & 0.388 & No \\
+\midrule
+\multicolumn{8}{l}{\textit{Learned predictors (shared native substrate, matched training set)}} \\
+\textbf{GAT-S} & 0.317 & $[0.254, 0.381]$ & $-$0.236 $[-0.342, -0.125]$ & \textbf{0.111} & 0.298 & 0.328 & Yes \\
+\textbf{GAT-S-w} & 0.604 & $[0.538, 0.665]$ & $+$0.051 $[-0.067, +0.169]$ & 0.112 & \textbf{0.024} & \textbf{0.431} & Yes \\
+\textbf{HGT} & 0.551 & $[0.474, 0.617]$ & $-$0.002 $[-0.066, +0.072]$ & 0.124 & 0.114 & 0.427 & Yes \\
+\textbf{HGT-QoS} & \textbf{0.638} & $[0.561, 0.710]$ & $+$0.085 $[-0.029, +0.194]$ & 0.133 & 0.052 & 0.424 & Yes \\
+\midrule
+\multicolumn{8}{l}{\textit{Diagnostic reference — not a ranking model}} \\
+\textbf{RM / $Q(v)$} & 0.205 & $[0.092, 0.320]$ & $-$0.348 $[-0.432, -0.265]$ & 0.195 & — & 0.322 & No \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\noindent\textbf{Registered contrasts.} \texttt{HGT-QoS} wins 9 of 12 folds against \texttt{Topo-QoS} ($+0.085$, CI $[-0.029, +0.194]$), but the registered confirmatory contrast is not significant ($p = 0.151$, Holm $0.303$; \texttt{HGT}: $-0.002$, $p = 0.470$). On Overlap@$K$ the learned engines lead ($0.424$--$0.431$ against $0.388$), but the fold-level differences are not significant either ($\Delta = +0.037$, $p = 0.470$ for \texttt{HGT-QoS}). With the median test--retest correlation of the labels at $0.982$, \texttt{HGT-QoS} recovers roughly $65\%$ of the attainable signal in this sweep.
+
+\noindent\textbf{Where the engines differ.} In this sweep \texttt{HGT-QoS} loses substantively on Enterprise ($0.461$ vs.\ $0.795$) and Telecom RAN ($0.407$ vs.\ $0.576$), and wins by $+0.229$ and $+0.210$ on the two folds where \texttt{Topo-QoS} is weakest (Microservices, ATM). Enterprise is the largest graph ($520$ nodes), with by far the densest derived projection ($26{,}276$ edges). However, neither graph size ($\rho = -0.434$ with the margin, $p = 0.159$) nor density predicts in advance which engine wins on an unseen architecture.
 
 \end{document}

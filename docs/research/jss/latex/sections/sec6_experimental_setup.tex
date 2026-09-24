@@ -33,12 +33,12 @@ Synthetic case study — ATM (1)    &    74 &    26 &  27 &  5 &   8 &   8 &   2
 \subsection{Predictors}
 \label{sec:6.2}
 
-SaG's closed-form engine (\texttt{Topo-QoS}), learned engines (\texttt{HGT-QoS}, \texttt{GAT-QoS}) and hybrid engines are compared against unweighted centrality (Topo) and untyped GNNs (Table~\ref{tab:predictor_taxonomy}). A predictor's name gives its architecture and then what distinguishes it. \texttt{-QoS} on a GNN means the 16-D QoS edge vector (Section~\ref{sec:4.1.1}); \texttt{-w} means a scalar QoS edge weight $w(e)$; \texttt{-S} marks a small GAT (28k parameters); and \texttt{Hybrid-X} is engine X corrected by the closed-form prior. Unsuffixed \texttt{GAT} and \texttt{GAT-QoS} are matched to HGT in parameter budget, and \texttt{GAT-QoS} reads the same 16-D edge vector as \texttt{HGT-QoS}, so the four matched models form a $2\times2$ over typing (GAT vs.\ HGT) and the QoS channel. All learned predictors ingest the native typed multigraph under LOSO. In QoS-off arms every edge weight is 1 and the QoS node columns are zeroed, though four centralities still carry QoS (Section~\ref{sec:3.4}).
+SaG's closed-form engine (\texttt{Topo-QoS}), learned engines (\texttt{HGT-QoS}, \texttt{GAT-QoS}) and hybrid engines are compared against unweighted centrality (Topo) and untyped GNNs (Table~\ref{tab:predictor_taxonomy}). On a GNN, \texttt{-QoS} means the 16-D QoS edge vector (Section~\ref{sec:4.1.1}), and \texttt{Hybrid-X} is engine X corrected by the closed-form prior. \texttt{GAT} and \texttt{GAT-QoS} are untyped GATs matched to HGT in parameter budget, and \texttt{GAT-QoS} reads the same 16-D edge vector as \texttt{HGT-QoS}, so the four learned models form a $2\times2$ over typing (GAT vs.\ HGT) and the QoS channel. Smaller and projection-based variants that the study also ran are listed in Supplementary Section~\ref{S-supp:taxonomy}. All learned predictors ingest the native typed multigraph under LOSO. In QoS-off arms every edge weight is 1 and the QoS node columns are zeroed, though four centralities still carry QoS (Section~\ref{sec:3.4}).
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Predictors reported in this paper. Names: \texttt{-QoS}, QoS-weighted distances (Topo) or the 16-D QoS edge vector (GNNs); \texttt{-w}, scalar QoS edge weight; \texttt{-S}, small GAT; \texttt{Hybrid-X}, engine X corrected by the \texttt{Topo-QoS} prior. Every predictor run in the study, with the earlier names used by the registered plan and the artifacts: Supplementary Section~\ref{S-supp:taxonomy}.}
+\caption{Predictors reported in this paper. \texttt{-QoS}: QoS-weighted distances (Topo) or the 16-D QoS edge vector (GNNs); \texttt{Hybrid-X}: engine X corrected by the \texttt{Topo-QoS} prior. Every predictor run in the study, with the earlier names used by the registered plan and the artifacts: Supplementary Section~\ref{S-supp:taxonomy}.}
 \label{tab:predictor_taxonomy}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{llccccl}
@@ -48,13 +48,8 @@ SaG's closed-form engine (\texttt{Topo-QoS}), learned engines (\texttt{HGT-QoS},
 \multicolumn{7}{l}{\textit{Training-free}} \\
 \textbf{Topo} & $G_{\text{analysis}}$ (Flow Projection) & No & None & 0 & No & Standard centrality baseline \\
 \textbf{Topo-QoS} & $G_{\text{analysis}}$ (Flow Projection) & No & Scalar $w(e)$ & 0 & No & SaG closed-form engine \\
-\textbf{RM / $Q(v)$} & $G_{\text{analysis}}$ (Analysis Graph) & Per-type rules & Scalar $w(e)$ & 0 & No & Diagnostic attribution reference \\
 \midrule
-\multicolumn{7}{l}{\textit{Small untyped GNNs}} \\
-\textbf{GAT-S} & Native Multigraph & Homogeneous & None & 28{,}168 & Yes & Untyped, unweighted GNN floor \\
-\textbf{GAT-S-w} & Native Multigraph & Homogeneous & Scalar $w(e)$ & 28{,}168 & Yes & Adds a scalar QoS weight \\
-\midrule
-\multicolumn{7}{l}{\textit{Matched $2\times2$: typing $\times$ QoS channel at HGT's parameter budget}} \\
+\multicolumn{7}{l}{\textit{Learned: typing $\times$ QoS channel at matched parameter budget}} \\
 \textbf{GAT} & Native Multigraph & Homogeneous & None & 437{,}496 & Yes & Untyped, no QoS channel \\
 \textbf{GAT-QoS} & Native Multigraph & Homogeneous & 16-D QoS Vector & 429{,}992 & Yes & Untyped SaG learned engine \\
 \textbf{HGT} & Native Multigraph & Heterogeneous & Relation 1-hot; $w(e){=}1$ & 434{,}620 & Yes & Typed, no QoS channel \\

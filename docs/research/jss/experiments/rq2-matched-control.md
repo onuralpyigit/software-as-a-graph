@@ -1,12 +1,12 @@
 # RQ2 — What learned engines need: the capacity- and channel-matched 2×2
 
-**Paper:** §7.2, Table 9. **Registration:** [`../PREREGISTRATION.md`](../PREREGISTRATION.md),
+**Paper:** §7.2, Table 8. **Registration:** [`../PREREGISTRATION.md`](../PREREGISTRATION.md),
 Amendment 2, whose decision rule was fixed before any control result existed. **Extended results:**
 Supplement S26 (the unmatched 2×2), S16 (Fisher-z scale), S21 (seed-aggregation robustness).
 
 ## Why a matched control
 
-The four learned arms of Table 7 cross relation typing (T) with the QoS edge channel (Q). However,
+The four learned arms of the registered GPU sweep (Supplement Table S29) cross relation typing (T) with the QoS edge channel (Q). However,
 they are unmatched in two ways:
 - **Capacity.** The small untyped GATs (`GAT-S`, `GAT-S-w`) have 28,168 parameters against HGT's 434,620 (15.4×).
 - **Edge-channel width.** `GAT-S-w` reads a scalar edge weight; `HGT-QoS` reads the 16-D vector.
