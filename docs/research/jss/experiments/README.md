@@ -1,8 +1,8 @@
 # JSS experiments: protocols, commands and artifacts
 
 This folder is the experiment companion to the *Journal of Systems and Software* paper
-**"Software-as-a-Graph: Pre-Deployment Dependability Analysis of Publish–Subscribe Systems with
-QoS-Aware Architecture Graphs and Hybrid Learning"**. The paper keeps the headline results and the
+**"Software-as-a-Graph: Predicting Cascading-Failure Impact in Publish–Subscribe Systems Before
+Deployment with QoS-Aware Graphs and Hybrid Learning"**. The paper keeps the headline results and the
 evidence each one needs. Each page here documents one experiment:
 - the protocol and hyperparameters that the paper summarises in a sentence;
 - the command that reproduces it;

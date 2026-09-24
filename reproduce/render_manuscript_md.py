@@ -184,7 +184,9 @@ def postprocess_markdown(body: str, labels: dict) -> str:
 
     def fig(m):
         block = m.group(0)
-        src = re.search(r'src="([^"]+)"', block).group(1)
+        # pandoc resolves an extensionless \includegraphics against the cwd, so
+        # run from latex/ it reports figures/Figure_N.pdf; link the .png twin.
+        src = Path(re.search(r'src="([^"]+)"', block).group(1)).with_suffix("").as_posix()
         fid = re.search(r'id="([^"]+)"', block)
         num = labels.get(fid.group(1), "?") if fid else "?"
         cap = re.search(r"<figcaption[^>]*>(.*?)</figcaption>", block, re.S)

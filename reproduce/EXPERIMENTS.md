@@ -4,7 +4,7 @@
 > [`docs/research/jss/experiments/`](../docs/research/jss/experiments/README.md). This page covers harness internals.
 
 This document provides a technical deep-dive into the reproducibility infrastructure for the paper
-**"Software-as-a-Graph: Pre-Deployment Dependability Analysis of Publish–Subscribe Systems with QoS-Aware Architecture Graphs and Hybrid Learning"** (JSS special issue VSI:AI4MSS — see
+**"Software-as-a-Graph: Predicting Cascading-Failure Impact in Publish–Subscribe Systems Before Deployment with QoS-Aware Graphs and Hybrid Learning"** (JSS special issue VSI:AI4MSS — see
 `docs/research/jss/manuscript.md`).
 
 ---
