@@ -135,6 +135,7 @@ def render_frontmatter() -> tuple[str, str, str]:
 
     m_title = re.search(r"\\title\{([^}]+)\}", tex, re.S)
     title = re.sub(r"\s+", " ", m_title.group(1)).strip() if m_title else "Software-as-a-Graph"
+    title = title.replace("---", "—").replace("--", "–")
 
     header = (
         f"# {title}\n\n"

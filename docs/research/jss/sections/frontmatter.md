@@ -1,4 +1,4 @@
-# Software-as-a-Graph: Heterogeneous Graph Learning for Pre-Deployment Dependability Analysis of Asynchronous and Event-Driven Distributed Systems
+# Software-as-a-Graph: Pre-Deployment Dependability Analysis of Publish–Subscribe Systems with QoS-Aware Architecture Graphs and Hybrid Learning
 
 **Authors.** Ibrahim Onuralp Yigit, Feza Buzluca
 

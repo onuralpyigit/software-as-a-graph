@@ -1,7 +1,7 @@
 # Experimental Harness & Evaluation Suite
 
 This document provides a technical deep-dive into the reproducibility infrastructure for the paper
-**"Software-as-a-Graph: Heterogeneous Graph Learning for Pre-Deployment Reliability and Dependability Analysis of Complex Distributed Systems"** (JSS special issue VSI:AI4MSS — see
+**"Software-as-a-Graph: Pre-Deployment Dependability Analysis of Publish–Subscribe Systems with QoS-Aware Architecture Graphs and Hybrid Learning"** (JSS special issue VSI:AI4MSS — see
 `docs/research/jss/manuscript.md`).
 
 ---

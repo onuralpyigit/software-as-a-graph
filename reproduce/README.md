@@ -1,6 +1,6 @@
 # Reproducing Software-as-a-Graph (SaG)
 
-> **Software-as-a-Graph: Heterogeneous Graph Learning for Pre-Deployment Reliability and Dependability Analysis of Complex Distributed Systems**
+> **Software-as-a-Graph: Pre-Deployment Dependability Analysis of Publish–Subscribe Systems with QoS-Aware Architecture Graphs and Hybrid Learning**
 > Submitted to the *Journal of Systems and Software* Special Issue **VSI:AI4MSS** (AI Techniques for
 > Performance, Reliability, and Sustainability of Modern Software Systems). See
 > `docs/research/jss/manuscript.md` for the Markdown version of the paper, `docs/research/jss/latex/`
@@ -291,7 +291,7 @@ reproduce/
 ```bibtex
 @article{sag2026jss,
   author  = {Yigit, Onuralp and Collaborators},
-  title   = {Software-as-a-Graph: Heterogeneous Graph Learning for Pre-Deployment Reliability and Dependability Analysis of Complex Distributed Systems},
+  title   = {Software-as-a-Graph: Pre-Deployment Dependability Analysis of Publish--Subscribe Systems with QoS-Aware Architecture Graphs and Hybrid Learning},
   journal = {Journal of Systems and Software},
   note    = {Special Issue: AI Techniques for Performance, Reliability, and Sustainability of Modern Software Systems (VSI:AI4MSS). Under submission.},
   year    = {2026}
