@@ -21,12 +21,19 @@
    - 4.3 [Bidirectional Information Flow (Reverse Pass)](#43-bidirectional-information-flow-reverse-pass)
    - 4.4 [Multi-Task Residual Prediction Heads](#44-multi-task-residual-prediction-heads)
    - 4.5 [Relation-Specific Edge Criticality Head](#45-relation-specific-edge-criticality-head)
+   - 4.6 [SaG-Hybrid Models: Learning a Residual Correction to the Closed-Form Prior](#46-sag-hybrid-models-learning-a-residual-correction-to-the-closed-form-prior)
+     - 4.6.1 [Motivation: Resolving Complementary Engine Deficits](#461-motivation-resolving-complementary-engine-deficits)
+     - 4.6.2 [Prior Formulation & Logit Residual Decoding](#462-prior-formulation--logit-residual-decoding)
+     - 4.6.3 [Model Variants: SaG-Hybrid vs. SaG-Hybrid-GAT](#463-model-variants-sag-hybrid-vs-sag-hybrid-gat)
+     - 4.6.4 [Empirical Results in the JSS Manuscript (Section 7.6)](#464-empirical-results-in-the-jss-manuscript-section-76)
 5. [Ablation & Control Baseline Models](#5-ablation--control-baseline-models)
    - 5.1 [Homogeneous GAT Baselines (Unweighted & Scalar-Weighted)](#51-homogeneous-gat-baselines-unweighted--scalar-weighted)
    - 5.2 [Non-Graph Tabular Baseline (`tab_gbm` / GBM-Feat)](#52-non-graph-tabular-baseline-tab_gbm--gbm-feat)
    - 5.3 [Training-Free Structural Baselines (`TopoPredictor` & `TopoQoSPredictor`)](#53-training-free-structural-baselines-topopredictor--topoqospredictor)
    - 5.4 [Deterministic ISO-RM Cold-Start Fallback](#54-deterministic-iso-rm-cold-start-fallback)
 6. [Dual-Engine Predictor: Consensus & Divergence Triage](#6-dual-engine-predictor-consensus--divergence-triage)
+   - 6.1 [Dual-Engine vs. SaG-Hybrid: Architectural Distinction](#61-dual-engine-vs-sag-hybrid-architectural-distinction)
+   - 6.2 [Dual-Engine Triage Sets](#62-dual-engine-triage-sets)
 7. [Training Protocol & Multi-Task Loss Formulation](#7-training-protocol--multi-task-loss-formulation)
    - 7.1 [The Composite Criticality Loss Function](#71-the-composite-criticality-loss-function)
    - 7.2 [Detailed Loss Components & Mathematical Equations](#72-detailed-loss-components--mathematical-equations)
@@ -83,10 +90,10 @@ For the complete CLI command reference (`predict_graph.py`, `train_graph.py`), s
 
 | | |
 |:---|:---|
-| **Manuscript section** | §4 (HGT architecture, 16-D edge encoding, multi-task heads, the loss) and §6.2 (baselines and the substrate-parity guarantee) |
+| **Manuscript section** | §4 (HGT architecture, 16-D edge encoding, multi-task heads, the loss), §6.2 (baselines and substrate parity), §7.2 (matched controls), and §7.6 (SaG-Hybrid models). |
 | **Paper's name for this** | the **Predictive Pathway** — "Failure-Impact Forecasting, the primary task". This document calls it **Pathway B**. |
-| **Symbols** | $\hat{I}^*(v)$, $\hat{R}(v)$, $\hat{M}(v)$, $\hat{Q}(u,v)$ — identical. Variant names follow §6.2's `-N` / `-QoS` grammar; see §2 below. |
-| **Results** | RQ1 (Table 7), RQ2 and RQ3 (Table `contrasts`), RQ4 zero-shot transfer (Table 9b), RQ5 cost (§7.5). **Read the headline honestly:** HGT-QoS leads at LOSO $\rho = 0.638$ but does not significantly beat the training-free Topo-QoS baseline at $0.553$ ($+0.085$, $p = 0.151$), and typing and QoS encoding turn out to be substitutes rather than complements. |
+| **Symbols** | $\hat{I}^*(v)$, $\hat{R}(v)$, $\hat{M}(v)$, $\hat{Q}(u,v)$, prior $p(v)$, residual scalar $\alpha$ — identical. Variant names follow §6.2's `-N` / `-QoS` grammar; see §2 below. |
+| **Results** | RQ1 (Table 7), RQ2 matched controls (Table 6), RQ3 ablations, RQ4 zero-shot transfer (Table 9b), RQ5 cost (§7.5), and §7.6 hybrid evaluation (Table 8). **Read the headline honestly:** On their own, HGT-QoS ($\rho = 0.638$) and Topo-QoS ($0.553$) are statistically on par ($+0.085$, $p = 0.151$, Holm $0.303$). However, combined in the hybrid engines (**SaG-Hybrid** at $\rho = 0.657$, Holm $p = 0.0068$; **SaG-Hybrid-GAT** at $\rho = 0.683$, Holm $p = 0.0029$), they **significantly outperform closed-form ranking** on 11 of 12 held-out folds. |
 
 > [!NOTE]
 > **Eight steps here, four stages in the paper.** This repository numbers the pipeline in eight
@@ -172,8 +179,10 @@ framework and is never a variant name.
 
 | Variant id | Display name | Model Class | Training? | Substrate & Feature Scope | Research Question / Operational Purpose | Output |
 |:---|:---|:---|:---:|:---|:---|:---|
-| `hgl_qos` | **HGT-QoS** | Heterogeneous Graph Transformer (`NodeCriticalityGNN`) | **Yes** | Native multigraph; heterogeneous nodes (19–25D) + 16D edge QoS | **Primary model**: do typed relations, multi-hop attention, and QoS contracts forecast multi-hop cascade blast radius? | $\hat{I}^*(v), \hat{R}(v), \hat{M}(v), \hat{Q}(u,v)$ |
+| `hgl_qos` | **HGT-QoS** | Heterogeneous Graph Transformer (`NodeCriticalityGNN`) | **Yes** | Native multigraph; heterogeneous nodes (19–25D) + 16D edge QoS | **Primary learned model**: do typed relations, multi-hop attention, and QoS contracts forecast multi-hop cascade blast radius? | $\hat{I}^*(v), \hat{R}(v), \hat{M}(v), \hat{Q}(u,v)$ |
 | `hgl` | **HGT** | Heterogeneous Graph Transformer (`NodeCriticalityGNN`) | **Yes** | Native multigraph; heterogeneous nodes, QoS channel masked | **RQ3 ablation**: do multi-dimensional transport QoS profiles beat pure topological connectivity? | $\hat{I}^*(v), \hat{R}(v), \hat{M}(v)$ |
+| `hgl_qos_prior` | **SaG-Hybrid** | Heterogeneous Graph Transformer (`NodeCriticalityGNN` + prior) | **Yes** | Native multigraph; heterogeneous nodes + 16D edge QoS + Topo-QoS prior | **JSS §7.6 headline hybrid (Amendment 5)**: HGT-QoS learning a residual correction to the rank-normalized Topo-QoS prior. Beats closed-form on 11/12 folds ($\rho = 0.657$, Holm $p = 0.0068$). | $\hat{I}^*(v), \hat{R}(v), \hat{M}(v)$ |
+| `gl_qos16_prior` | **SaG-Hybrid-GAT** | Homogeneous GAT (`HomogeneousGAT_ScalarWeighted` + prior) | **Yes** | Native multigraph; flat nodes + 16D edge QoS + Topo-QoS prior | **JSS §7.6 capacity-matched hybrid (Amendment 6)**: untyped GAT (288 channels, 16-D QoS) learning a correction to Topo-QoS. Highest LOSO accuracy ($\rho = 0.683$, Holm $p = 0.0029$). | Criticality score $\in [0, 1]$ |
 | `gl_full_qos` | **GAT-N-QoS** | Homogeneous GAT (`homo_scalar`) | **Yes** | **Native multigraph**; flat nodes + 1D scalar edge weight $w(e)$ | **RQ2 substrate-matched control**: with QoS present, does heterogeneous typing still add anything? | Criticality score $\in [0, 1]$ |
 | `gl_full` | **GAT-N** | Homogeneous GAT (`homo_unweighted`) | **Yes** | **Native multigraph**; flat nodes, topology only | **RQ2 substrate-matched control**: the untyped, unweighted floor. | Criticality score $\in [0, 1]$ |
 | `gl_qos` | **GAT-QoS** | Homogeneous GAT (`homo_scalar`) | **Yes** | Flow **projection**; flat nodes + scalar $w(e)$ | In-distribution ablation arm (JSS Table 5 only). | Criticality score $\in [0, 1]$ |
@@ -182,13 +191,10 @@ framework and is never a variant name.
 | `topo_qos` | **Topo-QoS** | QoS-Weighted Structural Centrality (`TopoQoSPredictor`) | **No** | Flow projection with inverted QoS distance $d = 1/(w + \epsilon)$ | Training-free baseline $0.6 \cdot BT_{\text{QoS}} + 0.4 \cdot AP$. **The baseline every claim of learned superiority must clear.** | Topological score $\in [0, 1]$ |
 | `topo_baseline` | **Topo** | Unweighted Structural Centrality (`TopoPredictor`) | **No** | Flow projection, unweighted | Classical structural baseline $0.6 \cdot BT + 0.4 \cdot AP$. | Topological score $\in [0, 1]$ |
 | `topology_rm` | **RM** | Closed-Form Attribute Synthesis | **No** | Step 2 structural metrics + declared composite weights | **Cold-start fallback**: with no GNN checkpoint, Step 3 falls back to $Q^*(v)$. A *diagnostic reference*, not a ranking model. | $Q^*(v) \in [0, 1]$ |
-| — | **Dual-Engine** | Ensemble & Consensus Evaluator (`DualEnginePredictor`) | Hybrid | Runs HGT-QoS and Topo-QoS concurrently | **Operational triage**: Consensus Critical Set (high confidence) and Divergence Escalation Set (human triage trigger). | Consensus & Divergence Sets |
+| — | **Dual-Engine** | Ensemble & Consensus Evaluator (`DualEnginePredictor`) | Ensemble | Runs HGT-QoS and Topo-QoS concurrently | **Operational triage**: Consensus Critical Set (high confidence) and Divergence Escalation Set (human triage trigger). | Consensus & Divergence Sets |
 
-The registry also carries four **RQ2 confound controls** (`gl_full_cap` / GAT-N-C,
-`gl_full_qos_cap` / GAT-N-QoS-C, `gl_full_qos16_cap` / GAT-N-QoS16-C, `hgl_qos_uni` / HGT-QoS-U).
-Each holds one confound — parameter budget, edge-channel width, message-passing directionality —
-constant. They are implemented and registered but **were not run for the manuscript**, which is why
-JSS §8.4 records the typing result as carrying two uncontrolled confounds.
+The registry also carries four **RQ2 confound controls** (`gl_full_cap` / GAT-N-C, `gl_full_qos_cap` / GAT-N-QoS-C, `gl_full_qos16_cap` / GAT-N-QoS16-C, `hgl_qos_uni` / HGT-QoS-U) and the two **hybrid variants** (`hgl_qos_prior` / SaG-Hybrid, `gl_qos16_prior` / SaG-Hybrid-GAT).
+Under Amendment 2, the capacity-matched and channel-matched controls were executed in a unified CPU sweep (JSS Table 6), proving that the 16-D QoS channel drives learned ranking ($+0.07$, $p = 0.016$), whereas relation-specific weights add nothing at matched capacity. Under Amendments 5 & 6, the hybrid engines synthesize the strengths of the closed-form and learned pathways, achieving the highest predictive accuracy under Leave-One-Scenario-Out (LOSO) cross-validation.
 
 > [!IMPORTANT]
 > **`gl` and `gl_qos` do not denote one substrate.** `reproduce/main_table.py` runs them on the
@@ -292,6 +298,10 @@ the glosses below are one-line reminders, not independent definitions.
 | `Broker` | **19** | `max_connections_norm` | Message broker capacity: maximum concurrent TCP/AMQP client connections. |
 | `Topic` | **22** | `subscriber_count_norm`, `publisher_count_norm`, `log1p_frequency_norm`, `topic_qos_criticality_ord` | Message exchange dynamics: active subscriber and publisher counts, message throughput frequency, and ordinal QoS profile tier. |
 | `Node` (Host) | **20** | `cpu_cores_norm`, `memory_gb_norm` | Infrastructure hardware capacity: physical CPU core count and RAM allocation. |
+
+> [!NOTE]
+> **SaG-Hybrid Prior Feature Extension (Index 23 / 25):**
+> When training or evaluating hybrid variants (`hgl_qos_prior`, `gl_qos16_prior`) with `append_prior=True`, an additional column is appended to `Application` (index 23, total 24D) and `Library` (index 25, total 26D) node feature vectors. This column holds the rank-normalized `topo_prior` score $p(v) \in [0, 1]$. Infrastructure nodes (`Topic`, `Broker`, `Node`) receive $p(v) = 0.0$.
 
 ---
 
@@ -444,17 +454,122 @@ where $\mathbf{h}_u, \mathbf{h}_v$ are the node embeddings produced by the backb
 
 ---
 
+### 4.6 SaG-Hybrid Models: Learning a Residual Correction to the Closed-Form Prior
+
+#### 4.6.1 Motivation: Resolving Complementary Engine Deficits
+
+Section 7.2.1 of the JSS manuscript revealed that pure learned models (`HGT-QoS`, `GAT-N-QoS16-C`) and the closed-form engine (`Topo-QoS`) exhibit **complementary failure modes**:
+* **Where learned models win**: On dense, irregular architectures with sparse topological bottlenecks (e.g., Microservices $+0.229$, ATM $+0.210$), multi-head graph attention successfully captures multi-hop cascading dependencies where simple path centralities struggle.
+* **Where closed-form ranking wins**: On large, dense projections (most notably Enterprise with 520 nodes and 26,276 flow edges), pure learned models collapsed ($\rho = 0.407 - 0.426$ vs. $0.795$ for `Topo-QoS`). Fixed 3-layer message passing cannot cover the full diameter of large graphs, causing learned engines to discard crucial structural signals that closed-form shortest-path betweenness preserves.
+
+Neither graph size, edge density, nor dispersion alone can reliably predict which engine will win on an unseen architecture in advance. Rather than forcing a binary choice or replacing the closed-form engine, the **SaG-Hybrid** architecture directly unites them: it supplies the closed-form score as an explicit **inductive prior** and tasks the neural network with learning an additive residual correction.
+
+```mermaid
+flowchart LR
+    subgraph Input["1. Input Representation"]
+        G["Native Multigraph G"] --> FEAT["Node Features x_v"]
+        GFLOW["Flow Projection G_flow"] --> TOPO["Topo-QoS Engine"]
+        TOPO --> PRIOR["Rank-Normalized Prior p(v) ∈ [0, 1]"]
+        PRIOR -.->|Append to Features| FEAT
+    end
+
+    subgraph Backbone["2. Neural Backbone"]
+        FEAT --> GNN["GNN Backbone (HGT-QoS or GAT-N-QoS16-C)"]
+        GNN --> HEADS["Sub-Dimension Heads: R̂(v), M̂(v)"]
+        GNN --> Z["Composite Head Logit: z(v)"]
+    end
+
+    subgraph HybridHead["3. Hybrid Logit Residual Decoding"]
+        PRIOR --> CLIP["clip(p(v), 0.01, 0.99)"]
+        CLIP --> LOGIT["logit(p(v))"]
+        LOGIT --> SCALE["α · logit(p(v))<br>(Learnable Scalar α, init=1.0)"]
+        Z --> SUM["z(v) + α · logit(p(v))"]
+        SCALE --> SUM
+        SUM --> SIGMOID["Sigmoid σ(·)"]
+        SIGMOID --> OUT["Final Blast Radius Forecast Î*(v)"]
+    end
+```
+
+#### 4.6.2 Prior Formulation & Logit Residual Decoding
+
+1. **Prior Extraction & Normalization ($p(v)$)**:
+   For every `Application` and `Library` component, the closed-form `Topo-QoS` score is computed on the derived dependency projection $G_{\text{flow}}$ by the exact same implementation as the published baseline ($0.6 \cdot BT_{\text{weighted}} + 0.4 \cdot AP_c$). Scores are then rank-normalized to $[0, 1]$ within the graph (using average ranks for ties):
+   $$p(v) = \frac{\operatorname{rank}(\text{TopoQoS}(v)) - 1}{|V_{\text{eval}}| - 1} \in [0, 1]$$
+   For all other node types (`Topic`, `Broker`, `Node`/Host), $p(v) = 0.0$.
+   The scalar $p(v)$ is appended as an extra feature column in `HeteroData` (via `networkx_to_hetero_data(..., append_prior=True)`).
+
+2. **Logit-Scale Residual Decoding**:
+   Instead of directly computing $\hat{I}^*(v) = \sigma(z(v))$ from the composite MLP head output $z(v)$, the hybrid decoder blends the learned logit with the logit of the prior:
+   $$\hat{I}^*(v) = \sigma\Big(z(v) + \alpha \cdot \operatorname{logit}\big(\operatorname{clip}(p(v), 0.01, 0.99)\big)\Big)$$
+   where:
+   * $z(v) = \text{MLP}_C([\mathbf{h}_v \parallel \hat{R}(v) \parallel \hat{M}(v)])$ is the unconstrained logit output of the composite prediction head.
+   * $\alpha$ is a single learnable scalar parameter (initialized to $1.0$).
+   * $\operatorname{clip}(p(v), 0.01, 0.99)$ prevents numerical divergence near boundary ranks $0$ and $1$.
+   * $\sigma(x) = \frac{1}{1 + e^{-x}}$ is the standard logistic sigmoid function.
+
+> [!TIP]
+> **Mathematical Interpretation of $\alpha$:**
+> * If $\alpha = 0.0$, the hybrid head strictly recovers the standard unaugmented composite GNN prediction.
+> * If $z(v) = 0.0$ and $\alpha = 1.0$, the sigmoid invertibility property $\sigma(\operatorname{logit}(p)) = p$ perfectly reproduces the raw topological prior $p(v)$.
+> * When optimized end-to-end ($\alpha > 0$), $z(v)$ acts as a learned *residual correction*—shifting component criticality up or down relative to its topological baseline based on relational QoS semantics.
+
+#### 4.6.3 Model Variants: SaG-Hybrid vs. SaG-Hybrid-GAT
+
+Following preregistration in JSS Amendments 5 and 6, two hybrid models were implemented and evaluated under identical protocols:
+
+| Characteristic | **SaG-Hybrid** (`hgl_qos_prior`) | **SaG-Hybrid-GAT** (`gl_qos16_prior`) |
+|:---|:---|:---|
+| **Preregistration** | [PREREGISTRATION.md Amendment 5](../docs/research/jss/PREREGISTRATION.md#amendment-5--hybrid-engine-2026-09-23-before-any-hybrid-result) | [PREREGISTRATION.md Amendment 6](../docs/research/jss/PREREGISTRATION.md#amendment-6--hybrid-on-the-untyped-qos-engine-2026-09-24-before-any-result) |
+| **Base Architecture** | Heterogeneous Graph Transformer (`HGT-QoS`) | Untyped Graph Attention Network (`GAT-N-QoS16-C`) |
+| **Substrate** | Native Multigraph (Heterogeneous) | Native Multigraph (Homogeneous flat projection) |
+| **Edge Features** | 16-D QoS Encodings + Relation One-Hot | 16-D QoS Encodings (including relation one-hot) |
+| **Hidden Channels / Heads** | $D = 64$, $H = 4$, 3 layers | $D = 288$, $H = 4$, 3 layers (Capacity matched) |
+| **Parameter Count** | **434,941** (+321 params over HGT-QoS) | **431,433** (+1,441 params over GAT-N-QoS16-C) |
+| **Design Rationale** | Combines typed attention with topological prior. | Combines capacity-matched untyped GNN with prior (added after matched controls showed typing adds no gain at matched capacity). |
+
+#### 4.6.4 Empirical Results in the JSS Manuscript (Section 7.6)
+
+The hybrid engines were evaluated under Leave-One-Scenario-Out (LOSO) cross-validation across 12 synthetic architectures (5 seeds per fold in unified CPU sweeps) and zero-shot against 5 hand-authored open-source system models (Autoware.universe, EdgeX Foundry, Home Assistant, Online Boutique, Train-Ticket):
+
+| Predictor | Substrate & Type | LOSO Mean $\rho$ [95% CI] | $\Delta\rho$ vs. Topo-QoS [95% CI] | Folds Won | $p$ ($p_{\text{Holm}}$) | Overlap@$K$ | Zero-Shot 5 Systems $\rho$ |
+|:---|:---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Topo** | Projection (Unweighted) | 0.349 $[0.254, 0.452]$ | $-0.204$ $[-0.286, -0.122]$ | 0/12 | 0.0005 | 0.366 | 0.511 |
+| **Topo-QoS** | Projection (QoS-Weighted) | 0.553 $[0.443, 0.657]$ | — | — | — | 0.388 | 0.526 |
+| **HGT-QoS** | Native (Heterogeneous) | 0.622 $[0.547, 0.690]$ | $+0.069$ $[-0.046, +0.174]$ | 8/12 | 0.266 | 0.426 | **0.760** |
+| **GAT-N-QoS16-C** | Native (Homogeneous) | 0.635 $[0.567, 0.696]$ | $+0.082$ $[-0.046, +0.201]$ | 7/12 | 0.233 | 0.438 | **0.805** |
+| **SaG-Hybrid** | Native (Heterogeneous + Prior) | 0.657 $[0.572, 0.733]$ | $+0.103$ $[+0.055, +0.152]$ | **11/12** | 0.0034 (0.0068) | 0.435 | 0.695 |
+| **SaG-Hybrid-GAT** | Native (Homogeneous + Prior) | **0.683** $[0.603, 0.753]$ | $\mathbf{+0.130}$ $[+0.075, +0.190]$ | **11/12** | **0.0015** (**0.0029**) | **0.450** | 0.662 |
+
+##### Key Insights from the JSS Evaluation:
+1. **Statistically Significant Superiority Over Closed-Form Ranking**:
+   Both hybrids significantly outperform `Topo-QoS` out of distribution: `SaG-Hybrid` reaches $\rho = 0.657$ ($+0.103$, Holm $p = 0.0068$) and `SaG-Hybrid-GAT` reaches $\rho = 0.683$ ($+0.130$, Holm $p = 0.0029$). They are the **only** engines in the entire study that statistically outperform closed-form ranking.
+2. **Elimination of the Collapse on Dense Graphs**:
+   On the Enterprise scenario (where pure learned models failed severely: $0.407 - 0.426$ vs. $0.795$ for `Topo-QoS`), the hybrid prior restored accuracy to **$0.735$** (SaG-Hybrid) and **$0.768$** (SaG-Hybrid-GAT). Enterprise became each hybrid's only loss to Topo-QoS (by a tiny margin of $-0.061$ and $-0.027$), while Telecom RAN flipped from a loss into a win.
+3. **SaG-Hybrid-GAT Leads on Unseen Synthetic Topologies**:
+   `SaG-Hybrid-GAT` achieved the highest correlation ($\rho = 0.683$), Overlap@$K$ ($0.450$), active-stratum correlation ($\rho_{>0} = 0.398$), and PR-AUC ($0.525$) of any engine evaluated under LOSO.
+4. **Transfer Trade-Off and Registered Headline Decision Rule**:
+   Anchoring to the prior trades slight zero-shot transfer for in-distribution accuracy. On the five open-source system models, both hybrids substantially outperform training-free scores ($0.695$ and $0.662$ vs. $0.51 - 0.53$), but sit below the pure learned models ($0.760$ and $0.805$).
+   *Decision Rule*: Under JSS Amendment 6, `SaG-Hybrid-GAT` replaces `SaG-Hybrid` as the recommended hybrid *only if* its zero-shot transfer is at least as high as `SaG-Hybrid`'s $0.695$. Because $0.662 < 0.695$, **SaG-Hybrid remains the headline recommended hybrid engine** for architectures resembling the training corpus.
+
+---
+
 ## 5. Ablation & Control Baseline Models
 
 To isolate what actually contributes to predictive accuracy, SaG provides a complete family of baseline and control models:
 
 ```mermaid
 graph LR
+    subgraph HybridEngines["Hybrid Engines (JSS §7.6)"]
+        SAG_HYB["SaG-Hybrid<br>(HGT-QoS + Topo-QoS Prior)"]
+        SAG_HYB_GAT["SaG-Hybrid-GAT<br>(GAT-N-QoS16-C + Topo-QoS Prior)"]
+    end
+
     subgraph GraphLearning["Graph Learning Arms"]
         HGT_QOS["HGT-QoS<br>(Heterogeneous + Typed QoS)"]
         HGT["HGT<br>(Heterogeneous + Topology Only)"]
-        GAT_QOS["GAT-QoS<br>(Homogeneous + Scalar QoS)"]
-        GAT["GAT<br>(Homogeneous + Topology Only)"]
+        GAT_N_QOS16_C["GAT-N-QoS16-C<br>(Matched Untyped + 16D QoS)"]
+        GAT_QOS["GAT-N-QoS / GAT-QoS<br>(Homogeneous + Scalar QoS)"]
+        GAT["GAT-N / GAT<br>(Homogeneous + Topology Only)"]
     end
 
     subgraph Controls["Non-Graph & Structural Controls"]
@@ -464,8 +579,13 @@ graph LR
         RM["ISO-RM Composite<br>(Closed-Form Fallback)"]
     end
 
+    HGT_QOS -->|Add Prior Residual| SAG_HYB
+    TOPO_QOS -->|Prior Input p(v)| SAG_HYB
+    GAT_N_QOS16_C -->|Add Prior Residual| SAG_HYB_GAT
+    TOPO_QOS -->|Prior Input p(v)| SAG_HYB_GAT
     HGT_QOS -.->|Drop QoS| HGT
-    HGT_QOS -.->|Flatten Types| GAT_QOS
+    HGT_QOS -.->|Unmatched Flatten| GAT_QOS
+    HGT_QOS -.->|Matched Capacity Control| GAT_N_QOS16_C
     GAT_QOS -.->|Drop QoS| GAT
     HGT_QOS -.->|Remove Message Passing| TAB
     HGT_QOS -.->|Zero-Training Heuristics| TOPO_QOS
@@ -475,18 +595,22 @@ graph LR
 
 Located in [`saag/prediction/models/baselines.py`](../saag/prediction/models/baselines.py), these models collapse heterogeneous entity types into a single homogeneous graph:
 
-1. **`HomogeneousGAT_Unweighted` (Topology-Only Ablation)**:
+1. **`HomogeneousGAT_Unweighted` (Topology-Only Baseline / `GAT-N`)**:
    A standard multi-head Graph Attention Network operating on the flattened graph with no edge features.
-   - *Scientific question answered*: Does heterogeneous node typing and edge parameterization actually help over standard homogeneous graph learning?
-2. **`HomogeneousGAT_ScalarWeighted` (Scalar-QoS Ablation)**:
+   - *Scientific question answered*: The untyped, unweighted performance floor.
+2. **`HomogeneousGAT_ScalarWeighted` (Scalar-QoS Baseline / `GAT-N-QoS`)**:
    A homogeneous GAT that incorporates edge weights as a single 1-D scalar attribute $w(e) \in [0, 1]$.
-   - *Scientific question answered*: Does a rich 16-dimensional transport QoS contract outperform a single scalar weight?
+   - *Scientific question answered*: Does heterogeneous node typing and edge parameterization help over standard homogeneous graph learning when scalar QoS weights are available?
 
-#### Control Arm Capacity Parity
+#### Control Arm Capacity & Channel Parity (Amendment 2 Controls)
 
 > [!IMPORTANT]
-> **Strict Parameter Count Matching ($\pm 5\%$):**
-> A common confound in GNN benchmarking is that heterogeneous models have more parameters due to type-specific matrices. SaG enforces strict capacity parity in `test_baselines.py`: the hidden dimensions of `HomogeneousGAT_*` are widened so that their total trainable parameter count matches `NodeCriticalityGNN` within 5% ($\approx 108\text{k}$ parameters). This guarantees that performance differences reflect architectural inductive biases, not sheer parameter volume.
+> **Strict Capacity & Channel Matching:**
+> A major confound in naive GNN benchmarking is that heterogeneous models have more parameters due to type-specific projection matrices ($434\text{k}$ vs. $28\text{k}$), as well as a wider 16-D edge feature channel. SaG enforces rigorous controls:
+> * **`GAT-N-C` (`gl_full_cap`)**: Untyped GAT widened to 296 hidden channels ($437{,}496$ parameters, $1.01\times$ HGT), controlling for parameter volume without QoS.
+> * **`GAT-N-QoS16-C` (`gl_full_qos16_cap`)**: Untyped GAT widened to 288 hidden channels ($429{,}992$ parameters) and reading the identical 16-D QoS edge channel as HGT-QoS (including relation one-hot encodings).
+>
+> In JSS Section 7.2 (Table 6), evaluating these matched arms in a unified CPU sweep revealed that **the 16-D QoS channel drives learned accuracy ($+0.07$, $p = 0.016$), while relation-specific weights add nothing at matched capacity** (typing main effect $-0.014$, interaction $+0.001$). This motivated **`SaG-Hybrid-GAT`** (`gl_qos16_prior`), which equips `GAT-N-QoS16-C` with the `Topo-QoS` residual prior head.
 
 ---
 
@@ -551,7 +675,18 @@ flowchart TD
     DUAL --> ESC["Divergence Escalation Set<br>|r_GNN(v) - r_Topo(v)| ≥ Threshold<br>Triggers human architectural triage"]
 ```
 
-### Dual-Engine Triage Sets
+### 6.1 Dual-Engine vs. SaG-Hybrid: Architectural Distinction
+
+It is vital to distinguish the **Dual-Engine Predictor** from the **SaG-Hybrid Models**:
+
+| Dimension | **Dual-Engine Predictor** (`DualEnginePredictor`) | **SaG-Hybrid Models** (`SaG-Hybrid`, `SaG-Hybrid-GAT`) |
+|:---|:---|:---|
+| **Role & Purpose** | **Operational triage & consensus auditing** in production CI/CD pipelines. | **High-accuracy criticality ranking** on unseen software architectures. |
+| **Mechanics** | Runs two independent predictors (`HGT-QoS` and `Topo-QoS`) side-by-side at inference time and compares their ranking outputs. | An integrated neural network that takes the `Topo-QoS` score as an input prior $p(v)$ and computes an additive residual logit correction $\hat{I}^*(v)$. |
+| **Output** | Two ranking lists + partitioned sets: **Consensus Set** (automated fixes) and **Divergence Set** (human escalation). | A single, continuous, unified criticality forecast $\hat{I}^*(v) \in [0, 1]$ per component. |
+| **Model Weights** | Unmodified base models; no shared parameters or joint training. | End-to-end trained model with a learned prior-scaling scalar $\alpha$. |
+
+### 6.2 Dual-Engine Triage Sets
 
 1. **Consensus Critical Set ($\text{Top-K}_{\text{GNN}} \cap \text{Top-K}_{\text{Topo}}$)**:
    Components identified as highly critical by *both* the learned relational model and the closed-form topological model. These represent unambiguous structural bottlenecks and single-points-of-failure with high automation confidence.
@@ -606,6 +741,10 @@ To rigorously evaluate **inductive generalization** (predicting failure critical
 1. The model is trained on $K - 1$ distinct software architectures.
 2. The holdout architecture is tested in a strict zero-shot inductive setting.
 3. Ground-truth normalization is applied robustly per system to prevent inter-graph scale confounds.
+4. **Hybrid Generalization under LOSO**:
+   Across 12 held-out operational domains, `SaG-Hybrid` and `SaG-Hybrid-GAT` attain the highest rank correlations ($\rho = 0.657$ and $0.683$), beating the closed-form `Topo-QoS` baseline on 11 of 12 folds ($p_{\text{Holm}} \le 0.0068$).
+5. **Zero-Shot Real-World Transfer**:
+   When evaluated zero-shot on 5 independently authored open-source systems (Autoware.universe, EdgeX, Home Assistant, Online Boutique, Train-Ticket), `SaG-Hybrid` transfers at mean $\rho = 0.695$ and `SaG-Hybrid-GAT` at $0.662$, well above all training-free baselines ($0.51 - 0.53$), with `SaG-Hybrid` chosen as the recommended headline hybrid variant.
 
 ---
 
@@ -653,6 +792,20 @@ dual_result = service.predict_dual(
 )
 print("Consensus Top-K:", dual_result.dual_result.consensus_top_k)
 print("Divergence Escalations:", dual_result.dual_result.divergence_escalations)
+
+# Mode D: SaG-Hybrid Prediction (with Topo-QoS Residual Prior)
+# Checkpoints trained with topo_prior=True store this in service_config.json;
+# PredictionService and GNNService automatically compute and append p(v) on inference.
+hybrid_service = PredictionService(
+    gnn_checkpoint_dir="output/loso_cpu_hybrid/hgl_qos_prior",
+    prefer_gnn=True,
+)
+hybrid_result = hybrid_service.predict_quality_with_gnn(
+    structural_result=structural_res,
+    graph=nx_graph,
+    predictor_mode="gnn",
+)
+print("Top SaG-Hybrid component:", list(hybrid_result.node_scores.values())[0])
 ```
 
 ---
@@ -715,6 +868,14 @@ python cli/train_graph.py --layer system --variant homo_unweighted  # GAT Unweig
 # Multi-scenario inductive training across domain datasets
 python cli/train_graph.py --layer system --multi-scenario
 
+# Evaluate SaG-Hybrid variants under Leave-One-Scenario-Out (LOSO) cross-validation
+python cli/loso_evaluate.py --variant hgl_qos_prior --device cpu    # SaG-Hybrid (Amendment 5)
+python cli/loso_evaluate.py --variant gl_qos16_prior --device cpu   # SaG-Hybrid-GAT (Amendment 6)
+
+# Evaluate zero-shot transfer on 5 open-source system models
+python reproduce/realworld_zeroshot.py --variant hgl_qos_prior --device cpu
+python reproduce/realworld_zeroshot.py --variant gl_qos16_prior --device cpu
+
 # Supply pre-computed JSON files to skip pipeline re-execution
 python cli/train_graph.py \
   --layer system \
@@ -752,19 +913,26 @@ python cli/predict_graph.py \
   --triage-k 10 \
   --output output/predictions.json
 
-# 2. Dual-Engine Prediction (HGT-QoS + Topo-QoS consensus and divergence check)
+# 2. SaG-Hybrid Inference (using a checkpoint trained with Topo-QoS residual prior)
+python cli/predict_graph.py \
+  --layer system \
+  --gnn-model output/loso_cpu_hybrid/hgl_qos_prior \
+  --triage-k 10 \
+  --output output/predictions_hybrid.json
+
+# 3. Dual-Engine Prediction (HGT-QoS + Topo-QoS consensus and divergence check)
 python cli/predict_graph.py \
   --layer system \
   --predictor-mode dual \
   --gnn-model output/gnn_checkpoints/best_model \
   --divergence-threshold 5
 
-# 3. Training-Free Topo-QoS Centrality (No GNN checkpoint needed)
+# 4. Training-Free Topo-QoS Centrality (No GNN checkpoint needed)
 python cli/predict_graph.py \
   --layer system \
   --predictor-mode topo_qos
 
-# 4. Pure Step 3 Prediction Alone (Disable Step 4 anti-pattern bundling)
+# 5. Pure Step 3 Prediction Alone (Disable Step 4 anti-pattern bundling)
 python cli/predict_graph.py \
   --layer system \
   --gnn-model output/gnn_checkpoints/best_model \
@@ -878,9 +1046,11 @@ When executed with `--predictor-mode dual`, the result attaches the `dual_result
 | **I1** | **Parameter Independence** | The GNN and RM models share zero weights. Default $\lambda_{\text{rm}} = 0.0$. |
 | **I2** | **Offline Supervisor Separation** | Discrete-event simulation generates ground-truth labels offline; inference requires zero simulation calls. |
 | **I3** | **No Hallucination in Root Causes** | The Triage Bridge correlates ranking to Step 4 anti-patterns strictly by component ID, preventing neural models from hallucinating architectural causes. |
+| **I4** | **Deterministic Prior Purity** | The prior $p(v)$ in hybrid models is computed purely from the deterministic QoS-weighted flow projection $G_{\text{flow}}$. It requires zero simulation and shares no parameters with Pathway A. |
 | **B1** | **Heuristic Edge Labels** | During training, edge targets use $I^*(u) \times \text{bridge\_multiplier}$. Direct link failure injection in Step 5 provides exact ground truth for validation. |
-| **B2** | **Capacity Parity Requirement** | When comparing HGT against GAT baselines, ensure capacity parity within 5% to prevent parameter volume confounds. |
+| **B2** | **Capacity Parity Requirement** | When comparing HGT against GAT baselines, ensure capacity parity within 5% to prevent parameter volume confounds (Amendment 2 matched controls). |
 | **B3** | **Cold-Start Deployment** | If no trained checkpoint exists on disk, `PredictionService` automatically falls back to deterministic $Q^*(v)$ scores. |
+| **B4** | **Prior Anchoring vs. Transfer Trade-off** | Hybrid models eliminate topological blind spots on dense projections (Enterprise $\rho = 0.74 - 0.77$ vs $0.41 - 0.43$) and lead in LOSO accuracy ($\rho = 0.683$), but trade off slight zero-shot transfer on radically unfamiliar topologies ($0.66 - 0.70$ vs $0.76 - 0.81$ for pure learned models). |
 
 ---
 
