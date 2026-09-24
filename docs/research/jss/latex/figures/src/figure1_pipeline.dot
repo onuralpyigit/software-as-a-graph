@@ -7,7 +7,7 @@
 // task and the explanation layer a characterisation of what the predictor
 // flagged, and the figure carries that asymmetry through geometry rather than
 // through a label: the centre line runs straight down
-//   manifest -> G_struct -> G_analysis -> HGT -> Top-K -> ground-truth oracle,
+//   manifest -> G_struct -> G_analysis -> engines -> Top-K -> ground-truth oracle,
 // and the explanation layer is the only thing that leaves it, branching right
 // out of the Analysis Multigraph. Do not re-add a "PRIMARY" tag to the
 // predictive cluster — the straight trunk is what states the primacy.
@@ -133,10 +133,10 @@ digraph Figure1 {
 
     hgl [
       label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-        <tr><td><b>Heterogeneous Graph Transformer</b></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Relation-specific attention</font></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• 16-D QoS edge embedding</font></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Multi-task risk &amp; ranking heads</font></td></tr>
+        <tr><td><b>Ranking Engines</b></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Closed-form: QoS-weighted betweenness</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Learned: GNN + 16-D QoS edge encoding</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Hybrid: learned correction of closed form</font></td></tr>
       </table>>,
       fillcolor="#EDE9FE", color="#6D28D9"
     ];
@@ -144,9 +144,8 @@ digraph Figure1 {
     topk [
       label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
         <tr><td><b>Top-<i>K</i> Critical Component Set</b></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Blast radius <i>Î*</i>(<i>v</i>)</font></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Per-relationship criticality</font></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Out-of-distribution ranking</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Predicted cascade impact <i>Î*</i>(<i>v</i>)</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Ranking of unseen architectures</font></td></tr>
       </table>>,
       fillcolor="#F5F3FF", color="#6D28D9"
     ];

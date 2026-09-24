@@ -6,7 +6,7 @@
 #
 # Usage:
 #   make            — full build (pdflatex -> bibtex -> pdflatex x2)
-#   make figures    — regenerate all 5 figures, 3 body + 2 supplementary
+#   make figures    — regenerate all 7 figures, 5 body + 2 supplementary
 #                     (delegates to reproduce/Makefile jss-figures)
 #   make flat       — single-file manuscript_flat.tex, if a submission portal
 #                     rejects \input
@@ -26,9 +26,13 @@ export TEXINPUTS BSTINPUTS
 all: $(MAIN).pdf
 
 $(MAIN).pdf: $(MAIN).tex sections/*.tex refs.bib figures/Figure_1.pdf figures/Figure_2.pdf \
-             figures/Figure_3.pdf
+             figures/Figure_3.pdf figures/Figure_4.pdf figures/Figure_5.pdf
 	$(PDFLATEX) -interaction=nonstopmode $(MAIN).tex
 	$(BIBTEX) $(MAIN)
+	@# The two documents cross-reference each other through xr-hyper
+	@# (\\externaldocument), so each needs the other's .aux: one supplement
+	@# pass here gives the manuscript's S-* references their numbers.
+	$(PDFLATEX) -interaction=nonstopmode supplementary.tex
 	$(PDFLATEX) -interaction=nonstopmode $(MAIN).tex
 	$(PDFLATEX) -interaction=nonstopmode $(MAIN).tex
 	@echo "✓ $(MAIN).pdf built."
@@ -59,12 +63,12 @@ zip: $(MAIN).pdf supplementary.pdf
 	rm -f submission_package.zip
 	zip -r submission_package.zip \
 	    $(MAIN).tex sections/ refs.bib vendor/ figures/*.pdf figures/*.png \
-	    title_page.tex highlights.tex vitae.tex $(MAIN).bbl \
-	    supplementary.tex supplementary.bbl supplementary.pdf \
+	    title_page.tex highlights.tex vitae.tex $(MAIN).bbl $(MAIN).aux \
+	    supplementary.tex supplementary.bbl supplementary.aux supplementary.pdf \
 	    LENGTH_JUSTIFICATION.md -x '*.dot'
 	@echo "✓ submission_package.zip ready (manuscript + supplement + title page + highlights + vitae)."
 
-supplementary.pdf: supplementary.tex refs.bib figures/Figure_S1.pdf figures/Figure_S2.pdf
+supplementary.pdf: supplementary.tex refs.bib figures/Figure_S1.pdf figures/Figure_S2.pdf $(MAIN).pdf
 	$(PDFLATEX) -interaction=nonstopmode supplementary
 	$(BIBTEX) supplementary
 	$(PDFLATEX) -interaction=nonstopmode supplementary
