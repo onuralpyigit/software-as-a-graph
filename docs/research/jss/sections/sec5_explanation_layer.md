@@ -20,7 +20,7 @@ Figure 4 summarizes the layer. All metrics are rank-normalized to $[0, 1]$ withi
 
 The composite is $Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)$, and an ISO/IEC 25019 context-of-use vector can reweight $R$ and $M$. Intra-dimension weights are shrunk towards a uniform prior ($\lambda = 0.70$). If $Q(v)$ is used to rank, a fully uniform prior is better ($0.319$ vs. $0.200$; Supplementary §S1). The AHP matrices and their consistency diagnostics are in Supplementary §S4. Components above the Tukey upper fence of $Q$ are flagged CRITICAL (mean $4.2\%$ of components). High $A$ with low $FT$ indicates a single point of failure that needs replication, while high $FT$ indicates a cascade hub that needs circuit breakers (example card: Supplementary §S19).
 
-![Figure 4](latex/figures/Figure_4.png)
+![Figure 4](../latex/figures/Figure_4.png)
 
 *Figure 4. The explanation layer. Rank-normalized graph metrics feed the ISO/IEC 25010 sub-characteristics Fault Tolerance, Availability and Maintainability (CR: coupling risk; CC: clustering coefficient), which combine into Reliability and the composite Q(v). A component above the Tukey fence of Q is flagged, and its FT/A/M profile names the remediation class.*
 

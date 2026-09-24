@@ -2,7 +2,7 @@
 
 All results are reported on the Application population ($V_{\text{app}}$) against the primary oracle $I^*(v)$, under the input–label independence guarantee (§4.4). Per-fold results, secondary strata and extended protocol notes are in the Supplementary Material and the experiment pages of the replication repository (§6.1). Figure 5 summarizes the three main findings.
 
-![Figure 5](latex/figures/Figure_5.png)
+![Figure 5](../latex/figures/Figure_5.png)
 
 *Figure 5. Main results at a glance, Application population. (A) Mean Spearman ρ with 95% bootstrap intervals under LOSO (filled circles; CPU sweeps of Table 7) and zero-shot on the five system models (open diamonds). The hybrids lead on unseen synthetic architectures; the pure learned engines transfer best. (B) Per held-out fold, the gain of HGT-QoS and of Hybrid-HGT over Topo-QoS; the arrow shows what the closed-form prior changes. It removes the learned engine’s losses where the closed-form engine is strongest (Enterprise, Telecom RAN) and trims its largest gains where it is weakest. (C) Cell means of the capacity- and channel-matched 2 × 2 (Table 8): the QoS channel raises both models by about 0.07, while the typed and untyped lines stay together.*
 

@@ -1,6 +1,6 @@
 # Reproducing Software-as-a-Graph (SaG)
 
-> **Software-as-a-Graph: Pre-Deployment Dependability Analysis of Publish–Subscribe Systems with QoS-Aware Architecture Graphs and Hybrid Learning**
+> **Software-as-a-Graph: Predicting Cascading-Failure Impact in Publish–Subscribe Systems Before Deployment with QoS-Aware Graphs and Hybrid Learning**
 > Submitted to the *Journal of Systems and Software* Special Issue **VSI:AI4MSS** (AI Techniques for
 > Performance, Reliability, and Sustainability of Modern Software Systems). See
 > `docs/research/jss/manuscript.md` for the Markdown version of the paper, `docs/research/jss/latex/`
@@ -291,7 +291,7 @@ reproduce/
 ```bibtex
 @article{sag2026jss,
   author  = {Yigit, Onuralp and Collaborators},
-  title   = {Software-as-a-Graph: Pre-Deployment Dependability Analysis of Publish--Subscribe Systems with QoS-Aware Architecture Graphs and Hybrid Learning},
+  title   = {Software-as-a-Graph: Predicting Cascading-Failure Impact in Publish--Subscribe Systems Before Deployment with QoS-Aware Graphs and Hybrid Learning},
   journal = {Journal of Systems and Software},
   note    = {Special Issue: AI Techniques for Performance, Reliability, and Sustainability of Modern Software Systems (VSI:AI4MSS). Under submission.},
   year    = {2026}

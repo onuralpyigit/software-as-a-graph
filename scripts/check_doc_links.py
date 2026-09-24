@@ -10,7 +10,8 @@ one document's headings (``structural-analysis.md`` went from §9.x to §7.x and
 because a dead ``#anchor`` renders as a working link that lands at the top of
 the page.
 
-Checks two things for every ``[text](target)`` in every tracked ``.md``:
+Checks two things for every ``[text](target)`` and ``![alt](target)`` in every
+tracked ``.md``:
 
 * the file target exists, and
 * the ``#fragment``, if any, matches a heading in that file.
@@ -39,8 +40,8 @@ from typing import Dict, List, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parent.parent
 
-#: ``[text](target)`` where target is not a URL and not an image.
-LINK = re.compile(r"(?<!\!)\[(?:[^\]\[]|\[[^\]]*\])*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
+#: ``[text](target)`` and ``![alt](target)``; URL targets are skipped later.
+LINK = re.compile(r"!?\[(?:[^\]\[]|\[[^\]]*\])*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 #: ATX headings only; the docs use no Setext headings.
 HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$", re.M)
 FENCE = re.compile(r"^\s*(```|~~~)")
