@@ -6,7 +6,7 @@ Empirical results for RQ1–RQ5 are presented across the twelve-fold inductive b
 \subsection{RQ1: Graph Learning vs.\ Structural Baselines}
 \label{sec:7.1}
 
-\paragraph{RQ1 Summary (Predictive Efficacy):} \emph{Both SaG engines clearly outperform standard practice out of distribution. SaG's QoS-weighted closed-form engine (\texttt{Topo-QoS}, $\rho = 0.553$) improves on unweighted centrality on all twelve held-out architectures ($+0.204$, $p = 0.0005$), and the learned heterogeneous engine (\texttt{HGT-QoS}) attains the highest mean correlation in Table~\ref{tab:7} ($\rho = 0.638$). On their own, the two SaG engines are statistically on par ($+0.085$, $p = 0.151$, Holm $0.303$); combined in SaG-Hybrid they significantly outperform the closed-form engine ($+0.103$, 11/12 folds, Holm $p = 0.0068$; Section~\ref{sec:7.6}).}
+\paragraph{RQ1 Summary (Predictive Efficacy):} \emph{Both SaG engines clearly outperform standard practice out of distribution. SaG's QoS-weighted closed-form engine (\texttt{Topo-QoS}, $\rho = 0.553$) improves on unweighted centrality on all twelve held-out architectures ($+0.204$, $p = 0.0005$), and the learned heterogeneous engine (\texttt{HGT-QoS}) attains the highest mean correlation in Table~\ref{tab:7} ($\rho = 0.638$). On their own, the two SaG engines are statistically on par ($+0.085$, $p = 0.151$, Holm $0.303$); combined in the hybrid engines they significantly outperform the closed-form engine ($+0.103$ and $+0.130$, each on 11/12 folds, Holm $p \le 0.0068$; Section~\ref{sec:7.6}).}
 
 \textbf{What the in-distribution results can and cannot support.} Per-scenario in-distribution figures are reported in Supplementary Table~S15 rather than here, because no comparison can be drawn down their columns: \texttt{GAT}/\texttt{GAT-QoS} consume the Application--Library projection while \texttt{HGT}/\texttt{HGT-QoS} consume the native multigraph (Section~\ref{sec:6.2.substrate}), so a difference between the families confounds message passing with multi-entity visibility. Within a predictor the cells are still informative. In Healthcare, \texttt{Topo-QoS} achieves $\rho = 0.399$ but fails at critical triage (Overlap@$K = 0.000$); in the synthetic Microservices fold, \texttt{HGT} degrades ($\rho = 0.141$, Overlap@$K = 0.300$) where \texttt{HGT-QoS} does not ($\rho = 0.664$, Overlap@$K = 0.600$).
 
@@ -268,14 +268,18 @@ To assess generalization outside the generator, \texttt{HGT-QoS} was trained on 
 \subsection{SaG-Hybrid: Learning a Correction to the Closed-Form Engine}
 \label{sec:7.6}
 
-Section~\ref{sec:7.2.1} showed that the two SaG engines are complementary: the learned engine gains most where closed-form structure is least informative, and gives up ground where it is most informative. SaG-Hybrid combines them directly. It is \texttt{HGT-QoS} with one extra input per Application and Library --- the closed-form \texttt{Topo-QoS} score, rank-normalized within the graph --- and an output that adds a learned correction to that score on the logit scale, $\hat{I}^*(v) = \sigma\big(z(v) + \alpha\,\operatorname{logit}(p(v))\big)$, with a single learnable $\alpha$. Everything else (architecture, loss, epochs, early stopping, seeds) is identical to \texttt{HGT-QoS}, and it adds $321$ parameters ($434{,}941$ in all). The design, the contrasts and a decision rule were registered before any run (Amendment~5), and no setting was tuned.
+Section~\ref{sec:7.2.1} showed that the learned and closed-form engines are complementary: the learned engine gains most where closed-form structure is least informative, and gives up ground where it is most informative. The hybrid engines combine them directly. Each takes a learned engine and gives it one extra input per Application and Library --- the closed-form \texttt{Topo-QoS} score, rank-normalized within the graph --- together with an output that adds a learned correction to that score on the logit scale, $\hat{I}^*(v) = \sigma\big(z(v) + \alpha\,\operatorname{logit}(p(v))\big)$, with a single learnable $\alpha$. Everything else (architecture, loss, epochs, early stopping, seeds) is identical to the underlying engine. Two hybrids were evaluated, each registered with its contrasts and decision rule before any run, with no setting tuned:
+\begin{itemize}\tightlist
+\item \textbf{SaG-Hybrid} is built on \texttt{HGT-QoS} (Amendment~5; $434{,}941$ parameters, $321$ more than \texttt{HGT-QoS}).
+\item \textbf{SaG-Hybrid-GAT} is built on \texttt{GAT-N-QoS16-C}, the capacity-matched untyped GAT with the QoS channel (Amendment~6; $431{,}433$ parameters, $1{,}441$ more). It was added after the matched control of Section~\ref{sec:7.2} showed that relation-typed weights add nothing at matched capacity.
+\end{itemize}
 
-The hybrid was evaluated in one CPU sweep, with the comparators re-run in the same invocation and never mixed with the GPU rows of Table~\ref{tab:7}. \texttt{HGT-QoS} reaches $\rho = 0.622$ on CPU against $0.638$ on GPU, within the run-to-run displacement of Section~\ref{sec:8.3}; the training-free rows are identical.
+Each hybrid was evaluated in its own CPU sweep, with its comparators re-run in the same invocation and never mixed with the GPU rows of Table~\ref{tab:7}. The \texttt{Topo-QoS}, \texttt{HGT-QoS} and \texttt{GAT-N-QoS16-C} rows are bit-identical across the CPU sweeps that contain them, so the rows of Table~\ref{tab:hybrid} are directly comparable. \texttt{HGT-QoS} reaches $\rho = 0.622$ on CPU against $0.638$ on GPU, within the run-to-run displacement of Section~\ref{sec:8.3}.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{SaG-Hybrid under the LOSO protocol of Table~\ref{tab:7} (twelve folds, five seeds, Application population), all rows from one CPU sweep, and zero-shot on the five open-source system models under the protocol of Table~\ref{tab:9b}. $\Delta\rho$ is paired by fold against \texttt{Topo-QoS}, with a bootstrap 95\% CI and a two-sided Wilcoxon test. Holm correction is across the two registered hybrid contrasts (vs.\ \texttt{Topo-QoS} and vs.\ \texttt{HGT-QoS}).}
+\caption{Hybrid engines under the LOSO protocol of Table~\ref{tab:7} (twelve folds, five seeds, Application population, CPU sweeps), and zero-shot on the five open-source system models under the protocol of Table~\ref{tab:9b}. $\Delta\rho$ is paired by fold against \texttt{Topo-QoS}, with a bootstrap 95\% CI and a two-sided Wilcoxon test. Holm correction is within each hybrid's registered family: vs.\ \texttt{Topo-QoS} and vs.\ its own underlying engine.}
 \label{tab:hybrid}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lccccccc}
@@ -286,19 +290,21 @@ The hybrid was evaluated in one CPU sweep, with the comparators re-run in the sa
 \midrule
 \textbf{Topo} & 0.349 $[0.254, 0.452]$ & $-0.204$ $[-0.286, -0.122]$ & 0/12 & 0.0005 & 0.366 & 0.511 $[0.346, 0.703]$ & 0.474 \\
 \textbf{Topo-QoS} & 0.553 $[0.443, 0.657]$ & --- & --- & --- & 0.388 & 0.526 $[0.357, 0.699]$ & 0.474 \\
-\textbf{HGT-QoS} & 0.622 $[0.547, 0.690]$ & $+0.069$ $[-0.046, +0.174]$ & 8/12 & 0.266 & 0.426 & \textbf{0.760} $[0.714, 0.819]$ & \textbf{0.713} \\
-\textbf{SaG-Hybrid} & \textbf{0.657} $[0.572, 0.733]$ & $\mathbf{+0.103}$ $[+0.055, +0.152]$ & \textbf{11/12} & \textbf{0.0034} (\textbf{0.0068}) & \textbf{0.435} & 0.695 $[0.643, 0.730]$ & 0.602 \\
+\textbf{HGT-QoS} & 0.622 $[0.547, 0.690]$ & $+0.069$ $[-0.046, +0.174]$ & 8/12 & 0.266 & 0.426 & 0.760 $[0.714, 0.819]$ & 0.713 \\
+\textbf{GAT-N-QoS16-C} & 0.635 $[0.567, 0.696]$ & $+0.082$ $[-0.046, +0.201]$ & 7/12 & 0.233 & 0.438 & \textbf{0.805} $[0.759, 0.868]$ & \textbf{0.790} \\
+\textbf{SaG-Hybrid} & 0.657 $[0.572, 0.733]$ & $+0.103$ $[+0.055, +0.152]$ & 11/12 & 0.0034 (0.0068) & 0.435 & 0.695 $[0.643, 0.730]$ & 0.602 \\
+\textbf{SaG-Hybrid-GAT} & \textbf{0.683} $[0.603, 0.753]$ & $\mathbf{+0.130}$ $[+0.075, +0.190]$ & \textbf{11/12} & \textbf{0.0015} (\textbf{0.0029}) & \textbf{0.450} & 0.662 $[0.597, 0.727]$ & 0.600 \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-\noindent\textbf{Key insights for SaG-Hybrid:}
+\noindent\textbf{Key insights for the hybrid engines:}
 \begin{enumerate}\tightlist
-\item \textbf{The hybrid significantly outperforms the closed-form engine out of distribution.} SaG-Hybrid reaches $\rho = 0.657$ against $0.553$ for \texttt{Topo-QoS} ($+0.103$, CI $[+0.055, +0.152]$), winning 11 of 12 held-out architectures ($W = 4.0$, $p = 0.0034$, Holm $0.0068$). This meets the decision rule registered before the run, so it is the headline learned engine of this paper. It also has the highest Overlap@$K$ ($0.435$) and active-stratum correlation ($\rho_{>0} = 0.340$) under LOSO.
-\item \textbf{It removes the learned engine's failure mode.} The folds that held \texttt{HGT-QoS} back were those where closed-form structure is most informative. With the prior, the Enterprise deficit against \texttt{Topo-QoS} shrinks from $-0.369$ to $-0.061$, and Telecom RAN turns from $-0.149$ into a win ($+0.071$). Enterprise is the hybrid's only loss.
-\item \textbf{Hybrid vs.\ pure learning is a trade-off.} Against \texttt{HGT-QoS} the hybrid is $+0.035$ on average (8/12, $p = 0.733$): it gains on the closed-form engine's strongest folds and gives some ground on its weakest (Healthcare, IoT Smart City, ATM, Microservices), where the prior is least informative.
-\item \textbf{Pure learned engines transfer further.} On the five independently authored system models, SaG-Hybrid ($\rho = 0.695$) stays well above every training-free score ($0.51$--$0.53$) but below \texttt{HGT-QoS} ($0.760$) and the capacity-matched untyped GAT with the QoS channel ($0.805$; Section~\ref{sec:7.4}). A hybrid built on that untyped engine has not been evaluated.
+\item \textbf{Both hybrids significantly outperform the closed-form engine out of distribution.} SaG-Hybrid reaches $\rho = 0.657$ ($+0.103$, 11/12 folds, Holm $p = 0.0068$) and SaG-Hybrid-GAT $\rho = 0.683$ ($+0.130$, CI $[+0.075, +0.190]$, 11/12 folds, Holm $p = 0.0029$), against $0.553$ for \texttt{Topo-QoS}. Each meets the decision rule registered before its run. They are the only engines in this study that significantly beat closed-form ranking.
+\item \textbf{SaG-Hybrid-GAT is the most accurate engine on unseen synthetic architectures.} It has the highest mean correlation, Overlap@$K$ ($0.450$), active-stratum correlation ($\rho_{>0} = 0.398$) and PR-AUC ($0.525$) of any engine under LOSO. It leads SaG-Hybrid on 11 of 12 folds ($+0.027$, CI $[+0.013, +0.041]$; a descriptive comparison, not a registered test), and it leads its own untyped engine by $+0.048$ (7/12, Holm $p = 0.30$).
+\item \textbf{The prior removes the learned engines' failure mode.} The folds that held the pure learned engines back were those where closed-form structure is most informative. On Enterprise, \texttt{HGT-QoS} scores $0.426$ and \texttt{GAT-N-QoS16-C} $0.407$ against \texttt{Topo-QoS}'s $0.795$; with the prior they reach $0.735$ and $0.768$. Enterprise is each hybrid's only loss to the closed-form engine ($-0.061$ and $-0.027$). Telecom RAN turns from a loss into a win for both.
+\item \textbf{Anchoring trades transfer for in-distribution accuracy.} On the folds where the closed-form engine is weakest (Healthcare, IoT Smart City, ATM, Microservices), both hybrids give up some of the learned engines' gains. On the five independently authored system models, both stay well above every training-free score ($0.695$ and $0.662$ vs.\ $0.51$--$0.53$) but below the pure learned engines ($0.760$ and $0.805$). By the rule registered in Amendment~6, SaG-Hybrid-GAT therefore does not replace SaG-Hybrid as the recommended hybrid, since it transfers less well ($0.662 < 0.695$). For systems unlike the training corpus, the pure untyped engine with the QoS channel remains the best choice.
 \end{enumerate}
 
 \subsection{RQ5: Analysis Cost and Its Comparison Against Simulation}

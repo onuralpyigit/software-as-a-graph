@@ -2,7 +2,7 @@
 
 ## 8.1 Discussion and Practical Consequences
 
-**The representation carries the signal.** The most robust result of this study is that SaG’s QoS-aware dependency projection makes criticality legible to simple and learned analyzers alike. A closed-form centrality on the projection improves every held-out architecture over its unweighted form ($+0.204$). For learned engines, the QoS edge channel is the component that matters ($+0.07$ at matched capacity, §7.2), and letting a learned engine correct the closed-form score yields the best ranking on unseen synthetic architectures (§7.5). Practitioners therefore gain most from modeling their architecture with typed entities and declared QoS contracts, whichever engine they then run.
+**The representation carries the signal.** The most robust result of this study is that SaG’s QoS-aware dependency projection makes criticality legible to simple and learned analyzers alike. A closed-form centrality on the projection improves every held-out architecture over its unweighted form ($+0.204$). For learned engines, the QoS edge channel is the component that matters ($+0.07$ at matched capacity, §7.2), and letting a learned engine correct the closed-form score yields the best ranking on unseen synthetic architectures ($\rho = 0.683$, §7.5). Practitioners therefore gain most from modeling their architecture with typed entities and declared QoS contracts, whichever engine they then run.
 
 **Choosing an engine.**
 
@@ -10,7 +10,7 @@
 
 -   **Learned engines (`HGT-QoS`, `GAT-N-QoS16-C`).** They give the best critical-set identification and the strongest transfer to independently authored systems ($\rho = 0.760$ and $0.805$ vs. $0.51$–$0.53$; PR-AUC $0.71$–$0.79$ vs. about $0.5$). They gain most on dense, irregular topologies where closed-form structure is least informative (Microservices $+0.229$, ATM $+0.210$ for `HGT-QoS`), and score a new architecture in milliseconds once its features exist. Because relation-specific weights add nothing at matched capacity, a sufficiently wide untyped GAT with the QoS channel is the simpler choice and transferred best in this study.
 
--   **Hybrid engine (SaG-Hybrid).** The best engine on unseen synthetic architectures ($\rho = 0.657$) and the only one that significantly outperforms closed-form ranking ($+0.103$, 11/12 folds). Because it starts from the closed-form score, it keeps the closed-form engine’s strength on dense projections such as Enterprise while adding the learned engine’s gains elsewhere. It is the recommended default when an architecture resembles the training distribution; pure learned engines remain preferable for transfer to substantially different systems ($0.76$–$0.81$ vs. $0.695$).
+-   **Hybrid engines (SaG-Hybrid, SaG-Hybrid-GAT).** The only engines that significantly outperform closed-form ranking ($+0.103$ and $+0.130$, each on 11/12 folds), and the most accurate on unseen synthetic architectures (SaG-Hybrid-GAT $\rho = 0.683$, SaG-Hybrid $0.657$). Because they start from the closed-form score, they keep the closed-form engine’s strength on dense projections such as Enterprise while adding the learned engines’ gains elsewhere. They are the recommended choice when an architecture resembles the training distribution; SaG-Hybrid is the registered recommendation because it transfers better of the two ($0.695$ vs. $0.662$). Pure learned engines remain preferable for substantially different systems ($0.76$–$0.81$).
 
 -   **Explanation layer.** The RM profile (§5) names a remediation class for each flagged component — Availability-driven replication versus Fault-Tolerance-driven circuit breakers — while the engines set triage priority.
 
@@ -28,12 +28,12 @@
 
 **Table 18.** How the instruments in the SaG portfolio are best used, given the evidence in §7.
 
-| **Instrument**               | **Context**                                        | **Role and evidence**                                                                                          |
-|:-----------------------------|:---------------------------------------------------|:---------------------------------------------------------------------------------------------------------------|
-| **`Topo-QoS`** (Closed-form) | Lightweight CI gates                               | Training-free, $\rho = 0.553$ out of distribution; $+0.204$ over unweighted centrality on 12/12 folds.         |
-| **Learned + QoS channel**    | Substantially different or irregular architectures | Best transfer (`GAT-N-QoS16-C` $0.805$, `HGT-QoS` $0.760$) and identification (PR-AUC $0.71$–$0.79$).          |
-| **SaG-Hybrid**               | Default learned engine                             | Best LOSO ranking ($\rho = 0.657$); significantly above `Topo-QoS` ($+0.103$, 11/12 folds, Holm $p = 0.0068$). |
-| **RM explanation layer**     | Refactoring and root-cause discussion              | ISO/IEC 25010 attribution (Availability vs. Fault Tolerance vs. Maintainability).                              |
+| **Instrument**                  | **Context**                                        | **Role and evidence**                                                                                            |
+|:--------------------------------|:---------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------|
+| **`Topo-QoS`** (Closed-form)    | Lightweight CI gates                               | Training-free, $\rho = 0.553$ out of distribution; $+0.204$ over unweighted centrality on 12/12 folds.           |
+| **Learned + QoS channel**       | Substantially different or irregular architectures | Best transfer (`GAT-N-QoS16-C` $0.805$, `HGT-QoS` $0.760$) and identification (PR-AUC $0.71$–$0.79$).            |
+| **SaG-Hybrid / SaG-Hybrid-GAT** | Architectures resembling the training corpus       | Best LOSO ranking ($\rho = 0.657$ / $0.683$); significantly above `Topo-QoS` ($+0.103$ / $+0.130$, 11/12 folds). |
+| **RM explanation layer**        | Refactoring and root-cause discussion              | ISO/IEC 25010 attribution (Availability vs. Fault Tolerance vs. Maintainability).                                |
 
 ## 8.2 Performance and Computational Sustainability Implications
 
@@ -55,4 +55,4 @@ Green software engineering assesses energy across development, assurance, and ex
 
 The explanation layer’s attributions have not yet been evaluated with developers or against injected faults; a mutation benchmark and a practitioner study are planned. No published learned-criticality model (FINDER [67], DrBC [68]) has been reproduced on this corpus. Scoring hosts and network links, robustness to missing operational parameters, and incremental CI re-scoring are natural capabilities of the learned engine that this study does not yet evaluate.
 
-**Future directions.** (1) Build SaG-Hybrid on the capacity-matched untyped QoS engine, and run the remaining directionality control (`HGT-QoS-U`); (2) retarget RQ1 and RQ2 on the queue-flow oracle $I_{\text{dyn}}$; (3) reproduce a published learned-criticality baseline; (4) add synchronous call edges and a backward-propagating oracle, so that RPC and hybrid architectures can be modeled natively; (5) extract the open-source system models from real deployment manifests; (6) validate rankings against production incident data; (7) measure energy directly via RAPL/NVML.
+**Future directions.** (1) Find a way to combine the hybrids’ in-distribution accuracy with the pure learned engines’ transfer, for example by learning when to trust the prior, and run the remaining directionality control (`HGT-QoS-U`); (2) retarget RQ1 and RQ2 on the queue-flow oracle $I_{\text{dyn}}$; (3) reproduce a published learned-criticality baseline; (4) add synchronous call edges and a backward-propagating oracle, so that RPC and hybrid architectures can be modeled natively; (5) extract the open-source system models from real deployment manifests; (6) validate rankings against production incident data; (7) measure energy directly via RAPL/NVML.

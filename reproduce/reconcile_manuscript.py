@@ -870,6 +870,10 @@ FRESHNESS_TARGETS = {
     "loso_rq2_matched.json": "Table 11 matched 2x2 (CPU sweep)",
     "loso_significance_rq2_matched.json": "Table 11 matched contrasts",
     "realworld_zeroshot_gl_full_qos16_cap_cpu.json": "Section 7.4 (GAT-N-QoS16-C transfer)",
+    # Amendment 6: SaG-Hybrid-GAT.
+    "loso_hybrid_gat_cpu.json": "Table 14 SaG-Hybrid-GAT LOSO (CPU sweep)",
+    "loso_significance_hybrid_gat_cpu.json": "Table 14 SaG-Hybrid-GAT contrasts",
+    "realworld_zeroshot_gl_qos16_prior_cpu.json": "Table 14 SaG-Hybrid-GAT system models",
 }
 
 #: Artifacts that never read the corpus, so the corpus-freshness rule cannot
@@ -1128,13 +1132,19 @@ def check_hybrid_table(rep: Report) -> None:
     """
     loso = _load("loso_hybrid_cpu.json")
     sig = _load("loso_significance_hybrid_cpu.json")
-    rw = {v: _load(f"realworld_zeroshot_{v}_cpu.json") for v in ("hgl_qos", "hgl_qos_prior")}
+    # Amendment 6's sweep supplies the untyped rows; its topo_qos and
+    # gl_full_qos16_cap cells are bit-identical to the other CPU sweeps.
+    loso_gat = _load("loso_hybrid_gat_cpu.json") or {}
+    sig_gat = _load("loso_significance_hybrid_gat_cpu.json") or {}
+    rw = {v: _load(f"realworld_zeroshot_{v}_cpu.json")
+          for v in ("hgl_qos", "hgl_qos_prior", "gl_full_qos16_cap", "gl_qos16_prior")}
     tex = _tex("sec7_results.tex")
     if loso is None or sig is None or r"\label{tab:hybrid}" not in tex:
         rep.skipped.append("tab:hybrid: hybrid artifacts or table absent")
         return
-    table = loso["comparison_table"]
-    deltas = {r["variant"]: r for r in sig.get("exploratory", []) + sig.get("preregistered", [])}
+    table = {**loso_gat.get("comparison_table", {}), **loso["comparison_table"]}
+    deltas = {r["variant"]: r for r in sig_gat.get("exploratory", [])
+              + sig.get("exploratory", []) + sig.get("preregistered", [])}
     ref = next(iter(r for r in rw.values() if r), None) or {}
     boot = ref.get("bootstrap_ci", {})
     rw_rho = {
@@ -1142,9 +1152,12 @@ def check_hybrid_table(rep: Report) -> None:
         "topo_qos": boot.get("Topo-QoS", {}).get("rho", {}).get("mean"),
         "hgl_qos": (rw["hgl_qos"] or {}).get("mean_rho_across_systems"),
         "hgl_qos_prior": (rw["hgl_qos_prior"] or {}).get("mean_rho_across_systems"),
+        "gl_full_qos16_cap": (rw["gl_full_qos16_cap"] or {}).get("mean_rho_across_systems"),
+        "gl_qos16_prior": (rw["gl_qos16_prior"] or {}).get("mean_rho_across_systems"),
     }
     labels = {"Topo": "topo_baseline", "Topo-QoS": "topo_qos",
-              "HGT-QoS": "hgl_qos", "SaG-Hybrid": "hgl_qos_prior"}
+              "HGT-QoS": "hgl_qos", "SaG-Hybrid": "hgl_qos_prior",
+              "GAT-N-QoS16-C": "gl_full_qos16_cap", "SaG-Hybrid-GAT": "gl_qos16_prior"}
     for row in _rows(tex, r"\midrule", after_label=r"\label{tab:hybrid}"):
         cells = _cells(row)
         v = labels.get(_label(cells[0]))

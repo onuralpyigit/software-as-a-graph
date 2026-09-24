@@ -792,33 +792,35 @@ Telecom RAN & 0 & 0.562 & 0.562 & 0.576 & 0.576 \\
 \section{SaG-Hybrid Per-Fold Results}
 \label{supp:hybrid-folds}
 
-Table~\ref{tab:supp-hybrid} lists the per-fold Spearman $\rho$ behind Table~14 of the main manuscript: one CPU sweep, twelve LOSO folds, fold score = mean over five seeds, Application population (\path{results/loso_hybrid_cpu.json}). Folds are ordered by the closed-form engine's own score. SaG-Hybrid outperforms \texttt{Topo-QoS} on every fold except Enterprise, and keeps most of the closed-form engine's strength on the folds where \texttt{HGT-QoS} loses to it.
+Table~\ref{tab:supp-hybrid} lists the per-fold Spearman $\rho$ behind Table~14 of the main manuscript: CPU sweeps, twelve LOSO folds, fold score = mean over five seeds, Application population (\path{results/loso_hybrid_cpu.json}, \path{results/loso_hybrid_gat_cpu.json}). The \texttt{Topo-QoS} column is bit-identical across the two sweeps. Folds are ordered by the closed-form engine's own score. Each hybrid outperforms \texttt{Topo-QoS} on every fold except Enterprise, and keeps most of the closed-form engine's strength on the folds where its underlying learned engine loses to it.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Per-fold LOSO $\rho$ for SaG's closed-form, learned and hybrid engines (CPU sweep; bold marks the best of the three).}
+\caption{Per-fold LOSO $\rho$ for SaG's closed-form engine, the two learned engines and their hybrids (CPU sweeps; bold marks the best in each row).}
 \label{tab:supp-hybrid}
-\begin{tabular}{lcccc}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lccccc}
 \toprule
-\textbf{Holdout} & \textbf{Topo-QoS} & \textbf{HGT-QoS} & \textbf{SaG-Hybrid} & \textbf{Hybrid $-$ Topo-QoS} \\
+\textbf{Holdout} & \textbf{Topo-QoS} & \textbf{HGT-QoS} & \textbf{SaG-Hybrid} & \textbf{GAT-N-QoS16-C} & \textbf{SaG-Hybrid-GAT} \\
 \midrule
-Real-Time Gaming & 0.810 & 0.789 & \textbf{0.837} & $+0.026$ \\
-Enterprise & \textbf{0.795} & 0.426 & 0.734 & $-0.061$ \\
-AV System & 0.753 & 0.704 & \textbf{0.782} & $+0.029$ \\
-Logistics Fleet & 0.741 & 0.771 & \textbf{0.792} & $+0.051$ \\
-Industrial SCADA & 0.650 & 0.684 & \textbf{0.758} & $+0.108$ \\
-Financial Trading & 0.586 & 0.695 & \textbf{0.754} & $+0.167$ \\
-Telecom RAN & 0.576 & 0.427 & \textbf{0.648} & $+0.071$ \\
-Enterprise Integration (ESB) & 0.430 & 0.548 & \textbf{0.564} & $+0.135$ \\
-Healthcare & 0.369 & \textbf{0.730} & 0.625 & $+0.256$ \\
-IoT Smart City & 0.351 & \textbf{0.688} & 0.590 & $+0.239$ \\
-ATM & 0.311 & \textbf{0.523} & 0.429 & $+0.118$ \\
-Microservices & 0.265 & \textbf{0.475} & 0.366 & $+0.100$ \\
+Real-Time Gaming & 0.810 & 0.789 & \textbf{0.837} & 0.685 & 0.825 \\
+Enterprise & \textbf{0.795} & 0.426 & 0.735 & 0.407 & 0.768 \\
+AV System & 0.753 & 0.704 & 0.782 & 0.732 & \textbf{0.793} \\
+Logistics Fleet & 0.741 & 0.771 & 0.792 & 0.654 & \textbf{0.806} \\
+Industrial SCADA & 0.650 & 0.684 & 0.758 & 0.721 & \textbf{0.768} \\
+Financial Trading & 0.586 & 0.695 & 0.754 & 0.713 & \textbf{0.797} \\
+Telecom RAN & 0.576 & 0.427 & 0.648 & 0.574 & \textbf{0.656} \\
+Enterprise Integration (ESB) & 0.430 & 0.548 & 0.564 & \textbf{0.630} & 0.568 \\
+Healthcare & 0.369 & 0.730 & 0.625 & \textbf{0.798} & 0.686 \\
+IoT Smart City & 0.351 & 0.688 & 0.590 & \textbf{0.720} & 0.654 \\
+ATM & 0.311 & \textbf{0.523} & 0.429 & 0.506 & 0.447 \\
+Microservices & 0.265 & 0.475 & 0.366 & \textbf{0.479} & 0.429 \\
 \midrule
-\textbf{Mean} & 0.553 & 0.622 & \textbf{0.657} & $+0.103$ \\
+\textbf{Mean} & 0.553 & 0.622 & 0.657 & 0.635 & \textbf{0.683} \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \end{document}
