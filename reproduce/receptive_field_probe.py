@@ -103,6 +103,7 @@ def main() -> int:
         data = _build_training_hetero(bundle, True, False)
         models = {
             "hgl_qos": build_node_gnn(data.metadata(), 32, 4, 3, 0.0, use_bidirectional=True),
+            "hgl_qos_uni": build_node_gnn(data.metadata(), 32, 4, 3, 0.0, use_bidirectional=False),
             "gl_full_qos16_cap": build_baseline("homo_scalar", hidden_channels=32, num_heads=4,
                                                 num_layers=3, dropout=0.0, edge_dim=16),
         }

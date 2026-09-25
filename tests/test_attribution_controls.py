@@ -84,3 +84,21 @@ def test_nfmask_inputs_are_bit_identical_to_their_parents():
     # And the two parents really differ on both inputs, or the control is vacuous.
     assert not all(torch.equal(off[t].x, on[t].x) for t in off.node_types)
     assert not all(torch.equal(off[r].edge_attr, on[r].edge_attr) for r in off.edge_types)
+
+
+@pytest.mark.parametrize("bidirectional", [True, False])
+def test_hgt_reaches_applications_only_through_its_reverse_pass(bidirectional):
+    """HGT-QoS-U (no reverse pass) is per-node at Applications; HGT-QoS is not."""
+    from saag.prediction.models.core import build_node_gnn
+
+    data = networkx_to_hetero_data(_tiny_graph(), {}).hetero_data
+    torch.manual_seed(0)
+    model = build_node_gnn(data.metadata(), 32, 4, 3, 0.0, use_bidirectional=bidirectional).eval()
+    x = {nt: data[nt].x for nt in data.node_types}
+    ei = {r: data[r].edge_index for r in data.edge_types}
+    ea = {r: data[r].edge_attr for r in data.edge_types}
+    with torch.no_grad():
+        full = model(x, ei, ea)["Application"]
+        bare = model(x, {r: e[:, :0] for r, e in ei.items()},
+                     {r: e[:0] for r, e in ea.items()})["Application"]
+    assert torch.equal(full, bare) is (not bidirectional)

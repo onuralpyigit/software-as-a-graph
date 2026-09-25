@@ -17,6 +17,7 @@
 #   make rq-hybrid       — SaG-Hybrid vs Topo-QoS vs HGT-QoS, one CPU sweep (Amendment 5)
 #   make rq-hybrid-gat   — SaG-Hybrid-GAT vs Topo-QoS vs GAT-N-QoS16-C, one CPU sweep (Amendment 6)
 #   make rq-attribution  — GBM-Feat / GAT-QoS-nf attribution controls + receptive-field probe (Amendment 7)
+#   make rq-directionality — HGT-QoS vs HGT-QoS-U (Amendment 2's directionality arm), LOSO + zero-shot
 #   make omnibus         — one Holm correction over every registered contrast (no training)
 #   make nested-search   — nested-CV config search (opt-in, expensive; GRID=stage1|stage2|full)
 #   make convergent-validity — JSS Table 13: Three-oracle rank agreement (opt-in; expensive)
@@ -49,7 +50,7 @@ SCENARIOS_DIR ?= data/scenarios
 RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
-.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution nested-search kfold convergent-validity \
+.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution rq-directionality nested-search kfold convergent-validity \
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 \
@@ -220,6 +221,27 @@ rq-attribution:
 	$(PYTHON) reproduce/receptive_field_probe.py \
 	    --cache-dir $(OUTPUT_DIR)/loso_cache \
 	    --output $(RESULTS_DIR)/receptive_field_probe.json
+
+# Amendment 2's directionality control, first run after Amendment 7: HGT-QoS-U
+# drops HGT's reverse pass, which is the only route by which any message reaches
+# an Application, so the contrast tests HGT's message passing directly. HGT-QoS
+# is re-run in the SAME invocation because the contrast pairs them by fold.
+rq-directionality:
+	$(PYTHON) reproduce/loso_all_variants.py \
+	    --variants topo_qos hgl_qos hgl_qos_uni \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --epochs $(EPOCHS) --seeds $(SEEDS) --device cpu \
+	    --jobs $(HYBRID_JOBS) --torch-threads 1 \
+	    --output-base $(OUTPUT_DIR)/loso_cpu_directionality \
+	    --output $(RESULTS_DIR)/loso_directionality_cpu.json
+	$(PYTHON) reproduce/loso_significance.py \
+	    --input $(RESULTS_DIR)/loso_directionality_cpu.json \
+	    --output $(RESULTS_DIR)/loso_significance_directionality_cpu.json
+	for v in hgl_qos hgl_qos_uni; do \
+	    OMP_NUM_THREADS=4 $(PYTHON) reproduce/realworld_zeroshot.py --variant $$v --layers 3 --epochs $(EPOCHS) \
+	        --device cpu --workdir $(OUTPUT_DIR)/realworld_zeroshot_directionality \
+	        --output $(RESULTS_DIR)/realworld_zeroshot_$${v}_directionality.json || exit 1; \
+	done
 
 seed-robustness:
 	$(PYTHON) reproduce/factorial_seed_robustness.py \

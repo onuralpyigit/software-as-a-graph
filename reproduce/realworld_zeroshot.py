@@ -88,6 +88,7 @@ def train_once(
     rank_normalize_labels: bool,
     device: Optional[str] = "auto",
     topo_prior: bool = False,
+    use_bidirectional: bool = True,
 ) -> GNNService:
     """Train one HGT on the whole synthetic corpus.
 
@@ -126,6 +127,7 @@ def train_once(
         predict_edges=False,
         device=target_device,
         topo_prior=topo_prior,
+        use_bidirectional=use_bidirectional,
     )
     service.train(
         graph=train_graph,
@@ -618,7 +620,7 @@ def main() -> int:
     p.add_argument("--realworld-cache", type=Path, default=Path("output/realworld_cache"))
     p.add_argument("--variant", default="hgl_qos", choices=["hgl_qos", "hgl", "hgl_qos_prior",
                             "gl_full_cap", "gl_full_qos16_cap", "gl_qos16_prior",
-                            "gl_full_qos16_nfmask", "tab_gbm", "tab_gbm_qos"])
+                            "gl_full_qos16_nfmask", "tab_gbm", "tab_gbm_qos", "hgl_qos_uni"])
     p.add_argument("--seeds", default="42,123,456,789,2024")
     p.add_argument("--epochs", type=int, default=150)
     p.add_argument("--layers", type=int, default=2)
@@ -653,7 +655,7 @@ def main() -> int:
     tabular = args.variant in ("tab_gbm", "tab_gbm_qos")
     use_qos = (
         _registry.node_qos_for(args.variant, "loso") if homogeneous or tabular
-        else args.variant in ("hgl_qos", "hgl_qos_prior")
+        else args.variant in ("hgl_qos", "hgl_qos_prior", "hgl_qos_uni")
     )
     topo_prior = args.variant == "hgl_qos_prior"
 
@@ -697,6 +699,7 @@ def main() -> int:
                 rank_normalize_labels=args.rank_normalize_labels,
                 device=args.device,
                 topo_prior=topo_prior,
+                use_bidirectional=_registry.bidirectional_for(args.variant),
             )
         for b in real:
             try:
