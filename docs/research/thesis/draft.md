@@ -433,7 +433,7 @@ typed modes such as simultaneous shared-library failure; (iv) apply graph learni
 of pub-sub; or (v) use multi-criteria scoring for prioritization but not as an interpretable
 criticality *attribution* over a typed architecture graph. Software-as-a-Graph combines a typed
 multigraph model, multi-dimensional attribution under an audited weighting, dual interpretable and learned impact
-predictors, and a simulation-verified, delta-aware continuous CI/CD quality gate. The stratified
+predictors, and a simulation-verified, blocking CI/CD quality gate. The stratified
 correlation evaluation we report — by node type as well as pooled — is a direct consequence of
 taking node and edge type seriously, and is a methodological standard the untyped or
 single-dimensional methods reviewed above do not apply.
@@ -1283,7 +1283,7 @@ architectural edits and verifies that they actually reduce simulated failure imp
 deployment. The stage is designed to preserve the same independence discipline as the rest of the
 framework: candidate edits are generated from structure alone, and only a separate simulation pass
 decides whether to accept them. The section then describes how the diagnostics are operationalised
-as a continuous, delta-aware CI/CD quality gate (§6.6).
+as a blocking CI/CD quality gate (§6.6).
 
 ## 6.1 A Two-Phase Generate–Verify Procedure
 
@@ -1563,32 +1563,35 @@ We report metrics in three families, plus the stratification and significance ma
   $\rho$ [51], and paired Wilcoxon signed-rank tests [49] ($p < 0.05$) for predictor comparisons
   across scenarios.
 
-**Validation gate thresholds.** The implementation carries two independent gate registries — a fixed
-nine-check one and the topology-class-adjusted five-check one below; Table 15 and §8.5 document only
-the latter, which is the one the reported evaluation runs against. It is parameterised by topology
-class, because a threshold that discriminates on a dense topology is either trivial or unattainable
-on a sparse one. The default targets are $\rho \ge 0.70$ and $F1 \ge 0.80$; the `sparse` class, which
-covers every graph in §8.5, applies the five checks below. We tabulate them because §8.5 reports gate
-*failures*, and a reader cannot evaluate a failure against an unstated bar:
+**Validation gate thresholds.** The implementation carries two gate registries. The release gates
+of `saag/validation/models.py` pass a layer when $\rho \ge 0.70$, top-quartile overlap $\ge 0.75$
+and top-5 overlap $\ge 0.60$, and report predictive gain, $\kappa_{\text{CTA}}$ and bottleneck
+precision alongside without gating on them; a gate value that was never measured is reported as
+unmeasured rather than as a failure. The validation CLI (`cli/validation/statistics.py`) applies a
+second, topology-class-adjusted registry, which is the one §8.5 reports against. It is parameterised
+by topology class, because a threshold that discriminates on a dense topology is either trivial or
+unattainable on a sparse one. We tabulate it because §8.5 reports gate *failures*, and a reader
+cannot evaluate a failure against an unstated bar:
 
 **Table 15. Topology-class validation gate thresholds.** A graph's class is assigned from the density
-and hub ratio of its structural graph. All five checks must pass for the gate to pass.
+and hub ratio of its structural graph (derived `DEPENDS_ON` edges excluded). All four conditions must
+pass for the gate to pass.
 
-| Check | `sparse` | `medium` | `dense` | `hub_spoke` |
+| Condition | `sparse` | `medium` | `dense` | `hub_spoke` |
 |---|---:|---:|---:|---:|
 | Spearman $\rho$ vs simulated impact | $\ge 0.75$ | $\ge 0.80$ | $\ge 0.82$ | $\ge 0.85$ |
-| $F_1@K$ (critical-set overlap) | $\ge 0.65$ | $\ge 0.70$ | $\ge 0.72$ | $\ge 0.75$ |
+| Overlap@$K$ (critical-set overlap) | $\ge 0.70$ | $\ge 0.75$ | $\ge 0.75$ | $\ge 0.80$ |
 | SPOF-F1 (articulation points vs $I > 0.3$) | $\ge 0.60$ | $\ge 0.65$ | $\ge 0.65$ | $\ge 0.70$ |
-| FTR, false target rate (lower is better) | $\le 0.30$ | $\le 0.25$ | $\le 0.25$ | $\le 0.20$ |
 | Predictive gain over degree centrality | $\ge 0.02$ | $\ge 0.03$ | $\ge 0.03$ | $\ge 0.03$ |
 
-FTR is the fraction of components predicted highly vulnerable ($V(v) > 0.60$) whose simulated
-reachability impact is nonetheless negligible ($< 0.10$) — a precision check on the Vulnerability
-dimension specifically. Note that the class adjustment is not uniformly a tightening relative to the
-$\rho \ge 0.70$ / $F1 \ge 0.80$ defaults: $\rho$ rises to $0.75$ on the sparse class, whereas the
-F1-family thresholds are *relaxed*, because on a sparse graph a handful of components carries the
-whole signal and a single disagreement moves F1 sharply. We tabulate the rule rather than describe it
-as a tightening throughout.
+An earlier version of this registry carried a fifth condition, a false target rate. It was defined
+as the complement of the overlap condition with a strictly tighter implied threshold in every class,
+so the overlap condition could never bind and the gate was never really five conditions; it has been
+retired. The class adjustment is not uniformly a tightening relative to the release gates: $\rho$
+rises from $0.70$ to at least $0.75$ in every class, whereas the overlap threshold is *relaxed* to
+$0.70$ on the sparse class, because on a sparse graph a handful of components carries the whole
+signal and a single disagreement moves the overlap sharply. We tabulate the rule rather than describe
+it as a tightening throughout.
 
 **One evaluation contract, one sample.** Every variant in every table is scored by the same function
 on the same node set. This is a correction rather than a description of prior practice: an earlier
@@ -2260,8 +2263,9 @@ infrastructure and we do not read it. An earlier draft reported the Autoware cor
 from sweep to sweep at a fixed seed set; the cause was the `FaultInjector` ordering defect of §9.2,
 and reruns now agree to the precision shown.
 
-The release gate, as the current supplement reports it ($\rho \ge 0.75$, Overlap@$K \ge 0.70$,
-SPOF-F1 $\ge 0.60$, prediction gain $\ge 0.02$), passes on one system in five. EdgeX passes all four
+The topology-class validation gate, at the `sparse`-class thresholds of Table 15 that the
+supplement applies to all five ($\rho \ge 0.75$, Overlap@$K \ge 0.70$, SPOF-F1 $\ge 0.60$,
+predictive gain $\ge 0.02$), passes on one system in five. EdgeX passes all four
 conditions on all five seeds, helped by the pooled overlap figure the previous paragraph declines to
 read. Autoware fails the $\rho$ and SPOF conditions, the Online Boutique model fails SPOF and
 prediction gain, Train-Ticket fails SPOF, and Home Assistant misses the $\rho$ condition despite a
@@ -2364,11 +2368,13 @@ reported a more favourable aggregate precisely because it never asked each edit 
 **Finally, automated quality gating operationalises these checks continuously (RQ4).** By evaluating
 in-memory via the `MemoryRepository` and bypassing database round-trips, the framework runs
 anti-pattern scans and counterfactual simulations in seconds (~5 s medium, ~40 s xlarge). That speed
-makes the analyzer viable as a blocking CI/CD check, and the delta-aware gate semantics (§6.6) make
-it sustainable: it blocks newly introduced architectural regressions at commit time — bridging the
-Architecture–Code Gap — without repeatedly flagging known, risk-accepted structure, in the manner of
-"Clean as You Code" static-analysis gates. Of the four contributions this is the one least disturbed
-by the audit, and the one we would defend most confidently.
+makes the analyzer viable as a blocking CI/CD check. It is not yet sustainable as one: the gate is
+absolute rather than delta-aware (§6.6), so it re-evaluates the full finding set on every run, and a
+deliberately accepted single point of failure fails the build on every commit, indistinguishable
+from a regression. Evaluating against the merge base and blocking only on newly introduced findings,
+with a waiver register for accepted risk, is the change that would make the gate usable on a real
+architecture (§9.3). The speed result is the part of this contribution least disturbed by the audit;
+the gating semantics are the part still to build.
 
 ### 9.1.1 Where Graph Learning Helps, and Where It Does Not
 
@@ -2941,9 +2947,10 @@ but the resulting risk reductions are small ($+0.0025$ to $+0.0158$ SRI) and con
 topologies with pronounced fan-out structure, which we report as the substantive — and qualified —
 result of that stage (§6.4, §6.7).
 
-Integrated directly into pipelines as a delta-aware, blocking CI/CD Quality Gate, the framework
-verifies architectural changes and blocks regression in seconds, bridging the "Architecture-Code
-Gap" at commit time. Across twelve synthetic architectures and models of five open-source systems,
+Integrated directly into pipelines as a blocking CI/CD Quality Gate, the framework evaluates a
+candidate topology in seconds, bridging the "Architecture-Code Gap" at commit time; the gate is
+absolute rather than delta-aware, so blocking only newly introduced findings against the merge base
+remains future work (§9.3). Across twelve synthetic architectures and models of five open-source systems,
 the framework establishes a scope condition on where graph learning pays. The QoS-aware
 representation carries most of the signal: QoS-weighted centrality outperforms unweighted centrality
 on every held-out architecture ($\rho = 0.553$ vs $0.349$), measured only after repairing that
@@ -3149,16 +3156,23 @@ in this paper.
 
 **Funding.** *[Omitted for double-anonymised review.]*
 
-**Data availability.** The seven synthetic scenario datasets, their generator configurations, and the
-manifest of canonical dataset hashes are included in the replication package, from which every
-synthetic dataset regenerates byte-identically. The three real-world architecture graphs of §7.1 and
-their adapter are included on the same terms. Result artifacts are provided for the in-distribution
-evaluation (Table 18), the sensitivity sweeps of §8.3, the edge-removal measurement of §8.2, the
-remediation sweep of §6.7, and the three real-world validation runs of §8.5. **One exception is
-recorded rather than glossed:** the per-fold artifact behind the Leave-One-Scenario-Out results of
-Table 20 was not retained and cannot be regenerated from the archive without re-running the sweep;
-§8.1 and §9.2 state what follows from that. A link to the archived package will be supplied on
-acceptance.
+**Data availability.** The twelve synthetic LOSO datasets (eleven evaluation scenarios and the ATM
+case study), their generator configurations, and the manifest of canonical dataset hashes
+(`data/scenarios/MANIFEST.json`) are included in the replication package; every synthetic dataset
+regenerates byte-identically from its configuration, which continuous integration verifies. The five
+open-source system models of §8.5, their configurations and their adapter
+(`saag/adapters/realworld_adapter.py`) are included on the same terms. Result artifacts are provided
+for the in-distribution evaluation and its significance tests (Tables 18–19), the registered
+Leave-One-Scenario-Out sweep (Table 20), the CPU sweeps behind the hybrid and matched-control
+contrasts and the omnibus Holm correction (§9.1.1), and the zero-shot evaluation of §8.5 (Table 23),
+together with the trained checkpoints. The sensitivity sweeps of §8.3, the edge-removal measurement
+of §8.2 and the remediation sweep of §6.7 were measured on the earlier seven-scenario corpus, and
+their artifacts are provided as they stand. **One withdrawal is recorded rather than glossed:** the
+per-fold artifact behind the seven-scenario Leave-One-Scenario-Out table of an earlier revision was
+not retained; that table has been withdrawn and replaced by the registered twelve-fold sweep, whose
+artifact is retained (§8.1, §9.2). Learned cells move across devices and code revisions (§9.2), so
+new runs should be compared within one sweep rather than against the published cells. A link to the
+archived package will be supplied on acceptance.
 
 **Declaration of generative AI use.** *[To be completed by the authors in accordance with the
 journal's policy.]*
