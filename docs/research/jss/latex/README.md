@@ -80,7 +80,7 @@ the layout JSS's "<36 pages single-column" guidance reads naturally against.
 | `[preprint,review,3p]` | — | 1.5-spaced reviewing copy; add `review` back if the editor asks for one |
 | `[preprint]` | — | Elsevier's generic preprint layout (larger type/margins) |
 
-Of the 22 pages, the reference list is the last 3. `LENGTH_JUSTIFICATION.md` records what was moved
+Of the 25 pages, the reference list is the last 3. `LENGTH_JUSTIFICATION.md` records what was moved
 to the supplement and to the public experiment pages ([`../experiments/`](../experiments/README.md))
 when the body was condensed from 35 pages.
 
@@ -90,7 +90,7 @@ when the body was condensed from 35 pages.
 
 ## Supplementary material
 
-`supplementary.tex` (25 pages, Sections S1--S30) carries the material moved out of the body during condensation. S1--S8 are:
+`supplementary.tex` (27 pages, Sections S1--S32) carries the material moved out of the body during condensation. S1--S8 are:
 
 | § | Content |
 |---|---|
@@ -120,15 +120,16 @@ with `\ref`, plus two in the supplement:
 | 2 | `Figure_2.pdf` | running example: structural graph → `DEPENDS_ON` (cascade vs. blast) | §3.2 | `reproduce/render_jss_diagrams.py` |
 | 3 | `Figure_3.pdf` | the three ranking engines (hybrid mechanism) and the evaluation design | §4 | `reproduce/render_jss_diagrams.py` |
 | 4 | `Figure_4.pdf` | explanation layer: metrics → FT/A/M → Q(v) → remediation | §5.2 | `reproduce/render_jss_diagrams.py` |
-| 5 | `Figure_5.pdf` | results at a glance: LOSO vs. transfer, per-fold hybrid effect, matched 2×2 | §7 | `reproduce/render_headline_figure.py` |
+| 5 | `Figure_5.pdf` | results at a glance: every engine under LOSO, per-fold InDeg vs. hybrid vs. Topo-QoS, QoS-attribution controls | §7 | `reproduce/render_amendment7_figure.py` |
 | S1 | `Figure_S1.pdf` | AHP shrinkage sensitivity | Supp. S1 | `reproduce/render_shrinkage_figure.py` |
 | S2 | `Figure_S2.pdf` | HGT attention-weight case study | Supp. S8 | `reproduce/extract_attention.py` + `render_attention_subgraph.py` |
 
 `make figures` (→ `reproduce/Makefile jss-figures`) regenerates all of them. File numbering and
 printed numbering agree, as the JSS Guide for Authors requires.
 
-- **Figure 5 reads `results/`.** It uses the same artifacts, and the same fold bootstrap, as
-  Tables 7 and 8, so it cannot disagree with them. Re-run it whenever those artifacts change.
+- **Figure 5 reads `results/`.** Training-free values and intervals come from the committed Amendment 7
+  artifacts; learned and hybrid values are the published CPU-sweep figures of Table 7 and
+  Supplementary S23. Re-run it whenever those change.
 - **Figures 2–4 are drawn at the text width** (6.5 in = 468 pt) and included at
   `width=\linewidth`, so their 6–8 pt fonts print at size. Keep them there.
 - **Figure 1 is Graphviz.** Its canvas (605 pt) is included at `0.70\linewidth`, so its labels
@@ -145,7 +146,7 @@ printed numbering agree, as the JSS Guide for Authors requires.
 python ../../../../reproduce/reconcile_manuscript.py --verbose
 ```
 
-Reconciles every reported table figure — currently **511** — against the artifact that produced it,
+Reconciles every reported table figure — currently **537** — against the artifact that produced it,
 and flags any that is missing, stale against the corpus, or was produced from a dirty working tree.
 It covers `supplementary.tex` as well as the body: the supplement restates body figures as literal
 text (it cannot `\ref` across documents), and that is how S6/S7 once kept a superseded pooled ρ after
@@ -158,9 +159,9 @@ revision:
 grep -rnE '0\.680|0\.160|0\.695|0\.581|0\.568|0\.114|0\.054|0\.127|2,461|2,812' sections/ ../manuscript.md
 ```
 
-Current state of the build: **22 pages**, 9 sections, 11 tables, 5 figures, 90 references,
+Current state of the build: **25 pages**, 9 sections, 11 tables, 5 figures, 100 references,
 **zero LaTeX errors, zero undefined references, zero undefined citations, zero overfull boxes**. The
-supplement builds to 25 pages (S1--S30, 29 tables, 2 figures), also with zero undefined references
+supplement builds to 27 pages (S1--S32, 35 tables, 2 figures), also with zero undefined references
 (its four overfull boxes predate the condensation).
 
 ## What's still a placeholder
@@ -183,7 +184,7 @@ supplement builds to 25 pages (S1--S30, 29 tables, 2 figures), also with zero un
   own section directly before the reference list (and before the generative-AI declaration).
 - **Graphical abstract** — encouraged by the Guide, not required; not produced here. If added:
   531 × 1328 px (h × w) or proportionally more, TIFF/EPS/PDF/MS Office, separate file.
-- **Length** — 22 pages, inside the "less than 36 pages single-column" the Guide encourages. No
+- **Length** — 25 pages, inside the "less than 36 pages single-column" the Guide encourages. No
   explanation is required in "Comments to the Editor"; `LENGTH_JUSTIFICATION.md` is kept as a record
   of what was moved to the supplement and the experiment pages.
 - **Experiment-pages tag** — `\sagexperimentsurl` in `manuscript.tex` points at the tag

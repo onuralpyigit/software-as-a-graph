@@ -113,8 +113,12 @@ def to_markdown(tex: str, name: str = "") -> str:
     return md.strip()
 
 
-def render_declarations(cites: dict) -> str:
+def render_declarations(cites: dict, labels: dict) -> str:
     tex = expand_macros((SEC / "declarations.tex").read_text(encoding="utf8"))
+    # Same reference and path handling as the sections: pandoc cannot resolve
+    # \ref against the compiled .aux and drops \path entirely.
+    tex = re.sub(r"\\(?:ref|eqref)\{([^}]+)\}", lambda m: labels.get(m.group(1), "??"), tex)
+    tex = re.sub(r"\\path\{([^}]+)\}", r"\\texttt{\1}", tex)
     tex = re.sub(r"\\section\*\{([^}]+)\}", r"\\section{\1}", tex)
     tex = re.sub(r"\\(?:smallskip|noindent)\s*", "", tex)
     tex = re.sub(r"\\cite\{([^}]+)\}",
@@ -221,7 +225,7 @@ def render_sections(labels: dict, cites: dict) -> dict[str, str]:
         raw = to_markdown(preprocess((SEC / f"{n}.tex").read_text(encoding="utf8"), labels, cites), n)
         sections[n] = postprocess_markdown(raw, labels)
 
-    sections["declarations"] = render_declarations(cites)
+    sections["declarations"] = render_declarations(cites, labels)
     sections["references"] = f"# References\n\n{render_references(cites)}"
     return sections
 

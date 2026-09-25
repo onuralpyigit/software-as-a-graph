@@ -1,5 +1,7 @@
 # RQ4 — Analysis cost and comparison with direct simulation
 
+> **Amendment 7 update.** The strongest rankers are also the cheapest. The projection plus InDeg takes at most 0.06 s per scenario, and Reach at most 0.15 s (`results/dependency_count_cost.json`). That compares with 4.5 s for the simulator and 79 s for the analysis gate on Enterprise.
+
 **Paper:** §7.4, Table 10, and the sustainability paragraph of §8.1. **Extended results:**
 Supplement S28 (per-scenario gate vs. oracle, training cost).
 

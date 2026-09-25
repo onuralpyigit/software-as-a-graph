@@ -1,118 +1,92 @@
 # Software-as-a-Graph — JSS submission reading map
 
 > **[`latex/`](latex/) is the authoritative manuscript.** [`manuscript.md`](manuscript.md) and
-> [`sections/`](sections/) are now *generated* from it by
-> [`reproduce/render_manuscript_md.py`](../../../reproduce/render_manuscript_md.py), taking their
-> section, table, figure and citation numbers from the compiled `.aux`/`.bbl`, so they cannot
-> disagree unless the generator has not been re-run. This file is a section-by-section map of the
-> paper — what each part argues, what backs it, and where a reviewer will push.
+> [`sections/`](sections/) are *generated* from it by
+> [`reproduce/render_manuscript_md.py`](../../../reproduce/render_manuscript_md.py), which takes
+> section, table, figure and citation numbers from the compiled `.aux`/`.bbl`. This file maps what
+> each part of the paper argues and what backs it.
 >
-> **Regenerated after the corpus re-derivation (PR #56) and the consistency pass that followed.**
-> Every earlier version of this file is stale: it carried the pre-re-derivation numbers
-> (ρ = 0.608/0.571, eight folds, p = 0.64, 43.7 ms) and a "double-anonymised" review model that is
-> simply wrong — JSS is single-anonymised.
+> **Regenerated after the 2026-09-25 revision** ([`reviews/review_2026-09-25.md`](reviews/review_2026-09-25.md))
+> and Amendment 7 of the registered plan. Earlier versions of this file carried the pre-Amendment-7
+> thesis ("declared QoS contracts drive the gain"; "hybrids are the most accurate engines"), which
+> the registered controls overturned.
 
-* **Target journal:** Journal of Systems and Software (Elsevier)
+* **Target journal:** Journal of Systems and Software (Elsevier), single-anonymised review
 * **Target venue:** Special Issue "AI Techniques for Performance, Reliability, and Sustainability of
   Modern Software Systems" (VSI:AI4MSS); deadline 30 September 2026
-* **Target topics:** *AI for Reliability and Dependability Analysis in Complex ICT Systems*
-  (primary); *Explainable, Interpretable, and Robust AI* (secondary, §5 and §7.3); *AI for Automated
-  Performance Tasks* (RQ5, §7.5)
-* **Review model:** single-anonymised (confirmed against the Elsevier Guide for Authors, September 2026); authors are named in the manuscript, `title_page.tex` uploaded separately
-* **Scale:** 35 pages, 9 sections, 15 tables, 3 figures, 93 references, plus an online supplement
-  (S1–S8, 6 tables, 2 figures). Take these from the build:
-  `pdfinfo latex/manuscript.pdf`, `grep -c 'begin{table' latex/sections/*.tex`.
-* **Build:** zero LaTeX errors, zero undefined references or citations; 415
-  reported table figures reconcile against their artifacts via
-  `reproduce/reconcile_manuscript.py`, which now also covers `supplementary.tex` and fails on a
-  missing or dirty-provenance artifact
+* **Title:** *Software-as-a-Graph: Explicit Dependency Graphs Predict Cascading-Failure Impact in
+  Publish–Subscribe Systems Before Deployment*
+* **Scale:** 25 pages, 9 sections, 11 tables, 5 figures, 100 references; supplement S1–S32
+  (27 pages). Take these from the build: `pdfinfo latex/manuscript.pdf`.
+* **Build:** zero LaTeX errors, zero undefined references or citations. The reconciler
+  (`reproduce/reconcile_manuscript.py`) checks 537 reported figures when the full results bundle is
+  present; in a fresh clone it checks the committed corpus and the Amendment 7 artifacts.
 
 ---
 
 ## The thesis
 
-> SaG is a pre-deployment cascading-failure **predictor** — a relation-specific Heterogeneous Graph
-> Transformer that forecasts blast radii from Architecture-as-Code alone — paired with a
-> standards-grounded **explanation layer**, and evaluated to the point where its own boundaries are
-> the contribution.
+> Making the hidden dependencies of a publish–subscribe architecture explicit is what makes
+> cascading-failure risk measurable before deployment. On SaG's dependency projection, a count of a
+> component's dependents ranks its simulated impact better than any learned engine, transfers to
+> independently authored system models without training, and costs well under a second.
 
-The paper's distinguishing feature is how much of it is negative. Four claims an earlier version made
-are withdrawn in the text rather than quietly dropped: superiority over a training-free QoS-weighted
-centrality baseline, zero-shot transfer to real systems, a label-free confidence signal, and the
-computational-efficiency argument. Reviewers should be able to find each withdrawal stated plainly;
-if an edit ever softens one back into a claim, that is a regression.
+Learned engines are evaluated for what they add on top: hybrids significantly beat the registered
+betweenness engine, an untyped attention network matches a heterogeneous transformer, and engines
+trained only on synthetic data transfer. Registered controls attribute the closed-form gain to the
+projection rather than to declared QoS contracts, so ranking does not require QoS profiles.
 
 ---
 
-## Headline figures
+## Headline figures (all on the Application population, primary oracle I*)
 
 | Quantity | Value | Where |
 |---|---|---|
-| In-distribution mean ρ — Topo / Topo-QoS / GAT / GAT-QoS / HGT / HGT-QoS | 0.370 / 0.568 / 0.522 / 0.411 / 0.624 / **0.661** | §7.1 (Table 5) |
-| **LOSO mean ρ** — Topo / Topo-QoS / GAT-N / GAT-N-QoS / HGT / HGT-QoS / RM | 0.349 / 0.553 / 0.317 / 0.604 / 0.551 / **0.638** / 0.205 | §7.1 (Table 7) |
-| LOSO F₁@K — same order | 0.366 / 0.388 / 0.328 / 0.431 / 0.427 / 0.425 / 0.322 | §7.1 (Table 7) |
-| **Typing, main effect** | **+0.134**, 12/12, p = 0.0005, Holm p = 0.0015 | §7.2 |
-| **QoS channel, main effect** | **+0.187**, 11/12, p = 0.0015, Holm p = 0.0015 | §7.2 |
-| **Typing × QoS interaction** | **-0.199**, 0/12, p = 0.0005, Holm p = 0.0015 | §7.2 |
-| Typing, QoS absent (HGT vs GAT-N) | +0.234, 12/12, p = 0.0005 | §7.2 |
-| Typing, QoS present (HGT-QoS vs GAT-N-QoS) | +0.035, 9/12, p = 0.1294 | §7.2 |
-| **vs Topo-QoS (LOSO)** | +0.085, 9/12, p = 0.151 | §7.1 |
-| vs Topo-QoS, critical set | F₁@K +0.037, 7/12, p = 0.470 | §7.1 |
-| Active-stratum retention — Topo-QoS / HGT-QoS | 51% / 56% | §7.1.2 (Table 7c) |
-| Real-world zero-shot, full population / active stratum | 0.792 / **+0.281**, negative on 2 of 5 | §7.4.1 (Table 11/12) |
-| Real-world training-free references — RM / Topo / Topo-QoS | 0.516 / 0.511 / 0.526 | §7.4.1, §8.4 |
-| Oracle agreement — I_dyn·I\* / I_comp·I\* / I_comp·I_dyn | 0.627 / 0.395 / 0.411 (12 folds) | §7.3 (Table 10) |
-| Stratified vs pooled RM ρ | 0.566 (App) / 0.119 (Broker) / 0.244 (Node) vs pooled **0.098** (Simpson's) | §7.3.6 |
-| Label-noise ceiling | test–retest **0.817**–1.000, median 0.979, 9/12 ≥ 0.95 | §7.1 |
-| **Cost** — HGT forward vs structural analysis at 2,000 components | 56.2 ms vs 239.34 s (**4,259×**) | §7.5 (Table 12) |
-| Gate vs its own oracle | gate 0.04–82.7 s, oracle 0.14–7.2 s → **gate ~11× dearer** | §7.5.1 |
-| AHP shrinkage, uniform → raw | 0.319 → 0.200 (elicited weights are anti-predictive) | Supp. S1 |
-| Morris screening, only load-bearing constants | λ (μ\* 0.134), r_α (0.132); other eight ≤ 0.025 | Supp. S1 |
-| Corpus | 2,812 components, 17 architectures (12 synthetic + 5 real-world) | §6.1 (Table 4) |
-
-### Four standing caveats that travel with every figure above
-
-1. **Superiority over the untrained baseline is not established.** The +0.127 margin fails its test
-   (p = 0.077) and rests on one fold; §7.1 insight 1 says so, and §8.1 recommends `Topo-QoS` as the
-   defensible default for a team that wants a ranking and nothing more. Any sentence reading "graph
-   learning outperforms structural baselines" overclaims against the paper's own Table 8.
-2. **Typing is an inductive bias, not capacity.** It wins 11/12 out-of-distribution and loses
-   in-distribution. Stating the first without the second inverts the finding.
-3. **Results are oracle-scoped.** Top-K Jaccard across oracle pairs is 0.24–0.49. Anything measured
-   against I_comp (Supp. S6, S7) is not evidence for claims measured against I\* (Tables 6–9, 11).
-4. **Nothing here is an energy measurement, and the gate is not cheap.** §7.5.1 and §8.2 state that
-   the static gate costs about eleven times its own simulation oracle. Do not let a later edit
-   upgrade the surviving infrastructure-avoidance argument back into an efficiency or joules claim.
+| **InDeg** (direct dependents), LOSO mean ρ | **0.764** [0.674, 0.840]; +0.211 vs Topo-QoS, 12/12, Holm p = 0.0020 | §7.1, Table 7 |
+| Reach / Reach-QoS, LOSO mean ρ | 0.732 / 0.714 | §7.1, Table 7 |
+| InDeg vs learned / hybrid engines | +0.143 (HGT-QoS), +0.129 (GAT-QoS), +0.108 (Hybrid-HGT), +0.081 (Hybrid-GAT); 10–11/12, p ≤ 0.005 | Supp. S31 |
+| Inert-vs-active rule ("has a dependent") | 94% balanced accuracy (LOSO), 97% (system models) | §7.1, Supp. S31 |
+| Hybrids vs Topo-QoS (registered) | +0.103 / +0.130, 11/12, Holm p = 0.0068 / 0.0029; omnibus 0.034 / 0.016 | §7.1 |
+| Hybrids vs their own learned engines | +0.035 (p = 0.73) / +0.048 (p = 0.30) | §7.1 |
+| Learned engines alone vs Topo-QoS | HGT-QoS 0.622 (+0.069, p = 0.27), GAT-QoS 0.635 (+0.082, p = 0.23) | §7.1 |
+| Closed-form gain: registered Topo → Topo-QoS | 0.349 → 0.553 | §7.1.2 |
+| …same projection, unweighted betweenness | 0.591 | §7.1.2 |
+| …constant topic weight / permuted QoS | 0.595 / 0.559 | §7.1.2 |
+| …QoS-independent corpus, QoS effect | −0.035 | §7.1.2 |
+| Matched 2×2: typing / edge channel | −0.014 [−0.052, +0.023] / +0.073 (10/12, Holm p = 0.127) | §7.2, Table 8 |
+| Zero-shot, learned engines | HGT-QoS 0.760, GAT-QoS 0.805 vs 0.511–0.526 (betweenness) | §7.3, Table 9 |
+| Zero-shot, dependency counts | Reach 0.938, Reach-QoS 0.933, InDeg 0.863 (Amendment 7 harness) | §7.3, Supp. S31 |
+| Cost | projection + InDeg ≤ 0.06 s; Reach ≤ 0.15 s; simulator ≤ 4.5 s; analysis gate ≤ 79 s; HGT forward 56 ms at 2,000 nodes | §7.4 |
 
 ---
 
-## Section-by-section map
+## Section map
 
-| § | Title | What it establishes | Where a reviewer pushes |
-|---|---|---|---|
-| **1.1** | Motivation | Pub-sub decoupling creates a visibility barrier; pre-deployment is exactly when no telemetry exists. Sustainability framed as *infrastructure* avoidance, with the cost caveat stated up front | "Then why is your gate slower than your simulator?" — answered in §7.5.1 and §8.2, and conceded |
-| **1.2** | Problem statement | Prediction is primary; the explanation layer is what a rank cannot say. Separation is architectural — no shared parameters | If a reviewer wants them merged, §4.2's λ_RM ablation is the evidence they are separable |
-| **1.3** | The SaG approach | Four pipeline stages; Figure 1 | — |
-| **1.4** | RQ1–RQ5 | Efficacy, typing, QoS/robustness, real-world, cost | RQ5 now asks how the gate compares to simulation, and answers unfavourably |
-| **1.5** | Contributions + prior-work disclosure | Discloses the conference version and enumerates what is new | Editorial-desk item: required for conference extensions |
-| **2** | Related work | Architecture-based reliability prediction, AADL error annex, architecture recovery, data-driven microservice RCA, green SE | "Why no percolation baseline?" — §2.4 concedes this explicitly as a gap in the baseline set |
-| **3** | The typed multigraph | Five entity types, six projection rules, dual graph views, typed node features | Rule 6 symmetry; §3.2 justifies it and bounds its influence to zero on labels |
-| **4** | The HGT predictor | Architecture, 16-D edge encoding, multi-task heads, four oracles, input–label independence | §4.4 concedes the task is recovering a closed-form functional of the same graph — which is why a centrality baseline is competitive |
-| **5** | The explanation layer | ISO/IEC 25010 decomposition, RM composite | §5.2 concedes three of five AHP matrices are rank-one and their CRs uninformative (Supp. S4) |
-| **6** | Experimental setup | Corpus (Table 4), which subset backs which analysis (Table 5), baselines, metrics, protocols, pre-registration | §6.3 concedes model selection is made on the training distribution — the protocol's main weakness, also in §8.4 |
-| **7.1** | RQ1 | In-distribution and LOSO ranking; label-noise ceiling; the active-stratum re-scoring that halves the baselines' apparent accuracy | Insight 1 declines to claim a win the bootstrap interval would have supported |
-| **7.2** | RQ2 | The typing result, and the regime contrast that interprets it | The single lost fold (ATM) is reported rather than excluded |
-| **7.3** | RQ3 | QoS ablation and its narrowing, oracle convergent validity, stratification | Sensitivity sweeps live in Supp. S1–S3 |
-| **7.4** | RQ4 | **Reported as a negative result.** Full-population 0.680 collapses to +0.160 on the active stratum and inverts on both microservice call trees | The configuration for this run differs from Table 8's; §7.4.1 states it and declines to claim zero-shot purity |
-| **7.5** | RQ5 | Cost profile; the gate is dearer than its oracle | The withdrawal is the finding |
-| **8** | Discussion, threats, limitations | When to use which engine; the withdrawn fallback gate; sustainability restated honestly; four limitations | §8.4's four paragraphs are the paper's own strongest critique |
-| **9** | Conclusion | What is established, what is not | — |
+| § | What it establishes |
+|---|---|
+| 1 | Motivation, why now (Architecture-as-Code), four RQs, **key findings at a glance**, five contributions |
+| 2 | Reliability prediction, fault injection (Filibuster, LDFI), telemetry RCA, static architecture analysis (HAROS, ROSDiscover), graph learning |
+| 3 | Typed multigraph, six `DEPENDS_ON` rules, dual views, typed node features |
+| 4 | Engines; the primary oracle as implemented (threshold cascade, θ, damping) and its robustness; procedural independence guarantee |
+| 5 | Explanation layer, presented as a design proposal |
+| 6 | Corpus (with generator QoS–topology coupling disclosed), predictors, metrics, **§6.4 analysis plan and deviations** |
+| 7 | Findings 1–5: dependency counts, where the closed-form gain comes from, what learning needs, transfer, cost |
+| 8 | Implications for practice and research, instrument guidance (Table 11), threats, research agenda |
+| 9 | Conclusion |
 
-## Supplement (S1–S8)
+## Registered decisions (PREREGISTRATION.md)
 
-Parameter sensitivity (S1, with Figure S1), zero-inflation bounds on oracle agreement (S2), domain
-weighting and thresholds (S3), the AHP matrices and their rank-one diagnostic (S4), generative
-parameters of the corpus (S5), the anti-pattern detection benchmark (S6), the explanation
-layer's real-world evaluation against I_comp (S7), and the HGT relational attention-weight
-analysis (S8, with Figure S2). Cross-references from the supplement into the
-body are literal text, never `\ref` — the two documents do not share an `.aux`.
+Plan and Amendments 1–7. Amendment 7 (2026-09-25, before any of its results) registered the
+dependency counts and QoS-attribution controls with rules R1 (learned engines vs the best count),
+R2 (QoS content vs multiplicity) and R2′ (generator coupling); all three applied, and the text
+follows them. Every arm of Amendment 7 regenerates without GPU or database:
+
+```bash
+PYTHONPATH=. python reproduce/training_free_suite.py all        # gate + baselines + controls + oracle + descriptives
+PYTHONPATH=. python reproduce/training_free_suite.py make-variant && \
+PYTHONPATH=. python reproduce/training_free_suite.py qos-indep
+PYTHONPATH=. python reproduce/training_free_suite.py substrate
+PYTHONPATH=. python reproduce/training_free_suite.py cost
+PYTHONPATH=. python reproduce/render_amendment7_tables.py        # Supplementary S31 tables
+PYTHONPATH=. python reproduce/render_amendment7_figure.py        # Figure 5
+```
