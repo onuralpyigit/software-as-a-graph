@@ -1242,6 +1242,22 @@ def check_contrasts_matched(rep: Report) -> None:
                                             round(truth[key], 4)))
 
 
+def _exact_mean(artifact: dict, variant: str) -> float:
+    """Unrounded cross-fold mean. ``comparison_table[v]["mean_rho"]`` is stored at
+    four decimals, and rounding that again to three can print the wrong digit
+    (0.6315 -> 0.631 for a true 0.63152), which a tolerance check cannot see."""
+    return artifact["per_variant_results"][variant]["summary"]["overall_mean_spearman_rho"]
+
+
+def _prints_as(truth: float, cell: str) -> bool:
+    """Whether ``truth`` rounds to exactly the number typeset in ``cell``."""
+    got = _num(cell)
+    m = re.search(r"-?\d+\.(\d+)", cell.replace("$-$", "-"))
+    if got is None or m is None:
+        return False
+    return round(truth, len(m.group(1))) == got
+
+
 def _table_rows(tex: str, label: str) -> List[List[str]]:
     r"""Cells of every data row between a table's first ``\midrule`` and its
     ``\bottomrule``, whether or not the row label is bold (``_rows`` keeps only
@@ -1298,7 +1314,7 @@ def check_attribution(rep: Report) -> None:
     for cells in rows:
         label = _label(cells[0])
         if label == "Mean":
-            truths = [table[v]["mean_rho"] for v in fold_cols]
+            truths = [_exact_mean(loso, v) for v in fold_cols]
         else:
             norm = re.sub(r"system$", "", re.sub(r"[^a-z]", "", label.lower()))
             key = next((s for s, n in names.items() if n == norm), None)
@@ -1309,7 +1325,7 @@ def check_attribution(rep: Report) -> None:
         for idx, truth in enumerate(truths, start=1):
             got = _num(cells[idx])
             rep.checked += 1
-            if got is None or abs(got - truth) > 0.0006:
+            if got is None or not _prints_as(truth, cells[idx]):
                 rep.findings.append(Finding("tab:supp-attribution-folds", label, fold_cols[idx - 1],
                                             got, round(truth, 4)))
     if len(rows) != 13:
@@ -1388,7 +1404,7 @@ def check_directionality(rep: Report, supp: str) -> None:
             truths = [zs[v]["per_system"][zkey]["mean_rho"]
                       for v in ("hgl_qos", "hgl_qos_uni", "gl_full_qos_cap")]
         elif name == "Mean":
-            truths = [table[v]["mean_rho"] for v in cols]
+            truths = [_exact_mean(cap if v == "gl_full_qos_cap" else loso, v) for v in cols]
         else:
             norm = re.sub(r"system$", "", re.sub(r"[^a-z]", "", name.lower()))
             fold = next((f for f in per_fold["topo_qos"]
@@ -1400,7 +1416,7 @@ def check_directionality(rep: Report, supp: str) -> None:
         for idx, truth in enumerate(truths, start=1):
             got = _num(cells[idx])
             rep.checked += 1
-            if got is None or abs(got - truth) > 0.0006:
+            if got is None or not _prints_as(truth, cells[idx]):
                 rep.findings.append(Finding("tab:supp-directionality", name, str(idx), got, round(truth, 4)))
     if matched < 18:
         rep.skipped.append(f"tab:supp-directionality: matched {matched} rows, expected 18")
@@ -1410,7 +1426,7 @@ def check_directionality(rep: Report, supp: str) -> None:
 #: (file, pattern). Each pattern captures (SaG-Hybrid, SaG-Hybrid-GAT) in that
 #: order; the sites that name one engine first say so in the pattern.
 OMNIBUS_PROSE = [
-    ("sec7_results.tex", r"twelve registered contrasts of the study \(\$p_\{\\text\{omni\}\} = ([\d.]+)\$ and \$([\d.]+)\$"),
+    ("sec7_results.tex", r"thirteen registered contrasts of the study \(\$p_\{\\text\{omni\}\} = ([\d.]+)\$ and \$([\d.]+)\$"),
 ]
 
 
