@@ -57,14 +57,23 @@ for VARIANT in "${VARIANTS[@]}"; do
             STRUCTURAL="output/loso_cache/${SCENARIO}/structural_metrics.json"
             SIMULATED="output/loso_cache/${SCENARIO}/failure_impact.json"
         else
-            # Fall back to scenario JSON alone (will run neo4j pipeline)
+            # No LOSO cache: label the scenario JSON with FaultInjector (training
+            # never simulates on its own); structural metrics come from Neo4j.
             STRUCTURAL=""
-            SIMULATED=""
+            SIMULATED="output/simulation/${SCENARIO}_impact_scores.json"
+            if [[ ! -f "${SIMULATED}" ]]; then
+                PYTHONPATH=. python cli/simulate_graph.py fault-inject \
+                    --input "${SCENARIO_JSON}" \
+                    --output "${SIMULATED}" \
+                    --export-json \
+                    --node-types Application,Broker,Library \
+                    --seeds 42,123,456,789,2024 > /dev/null
+            fi
         fi
 
-        EXTRA_ARGS=""
+        EXTRA_ARGS="--simulated ${SIMULATED}"
         if [[ -n "${STRUCTURAL}" ]]; then
-            EXTRA_ARGS="--structural ${STRUCTURAL} --simulated ${SIMULATED}"
+            EXTRA_ARGS="--structural ${STRUCTURAL} ${EXTRA_ARGS}"
         fi
 
         PYTHONPATH=. python cli/train_graph.py \

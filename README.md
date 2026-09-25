@@ -175,7 +175,8 @@ python cli/visualize_graph.py --layer system --output output/dashboard.html --op
 On a first run there is no GNN checkpoint, so `run.py` skips the Predict stage entirely rather than crashing — but the Diagnose stage still runs (RM scores, anti-patterns, explanation need no checkpoint at all). `predict_graph.py` itself never runs a GNN unless `--gnn-model` is passed — it always computes deterministic RM scoring, with Diagnose bundled in unless `--no-diagnose` is given (see `saag-diagnose` for Step 4 standalone). To enable the GNN, run Simulate to produce labels, train, then pass the checkpoint **directory**:
 
 ```bash
-python cli/train_graph.py --layer system
+python cli/simulate_graph.py fault-inject --input data/system.json --export-json   # FaultInjector labels → output/simulation/impact_scores.json
+python cli/train_graph.py --layer system --simulated output/simulation/impact_scores.json
 python cli/predict_graph.py --layer system --gnn-model models/gnn_checkpoints
 ```
 
