@@ -130,6 +130,7 @@ def test_fault_injector_artifact_is_flattened_into_labels(tmp_path):
     # zero labelled nodes.
     argv = [
         "--layer", "app",
+        "--input", _write(tmp_path, "topology.json", {"applications": [{"id": "App1"}]}),
         "--structural", _write(tmp_path, "s.json", {"App1": {"pagerank": 0.1}}),
         "--rm", _write(tmp_path, "rm.json", {"App1": {"overall": 0.7}}),
         "--simulated", _write(tmp_path, "impact_scores.json", {
@@ -164,3 +165,62 @@ def test_failure_simulator_output_is_refused_as_labels(tmp_path):
     })
     with pytest.raises(SystemExit):
         _run_main(["--layer", "app", "--simulated", simulated])
+
+
+def _file_only_argv(tmp_path):
+    """--structural/--rm/--simulated as files for every node of atm_system."""
+    from pathlib import Path
+    from saag.core.graph_io import load_graph
+    nodes = {n: {} for n in load_graph(Path("data/scenarios/atm_system.json")).nodes}
+    return [
+        "--layer", "system",
+        "--structural", _write(tmp_path, "structural.json", nodes),
+        "--rm", _write(tmp_path, "rm.json", nodes),
+        "--simulated", _write(tmp_path, "simulated.json", nodes),
+    ]
+
+
+def test_file_only_path_loads_topology_with_relation_types(tmp_path):
+    # Regression: with every input file-supplied, the graph used to be
+    # rebuilt as structural-metrics keys typed "Application" with no edges —
+    # "1 node types, 0 relation types" — and hetero_qos crashed in
+    # torch.cat() on the empty relation list.
+    from saag.prediction.data_preparation import networkx_to_hetero_data
+    gnn, client_cls, _ = _run_main(
+        ["--input", "data/scenarios/atm_system.json", *_file_only_argv(tmp_path)]
+    )
+    client_cls.assert_not_called()  # file-only: Neo4j is never contacted
+    kwargs = gnn.train.call_args.kwargs
+    data = networkx_to_hetero_data(
+        kwargs["graph"], kwargs["structural_metrics"],
+        kwargs["simulation_results"], kwargs["rm_scores"],
+    ).hetero_data
+    assert len(data.edge_types) > 0
+    assert len(data.node_types) > 1
+
+
+def test_file_only_path_without_input_exits(tmp_path):
+    with pytest.raises(SystemExit) as exc:
+        _run_main(_file_only_argv(tmp_path))
+    assert exc.value.code == 1
+
+
+def test_multi_scenario_loads_topology_and_skips_dirs_without_it(tmp_path, monkeypatch):
+    import shutil
+    argv = _file_only_argv(tmp_path)
+    work = tmp_path / "work"
+    for name, has_topology in (("with_results", True), ("without_results", False)):
+        d = work / "output" / name
+        d.mkdir(parents=True)
+        shutil.copy(argv[argv.index("--structural") + 1], d / "structural_metrics.json")
+        shutil.copy(argv[argv.index("--simulated") + 1], d / "failure_impact.json")
+        if has_topology:
+            shutil.copy("data/scenarios/atm_system.json", d / "topology.json")
+    topology = str((work / "output" / "with_results" / "topology.json").resolve())
+    monkeypatch.chdir(work)
+
+    gnn, _, _ = _run_main(["--multi-scenario", "--input", topology, *argv])
+
+    inductive = gnn.train.call_args.kwargs["inductive_graphs"]
+    assert len(inductive) == 1  # the dir without topology.json is skipped
+    assert len(inductive[0].edge_types) > 0

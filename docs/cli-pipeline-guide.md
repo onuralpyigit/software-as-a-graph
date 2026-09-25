@@ -233,6 +233,7 @@ PYTHONPATH=. python cli/train_graph.py --layer system --simulated output/simulat
 | `--structural` | `None` | Path | Skip Step 2, load pre-computed metrics JSON |
 | `--simulated` | `None` | Path | **Required** (except `--variant topology_rm`). `FaultInjector` label file — the `impact_scores.json` written by `simulate_graph.py fault-inject`. `FailureSimulator` output is rejected |
 | `--rm` | `None` | Path | Skip Step 4, load RM scores JSON |
+| `--input` | `None` | Path | Topology JSON (raw structural graph, as in `loso_evaluate.py`). Required when `--structural` and `--rm` are both files; `--multi-scenario` dirs likewise need a `topology.json` |
 | `--hidden` | `64` | int | Hidden dimension |
 | `--heads` | `4` | int | Attention heads |
 | `--layers` | `3` | int | GNN layers |

@@ -27,7 +27,6 @@ import argparse
 import json
 import logging
 import sys
-import networkx as nx
 from pathlib import Path
 
 # Add project root to sys.path to support direct execution (python cli/train_graph.py)
@@ -71,6 +70,9 @@ def parse_args() -> argparse.Namespace:
                              "for --variant topology_rm")
     inputs.add_argument("--rm", type=str, default=None,
                         help="Path to RM scores JSON (skips Step 3)")
+    inputs.add_argument("--input", type=str, default=None,
+                        help="Path to topology JSON (e.g. data/scenarios/atm_system.json); "
+                             "required when Neo4j structural analysis does not run")
 
     # GNN hyperparameters
     gnn = parser.add_argument_group("GNN hyperparameters")
@@ -245,10 +247,18 @@ def main() -> None:
             if 'repo' in locals() and repo:
                 repo.close()
 
+    # Without Neo4j analysis there is no graph; a nodes-only placeholder has no
+    # relation types and crashes hetero_qos in the forward pass, so load the
+    # raw topology the same way cli/loso_evaluate.py:load_scenario_bundle does.
     if nx_graph is None:
-        nx_graph = nx.DiGraph()
-        for name in (structural_dict or {}).keys():
-            nx_graph.add_node(name, type="Application")
+        if not args.input:
+            display.print_error(
+                "No graph topology available: pass --input <topology.json> "
+                "when --structural and --rm are supplied as files."
+            )
+            sys.exit(1)
+        from saag.core.graph_io import build_graph_from_json
+        nx_graph = build_graph_from_json(load_json(args.input))
 
     # ── Inductive Data Discovery ────────────────────────────────────────────
     inductive_graphs = []
@@ -261,18 +271,19 @@ def main() -> None:
             s_path = scenario_dir / "structural_metrics.json"
             q_path = scenario_dir / "quality_scores.json" 
             i_path = scenario_dir / "failure_impact.json"
-            
-            if s_path.exists() and i_path.exists():
+            t_path = scenario_dir / "topology.json"
+
+            if s_path.exists() and i_path.exists() and not t_path.exists():
+                logger.warning(f"  [{scenario_dir.name}] missing topology.json — skipping.")
+            elif s_path.exists() and i_path.exists():
                 logger.info(f"  Found scenario: {scenario_dir.name}")
                 s_dict = load_json(str(s_path))
                 i_dict = load_labels(str(i_path))
                 r_dict = load_json(str(q_path)) if q_path.exists() else None
                 
-                # Create a minimal graph for conversion
-                tmp_graph = nx.DiGraph()
-                for n_id in s_dict.keys():
-                    tmp_graph.add_node(n_id, type="Application")
-                
+                from saag.core.graph_io import build_graph_from_json
+                tmp_graph = build_graph_from_json(load_json(str(t_path)))
+
                 # Convert to HeteroData
                 from saag.prediction.data_preparation import networkx_to_hetero_data
                 h_conv = networkx_to_hetero_data(tmp_graph, s_dict, i_dict, r_dict)
