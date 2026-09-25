@@ -24,6 +24,12 @@ a result about the setting:
 Both sweeps report rho of the deterministic RM score against FaultInjector
 labels, per scenario and in aggregate.
 
+The threshold sweep also sizes an absolute critical set, ``I*(v) >= tau`` for
+each ``--critical-thresholds`` value, on the Application population: its share
+of components (also the no-skill AUC-PR floor) and the RM score's AUC-PR
+against it. That is the evidence behind any "critical means I* >= tau" claim.
+Membership moves with ``propagation_threshold`` far more than with ``tau``.
+
 Usage
 -----
     PYTHONPATH=. python reproduce/threshold_sensitivity.py
@@ -51,6 +57,7 @@ from scipy.stats import spearmanr
 logger = logging.getLogger("threshold_sensitivity")
 
 DEFAULT_THRESHOLDS = [0.0, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0]
+DEFAULT_CRITICAL_THRESHOLDS = [0.1, 0.2, 0.3, 0.5]
 DEFAULT_NORMS = ["robust", "minmax", "zscore"]
 RESULTS_DIR = Path("results")
 
@@ -124,11 +131,35 @@ def _topology(scenario: str) -> Dict[str, Any]:
     return _load_topology(scenario)
 
 
-def sweep_thresholds(scenarios: List[str], thresholds: List[float], seeds: List[int]) -> List[Dict]:
+def _critical_set(
+    pred: Dict[str, float], truth: Dict[str, float], scenario: str, tau: float
+) -> Dict[str, Any]:
+    """Size of the ``I* >= tau`` set on Applications, and RM's AUC-PR against it."""
+    from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
+    from saag.evaluation.metrics import compute_inductive_metrics
+
+    graph = _build_graph_from_json(_topology(scenario))
+    m = compute_inductive_metrics(pred, truth, graph, population="application", tau_abs=tau)
+    n = m.get("n_evaluated", 0)
+    n_crit = m.get("n_true_critical", 0)
+    pr_auc = m.get("pr_auc", float("nan"))
+    return {
+        "n": n,
+        "n_true_critical": n_crit,
+        "share": round(n_crit / n, 4) if n else None,
+        "pr_auc": None if pr_auc is None or np.isnan(pr_auc) else round(float(pr_auc), 4),
+    }
+
+
+def sweep_thresholds(
+    scenarios: List[str], thresholds: List[float], seeds: List[int],
+    critical_thresholds: List[float] = DEFAULT_CRITICAL_THRESHOLDS,
+) -> List[Dict]:
     rows = []
     for threshold in thresholds:
         per_scenario: Dict[str, float] = {}
         label_scale: Dict[str, float] = {}
+        critical: Dict[str, Dict[str, Dict[str, Any]]] = {str(t): {} for t in critical_thresholds}
         for scenario in scenarios:
             try:
                 truth = _labels_at_threshold(scenario, threshold, seeds)
@@ -141,6 +172,8 @@ def sweep_thresholds(scenarios: List[str], thresholds: List[float], seeds: List[
                 per_scenario[scenario] = rho
             if truth:
                 label_scale[scenario] = round(max(truth.values()), 4)
+                for tau in critical_thresholds:
+                    critical[str(tau)][scenario] = _critical_set(pred, truth, scenario, tau)
 
         rows.append({
             "propagation_threshold": threshold,
@@ -148,10 +181,16 @@ def sweep_thresholds(scenarios: List[str], thresholds: List[float], seeds: List[
             "per_scenario_rho": {k: round(v, 4) for k, v in sorted(per_scenario.items())},
             "label_scale_max": label_scale,
             "n_scenarios": len(per_scenario),
+            "critical_set": critical,
         })
         mean = rows[-1]["mean_rho"]
         print(f"  threshold={threshold:.2f}  mean_rho={mean if mean is None else round(mean, 4)}"
               f"  ({rows[-1]['n_scenarios']} scenarios)")
+        for tau, per in critical.items():
+            shares = [c["share"] for c in per.values() if c["share"] is not None]
+            if shares:
+                print(f"      I* >= {tau}: critical share {min(shares):.0%}-{max(shares):.0%}"
+                      f" (mean {np.mean(shares):.0%})")
     return rows
 
 
@@ -195,6 +234,10 @@ def parse_args():
     p = argparse.ArgumentParser(description="Ground-truth robustness sweeps")
     p.add_argument("--scenarios", nargs="+", default=None)
     p.add_argument("--thresholds", nargs="+", type=float, default=DEFAULT_THRESHOLDS)
+    p.add_argument("--critical-thresholds", nargs="+", type=float,
+                   default=DEFAULT_CRITICAL_THRESHOLDS,
+                   help="Absolute I*(v) cuts whose critical-set size is recorded "
+                        "at every propagation threshold")
     p.add_argument("--norms", nargs="+", default=DEFAULT_NORMS)
     p.add_argument("--seeds", nargs="+", type=int, default=[42, 123, 456])
     p.add_argument("--skip-thresholds", action="store_true")
@@ -213,7 +256,9 @@ def main():
     threshold_rows: List[Dict[str, Any]] = []
     if not args.skip_thresholds:
         print(f"Propagation-threshold sweep: {len(scenarios)} scenarios x {len(args.thresholds)} thresholds")
-        threshold_rows = sweep_thresholds(scenarios, args.thresholds, args.seeds)
+        threshold_rows = sweep_thresholds(
+            scenarios, args.thresholds, args.seeds, args.critical_thresholds
+        )
 
     print(f"\nNormalisation sweep: {len(scenarios)} scenarios x {len(args.norms)} methods")
     norm_rows = sweep_norms(scenarios, args.norms)
@@ -243,6 +288,14 @@ def main():
                 "it does not depend on rank- vs magnitude-scaling. Neither spread says "
                 "the ordering is *correct* — only that it is stable under the free "
                 "parameters of the ground truth and the scorer."
+            ),
+            "critical_set_note": (
+                "critical_set[tau][scenario].share is the fraction of Applications "
+                "with I*(v) >= tau: failure loses at least tau of subscriber feeds in "
+                "simulation. That is a severity cut, not availability (no failure "
+                "rate or repair time). Compare shares across tau (the I* distribution "
+                "is bimodal, so they barely move) and across propagation_threshold "
+                "(which moves them a lot)."
             ),
         },
     }
