@@ -35,6 +35,7 @@ echo "=========================================="
 mkdir -p output/gnn_checkpoints/best_model
 PYTHONPATH=. python cli/train_graph.py \
   --layer system \
+  --simulated evaluation/simulation_output.json \
   --seeds 42 123 456 \
   --output output/gnn_checkpoints/best_model
 

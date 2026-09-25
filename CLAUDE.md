@@ -61,7 +61,7 @@ saag-validate report --input data/system.json --qos
 saag-visualize --layer system --output output/dashboard.html
 
 # No entry point — invoke directly:
-python cli/train_graph.py --layer system
+python cli/train_graph.py --layer system --simulated output/simulation/impact_scores.json  # labels from saag-simulate fault-inject; required
 python cli/prescribe_graph.py --layer system
 python cli/benchmark.py
 ```
