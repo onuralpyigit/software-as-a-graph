@@ -16,23 +16,30 @@ before deployment and code-level static analysis is blind to system-level topolo
 *which* components are critical — and *why* — remains difficult. We present **Software-as-a-Graph
 (SaG)**, a pre-deployment **Static System Analysis** framework that models a pub-sub system as a
 typed, weighted, directed multigraph over five component classes and derives logical dependencies
-through typed projection rules. On this representation we train a relation-specific **Heterogeneous
-Graph Transformer** to forecast cascading failure impact, and pair it with an interpretable score
-decomposing criticality into Reliability, Maintainability, Availability and Vulnerability (RMAV)
+through typed projection rules. On this representation we train heterogeneous (**Heterogeneous Graph
+Transformer**) and homogeneous graph neural networks to forecast cascading failure impact, and pair
+them with an interpretable score decomposing criticality into Reliability, Maintainability, Availability and Vulnerability (RMAV)
 dimensions. Both are compared against discrete-event cascade simulators operating on a structurally
-disjoint view of the same model, under an input–label independence guarantee. Across seven synthetic
-topologies and
-three graphs transcribed from open-source architectures we report four results. **(1)** Typed
-learning leads the strongest non-learning baseline on rank correlation ($\rho = 0.730$ vs $0.595$),
-though a paired test does not establish that margin; the critical-set advantage is more robust
-($F_1@K = 0.465$ vs $0.308$). **(2)** Attribution earns its place as explanation rather than
-accuracy: equal dimension weights outperform the calibrated weighting. **(3)** The two cascade
-oracles agree only weakly ($\rho = 0.394$), bounding construct validity. **(4)** Edge criticality is
-measured by removal rather than inferred, showing most links replaceable. Finally, SaG operates as a
-blocking CI/CD quality gate, evaluating a candidate topology in well under a minute even at 500+
-components, though the anti-pattern catalog's agreement with the cascade oracle is modest (precision
-0.24–0.40, Cohen's $\kappa$ from $-0.04$ to $0.30$ across our corpus), and the gate is currently
-absolute rather than delta-aware.
+disjoint view of the same model, under an input–label independence guarantee. Across twelve synthetic
+topologies, evaluated leave-one-scenario-out, and hand-authored models of five open-source systems, we
+report five results. **(1)** The QoS-aware representation carries most of the signal: QoS-weighted
+closed-form ranking outperforms unweighted centrality on all twelve held-out architectures
+($\rho = 0.553$ vs $0.349$). **(2)** On their own, learned engines are statistically on par with that
+closed-form score (`HGT-QoS` $\rho = 0.638$, not significant), but hybrids that learn a correction to
+it significantly outperform it ($\rho = 0.657$ and $0.683$, each on 11 of 12 folds, Holm
+$p \le 0.0068$). Zero-shot, the learned engines rank the five system models at $\rho = 0.760$–$0.805$
+against $0.511$–$0.526$ for every training-free score, though on the components that actually
+propagate failures the comparison is unresolved. **(3)** At matched capacity, heterogeneous typing adds
+nothing over homogeneous attention ($\Delta\rho = -0.014$); the QoS edge channel does ($+0.073$).
+**(4)** Attribution earns its place as explanation rather than accuracy: equal dimension weights
+outperform the calibrated weighting, and the composite transfers only weakly ($\rho = 0.205$). **(5)**
+The cascade oracles agree only moderately (composite $\rho = 0.395$, behavioural $0.627$), bounding
+construct validity; edge criticality is measured by removal rather than inferred, showing most links
+replaceable. Finally, SaG operates as a blocking CI/CD quality gate, evaluating a candidate topology
+in well under a minute even at 500+ components, though the anti-pattern catalog's agreement with the
+cascade oracle is modest (precision 0.24–0.40, Cohen's $\kappa$ from $-0.04$ to $0.30$ across our
+corpus), and the release gate's thresholds, calibrated on the synthetic corpus, pass on only one of
+the five system models.
 
 **Keywords:** publish–subscribe middleware; architectural dependability; cascading failure;
 heterogeneous graph neural networks; static system analysis; pre-deployment verification; quality
@@ -2148,127 +2155,129 @@ that comparison directly.
 
 ## 8.5 RQ5 — Real-World Open-Source System Architecture Validation
 
-To evaluate operational generalizability beyond synthetic topology generation, we evaluate SaG on three authentic real-world open-source software architectures (§7.1):
-1. **Autoware.universe (ROS 2 Autonomous Driving Platform):** A real-world cyber-physical software graph comprising 32 Applications, 24 Topics with explicit DDS QoS contracts (`RELIABLE`/`BEST_EFFORT`, `TRANSIENT_LOCAL`/`VOLATILE`), 3 Brokers (CycloneDDS, FastDDS, Zenoh), 6 Deployment Nodes, 10 Shared C++ Libraries (`autoware_universe_utils`, `tier4_autoware_utils`), and realistic SonarQube code quality metrics.
-2. **Production Cloud-Native Microservices Mesh:** A real-world cloud-native software graph based on the Google Online Boutique benchmark, comprising 22 Microservices, 20 Topics across Kafka, RabbitMQ, Redis PubSub, and NATS, 6 Kubernetes/Cloud nodes, and 8 shared helper libraries.
-3. **Train-Ticket Railway Booking Mesh:** A real-world cloud-native software graph based on the Fudan University Train-Ticket benchmark, comprising 41 Microservices, 30 Topics across RabbitMQ and Redis PubSub with Spring Eureka service discovery, 8 deployment Nodes, and 8 shared Spring/MyBatis libraries — at 90 components, the largest of the three.
+> **Provenance.** This section reports the five open-source system models of the current corpus. It
+> replaces an earlier three-model evaluation of the RMAV-era score. Figures are transcribed from the
+> artifact-reconciled JSS manuscript and supplement ([`sec7_results.md`](../jss/sections/sec7_results.md)
+> Table 9, [`supplementary.tex`](../jss/latex/supplementary.tex) §§S7, S14, S27); per
+> [`outline.md`](outline.md#source-integrity), re-read each figure from its artifact when this
+> section moves into the thesis. Predictor names follow §8.1.
 
-All three rows are produced by the framework's validation sweep over five seeds
-($\{42,123,456,789,2024\}$, matching §7.4), with no QoS enrichment, against the component-level cascade oracle of §5.1: Spearman
-$\rho$ and Kendall $\tau$ are computed over the Application population (the other four node types
-carry constant or near-constant simulated impact on these graphs and contribute no rank information,
-per the same coverage limitation as the synthetic suite, §7.5); $K$ is $\lceil 0.20 \times |V| \rceil$
-applied within that population (15 of 32 Applications for Autoware, 12 of 22 for Cloud
-Microservices, 18 of 41 for Train-Ticket); and all three scenarios are classified `sparse` by the
-tool's topology-class rule, which sets the gate thresholds below. Reported $\rho$ is the seed mean
-$\pm$ standard deviation, not a single-seed point estimate: `FaultInjector` tie-breaks intra-wave
-propagation stochastically by design (§5.1), so — unlike the deterministic RMAV/$Q(v)$ scores — the
-simulated labels, and therefore $\rho$, genuinely vary *across* the five seeds within one sweep. At a
-*fixed* seed the label is now reproducible process to process; an earlier draft of this evaluation
-was not, for the instrument-defect reason disclosed in §9.2, and the figures below are the corrected,
-reproducible ones. The *ranking* is nonetheless stable across seeds (Rank Consistency Rate $= 1.000$
-for all three), which is why $F_1@K$ does not carry the same $\pm$ as $\rho$ below. All three runs
-are reproducible on demand from the replication package; see the data-availability statement for
-what is archived.
+To evaluate generalisation beyond the synthetic generator, we score SaG on hand-authored models of
+five open-source systems. None contributes gradients, checkpoint selection or any other input to
+training.
 
-**Table 23. Real-world open-source architecture validation**, five seeds, against the component-level cascade oracle of §5.1.
+| System model | Original paradigm | $|V|$ | $|V_{\text{app}}|$ | Topics | Brokers |
+|---|---|---:|---:|---:|---:|
+| Autoware.universe (ROS 2) | publish–subscribe | 75 | 32 | 24 | 3 |
+| EdgeX Foundry (Industrial IoT) | publish–subscribe | 63 | 22 | 24 | 3 |
+| Home Assistant (Smart Home) | publish–subscribe | 63 | 24 | 22 | 3 |
+| Online Boutique (pub-sub model) | gRPC | 60 | 22 | 20 | 4 |
+| Train-Ticket booking mesh | RPC | 90 | 41 | 30 | 3 |
 
-| Real-World Architecture | Nodes | Apps | Spearman $\rho$ (mean $\pm$ std) | Kendall $\tau$ (mean) | $F_1@K$ | Tie-robust $F_1@K$ | Non-zero $I$ | Predictive Gain (vs DC) | SPOF-F1 | Gate |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|:---:|
-| **Autoware.universe (ROS 2)** | 75 | 32 | **0.688 $\pm$ 0.009** | 0.517 | **0.800** | 0.800 | 19/32 | +0.360 | 0.500 | **FAIL** |
-| **Cloud-Native Microservices Mesh** | 60 | 22 | **0.778 $\pm$ 0.001** | 0.639 | **1.000** | 0.760 | 8/22 | +0.014 | 0.333 | **FAIL** |
-| **Train-Ticket Railway Booking Mesh** | 90 | 41 | **0.759 $\pm$ 0.001** | 0.605 | **1.000** | 0.810 | 14/41 | +0.264 | 0.571 | **FAIL** |
+Each model was written by one author as a typed multigraph from public documentation
+(`saag/adapters/realworld_adapter.py`); none is a mechanical extraction. Brokers, QoS profiles, code
+metrics and host specifications are partly assumed, and where a system declares no QoS manifest,
+standard middleware defaults (ROS 2 Best-Effort/Reliable, MQTT QoS 0/1) are applied uniformly to
+every predictor. Two models depart materially from their originals: the Online Boutique model is a
+22-application pub-sub mesh with four brokers, whereas the original is about eleven gRPC services
+with no broker, and the Train-Ticket model represents its service-discovery server as a broker.
+Neither contains a synchronous call edge. The test is therefore transfer to independently authored
+architecture models under simulated reachability, not to deployed systems.
 
-**Key Findings:**
-1. **Rank correlation is strong on two of three architectures and closest to the framework's own
-   gate on Train-Ticket, but all three fail it overall.** Cloud Microservices ($\rho = 0.778 \pm
-   0.001$) and Train-Ticket ($\rho = 0.759 \pm 0.001$) clear the $\rho \ge 0.75$ gate threshold;
-   Autoware does not ($0.688 \pm 0.009$, short by 0.062) and carries the most seed-to-seed variance
-   of the three — roughly seven to fifteen times larger than Train-Ticket's $\sigma$ and Cloud
-   Microservices'. An earlier draft of this sweep additionally reported the *sweep-to-sweep* mean
-   and standard deviation themselves as unstable at a fixed seed set (mean 0.6956–0.6959, std
-   0.011–0.015 across repeated runs), which we took at the time to be a further, second-order
-   property of this graph. It was not: the cause was the instrument defect disclosed in §9.2 (an
-   unordered iteration inside `FaultInjector` fed seeded random draws in a process-dependent order),
-   now fixed. Sweep-to-sweep reruns at the figures above are identical to the precision shown. All
-   three nonetheless fail the `sparse`-topology gate as a
-   whole, on **SPOF-F1 $\ge 0.6$**: Autoware 0.500, Cloud Microservices 0.333, Train-Ticket 0.571 —
-   closest of the three, short by only 0.029 — and SPOF-F1 is exactly stable across seeds for all
-   three (it depends on the deterministic articulation-point flag and a fixed 0.3 impact threshold).
-   Cloud Microservices additionally fails predictive gain
-   $\ge 0.02$ (0.014). SPOF-F1 scores agreement between structural articulation points and
-   components whose simulated impact exceeds 0.3; on graphs this size a handful of disagreements
-   move the F1 sharply, and that is not more forgiving on hand-transcribed real-world graphs than on
-   the synthetic suite. We report the failing gate rather than the passing correlations alone,
-   because presenting one without the other would overstate what these three cases establish.
-2. **Set-containment of the genuinely critical components is real; the reported $F_1@K = 1.000$ on
-   two of three graphs is partly a tie-breaking artifact, and we report both.** On Cloud
-   Microservices and Train-Ticket, $K$ (12 and 18) exceeds the number of Applications carrying
-   non-zero simulated impact (8 and 14 respectively), so the "actual top-$K$" set is padded with
-   components tied at $I = 0$. Because both the predicted and actual orderings are produced by the
-   same stable sort, the tie-padding lands on the *same* arbitrary components in both, which is what
-   drives $F_1@K$ to a perfect 1.000 on both graphs. Re-sorting under 200 random shuffles of the tied
-   region gives a tie-robust $F_1@K$ of $0.760$ (Cloud Microservices) and $0.810$ (Train-Ticket);
-   Autoware is unaffected (19 non-zero exceeds $K=15$, so no boundary tie exists, and both figures
-   agree at 0.800). The genuine, tie-independent finding is **set containment**: every one of the 8
-   non-zero-impact Cloud Microservices applications and every one of the 14 non-zero-impact
-   Train-Ticket services falls somewhere inside the respective predicted top-$K$ — a real result,
-   distinct from the exact top-$K$ *ordering* claim that $F_1@K$ makes. On Train-Ticket, the
-   highest-impact services recovered are `ts-ui-dashboard` ($I=0.545$), `ts-auth-service`
-   ($I=0.397$), `ts-gateway-service` ($I=0.384$), `ts-security-service` ($I=0.370$) and
-   `ts-user-service` ($I=0.366$); on Cloud Microservices, `checkout-service`, `payment-service`,
-   `fraud-detection-service` and `order-processor-service` are among the 8 recovered. On Autoware,
-   12 of the predicted top-15 fall in the actual top-15 ($F_1@K = 0.800$, no tie artifact),
-   correctly including the perception/localization hubs `lidar_centerpoint_node`,
-   `ndt_scan_matcher`, `multi_object_tracker`, `ekf_localizer` and `velodyne_node_container`. The
-   three misses are worth naming rather than glossing over: `vehicle_cmd_gate` is a **false
-   positive** — $Q(v)$ ranks it 6th by structural score, but its simulated impact is $0$, since the
-   cascade oracle attaches no downstream loss to this particular actuator on this topology.
-   `obstacle_avoidance_planner` and `behavior_velocity_planner` are the same pattern. We checked
-   whether the same padding could inflate the synthetic-suite $F_1@K$ figures of §8.1 (Table 18, the
-   LOSO table) and found it does not: the smallest margin between $K$ and the non-zero-impact
-   Application count across the seven scenarios is `av_system`'s $K=16$ against 43 non-zero
-   components, so the boundary is never reached there. This is the
-   real-world instance of the general caveat §7.5 states for the synthetic suite: a structural score
-   can be confidently wrong about a component the cascade model does not route traffic through in a
-   way that registers impact, and a safety-relevant name in the predicted set is not evidence the
-   prediction is correct.
-3. **Predictive gain over degree centrality is real but small and graph-dependent, and fails its own
-   threshold on one of three graphs.** SaG's $|\rho|$ exceeds degree centrality's $|\rho|$ against
-   the same labels by $+0.361$ on Autoware, $+0.264$ on Train-Ticket, and $+0.014$ on Cloud
-   Microservices — the last below the $0.02$ gate threshold, meaning typed dependency semantics add
-   essentially nothing over raw degree on that particular graph. With a third point, the pattern
-   from the two-graph comparison holds rather than looking like an artifact of one outlier: the
-   margin over an untyped baseline is graph-dependent, not a fixed advantage, consistent with the
-   scenario-to-scenario variation already observed on the synthetic suite (§8.1).
+**Zero-shot transfer of the learned engines.** `HGT-QoS` and `GAT-QoS` were trained on all twelve
+synthetic scenarios and evaluated without fine-tuning, at the same 3-layer, 300-epoch budget as every
+LOSO result, over five seeds. The training-free scores are deterministic and are scored on identical
+labels and node sets.
 
-**What these three cases do and do not establish.** Four scoping conditions apply, and they matter
-because this is the paper's only evidence outside the generator.
+**Table 23. Zero-shot transfer to the five open-source system models.** Spearman $\rho$ against
+$I^*(v)$ on the Application population; $\pm$ is the spread over five training seeds; $n_{>0}$ is the
+number of Applications with positive impact; the last column restricts `HGT-QoS` to them. Artifacts:
+`results/realworld_zeroshot_v7.json` (`HGT-QoS`), `results/realworld_zeroshot_*_cpu.json`
+(`GAT-QoS`).
 
-*They are hand-built models of real architectures, not harvested artifacts.* Each graph was
-constructed by transcribing a published system's component inventory, topic set and declared QoS into
-the schema of §3.1. What transfers is therefore the *topology and QoS structure* of a real system,
-not its runtime behaviour. A harvested graph — extracted automatically from a running deployment or a
-build system — would be stronger evidence and is not what we have.
+| System model | $|V_{\text{app}}|$ | $n_{>0}$ | Topo | Topo-QoS | `HGT-QoS` | `GAT-QoS` | `HGT-QoS` $\rho_{>0}$ |
+|---|---:|---:|---:|---:|---|---|---:|
+| Autoware.universe (ROS 2) | 32 | 19 | 0.307 | 0.378 | 0.716 ± 0.081 | **0.758 ± 0.019** | +0.517 |
+| EdgeX Foundry | 22 | 10 | 0.534 | 0.534 | 0.793 ± 0.037 | **0.815 ± 0.055** | +0.183 |
+| Home Assistant | 24 | 17 | 0.297 | 0.289 | 0.864 ± 0.063 | **0.925 ± 0.023** | +0.702 |
+| Online Boutique (pub-sub model) | 22 | 8 | **0.891** | 0.888 | 0.710 ± 0.070 | 0.750 ± 0.119 | −0.031 |
+| Train-Ticket booking mesh | 41 | 14 | 0.528 | 0.541 | 0.717 ± 0.096 | **0.777 ± 0.007** | −0.192 |
+| **Mean** | — | — | 0.511 | 0.526 | 0.760 | **0.805** | +0.236 |
 
-*The ground truth is still simulated.* These correlations are between a structural score and a
-simulated impact label, produced by the same machinery as everywhere else in this paper. No incident
-record, operator judgement, or observed failure enters. §9.2's construct-validity bound applies here
-unchanged: this is agreement with a model of harm, not with harm.
+**Key findings:**
 
-*They are small, and D4 forbids comparing them.* At 75, 60 and 90 components these graphs are smaller
-than five of the seven synthetic scenarios, and because criticality is relative to a system's own
-distribution (D4), the three $\rho$ values are separate within-system results, not three points on a
-shared scale — the gaps between them are not a finding about the three domains.
+1. **The learned engines transfer to independently authored topologies, and typing is not what
+   transfers.** Both learned engines lead on four of five systems, with full-population bootstrap
+   intervals that do not overlap those of the training-free scores (`HGT-QoS` $0.760$
+   $[0.714, 0.819]$ against `Topo-QoS` $0.526$ $[0.357, 0.699]$ and RM / $Q(v)$ $0.516$
+   $[0.343, 0.680]$). The untyped `GAT-QoS` outperforms `HGT-QoS` on all five systems, and also on
+   identification (Overlap@$K$ $0.519$ against $0.470$, PR-AUC $0.790$ against $0.713$), consistent
+   with §8.2: what transfers is learning over the QoS-annotated graph, not relation-specific
+   parameters. Identification separates learned from closed-form scores most clearly: top-$K$ overlap
+   averages $0.470$ for `HGT-QoS` against $0.248$ for the closed-form scores, and PR-AUC $0.713$
+   against $0.474$–$0.521$. On EdgeX, symmetric adapter-to-broker stars create betweenness ties that
+   collapse closed-form triage entirely (Overlap@$K = 0.000$). The one system where closed-form
+   ranking wins is the Online Boutique model, where Topo reaches $0.891$.
+2. **On the components that propagate failures, the comparison is unresolved.** Restricted to
+   Applications with positive impact, `HGT-QoS` keeps a positive mean ($\rho_{>0} = +0.236$,
+   $[-0.053, +0.525]$) where every training-free score turns negative (`Topo-QoS` $-0.092$,
+   RM / $Q(v)$ $-0.055$), but every interval spans zero at five systems. $\rho_{>0}$ is positive on
+   the three models of publish–subscribe systems and non-positive on the two modelled after RPC
+   systems. Both RPC-derived models are encoded as publish–subscribe graphs and labelled by the same
+   forward-reachability oracle, so this split cannot be attributed to call-tree semantics; it is a
+   pattern to test, with synchronous edges and a backward-propagating oracle (§9.3), not a finding.
+3. **The primary configuration is the LOSO one, not one chosen for these systems.** An earlier,
+   non-blind configuration used 2 layers and 150 epochs, chosen because these meshes are small. That
+   choice appealed to a property of the test systems, so it is not reported as primary; it is
+   uniformly slightly stronger and changes no conclusion.
 
-*They are three systems from two paradigms.* Cloud Microservices and Train-Ticket are both
-microservice meshes; only Autoware represents a distinct cyber-physical paradigm. Three points still
-cannot establish a generalisation over production software, and the paradigm count is two, not
-three, which is a weaker diversity claim than three independent architectural styles. What the three
-cases do establish is the narrower and still useful claim that the framework runs end-to-end on
-externally-specified architectures and recovers a ranking there at least as well as on generated
-ones, on two distinct meshes independently rather than on one — evidence against the concern that
-its performance depends on regularities of our own generator (§9.3), without settling it.
+**The interpretable score and the release gate on the same systems.** A separate run scores the
+deterministic RM / $Q(v)$ with the validation CLI, whose injector caps cascade depth at 5 and averages
+five injector repeats per node, so its figures are not commensurable with Table 23's unlimited-depth
+labels. Under that configuration $Q(v)$ reaches $\rho = 0.800$ on EdgeX, $0.778$ on the Online
+Boutique model, $0.759$ on Train-Ticket, $0.685$ on Autoware and $0.514$ on Home Assistant, and leads
+unweighted degree centrality on all five ($+0.014$ to $+0.427$; Wilcoxon $p \ge 0.33$ at $n = 5$).
+Because $Q(v)$ is never fitted, this is not a transfer result: it shows that the attribution remains
+informative on architectures we did not generate. Its critical-set identification on the Application
+population is weak ($F_1@K$ from $0.000$ on EdgeX to $0.625$ on Train-Ticket); pooled over all
+entity types it reaches $0.667$–$1.000$, but that figure is inflated by correctly identifying inert
+infrastructure and we do not read it. An earlier draft reported the Autoware correlation as unstable
+from sweep to sweep at a fixed seed set; the cause was the `FaultInjector` ordering defect of §9.2,
+and reruns now agree to the precision shown.
+
+The release gate, as the current supplement reports it ($\rho \ge 0.75$, Overlap@$K \ge 0.70$,
+SPOF-F1 $\ge 0.60$, prediction gain $\ge 0.02$), passes on one system in five. EdgeX passes all four
+conditions on all five seeds, helped by the pooled overlap figure the previous paragraph declines to
+read. Autoware fails the $\rho$ and SPOF conditions, the Online Boutique model fails SPOF and
+prediction gain, Train-Ticket fails SPOF, and Home Assistant misses the $\rho$ condition despite a
+perfect SPOF-F1. What this establishes is a negative result about thresholds: a gate calibrated on
+the synthetic corpus does not transfer as shipped, and its absolute cut-offs are domain-specific.
+
+**What these five cases do and do not establish.** Four scoping conditions apply, and they matter
+because this is the thesis's only evidence outside the generator.
+
+*They are hand-built models of real architectures, not harvested artifacts.* What transfers is the
+*topology and QoS structure* of a documented system as one author read it, not its runtime
+behaviour. No second modeller has re-derived any model; `reproduce/model_agreement.py` implements the
+re-modelling protocol, with per-type entity and per-relation edge Jaccard, for when one does.
+
+*The ground truth is still simulated.* These correlations are between a structural or learned score
+and a simulated impact label, produced by the same machinery as everywhere else in this thesis. No
+incident record, operator judgement or observed failure enters. §9.2's construct-validity bound
+applies unchanged: this is agreement with a model of harm, not with harm.
+
+*They are small, and D4 forbids comparing them.* At 60 to 90 components (22–41 Applications) these
+graphs are smaller than most synthetic scenarios, and because criticality is relative to a system's
+own distribution (D4), the per-system $\rho$ values are separate within-system results, not points on
+a shared scale.
+
+*They cover two original paradigms, and neither RPC model is modelled natively.* Three models come
+from publish–subscribe systems and two from RPC systems, but all five are encoded as
+publish–subscribe graphs. What the five cases establish is the narrower claim that learned ranking
+over the QoS-annotated graph transfers to architecture models written independently of the scenario
+generator, well above every training-free score on the full population. They do not establish that
+it ranks the components that actually propagate failures, and they do not settle whether performance
+depends on regularities of our own generator (§9.3).
 
 ---
 
@@ -2795,9 +2804,9 @@ every training-free score (§9.1.1), but restricted to components that propagate
 interval spans zero at five systems. We read this as evidence that learned ranking transfers to
 independently authored architecture models under simulated reachability, not to deployed systems.
 
-*None of the three models evaluated in §8.5 clears the framework's own gate.* All three fail SPOF-F1;
-Autoware additionally fails the $\rho$ threshold and Cloud Microservices the predictive-gain
-threshold, for 5 failed checks of 15. This is not a demonstration of production readiness.
+*The framework's own release gate passes on one system model in five* (§8.5). Four of the five
+fail at least one condition, most often SPOF-F1, so the gate's absolute cut-offs, calibrated on the
+synthetic corpus, do not transfer as shipped. This is not a demonstration of production readiness.
 
 *The paradigm split is untested.* $\rho_{>0}$ is positive on the three models of publish–subscribe
 systems and non-positive on the two modelled after RPC systems. Both RPC-derived models are encoded
