@@ -898,8 +898,8 @@ does not — is future work (§9.3).
 
 **We report the sensitivity of the composite weighting, and it is not favourable.** Sweeping
 $\lambda$ over $\{0,\dots,1\}$ against simulated impact shows no plateau at any value and a monotone
-decline in $\rho$, with equal weights ($\lambda = 0$) outperforming the $\lambda = 0.70$ setting by
-$0.111$ (§8.3). An earlier version of this paper reported a plateau over $\lambda\in[0.65,0.75]$;
+decline in $\rho$, with equal weights ($\lambda = 0$, $\rho = 0.319$) outperforming the raw
+judgement ($\lambda = 1$, $0.200$) by $0.119$ and the $\lambda = 0.70$ default between them (§8.3). An earlier version of this paper reported a plateau over $\lambda\in[0.65,0.75]$;
 that claim was not supported by a committed artifact and does not survive measurement. Because the
 decline is monotone across the whole range, the conclusion applies to the stated default of the
 table above as well, even though that vector is not itself a point on the $\lambda$ axis: every
@@ -1360,7 +1360,7 @@ the policy. Two design choices are load-bearing. First, normalising by $\sigma_{
 the bar to the fragility of the cascade at that point, so an edit is accepted only when its benefit
 is distinguishable from propagation-order noise. Second, requiring the inequality to hold across the
 full `propagation_threshold` sweep makes acceptance robust to the threshold's value — which §8.3
-shows is not a benign parameter, since $\rho$ against ground truth spans 0.230 across its range.
+shows is not a benign parameter, since $\rho$ against ground truth spans 0.084 across its range.
 
 `PrescribeService` implements this as a three-phase procedure: compile the candidate policy (§6.2),
 verify each candidate independently by constructing a graph containing that edit alone and
@@ -2069,33 +2069,59 @@ QoS channel acts largely as a relation-identity and coupling-strength signal rat
 semantics. RQ3 therefore resolves as a scope condition: QoS encoding matters little in distribution
 and is the component that improves learned ranking out of distribution.
 
-The sensitivity sweeps that follow (Tables 21 and 22) score the RMAV-era $Q(v)$ on the
-seven-scenario corpus and have not been re-measured on the twelve-scenario one.
+The sensitivity sweeps that follow (Tables 21 and 22) score the RM composite, the successor of §4's
+RMAV score, and are transcribed from the JSS supplement ([`supplementary.tex`](../jss/latex/supplementary.tex)
+§§S1 and S3). They were not run on the twelve-scenario corpus: the shrinkage sweep covers the seven
+core synthetic domains, the Morris screening six of them (Enterprise is excluded for cost), and the
+supplement does not state the corpus of the threshold and normalisation sweeps, whose artifact
+predates provenance stamping. Their figures are therefore not comparable with Table 20's
+twelve-fold $Q(v)$ result.
 
 **Dimension-weight sensitivity: no plateau, and equal weights win.** Sweeping the shrinkage parameter
-$\lambda$, which blends the stated dimension weighting toward a uniform prior
-($\lambda = 0$ is equal weights, $\lambda = 1$ the raw judgement). The QoS-profile adaptation of §4.3
-remains active throughout the sweep, as it is in every run reported in this paper: each $\lambda$
-therefore fixes the vector that adaptation starts from, not the coefficients any individual scenario
-is finally scored with. The sweep is consequently a sensitivity analysis of the *stated ordering*
-under the framework's normal operating configuration, and the $\lambda$ labels should be read as
-inputs to the weighting path rather than as the applied weights:
-
-**Table 21. AHP shrinkage sensitivity.** Mean $\rho$ against $I^*(v)$ as $\lambda$ blends the stated weighting toward a uniform prior.
-
-| $\lambda$ | 0.00 | 0.50 | 0.60 | 0.65 | **0.70** | 0.75 | 0.80 | 0.90 | 1.00 |
-|---|---|---|---|---|---|---|---|---|---|
-| mean $\rho$ | **0.292** | 0.206 | 0.191 | 0.187 | **0.181** | 0.174 | 0.167 | 0.152 | 0.140 |
+$\lambda$ blends the stated intra-dimension weighting toward a uniform prior ($\lambda = 0$ is equal
+weights, $\lambda = 1$ the raw AHP judgement; the default is $0.70$). Mean $\rho$ against $I^*(v)$ on
+the Application population falls monotonically from $0.319$ at $\lambda = 0$ to $0.200$ at
+$\lambda = 1$, a spread of $0.119$, and the default sits on the declining part of the curve
+(`results/ahp_shrinkage_sweep_v3.json`).
 
 *(Figure 4: mean $\rho$ against $\lambda$ over the shrinkage sweep, showing the monotone decline and
-the absence of a plateau.)*
+the absence of a plateau; JSS Supplementary Figure S1.)*
+
+$\lambda$ is one of ten declared constants in the RM composite, and a global screening shows it is one
+of only two that matter:
+
+**Table 21. Sensitivity of the RM composite to its ten declared constants.** Morris
+elementary-effects screening over six synthetic scenarios (10 trajectories, 110 evaluations); $\mu^*$
+is the influence on mean $\rho$ against $I^*(v)$, $\sigma$ its interaction spread. Artifact:
+`results/weight_global_sensitivity.json` (JSS Supplementary §S1).
+
+| Constant | One-factor sweep | Morris $\mu^*$ | Morris $\sigma$ |
+|---|---|---:|---:|
+| $\lambda$ (AHP shrinkage, uniform $\to$ raw) | $\rho = 0.319 \to 0.200$, monotone (spread $0.119$) | **0.134** | 0.090 |
+| $r_\alpha$ (Fault Tolerance / Availability blend) | not swept individually | **0.132** | 0.040 |
+| $\beta$ (topic QoS term) | joint $(\beta, \alpha, \psi)$ simplex, 7 points: $w(t)$ ordering $\rho \ge 0.919$; downstream spread $0.031$ (Topo-QoS), $0.007$ (RM) | 0.025 | 0.028 |
+| $w_{\text{prio}}$ (QoS priority) | part of the AHP-derived QoS vector $(0.24, 0.62, 0.14)$ | 0.022 | 0.024 |
+| $\alpha$ (topic payload size) | joint simplex, as for $\beta$ | 0.019 | 0.026 |
+| $w_{\text{dur}}$ (QoS durability) | part of the QoS vector | 0.013 | 0.016 |
+| $w_{\text{rel}}$ (QoS reliability) | part of the QoS vector | 0.012 | 0.018 |
+| $\psi$ (topic frequency) | joint simplex, as for $\beta$ | 0.011 | 0.011 |
+| $p$ (power-mean exponent) | not swept individually | 0.005 | 0.007 |
+| $\gamma$ (library fan-out) | not swept individually | 0.001 | 0.001 |
+
+The parameter risk of the composite is concentrated in two constants, both internal to it
+($\mu^* \approx 0.13$ against $\le 0.025$ for the other eight). The QoS-derived weights on which the
+framework's architectural story rests are not load-bearing for its output, and no choice within the
+topic-weight simplex, including uniform weighting, would meaningfully change any result. Sampling
+100 Dirichlet draws of the whole weight vector confirms that the parameterisation is stable as a
+whole: mean $\rho = 0.200$ (sd $0.010$), with mean Kendall $\tau = 0.826$ and mean top-20% Jaccard
+$0.739$ against the shipped ranking.
 
 $\rho$ is monotonically decreasing in $\lambda$. There is no plateau anywhere in the range, and equal
-dimension weights outperform the calibrated $\lambda = 0.70$ setting by 0.111. An earlier version of
-this paper claimed a plateau over $\lambda \in [0.65, 0.75]$; that claim was not backed by a
-committed artifact and is contradicted by this sweep. The sweep has since been re-run against the
-regenerated corpus and rebuilt caches (§7.1) and the conclusion is unchanged in direction and
-magnitude — this is the one robustness result in §8.3 that did not move under re-measurement.
+dimension weights outperform the raw judgement by $0.119$. An earlier version of this paper claimed a
+plateau over $\lambda \in [0.65, 0.75]$; that claim was not backed by a committed artifact and is
+contradicted by this sweep. The RMAV-era sweep of an earlier revision ran from $0.292$ to $0.140$;
+the re-measurement under the RM composite moves both ends and leaves the direction unchanged, which
+makes this the one robustness result in §8.3 that has not moved under re-measurement.
 
 We draw the corresponding conclusion about the contribution rather than defending the weighting.
 **The value of the RMAV decomposition is attribution, not ranking accuracy.** A composite score
@@ -2106,31 +2132,48 @@ explanatory function is unaffected by the weighting result. What the sweep remov
 the specific weights improve predictive accuracy; on this cohort they do not, and a practitioner
 optimising for ranking alone should use equal weights.
 
-**Normalisation sensitivity.** The default rank-based normalisation discards magnitude before the
-weighted sum, which makes $Q(v)$ closer to a Borda count over the structural metrics than to a
-weighted aggregate. Measured against $I^*$: rank (robust) $\rho = 0.181$, min–max $0.318$, z-score
-$0.318$. Retaining magnitude is worth $\approx +0.137\ \rho$. The outlier-robustness argument for rank
-normalisation is real but is outweighed here; we retain the default so that previously reported
-figures remain interpretable, and report the sweep alongside.
+**Normalisation and oracle-parameter sensitivity.** Two free parameters of the ground truth and the
+scorer matter more than any scoring weight, and we sweep both alongside the composite's own
+reliability weight and its context-of-use reweighting:
 
-**Propagation-threshold sensitivity.** Because the ground truth itself depends on
-`propagation_threshold`, we report $\rho$ across its range rather than at a single value:
+**Table 22. Sensitivity of the RM ranking to the scorer's and the oracle's free parameters.** Mean
+$\rho$ against $I^*(v)$. Artifact: `threshold_sensitivity_v3.json` (JSS Supplementary §S3), which
+predates provenance stamping.
 
-**Table 22. Propagation-threshold sensitivity.** Mean $\rho$ against $I^*(v)$ across the sweep; the canonical default is $0.20$.
-
-| threshold | 0.00 | 0.10 | **0.20** | 0.35 | 0.50 | 0.75 | 1.00 |
-|---|---|---|---|---|---|---|---|
-| mean $\rho$ | 0.001 | 0.109 | **0.194** | 0.227 | 0.226 | 0.230 | 0.231 |
+| Parameter | Settings and mean $\rho$ | Spread |
+|---|---|---:|
+| Cascade `propagation_threshold` (oracle; default $0.2$) | $0.189$ at $0$; $0.271$ at $0.5$; flat at $0.273$ above | 0.084 |
+| Feature normalisation (scorer; default rank-based) | rank-based (robust) $0.234$; min–max $0.197$; $z$-score $0.197$ | 0.037 |
+| Composite reliability weight $w_R$ | $0.317$ at $w_R = 0$ to $0.336$ at $w_R = 1$ | 0.018 |
+| Context-of-use weighting | domain-derived $0.318$; equal $0.331$; static $0.321$ (Kendall $\tau = 0.980$ between orderings) | 0.013 |
 
 *(Figure 5: mean $\rho$ against `propagation_threshold`, with the canonical $0.2$ default marked.)*
 
-The conclusions *do* depend on this parameter: $\rho$ spans 0.230 across the sweep, the canonical
-$0.2$ default sits below the plateau the curve reaches from $0.35$ upward, and at $0.0$ — where any
-feed loss triggers a cascade — the correlation vanishes entirely. We therefore do not claim
-threshold-independence. The direction is interpretable: a higher threshold admits only components
-whose failure genuinely starves their dependents, which is closer to what the structural score is
-built to detect. Remediation edits (§6.4) are required to improve impact across the entire sweep
-precisely because a single-threshold result is not trustworthy here.
+**The conclusions do depend on the cascade threshold.** $\rho$ spans $0.084$ across the sweep, from
+$0.189$ where any feed loss triggers a cascade to $0.271$ at $0.5$, after which the ordering
+stabilises. The canonical default of $0.2$ lies below the point at which the curve flattens, so we do
+not claim threshold-independence. The direction is interpretable: a permissive threshold that lets
+every edge propagate produces a noisier target than one that requires meaningful coupling.
+Remediation edits (§6.4) are required to improve impact across the entire sweep precisely because a
+single-threshold result is not trustworthy here.
+
+**Normalisation reverses the earlier reading.** The RMAV-era sweep found rank-based normalisation
+worst (rank $0.181$ against $0.318$ for min–max and $z$-score) and concluded that retaining magnitude
+was worth about $+0.137$. Under the RM composite the ordering is reversed and the gap is a quarter of
+the size: rank-based (robust) scaling scores $0.234$ against $0.197$ for both magnitude-preserving
+alternatives. The default is therefore also the best of the three here, but rank-based and
+magnitude-preserving scaling do not induce the same ordering, so the choice is a reported parameter
+of the scorer rather than an implementation detail.
+
+**Neither weighting moves $\rho$ appreciably.** The composite reliability weight moves mean $\rho$ by
+only $0.018$ over its whole range, and the domain-derived context-of-use weighting is marginally the
+worst of the three alternatives it could replace, losing to equal weighting by $0.013$ and to static
+weighting by $0.003$, with the orderings nearly identical. Both margins are far smaller than the
+between-model differences of §8.1. ISO/IEC 25019 context-of-use reweighting is therefore an
+attributional device that expresses criticality in stakeholder terms, not, on this evidence, a
+mechanism that makes the ranking more accurate. None of these spreads shows that the ordering is
+*correct*; they show only that it is stable under the free parameters of the oracle and the scorer,
+which is the weaker property a sensitivity sweep can establish.
 
 ## 8.4 RQ4 — Feasibility and Performance of SaG as a CI/CD Quality Gate
 
