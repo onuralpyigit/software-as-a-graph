@@ -56,9 +56,11 @@ well as the typed `HGT-QoS` (0.622).
 - **Why earlier robustness checks missed the confound.** The Fisher-z transform (S16) and robust
   seed aggregation (S21) both left the unmatched interaction intact, because both hold the four
   unmatched arms fixed.
-- **Controls not run.** Two registered arms were never run:
-  - `GAT-w`, a capacity-only QoS control;
-  - `HGT-QoS-U`, a directionality control, since HGT has 103,725 reverse-direction parameters.
+- **Controls not run.** One registered arm was never run: `GAT-w`, a capacity-only QoS control.
+  The directionality control `HGT-QoS-U` (HGT without its 103,725 reverse-direction parameters)
+  was run after Amendment 7 (`make -f reproduce/Makefile rq-directionality`). It matches
+  `HGT-QoS` (−0.010, 6/12, p = 0.91) and transfers better (0.804 vs 0.760); see
+  [rq2-attribution-controls.md](rq2-attribution-controls.md).
   
   Amendment 2's label-side sweep, with the oracle's QoS ladder disabled, was also not run. The
   label's QoS content is bounded instead in [oracles-and-sensitivity.md](oracles-and-sensitivity.md).

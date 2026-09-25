@@ -21,6 +21,7 @@ The controls below separate those ingredients.
 | `GAT-QoS` (`gl_full_qos16_cap`) | QoS-on | 16-D | per-node at Applications |
 | `GBM-Feat` (`tab_gbm`) | QoS-off | — | none (gradient boosting per entity type) |
 | `GBM-Feat-QoS` (`tab_gbm_qos`) | QoS-on | — | none |
+| `HGT-QoS-U` (`hgl_qos_uni`, Amendment 2) | QoS-on | 16-D | per-node at Applications (no reverse pass) |
 
 Each input of `GAT-QoS-nf` is bit-identical to one parent arm (`_graft_qos_edge_attr` in [`cli/loso_evaluate.py`](../../../../cli/loso_evaluate.py); pinned by [`tests/test_attribution_controls.py`](../../../../tests/test_attribution_controls.py)). The QoS-weighted centralities are present in every arm.
 
@@ -57,4 +58,11 @@ What the contrasts show:
 
 - **Seed stability follows the node columns.** Median within-fold seed SD is 0.083 for `GAT`, 0.136 for `GAT-QoS-nf` and 0.010 for `GAT-QoS`. The stabilisation previously credited to the QoS channel is the node columns'.
 - **Receptive field does not explain the per-fold pattern.** HGT's share of the graph in reach does not correlate with its per-fold ρ (Spearman 0.12), its gain over `Topo-QoS` (−0.06) or the hybrid gain (0.20). `GAT-QoS` and `HGT-QoS` per-fold ρ correlate at 0.71, and every learned model falls short on Enterprise (0.407–0.533 against 0.795).
-- **What is still open.** The registered directionality control (`HGT-QoS-U`) would make HGT per-node too, so it now tests whether HGT's message passing contributes at all. A substrate on which messages reach every scored component is needed before message passing can be tested as a mechanism: reverse edges for the untyped engines, or the Application–Library projection.
+- **Directionality control (Amendment 2, run after Amendment 7).** `HGT-QoS-U` drops HGT's reverse pass, its only route into Applications, so it is per-node too. Run it with `make -f reproduce/Makefile rq-directionality`. Results:
+  - LOSO: 0.632 against 0.622 for `HGT-QoS`. The registered contrast is −0.010 (6/12 folds, p = 0.91).
+  - Median seed SD: 0.020 against 0.056.
+  - Zero-shot: 0.804 against 0.760, higher on all five systems.
+  - The contrast joins the omnibus family, which grows to 12. Both hybrids stay significant (p_omni 0.018 and 0.038).
+
+  Supplement S31 has the per-fold and per-system tables.
+- **What is still open.** Message passing can be tested as a mechanism only on a substrate where messages reach every scored component. Two options are reverse edges for the untyped engines, or the Application–Library projection.

@@ -473,3 +473,29 @@ RQ3 keeps its numbers and adds GAT (0.831) and GBM-Feat (0.757) to the transfer
 table. The directionality control (`hgl_qos_uni`) is still unrun. Without its
 reverse pass HGT would also score Applications per node, so that control now
 tests whether HGT's message passing contributes at all.
+
+## Results log — Amendment 2's directionality arm (2026-09-26)
+
+This is not an amendment: it records a registered arm being run, under Amendment
+2's reporting commitment ("every arm that is run is reported").
+
+`hgl_qos_uni` (HGT-QoS-U: HGT-QoS without its reverse pass, 330,895 parameters)
+was run in one CPU invocation with `topo_qos` and `hgl_qos`, using
+`make -f reproduce/Makefile rq-directionality` at a clean commit. Both
+comparators reproduce their published rows bit for bit. On this substrate the
+reverse pass is HGT's only route into Applications (Amendment 7), so HGT-QoS-U
+scores each Application from its own features.
+
+- **Registered contrast** (Amendment 2 control family). HGT-QoS vs HGT-QoS-U:
+  Δρ = −0.010 [−0.064, +0.036], 6/12 folds, W = 37, p = 0.910. Holm across
+  Amendment 2's three run controls gives 1.000.
+- **Zero-shot.** HGT-QoS-U scores 0.804 against HGT-QoS 0.760. It is higher on
+  all five system models.
+- **Omnibus.** The contrast joins the pooled family, which grows from 11 to 12.
+  Hybrid-GAT p_omni = 0.018 (was 0.016) and Hybrid-HGT p_omni = 0.038 (was
+  0.034); both remain significant. Amendment 2's other two controls move from
+  a family p_Holm of 0.761 to 1.000.
+
+Directionality therefore does not confound the typing result, and HGT's message
+passing contributes nothing measurable on this target. The capacity-only control
+`gl_full_qos_cap` (GAT-w) remains unrun.

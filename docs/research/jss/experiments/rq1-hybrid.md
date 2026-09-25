@@ -41,7 +41,7 @@ CPU against 0.638 on GPU. The zero-shot columns of Table 7 come from
 
 - Both hybrids beat `Topo-QoS` on 11 of 12 folds: Hybrid-HGT +0.103 and Hybrid-GAT +0.130, with
   family Holm $p$ = 0.0068 and 0.0029.
-- Both stay significant under the omnibus Holm correction over all eleven registered contrasts
-  ($p_\text{omni}$ = 0.034 and 0.016).
+- Both stay significant under the omnibus Holm correction over all twelve registered contrasts
+  ($p_\text{omni}$ = 0.038 and 0.018).
 - Their only loss is Enterprise, the fold on which the pure learned engines fail badly.
 - On the five system models, both hybrids transfer below the pure learned engines.
