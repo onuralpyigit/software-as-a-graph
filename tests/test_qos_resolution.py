@@ -20,6 +20,11 @@ simulation, each of which passed every pre-existing test:
    ``qos_policy``, never the nested ``qos`` sub-dict the corpus writes, so the
    discrete-event oracle behind I_dyn resolved every topic to RELIABLE/VOLATILE
    and its BEST_EFFORT drop path was structurally unreachable.
+6. ``StructuralAnalyzer._collect_qos_profile`` read only the nested ``qos``
+   sub-dict, but both repositories store Topic QoS flat, so the profile behind
+   ``QualityAnalyzer``'s QoS-adaptive RM weights was empty for every
+   repository-loaded system — which the adapter reads as all-BEST_EFFORT and
+   shifts every system to w_R=0.65 / w_M=0.35.
 """
 
 from __future__ import annotations
@@ -271,3 +276,53 @@ def test_message_flow_simulator_raises_importerror_without_simpy(monkeypatch):
     with pytest.raises(ImportError, match="SimPy is required"):
         mfs.MessageFlowSimulator(nx.DiGraph())
 
+
+
+# ── 6. RM weight adaptation sees repository-stored Topic QoS ──────────────────
+
+def _one_topic_repo(qos):
+    """3 apps, 1 library, 1 broker, 1 host, 1 topic — loaded the production way."""
+    from saag.infrastructure.memory_repo import MemoryRepository
+
+    repo = MemoryRepository()
+    repo.save_graph({
+        "applications": [
+            {"id": "A1", "name": "A1", "role": "pub"},
+            {"id": "A2", "name": "A2", "role": "sub"},
+            {"id": "A3", "name": "A3", "role": "sub"},
+        ],
+        "libraries": [{"id": "L1", "name": "L1"}],
+        "brokers": [{"id": "B1", "name": "B1"}],
+        "nodes": [{"id": "N1", "name": "N1"}],
+        "topics": [{"id": "T1", "name": "T1", "size": 256, "qos": dict(qos)}],
+        "relationships": {
+            "publishes_to": [{"from": "A1", "to": "T1"}],
+            "subscribes_to": [{"from": "A2", "to": "T1"}, {"from": "A3", "to": "T1"}],
+            "routes": [{"from": "B1", "to": "T1"}],
+            "uses": [{"from": "A1", "to": "L1"}, {"from": "A2", "to": "L1"}],
+            "runs_on": [{"from": x, "to": "N1"} for x in ("A1", "A2", "A3", "B1")],
+        },
+    })
+    return repo
+
+
+def test_rm_weight_adaptation_reads_repository_topic_qos():
+    from saag.analysis.analyzer import QualityWeights
+    from saag.client import Client
+
+    qos = {"reliability": "RELIABLE", "durability": "TRANSIENT_LOCAL", "transport_priority": "HIGH"}
+    client = Client(repo=_one_topic_repo(qos))
+    analysis = client.analyze(layer="system")
+
+    assert analysis.raw.structural.qos_profile == {
+        "durability": {"transient_local": 1},
+        "reliability": {"reliable": 1},
+        "priority": {"high": 1},
+        "total_topics": 1,
+    }
+
+    # Q(v) must be scored with weights shifted toward Reliability, not the
+    # all-BEST_EFFORT 0.65/0.35 an empty profile produced.
+    weights = client.predict(analysis).raw.weights
+    assert weights.q_reliability > QualityWeights().q_reliability
+    assert weights.q_maintainability < QualityWeights().q_maintainability
