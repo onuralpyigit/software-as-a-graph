@@ -183,14 +183,14 @@ Concretely, the paper is organized around four research questions:
 > **RQ5.** Does the framework's predictive ranking transfer to architectures it did not generate —
 > that is, to systems specified independently of our topology generator?
 
-RQ1 is deliberately phrased as *where* rather than *whether*: the answer turns out to depend on which
-metric the question is asked about, and a formulation that admits only "learning is / is not
-required" would have obscured that (§8.1).
+RQ1 is deliberately phrased as *where* rather than *whether*: the answer turns out to depend on the
+evaluation protocol and on whether learning replaces the closed-form score or corrects it, and a
+formulation that admits only "learning is / is not required" would have obscured that (§8.1).
 
-RQ1, RQ2, and RQ3 are answered on the synthetic scenario suite (§8.1–§8.3); RQ4 evaluates gating
-feasibility and performance (§8.4); and RQ5 is answered on three graphs transcribed from real
-open-source architectures (§8.5). RQ5 carries the paper's external validity and is, correspondingly,
-the question our evidence answers most weakly — §8.5 states in full what three hand-built graphs with
+RQ1, RQ2, and RQ3 are answered on the twelve-scenario synthetic suite (§8.1–§8.3); RQ4 evaluates
+gating feasibility and performance (§8.4); and RQ5 is answered on hand-authored models of five
+open-source systems (§8.5). RQ5 carries the paper's external validity and is, correspondingly, the
+question our evidence answers most weakly — §8.5 states in full what five hand-built models with
 simulated ground truth can and cannot establish.
 
 ## 1.5 Contributions
@@ -201,15 +201,17 @@ This paper makes the following contributions:
    and the RMAV decomposition, which propagates code-level quality metrics (SonarQube `cm_*` fields)
    into global system criticality scores (§3, §4).
 2. **A scope condition on where graph learning pays for pub-sub criticality.** Under a single
-   evaluation contract applied to every predictor (§7.3), typed learning leads the strongest
-   training-free baseline on both ranking ($\rho = 0.608$ vs $0.521$ out of distribution) and
-   critical-set identification ($F_1@K = 0.465$ vs $0.308$) — after repairing that baseline, which
-   was silently computing unweighted betweenness on every scenario (§8.1). We report the repair
-   because a baseline accidentally identical to the one it should improve on inflates any margin
-   measured against it. We also report what the two halves of that claim are worth: the
-   critical-set advantage holds under every protocol and every version of the apparatus, whereas the
-   ranking margin fails a paired significance test in-distribution and rests on an unretained
-   artifact out of distribution (§8.1, §9.2). The contribution is the scope condition, not the win.
+   evaluation contract applied to every predictor (§7.3), and over twelve held-out architectures,
+   learned engines alone are statistically on par with the strongest training-free baseline, a
+   QoS-weighted centrality (`HGT-QoS` $\rho = 0.638$ vs $0.553$, not significant), while hybrids that
+   learn a correction to that baseline significantly outperform it ($\rho = 0.657$ and $0.683$, each
+   on 11 of 12 folds, Holm $p \le 0.0068$), because the learned and closed-form engines fail on
+   different architectures (§8.1). All margins are measured after repairing that baseline, which was
+   silently computing unweighted betweenness on every scenario; we report the repair because a
+   baseline accidentally identical to the one it should improve on inflates any margin measured
+   against it. At matched capacity, heterogeneous relation typing adds nothing over homogeneous
+   attention ($\Delta\rho = -0.014$), and the QoS edge channel is what helps ($+0.073$; §8.2). The
+   contribution is the scope condition, not a win for any single engine.
 3. **Multi-dimensional criticality attribution, positioned as explanation rather than accuracy.**
    RMAV decomposes criticality into four dimensions with distinct remediation owners, so a diagnostic
    is traceable to an action. A shrinkage sweep shows the dimension weighting does *not* improve
@@ -237,18 +239,16 @@ This paper makes the following contributions:
    silently skipped training — that produced published-looking numbers of the wrong sign, together
    with the contract that prevents each (§7.3, §9.2). We report this because both failure modes are
    invisible in the output and, we suspect, not unique to this study.
-8. **Empirical real-world validation on open-source software architectures.** We demonstrate SaG's
-   external validity on three authentic real-world software graphs — the Autoware.universe ROS 2
-   autonomous driving platform, a production Cloud-Native Microservices mesh, and the Train-Ticket
-   railway-booking mesh (§7.1, §8.5) — achieving high mean rank agreement over five seeds
-   ($\rho = 0.688,\ 0.778,\ 0.759$) and up to $F_1@K = 1.000$ on two of the three, though 5 of the 15
-   total gate checks fail across the three graphs — all three fail SPOF-F1, and Train-Ticket is the
-   only one for which SPOF-F1 is the *sole* failure — and
-   $F_1@K = 1.000$ is partly a tie-breaking
-   artifact where the number of genuinely non-zero-impact components is smaller than $K$ (§8.5). What
-   the three cases jointly support is that SaG's predictive ranking generalizes beyond the synthetic
-   generator to independently-sourced architectures across two paradigms, not an unqualified success
-   on production software systems.
+8. **Zero-shot evaluation on models of open-source systems.** We evaluate SaG on hand-authored
+   models of five open-source systems — Autoware.universe (ROS 2), EdgeX Foundry, Home Assistant, and
+   meshes modelled after Online Boutique and Train-Ticket (§7.1, §8.5) — that contribute nothing to
+   training. Learned engines trained only on synthetic scenarios rank them at $\rho = 0.760$
+   (`HGT-QoS`) and $0.805$ (`GAT-QoS`) against $0.511$–$0.526$ for every training-free score, and
+   roughly double top-$K$ critical-set overlap. Restricted to the components that propagate
+   failures, every interval spans zero at five systems, and the framework's release gate passes on
+   only one of the five. What the five cases jointly support is that learned ranking transfers to
+   architecture models written independently of our generator, not an unqualified success on
+   production software systems.
 
 ## 1.6 Relationship to the Authors' Prior Work
 
@@ -2039,18 +2039,33 @@ tables. We flag this rather than let adjacency in the text imply mutual support.
 
 ## 8.3 RQ3 and Robustness — Ablations and Sensitivity
 
-**QoS encoding (RQ3): a null result in all three regimes.** Adding explicit QoS edge attributes to the
-typed model moves accuracy by less than the across-seed spread, and the *sign of the effect depends on
-the protocol*: in-distribution $\rho = 0.731$ for $HGL\text{-}QoS$ against $0.730$ for HGL ($+0.001$),
-out of distribution $0.595$ against $0.608$ ($-0.013$), and under in-domain k-fold $0.693$ against
-$0.666$ ($+0.027$). An effect that changes direction across evaluation protocols while remaining an
-order of magnitude smaller than the fold-to-fold variance is a null, and a cleaner one than the
-single-regime comparison previously reported. An earlier version of this paper reported QoS encoding
+**QoS encoding (RQ3): small in distribution, the working ingredient out of distribution.** Figures
+in this paragraph come from the twelve-scenario corpus and carry §8.1's provenance note. In
+distribution, adding the 16-D QoS edge channel to the typed model moves ranking by $+0.037$
+(`HGT-QoS` against HGT, 8 of 12 scenarios, $p = 0.622$; Table 19), less than the across-seed spread.
+Out of distribution the effect is larger and consistent in sign. In the registered LOSO sweep
+`HGT-QoS` leads HGT by $+0.087$ on 10 of 12 folds (0.638 against 0.551, $p = 0.204$). In the
+capacity- and channel-matched control, the QoS channel's main effect is $+0.073$ on 10 of 12 folds
+(CI $[+0.013, +0.120]$, Holm $p = 0.127$), significant for the untyped pair ($+0.072$, $p = 0.016$)
+and not for the typed pair ($+0.073$, $p = 0.129$; §8.2). It also stabilises training: the median
+within-fold seed spread of the untyped pair falls from $0.083$ to $0.010$. For the closed-form score
+the effect of QoS is larger still and unambiguous: QoS-weighted betweenness outperforms unweighted
+betweenness by $+0.198$ in distribution and $+0.204$ out of distribution, on 12 of 12 scenarios and
+folds.
+
+This reverses the seven-scenario revision, which reported QoS encoding as a null whose sign changed
+across protocols ($+0.001$, $-0.013$, $+0.027$). An earlier version still had reported QoS encoding
 as the primary driver of the out-of-distribution gain ($\rho = 0.401$ vs $0.307$); those figures came
-from the untrained sweep of §9.2 and do not survive re-measurement. The plausible reading is the one
-the in-distribution result already suggested: the lifted dependency topology encodes most QoS-relevant
-routing, so the extra dimensions mainly enlarge the parameter space. RQ3 resolves as a null result in
-every regime we measured, which we report as stated.
+from the untrained sweep of §9.2 and did not survive re-measurement. Two qualifications bound the
+present reading. Not every contrast survives correction: only the untyped pair's is individually
+significant, and the matched main effect is not after Holm correction. And $I^*(v)$ is a
+near-topological target (a topology-only relabelling recovers its ordering at $\rho = 0.965$), so the
+QoS channel acts largely as a relation-identity and coupling-strength signal rather than as contract
+semantics. RQ3 therefore resolves as a scope condition: QoS encoding matters little in distribution
+and is the component that improves learned ranking out of distribution.
+
+The sensitivity sweeps that follow (Tables 21 and 22) score the RMAV-era $Q(v)$ on the
+seven-scenario corpus and have not been re-measured on the twelve-scenario one.
 
 **Dimension-weight sensitivity: no plateau, and equal weights win.** Sweeping the shrinkage parameter
 $\lambda$, which blends the stated dimension weighting toward a uniform prior
@@ -2915,8 +2930,9 @@ We presented Software-as-a-Graph, a pre-deployment Static System Analysis (SSA) 
 models distributed pub-sub middleware as a typed, weighted, directed multigraph and analyzes it
 along two coupled axes: multi-dimensional quality attribution, which decomposes each component's
 criticality into orthogonal, interpretable RMAV dimensions (integrating local code quality metrics),
-and failure-impact analysis, which predicts cascade impact with both the interpretable composite and
-a learned heterogeneous graph transformer, validated against discrete-event simulation under a
+and failure-impact analysis, which predicts cascade impact with the interpretable composite, a
+QoS-weighted closed-form score, and learned heterogeneous and homogeneous graph neural networks,
+validated against discrete-event simulation under a
 strict input–label independence guarantee. A prescriptive remediation stage generates topology-level
 hardening edits from structure alone and verifies each one individually against the canonical
 simulator, admitting it only when its benefit exceeds the simulator's own seed noise at every
@@ -2927,11 +2943,17 @@ result of that stage (§6.4, §6.7).
 
 Integrated directly into pipelines as a delta-aware, blocking CI/CD Quality Gate, the framework
 verifies architectural changes and blocks regression in seconds, bridging the "Architecture-Code
-Gap" at commit time. Across a synthetic scenario suite, the framework establishes a scope condition
-on where typed graph learning pays — it leads a training-free QoS-weighted centrality on both ranking
-($\rho = 0.608$ vs $0.521$ out of distribution) and identifying *which* components belong on a
-shortlist ($F_1@K = 0.465$ vs $0.308$), both measured only after repairing that baseline, which had
-been computing no QoS weighting at all. Alongside that, measuring edge criticality by
+Gap" at commit time. Across twelve synthetic architectures and models of five open-source systems,
+the framework establishes a scope condition on where graph learning pays. The QoS-aware
+representation carries most of the signal: QoS-weighted centrality outperforms unweighted centrality
+on every held-out architecture ($\rho = 0.553$ vs $0.349$), measured only after repairing that
+baseline, which had been computing no QoS weighting at all. Learned engines alone are statistically
+on par with it out of distribution, but hybrids that learn a correction to it significantly
+outperform it ($\rho = 0.657$ and $0.683$), and pure learned engines transfer best to independently
+authored system models ($\rho = 0.760$–$0.805$ against $0.511$–$0.526$). At matched capacity,
+heterogeneous typing adds nothing over homogeneous attention, and the QoS edge channel is what
+improves learned ranking. None of the engines is yet shown to rank the components that actually
+propagate failures. Alongside that, measuring edge criticality by
 removal rather than inferring it from endpoints shows most individual links to be replaceable and
 exposes a class of relations the cascade model cannot express at all, and stratified rather than
 pooled reporting caught a distortion that moved a headline figure by 0.38. By taking the *type* of
