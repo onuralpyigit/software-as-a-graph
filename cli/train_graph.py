@@ -5,23 +5,28 @@ cli/train_graph.py — Train GNN criticality models
 Trains a Heterogeneous Graph Transformer (HGT/HGTConv) to predict
 component and relationship criticality using simulation ground-truth labels.
 
+Labels come only from a FaultInjector file passed as --simulated; this
+script never runs a simulator itself. Produce one first with:
+
+  python cli/simulate_graph.py fault-inject --input data/system.json \
+      --output output/simulation/ --export-json
+
 Usage
 -----
-  python cli/train_graph.py --layer app
-  python cli/train_graph.py --layer system --epochs 500 --hidden 128 --heads 8
-  python cli/train_graph.py --layer app --checkpoint output/gnn_checkpoints/
+  python cli/train_graph.py --layer app --simulated output/simulation/impact_scores.json
+  python cli/train_graph.py --layer system --epochs 500 --hidden 128 --heads 8 \
+      --simulated output/simulation/impact_scores.json
 
-  # Load existing structural/simulation results instead of re-running
+  # Load existing structural results too, instead of re-running Step 2
   python cli/train_graph.py --layer app \
       --structural results/metrics.json \
-      --simulated  results/impact.json
+      --simulated  output/simulation/impact_scores.json
 """
 
 import argparse
 import json
 import logging
 import sys
-import networkx as nx
 from pathlib import Path
 
 # Add project root to sys.path to support direct execution (python cli/train_graph.py)
@@ -60,9 +65,14 @@ def parse_args() -> argparse.Namespace:
     inputs.add_argument("--structural", type=str, default=None,
                         help="Path to structural metrics JSON (skips Step 2)")
     inputs.add_argument("--simulated", type=str, default=None,
-                        help="Path to simulation results JSON (skips Step 4)")
+                        help="FaultInjector label file (impact_scores.json from "
+                             "`cli/simulate_graph.py fault-inject`). Required except "
+                             "for --variant topology_rm")
     inputs.add_argument("--rm", type=str, default=None,
                         help="Path to RM scores JSON (skips Step 3)")
+    inputs.add_argument("--input", type=str, default=None,
+                        help="Path to topology JSON (e.g. data/scenarios/atm_system.json); "
+                             "required when Neo4j structural analysis does not run")
 
     # GNN hyperparameters
     gnn = parser.add_argument_group("GNN hyperparameters")
@@ -138,6 +148,30 @@ def load_json(path: Optional[str]) -> Optional[dict]:
         return json.load(f)
 
 
+def load_labels(path: Optional[str]) -> Optional[dict]:
+    """Load a label file as the flat ``{node_id: {dim: value}}`` dict training expects.
+
+    A FaultInjector artifact nests its labels under ``records``; passed through
+    unflattened, no node id matches and training runs with zero labelled nodes.
+    FailureSimulator output is refused: it is the Validate-stage oracle, not the
+    Predict-stage labeler (tests/test_groundtruth_contract.py).
+    """
+    raw = load_json(path)
+    if not isinstance(raw, dict):
+        return raw
+    if "records" in raw:
+        from saag.prediction import extract_simulation_dict
+        return extract_simulation_dict(raw)
+    if "component_criticality" in raw or "results" in raw:
+        logger.error(
+            f"{path} is FailureSimulator output. GNN training labels must come from "
+            "FaultInjector: run `cli/simulate_graph.py fault-inject` and pass its "
+            "impact_scores.json as --simulated."
+        )
+        sys.exit(1)
+    return raw
+
+
 def main() -> None:
     import json
     args = parse_args()
@@ -149,27 +183,37 @@ def main() -> None:
     # ── Imports ─────────────────────────────────────────────────────────────
     try:
         from saag.prediction import GNNService, extract_structural_metrics_dict, \
-            extract_rm_scores_dict, extract_simulation_dict
+            extract_rm_scores_dict
     except ImportError as e:
         logger.error(f"GNN module not available: {e}")
         sys.exit(1)
 
     # ── Data Loading ────────────────────────────────────────────────────────
     structural_dict = load_json(args.structural)
-    simulation_dict = load_json(args.simulated)
+    simulation_dict = load_labels(args.simulated)
     rm_dict = load_json(args.rm)
     nx_graph = None
 
-    # rm_dict is included here, not just structural_dict/simulation_dict: the
-    # inner checks below already handle "structural_dict present, rm_dict
-    # not" (e.g. --structural X --simulated Y with no --rm), but that branch
-    # was unreachable while this outer guard ignored rm_dict — leaving
-    # rm_dict silently None and training with no RM consistency targets.
-    if any(x is None for x in [structural_dict, simulation_dict, rm_dict]):
+    # Labels are never simulated here. This used to fall back to an exhaustive
+    # FailureSimulator sweep, which trains on the Validate-stage oracle instead
+    # of FaultInjector's I*(v) — the labeler every reported number uses.
+    if simulation_dict is None and args.variant != "topology_rm":
+        display.print_error(
+            "--simulated is required: pass the impact_scores.json written by "
+            "`python cli/simulate_graph.py fault-inject --input <topology.json> "
+            "--output <dir>/ --export-json`."
+        )
+        sys.exit(1)
+
+    # rm_dict is included here, not just structural_dict: the inner checks
+    # below already handle "structural_dict present, rm_dict not" (e.g.
+    # --structural X --simulated Y with no --rm), but that branch was
+    # unreachable while this outer guard ignored rm_dict — leaving rm_dict
+    # silently None and training with no RM consistency targets.
+    if any(x is None for x in [structural_dict, rm_dict]):
         display.print_step("Connecting to Neo4j to retrieve graph data...")
         try:
             from saag.analysis import AnalysisService
-            from saag.simulation import SimulationService
         except ImportError as e:
             display.print_error(f"Pipeline modules not available: {e}")
             sys.exit(1)
@@ -199,20 +243,22 @@ def main() -> None:
                         layer_result.structural
                     )
                     rm_dict = extract_rm_scores_dict(quality_result)
-
-            if simulation_dict is None:
-                display.print_step("[Step 4] Running failure simulation ground truth (exhaustive)...")
-                sim_svc = SimulationService(repo)
-                sim_results = sim_svc.run_failure_simulation_exhaustive(layer=args.layer)
-                simulation_dict = extract_simulation_dict(sim_results)
         finally:
             if 'repo' in locals() and repo:
                 repo.close()
 
+    # Without Neo4j analysis there is no graph; a nodes-only placeholder has no
+    # relation types and crashes hetero_qos in the forward pass, so load the
+    # raw topology the same way cli/loso_evaluate.py:load_scenario_bundle does.
     if nx_graph is None:
-        nx_graph = nx.DiGraph()
-        for name in (structural_dict or {}).keys():
-            nx_graph.add_node(name, type="Application")
+        if not args.input:
+            display.print_error(
+                "No graph topology available: pass --input <topology.json> "
+                "when --structural and --rm are supplied as files."
+            )
+            sys.exit(1)
+        from saag.core.graph_io import build_graph_from_json
+        nx_graph = build_graph_from_json(load_json(args.input))
 
     # ── Inductive Data Discovery ────────────────────────────────────────────
     inductive_graphs = []
@@ -225,18 +271,19 @@ def main() -> None:
             s_path = scenario_dir / "structural_metrics.json"
             q_path = scenario_dir / "quality_scores.json" 
             i_path = scenario_dir / "failure_impact.json"
-            
-            if s_path.exists() and i_path.exists():
+            t_path = scenario_dir / "topology.json"
+
+            if s_path.exists() and i_path.exists() and not t_path.exists():
+                logger.warning(f"  [{scenario_dir.name}] missing topology.json — skipping.")
+            elif s_path.exists() and i_path.exists():
                 logger.info(f"  Found scenario: {scenario_dir.name}")
                 s_dict = load_json(str(s_path))
-                i_dict = load_json(str(i_path))
+                i_dict = load_labels(str(i_path))
                 r_dict = load_json(str(q_path)) if q_path.exists() else None
                 
-                # Create a minimal graph for conversion
-                tmp_graph = nx.DiGraph()
-                for n_id in s_dict.keys():
-                    tmp_graph.add_node(n_id, type="Application")
-                
+                from saag.core.graph_io import build_graph_from_json
+                tmp_graph = build_graph_from_json(load_json(str(t_path)))
+
                 # Convert to HeteroData
                 from saag.prediction.data_preparation import networkx_to_hetero_data
                 h_conv = networkx_to_hetero_data(tmp_graph, s_dict, i_dict, r_dict)
@@ -257,7 +304,7 @@ def main() -> None:
         display.print_step("Variant 'topology_rm': skipping GNN training (RM-only).")
         if not rm_dict:
             display.print_error("topology_rm requires --rm (RM scores). Exiting.")
-            import sys; sys.exit(1)
+            sys.exit(1)
         # Emit a minimal summary with RM scores
         print(f"\n  RM scores loaded for {len(rm_dict)} nodes.")
         if args.output:

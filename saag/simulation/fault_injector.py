@@ -217,6 +217,10 @@ class FaultInjector:
         several corpus scenarios; on for callers where a degenerate stratum
         means the run is wrong rather than the system is (see
         ``reproduce/passive_stratum_labels.py``).
+    depth_damp_step, depth_damp_floor : float, optional
+        Per-wave decay of the failure probability, ``max(floor, 1 - wave *
+        step)``.  Defaults 0.15 and 0.25 reproduce the published labels; they
+        are exposed only for the oracle-sensitivity sweep.
     """
 
     #: Accepted values for ``qos_factor_mode``.
@@ -231,6 +235,8 @@ class FaultInjector:
         qos_factor_mode: str = "ladder",
         qos_factor_kappa: float = 0.5,
         strict_labels: bool = False,
+        depth_damp_step: float = 0.15,
+        depth_damp_floor: float = 0.25,
     ) -> None:
         if qos_factor_mode not in self.QOS_FACTOR_MODES:
             raise ValueError(
@@ -240,6 +246,8 @@ class FaultInjector:
         self.qos_factor_mode = qos_factor_mode
         self.qos_factor_kappa = qos_factor_kappa
         self.strict_labels = strict_labels
+        self.depth_damp_step = depth_damp_step
+        self.depth_damp_floor = depth_damp_floor
         self.graph = graph.copy()
         
         # Derive DEPENDS_ON edges dynamically if they are missing
@@ -672,7 +680,7 @@ class FaultInjector:
                 break
             
             # Stochastic dampening factor based on depth
-            depth_damp = max(0.25, 1.0 - wave_idx * 0.15)
+            depth_damp = max(self.depth_damp_floor, 1.0 - wave_idx * self.depth_damp_step)
 
             next_frontier = []
             wave_new_orphaned: Set[str] = set()

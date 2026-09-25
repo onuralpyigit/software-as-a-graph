@@ -45,10 +45,13 @@ First-time runs should train a GNN checkpoint before using `--all`:
 # 1. Generate + import + analyze + simulate
 PYTHONPATH=. python cli/run.py --all --layer system
 
-# 2. Train GNN checkpoint
-PYTHONPATH=. python cli/train_graph.py --layer system --output output/gnn_checkpoints/best_model
+# 2. Produce FaultInjector training labels (training never simulates on its own)
+PYTHONPATH=. python cli/simulate_graph.py fault-inject --input data/system.json --output output/simulation/ --export-json
 
-# 3. Full pipeline with predictions
+# 3. Train GNN checkpoint
+PYTHONPATH=. python cli/train_graph.py --layer system --simulated output/simulation/impact_scores.json --output output/gnn_checkpoints/best_model
+
+# 4. Full pipeline with predictions
 PYTHONPATH=. python cli/run.py --all --layer system --gnn-model output/gnn_checkpoints/best_model
 ```
 
@@ -216,8 +219,10 @@ The RM weighting, Triage bridge, and anti-pattern flags documented under Step 4 
 **Script:** `cli/train_graph.py`  
 **Purpose:** Train a Heterogeneous Graph Transformer (HGT) to predict component criticality.
 
+Labels come only from a `FaultInjector` file (`simulate_graph.py fault-inject`, see [Step 5](#step-5-simulate)); the script never runs a simulator itself and exits if `--simulated` is missing.
+
 ```bash
-PYTHONPATH=. python cli/train_graph.py --layer system --epochs 500 --hidden 128 --heads 8 --checkpoint output/gnn_checkpoints/
+PYTHONPATH=. python cli/train_graph.py --layer system --simulated output/simulation/impact_scores.json --epochs 500 --hidden 128 --heads 8 --checkpoint output/gnn_checkpoints/
 ```
 
 ### Arguments
@@ -226,8 +231,9 @@ PYTHONPATH=. python cli/train_graph.py --layer system --epochs 500 --hidden 128 
 |------|---------|----------------|-------------|
 | `--layer` | `app` | `app`, `infra`, `mw`, `system` | System layer |
 | `--structural` | `None` | Path | Skip Step 2, load pre-computed metrics JSON |
-| `--simulated` | `None` | Path | Skip Step 5, load simulation results JSON |
+| `--simulated` | `None` | Path | **Required** (except `--variant topology_rm`). `FaultInjector` label file — the `impact_scores.json` written by `simulate_graph.py fault-inject`. `FailureSimulator` output is rejected |
 | `--rm` | `None` | Path | Skip Step 4, load RM scores JSON |
+| `--input` | `None` | Path | Topology JSON (raw structural graph, as in `loso_evaluate.py`). Required when `--structural` and `--rm` are both files; `--multi-scenario` dirs likewise need a `topology.json` |
 | `--hidden` | `64` | int | Hidden dimension |
 | `--heads` | `4` | int | Attention heads |
 | `--layers` | `3` | int | GNN layers |
@@ -631,8 +637,8 @@ PYTHONPATH=. python cli/analyze_graph.py --layer system
 # 3. Simulate (fault-inject for ground-truth, then optional message-flow)
 PYTHONPATH=. python cli/simulate_graph.py fault-inject --input data/atm_system.json --output output/simulation/ --export-json
 
-# 3b. Train GNN (requires simulation results)
-PYTHONPATH=. python cli/train_graph.py --layer system --output output/gnn_checkpoints/best_model
+# 3b. Train GNN on the fault-inject labels from step 3
+PYTHONPATH=. python cli/train_graph.py --layer system --simulated output/simulation/impact_scores.json --output output/gnn_checkpoints/best_model
 
 # 4. Predict
 PYTHONPATH=. python cli/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model --no-diagnose
@@ -784,10 +790,11 @@ Direct invocation requires the project root on `PYTHONPATH`. Omitting it causes 
 
 ### Missing GNN Checkpoint for `--all`
 
-`cli/run.py --all` (or `--predict`) requires a trained GNN checkpoint. If `--gnn-model` is not provided and `output/gnn_checkpoints/best_model` does not exist, the predict stage is skipped with a warning — the diagnose stage still runs, since RM scores, anti-patterns and explanations need no checkpoint at all. Train first to enable GNN ranking:
+`cli/run.py --all` (or `--predict`) requires a trained GNN checkpoint. If `--gnn-model` is not provided and `output/gnn_checkpoints/best_model` does not exist, the predict stage is skipped with a warning — the diagnose stage still runs, since RM scores, anti-patterns and explanations need no checkpoint at all. Label and train first to enable GNN ranking:
 
 ```bash
-PYTHONPATH=. python cli/train_graph.py --layer system --output output/gnn_checkpoints/best_model
+PYTHONPATH=. python cli/simulate_graph.py fault-inject --input data/system.json --output output/simulation/ --export-json
+PYTHONPATH=. python cli/train_graph.py --layer system --simulated output/simulation/impact_scores.json --output output/gnn_checkpoints/best_model
 ```
 
 ### Neo4j Connection Issues

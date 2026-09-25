@@ -1,0 +1,96 @@
+{
+  "per_setting": {
+    "theta=0.1,step=0.10": {
+      "label_agreement_mean": 0.8790301853847217,
+      "label_agreement_min": 0.656334209160226,
+      "topo_qos_mean_rho": 0.49996617030263746
+    },
+    "theta=0.1,step=0.15": {
+      "label_agreement_mean": 0.8854825333150392,
+      "label_agreement_min": 0.7198648992107995,
+      "topo_qos_mean_rho": 0.505800337916639
+    },
+    "theta=0.1,step=0.20": {
+      "label_agreement_mean": 0.8618510455655461,
+      "label_agreement_min": 0.6707146907047046,
+      "topo_qos_mean_rho": 0.5011198825242373
+    },
+    "theta=0.2,step=0.10": {
+      "label_agreement_mean": 0.9855957805318117,
+      "label_agreement_min": 0.9127429943765112,
+      "topo_qos_mean_rho": 0.5572395882624585
+    },
+    "theta=0.2,step=0.15": {
+      "label_agreement_mean": 1.0,
+      "label_agreement_min": 0.9999999999999998,
+      "topo_qos_mean_rho": 0.5531394221414575
+    },
+    "theta=0.2,step=0.20": {
+      "label_agreement_mean": 0.9835027656884697,
+      "label_agreement_min": 0.8875530534540743,
+      "topo_qos_mean_rho": 0.5577626641698795
+    },
+    "theta=0.3,step=0.10": {
+      "label_agreement_mean": 0.9423144210105722,
+      "label_agreement_min": 0.7908456016448595,
+      "topo_qos_mean_rho": 0.5775700758703677
+    },
+    "theta=0.3,step=0.15": {
+      "label_agreement_mean": 0.9417817586400429,
+      "label_agreement_min": 0.7896081916697101,
+      "topo_qos_mean_rho": 0.5770655515344244
+    },
+    "theta=0.3,step=0.20": {
+      "label_agreement_mean": 0.9424322609595785,
+      "label_agreement_min": 0.7902679094498446,
+      "topo_qos_mean_rho": 0.5768384932638425
+    }
+  },
+  "provenance": {
+    "commit": "91c051e2c05206057a9f0ce7b4cc8714318843cb",
+    "dirty": true,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/training_free_suite.py",
+      "experiment": "oracle",
+      "grid": [
+        [
+          0.1,
+          0.1
+        ],
+        [
+          0.1,
+          0.15
+        ],
+        [
+          0.1,
+          0.2
+        ],
+        [
+          0.2,
+          0.1
+        ],
+        [
+          0.2,
+          0.15
+        ],
+        [
+          0.2,
+          0.2
+        ],
+        [
+          0.3,
+          0.1
+        ],
+        [
+          0.3,
+          0.15
+        ],
+        [
+          0.3,
+          0.2
+        ]
+      ]
+    }
+  }
+}

@@ -232,6 +232,9 @@ class LOSOReport:
     label_stability: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     #: Node population every fold was scored on (see ``--eval-population``).
     eval_population: str = "application"
+    #: Absolute I*(v) cut for the ``*_at_tau`` family (see
+    #: ``--critical-threshold``); None keeps the relative cut.
+    critical_threshold: Optional[float] = None
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -510,6 +513,7 @@ def run_one_fold(
     global_metadata: Optional[Tuple] = None,
     variant: str = "hgl_qos",
     eval_population: str = "application",
+    critical_threshold: Optional[float] = None,
     auto_layers: bool = True,
     weight_decay: float = 1e-4,
     warmup_T0: Optional[int] = None,
@@ -551,7 +555,8 @@ def run_one_fold(
     cfg = _seed_cfg(
         layer=layer, epochs=epochs, lr=lr, hidden=hidden, heads=heads,
         layers=layers, dropout=dropout, mode=mode, variant=variant,
-        eval_population=eval_population, weight_decay=weight_decay,
+        eval_population=eval_population, critical_threshold=critical_threshold,
+        weight_decay=weight_decay,
         warmup_T0=warmup_T0, multitask_weight=multitask_weight,
         rm_consistency_weight=rm_consistency_weight, ranking_weight=ranking_weight,
         pairwise_ranking_weight=pairwise_ranking_weight,
@@ -670,7 +675,7 @@ def _plan_fold(
 #: appear here, or a stale shard is silently reusable.
 _SEED_CFG_KEYS = (
     "layer", "epochs", "lr", "hidden", "heads", "layers", "dropout", "mode",
-    "variant", "eval_population", "weight_decay", "warmup_T0",
+    "variant", "eval_population", "critical_threshold", "weight_decay", "warmup_T0",
     "multitask_weight", "rm_consistency_weight", "ranking_weight",
     "pairwise_ranking_weight", "rank_normalize_features", "rank_normalize_labels",
 )
@@ -811,6 +816,7 @@ def _run_seed(
     dropout = cfg["dropout"]
     mode = cfg["mode"]
     eval_population = cfg["eval_population"]
+    critical_threshold = cfg["critical_threshold"]
     weight_decay = cfg["weight_decay"]
     warmup_T0 = cfg["warmup_T0"]
     multitask_weight = cfg["multitask_weight"]
@@ -1165,6 +1171,7 @@ def _run_seed(
 
     m = compute_inductive_metrics(
         pred_scores, true_impact, holdout.graph, population=eval_population,
+        tau_abs=critical_threshold,
     )
     m["seed"] = seed
     m["prediction_mode"] = mode
@@ -1490,6 +1497,7 @@ def run_loso(
     ranking_weight: float = 0.3,
     pairwise_ranking_weight: float = 0.1,
     eval_population: str = "application",
+    critical_threshold: Optional[float] = None,
     inner_val: str = "none",
     rank_normalize_features: bool = False,
     rank_normalize_labels: bool = False,
@@ -1524,7 +1532,8 @@ def run_loso(
     cfg = _seed_cfg(
         layer=layer, epochs=epochs, lr=lr, hidden=hidden, heads=heads,
         layers=layers, dropout=dropout, mode=mode, variant=variant,
-        eval_population=eval_population, weight_decay=weight_decay,
+        eval_population=eval_population, critical_threshold=critical_threshold,
+        weight_decay=weight_decay,
         warmup_T0=warmup_T0, multitask_weight=multitask_weight,
         rm_consistency_weight=rm_consistency_weight, ranking_weight=ranking_weight,
         pairwise_ranking_weight=pairwise_ranking_weight,
@@ -1594,6 +1603,7 @@ def run_loso(
             b.scenario_id: b.label_stability for b in bundles if b.label_stability
         },
         eval_population=eval_population,
+        critical_threshold=critical_threshold,
     )
 
 
@@ -1614,6 +1624,9 @@ def write_results_json(report: LOSOReport, path: Path) -> None:
             # different population is a different measurement, not a noisier one,
             # so it is recorded next to the number rather than left implicit.
             "eval_population": report.eval_population,
+            # Which cut sized the *_at_tau critical set: an absolute I*(v)
+            # value, or None for the relative tau_frac * max(I*).
+            "critical_threshold": report.critical_threshold,
         },
         "per_type_summary": report.per_type_summary,
         "folds": [
@@ -1647,6 +1660,7 @@ def write_per_fold_csv(report: LOSOReport, path: Path) -> None:
             "pr_auc", "precision_at_tau", "recall_at_tau", "f1_at_tau",
             "n_true_critical", "rmse_scaled", "mae_scaled", "label_scale_max",
             "n_predicted", "n_labeled", "n_evaluated",
+            "tau", "tau_mode",
         ])
 
         def _f(m: Dict[str, Any], key: str) -> str:
@@ -1674,6 +1688,8 @@ def write_per_fold_csv(report: LOSOReport, path: Path) -> None:
                     m.get("n_predicted", ""),
                     m.get("n_labeled", ""),
                     m.get("n_evaluated", ""),
+                    _f(m, "tau"),
+                    m.get("tau_mode", ""),
                 ])
     logger.info("Wrote %s", path)
 
@@ -1904,6 +1920,13 @@ def parse_args() -> argparse.Namespace:
              "different scales and base rates (Simpson's paradox).",
     )
     p.add_argument(
+        "--critical-threshold", type=float, default=None, metavar="TAU",
+        help="Size the *_at_tau critical set by an absolute cut, I*(v) >= TAU "
+             "(e.g. 0.2: failure loses at least 20%% of subscriber feeds). Default: "
+             "relative cut at half the scenario's max I*(v). Report-only; "
+             "release gates and training are unaffected.",
+    )
+    p.add_argument(
         "--inner-val-scenario", default="none", choices=["none", "auto"],
         help="Where early stopping and checkpoint selection get their metric. "
              "'none' (default) uses a within-scenario val_mask split of the "
@@ -2021,6 +2044,7 @@ def main() -> int:
         ranking_weight=args.ranking_weight,
         pairwise_ranking_weight=args.pairwise_ranking_weight,
         eval_population=args.eval_population,
+        critical_threshold=args.critical_threshold,
         inner_val=args.inner_val_scenario,
         rank_normalize_features=args.rank_normalize_features,
         rank_normalize_labels=args.rank_normalize_labels,

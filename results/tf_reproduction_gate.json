@@ -1,0 +1,100 @@
+{
+  "per_fold": {
+    "ATM": {
+      "rebuilt": 0.3109239422098597,
+      "published": 0.311,
+      "abs_diff": 7.605779014030478e-05,
+      "test_retest_min": 0.9586492074431426,
+      "test_retest_median": 0.9734665747760166
+    },
+    "AV System": {
+      "rebuilt": 0.7526918117294357,
+      "published": 0.753,
+      "abs_diff": 0.00030818827056433573,
+      "test_retest_min": 0.9982902786311544,
+      "test_retest_median": 0.9991982467041798
+    },
+    "Enterprise": {
+      "rebuilt": 0.7953082495191883,
+      "published": 0.795,
+      "abs_diff": 0.00030824951918828614,
+      "test_retest_min": 0.9981733522064722,
+      "test_retest_median": 0.9988905598553548
+    },
+    "Financial Trading": {
+      "rebuilt": 0.5864231295106708,
+      "published": 0.586,
+      "abs_diff": 0.0004231295106708055,
+      "test_retest_min": 0.9999999999999998,
+      "test_retest_median": 0.9999999999999998
+    },
+    "Healthcare": {
+      "rebuilt": 0.36869084150771025,
+      "published": 0.369,
+      "abs_diff": 0.00030915849228974057,
+      "test_retest_min": 0.998317569993022,
+      "test_retest_median": 0.9999999999999999
+    },
+    "Enterprise Integration (ESB)": {
+      "rebuilt": 0.42951365098479605,
+      "published": 0.43,
+      "abs_diff": 0.00048634901520394624,
+      "test_retest_min": 0.9998137166614283,
+      "test_retest_median": 1.0
+    },
+    "Industrial SCADA": {
+      "rebuilt": 0.6503746663112442,
+      "published": 0.65,
+      "abs_diff": 0.00037466631124416505,
+      "test_retest_min": 0.974263408941063,
+      "test_retest_median": 0.9795800627373663
+    },
+    "IoT Smart City": {
+      "rebuilt": 0.3512103555774073,
+      "published": 0.351,
+      "abs_diff": 0.00021035557740733957,
+      "test_retest_min": 0.9998517339863152,
+      "test_retest_median": 0.999995414453185
+    },
+    "Logistics Fleet": {
+      "rebuilt": 0.7406995865664335,
+      "published": 0.741,
+      "abs_diff": 0.0003004134335664599,
+      "test_retest_min": 0.9640283214297116,
+      "test_retest_median": 0.9685114347289576
+    },
+    "Microservices": {
+      "rebuilt": 0.26538514238447786,
+      "published": 0.265,
+      "abs_diff": 0.00038514238447784344,
+      "test_retest_min": 0.834388748996758,
+      "test_retest_median": 0.8679077378589065
+    },
+    "Real-Time Gaming": {
+      "rebuilt": 0.8102612338299413,
+      "published": 0.81,
+      "abs_diff": 0.0002612338299412542,
+      "test_retest_min": 0.9883471500743081,
+      "test_retest_median": 0.9934818410845417
+    },
+    "Telecom RAN": {
+      "rebuilt": 0.5761904555663259,
+      "published": 0.576,
+      "abs_diff": 0.00019045556632590888,
+      "test_retest_min": 0.9601430709692228,
+      "test_retest_median": 0.9704606383822745
+    }
+  },
+  "mean_rebuilt": 0.5531394221414575,
+  "max_abs_diff": 0.00048634901520394624,
+  "passed": true,
+  "provenance": {
+    "commit": "91c051e2c05206057a9f0ce7b4cc8714318843cb",
+    "dirty": true,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/training_free_suite.py",
+      "experiment": "gate"
+    }
+  }
+}

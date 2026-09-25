@@ -846,7 +846,7 @@ Each CLI tool is tested independently with its most common options.
 | ST-CLI-10 | `cli/run.py --all --layer system --verbose` | DEBUG log entries visible; timing logged per step |
 | ST-CLI-11 | `cli/run.py --generate --layer system --scale large` | Topology generated at large scale; import succeeds |
 | ST-CLI-12 | `cli/benchmark.py --scales small,medium --runs 3` | JSON benchmark output; timing within budget |
-| ST-CLI-13 | `cli/train_graph.py --layer system --seeds 42 123` | GNN training completes, checkpoint serialized in output |
+| ST-CLI-13 | `cli/train_graph.py --layer system --simulated output/simulation/impact_scores.json --seeds 42 123` | GNN training completes, checkpoint serialized in output; without `--simulated` it exits non-zero instead of simulating |
 | ST-CLI-14 | `cli/predict_graph.py --gnn-model checkpoint` | Predictions generated; exit 0 for clean topology |
 | ST-CLI-15 | `cli/predict_graph.py --gnn-model checkpoint` (critical pattern) | Exit 2; blocks pipeline deployment |
 

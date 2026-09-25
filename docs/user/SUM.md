@@ -261,13 +261,16 @@ Trains the HGT (Heterogeneous Graph Transformer) GNN on simulated fault labels t
 - **Script:** [cli/train_graph.py]
 - **Arguments:**
   - `--layer`: Targets specific system layer (`app`, `infra`, `mw`, `system`).
+  - `--simulated`: **Required** (except `--variant topology_rm`). `FaultInjector` label file (`impact_scores.json` from `cli/simulate_graph.py fault-inject`). Training never runs a simulator itself.
   - `--epochs`: Maximum training epochs (default: 300).
   - `--lr`: Learning rate (default: 3e-4).
   - `--checkpoint`: Directory to save the GNN model checkpoints (default: `output/gnn_checkpoints`).
   - `--variant`: Architecture baseline (`hetero_qos`, `homo_unweighted`, `homo_scalar`).
 - **Example:**
   ```bash
-  python cli/train_graph.py --layer system --epochs 200 --checkpoint models/system_checkpoints
+  python cli/simulate_graph.py fault-inject --input data/system.json --export-json
+  python cli/train_graph.py --layer system --simulated output/simulation/impact_scores.json \
+      --epochs 200 --checkpoint models/system_checkpoints
   ```
 
 #### GNN Model Prediction (Inference)
