@@ -1139,8 +1139,8 @@ support:
   reported in §7.5 as a construct-validity check on the other two, and is used for no other purpose
   in this paper.
 
-$I^*$ and $I_{\text{comp}}$ agree only weakly — mean Spearman $\rho = 0.394$ across the seven
-scenarios (§7.5). We therefore treat evidence gathered against one as *not* transferring to a claim
+$I^*$ and $I_{\text{comp}}$ agree only weakly — mean Spearman $\rho = 0.395$ across the twelve LOSO
+topologies, on the Application population (§7.5). We therefore treat evidence gathered against one as *not* transferring to a claim
 measured against the other, and apply that constraint to our own analyses rather than leaving it
 implicit; §7.5 quantifies the agreement and the label-coverage bounds, and §8.2 flags where the
 distinction bites. Where a statement below holds for either label-producing oracle, we write simply
@@ -1669,47 +1669,78 @@ $1.0$ for library cascade), `propagation_threshold` default $0.2$, a $10$-epoch 
 five seeds of §7.4, $\{42, 123, 456, 789, 2024\}$. $I_{\text{dyn}}$ shares the seed set and runs
 $60$ simulated seconds per component, with the fault injected at the midpoint.
 
-**Measured agreement between the two cascade oracles is weak.** Their scales differ, so only rank
-agreement is meaningful; across the seven scenarios, mean Spearman $\rho = 0.394$ and mean top-20%
-Jaccard $= 0.286$, ranging from $\rho = 0.578$ (Enterprise) down to $\rho = 0.092$ (Hub-and-Spoke,
-where they are effectively uncorrelated). All seven correlations are positive, which is a weak
-convergent-validity argument — two differently-constructed simulators do agree directionally, so
-neither is purely an artifact of its own construction — but at $\rho \approx 0.39$ it is weak, and we
-apply the resulting constraint to our own analyses: a result established against one oracle is not
-evidence for a claim measured against the other. §8.2 flags where this bites.
+> **Provenance.** The agreement and reproducibility figures below are measured over the twelve
+> LOSO topologies on the Application population, and are transcribed from the JSS supplement
+> ([`supplementary.tex`](../jss/latex/supplementary.tex), Convergent Validity Over Simulation
+> Oracles; artifact `convergent_validity.json`). They replace the seven-scenario figures of an
+> earlier revision. One comparison is made per topology: the five seeds enter $I^*$ only, averaged
+> into one label per component, while $I_{\text{comp}}$ and $I_{\text{dyn}}$ each run once at seed
+> 42. $I_{\text{dyn}}$ is measured under enforced QoS contracts at a calibrated per-subscriber
+> operating point ($\rho_{\text{util}} = 0.65$). Chance top-20% Jaccard is $0.111$.
 
-**$I_{\text{dyn}}$ agrees with $I^*$ far more strongly, and — crucially — does not share its worst
-case.** Mean Spearman $\rho(I_{\text{dyn}}, I^*) = 0.907$, minimum $0.748$ (Microservices) — against
-mean $0.425$, minimum $-0.044$ for the two topological oracles above. Hub-and-Spoke is precisely where
-$I^*$ and $I_{\text{comp}}$ collapse to near-independence ($\rho = -0.044$); $I_{\text{dyn}}$ still
-agrees with $I^*$ there at $\rho = 0.883$, well above its cohort minimum. Because
-$I_{\text{dyn}}$ reaches this ranking by simulating traffic through queues rather than by traversing
-`DEPENDS_ON`, the result is evidence of a different kind than §7.5's first finding: it rules out the
-cascade *algorithm* as the source of $I^*$'s ranking, which the $I_{\text{comp}}$ comparison alone
-cannot do (§9.2). Top-$K$ membership is the weaker half of this result — mean top-20% Jaccard is
-$0.316$, comparable to the $0.286$ of the two topological oracles — so this is corroboration of
-*ranking*, not of critical-set identification; no $F_1@K$ claim in §8.1 is supported by
-$I_{\text{dyn}}$.
+**Measured agreement between the two cascade oracles is weak.** Their scales differ, so only rank
+agreement is meaningful. $I^*$ and $I_{\text{comp}}$ agree at mean Spearman $\rho = 0.395$ (range
+$0.083$–$0.653$), Kendall $\tau = 0.290$ and top-20% Jaccard $0.266$ ($0.261$ with tie-robust
+cutting). Restricted to components both score non-zero, the mean is $\rho^{+} = 0.353$, so the
+agreement is not merely the two concurring on inert components. Every topology's correlation is
+positive, which is a weak convergent-validity argument — two differently constructed simulators do
+agree directionally, so neither is purely an artifact of its own construction — but at
+$\rho \approx 0.40$ it is weak, and we apply the resulting constraint to our own analyses: a result
+established against one oracle is not evidence for a claim measured against the other. §8.2 flags
+where this bites. The composite and the behavioural oracle agree at a similar level
+($\rho = 0.411$, range $-0.073$–$0.705$).
+
+**$I_{\text{dyn}}$ agrees with $I^*$ more strongly, but not interchangeably.** Mean Spearman
+$\rho(I_{\text{dyn}}, I^*) = 0.627$ (range $0.186$–$0.953$), Kendall $\tau = 0.493$ and top-20%
+Jaccard $0.370$, against $0.111$ by chance. That is well above the agreement between the two
+topological oracles, and distinctly below $I^*$'s agreement with itself (test–retest $0.811$–$1.000$,
+median $0.982$). The gap is informative rather than a failure: a behavioural oracle that reproduced
+the topological one to within label noise would be re-measuring the topology rather than
+corroborating it. Because $I_{\text{dyn}}$ reaches its ranking by simulating traffic through queues
+rather than by traversing `DEPENDS_ON`, its agreement is evidence of a different kind from the
+$I_{\text{comp}}$ comparison: ranking over discrete-event traffic recovers most of $I^*$'s ordering,
+so the cascade *algorithm* is not the sole source of that ordering (§9.2).
+
+Three qualifications bound that reading.
+- *Much of the agreement is about harmless components.* Restricted to components both oracles score
+  non-zero, the mean falls to $\rho^{+} = 0.429$, and agreement is weak on four of the twelve folds
+  (Industrial SCADA $-0.069$, Enterprise Integration $0.008$, AV $0.149$, Microservices $0.194$).
+- *The weakest folds are partly noise.* Industrial SCADA is the weakest fold overall ($\rho = 0.186$),
+  and Microservices carries the least reproducible label in the corpus ($I^*$ test–retest $0.811$,
+  top-20% Jaccard $0.720$).
+- *$I_{\text{dyn}}$ has its own noise floor.* It is a stochastic simulation run here at one seed.
+  Re-run across three seeds on three folds that bracket the corpus, it agrees with itself at
+  $0.958$–$0.972$ on ATM, $0.828$–$0.867$ on Healthcare and $0.741$–$0.821$ on Microservices, while
+  $I_{\text{comp}}$ reproduces exactly ($1.000$). On Microservices, where the cross-oracle agreement
+  is $0.337$, the shortfall is therefore bounded by two dispersions, not one.
+
+Top-$K$ membership is the weaker half of this result, so it corroborates *ranking*, not critical-set
+identification; no Overlap@$K$ claim in §8.1 is supported by $I_{\text{dyn}}$.
 
 **Label coverage and the noise ceiling.** Three further properties bound what any reported figure can
-mean. First, the cascade model has no rule expressing the failure of a Topic or of a physical Node,
-so those types carry no ground truth at all — 30–47% of components per scenario are unlabelled, they
-are excluded from scoring rather than scored as zero, and predictions for them are never validated.
-Broker labels are degenerate in three of seven scenarios for a related reason. Second, the three
-oracles do not cover the same components, so every agreement figure above is computed over the
-intersection rather than over the scenario. $I_{\text{dyn}}$ observes only what carries pub-sub
-traffic: it scores Applications and those Libraries that publish or subscribe in their own right,
-and records Brokers, physical Nodes, Topics, and purely-consumed Libraries as unmeasured rather than
-as harmless. On `enterprise_system` that is 349 components against $I^*$'s 360 — it gives up the ten
-Brokers and one non-publishing Library, and gains nothing $I^*$ lacks. Third, the labels
-have a reproducibility ceiling: across seeds, the ground truth agrees with *itself* at test–retest
-$\rho$ of 0.807–1.000, and its own top-20% critical set agrees at Jaccard 0.44–1.00 (deterministic:
-`FaultInjector`'s cascade previously iterated an unordered subscriber set while consuming seeded
-random draws, so re-running the *same* seed in a different process could still change the label —
-this has been fixed and is disclosed as an instrument defect in §9.2, and the figures here are the
-post-fix, process-independent ones). No method can exceed the former, and every top-$K$ metric
-inherits the latter — a reported $F_1@K$ on `microservices_system`, where the labels' own set
-stability is 0.44, should not be read to a precision the labels do not have.
+mean. First, coverage. The cascade model originally had no rule for the failure of a Topic or of a
+physical Node, which left 30–47% of each system's components without ground truth. Two additive
+branches now express both: a Topic in the failed set loses its whole feed regardless of surviving
+publishers, and a failed host takes down every component deployed on it via `RUNS_ON`. The
+extension is additive, so every Application, Broker and Library label is unchanged
+(`tests/test_passive_strata.py`), and both new strata were verified fully labelled and non-degenerate
+on the seven core scenarios (`results/passive_stratum_labels.json`). Coverage is not informativeness:
+a host outage could restate how many components sit on the host, and a topic outage its fan-out, and
+no learned model is trained on either stratum, so no predictor claim in §8 extends to them. Broker
+labels remain degenerate in three of those seven scenarios. Second, the three oracles do not cover the
+same components, so every agreement figure above is computed over the intersection rather than over
+the scenario. $I_{\text{dyn}}$ observes only what carries pub-sub traffic: it scores Applications and
+those Libraries that publish or subscribe in their own right, and records Brokers, physical Nodes,
+Topics, and purely-consumed Libraries as unmeasured rather than as harmless. On `enterprise_system`
+that is 349 components against $I^*$'s 360 — it gives up the ten Brokers and one non-publishing
+Library, and gains nothing $I^*$ lacks. Third, the labels have a reproducibility ceiling: across
+seeds, the ground truth agrees with *itself* at test–retest $\rho$ of $0.811$–$1.000$ (median
+$0.982$), and its own top-20% critical set agrees at a median Jaccard of $0.847$, falling to $0.370$
+on Logistics Fleet. These are process-independent figures: `FaultInjector`'s cascade once iterated
+unordered sets while consuming seeded random draws, so re-running the *same* seed in a different
+process could change the label; this has been fixed and is disclosed as an instrument defect in
+§9.2. No method can exceed the former, and every top-$K$ metric inherits the latter — an Overlap@$K$
+on Logistics Fleet should not be read to a precision the labels do not have.
 
 ## 7.6 Model Configuration and Implementation
 
@@ -2809,11 +2840,13 @@ post-fix simulators against the same cached topologies and confirming a maximum 
 in $I^*(v)$ of exactly $0$ across three scenarios. It is not a no-op under a finite
 `cascade_depth_limit`, which no reported figure in this paper uses.
 
-*A third of each system is unlabelled.* The cascade model cannot express the failure of a Topic or a
-physical Node, leaving 30–47% of components per scenario without ground truth. Predictions for them
-are produced but never validated. Broker labels are degenerate in three of seven scenarios for a
-related reason. Any claim of coverage across "all five component types" would be unsupported, and
-the per-type results report those strata as undefined rather than as zero.
+*A third of each system was unlabelled; it no longer is, but coverage is not informativeness.* The
+cascade model could not express the failure of a Topic or a physical Node, leaving 30–47% of
+components per scenario without ground truth. Two additive branches now label both, with every
+Application, Broker and Library label unchanged (§7.5). No learned model is trained on either new
+stratum, so no predictor claim extends to them, and Broker labels remain degenerate in three of the
+seven core scenarios. Any claim of *predictive* coverage across "all five component types" would
+still be unsupported.
 
 *The labels bound what any predictor can show.* Across the twelve LOSO topologies the ground truth
 agrees with itself at test–retest $\rho$ of 0.811–1.000 (median 0.982), well above every engine's
@@ -2852,8 +2885,9 @@ The behavioural oracle narrows this, and it is worth being precise about by how 
 of the circularity objection is that $I^*$ is an artifact of its own traversal — that a
 topology-derived score is being validated against labels manufactured by walking the same topology.
 $I_{\text{dyn}}$ answers that specific charge: it reaches its ranking by simulating message traffic
-through queues over simulated time, never traversing `DEPENDS_ON`, and it recovers $I^*$'s ordering
-(§7.5). The cascade *algorithm* is therefore not the artifact. What remains unaddressed is the layer
+through queues over simulated time, never traversing `DEPENDS_ON`, and it recovers most of $I^*$'s
+ordering ($\rho = 0.627$ over the twelve topologies, much of it agreement on harmless components;
+§7.5). The cascade *algorithm* is therefore not the sole source of that ordering. What remains unaddressed is the layer
 beneath it: all three oracles are simulation rather than observed failure data, and all three are
 deterministic functions of the same generated topology. A modelling assumption shared by the
 architecture model itself would be invisible to every one of them. Calibration against instrumented
