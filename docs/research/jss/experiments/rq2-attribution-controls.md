@@ -22,6 +22,7 @@ The controls below separate those ingredients.
 | `GBM-Feat` (`tab_gbm`) | QoS-off | — | none (gradient boosting per entity type) |
 | `GBM-Feat-QoS` (`tab_gbm_qos`) | QoS-on | — | none |
 | `HGT-QoS-U` (`hgl_qos_uni`, Amendment 2) | QoS-on | 16-D | per-node at Applications (no reverse pass) |
+| `GAT-w` (`gl_full_qos_cap`, Amendment 2) | QoS-on | scalar | per-node at Applications |
 
 Each input of `GAT-QoS-nf` is bit-identical to one parent arm (`_graft_qos_edge_attr` in [`cli/loso_evaluate.py`](../../../../cli/loso_evaluate.py); pinned by [`tests/test_attribution_controls.py`](../../../../tests/test_attribution_controls.py)). The QoS-weighted centralities are present in every arm.
 
@@ -62,7 +63,11 @@ What the contrasts show:
   - LOSO: 0.632 against 0.622 for `HGT-QoS`. The registered contrast is −0.010 (6/12 folds, p = 0.91).
   - Median seed SD: 0.020 against 0.056.
   - Zero-shot: 0.804 against 0.760, higher on all five systems.
-  - The contrast joins the omnibus family, which grows to 12. Both hybrids stay significant (p_omni 0.018 and 0.038).
+  - With the capacity control below, the omnibus family grows to 13. Both hybrids stay significant (p_omni 0.019 and 0.041).
 
   Supplement S31 has the per-fold and per-system tables.
+- **Capacity control (Amendment 2, run after Amendment 7).** `GAT-w` is an untyped GAT at HGT's budget. It reads the QoS-on node features and a scalar edge weight, and it is per-node at Applications. Run it with `make -f reproduce/Makefile rq-capacity`. Results:
+  - LOSO: 0.633. The registered contrast against `HGT-QoS` is −0.011 (5/12 folds, p = 0.68).
+  - It is level with `GAT-QoS` (−0.002) and above `GAT` (+0.070, 10/12).
+  - Zero-shot: 0.794.
 - **What is still open.** Message passing can be tested as a mechanism only on a substrate where messages reach every scored component. Two options are reverse edges for the untyped engines, or the Application–Library projection.

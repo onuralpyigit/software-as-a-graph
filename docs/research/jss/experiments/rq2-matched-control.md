@@ -56,7 +56,8 @@ well as the typed `HGT-QoS` (0.622).
 - **Why earlier robustness checks missed the confound.** The Fisher-z transform (S16) and robust
   seed aggregation (S21) both left the unmatched interaction intact, because both hold the four
   unmatched arms fixed.
-- **Controls not run.** One registered arm was never run: `GAT-w`, a capacity-only QoS control.
+- **Late controls.** Every registered model arm has now been run. The capacity-only control
+  `GAT-w` (`make -f reproduce/Makefile rq-capacity`) matches `HGT-QoS` (−0.011, 5/12, p = 0.68).
   The directionality control `HGT-QoS-U` (HGT without its 103,725 reverse-direction parameters)
   was run after Amendment 7 (`make -f reproduce/Makefile rq-directionality`). It matches
   `HGT-QoS` (−0.010, 6/12, p = 0.91) and transfers better (0.804 vs 0.760); see
