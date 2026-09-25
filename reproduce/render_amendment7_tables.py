@@ -70,9 +70,9 @@ def per_fold_table(tf: Dict[str, Any]) -> str:
         r"\caption{Training-free rankers of Amendment~7, per LOSO holdout: Spearman $\rho$ "
         r"against $I^*(v)$, Application population, labels regenerated with the published "
         r"oracle settings. \texttt{Topo-QoS} reproduces the published per-fold values to three "
-        r"decimals (\path{results/tf_reproduction_gate.json}). Betweenness (proj.) is unweighted "
+        r"decimals (\texttt{results/tf\_reproduction\_gate.json}). Betweenness (proj.) is unweighted "
         r"betweenness on the same Application--Library projection. Rendered from "
-        r"\path{results/tf_baselines.json}.}",
+        r"\texttt{results/tf\_baselines.json}.}",
         r"\label{tab:a7-folds}",
         r"\resizebox{\linewidth}{!}{%",
         r"\begin{tabular}{l" + "c" * len(RANKERS) + "}",
@@ -103,12 +103,12 @@ def systems_table(tf: Dict[str, Any]) -> str:
     return "\n".join([
         r"\begin{table}[htbp]", r"\centering", r"\small",
         r"\caption{Training-free rankers on the five hand-authored system models: Spearman "
-        r"$\rho$ / Overlap@$K$, Application population. Same oracle settings as Table~12 of "
-        r"the main manuscript, but projection and closed-form scores are computed by the "
+        r"$\rho$ / Overlap@$K$, Application population. Same oracle settings as "
+        r"Table~\ref{M-tab:9b} of the main manuscript, but projection and closed-form scores are computed by the "
         r"Amendment~7 harness from the committed topology files; \texttt{Topo-QoS} scores "
         r"$0.582$ here against $0.526$ in the main manuscript's zero-shot table, whose "
         r"reference scores use the native-graph projection path and the cached articulation "
-        r"term. Rendered from \path{results/tf_baselines.json}.}",
+        r"term. Rendered from \texttt{results/tf\_baselines.json}.}",
         r"\label{tab:a7-systems}",
         r"\resizebox{\linewidth}{!}{%",
         r"\begin{tabular}{lr" + "c" * len(RANKERS) + "}",
@@ -190,8 +190,8 @@ def controls_table(ctl: Dict[str, Any], ind: Dict[str, Any], sub: Dict[str, Any]
         r"\emph{Perm}: \texttt{Topo-QoS} with QoS profiles permuted across topics (mean of 20). "
         r"\emph{Indep.}: the corpus regenerated with QoS no longer steering topology "
         r"(\texttt{qos\_affinity: false}), relabelled. Rendered from "
-        r"\path{results/qos_attribution_controls.json}, \path{results/topo_substrate_check.json} "
-        r"and \path{results/qos_indep_corpus.json}.}",
+        r"\texttt{results/qos\_attribution\_controls.json}, \texttt{results/topo\_substrate\_check.json} "
+        r"and \texttt{results/qos\_indep\_corpus.json}.}",
         r"\label{tab:a7-controls}",
         r"\resizebox{\linewidth}{!}{%",
         r"\begin{tabular}{lcccccccc}",
@@ -224,7 +224,7 @@ def oracle_table(orc: Dict[str, Any]) -> str:
         r"damping step (floor $0.25$). Label agreement is Spearman $\rho$ against the shipped "
         r"setting ($\theta = 0.2$, step $0.15$) on Applications, mean and minimum over the twelve "
         r"folds; the last column is \texttt{Topo-QoS} scored against each label set. Rendered "
-        r"from \path{results/oracle_param_sensitivity.json}.}",
+        r"from \texttt{results/oracle\_param\_sensitivity.json}.}",
         r"\label{tab:a7-oracle}",
         r"\begin{tabular}{ccccc}",
         r"\toprule",
@@ -246,7 +246,7 @@ def descriptives_table(desc: Dict[str, Any], tf: Dict[str, Any]) -> str:
         r"\caption{Label structure of the LOSO folds and the system models (means), and the "
         r"inert-vs-active rule of Amendment~7: a component is predicted to propagate failure "
         r"($I^* > 0$) iff it has at least one transitive dependent on the projection. Rendered "
-        r"from \path{results/system_model_descriptives.json} and \path{results/tf_baselines.json}.}",
+        r"from \texttt{results/system\_model\_descriptives.json} and \texttt{results/tf\_baselines.json}.}",
         r"\label{tab:a7-descriptives}",
         r"\begin{tabular}{lccccc}",
         r"\toprule",

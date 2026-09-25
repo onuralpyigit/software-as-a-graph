@@ -3,7 +3,7 @@
 \begin{table}[htbp]
 \centering
 \small
-\caption{Training-free rankers of Amendment~7, per LOSO holdout: Spearman $\rho$ against $I^*(v)$, Application population, labels regenerated with the published oracle settings. \texttt{Topo-QoS} reproduces the published per-fold values to three decimals (\path{results/tf_reproduction_gate.json}). Betweenness (proj.) is unweighted betweenness on the same Application--Library projection. Rendered from \path{results/tf_baselines.json}.}
+\caption{Training-free rankers of Amendment~7, per LOSO holdout: Spearman $\rho$ against $I^*(v)$, Application population, labels regenerated with the published oracle settings. \texttt{Topo-QoS} reproduces the published per-fold values to three decimals (\texttt{results/tf\_reproduction\_gate.json}). Betweenness (proj.) is unweighted betweenness on the same Application--Library projection. Rendered from \texttt{results/tf\_baselines.json}.}
 \label{tab:a7-folds}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lcccccc}
@@ -54,7 +54,7 @@ Betweenness (proj.) & +0.038 [+0.014, +0.063] & 9/12 & 0.0210 & $-$0.030 (4/12, 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Training-free rankers on the five hand-authored system models: Spearman $\rho$ / Overlap@$K$, Application population. Same oracle settings as Table~12 of the main manuscript, but projection and closed-form scores are computed by the Amendment~7 harness from the committed topology files; \texttt{Topo-QoS} scores $0.582$ here against $0.526$ in the main manuscript's zero-shot table, whose reference scores use the native-graph projection path and the cached articulation term. Rendered from \path{results/tf_baselines.json}.}
+\caption{Training-free rankers on the five hand-authored system models: Spearman $\rho$ / Overlap@$K$, Application population. Same oracle settings as Table~\ref{M-tab:9b} of the main manuscript, but projection and closed-form scores are computed by the Amendment~7 harness from the committed topology files; \texttt{Topo-QoS} scores $0.582$ here against $0.526$ in the main manuscript's zero-shot table, whose reference scores use the native-graph projection path and the cached articulation term. Rendered from \texttt{results/tf\_baselines.json}.}
 \label{tab:a7-systems}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lrcccccc}
@@ -78,7 +78,7 @@ Train-Ticket & 41 & 0.535 / 0.625 & 0.598 / 0.750 & 0.867 / 0.500 & 0.966 / 0.75
 \begin{table}[htbp]
 \centering
 \small
-\caption{Where the closed-form gain comes from, per LOSO holdout (Spearman $\rho$, Application population). \emph{Published Topo}: the registered comparator, which read betweenness from the analysis stage's application-layer dependency graph; \emph{app-layer BT}: that betweenness rebuilt in memory (\texttt{MemoryRepository}, which differs slightly from Neo4j on Rule-1 weights). \emph{Proj.\ BT}: unweighted betweenness on the Application--Library projection \texttt{Topo-QoS} uses. \emph{Topo-Mult}: \texttt{Topo-QoS} with every topic weight fixed at $0.5$. \emph{Perm}: \texttt{Topo-QoS} with QoS profiles permuted across topics (mean of 20). \emph{Indep.}: the corpus regenerated with QoS no longer steering topology (\texttt{qos\_affinity: false}), relabelled. Rendered from \path{results/qos_attribution_controls.json}, \path{results/topo_substrate_check.json} and \path{results/qos_indep_corpus.json}.}
+\caption{Where the closed-form gain comes from, per LOSO holdout (Spearman $\rho$, Application population). \emph{Published Topo}: the registered comparator, which read betweenness from the analysis stage's application-layer dependency graph; \emph{app-layer BT}: that betweenness rebuilt in memory (\texttt{MemoryRepository}, which differs slightly from Neo4j on Rule-1 weights). \emph{Proj.\ BT}: unweighted betweenness on the Application--Library projection \texttt{Topo-QoS} uses. \emph{Topo-Mult}: \texttt{Topo-QoS} with every topic weight fixed at $0.5$. \emph{Perm}: \texttt{Topo-QoS} with QoS profiles permuted across topics (mean of 20). \emph{Indep.}: the corpus regenerated with QoS no longer steering topology (\texttt{qos\_affinity: false}), relabelled. Rendered from \texttt{results/qos\_attribution\_controls.json}, \texttt{results/topo\_substrate\_check.json} and \texttt{results/qos\_indep\_corpus.json}.}
 \label{tab:a7-controls}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lcccccccc}
@@ -109,7 +109,7 @@ Telecom RAN & 0.562 & 0.569 & 0.556 & 0.576 & 0.552 & 0.523 & 0.646 & 0.622 \\
 \begin{table}[htbp]
 \centering
 \small
-\caption{Sensitivity of $I^*(v)$ to its propagation threshold $\theta$ and per-wave damping step (floor $0.25$). Label agreement is Spearman $\rho$ against the shipped setting ($\theta = 0.2$, step $0.15$) on Applications, mean and minimum over the twelve folds; the last column is \texttt{Topo-QoS} scored against each label set. Rendered from \path{results/oracle_param_sensitivity.json}.}
+\caption{Sensitivity of $I^*(v)$ to its propagation threshold $\theta$ and per-wave damping step (floor $0.25$). Label agreement is Spearman $\rho$ against the shipped setting ($\theta = 0.2$, step $0.15$) on Applications, mean and minimum over the twelve folds; the last column is \texttt{Topo-QoS} scored against each label set. Rendered from \texttt{results/oracle\_param\_sensitivity.json}.}
 \label{tab:a7-oracle}
 \begin{tabular}{ccccc}
 \toprule
@@ -131,7 +131,7 @@ Telecom RAN & 0.562 & 0.569 & 0.556 & 0.576 & 0.552 & 0.523 & 0.646 & 0.622 \\
 \begin{table}[htbp]
 \centering
 \small
-\caption{Label structure of the LOSO folds and the system models (means), and the inert-vs-active rule of Amendment~7: a component is predicted to propagate failure ($I^* > 0$) iff it has at least one transitive dependent on the projection. Rendered from \path{results/system_model_descriptives.json} and \path{results/tf_baselines.json}.}
+\caption{Label structure of the LOSO folds and the system models (means), and the inert-vs-active rule of Amendment~7: a component is predicted to propagate failure ($I^* > 0$) iff it has at least one transitive dependent on the projection. Rendered from \texttt{results/system\_model\_descriptives.json} and \texttt{results/tf\_baselines.json}.}
 \label{tab:a7-descriptives}
 \begin{tabular}{lccccc}
 \toprule

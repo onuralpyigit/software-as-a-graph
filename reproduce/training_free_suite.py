@@ -17,6 +17,7 @@ and without Neo4j:
 * ``descriptives``— size, zero share, projection density and tie fraction per graph.
 * ``make-variant``— regenerate the twelve folds with ``qos_affinity=False``.
 * ``qos-indep``   — Topo / Topo-QoS on that QoS-independent corpus.
+* ``cost``        — wall-clock cost of the projection and each ranker.
 * ``substrate``   — what the published ``Topo`` column measured, beside unweighted
                     and QoS-weighted betweenness on the projection.
 
@@ -652,6 +653,36 @@ def cmd_substrate(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_cost(_: argparse.Namespace) -> int:
+    """Wall-clock cost of the projection and each ranker, median of 5, per fold."""
+    import time
+
+    rows: Dict[str, Any] = {}
+    for sid, name in FOLDS.items():
+        topo = _topology(SCENARIOS_DIR / f"{sid}.json")
+        t: Dict[str, List[float]] = {k: [] for k in ("projection", "InDeg", "Reach",
+                                                     "Reach-QoS", "Topo-QoS")}
+        for _ in range(5):
+            t0 = time.perf_counter(); flow = _flow(topo); t1 = time.perf_counter()
+            indeg(flow); t2 = time.perf_counter()
+            reach(flow); t3 = time.perf_counter()
+            reach_qos(flow); t4 = time.perf_counter()
+            topo_qos(flow); t5 = time.perf_counter()
+            for k, v in (("projection", t1 - t0), ("InDeg", t2 - t1), ("Reach", t3 - t2),
+                         ("Reach-QoS", t4 - t3), ("Topo-QoS", t5 - t4)):
+                t[k].append(v)
+        rows[name] = {"n_projection_nodes": flow.number_of_nodes(),
+                      "n_projection_edges": flow.number_of_edges(),
+                      **{k: float(np.median(v)) for k, v in t.items()}}
+        print(name, {k: round(v, 4) if isinstance(v, float) else v for k, v in rows[name].items()})
+    worst = {k: max(r[k] for r in rows.values())
+             for k in ("projection", "InDeg", "Reach", "Reach-QoS", "Topo-QoS")}
+    print("max over folds:", worst)
+    _write("dependency_count_cost.json", {"per_fold": rows, "max_seconds": worst},
+           experiment="cost", repeats=5)
+    return 0
+
+
 def main() -> int:
     # CDI's BFS sample is the top-degree nodes of a set, so equal-degree ties are
     # ordered by string hashing, which Python salts per process. Pin the salt so
@@ -662,12 +693,12 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("command", choices=["gate", "baselines", "controls", "oracle",
                                         "descriptives", "qos-indep", "make-variant", "substrate",
-                                        "all"])
+                                        "cost", "all"])
     ap.add_argument("--variant-dir", default="output/variants/qos_indep")
     args = ap.parse_args()
     cmds = {"gate": cmd_gate, "baselines": cmd_baselines, "controls": cmd_controls,
             "oracle": cmd_oracle, "descriptives": cmd_descriptives, "qos-indep": cmd_qos_indep,
-            "make-variant": cmd_make_variant, "substrate": cmd_substrate}
+            "make-variant": cmd_make_variant, "substrate": cmd_substrate, "cost": cmd_cost}
     if args.command == "all":
         rc = cmd_gate(args)
         if rc:
