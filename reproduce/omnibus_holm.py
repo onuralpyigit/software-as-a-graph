@@ -14,7 +14,7 @@ a single Holm correction to the pooled set.
 The family (``REGISTERED_FAMILY``) is exactly the registered contrasts:
 
   * plan (2026-09-06)  — HGT-QoS and HGT vs Topo-QoS            (2)
-  * Amendment 2        — matched 2x2 quantities + two controls   (5)
+  * Amendment 2        — matched 2x2 quantities + three controls (6)
   * Amendment 5        — SaG-Hybrid vs Topo-QoS and vs HGT-QoS   (2)
   * Amendment 6        — SaG-Hybrid-GAT vs Topo-QoS and vs GAT-N-QoS16-C (2)
 
@@ -51,6 +51,9 @@ REGISTERED_FAMILY = [
     ("plan", "loso_significance_v5.json", "preregistered"),
     ("amendment_2", "loso_significance_rq2_matched.json", "factorial"),
     ("amendment_2", "loso_significance_rq2_matched.json", "rq2_controls"),
+    # The directionality control was registered with the other controls but run
+    # later, in its own invocation (make rq-directionality).
+    ("amendment_2", "loso_significance_directionality_cpu.json", "rq2_controls"),
     ("amendment_5", "loso_significance_hybrid_cpu.json", "hybrid"),
     ("amendment_6", "loso_significance_hybrid_gat_cpu.json", "hybrid_gat"),
 ]
@@ -77,6 +80,18 @@ def collect(results_dir: Path) -> List[Dict[str, Any]]:
                 "p": row["p"],
                 "p_holm_family": row.get("p_holm"),
             })
+    # A registration's family can span sweeps: Amendment 2's controls ran in two
+    # invocations. Each artifact's own p_holm saw only the rows it contained, so
+    # Holm is re-applied within (registration, block) across every artifact. For
+    # a family that lives in one artifact this reproduces its p_holm exactly.
+    groups: Dict[tuple, List[Dict[str, Any]]] = {}
+    for r in family:
+        groups.setdefault((r["registration"], r["block"]), []).append(r)
+    for rows in groups.values():
+        ps = [{"p": r["p"]} for r in rows]
+        holm(ps)
+        for r, q in zip(rows, ps):
+            r["p_holm_family"] = q["p_holm"]
     return family
 
 

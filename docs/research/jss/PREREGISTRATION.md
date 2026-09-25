@@ -406,76 +406,96 @@ Topo-QoS and HGT-QoS comparators are bit-identical across CPU sweeps.
 **Reporting commitment.** Reported whichever way it comes out, in the manuscript
 and supplement. It may be dropped only for a stated technical failure.
 
----
+## Amendment 7 — attribution controls (2026-09-26, after their results existed)
 
-## Amendment 7 — training-free baselines and QoS-attribution controls (2026-09-25, before any result)
+**Status when written:** every run below is complete. This amendment is post hoc,
+and everything it adds is exploratory. It registers no contrast and changes no
+registered conclusion. It records why the manuscript's *interpretation* of RQ2
+and RQ3 changed.
 
-**Status when written:** none of the arms below has been implemented or run. The
-per-fold values they will be compared against are already published (Supplementary
-S22 for `Topo`/`Topo-QoS`, S23 for the CPU learned and hybrid engines), so this
-amendment fixes the arms, the comparisons and what each outcome changes in the text
-before any of the new numbers exist.
+**Why it exists.** A receptive-field probe
+(`reproduce/receptive_field_probe.py`) showed that no relation on the native
+multigraph targets an Application. Every edge points from Application to Topic,
+Node or Library, and `GATConv` aggregates from source to target only. The
+untyped GAT arms of Amendment 2 (`gl_full_cap`, `gl_full_qos16_cap`) and
+Amendment 6 (`gl_qos16_prior`) therefore score every Application from its own
+features. On their trained checkpoints, deleting every edge changes no
+Application prediction. HGT reaches Applications through its reverse pass.
 
-**Why it exists.** The referee report of 2026-09-25
-(`docs/research/jss/reviews/review_2026-09-25.md`, M2, M3, M6, M7) raised three
-questions that need no GNN to answer:
-1. Does a trivial reachability or connectivity score, computed on the same
-   projection, already match the learned engines? `I*(v)` is a cascade over the same
-   dependency rules the projection encodes.
-2. Is the `Topo` → `Topo-QoS` gain (+0.204) produced by the *content* of the declared
-   QoS contracts, or by the *multiplicity* of shared topics that the probabilistic
-   union rewards regardless of content? The generator also samples topology
-   conditioned on QoS (`_APP_TYPE_QOS_AFFINITY`), which could couple the two.
-3. How much of every full-population correlation is only the separation of inert
-   components (`I* = 0`) from active ones?
+Two consequences for the registered 2×2:
+- It compared typed message passing with per-component learning, not two
+  message-passing architectures.
+- Its Q factor switched two inputs at once: the 16-D edge channel and three
+  QoS node columns (`qos_weight`, `qos_weight_in`, `qos_weight_out`).
 
-**Labels.** `I*(v)` regenerated with the published settings: `FaultInjector`, seeds
-{42, 123, 456, 789, 2024}, propagation threshold 0.2, unlimited cascade depth, QoS
-ladder, node types Application/Broker/Library. Twelve LOSO scenarios and the five
-system models. Scored on the Application population with the shared
-`saag.evaluation.metrics.compute_inductive_metrics`.
+The registered arms are reported as registered. Nothing registered is re-run
+or replaced.
 
-**Reproduction gate.** Before anything else is reported, the rebuilt `Topo-QoS` must
-reproduce the published per-fold values (Supplementary S22, "as run") to three
-decimals. If it does not, nothing from this amendment is reported except the failure.
+**Added arms.**
+- `tab_gbm` (GBM-Feat). It was declared post hoc in Amendment 3 and never run
+  until now. Before its first run it was given the neural arms' per-graph label
+  transform (`normalize_labels_robust`), because the earlier code fed it raw
+  labels. A code comment claiming its node features are identical with and
+  without QoS was wrong and was corrected.
+- `tab_gbm_qos` (GBM-Feat-QoS): GBM-Feat reading the QoS-on node features.
+- `gl_full_qos16_nfmask` (GAT-QoS-nf): `gl_full_qos16_cap` with GAT's node
+  features and GAT-QoS's edge attributes. Each input is bit-identical to one
+  parent arm.
 
-### Arms, fixed before any run
+**Run.** One CPU invocation (`make -f reproduce/Makefile rq-attribution`):
+- LOSO arms: `topo_qos`, `gl_full_cap`, `gl_full_qos16_cap`,
+  `gl_full_qos16_nfmask`, `tab_gbm` and `tab_gbm_qos`.
+- Protocol: 12 folds × 5 seeds, Application population.
+- Zero-shot on the five system models for the five learned arms, at 3 layers
+  and 300 epochs.
+- Checks: `gl_full_cap`, `gl_full_qos16_cap` and `topo_qos` reproduce their
+  earlier rows bit for bit.
 
-All arms are training-free and run on the Application–Library `DEPENDS_ON`
-projection `Topo-QoS` uses (Rules 1 and 5), edges directed dependent → dependency.
+**Contrasts.** Five, as two-sided Wilcoxon tests over folds with Holm correction
+across the five (`reproduce/attribution_contrasts.py`). No decision rule was
+fixed in advance.
 
-| Arm | Score for component v |
-|:---|:---|
-| `Reach` | Number of transitive dependents of v (`nx.ancestors`), normalised by n − 1 |
-| `Reach-QoS` | Sum over transitive dependents u of the best-path product of edge `qos_weight` from u to v |
-| `CDI` | Connectivity Degradation Index alone, from `StructuralAnalyzer._compute_continuous_ap_scores` on the projection |
-| `InDeg` | Number of direct dependents (in-degree on the projection) |
-| `Topo-Mult` | `Topo-QoS` with every topic weight set to the constant 0.5, so that a Rule-1 edge weight depends only on how many topics join the pair |
-| `Topo-QoS-Perm` | `Topo-QoS` with topic QoS profiles permuted uniformly across the topics of each scenario (20 permutations, seeds 0–19, mean ρ). Labels are **not** permuted. |
-| `Topo` / `Topo-QoS` on a QoS-independent corpus | The twelve scenario configurations regenerated with a new opt-in generator switch `qos_affinity: false`, which removes QoS from topic selection and from criticality/hot-standby assignment; relabelled with the same oracle settings. The committed corpus is untouched. |
+| Contrast | Δρ | Won | p | p_Holm |
+|:---|---:|:---:|---:|---:|
+| GAT-QoS vs GAT-QoS-nf (QoS node columns) | +0.095 | 11/12 | 0.0049 | 0.024 |
+| GAT-QoS-nf vs GAT (QoS edge channel) | −0.023 | 3/12 | 0.064 | 0.192 |
+| GBM-Feat-QoS vs GBM-Feat | −0.010 | 5/12 | 0.519 | 1.000 |
+| GAT vs GBM-Feat | −0.079 | 1/12 | 0.0093 | 0.037 |
+| GAT-QoS vs GBM-Feat-QoS | +0.003 | 7/12 | 1.000 | 1.000 |
 
-**Oracle sensitivity.** `I*` relabelled over propagation threshold θ ∈ {0.1, 0.2,
-0.3} × depth-damping step ∈ {0.10, 0.15, 0.20} (floor 0.25). Reported: each
-label's rank agreement with the shipped setting, and `Topo-QoS` ρ under each.
+**What changed in the manuscript.** RQ2 now asks where learned accuracy comes
+from, and the answer is the per-component features:
+- relation typing, message passing and the QoS edge encoding add nothing
+  measurable;
+- the untyped engine's QoS gain is carried by the three node columns.
 
-**Inert-vs-active rule.** Predict "active" (`I* > 0`) iff `Reach > 0`. Reported:
-accuracy, balanced accuracy and F1 per fold.
+RQ3 keeps its numbers and adds GAT (0.831) and GBM-Feat (0.757) to the transfer
+table. The directionality control (`hgl_qos_uni`) is still unrun. Without its
+reverse pass HGT would also score Applications per node, so that control now
+tests whether HGT's message passing contributes at all.
 
-### Contrasts
+## Results log — Amendment 2's directionality arm (2026-09-26)
 
-Exploratory family, Holm-corrected across the four new rankers: each of `Reach`,
-`Reach-QoS`, `CDI`, `InDeg` against `Topo-QoS` (two-sided Wilcoxon over the twelve
-folds, bootstrap 95% CI, B = 2,000). Each is also compared descriptively, per fold,
-with the published CPU `HGT-QoS` values (S23).
+This is not an amendment: it records a registered arm being run, under Amendment
+2's reporting commitment ("every arm that is run is reported").
 
-### Decision rules
+`hgl_qos_uni` (HGT-QoS-U: HGT-QoS without its reverse pass, 330,895 parameters)
+was run in one CPU invocation with `topo_qos` and `hgl_qos`, using
+`make -f reproduce/Makefile rq-directionality` at a clean commit. Both
+comparators reproduce their published rows bit for bit. On this substrate the
+reverse pass is HGT's only route into Applications (Amendment 7), so HGT-QoS-U
+scores each Application from its own features.
 
-| Rule | Condition | What changes in the text |
-|:---|:---|:---|
-| R1 | The best of the four new rankers has LOSO mean ρ ≥ 0.622 (`HGT-QoS`, CPU) | Abstract, §1 and §9 say that learned engines do not beat a training-free reachability score on this oracle; the learned contribution is narrowed to transfer and identification. |
-| R2 | `Topo-Mult` or `Topo-QoS-Perm` retains ≥ 50% of the published `Topo` → `Topo-QoS` gain (fold-mean ρ − 0.349) / 0.204 | The claim that *declared QoS contracts* produce the gain is replaced throughout by *QoS-weighted dependency multiplicity*; the QoS-content share is reported as what the controls leave. |
-| R2′ | On the QoS-independent corpus, `Topo-QoS` − `Topo` < 50% of the published +0.204 | The generator coupling is reported as part of the mechanism of the gain. |
-| R3 | Always | Every arm is reported in the manuscript or supplement, whichever way it comes out. |
+- **Registered contrast** (Amendment 2 control family). HGT-QoS vs HGT-QoS-U:
+  Δρ = −0.010 [−0.064, +0.036], 6/12 folds, W = 37, p = 0.910. Holm across
+  Amendment 2's three run controls gives 1.000.
+- **Zero-shot.** HGT-QoS-U scores 0.804 against HGT-QoS 0.760. It is higher on
+  all five system models.
+- **Omnibus.** The contrast joins the pooled family, which grows from 11 to 12.
+  Hybrid-GAT p_omni = 0.018 (was 0.016) and Hybrid-HGT p_omni = 0.038 (was
+  0.034); both remain significant. Amendment 2's other two controls move from
+  a family p_Holm of 0.761 to 1.000.
 
-**What is unchanged.** All registered contrasts of the plan and Amendments 1–6, their
-families and their outcomes. No learned model is retrained.
+Directionality therefore does not confound the typing result, and HGT's message
+passing contributes nothing measurable on this target. The capacity-only control
+`gl_full_qos_cap` (GAT-w) remains unrun.

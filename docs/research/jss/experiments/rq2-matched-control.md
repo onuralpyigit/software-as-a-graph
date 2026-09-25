@@ -36,6 +36,12 @@ because the tests pair them by fold.
 
 ## Headline result
 
+> **Interpretation revised (Amendment 7).** The untyped arms score Applications per node, so this
+> 2×2 compares typed message passing with per-component learning, and its Q factor switches the edge
+> channel and three QoS node columns together. The +0.073 is carried by the node columns, not the
+> edge channel, and the seed stabilisation below follows them too. See
+> [rq2-attribution-controls.md](rq2-attribution-controls.md). The numbers on this page are unchanged.
+
 At matched capacity, the QoS channel adds about +0.073 with or without typing (10/12 folds each). Typing
 has no main effect (−0.014) and no interaction (+0.001). The untyped `GAT-QoS` (0.635) performs as
 well as the typed `HGT-QoS` (0.622).
@@ -50,9 +56,11 @@ well as the typed `HGT-QoS` (0.622).
 - **Why earlier robustness checks missed the confound.** The Fisher-z transform (S16) and robust
   seed aggregation (S21) both left the unmatched interaction intact, because both hold the four
   unmatched arms fixed.
-- **Controls not run.** Two registered arms were never run:
-  - `GAT-w`, a capacity-only QoS control;
-  - `HGT-QoS-U`, a directionality control, since HGT has 103,725 reverse-direction parameters.
+- **Controls not run.** One registered arm was never run: `GAT-w`, a capacity-only QoS control.
+  The directionality control `HGT-QoS-U` (HGT without its 103,725 reverse-direction parameters)
+  was run after Amendment 7 (`make -f reproduce/Makefile rq-directionality`). It matches
+  `HGT-QoS` (−0.010, 6/12, p = 0.91) and transfers better (0.804 vs 0.760); see
+  [rq2-attribution-controls.md](rq2-attribution-controls.md).
   
   Amendment 2's label-side sweep, with the oracle's QoS ladder disabled, was also not run. The
   label's QoS content is bounded instead in [oracles-and-sensitivity.md](oracles-and-sensitivity.md).

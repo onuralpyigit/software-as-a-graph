@@ -30,8 +30,9 @@ does not show that the question was asked without any prior estimate.
 
 Dates, outcomes and the completeness statement are in Supplement S24. The sequence is adaptive:
 Amendment 6 followed Amendment 2's result. Correcting within each family therefore does not bound the
-error accumulated across the sequence. `make -f reproduce/Makefile omnibus` pools all eleven
-registered contrasts under one Holm correction (`omnibus_registered_holm.json`). Both hybrid
+error accumulated across the sequence. `make -f reproduce/Makefile omnibus` pools all twelve
+registered contrasts under one Holm correction (`omnibus_registered_holm.json`); the twelfth is
+Amendment 2's directionality control, run after Amendment 7. Both hybrid
 primaries survive it; no other registered contrast reaches α = 0.05.
 
 ## Repeatability

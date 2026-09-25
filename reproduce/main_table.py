@@ -119,6 +119,7 @@ CONTROL_VARIANTS = [
     "gl_full_qos_cap",      # GAT-N-QoS-C: capacity-matched GAT-N-QoS (h=296)
     "gl_full_qos16_cap",    # GAT-N-QoS16-C: capacity-matched, full 16-D edge channel
     "hgl_qos_uni",          # HGT-QoS-U: HGT-QoS without the reverse pass
+    "gl_full_qos16_nfmask", # GAT-QoS-nf: LOSO/zero-shot only; this harness reports it as unknown_variant
 ]
 
 DEFAULT_SEEDS = [42, 123, 456, 789, 2024]
