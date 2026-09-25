@@ -836,11 +836,17 @@ class StructuralAnalyzer:
             if getattr(comp, "component_type", "") != "Topic":
                 continue
             props = getattr(comp, "properties", {}) or {}
-            qos = props.get("qos", {})
-
-            dur = qos.get("durability", "").lower().replace(" ", "_") if qos else ""
-            rel = qos.get("reliability", "").lower().replace(" ", "_") if qos else ""
-            pri = qos.get("transport_priority", "").lower().replace(" ", "_") if qos else ""
+            # The repositories store topic QoS flat (qos_reliability, ...); raw
+            # topology JSON nests it under "qos". Reading only the nested shape
+            # left this profile empty for every repository-loaded system. Unlike
+            # QoSPolicy.from_node_attrs, a missing field contributes nothing
+            # rather than a default.
+            qos = props.get("qos") or {}
+            dur = props.get("qos_durability") or qos.get("durability") or ""
+            rel = props.get("qos_reliability") or qos.get("reliability") or ""
+            pri = (props.get("qos_transport_priority") or props.get("qos_priority")
+                   or qos.get("transport_priority") or qos.get("priority") or "")
+            dur, rel, pri = (str(x).lower().replace(" ", "_") for x in (dur, rel, pri))
 
             if dur:
                 durability[dur] = durability.get(dur, 0) + 1
