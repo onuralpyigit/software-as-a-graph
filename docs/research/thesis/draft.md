@@ -2231,23 +2231,33 @@ middleware, *how* a component is critical is at least as important as *whether* 
 for graph learning is narrower, and more specific, than we expected when we set out. Four findings
 carry this.
 
-**First, learning pays — most defensibly for set identification (RQ1).** The typed predictor leads
-the strongest non-learning baseline on both metrics and under all three evaluation protocols. Out of
-distribution — the genuine pre-deployment condition — it reaches $\rho = 0.608$ against $0.521$ for a
-QoS-weighted centrality that requires no training, no labels and no transfer assumption, and
-$F_1@K = 0.465$ against $0.308$. Both margins are measured against a baseline we first had to repair:
-`Topo-QoS` was computing no QoS weighting whatsoever (§8.1), and until that was fixed it was
-`Topo-BL` wearing a different label. We place substantially more weight on the second metric than the
-first, for three reasons. Operationally, an architect hardens a handful of components, not a ranked
-list of 150. Empirically, the ranking comparison is the less stable one: `Topo-QoS` carries the
-largest across-fold variance of any predictor in the study ($\sigma = 0.31$ LOSO, $0.34$ k-fold),
-whereas the set-identification ordering does not invert under any protocol. And evidentially, the
-ranking margin is the weaker of the two: it does not survive a paired test across scenarios
-in-distribution ($p = 0.375$, Table 19), and out of distribution it rests on a run whose artifact was
-not retained, against an earlier retained run that recorded a tie (§8.1). The practical reading is
-therefore a scope condition with an asymmetry in confidence: if a team needs the critical set, typed
-learning is worth its training cost on the evidence here; if they need a cheap ordering, QoS-weighted
-centrality remains a serviceable default, and we cannot presently demonstrate that learning beats it.
+**First, learning pays in combination with closed-form ranking, not instead of it (RQ1).** Out of
+distribution, over twelve held-out architectures, the pure learned engines lead the QoS-weighted
+closed-form score only numerically: `HGT-QoS` reaches $\rho = 0.622$ and the untyped `GAT-QoS`
+$0.635$, against $0.553$ for a `Topo-QoS` that needs no training, no labels and no transfer
+assumption, and neither contrast is significant ($p = 0.266$ and $0.233$; §9.1.1, Table 25). The
+engines that do significantly outperform it are the hybrids, which correct the closed-form score
+with a learned residual: Hybrid-HGT reaches $\rho = 0.657$ ($+0.103$) and Hybrid-GAT $0.683$
+($+0.130$), each on 11 of 12 folds and each surviving Holm correction. The reason is
+complementarity. The learned engine loses exactly where the closed-form engine is strongest, most
+sharply on the largest and densest fold (Enterprise, $0.426$ against $0.795$), and gains most where
+it is weakest (Healthcare, IoT Smart City, ATM, Microservices), so `Topo-QoS`'s per-fold scores
+range from $0.265$ to $0.810$ while the hybrids keep most of both strengths (Table 27). All of these
+margins are measured against a baseline we first had to repair: `Topo-QoS` was computing no QoS
+weighting whatsoever (§8.1), and until that was fixed it was `Topo-BL` wearing a different label.
+Under LOSO, set identification no longer carries the case on its own: Overlap@$K$ moves only from
+$0.388$ for `Topo-QoS` to $0.426$–$0.450$ for the learned and hybrid engines, and top-$K$ sets are
+noisier than rankings in the labels themselves. It does separate the engines under zero-shot
+transfer to the five open-source system models, where the pure learned engines reach
+$\rho = 0.760$–$0.805$ and top-$K$ overlap $0.470$–$0.519$, against $0.511$–$0.526$ and $0.248$ for
+the closed-form scores. The practical reading is therefore a three-way scope condition. For a
+cheap ordering in a CI gate, QoS-weighted centrality remains a serviceable default. For
+architectures that resemble the training corpus, a hybrid is worth its training cost on the evidence
+here. For substantially different architectures, a pure learned engine with the QoS edge channel
+transfers best, and because relation typing adds nothing at matched capacity, the untyped `GAT-QoS`
+is the simpler choice. What we cannot yet demonstrate is that any engine ranks the components that
+actually propagate failures: restricted to them, every predictor loses about half its correlation
+(§9.1.1).
 
 **Second, decomposition is worth having for reasons that are not accuracy (RQ2, §8.2; weighting
 sensitivity from RQ3's robustness analysis, §8.3).** The dimension
@@ -2295,8 +2305,8 @@ by the audit, and the one we would defend most confidently.
 > behind each table is named in its caption. Per the source-integrity rules in
 > [`outline.md`](outline.md#source-integrity), re-read each figure from its artifact when this
 > subsection moves into the thesis. These figures come from a later, larger corpus (twelve LOSO folds
-> rather than seven) and supersede the older figures of §8.1 and of the first finding above wherever
-> the two disagree. Predictor names follow the current manuscript: `HGT-QoS` is this draft's
+> rather than seven) and supersede the older figures of §8.1 wherever the two disagree. Predictor
+> names follow the current manuscript: `HGT-QoS` is this draft's
 > `HGL-QoS`; `GAT` and `GAT-QoS` are untyped GATs matched to HGT in parameter budget, which have no
 > counterpart in Table 18.
 
