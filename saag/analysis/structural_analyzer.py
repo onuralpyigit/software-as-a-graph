@@ -54,6 +54,7 @@ from saag.core.layers import (
     get_layer_definition,
 )
 from saag.core.metrics import StructuralMetrics, EdgeMetrics, GraphSummary
+from saag.core.models import QoSPolicy
 
 from .graph_ops import (
     articulation_points_disconnected,
@@ -835,25 +836,18 @@ class StructuralAnalyzer:
         for comp in graph_data.components:
             if getattr(comp, "component_type", "") != "Topic":
                 continue
-            props = getattr(comp, "properties", {}) or {}
-            # The repositories store topic QoS flat (qos_reliability, ...); raw
-            # topology JSON nests it under "qos". Reading only the nested shape
-            # left this profile empty for every repository-loaded system. Unlike
-            # QoSPolicy.from_node_attrs, a missing field contributes nothing
-            # rather than a default.
-            qos = props.get("qos") or {}
-            dur = props.get("qos_durability") or qos.get("durability") or ""
-            rel = props.get("qos_reliability") or qos.get("reliability") or ""
-            pri = (props.get("qos_transport_priority") or props.get("qos_priority")
-                   or qos.get("transport_priority") or qos.get("priority") or "")
-            dur, rel, pri = (str(x).lower().replace(" ", "_") for x in (dur, rel, pri))
+            # Both repositories store Topic QoS flat (qos_reliability, ...);
+            # reading only the nested "qos" dict left this profile empty for
+            # every repository-loaded system. from_node_attrs reads either shape.
+            qos = QoSPolicy.from_node_attrs(getattr(comp, "properties", {}) or {})
 
-            if dur:
-                durability[dur] = durability.get(dur, 0) + 1
-            if rel:
-                reliability[rel] = reliability.get(rel, 0) + 1
-            if pri:
-                priority[pri] = priority.get(pri, 0) + 1
+            dur = qos.durability.lower().replace(" ", "_")
+            rel = qos.reliability.lower().replace(" ", "_")
+            pri = qos.transport_priority.lower().replace(" ", "_")
+
+            durability[dur] = durability.get(dur, 0) + 1
+            reliability[rel] = reliability.get(rel, 0) + 1
+            priority[pri] = priority.get(pri, 0) + 1
             total += 1
 
         return {
