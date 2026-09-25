@@ -2366,9 +2366,10 @@ correct outcome of an honest test rather than a failure of the mechanism: the pr
 reported a more favourable aggregate precisely because it never asked each edit to justify itself.
 
 **Finally, automated quality gating operationalises these checks continuously (RQ4).** Run in-memory
-through the database-free `MemoryRepository`, the analysis-and-detection machinery the gate invokes
-completes anti-pattern scans and counterfactual simulations in seconds (~5 s medium, ~40 s xlarge;
-§8.4). That speed is measured on the machinery, not on the packaged gate: `detect_antipatterns.py`
+through the database-free `MemoryRepository`, the structural analysis and anti-pattern catalog the
+gate invokes complete in $0.02$–$1.24$ s on every scenario up to 326 components and in $26.74$ s on
+the largest, `enterprise_system` at 520 components (§8.4). That speed is measured on the machinery,
+not on the packaged gate: `detect_antipatterns.py`
 still connects to a running Neo4j database (§6.6), so a CI build's wall-clock time also includes
 loading the topology into it, which we have not measured. The speed makes the analyzer viable as a
 blocking CI/CD check. It is not yet sustainable as one: the gate is
