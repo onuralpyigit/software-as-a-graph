@@ -18,8 +18,8 @@ before deployment and code-level static analysis is blind to system-level topolo
 typed, weighted, directed multigraph over five component classes and derives logical dependencies
 through typed projection rules. On this representation we train heterogeneous (**Heterogeneous Graph
 Transformer**) and homogeneous graph neural networks to forecast cascading failure impact, and pair
-them with an interpretable score decomposing criticality into Reliability, Maintainability, Availability and Vulnerability (RMAV)
-dimensions. Both are compared against discrete-event cascade simulators operating on a structurally
+them with an interpretable score decomposing criticality along Reliability (split into Fault
+Tolerance and Availability) and Maintainability (RM). Both are compared against discrete-event cascade simulators operating on a structurally
 disjoint view of the same model, under an input–label independence guarantee. Across twelve synthetic
 topologies, evaluated leave-one-scenario-out, and hand-authored models of five open-source systems, we
 report five results. **(1)** The QoS-aware representation carries most of the signal: QoS-weighted
@@ -141,9 +141,10 @@ We present **Software-as-a-Graph (SaG)**, a pre-deployment **Static System Analy
 framework. SaG models a pub-sub system as a typed, weighted, directed multigraph over five node
 types (applications, libraries, topics, brokers, nodes) and derives logical `DEPENDS_ON`
 dependencies through typed projection rules. Crucially, SaG ingests code-level SCA metrics as vertex
-attributes and performs **multi-dimensional quality attribution**, decomposing criticality into
-orthogonal Reliability, Maintainability, Availability, and Vulnerability (RMAV) dimensions under a
-stated weighting audited for Analytic Hierarchy Process (AHP) consistency (§4.3).
+attributes and performs **multi-dimensional quality attribution**, decomposing criticality along the
+ISO/IEC 25010 characteristics Reliability, with its Fault Tolerance and Availability
+sub-characteristics, and Maintainability (RM), under declared composite weights and intra-dimension
+weightings checked for Analytic Hierarchy Process (AHP) consistency (§4.3).
 
 SaG then performs **failure-impact analysis**, predicting cascade impact $I(v)$ with two predictors:
 the multi-dimensional composite $Q(v)$ and a learned **Heterogeneous Graph Transformer** (**HGT**).
@@ -201,7 +202,7 @@ simulated ground truth can and cannot establish.
 This paper makes the following contributions:
 
 1. **A typed graph model with hierarchical SCA metric integration.** We define the SaG multigraph
-   and the RMAV decomposition, which propagates code-level quality metrics (SonarQube `cm_*` fields)
+   and the RM decomposition, which propagates code-level quality metrics (SonarQube `cm_*` fields)
    into global system criticality scores (§3, §4).
 2. **A scope condition on where graph learning pays for pub-sub criticality.** Under a single
    evaluation contract applied to every predictor (§7.3), and over twelve held-out architectures,
@@ -216,12 +217,12 @@ This paper makes the following contributions:
    attention ($\Delta\rho = -0.014$), and the QoS edge channel is what helps ($+0.073$; §8.2). The
    contribution is the scope condition, not a win for any single engine.
 3. **Multi-dimensional criticality attribution, positioned as explanation rather than accuracy.**
-   RMAV decomposes criticality into four dimensions with distinct remediation owners, so a diagnostic
-   is traceable to an action. A shrinkage sweep shows the dimension weighting does *not* improve
+   RM decomposes criticality into Fault Tolerance, Availability and Maintainability, each with a
+   distinct remediation owner, so a diagnostic is traceable to an action. A shrinkage sweep shows the dimension weighting does *not* improve
    ranking accuracy over equal weights (§8.3); we report this and scope the contribution to
    attribution accordingly (§4, §8.3).
 4. **Relationship criticality as a first-class measure, and measured edge ground truth.** We give
-   inter-component dependencies the same four-dimensional attribution as components (§4.7), so that
+   inter-component dependencies the same RM attribution as components (§4.7), so that
    the partial-outage case — one link down, both endpoints healthy — is scored rather than inferred
    from endpoint scores. Separately, we obtain edge ground truth by simulating removal of each
    candidate relationship rather than projecting node labels through a heuristic multiplier, finding
@@ -352,7 +353,7 @@ is representational rather than dimensional: once node and edge types are discar
 library's *simultaneous* failure mode — every consumer failing in one event rather than along a
 propagation path — is indistinguishable from an ordinary edge, so an untyped model cannot express it
 even in principle. Whether that mechanism produces a large scoring gap in practice is a separate,
-empirical question, which we test directly and answer in the negative for our suite (§5.4). Our RMAV
+empirical question, which we test directly and answer in the negative for our suite (§5.4). Our RM
 attribution retains the interpretability that makes structural metrics attractive while decomposing
 criticality into orthogonal dimensions, and our typed model keeps the semantics that single-score
 centrality erases.
@@ -399,9 +400,9 @@ What has not been done, to our knowledge, is to use a multi-criteria decompositi
 *attribution* mechanism for pre-deployment component criticality in pub-sub systems — that is, to
 make the per-dimension breakdown the explanation an architect acts on, with each structural metric
 feeding exactly one dimension so that the reason a component is critical is legible from its
-profile. Our RMAV scoring does precisely this, applying the pairwise formalism both within each
-dimension and to form the composite $Q(v)$, with a shrinkage parameter that blends the stated
-weighting toward a uniform prior. We report the sensitivity of that shrinkage rather than assume it
+profile. Our RM scoring does precisely this, applying the pairwise formalism within each
+sub-characteristic, with a shrinkage parameter that blends the stated weighting toward a uniform
+prior, and combining the characteristics under declared composite weights (§4.3). We report the sensitivity of that shrinkage rather than assume it
 helps: measured against simulated impact it is monotonically harmful, and equal weights outperform
 the calibrated vector (§8.3). The contribution we claim here is therefore explanatory — the
 per-dimension breakdown — not an accuracy gain from the weighting. This connects the
@@ -664,8 +665,8 @@ sequential-cascade and simultaneous-blast edges visually distinguished.)*
 > Where the material and the code disagreed (the Availability coefficients, the Topic Fault Tolerance
 > term, the metrics still computed, the classification rule), the code wins. The worked example of
 > §4.6 was re-run through the current pipeline ([`examples/run_running_example.py`](../../../examples/run_running_example.py)).
-> It replaces the retired four-dimension RMAV model of an earlier revision. Other chapters still use
-> the RMAV name and, in places, its four-dimension framing; they have not yet been migrated.
+> It replaces the retired four-dimension RMAV model of an earlier revision; where later chapters
+> still say RMAV, they refer to that earlier model or to code named at the time.
 
 Centrality answers *whether* a component is important with a single number. An architect choosing
 between a replica, a reroute, and a decoupling refactor needs to know *why*. This section presents
@@ -1396,9 +1397,9 @@ specific failure mode:
 | **FanOutReduction** | high structural blast radius (topic subscriber fan-out; library consumer count) | interpose an intermediary or split the over-shared channel | simultaneous blast / fan-out explosion |
 | **SharedTopicReduction** | high multi-path coupling (large `path_count` / MPCI between a pair) | decouple redundant shared topics between the pair | multi-channel coupling fragility |
 
-The operators span the RMAV dimensions deliberately: RedundancyInsertion and PathDiversification
-address Availability, FanOutReduction addresses Reliability (blast radius), and
-SharedTopicReduction addresses Maintainability coupling.
+The operators span the RM sub-characteristics deliberately: RedundancyInsertion and
+PathDiversification address Availability, FanOutReduction addresses Fault Tolerance (blast radius),
+and SharedTopicReduction addresses Maintainability coupling.
 
 ## 6.3 Triggering on Blast Radius, not on $Q(v)$
 
@@ -1611,7 +1612,7 @@ current JSS manuscript; parameter counts are those of the evaluated models.
 
 | Predictor | Description | Substrate | Parameters | Role |
 |-----------|-------------|-----------|---:|------|
-| **RMAV / $Q$** | deterministic multi-dimensional composite (§4); reported as RM / $Q(v)$ in §8 | $G_{\text{analysis}}$ | 0 | interpretable predictor |
+| **RM / $Q(v)$** | deterministic multi-dimensional composite (§4) | $G_{\text{analysis}}$ | 0 | interpretable predictor |
 | **Topo / Topo-QoS** | betweenness and articulation points, unweighted / QoS-weighted | Application–Library projection | 0 | non-learning baselines |
 | **GAT-S-P / GAT-S-P-w** | small homogeneous GAT, no edge feature / scalar $w(e)$ | Application–Library projection | 28,168 | in-distribution learning baselines (untyped) |
 | **GAT-S / GAT-S-w** | small homogeneous GAT, no edge feature / scalar $w(e)$ | native multigraph | 28,168 | LOSO learning baselines (untyped) |
@@ -1624,7 +1625,7 @@ The contrast `Topo-*` vs learned isolates the value of learning (RQ1); `GAT` vs 
 vs `HGT-QoS`, at matched capacity and edge-channel width, isolate the value of *typed*
 heterogeneity; HGT vs `HGT-QoS` and `GAT` vs `GAT-QoS` isolate the value of explicit QoS encoding
 (RQ3); the hybrids against `Topo-QoS` isolate the value of correcting the closed-form score rather
-than replacing it; and `RMAV/Q` vs the learned predictors isolates when interpretable attribution
+than replacing it; and RM / $Q(v)$ vs the learned predictors isolates when interpretable attribution
 suffices. The small GATs (`GAT-S*`) are the unmatched baselines of an earlier comparison and are
 kept for reference only (§8.2). The structural baselines' features are kept decoupled from the GNN
 inputs so that no comparison leaks information across the predictor boundary.
@@ -1731,7 +1732,7 @@ label-coverage bounds that apply to each.
 | Symbol | Engine | Quantity | Used for |
 |---|---|---|---|
 | $I^*(v)$ | `FaultInjector` | Mean subscriber feed-loss fraction under a BFS cascade | Learned-predictor labels; Tables 18 and 20 (§8.1); the sensitivity sweeps of §8.3 |
-| $I_{\text{comp}}(v)$ | `FailureSimulator` | $0.35\,\text{reachability} + 0.25\,\text{fragmentation} + 0.25\,\text{throughput} + 0.15\,\text{flow}$ | Validation gates; the RMAV dimension decomposition; §5.4 and §5.5; remediation acceptance (§6.4) |
+| $I_{\text{comp}}(v)$ | `FailureSimulator` | $0.35\,\text{reachability} + 0.25\,\text{fragmentation} + 0.25\,\text{throughput} + 0.15\,\text{flow}$ | Validation gates; the RM dimension decomposition; §5.4 and §5.5; remediation acceptance (§6.4) |
 | $I_{\text{dyn}}(v)$ | `MessageFlowSimulator` | Delivery-rate loss suffered by *surviving* consumers, by discrete-event simulation of traffic | Reported construct-validity check only — no labels, no gates, no tables |
 
 The two cascade oracles run with a step-function blast-semantics propagation scheme (probability
@@ -1832,13 +1833,13 @@ except where the architecture differs by construction.
 | Attention heads | 4 |
 | Dropout | 0.2 |
 | Input projection | per-node-type linear → LayerNorm → ReLU |
-| Output heads | four RMAV residual MLPs + one composite head, sigmoid-activated |
+| Output heads | two RM residual MLPs (Reliability, Maintainability) + one composite head, sigmoid-activated |
 | Optimizer | AdamW, learning rate $3\times10^{-4}$, weight decay $1\times10^{-4}$ |
 | LR schedule | `CosineAnnealingWarmRestarts`, $T_0 = \max(50, \text{epochs}/4)$, $T_{\text{mult}} = 2$, $\eta_{\min} = 0.01\cdot\text{lr}$ |
 | Gradient clipping | max-norm 1.0 |
 | Epochs / early stopping | 300, patience 30 on validation loss |
 | Node splits | 60% train / 20% validation / 20% test, pinned by node identity (§7.3) |
-| Loss | composite MSE $+\ 0.5\,$multitask $+\ 0.3\,$ListMLE ranking $+\ 0.1\,$pairwise margin $+\ 0.1\,$RMAV consistency |
+| Loss | composite MSE $+\ 0.5\,$multitask $+\ 0.3\,$ListMLE ranking $+\ 0.1\,$pairwise margin (the optional RM-consistency term is off by default) |
 
 **Hardware and runtime.** Training and evaluation were run on a single workstation; the LOSO sweep is
 the dominant cost. In the last sweep with recorded per-arm wall-clock (CPU, sequential, twelve folds
@@ -1872,7 +1873,7 @@ than omit it silently.
 > §§S17, S25 and the registered LOSO sweep), with the artifact behind each table named in its caption;
 > per [`outline.md`](outline.md#source-integrity), re-read each figure from its artifact when this
 > section moves into the thesis. Predictor names are those of Table 14 (§7.2); RM / $Q(v)$ is the
-> successor of §4's RMAV composite.
+> composite of §4.
 
 Every figure in this section is produced by one evaluation contract (§7.3): each predictor is scored
 on the same Application node set. In distribution, that set is a held-out 60/20/20 node split, redrawn
@@ -2180,8 +2181,8 @@ QoS channel acts largely as a relation-identity and coupling-strength signal rat
 semantics. RQ3 therefore resolves as a scope condition: QoS encoding matters little in distribution
 and is the component that improves learned ranking out of distribution.
 
-The sensitivity sweeps that follow (Tables 21 and 22) score the RM composite, the successor of §4's
-RMAV score, and are transcribed from the JSS supplement ([`supplementary.tex`](../jss/latex/supplementary.tex)
+The sensitivity sweeps that follow (Tables 21 and 22) score the RM composite of §4, and are
+transcribed from the JSS supplement ([`supplementary.tex`](../jss/latex/supplementary.tex)
 §§S1 and S3). They were not run on the twelve-scenario corpus: the shrinkage sweep covers the seven
 core synthetic domains, the Morris screening six of them (Enterprise is excluded for cost), and the
 supplement does not state the corpus of the threshold and normalisation sweeps, whose artifact
@@ -2235,8 +2236,8 @@ the re-measurement under the RM composite moves both ends and leaves the directi
 makes this the one robustness result in §8.3 that has not moved under re-measurement.
 
 We draw the corresponding conclusion about the contribution rather than defending the weighting.
-**The value of the RMAV decomposition is attribution, not ranking accuracy.** A composite score
-ranks; a four-dimensional profile explains *why* a component ranks where it does, and routes the
+**The value of the RM decomposition is attribution, not ranking accuracy.** A composite score
+ranks; a Fault Tolerance / Availability / Maintainability profile explains *why* a component ranks where it does, and routes the
 finding to the engineering role equipped to act on it (§4.1) — a structural single point of failure
 and a cascade hub call for different remediations even at identical composite scores. That
 explanatory function is unaffected by the weighting result. What the sweep removes is any claim that
@@ -2533,9 +2534,9 @@ actually propagate failures: restricted to them, every predictor loses about hal
 sensitivity from RQ3's robustness analysis, §8.3).** The dimension
 weighting does not improve ranking — equal weights beat the calibrated ones (§8.3) — and the
 stratified check we ran to detect Simpson's-paradox masking did not find it in the $Q$–$I$ relation.
-What survives is the property we think actually motivates the decomposition: a four-dimensional
-profile says *why* a component is critical and routes the finding to an owner, which a scalar cannot,
-and that holds regardless of how the four are combined. The methodological discipline was also not
+What survives is the property we think actually motivates the decomposition: a Fault Tolerance /
+Availability / Maintainability profile says *why* a component is critical and routes the finding to
+an owner, which a scalar cannot, and that holds regardless of how they are combined. The methodological discipline was also not
 wasted: pooled-versus-stratified reporting *did* catch a real distortion elsewhere in this study,
 where collapsing Application and Library nodes into one correlation moved a headline figure by 0.38
 (§5.5). The check earned its place by catching something, just not where we pointed it.
@@ -2814,7 +2815,7 @@ $$\underbrace{\text{structural / learned score}}_{Q(v),\ \text{HGT}}
 Link ① is what §8 reports: a real, falsifiable result. Link ② is not measured anywhere in this
 paper — no user study, expert elicitation, or production incident record is used, and the simulator
 is itself a *model* of stakeholder harm rather than an observation of it. The defensible claim is
-therefore: *RMAV and the learned predictors track simulated failure impact, and simulated failure
+therefore: *RM and the learned predictors track simulated failure impact, and simulated failure
 impact is our stated operationalisation of Quality-in-Use loss.* The stronger claim — that these
 scores track Quality-in-Use as stakeholders would report it — is not supported by anything here, and
 we do not make it. Closing link ② requires evidence of a different kind: expert ranking studies on
@@ -2880,7 +2881,7 @@ setting at which the sixth defect below is provably a no-op, and neither exercis
 defect lived in independently of that setting. The twelve-scenario tables of §8.1 reproduce at their
 reported precision at fixed code, seeds and device.
 
-Fourth, `extract_rmav_scores_dict` — the function that turns `PredictionService`'s RMAV output into
+Fourth, `extract_rmav_scores_dict` (since renamed `extract_rm_scores_dict` in the RM migration) — the function that turns `PredictionService`'s RMAV output into
 the GNN's auxiliary training target — keyed its lookup by an attribute (`component_id`) that the
 underlying dataclass does not have (it has `id`), so every key fell through to the object's own
 `repr()` string and the lookup silently returned nothing usable; the $0.1$-weighted RMAV-consistency
@@ -3071,14 +3072,15 @@ plausibly by training on a substantially larger and more diverse scenario corpus
 whether typed learning has more to offer here than it currently demonstrates.
 
 **The dimension weighting does not improve accuracy.** §8.3 finds equal weights outperform the
-calibrated AHP weighting with no plateau in the shrinkage parameter. We have repositioned RMAV as an
+calibrated AHP weighting with no plateau in the shrinkage parameter. We have repositioned RM as an
 attribution mechanism accordingly, but a weighting *derived* rather than asserted — fitted to
 simulated impact, or elicited from a panel of practitioners with reported inter-rater agreement —
 would let the decomposition make an accuracy claim as well as an explanatory one.
 
-**The Vulnerability dimension is the lightest of the four**, resting on reachability-style proxies
-with no model of trust boundaries, privilege, or data sensitivity. A richer adversarial model would
-strengthen the V attribution and broaden the framework's security relevance.
+**Security is out of scope.** An earlier revision scored a Vulnerability dimension from
+reachability-style proxies with no model of trust boundaries, privilege, or data sensitivity; it was
+retired rather than kept on that evidence (§4.1). Restoring security attribution would need a real
+adversarial model and hazard or threat inputs the architecture model does not carry.
 
 **Remediation is verified but not yet demonstrably effective.** The per-edit acceptance filter of
 §6.4 is implemented, which removes the possibility of an unverified regressing edit being applied
@@ -3133,7 +3135,8 @@ instrumented deployments, which would convert this paper's comparative claims in
 We presented Software-as-a-Graph, a pre-deployment Static System Analysis (SSA) framework that
 models distributed pub-sub middleware as a typed, weighted, directed multigraph and analyzes it
 along two coupled axes: multi-dimensional quality attribution, which decomposes each component's
-criticality into orthogonal, interpretable RMAV dimensions (integrating local code quality metrics),
+criticality along the interpretable RM characteristics and sub-characteristics (integrating local
+code quality metrics),
 and failure-impact analysis, which predicts cascade impact with the interpretable composite, a
 QoS-weighted closed-form score, and learned heterogeneous and homogeneous graph neural networks,
 validated against discrete-event simulation under a
