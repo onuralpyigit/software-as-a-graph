@@ -717,17 +717,21 @@ def check_realworld(rep: Report) -> None:
     """Table tab:9b: per-system zero-shot correlations of the training-free and learned engines.
 
     Column order: system | |V_app| | n_>0 | Topo | Topo-QoS | HGT-QoS rho (+/- seeds) |
-    GAT-QoS rho (+/- seeds) | HGT-QoS rho_>0. The table previously had eight columns
-    while this check skipped any row shorter than nine, so none of its rows was ever
-    checked; a check that matches nothing now reports a skip instead.
+    GAT-QoS rho | GAT rho | GBM-Feat rho | HGT-QoS rho_>0. The table previously had
+    eight columns while this check skipped any row shorter than nine, so none of its
+    rows was ever checked; a check that matches nothing now reports a skip instead.
+    GAT and GBM-Feat come from the Amendment 7 attribution runs.
     """
     d = (_load("realworld_zeroshot_v7.json") or _load("realworld_zeroshot_v6.json")
          or _load("realworld_zeroshot_v5.json") or _load("realworld_zeroshot.json"))
     gat = _load("realworld_zeroshot_gl_full_qos16_cap_cpu.json")
-    if d is None or gat is None:
+    plain = _load("realworld_zeroshot_gl_full_cap_attribution.json")
+    gbm = _load("realworld_zeroshot_tab_gbm_attribution.json")
+    if d is None or gat is None or plain is None or gbm is None:
         rep.skipped.append("tab:9b: realworld zero-shot artifacts absent")
         return
     per, per_gat, refs = d["per_system"], gat["per_system"], d.get("references", {})
+    per_plain, per_gbm = plain["per_system"], gbm["per_system"]
     name_to_key = {
         "Online Boutique": "realworld_cloud_microservices",
         "Train-Ticket": "realworld_trainticket",
@@ -739,7 +743,7 @@ def check_realworld(rep: Report) -> None:
     seen = 0
     for row in _rows(tex, r"\midrule", after_label=r"\label{tab:9b}"):
         cells = _cells(row)
-        if len(cells) != 8:
+        if len(cells) != 10:
             continue
         label = _label(cells[0])
         key = next((v for k, v in name_to_key.items() if label.startswith(k)), None)
@@ -752,7 +756,9 @@ def check_realworld(rep: Report) -> None:
             (4, refs.get("Topo-QoS", {}).get(key, {}).get("rho"), 0.002, "topoqos_rho"),
             (5, per[key].get("mean_rho"), 0.002, "hgt_qos_rho"),
             (6, per_gat.get(key, {}).get("mean_rho"), 0.002, "gat_qos_rho"),
-            (7, per[key].get("mean_rho_positive"), 0.002, "hgt_qos_rho_positive"),
+            (7, per_plain.get(key, {}).get("mean_rho"), 0.002, "gat_rho"),
+            (8, per_gbm.get(key, {}).get("mean_rho"), 0.002, "gbm_feat_rho"),
+            (9, per[key].get("mean_rho_positive"), 0.002, "hgt_qos_rho_positive"),
         )
         for idx, truth, tol, nm in checks:
             got = _num(cells[idx])
@@ -870,6 +876,15 @@ FRESHNESS_TARGETS = {
     "realworld_zeroshot_gl_qos16_prior_cpu.json": "Table 14 Hybrid-GAT system models",
     # Holm over every registered contrast of the plan and its amendments.
     "omnibus_registered_holm.json": "Section 6.3 / Supplementary S24 omnibus correction",
+    # Amendment 7: attribution controls (post hoc, exploratory).
+    "loso_attribution_cpu.json": "tab:attribution / Supplementary attribution folds",
+    "attribution_contrasts.json": "tab:attribution contrasts",
+    "receptive_field_probe.json": "Section 6.2 / Supplementary receptive field",
+    "realworld_zeroshot_gl_full_cap_attribution.json": "tab:9b GAT / Supplementary attribution zero-shot",
+    "realworld_zeroshot_gl_full_qos16_nfmask_attribution.json": "Supplementary attribution zero-shot",
+    "realworld_zeroshot_gl_full_qos16_cap_attribution.json": "Supplementary attribution zero-shot",
+    "realworld_zeroshot_tab_gbm_attribution.json": "tab:9b GBM-Feat / Supplementary attribution zero-shot",
+    "realworld_zeroshot_tab_gbm_qos_attribution.json": "Supplementary attribution zero-shot",
 }
 
 #: Artifacts that never read the corpus, so the corpus-freshness rule cannot
@@ -1111,7 +1126,8 @@ def check_qos_label_ablation(rep: Report) -> None:
 
 
 PROSE_NOTES = [
-    "QoS-channel seed spreads in sec:rq2 <- loso_all_variants_v*.json",
+    "QoS-node-column seed spreads in sec:rq2 <- results/attribution_contrasts.json median_seed_sd",
+    "GBM-Feat / receptive-field / zero-shot prose in sec:6.2, sec:rq2, sec:rq3, sec:8 <- the Amendment 7 artifacts",
     "label-noise ceiling in sec:rq1 <- output/loso_cache/*/failure_impact.json label_stability",
     "gate range in sec:rq4 <- results/detection_validation_timed_jss12.json gate_seconds",
 ]
@@ -1192,11 +1208,13 @@ def check_contrasts_matched(rep: Report) -> None:
     simple = {
         "Typing, QoS absent": ("hgl", "gl_full_cap"),
         "Typing, QoS present": ("hgl_qos", "gl_full_qos16_cap"),
-        "QoS channel, typing absent": ("gl_full_qos16_cap", "gl_full_cap"),
-        "QoS channel, typing present": ("hgl_qos", "hgl"),
+        "QoS inputs, typing absent": ("gl_full_qos16_cap", "gl_full_cap"),
+        "QoS inputs, typing present": ("hgl_qos", "hgl"),
     }
+    # "QoS inputs": the Q factor switches the edge channel and the three QoS
+    # node columns together (Amendment 7); the rows were "QoS channel" before.
     rowmap = {"Typing (main effect)": "main_typing",
-              "QoS channel (main effect)": "main_qos",
+              "QoS inputs (main effect)": "main_qos",
               "Typing $times$ QoS interaction": "interaction"}
     for row in _rows(tex, r"\midrule", after_label=r"\label{tab:contrasts_matched}"):
         cells = _cells(row)
@@ -1213,6 +1231,113 @@ def check_contrasts_matched(rep: Report) -> None:
             if got is None or abs(got - truth[key]) > tol:
                 rep.findings.append(Finding("tab:contrasts_matched", label, key, got,
                                             round(truth[key], 4)))
+
+
+def _table_rows(tex: str, label: str) -> List[List[str]]:
+    r"""Cells of every data row between a table's first ``\midrule`` and its
+    ``\bottomrule``, whether or not the row label is bold (``_rows`` keeps only
+    ``\textbf`` rows, which the supplement's per-fold tables do not use)."""
+    if label not in tex:
+        return []
+    i = tex.index(r"\midrule", tex.index(label))
+    j = tex.index(r"\bottomrule", i)
+    return [_cells(line.strip()) for line in tex[i:j].split("\n")
+            if "&" in line and line.strip().endswith(r"\\")]
+
+
+def check_attribution(rep: Report) -> None:
+    """Amendment 7 attribution controls: body table and the supplement's three tables.
+
+    * tab:attribution -- each contrast against ``attribution_contrasts.json``,
+      matched by its contrast cell (``GAT-QoS vs. GAT-QoS-nf``);
+    * tab:supp-attribution-folds -- every per-fold cell and the mean row against
+      ``loso_attribution_cpu.json``;
+    * tab:supp-attribution-zs -- per-system rho against the five zero-shot artifacts;
+    * tab:supp-rf -- HGT-QoS receptive-field share against ``receptive_field_probe.json``.
+    """
+    con = _load("attribution_contrasts.json")
+    loso = _load("loso_attribution_cpu.json")
+    rf = _load("receptive_field_probe.json")
+    body, supp = _tex("sec7_results.tex"), _supp()
+    if con is None or loso is None or rf is None:
+        rep.skipped.append("tab:attribution: attribution artifacts absent")
+        return
+
+    by_pair = {f"{c['label']} vs. {c['baseline_label']}": c for c in con["contrasts"]}
+    seen = 0
+    for cells in _table_rows(body, r"\label{tab:attribution}"):
+        truth = by_pair.get(_label(cells[1]))
+        if truth is None:
+            continue
+        seen += 1
+        for idx, key, tol in ((2, "mean_delta", 0.001), (4, "wins", 0), (5, "W", 0.05),
+                              (6, "p", 0.001), (7, "p_holm", 0.001)):
+            got = _num(cells[idx])
+            rep.checked += 1
+            if got is None or abs(got - truth[key]) > tol + 1e-9:
+                rep.findings.append(Finding("tab:attribution", _label(cells[1]), key, got,
+                                            round(truth[key], 4)))
+    if seen != len(by_pair):
+        rep.skipped.append(f"tab:attribution: matched {seen} of {len(by_pair)} contrasts")
+
+    fold_cols = ("topo_qos", "gl_full_cap", "gl_full_qos16_nfmask", "gl_full_qos16_cap",
+                 "tab_gbm", "tab_gbm_qos")
+    table = loso["comparison_table"]
+    per_fold = {v: {f["holdout"]: f["mean_rho"] for f in table[v]["per_fold"]} for v in fold_cols}
+    names = {s: s.replace("_system", "").replace("_", "").lower() for s in per_fold["topo_qos"]}
+    rows = _table_rows(supp, r"\label{tab:supp-attribution-folds}")
+    for cells in rows:
+        label = _label(cells[0])
+        if label == "Mean":
+            truths = [table[v]["mean_rho"] for v in fold_cols]
+        else:
+            norm = re.sub(r"system$", "", re.sub(r"[^a-z]", "", label.lower()))
+            key = next((s for s, n in names.items() if n == norm), None)
+            if key is None:
+                rep.findings.append(Finding("tab:supp-attribution-folds", label, "row", None, None))
+                continue
+            truths = [per_fold[v][key] for v in fold_cols]
+        for idx, truth in enumerate(truths, start=1):
+            got = _num(cells[idx])
+            rep.checked += 1
+            if got is None or abs(got - truth) > 0.0006:
+                rep.findings.append(Finding("tab:supp-attribution-folds", label, fold_cols[idx - 1],
+                                            got, round(truth, 4)))
+    if len(rows) != 13:
+        rep.skipped.append(f"tab:supp-attribution-folds: {len(rows)} rows, expected 13")
+
+    zs_cols = ("gl_full_cap", "gl_full_qos16_nfmask", "gl_full_qos16_cap", "tab_gbm", "tab_gbm_qos")
+    zs = {v: _load(f"realworld_zeroshot_{v}_attribution.json") for v in zs_cols}
+    zs_keys = {"Autoware": "realworld_autoware_ros2", "EdgeX": "realworld_edgex",
+               "Home Assistant": "realworld_homeassistant",
+               "Online Boutique": "realworld_cloud_microservices",
+               "Train-Ticket": "realworld_trainticket"}
+    if any(a is None for a in zs.values()):
+        rep.skipped.append("tab:supp-attribution-zs: zero-shot attribution artifacts absent")
+    else:
+        for cells in _table_rows(supp, r"\label{tab:supp-attribution-zs}"):
+            key = next((v for k, v in zs_keys.items() if _label(cells[0]).startswith(k)), None)
+            if key is None:
+                continue
+            for idx, v in enumerate(zs_cols, start=1):
+                got, truth = _num(cells[idx]), zs[v]["per_system"][key]["mean_rho"]
+                rep.checked += 1
+                if got is None or abs(got - truth) > 0.0006:
+                    rep.findings.append(Finding("tab:supp-attribution-zs", key, v, got, round(truth, 4)))
+
+    probe = rf["gradient_probe"]
+    for cells in _table_rows(supp, r"\label{tab:supp-rf}"):
+        label = re.sub(r"system$", "", re.sub(r"[^a-z]", "", _label(cells[0]).lower()))
+        key = next((s for s in probe if re.sub(r"[^a-z]", "", s.replace("_system", "")) == label), None)
+        if key is None:
+            continue
+        for idx, truth in ((4, probe[key]["hgl_qos"]["mean_rf_share"]),
+                           (5, probe[key]["gl_full_qos16_cap"]["mean_rf_nodes"])):
+            got = _num(cells[idx])
+            rep.checked += 1
+            if got is None or abs(got - truth) > 0.0006:
+                rep.findings.append(Finding("tab:supp-rf", key, str(idx), got, round(truth, 4)))
+
 
 
 #: Prose sites quoting the omnibus-adjusted p of the two hybrid primaries, as
@@ -1337,6 +1462,7 @@ def main() -> int:
     check_hybrid_table(rep)
     check_contrasts_matched(rep)
     check_omnibus_holm(rep)
+    check_attribution(rep)
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts "
           f"({len(rep.skipped)} check(s) skipped).\n")

@@ -405,3 +405,71 @@ Topo-QoS and HGT-QoS comparators are bit-identical across CPU sweeps.
 
 **Reporting commitment.** Reported whichever way it comes out, in the manuscript
 and supplement. It may be dropped only for a stated technical failure.
+
+## Amendment 7 — attribution controls (2026-09-26, after their results existed)
+
+**Status when written:** every run below is complete. This amendment is post hoc,
+and everything it adds is exploratory. It registers no contrast and changes no
+registered conclusion. It records why the manuscript's *interpretation* of RQ2
+and RQ3 changed.
+
+**Why it exists.** A receptive-field probe
+(`reproduce/receptive_field_probe.py`) showed that no relation on the native
+multigraph targets an Application. Every edge points from Application to Topic,
+Node or Library, and `GATConv` aggregates from source to target only. The
+untyped GAT arms of Amendment 2 (`gl_full_cap`, `gl_full_qos16_cap`) and
+Amendment 6 (`gl_qos16_prior`) therefore score every Application from its own
+features. On their trained checkpoints, deleting every edge changes no
+Application prediction. HGT reaches Applications through its reverse pass.
+
+Two consequences for the registered 2×2:
+- It compared typed message passing with per-component learning, not two
+  message-passing architectures.
+- Its Q factor switched two inputs at once: the 16-D edge channel and three
+  QoS node columns (`qos_weight`, `qos_weight_in`, `qos_weight_out`).
+
+The registered arms are reported as registered. Nothing registered is re-run
+or replaced.
+
+**Added arms.**
+- `tab_gbm` (GBM-Feat). It was declared post hoc in Amendment 3 and never run
+  until now. Before its first run it was given the neural arms' per-graph label
+  transform (`normalize_labels_robust`), because the earlier code fed it raw
+  labels. A code comment claiming its node features are identical with and
+  without QoS was wrong and was corrected.
+- `tab_gbm_qos` (GBM-Feat-QoS): GBM-Feat reading the QoS-on node features.
+- `gl_full_qos16_nfmask` (GAT-QoS-nf): `gl_full_qos16_cap` with GAT's node
+  features and GAT-QoS's edge attributes. Each input is bit-identical to one
+  parent arm.
+
+**Run.** One CPU invocation (`make -f reproduce/Makefile rq-attribution`):
+- LOSO arms: `topo_qos`, `gl_full_cap`, `gl_full_qos16_cap`,
+  `gl_full_qos16_nfmask`, `tab_gbm` and `tab_gbm_qos`.
+- Protocol: 12 folds × 5 seeds, Application population.
+- Zero-shot on the five system models for the five learned arms, at 3 layers
+  and 300 epochs.
+- Checks: `gl_full_cap`, `gl_full_qos16_cap` and `topo_qos` reproduce their
+  earlier rows bit for bit.
+
+**Contrasts.** Five, as two-sided Wilcoxon tests over folds with Holm correction
+across the five (`reproduce/attribution_contrasts.py`). No decision rule was
+fixed in advance.
+
+| Contrast | Δρ | Won | p | p_Holm |
+|:---|---:|:---:|---:|---:|
+| GAT-QoS vs GAT-QoS-nf (QoS node columns) | +0.095 | 11/12 | 0.0049 | 0.024 |
+| GAT-QoS-nf vs GAT (QoS edge channel) | −0.023 | 3/12 | 0.064 | 0.192 |
+| GBM-Feat-QoS vs GBM-Feat | −0.010 | 5/12 | 0.519 | 1.000 |
+| GAT vs GBM-Feat | −0.079 | 1/12 | 0.0093 | 0.037 |
+| GAT-QoS vs GBM-Feat-QoS | +0.003 | 7/12 | 1.000 | 1.000 |
+
+**What changed in the manuscript.** RQ2 now asks where learned accuracy comes
+from, and the answer is the per-component features:
+- relation typing, message passing and the QoS edge encoding add nothing
+  measurable;
+- the untyped engine's QoS gain is carried by the three node columns.
+
+RQ3 keeps its numbers and adds GAT (0.831) and GBM-Feat (0.757) to the transfer
+table. The directionality control (`hgl_qos_uni`) is still unrun. Without its
+reverse pass HGT would also score Applications per node, so that control now
+tests whether HGT's message passing contributes at all.
