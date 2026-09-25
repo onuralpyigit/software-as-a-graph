@@ -890,6 +890,10 @@ FRESHNESS_TARGETS = {
     "loso_significance_directionality_cpu.json": "Section 7.2 directionality contrast / omnibus",
     "realworld_zeroshot_hgl_qos_directionality.json": "tab:supp-directionality zero-shot (HGT-QoS)",
     "realworld_zeroshot_hgl_qos_uni_directionality.json": "tab:supp-directionality zero-shot (HGT-QoS-U)",
+    # Amendment 2's capacity control, the last registered arm.
+    "loso_capacity_cpu.json": "Section 7.2 / tab:supp-directionality (GAT-w LOSO)",
+    "loso_significance_capacity_cpu.json": "Section 7.2 capacity contrast / omnibus",
+    "realworld_zeroshot_gl_full_qos_cap_capacity.json": "tab:supp-directionality zero-shot (GAT-w)",
 }
 
 #: Artifacts that never read the corpus, so the corpus-freshness rule cannot
@@ -1349,15 +1353,23 @@ def check_attribution(rep: Report) -> None:
 
 
 def check_directionality(rep: Report, supp: str) -> None:
-    """tab:supp-directionality: the HGT-QoS-U control, LOSO per fold and zero-shot per system."""
+    """tab:supp-directionality: Amendment 2's late controls (HGT-QoS-U and GAT-w).
+
+    LOSO per fold and zero-shot per system. HGT-QoS-U and GAT-w ran in separate
+    invocations; each column is read from its own sweep, and the shared
+    Topo-QoS / HGT-QoS columns from the directionality sweep.
+    """
     loso = _load("loso_directionality_cpu.json")
+    cap = _load("loso_capacity_cpu.json")
     zs = {v: _load(f"realworld_zeroshot_{v}_directionality.json") for v in ("hgl_qos", "hgl_qos_uni")}
+    zs["gl_full_qos_cap"] = _load("realworld_zeroshot_gl_full_qos_cap_capacity.json")
     label = r"\label{tab:supp-directionality}"
-    if loso is None or any(z is None for z in zs.values()) or label not in supp:
+    if loso is None or cap is None or any(z is None for z in zs.values()) or label not in supp:
         rep.skipped.append("tab:supp-directionality: artifacts or table absent")
         return
-    cols = ("topo_qos", "hgl_qos", "hgl_qos_uni")
-    table = loso["comparison_table"]
+    cols = ("topo_qos", "hgl_qos", "hgl_qos_uni", "gl_full_qos_cap")
+    table = dict(loso["comparison_table"])
+    table["gl_full_qos_cap"] = cap["comparison_table"]["gl_full_qos_cap"]
     per_fold = {v: {f["holdout"]: f["mean_rho"] for f in table[v]["per_fold"]} for v in cols}
     zs_keys = {"Autoware": "realworld_autoware_ros2", "EdgeX": "realworld_edgex",
                "Home Assistant": "realworld_homeassistant",
@@ -1373,7 +1385,8 @@ def check_directionality(rep: Report, supp: str) -> None:
         name = _label(cells[0])
         zkey = next((v for k, v in zs_keys.items() if name.startswith(k)), None)
         if zkey is not None:
-            truths = [zs[v]["per_system"][zkey]["mean_rho"] for v in ("hgl_qos", "hgl_qos_uni")]
+            truths = [zs[v]["per_system"][zkey]["mean_rho"]
+                      for v in ("hgl_qos", "hgl_qos_uni", "gl_full_qos_cap")]
         elif name == "Mean":
             truths = [table[v]["mean_rho"] for v in cols]
         else:
