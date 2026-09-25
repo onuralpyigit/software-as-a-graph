@@ -349,11 +349,12 @@ During supervised training, each node store in `HeteroData` carries labels and m
 
 | Tensor Name | Shape | Semantic Meaning & Usage |
 |:---|:---:|:---|
-| `data[type].y` | $(N, 3)$ | Ground-truth simulation targets: $[I^*(v), I_R(v), I_M(v)]$ representing composite blast radius, reliability impact, and maintainability impact. |
+| `data[type].y` | $(N, 3)$ | Ground-truth simulation targets in `LABEL_COLS` order: `[composite, reliability, maintainability]`. `FaultInjector` emits one scalar, so columns 0 and 1 both hold $I^*(v)$ and column 2 is an unmeasured zero (masked by `dimension_mask`). |
 | `data[type].y_rm` | $(N, 3)$ | Rule-based ISO-RM scores: $[Q^*(v), R(v), M(v)]$. Used for consistency regularization when `rm_consistency_weight > 0`. |
-| `data[type].label_mask` | $(N,)$ | Boolean mask indicating which nodes were targeted during fault injection simulation (prevents training on unsimulated nodes). |
-| `data[type].dimension_mask` | $(3,)$ | Boolean mask indicating which sub-dimensions were measured in the current simulation run. |
-| `data[rel].y_edge` | $(E, 3)$ | Edge-level ground truth criticality: $I^*(u) \times \text{bridge\_multiplier}$. |
+| `data[type].label_mask` | $(N,)$ | Boolean mask indicating which nodes were targeted during fault injection simulation (prevents training on unsimulated nodes). Set by presence in the label file, so a simulated $I^*(v) = 0$ still counts as labelled. |
+| `data[type].dimension_mask` | $(3,)$ | Boolean mask indicating which sub-dimensions were measured: a column counts only if its values vary across labelled nodes. `[True, True, False]` under `FaultInjector`. |
+| `data[rel].y_edge` | $(E, 1)$ | Measured edge criticality: `combined_impact` from `FailureSimulator.simulate_edge_removal` (the edge is severed with both endpoints alive; no cascade), produced by `simulate_graph.py edge-criticality` as `edge_criticality.json`. Absent when no sweep is supplied, in which case $\mathcal{L}_{\text{edge}}$ is inactive. |
+| `data[rel].y_edge_mask` | $(E,)$ | Edges the sweep actually evaluated (bridges + top edge-betweenness by default). Unevaluated edges are masked out rather than scored 0. |
 
 > [!TIP]
 > **Why Dimension Masking is Critical:**
@@ -849,12 +850,21 @@ pipeline = (
 
 ### 9.1 Training Models (`cli/train_graph.py`)
 
-Train a Heterogeneous Graph Transformer using pre-computed structural metrics and simulation ground-truth labels:
+Train a Heterogeneous Graph Transformer using pre-computed structural metrics and simulation ground-truth labels. Labels come only from a `FaultInjector` file passed as `--simulated`; the script never runs a simulator itself, exits if the flag is missing, and rejects `FailureSimulator` output (the Validate-stage oracle):
 
 ```bash
+# Produce FaultInjector I*(v) labels (writes output/simulation/impact_scores.json)
+python cli/simulate_graph.py fault-inject \
+  --input data/system.json \
+  --output output/simulation/ \
+  --node-types Application,Broker,Library \
+  --seeds 42,123,456,789,2024 \
+  --export-json
+
 # Standard training on system layer across 5 random seeds
 python cli/train_graph.py \
   --layer system \
+  --simulated output/simulation/impact_scores.json \
   --epochs 300 \
   --hidden 64 \
   --heads 4 \
@@ -862,11 +872,11 @@ python cli/train_graph.py \
   --checkpoint output/gnn_checkpoints/
 
 # Train ablation baseline variants
-python cli/train_graph.py --layer system --variant homo_scalar      # GAT-QoS
-python cli/train_graph.py --layer system --variant homo_unweighted  # GAT Unweighted
+python cli/train_graph.py --layer system --simulated output/simulation/impact_scores.json --variant homo_scalar      # GAT-QoS
+python cli/train_graph.py --layer system --simulated output/simulation/impact_scores.json --variant homo_unweighted  # GAT Unweighted
 
 # Multi-scenario inductive training across domain datasets
-python cli/train_graph.py --layer system --multi-scenario
+python cli/train_graph.py --layer system --simulated output/simulation/impact_scores.json --multi-scenario
 
 # Evaluate SaG-Hybrid variants under Leave-One-Scenario-Out (LOSO) cross-validation
 python cli/loso_evaluate.py --variant hgl_qos_prior --device cpu    # SaG-Hybrid (Amendment 5)
@@ -880,13 +890,14 @@ python reproduce/realworld_zeroshot.py --variant gl_qos16_prior --device cpu
 python cli/train_graph.py \
   --layer system \
   --structural results/structural_metrics.json \
-  --simulated  results/simulation_impact.json
+  --simulated  output/simulation/impact_scores.json
 ```
 
 #### CLI Flag Reference (`cli/train_graph.py`)
 
 | Flag | Type | Default | Description |
 |:---|:---:|:---:|:---|
+| `--simulated` | Path | — | **Required** (except `topology_rm`). `FaultInjector` label file (`impact_scores.json` from `simulate_graph.py fault-inject`); its `records` are flattened to `{composite, reliability}` per node. |
 | `--variant` | Choice | `hetero_qos` | Model variant: `hetero_qos` (HGT-QoS), `homo_scalar` (GAT-QoS), `homo_unweighted` (GAT), `topology_rm` (RM only). |
 | `--hidden` | Integer | `64` | Latent node embedding dimension $D$. |
 | `--heads` | Integer | `4` | Number of multi-head attention channels. |
@@ -1047,7 +1058,7 @@ When executed with `--predictor-mode dual`, the result attaches the `dual_result
 | **I2** | **Offline Supervisor Separation** | Discrete-event simulation generates ground-truth labels offline; inference requires zero simulation calls. |
 | **I3** | **No Hallucination in Root Causes** | The Triage Bridge correlates ranking to Step 4 anti-patterns strictly by component ID, preventing neural models from hallucinating architectural causes. |
 | **I4** | **Deterministic Prior Purity** | The prior $p(v)$ in hybrid models is computed purely from the deterministic QoS-weighted flow projection $G_{\text{flow}}$. It requires zero simulation and shares no parameters with Pathway A. |
-| **B1** | **Heuristic Edge Labels** | During training, edge targets use $I^*(u) \times \text{bridge\_multiplier}$. Direct link failure injection in Step 5 provides exact ground truth for validation. |
+| **B1** | **Edge Labels Come From a Different Engine** | Edge targets are measured by `FailureSimulator.simulate_edge_removal` (see §3.4), not by `FaultInjector`, and have no QoS-free control arm. The edge head is disabled in every evaluation harness (`predict_edges=False`), so no reported number depends on edge labels. |
 | **B2** | **Capacity Parity Requirement** | When comparing HGT against GAT baselines, ensure capacity parity within 5% to prevent parameter volume confounds (Amendment 2 matched controls). |
 | **B3** | **Cold-Start Deployment** | If no trained checkpoint exists on disk, `PredictionService` automatically falls back to deterministic $Q^*(v)$ scores. |
 | **B4** | **Prior Anchoring vs. Transfer Trade-off** | Hybrid models eliminate topological blind spots on dense projections (Enterprise $\rho = 0.74 - 0.77$ vs $0.41 - 0.43$) and lead in LOSO accuracy ($\rho = 0.683$), but trade off slight zero-shot transfer on radically unfamiliar topologies ($0.66 - 0.70$ vs $0.76 - 0.81$ for pure learned models). |

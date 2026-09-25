@@ -422,19 +422,17 @@ The GNN predictor uses a dedicated `TypedEdgeEncoder`:
 
 $$Q_{\text{GNN}}(u, v) = \text{TypedEdgeEncoder}(\mathbf{h}_u, \mathbf{h}_v, \mathbf{e}_{uv})$$
 
-**Trained on a heuristic label, not the removal oracle.** The training target is
-$y_{\text{edge}}(u, v) = I^*(u) \times \text{bridge\_multiplier}$ — the source
-node's simulated impact, discounted 10× unless the edge is a structural bridge
-(see [docs/prediction.md §5](prediction.md#45-relation-specific-edge-criticality-head)). The genuine
+**Trained on the removal oracle.** The training target is the
 **Edge Removal Simulation Oracle**,
 
 $$I_{\text{edge}}(u, v) = \text{Impact}(G \setminus \{(u,v)\}) - \text{Impact}(G)$$
 
 *(evaluated with both endpoints active and differenced against a pristine null
-graph)*, is computed by `FailureSimulator.simulate_edge_removal` but is **not
-read by the training/eval path** — it is an available, more principled
-ground truth that has not yet been wired in, not the oracle edge scores are
-currently validated against.
+graph)*, computed by `FailureSimulator.simulate_edge_removal` and written by
+`simulate_graph.py edge-criticality` (see [docs/prediction.md §3.4](prediction.md#34-target-tensors--dimension-masking)).
+Only edges the sweep evaluated carry a label. The earlier heuristic target,
+$I^*(u) \times \{1.0 \text{ if bridge else } 0.1\}$, has been removed. The edge head is
+disabled in every evaluation harness, so no reported number depends on it.
 
 ### 5.7 Ranking Critical Edges in Practice
 

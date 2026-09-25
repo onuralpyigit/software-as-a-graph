@@ -50,8 +50,10 @@ def main():
                              "NOTE: the predict stage requires a pre-trained GNN checkpoint "
                              "(--gnn-model); without one it is skipped, but the diagnose stage "
                              "still runs (RM scores, anti-patterns) since it needs no checkpoint. "
-                             "To enable GNN ranking, train first with: "
-                             "python cli/train_graph.py --layer system --output <checkpoint_dir>"))
+                             "To enable GNN ranking, label and train first with: "
+                             "python cli/simulate_graph.py fault-inject --input <system.json> --export-json, then "
+                             "python cli/train_graph.py --layer system "
+                             "--simulated output/simulation/impact_scores.json --output <checkpoint_dir>"))
     group.add_argument("--generate", action="store_true", help="Run graph generation stage")
     group.add_argument("--input", "-i", metavar="FILE", help="System topology JSON file (input for import, output for generate)")
     group.add_argument("--analyze", action="store_true", help="Run analysis stage (structural metrics only)")
@@ -116,10 +118,13 @@ def main():
                 f"  No checkpoint found at default path '{_default_ckpt}' and\n"
                 "  no --gnn-model path was supplied.\n\n"
                 "  First-run sequence:\n"
-                "    1. python cli/run.py --input system.json --analyze --simulate\n"
-                "    2. PYTHONPATH=. python cli/train_graph.py --layer system \\\n"
+                "    1. python cli/run.py --input system.json --analyze\n"
+                "    2. PYTHONPATH=. python cli/simulate_graph.py fault-inject \\\n"
+                "           --input system.json --export-json\n"
+                "    3. PYTHONPATH=. python cli/train_graph.py --layer system \\\n"
+                "           --simulated output/simulation/impact_scores.json \\\n"
                 f"           --output {_default_ckpt}\n"
-                f"    3. python cli/run.py --all --gnn-model {_default_ckpt}\n\n"
+                f"    4. python cli/run.py --all --gnn-model {_default_ckpt}\n\n"
                 "  The predict stage (GNN ranking) will be skipped this run to avoid a\n"
                 "  crash — the diagnose stage (RM scores, anti-patterns, explanation)\n"
                 "  needs no checkpoint and still runs.\n",

@@ -12,6 +12,8 @@ import json
 import sys
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import cli.train_graph as train_graph
 from saag.analysis.models import QualityAnalysisResult
 from saag.core.metrics import ComponentQuality, QualityLevels, QualityScores, StructuralMetrics
@@ -97,3 +99,68 @@ def test_rm_scores_computed_when_structural_and_simulated_given_without_rm(tmp_p
             "fault_tolerance": 0.45, "availability": 0.4,
         }
     }
+
+
+def _run_main(argv, mock_gnn_instance=None, mock_client=None):
+    if mock_gnn_instance is None:
+        mock_gnn_instance = MagicMock()
+        mock_gnn_instance.train.return_value = MagicMock(
+            gnn_metrics=None,
+            summary=MagicMock(return_value={}),
+            top_critical_nodes=MagicMock(return_value=[]),
+        )
+    with patch.object(sys, "argv", ["train_graph.py", *argv]), \
+         patch("cli.train_graph.ConsoleDisplay"), \
+         patch("saag.Client", return_value=mock_client or MagicMock()) as client_cls, \
+         patch("saag.simulation.SimulationService") as sim_svc, \
+         patch("saag.prediction.GNNService", return_value=mock_gnn_instance):
+        train_graph.main()
+    return mock_gnn_instance, client_cls, sim_svc
+
+
+def _write(tmp_path, name, payload):
+    path = tmp_path / name
+    path.write_text(json.dumps(payload))
+    return str(path)
+
+
+def test_fault_injector_artifact_is_flattened_into_labels(tmp_path):
+    # The file `simulate_graph.py fault-inject` writes nests labels under
+    # "records". Passed through as-is, no node id matched and training ran on
+    # zero labelled nodes.
+    argv = [
+        "--layer", "app",
+        "--structural", _write(tmp_path, "s.json", {"App1": {"pagerank": 0.1}}),
+        "--rm", _write(tmp_path, "rm.json", {"App1": {"overall": 0.7}}),
+        "--simulated", _write(tmp_path, "impact_scores.json", {
+            "labeler": "FaultInjector",
+            "records": {"App1": {"impact_score": 0.5, "impact_score_std": 0.0}},
+        }),
+    ]
+    gnn, client_cls, _ = _run_main(argv)
+
+    assert gnn.train.call_args.kwargs["simulation_results"] == {
+        "App1": {"composite": 0.5, "reliability": 0.5},
+    }
+    client_cls.assert_not_called()
+
+
+def test_missing_simulated_exits_instead_of_running_failure_simulator(tmp_path):
+    # Labels must come from FaultInjector on disk; the old fallback ran an
+    # exhaustive FailureSimulator sweep — the Validate-stage oracle.
+    with patch("saag.simulation.SimulationService") as sim_svc, \
+         patch.object(sys, "argv", ["train_graph.py", "--layer", "app"]), \
+         patch("cli.train_graph.ConsoleDisplay"), \
+         patch("saag.Client") as client_cls, \
+         pytest.raises(SystemExit):
+        train_graph.main()
+    sim_svc.assert_not_called()
+    client_cls.assert_not_called()
+
+
+def test_failure_simulator_output_is_refused_as_labels(tmp_path):
+    simulated = _write(tmp_path, "failure.json", {
+        "results": [{"target_id": "App1", "impact": {"composite_impact": 0.5}}],
+    })
+    with pytest.raises(SystemExit):
+        _run_main(["--layer", "app", "--simulated", simulated])
