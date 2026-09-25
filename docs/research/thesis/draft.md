@@ -147,9 +147,10 @@ stated weighting audited for Analytic Hierarchy Process (AHP) consistency (§4.3
 
 SaG then performs **failure-impact analysis**, predicting cascade impact $I(v)$ with two predictors:
 the multi-dimensional composite $Q(v)$ and a learned **Heterogeneous Graph Transformer** (**HGT**).
-We evaluate the learned predictor in two variants — QoS-masked (HGL) and QoS-encoded
-($HGL\text{-}QoS$) — to isolate what explicit QoS contract features contribute; §8.3 reports that
-contribution as a null, so every headline figure in this paper is the QoS-masked HGL, and we name the
+We evaluate the learned predictor in two variants — QoS-masked (HGT) and QoS-encoded
+(`HGT-QoS`) — to isolate what explicit QoS contract features contribute, and compare both against
+untyped GATs at matched capacity (`GAT`, `GAT-QoS`); §8.3 finds the QoS channel small in
+distribution and the component that improves learned ranking out of distribution, and we name the
 variants separately throughout rather than presenting the QoS-encoded model as the framework's
 predictor. Both are validated against a discrete-event simulator under an **input–label independence
 guarantee**. Finally, a **prescriptive remediation** stage generates topology-level hardening edits
@@ -1167,10 +1168,10 @@ interpretability–capacity spectrum:
   attention and message-passing parameters across the five node types
   ($\text{App}, \text{Broker}, \text{Topic}, \text{Node}, \text{Library}$) and six
   `DEPENDS_ON`/structural edge types, so that message transformations differ by the semantic
-  relation they traverse rather than being shared across a flattened graph. The **$HGL\text{-}QoS$**
+  relation they traverse rather than being shared across a flattened graph. The **`HGT-QoS`**
   variant additionally injects the continuous QoS attributes ($r, d, p$ from §3.2) directly into the
   edge-attention aggregation, scaling message magnitude by interface contract strength; the base
-  **HGL** variant masks these QoS fields to isolate the contribution of typing alone from the
+  **HGT** variant masks these QoS fields to isolate the contribution of typing alone from the
   contribution of QoS encoding (RQ3, §8.3). Both variants consume features from the structural
   analysis result $G_{\text{analysis}}$ (not the simulator) and are trained inductively against the
   $I^*(v)$ labels of §5.1.
@@ -1262,7 +1263,7 @@ pooling was shown to be actively misleading here.
 the predictor tables in §8.1 are computed against $I^*(v)$; the two oracles agree at mean
 $\rho = 0.394$ (§7.5), so this consistency check does not transfer to those tables. Second, the check
 was worth running on its own terms: the effect it looked for *does* occur elsewhere in this study. In
-the predictor evaluation, pooling Application and Library nodes into a single correlation moved HGL
+the predictor evaluation, pooling Application and Library nodes into a single correlation moved HGT
 on `av_system` from $\rho = 0.836$ within Applications to $0.46$ pooled — a case where a pooled
 figure was actively misleading, and one that went unnoticed until the evaluation contract of §7.3 was
 imposed. The methodological point stands independently of the negative finding here.
@@ -1533,21 +1534,28 @@ parallelising counterfactual verification across candidates.
 The evaluation compares predictors spanning the interpretability–capacity spectrum, all consuming
 the same structural analysis of each scenario:
 
-**Table 14. Predictors and baselines**, and the factor each contrast isolates.
+**Table 14. Predictors and baselines**, and the factor each contrast isolates. Names follow the
+current JSS manuscript; parameter counts are those of the evaluated models.
 
-| Predictor | Description | Role |
-|-----------|-------------|------|
-| **RMAV / $Q$** | deterministic multi-dimensional composite (§4) | interpretable predictor |
-| **HGL** | heterogeneous graph transformer, QoS-masked | learned predictor (typed) |
-| **HGL-QoS** | heterogeneous graph transformer, QoS-encoded | learned predictor (typed + QoS) |
-| **GL / GL-QoS** | homogeneous GAT on the type-collapsed projection | learning baseline (untyped) |
-| **Topo-BL / Topo-QoS** | structural centrality (betweenness, articulation points; QoS-weighted) | non-learning baseline |
+| Predictor | Description | Substrate | Parameters | Role |
+|-----------|-------------|-----------|---:|------|
+| **RMAV / $Q$** | deterministic multi-dimensional composite (§4); reported as RM / $Q(v)$ in §8 | $G_{\text{analysis}}$ | 0 | interpretable predictor |
+| **Topo / Topo-QoS** | betweenness and articulation points, unweighted / QoS-weighted | Application–Library projection | 0 | non-learning baselines |
+| **GAT-S-P / GAT-S-P-w** | small homogeneous GAT, no edge feature / scalar $w(e)$ | Application–Library projection | 28,168 | in-distribution learning baselines (untyped) |
+| **GAT-S / GAT-S-w** | small homogeneous GAT, no edge feature / scalar $w(e)$ | native multigraph | 28,168 | LOSO learning baselines (untyped) |
+| **GAT / GAT-QoS** | homogeneous GAT matched to HGT's budget, no QoS channel / 16-D QoS edge vector | native multigraph | 437,496 / 429,992 | capacity- and channel-matched untyped controls |
+| **HGT** | heterogeneous graph transformer, QoS-masked | native multigraph | 434,620 | learned predictor (typed) |
+| **HGT-QoS** | heterogeneous graph transformer, QoS-encoded | native multigraph | 434,620 | learned predictor (typed + QoS) |
+| **Hybrid-HGT / Hybrid-GAT** | `HGT-QoS` / `GAT-QoS` correcting the `Topo-QoS` prior | native multigraph | 434,941 / 431,433 | hybrid engines |
 
-The contrast `Topo-*` vs learned isolates the value of learning (RQ1); `GL` vs `HGL` isolates the
-value of *typed* heterogeneity; `HGL` vs `HGL-QoS` isolates the value of explicit QoS encoding
-(RQ3); and `RMAV/Q` vs the learned predictors isolates when interpretable attribution suffices. The
-structural baselines' features are kept decoupled from the GNN inputs so that no comparison leaks
-information across the predictor boundary.
+The contrast `Topo-*` vs learned isolates the value of learning (RQ1); `GAT` vs HGT and `GAT-QoS`
+vs `HGT-QoS`, at matched capacity and edge-channel width, isolate the value of *typed*
+heterogeneity; HGT vs `HGT-QoS` and `GAT` vs `GAT-QoS` isolate the value of explicit QoS encoding
+(RQ3); the hybrids against `Topo-QoS` isolate the value of correcting the closed-form score rather
+than replacing it; and `RMAV/Q` vs the learned predictors isolates when interpretable attribution
+suffices. The small GATs (`GAT-S*`) are the unmatched baselines of an earlier comparison and are
+kept for reference only (§8.2). The structural baselines' features are kept decoupled from the GNN
+inputs so that no comparison leaks information across the predictor boundary.
 
 ## 7.3 Evaluation Metrics
 
@@ -1710,12 +1718,12 @@ per-scenario hyperparameter search anywhere in this study, which is a deliberate
 per scenario would leak held-out information under the in-distribution protocol) and also a
 limitation, since a tuned baseline might close some of the margins in §8.1.
 
-**Table 17. Learned-predictor configuration.** Identical across HGL, $HGL\text{-}QoS$, GL and GL-QoS
+**Table 17. Learned-predictor configuration.** Identical across the learned predictors of Table 14
 except where the architecture differs by construction.
 
 | Component | Setting |
 |---|---|
-| Convolution | `HGTConv` (heterogeneous); `GATConv` for the homogeneous GL variants |
+| Convolution | `HGTConv` (heterogeneous); `GATConv` for the homogeneous GAT variants |
 | Layers | 3 |
 | Hidden channels | 64 |
 | Attention heads | 4 |
@@ -1730,7 +1738,7 @@ except where the architecture differs by construction.
 | Loss | composite MSE $+\ 0.5\,$multitask $+\ 0.3\,$ListMLE ranking $+\ 0.1\,$pairwise margin $+\ 0.1\,$RMAV consistency |
 
 **Hardware and runtime.** Training and evaluation were run on a single workstation; the LOSO sweep is
-the dominant cost, at roughly 31 minutes for HGL and 36 for $HGL\text{-}QoS$ across all folds and
+the dominant cost, at roughly 31 minutes for HGT and 36 for `HGT-QoS` across all folds and
 seeds, against 5–6 minutes for the homogeneous variants and well under a minute for the training-free
 baselines. The CI/CD gate measurements of §8.4 were taken on the same machine rather than on hosted
 runner hardware, so they should be read as an order-of-magnitude feasibility result rather than as a
@@ -1757,11 +1765,8 @@ than omit it silently.
 > is transcribed from the artifact-reconciled JSS supplement ([`supplementary.tex`](../jss/latex/supplementary.tex)
 > §§S17, S25 and the registered LOSO sweep), with the artifact behind each table named in its caption;
 > per [`outline.md`](outline.md#source-integrity), re-read each figure from its artifact when this
-> section moves into the thesis. Predictor names follow the current manuscript: Topo is this draft's
-> Topo-BL, HGT and `HGT-QoS` are HGL and $HGL\text{-}QoS$, and RM / $Q(v)$ is the RMAV composite.
-> The small untyped GATs are `GAT-S-P` and `GAT-S-P-w` in distribution (this draft's GL and GL-QoS,
-> reading the Application–Library projection) and `GAT-S` and `GAT-S-w` under LOSO (reading the
-> native multigraph).
+> section moves into the thesis. Predictor names are those of Table 14 (§7.2); RM / $Q(v)$ is the
+> successor of §4's RMAV composite.
 
 Every figure in this section is produced by one evaluation contract (§7.3): each predictor is scored
 on the same Application node set. In distribution, that set is a held-out 60/20/20 node split, redrawn
@@ -2403,7 +2408,7 @@ sharply on the largest and densest fold (Enterprise, $0.426$ against $0.795$), a
 it is weakest (Healthcare, IoT Smart City, ATM, Microservices), so `Topo-QoS`'s per-fold scores
 range from $0.265$ to $0.810$ while the hybrids keep most of both strengths (Table 27). All of these
 margins are measured against a baseline we first had to repair: `Topo-QoS` was computing no QoS
-weighting whatsoever (§8.1), and until that was fixed it was `Topo-BL` wearing a different label.
+weighting whatsoever (§8.1), and until that was fixed it was Topo wearing a different label.
 Under LOSO, set identification no longer carries the case on its own: Overlap@$K$ moves only from
 $0.388$ for `Topo-QoS` to $0.426$–$0.450$ for the learned and hybrid engines, and top-$K$ sets are
 noisier than rankings in the labels themselves. It does separate the engines under zero-shot
@@ -2471,9 +2476,7 @@ the gating semantics are the part still to build.
 > behind each table is named in its caption. Per the source-integrity rules in
 > [`outline.md`](outline.md#source-integrity), re-read each figure from its artifact when this
 > subsection moves into the thesis. These figures come from the twelve-scenario corpus that §8.1
-> reports. Predictor names follow the current manuscript: `HGT-QoS` is this draft's
-> `HGL-QoS`; `GAT` and `GAT-QoS` are untyped GATs matched to HGT in parameter budget, which have no
-> counterpart in Table 18.
+> reports. Predictor names are those of Table 14 (§7.2).
 
 The question this thesis set out to answer is whether graph learning is a useful instrument for
 analysing and predicting failure impact in publish–subscribe systems, and if so whether
@@ -2696,7 +2699,7 @@ stratum, the RPC-derived models, and a target that is almost entirely topologica
 **Construct validity.** D1 and D2 define criticality as Quality-in-Use loss, and this study never
 observes Quality-in-Use. The validation chain has two links, and only the first is measured:
 
-$$\underbrace{\text{structural / learned score}}_{Q(v),\ \text{HGL}}
+$$\underbrace{\text{structural / learned score}}_{Q(v),\ \text{HGT}}
 \;\xrightarrow{\ \text{\textcircled{1}}\ }\;
 \underbrace{\text{simulated failure impact}}_{I^*,\ I_{\text{comp}},\ I_{\text{dyn}}}
 \;\xrightarrow{\ \text{\textcircled{2}}\ }\;
