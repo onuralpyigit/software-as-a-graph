@@ -747,6 +747,24 @@ To rigorously evaluate **inductive generalization** (predicting failure critical
 5. **Zero-Shot Real-World Transfer**:
    When evaluated zero-shot on 5 independently authored open-source systems (Autoware.universe, EdgeX, Home Assistant, Online Boutique, Train-Ticket), `SaG-Hybrid` transfers at mean $\rho = 0.695$ and `SaG-Hybrid-GAT` at $0.662$, well above all training-free baselines ($0.51 - 0.53$), with `SaG-Hybrid` chosen as the recommended headline hybrid variant.
 
+#### Critical-Set Cutoffs
+
+Training always uses the continuous $I^*(v)$ label. Only reporting splits components into critical / non-critical, and [`compute_inductive_metrics`](../saag/evaluation/metrics.py) does it two ways:
+
+- **Top-K** (`*_at_k`, `overlap_at_k`): the top 20% by prediction vs by label. Both sets have $K$ members, so precision, recall and F1 are the same number.
+- **Cut at τ** (`*_at_tau`, `pr_auc`, `f1_max`, `n_true_critical`): critical means $I^*(v) \ge \tau$, so the set size comes from the data.
+  - By default τ is relative: `tau_frac` $\times \max I^*$ ($0.5 \times$ max).
+  - `cli/loso_evaluate.py --critical-threshold 0.2` makes it absolute ($I^*(v) \ge 0.2$), and records `tau_mode` in the output.
+  - Release gates and training are unaffected either way.
+
+Read $I^*(v) \ge 0.2$ as *"in simulation, this component's failure loses at least 20% of subscriber data feeds"*. That is a statement about **severity** (blast radius). It is **not** availability, which needs failure rate and repair time ([criticality.md §7.3–7.4](criticality.md#73-characteristic-coverage--unmodelled-gaps)). The `ladder` QoS factor also inflates losses on RELIABLE/HIGH topics. Do not reuse the cascade parameter `propagation_threshold` (also 0.2 by default) as justification for τ = 0.2: it is a per-subscriber failure trigger, not a system-level cut.
+
+`reproduce/threshold_sensitivity.py` records the critical-set share and RM's AUC-PR for each τ in `--critical-thresholds` at every `propagation_threshold`. On the committed corpus:
+
+- **The exact τ matters little.** $I^*$ is bimodal: components either trigger a runaway cascade or reach almost nobody, so shares barely change between τ = 0.1 and 0.5.
+- **`propagation_threshold` matters a lot.** Raising it from 0.2 to 0.5 shrinks the `microservices` Application critical set from 58% to 6%.
+- **Set sizes vary widely.** At the defaults they run from about 2% (`iot_smart_city`) to 58% (`microservices`). Report the share (the AUC-PR no-skill floor) next to any τ-based result.
+
 ---
 
 ## 8. Programmatic Python SDK & Service Reference

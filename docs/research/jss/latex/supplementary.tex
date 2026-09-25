@@ -818,11 +818,11 @@ Microservices & 0.265 & 0.475 & 0.366 & \textbf{0.479} & 0.429 \\
 \section{Analysis-Plan Amendment Log}
 \label{supp:amendments}
 
-The registered analysis plan (Section~\ref{M-sec:6.3} of the main manuscript) was amended six times. Table~\ref{tab:supp-amendments} lists the plan and every amendment, with its date, whether it was written before or after the results it governs, what it changed, the contrasts it registered, and its outcome. The full text, with each design and decision rule as committed, is \path{docs/research/jss/PREREGISTRATION.md} in the replication package.
+The registered analysis plan (Section~\ref{M-sec:6.3} of the main manuscript) was amended seven times. Table~\ref{tab:supp-amendments} lists the plan and every amendment, with its date, whether it was written before or after the results it governs, what it changed, the contrasts it registered, and its outcome. The full text, with each design and decision rule as committed, is \path{docs/research/jss/PREREGISTRATION.md} in the replication package.
 
-\noindent\textbf{Completeness.} No amendment was issued and left out of this table. The log is under version control, and its history shows the plan and Amendments~1--6 added in order, one commit each. No amendment was removed, and no registered design or decision rule was edited after its commit. Only two passages were edited later: the plan's motivation paragraph, rewritten once the pre-revision artifact it cited was withdrawn, and the plan's outcome note, which is marked as recorded after the fact.
+\noindent\textbf{Completeness.} No amendment was issued and left out of this table. The log is under version control, and its history shows the plan and Amendments~1--7 added in order, one commit each. No amendment was removed, and no registered design or decision rule was edited after its commit. Only two passages were edited later: the plan's motivation paragraph, rewritten once the pre-revision artifact it cited was withdrawn, and the plan's outcome note, which is marked as recorded after the fact.
 
-\noindent\textbf{Registered arms not run.} Two of the four model arms that Amendment~2 registered were not run. These are \texttt{GAT-w} (a capacity-only control) and \texttt{HGT-QoS-U} (a directionality control). The matched $2\times2$ reported in the main manuscript uses the two arms that were run, \texttt{GAT} and \texttt{GAT-QoS}. Amendment~2's label-side arm, a LOSO sweep against a label cache with the oracle's QoS ladder disabled, was also not run as a sweep. Section~\ref{M-sec:4.3} of the main manuscript bounds the label's QoS content instead, using the rank agreement between labels computed with and without the ladder. Amendment~2's reporting commitment covers every arm that is run. The directionality control is listed as open work in Sections~\ref{M-sec:threats}--\ref{M-sec:limitations} of the main manuscript.
+\noindent\textbf{Registered arms not run.} One of the four model arms that Amendment~2 registered was not run: \texttt{GAT-w}, a capacity-only control. The matched $2\times2$ reported in the main manuscript uses \texttt{GAT} and \texttt{GAT-QoS}. The directionality control \texttt{HGT-QoS-U} was run after Amendment~7, in its own CPU invocation with \texttt{HGT-QoS} re-run beside it (bit-identical to Table~\ref{M-tab:hybrid}'s row); its registered contrast joins Amendment~2's control family and the omnibus correction below (Section~\ref{supp:attribution}). Amendment~2's label-side arm, a LOSO sweep against a label cache with the oracle's QoS ladder disabled, was also not run as a sweep. Section~\ref{M-sec:4.3} of the main manuscript bounds the label's QoS content instead, using the rank agreement between labels computed with and without the ladder. Amendment~2's reporting commitment covers every arm that is run.
 
 \noindent\textbf{Predictor names.} The plan and its amendments name predictors with the earlier labels; this log uses the main manuscript's names, and Table~\ref{tab:supp-names} maps the two.
 
@@ -831,7 +831,7 @@ The registered analysis plan (Section~\ref{M-sec:6.3} of the main manuscript) wa
 \begin{table}[htbp]
 \centering
 \scriptsize
-\caption{The registered plan and its six amendments. ``Before'' means no outcome of the analysis the entry governs existed when it was committed. Contrast counts are the decision-bearing contrasts the entry registered; the exploratory analyses it added are not counted.}
+\caption{The registered plan and its seven amendments. ``Before'' means no outcome of the analysis the entry governs existed when it was committed. Contrast counts are the decision-bearing contrasts the entry registered; the exploratory analyses it added are not counted.}
 \label{tab:supp-amendments}
 \begin{tabular}{>{\raggedright\arraybackslash}p{0.9cm}>{\raggedright\arraybackslash}p{1.35cm}>{\raggedright\arraybackslash}p{1.6cm}>{\raggedright\arraybackslash}p{4.3cm}>{\raggedright\arraybackslash}p{1.9cm}>{\raggedright\arraybackslash}p{3.4cm}}
 \toprule
@@ -839,37 +839,39 @@ The registered analysis plan (Section~\ref{M-sec:6.3} of the main manuscript) wa
 \midrule
 Plan & 2026-09-06 & Before any twelve-fold result & Primary \texttt{HGT-QoS} vs \texttt{Topo-QoS}; secondary \texttt{HGT} vs \texttt{Topo-QoS}; LOSO, five seeds, fold as unit; nested selection rule & 2, Holm within & Neither significant ($+0.085$, Holm $p = 0.303$) (main \S\ref{M-sec:rq1}) \\
 A1 & 2026-09-06 & Before any outer result & Inner selection on a two-fold inner holdout instead of full inner LOSO (compute budget) & None & Selection rule of every learned result (replication package) \\
-A2 & 2026-09-12 & Before any control result & Capacity-, edge-channel- and directionality-matched control arms, a label-side arm, and a four-row decision rule for the typing claim & 5 (matched $2\times2$ and two controls), Holm within & ``Margin does not survive'': typing claims withdrawn; QoS channel $+0.073$ (main \S\ref{M-sec:rq2}) \\
+A2 & 2026-09-12 & Before any control result & Capacity-, edge-channel- and directionality-matched control arms, a label-side arm, and a four-row decision rule for the typing claim & 6 (matched $2\times2$ and three controls), Holm within & ``Margin does not survive'': typing claims withdrawn; QoS inputs $+0.073$; directionality control (run after A7) $-0.010$, $p = 0.91$ (main \S\ref{M-sec:rq2}) \\
 A3 & 2026-09-13 & Before any v5 result & Re-baseline as the v5 sweep after artifact drift; withdrawal of an unbacked control-arm paragraph; exploratory GBM baseline, architecture contrasts, contrast CIs, extra populations & None & v5 is the reported sweep; the withdrawn paragraph is not reported (main \S\ref{M-sec:rq1}--\ref{M-sec:rq2}) \\
 A4 & 2026-09-20 & \emph{After} the v5 results & Peer-review revision: ``registered'' replaces ``pre-registered''; RQ4 re-run at the common 3-layer, 300-epoch protocol; Fisher-$z$ $2\times2$, real-system CIs, cost-ratio table, drift ledger, energy bound, all exploratory & None & Reported as exploratory (main \S\ref{M-sec:6.3}, \S\ref{M-sec:rq3}, \S\ref{M-sec:rq4}, \S\ref{M-sec:8.1}--\ref{M-sec:threats}) \\
 A5 & 2026-09-23 & Before any hybrid result & Hybrid-HGT (Topo-QoS prior on \texttt{HGT-QoS}); CPU sweep; decision rule & 2, Holm within & Primary significant ($+0.103$, Holm $p = 0.0068$): headline hybrid (main \S\ref{M-sec:rq1-hybrid}, Section~\ref{supp:hybrid-folds}) \\
 A6 & 2026-09-24 & Before any result, but after A2's result & Hybrid-GAT (same prior on \texttt{GAT-QoS}); decision rule including a transfer criterion & 2, Holm within & Primary significant ($+0.130$, Holm $p = 0.0029$); transfers less well ($0.662 < 0.695$), so it does not replace Hybrid-HGT (main \S\ref{M-sec:rq1-hybrid}) \\
+A7 & 2026-09-26 & \emph{After} its results & Attribution controls: disclosure that the untyped GATs score Applications per node; \texttt{GAT-QoS-nf} (QoS node columns masked, edge channel kept), \texttt{GBM-Feat-QoS}, and the first run of A3's \texttt{GBM-Feat} with the neural arms' label transform; receptive-field probe & None (5 exploratory, Holm within) & QoS gain carried by node features ($+0.095$), not the edge channel ($-0.023$); \texttt{GBM-Feat} matches the learned engines (main \S\ref{M-sec:rq2}, Section~\ref{supp:attribution}) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\noindent\textbf{Omnibus correction.} Each registration Holm-corrects only its own contrasts. The sequence is adaptive: Amendment~6 was proposed because of Amendment~2's result. Table~\ref{tab:supp-omnibus} therefore pools all eleven registered contrasts under one Holm correction (\path{reproduce/omnibus_holm.py}, \path{results/omnibus_registered_holm.json}). Both hybrid primaries stay below $\alpha = 0.05$, and no other registered contrast is close. As everywhere in this study, the $p$-values are nominal, because LOSO folds share training scenarios.
+\noindent\textbf{Omnibus correction.} Each registration Holm-corrects only its own contrasts. The sequence is adaptive: Amendment~6 was proposed because of Amendment~2's result. Table~\ref{tab:supp-omnibus} therefore pools all twelve registered contrasts under one Holm correction (\path{reproduce/omnibus_holm.py}, \path{results/omnibus_registered_holm.json}). Both hybrid primaries stay below $\alpha = 0.05$, and no other registered contrast is close. As everywhere in this study, the $p$-values are nominal, because LOSO folds share training scenarios.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Every registered contrast under its own family's Holm correction and under one Holm correction over all eleven. Two-sided Wilcoxon signed-rank over twelve LOSO folds. The plan's contrasts come from the v5 sweep (Table~\ref{tab:7}), and the amendments' contrasts from the CPU sweeps that registered them. Bold marks omnibus-adjusted $p < 0.05$.}
+\caption{Every registered contrast under its own family's Holm correction and under one Holm correction over all twelve. Two-sided Wilcoxon signed-rank over twelve LOSO folds. The plan's contrasts come from the v5 sweep (Table~\ref{tab:7}), and the amendments' contrasts from the CPU sweeps that registered them; A2's directionality control from its own later sweep. Bold marks omnibus-adjusted $p < 0.05$. A2's QoS factor keeps its registered name here; it switches the 16-D edge channel and three QoS node columns together, and main Section~\ref{M-sec:rq2} attributes its effect to the node columns.}
 \label{tab:supp-omnibus}
 \begin{tabular}{llcccc}
 \toprule
 \textbf{Entry} & \textbf{Contrast} & \textbf{$\Delta\rho$} & \textbf{$p$} & \textbf{$p_{\text{Holm}}$ (family)} & \textbf{$p_{\text{Holm}}$ (omnibus)} \\
 \midrule
-A6 & Hybrid-GAT vs \texttt{Topo-QoS} & $+0.130$ & 0.0015 & 0.0029 & \textbf{0.0161} \\
-A5 & Hybrid-HGT vs \texttt{Topo-QoS} & $+0.103$ & 0.0034 & 0.0068 & \textbf{0.0342} \\
-A2 & QoS edge channel (main effect) & $+0.073$ & 0.0425 & 0.1274 & 0.3823 \\
+A6 & Hybrid-GAT vs \texttt{Topo-QoS} & $+0.130$ & 0.0015 & 0.0029 & \textbf{0.0176} \\
+A5 & Hybrid-HGT vs \texttt{Topo-QoS} & $+0.103$ & 0.0034 & 0.0068 & \textbf{0.0376} \\
+A2 & QoS edge channel (main effect) & $+0.073$ & 0.0425 & 0.1274 & 0.4248 \\
 Plan & \texttt{HGT-QoS} vs \texttt{Topo-QoS} & $+0.085$ & 0.1514 & 0.3027 & 1.000 \\
 A6 & Hybrid-GAT vs \texttt{GAT-QoS} & $+0.048$ & 0.3013 & 0.3013 & 1.000 \\
-A2 & \texttt{HGT-QoS} vs \texttt{GAT-QoS} & $-0.013$ & 0.3804 & 0.7607 & 1.000 \\
+A2 & \texttt{HGT-QoS} vs \texttt{GAT-QoS} & $-0.013$ & 0.3804 & 1.000 & 1.000 \\
 Plan & \texttt{HGT} vs \texttt{Topo-QoS} & $-0.002$ & 0.4697 & 0.4697 & 1.000 \\
 A2 & Typing (main effect) & $-0.014$ & 0.4697 & 0.9395 & 1.000 \\
-A2 & \texttt{HGT} vs \texttt{GAT} & $-0.015$ & 0.5693 & 0.7607 & 1.000 \\
+A2 & \texttt{HGT} vs \texttt{GAT} & $-0.015$ & 0.5693 & 1.000 & 1.000 \\
 A2 & Typing $\times$ QoS interaction & $+0.001$ & 0.7334 & 0.9395 & 1.000 \\
 A5 & Hybrid-HGT vs \texttt{HGT-QoS} & $+0.035$ & 0.7334 & 0.7334 & 1.000 \\
+A2 & \texttt{HGT-QoS} vs \texttt{HGT-QoS-U} & $-0.010$ & 0.9097 & 1.000 & 1.000 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1026,6 +1028,10 @@ Unsuffixed \texttt{GAT} and \texttt{GAT-QoS} are matched to HGT's parameter budg
 \textbf{HGT-QoS} & Native Multigraph & Heterogeneous & 16-D QoS Vector & 434{,}620 & Yes & SaG learned engine \\
 \textbf{Hybrid-HGT} & Native Multigraph & Heterogeneous & 16-D QoS Vector & 434{,}941 & Yes & HGT-QoS correcting the closed-form engine \\
 \textbf{Hybrid-GAT} & Native Multigraph & Homogeneous & 16-D QoS Vector & 431{,}433 & Yes & GAT-QoS correcting the closed-form engine \\
+\textbf{GAT-QoS-nf} & Native Multigraph & Homogeneous & 16-D QoS Vector & 429{,}992 & Yes & GAT-QoS without the QoS node columns (A7) \\
+\textbf{GBM-Feat} & Node features only & Per type & None & 100 trees/type & Yes & Feature-only control, QoS-off features (A3) \\
+\textbf{GBM-Feat-QoS} & Node features only & Per type & None & 100 trees/type & Yes & Feature-only control, QoS-on features (A7) \\
+\textbf{HGT-QoS-U} & Native Multigraph & Heterogeneous & 16-D QoS Vector & 330{,}895 & Yes & HGT-QoS without reverse pass; directionality control (A2) \\
 \textbf{RM / $Q(v)$} & $G_{\text{analysis}}$ (Analysis Graph) & Per-type rules & Scalar $w(e)$ & 0 & No & Diagnostic attribution reference \\
 \bottomrule
 \end{tabular}%
@@ -1051,6 +1057,9 @@ Unsuffixed \texttt{GAT} and \texttt{GAT-QoS} are matched to HGT's parameter budg
 \texttt{GAT-QoS} & \texttt{GAT-N-QoS16-C} & \texttt{gl\_full\_qos16\_cap} \\
 \texttt{Hybrid-HGT} & \texttt{SaG-Hybrid} & \texttt{hgl\_qos\_prior} \\
 \texttt{Hybrid-GAT} & \texttt{SaG-Hybrid-GAT} & \texttt{gl\_qos16\_prior} \\
+\texttt{GAT-QoS-nf} & --- & \texttt{gl\_full\_qos16\_nfmask} \\
+\texttt{GBM-Feat} / \texttt{GBM-Feat-QoS} & --- & \texttt{tab\_gbm} / \texttt{tab\_gbm\_qos} \\
+\texttt{HGT-QoS-U} & \texttt{HGT-QoS-U} & \texttt{hgl\_qos\_uni} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1097,5 +1106,156 @@ The analysis plan registered its two confirmatory contrasts, \texttt{HGT-QoS} an
 \noindent\textbf{Registered contrasts.} \texttt{HGT-QoS} wins 9 of 12 folds against \texttt{Topo-QoS} ($+0.085$, CI $[-0.029, +0.194]$), but the registered confirmatory contrast is not significant ($p = 0.151$, Holm $0.303$; \texttt{HGT}: $-0.002$, $p = 0.470$). On Overlap@$K$ the learned engines lead ($0.424$--$0.431$ against $0.388$), but the fold-level differences are not significant either ($\Delta = +0.037$, $p = 0.470$ for \texttt{HGT-QoS}). With the median test--retest correlation of the labels at $0.982$, \texttt{HGT-QoS} recovers roughly $65\%$ of the attainable signal in this sweep.
 
 \noindent\textbf{Where the engines differ.} In this sweep \texttt{HGT-QoS} loses substantively on Enterprise ($0.461$ vs.\ $0.795$) and Telecom RAN ($0.407$ vs.\ $0.576$), and wins by $+0.229$ and $+0.210$ on the two folds where \texttt{Topo-QoS} is weakest (Microservices, ATM). Enterprise is the largest graph ($520$ nodes), with by far the densest derived projection ($26{,}276$ edges). However, neither graph size ($\rho = -0.434$ with the margin, $p = 0.159$) nor density predicts in advance which engine wins on an unseen architecture.
+
+\section{Attribution Controls: Receptive Field, QoS Inputs and a Feature-Only Model}
+\label{supp:attribution}
+
+This section backs main Section~\ref{M-sec:rq2}'s attribution table and the disclosure in main Section~\ref{M-sec:6.2}. All of it is exploratory (Amendment~7). It is reproduced by \texttt{make -f reproduce/Makefile rq-attribution}.
+
+\noindent\textbf{Receptive field.} For every Application in each of the twelve scenarios, the Application's composite output was back-propagated to every node-feature row and every edge attribute of its graph (\path{reproduce/receptive_field_probe.py}). The inputs with non-zero gradient form its receptive field. Receptive field depends on architecture and graph, not on weights, so it was measured at random initialization (Table~\ref{tab:supp-rf}). It was then confirmed on trained checkpoints: deleting every edge changes no Application prediction of \texttt{GAT}, \texttt{GAT-QoS-nf}, \texttt{GAT-QoS} or Hybrid-GAT (maximum absolute change $0.0$ on Enterprise and Healthcare). The cause is edge direction. Every relation of the native multigraph points away from Applications, and the untyped GATs aggregate from source to target only. HGT reaches Applications through its reverse-direction pass.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Mean receptive field of an Application's prediction, per LOSO scenario. HGT-QoS: three forward layers and one reverse pass. HGT-QoS-U: the same without the reverse pass. GAT-QoS: three layers along edge direction. Share = receptive-field nodes $/\ |V|$.}
+\label{tab:supp-rf}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrrrrrr}
+\toprule
+\textbf{Scenario} & \textbf{$|V|$} & \textbf{$|V_{\text{app}}|$} & \textbf{HGT-QoS nodes} & \textbf{HGT-QoS share} & \textbf{HGT-QoS-U nodes} & \textbf{GAT-QoS nodes} \\
+\midrule
+ATM & 74 & 26 & 35.8 & 0.484 & 1 & 1 \\
+AV System & 152 & 80 & 87.6 & 0.576 & 1 & 1 \\
+Enterprise & 520 & 300 & 247.9 & 0.477 & 1 & 1 \\
+Financial Trading & 124 & 60 & 72.7 & 0.586 & 1 & 1 \\
+Healthcare & 98 & 50 & 54.9 & 0.560 & 1 & 1 \\
+Hub-and-Spoke & 139 & 70 & 82.4 & 0.593 & 1 & 1 \\
+Industrial SCADA & 254 & 140 & 99.8 & 0.393 & 1 & 1 \\
+IoT Smart City & 326 & 200 & 114.2 & 0.350 & 1 & 1 \\
+Logistics Fleet & 205 & 110 & 81.6 & 0.398 & 1 & 1 \\
+Microservices & 186 & 90 & 72.2 & 0.388 & 1 & 1 \\
+Real-Time Gaming & 158 & 75 & 70.3 & 0.445 & 1 & 1 \\
+Telecom RAN & 225 & 120 & 90.0 & 0.400 & 1 & 1 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\noindent Across the twelve folds, HGT's receptive-field share does not correlate with its per-fold $\rho$ (Spearman $0.12$), with its gain over \texttt{Topo-QoS} ($-0.06$), or with the gain Hybrid-HGT adds to it ($0.20$). None of these is significant under a permutation test.
+
+\noindent\textbf{Construction of \texttt{GAT-QoS-nf}.} Its node features are built exactly as for \texttt{GAT}, and its edge attributes are taken from \texttt{GAT-QoS}'s build (\texttt{\_graft\_qos\_edge\_attr} in \path{cli/loso_evaluate.py}). Before the graft, the harness checks that the edge indices are identical. \path{tests/test_attribution_controls.py} checks that each input is bit-identical to one parent and that the two parents differ on both. On Applications the two feature sets differ in three columns: \texttt{qos\_weight}, \texttt{qos\_weight\_in} and \texttt{qos\_weight\_out}. The QoS-weighted centralities are present in both, as in every QoS-off arm (main Section~\ref{M-sec:6.2}).
+
+\noindent\textbf{Feature-only control.} \texttt{GBM-Feat} fits one scikit-learn \texttt{GradientBoostingRegressor}, at default settings, per entity type. It trains on the feature tensors of the same eleven training graphs the neural arms see. It was declared in Amendment~3 but first run here. Before that first run, it was given the neural arms' per-graph label transform; the earlier code fed it raw labels, whose mean differs about $20\times$ across scenarios. \texttt{GBM-Feat-QoS} reads the QoS-on node features.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Per-fold LOSO $\rho$ of the attribution sweep (Application population, mean over five seeds). One CPU invocation; \texttt{Topo-QoS}, \texttt{GAT} and \texttt{GAT-QoS} are bit-identical to their rows in main Tables~\ref{M-tab:hybrid} and~\ref{M-tab:contrasts_matched}.}
+\label{tab:supp-attribution-folds}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrrrrrr}
+\toprule
+\textbf{Held-out} & \textbf{\texttt{Topo-QoS}} & \textbf{GAT} & \textbf{GAT-QoS-nf} & \textbf{GAT-QoS} & \textbf{GBM-Feat} & \textbf{GBM-Feat-QoS} \\
+\midrule
+ATM & 0.311 & 0.398 & 0.388 & 0.506 & 0.304 & 0.319 \\
+AV System & 0.753 & 0.638 & 0.654 & 0.732 & 0.748 & 0.764 \\
+Enterprise & 0.795 & 0.511 & 0.504 & 0.407 & 0.533 & 0.475 \\
+Financial Trading & 0.586 & 0.721 & 0.656 & 0.713 & 0.762 & 0.753 \\
+Healthcare & 0.369 & 0.716 & 0.686 & 0.798 & 0.781 & 0.709 \\
+Hub-and-Spoke & 0.430 & 0.500 & 0.496 & 0.630 & 0.539 & 0.553 \\
+Industrial SCADA & 0.650 & 0.557 & 0.533 & 0.721 & 0.856 & 0.855 \\
+IoT Smart City & 0.351 & 0.609 & 0.577 & 0.720 & 0.721 & 0.691 \\
+Logistics Fleet & 0.741 & 0.575 & 0.457 & 0.654 & 0.622 & 0.634 \\
+Microservices & 0.265 & 0.326 & 0.348 & 0.479 & 0.427 & 0.453 \\
+Real-Time Gaming & 0.810 & 0.683 & 0.637 & 0.685 & 0.710 & 0.678 \\
+Telecom RAN & 0.576 & 0.520 & 0.538 & 0.574 & 0.703 & 0.700 \\
+\midrule
+\textbf{Mean} & 0.553 & 0.563 & 0.539 & 0.635 & 0.642 & 0.632 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\noindent\textbf{Seed stability.} The median within-fold seed spread of $\rho$ is $0.083$ for \texttt{GAT}, $0.136$ for \texttt{GAT-QoS-nf} and $0.010$ for \texttt{GAT-QoS}. For the two gradient-boosted arms it is $0.001$ and $0.004$.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Zero-shot transfer of the attribution arms to the five system models (protocol of main Table~\ref{M-tab:9b}: trained on all twelve synthetic scenarios, 3 layers, 300 epochs, five seeds). \texttt{GAT-QoS} reproduces its main-table row exactly. At $n = 5$ these figures are descriptive.}
+\label{tab:supp-attribution-zs}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{System model} & \textbf{GAT} & \textbf{GAT-QoS-nf} & \textbf{GAT-QoS} & \textbf{GBM-Feat} & \textbf{GBM-Feat-QoS} \\
+\midrule
+Autoware.universe & 0.778 & 0.770 & 0.758 & 0.698 & 0.694 \\
+EdgeX Foundry & 0.853 & 0.835 & 0.815 & 0.792 & 0.781 \\
+Home Assistant & 0.927 & 0.930 & 0.925 & 0.736 & 0.685 \\
+Online Boutique (model) & 0.810 & 0.786 & 0.750 & 0.747 & 0.822 \\
+Train-Ticket & 0.786 & 0.781 & 0.777 & 0.810 & 0.812 \\
+\midrule
+\textbf{Mean $\rho$} & 0.831 & 0.821 & 0.805 & 0.757 & 0.759 \\
+Overlap@$K$ & 0.548 & 0.501 & 0.519 & 0.407 & 0.400 \\
+PR-AUC & 0.811 & 0.760 & 0.790 & 0.772 & 0.730 \\
+$\rho_{>0}$ & +0.377 & +0.295 & +0.319 & +0.156 & +0.169 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\noindent\textbf{Directionality control.} Amendment~2 registered \texttt{HGT-QoS-U}, \texttt{HGT-QoS} without its reverse-direction pass ($330{,}895$ parameters, $103{,}725$ fewer). On this substrate the reverse pass is HGT's only route into Applications, so the arm scores each Application from its own features, as the gradient probe confirms. It was run after Amendment~7 (\texttt{make -f reproduce/Makefile rq-directionality}), in one CPU invocation with \texttt{Topo-QoS} and \texttt{HGT-QoS}; both reproduce their rows in main Table~\ref{M-tab:hybrid} bit for bit. The registered contrast, \texttt{HGT-QoS} vs.\ \texttt{HGT-QoS-U}, is $-0.010$ $[-0.064, +0.036]$, 6 of 12 folds, $W = 37$, $p = 0.91$. Descriptively, \texttt{HGT-QoS-U} is level with \texttt{GAT-QoS} ($-0.004$) and \texttt{GBM-Feat-QoS} ($-0.001$), paired across sweeps whose shared arms are bit-identical.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Directionality control. Left: per-fold LOSO $\rho$ (Application population, mean over five seeds; one CPU invocation). Right: zero-shot $\rho$ on the five system models (protocol of main Table~\ref{M-tab:9b}; $\pm$ = spread over five seeds). \texttt{HGT-QoS} reproduces its published LOSO and zero-shot rows exactly.}
+\label{tab:supp-directionality}
+\begin{minipage}[t]{0.52\linewidth}
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Held-out} & \textbf{\texttt{Topo-QoS}} & \textbf{HGT-QoS} & \textbf{HGT-QoS-U} \\
+\midrule
+ATM & 0.311 & 0.523 & 0.493 \\
+AV System & 0.753 & 0.704 & 0.734 \\
+Enterprise & 0.795 & 0.426 & 0.411 \\
+Financial Trading & 0.586 & 0.695 & 0.720 \\
+Healthcare & 0.369 & 0.730 & 0.816 \\
+Hub-and-Spoke & 0.430 & 0.548 & 0.633 \\
+Industrial SCADA & 0.650 & 0.684 & 0.647 \\
+IoT Smart City & 0.351 & 0.688 & 0.616 \\
+Logistics Fleet & 0.741 & 0.771 & 0.668 \\
+Microservices & 0.265 & 0.475 & 0.528 \\
+Real-Time Gaming & 0.810 & 0.789 & 0.674 \\
+Telecom RAN & 0.576 & 0.427 & 0.639 \\
+\midrule
+\textbf{Mean} & 0.553 & 0.622 & 0.631 \\
+\bottomrule
+\end{tabular}%
+}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.46\linewidth}
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrr}
+\toprule
+\textbf{System model} & \textbf{HGT-QoS} & \textbf{HGT-QoS-U} \\
+\midrule
+Autoware.universe & 0.716 $\pm$ 0.081 & 0.755 $\pm$ 0.032 \\
+EdgeX Foundry & 0.793 $\pm$ 0.037 & 0.807 $\pm$ 0.044 \\
+Home Assistant & 0.864 $\pm$ 0.063 & 0.921 $\pm$ 0.017 \\
+Online Boutique (model) & 0.710 $\pm$ 0.070 & 0.765 $\pm$ 0.045 \\
+Train-Ticket & 0.717 $\pm$ 0.096 & 0.773 $\pm$ 0.010 \\
+\midrule
+\textbf{Mean $\rho$} & 0.760 & 0.804 \\
+Overlap@$K$ & 0.470 & 0.536 \\
+PR-AUC & 0.713 & 0.788 \\
+$\rho_{>0}$ & +0.236 & +0.351 \\
+\bottomrule
+\end{tabular}%
+}
+\end{minipage}
+\end{table}
 
 \end{document}

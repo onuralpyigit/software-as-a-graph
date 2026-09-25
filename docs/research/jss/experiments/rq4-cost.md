@@ -1,6 +1,6 @@
 # RQ4 — Analysis cost and comparison with direct simulation
 
-**Paper:** §7.4, Table 10, and the sustainability paragraph of §8.1. **Extended results:**
+**Paper:** §7.4, Table 11, and the sustainability paragraph of §8.1. **Extended results:**
 Supplement S28 (per-scenario gate vs. oracle, training cost).
 
 ## Reproduce
@@ -45,5 +45,5 @@ paired measurement session at one commit and corpus digest.
   (0.83 Wh), and training the four arms once costs about 0.78 MJ (0.22 kWh).
   - Both figures are upper bounds from wall-clock time, not RAPL/NVML measurements.
   - SaG's sustainability case is avoided staging infrastructure, not CPU time.
-- **Not implemented.** Incremental re-scoring of only the $k$-hop neighbourhood of a change. Table 10
+- **Not implemented.** Incremental re-scoring of only the $k$-hop neighbourhood of a change. Table 11
   times full recomputation.

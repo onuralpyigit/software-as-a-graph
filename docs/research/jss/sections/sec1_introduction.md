@@ -16,13 +16,13 @@ Existing practice leaves this gap open, which we call the **Architecture–Code 
 
 -   **RQ1 (Ranking accuracy):** *How accurately do SaG’s closed-form, learned and hybrid engines rank components by cascading-failure impact on unseen architectures, compared with standard structural baselines?*
 
--   **RQ2 (What learning needs):** *Does the learned engines’ accuracy come from relation-specific (typed) parameters or from the QoS edge encoding, once model capacity and edge-channel width are matched?*
+-   **RQ2 (What learning needs):** *Where does the learned engines’ accuracy come from—relation-specific (typed) parameters, message passing, the QoS edge encoding, or the per-component features SaG extracts—once model capacity and edge-channel width are matched?*
 
 -   **RQ3 (Transfer):** *How well do engines trained on synthetic architectures transfer zero-shot to independently authored models of five open-source systems?*
 
 -   **RQ4 (Cost):** *What does the analysis cost at CI/CD time, which stage dominates, and how does it compare with running the simulation directly?*
 
-The primary contrast, the matched control and both hybrid engines were each registered with a decision rule before their results existed. Supplementary §S24 logs every later change as an amendment and maps these four questions onto the five of the registered analysis plan.
+The primary contrast, the matched control and both hybrid engines were each registered with a decision rule before their results existed. Supplementary §S24 logs every later change as an amendment and maps these four questions onto the five of the registered analysis plan. The attribution controls of §7.2, which separate message passing and the QoS node features from the edge encoding, were added after the matched control’s result. They are exploratory and are logged as Amendment 7; the feature-only regressor among them was declared in Amendment 3, also post hoc, and first run here.
 
 ## 1.4 Contributions
 
@@ -30,9 +30,9 @@ Evaluated under leave-one-scenario-out (LOSO) cross-validation over twelve synth
 
 1.  **A QoS-aware typed architecture model** that derives logical dependencies from physical pub-sub linkages, weights them by declared QoS contracts, and distinguishes sequential cascades from simultaneous blasts (§3). This representation is the largest single gain in the study: ranking on it raises Spearman correlation with simulated cascade impact from $0.349$ (unweighted centrality) to $0.553$, on all twelve held-out architectures ($+0.204$, $p = 0.0005$).
 
-2.  **Complementary closed-form, learned and hybrid engines** (§4). Closed-form and learned engines are strongest on different architectures, and neither significantly outperforms the other alone. Hybrid engines that learn a correction to the closed-form score exploit this complementarity. They are the most accurate engines on held-out architectures ($\rho = 0.657$ and $0.683$; $+0.103$ and $+0.130$ on 11 of 12 folds). Each meets the decision rule registered before its run and remains significant under a Holm correction pooled over all eleven registered contrasts.
+2.  **Complementary closed-form, learned and hybrid engines** (§4). Closed-form and learned engines are strongest on different architectures, and neither significantly outperforms the other alone. Hybrid engines that learn a correction to the closed-form score exploit this complementarity. They are the most accurate engines on held-out architectures ($\rho = 0.657$ and $0.683$; $+0.103$ and $+0.130$ on 11 of 12 folds). Each meets the decision rule registered before its run and remains significant under a Holm correction pooled over all twelve registered contrasts.
 
-3.  **Evidence on what graph learning needs and how far it transfers** (§7). A capacity- and channel-matched control shows that the 16-D QoS edge encoding, not relation-specific weights, drives learned accuracy ($+0.073$ on 10 of 12 folds) and stabilizes training, so an untyped attention network suffices. Trained only on synthetic data, learned engines transfer zero-shot to five open-source system models at $\rho = 0.760$–$0.805$, against $0.511$–$0.526$ for every training-free score, and nearly double top-$K$ critical-set overlap.
+3.  **Evidence on what the learned engines need and how far they transfer** (§7). Matched controls show that learned accuracy comes from the per-component features SaG’s analysis computes on the QoS-weighted graph, not from relation-specific weights, message passing or the QoS edge encoding. A gradient-boosted regressor on the same features matches the learned engines ($\rho = 0.642$ against $0.622$–$0.635$), and the untyped attention network’s gain from QoS is carried by three declared-coupling node features ($+0.095$), not by the 16-D edge channel ($-0.023$). Trained only on synthetic data, learned models transfer zero-shot to five open-source system models at $\rho = 0.757$–$0.831$, against $0.511$–$0.526$ for every training-free score, and raise top-$K$ critical-set overlap from $0.248$ to $0.40$–$0.55$.
 
 4.  **A standards-grounded explanation layer** (§5) that attributes each flagged component to ISO/IEC 25010 Availability, Fault Tolerance or Maintainability, and so names the remediation it calls for: replication, circuit breakers or decoupling.
 
