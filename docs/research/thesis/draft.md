@@ -36,10 +36,11 @@ outperform the calibrated weighting, and the composite transfers only weakly ($\
 The cascade oracles agree only moderately (composite $\rho = 0.395$, behavioural $0.627$), bounding
 construct validity; edge criticality is measured by removal rather than inferred, showing most links
 replaceable. Finally, SaG operates as a blocking CI/CD quality gate, evaluating a candidate topology
-in well under a minute even at 500+ components, though the anti-pattern catalog's agreement with the
-cascade oracle is modest (precision 0.24–0.40, Cohen's $\kappa$ from $-0.04$ to $0.30$ across our
-corpus), and the release gate's thresholds, calibrated on the synthetic corpus, pass on only one of
-the five system models.
+in $0.16$–$79$ s per scenario. Three limits qualify it: the gate costs more CPU time than direct
+simulation ($2$–$18\times$), the anti-pattern catalog's agreement with the cascade oracle is modest
+(precision 0.24–0.40, Cohen's $\kappa$ from $-0.04$ to $0.30$ on the earlier corpus), and the
+release gate's thresholds, calibrated on the synthetic corpus, pass on only one of the five system
+models.
 
 **Keywords:** publish–subscribe middleware; architectural dependability; cascading failure;
 heterogeneous graph neural networks; static system analysis; pre-deployment verification; quality
@@ -155,7 +156,8 @@ guarantee**. Finally, a **prescriptive remediation** stage generates topology-le
 and verifies them on counterfactual graphs in-memory.
 
 To make SSA continuous, SaG integrates directly into CI/CD pipelines as a blocking gate: a dedicated
-CLI script runs the anti-pattern catalog against the candidate topology in seconds and fails the
+CLI script runs the anti-pattern catalog against the candidate topology in seconds to about a
+minute and a half and fails the
 build (exit code 2) when it finds CRITICAL or HIGH severity structural anomalies (§6.6). The gate is
 currently absolute rather than delta-aware — it evaluates the full finding set on every run rather
 than diffing against a merge-base baseline — a limitation §6.6 and §9.3 discuss and scope as future
@@ -226,8 +228,8 @@ This paper makes the following contributions:
    edges the cascade model cannot express (§8.2). We are explicit that these two are computed over
    different edge populations, so the second does not validate the first (§4.7, §9.3).
 5. **An automated CI/CD quality gate.** We formulate a build-blocking gate that evaluates
-   system-level structural risk statically and executes in well under a minute on every scenario in
-   our corpus (§6, §8.4). The gate is absolute rather than delta-aware in the current implementation;
+   system-level structural risk statically and executes in $0.16$–$5.48$ s on eleven of the twelve
+   scenarios in our corpus and $79.3$ s on the largest (§6, §8.4). The gate is absolute rather than delta-aware in the current implementation;
    §6.6 and §9.3 scope delta-awareness and a waiver register as design work this contribution does
    not yet include.
 6. **A prescriptive remediation stage with per-edit counterfactual verification.** We formalise a
@@ -2132,27 +2134,61 @@ precisely because a single-threshold result is not trustworthy here.
 
 ## 8.4 RQ4 — Feasibility and Performance of SaG as a CI/CD Quality Gate
 
+> **Provenance.** The timings below come from the twelve-scenario corpus and replace an earlier
+> eleven-scenario measurement. They are transcribed from the JSS manuscript
+> ([`sec7_results.md`](../jss/sections/sec7_results.md) §7.4, Table 10) and supplement
+> ([`supplementary.tex`](../jss/latex/supplementary.tex), Analysis Gate Against Direct Simulation);
+> artifacts: `detection_validation_timed_jss12.json` (gate), `results/oracle_timing_jss12.json`
+> (oracle), `inference_latency_v3.json` (per-stage latency).
+
 A primary blocker for continuous Static System Analysis (SSA) is execution time: developers will
 bypass or disable quality gates that introduce significant build delays. We evaluate the feasibility
-of deploying SaG as a blocking gate by measuring the wall-clock cost of the structural analysis and
-anti-pattern catalog — the mechanism `detect_antipatterns.py` invokes — run via the in-memory
-`MemoryRepository`, across all eleven scenarios in our corpus (mean over the five canonical seeds).
+of deploying SaG as a blocking gate by measuring the wall-clock cost of the full analysis gate —
+structural analysis plus the 18 anti-pattern detectors, the mechanism `detect_antipatterns.py`
+invokes — run in-memory through the `MemoryRepository` on one commodity CPU, over all twelve
+scenarios of the LOSO corpus.
 
 The measured footprint:
-- **≤ 90 components** (`tiny_system` and all three real-world transcribed architectures): $0.02$–$0.04$ s.
-- **98–326 components** (the remaining six generated scenarios): $0.27$–$1.24$ s. Cost does not scale
-  monotonically with component count in this range — `hub_and_spoke_system` (139 components, $1.24$ s)
-  costs more than `iot_smart_city_system` (326 components, $1.08$ s) — consistent with the catalog's
-  cost being driven by specific detectors' complexity (e.g. `DEEP_PIPELINE`'s path enumeration) more
-  than by raw component count.
-- **`enterprise_system`**, the largest scenario at 520 components: $26.74 \pm 0.32$ s.
+- **Eleven of twelve scenarios** (74–326 components): $0.16$–$5.48$ s, from ATM ($0.16$ s) to IoT
+  Smart City ($5.48$ s).
+- **`enterprise_system`**, the largest scenario at 520 components: $79.3$ s, ranging over $77$–$83$ s
+  across measurement sessions.
 
-All eleven scenarios complete in well under the several-minute budget continuous build pipelines
-typically allow.
+The detectors themselves are negligible ($\le 0.19$ s on every scenario); the cost is structural
+analysis, and within it the Connectivity Degradation Index, which is $O(|V|^2 + |V||E|)$ and is
+computed for every node in the main connected component. That is a correctness requirement:
+restricting it to articulation points leaves it identically zero in redundant multi-publisher
+topologies and makes $A(v)$ near-constant. Cost tracks the size of the derived dependency projection
+rather than the component count ($\rho = 0.951$ with the number of derived `DEPENDS_ON` edges,
+against $0.792$ with $|V|$). Enterprise is the maximum because its 300 applications share 120 topics,
+so Rule 1 derives a near-complete projection of 26,276 edges, whereas IoT Smart City has more
+components and a sixth of the edges.
+
+**The gate costs more CPU time than the simulation it stands in for.** Timing the full five-seed
+cascade labelling sweep in the same session gives $0.08$–$4.49$ s per scenario. Paired scenario by
+scenario, the gate costs $2.0$–$17.7\times$ as much (median $5.6\times$), and it is more expensive on
+all twelve scenarios; the largest ratio is Enterprise's ($79.3$ s against $4.5$ s). On raw CPU time,
+direct simulation is therefore faster wherever its parameters are available. The case for the gate is
+different: it avoids provisioning staging infrastructure, and it scores infrastructure components
+and dependency edges that node-level simulation leaves unscored.
+
+**Learned inference is effectively free once the analysis exists.** On graphs of 249 to 1,998
+components, the HGT forward pass takes $16$–$56$ ms, against $1.7$–$239$ s for structural analysis
+(Table 10 of the JSS manuscript), so at 2,000 components the model is $0.02\%$ of a roughly
+four-minute end-to-end evaluation. The $56$ ms is the marginal cost of re-scoring an already-analysed
+graph. Training is a separate, one-off cost per model version: $7.7$ CPU-hours for the four learned
+arms of §8.1.
+
+Eleven of the twelve scenarios complete within seconds, and even Enterprise stays well inside the
+several-minute budget continuous build pipelines typically allow. These timings are of the in-memory
+machinery; the packaged `detect_antipatterns.py` connects to a running Neo4j database (§6.6), and the
+cost of loading a topology into it is not measured here.
 
 In terms of gating efficacy: the gate is currently absolute rather than delta-aware (§6.6), so there
 is no merge-base diff to evaluate detection against; what we can and do measure is the anti-pattern
-catalog's raw agreement with the cascade oracle — the property the gate is a proxy for. Scoring
+catalog's raw agreement with the cascade oracle — the property the gate is a proxy for. These
+agreement figures were measured on the earlier seven-scenario corpus and three system models and have
+not been re-measured on the current one. Scoring
 CRITICAL/HIGH findings (with edge-keyed findings crediting both endpoints) against the oracle's own
 critical set gives, across five seeds: precision $0.237 \pm 0.014$, recall $0.887 \pm 0.059$, F1
 $0.374 \pm 0.022$, Cohen's $\kappa = -0.036 \pm 0.049$ on the seven generated scenarios ($n=40$
@@ -2166,10 +2202,12 @@ different purposes (naming a structural smell versus ranking by predicted impact
 here is wide enough that the catalog's findings should not be read as impact-calibrated. The composite
 $Q(v)$ of §4 remains the ranking signal validated against the oracle in §8.1.
 
-From a **sustainability and resource efficiency** standpoint, evaluating architectural risks statically
-in-memory ($0.02\text{ s}$–$26.74\text{ s}$ across our corpus) yields energy savings relative to
-spinning up staging clusters or running heavier dynamic checks per build, though we have not measured
-that comparison directly.
+From a **sustainability and resource efficiency** standpoint, the case is infrastructure avoidance,
+not CPU time. At a base SoC power of 28 W, one gate pass over all twelve scenarios costs at most
+$0.83$ Wh, and training the four learned arms once costs about $0.22$ kWh; both are upper bounds from
+wall-clock time, not RAPL or NVML measurements. Evaluating architectural risk statically avoids
+provisioning staging clusters for chaos sweeps, but as the comparison above shows, it does not save
+CPU time over direct simulation, and we have not measured the staging comparison directly.
 
 ## 8.5 RQ5 — Real-World Open-Source System Architecture Validation
 
@@ -2366,13 +2404,14 @@ correct outcome of an honest test rather than a failure of the mechanism: the pr
 reported a more favourable aggregate precisely because it never asked each edit to justify itself.
 
 **Finally, automated quality gating operationalises these checks continuously (RQ4).** Run in-memory
-through the database-free `MemoryRepository`, the structural analysis and anti-pattern catalog the
-gate invokes complete in $0.02$–$1.24$ s on every scenario up to 326 components and in $26.74$ s on
-the largest, `enterprise_system` at 520 components (§8.4). That speed is measured on the machinery,
+through the database-free `MemoryRepository`, the structural analysis and anti-pattern detectors
+the gate invokes complete in $0.16$–$5.48$ s on eleven of the twelve scenarios and in $79.3$ s on the
+largest, `enterprise_system` at 520 components (§8.4). That speed is measured on the machinery,
 not on the packaged gate: `detect_antipatterns.py`
 still connects to a running Neo4j database (§6.6), so a CI build's wall-clock time also includes
 loading the topology into it, which we have not measured. The speed makes the analyzer viable as a
-blocking CI/CD check. It is not yet sustainable as one: the gate is
+blocking CI/CD check, though not a cheaper one than direct simulation, which costs $2$–$18\times$
+less CPU time on every scenario (§8.4). It is not yet sustainable as one: the gate is
 absolute rather than delta-aware (§6.6), so it re-evaluates the full finding set on every run, and a
 deliberately accepted single point of failure fails the build on every commit, indistinguishable
 from a regression. Evaluating against the merge base and blocking only on newly introduced findings,
@@ -2952,7 +2991,7 @@ topologies with pronounced fan-out structure, which we report as the substantive
 result of that stage (§6.4, §6.7).
 
 Integrated directly into pipelines as a blocking CI/CD Quality Gate, the framework evaluates a
-candidate topology in seconds, bridging the "Architecture-Code Gap" at commit time; the gate is
+candidate topology in seconds to about a minute and a half, bridging the "Architecture-Code Gap" at commit time; the gate is
 absolute rather than delta-aware, so blocking only newly introduced findings against the merge base
 remains future work (§9.3). Across twelve synthetic architectures and models of five open-source systems,
 the framework establishes a scope condition on where graph learning pays. The QoS-aware
