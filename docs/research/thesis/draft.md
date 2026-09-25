@@ -1733,170 +1733,200 @@ RQ2 (what multi-dimensional attribution exposes that centrality misses, §8.2), 
 ablations and sensitivity analyses that test the robustness of these answers and settle RQ3 (§8.3),
 evaluate the CI/CD quality gate for RQ4 (§8.4), and close with the real-world external-validity
 evidence for RQ5 (§8.5). All figures are seed means over $\{42,123,456,789,2024\}$. Bootstrap 95%
-confidence intervals ($B = 2000$) accompany Table 18, and predictor comparisons are tested with paired
+confidence intervals ($B = 2000$) accompany Table 20, and predictor comparisons are tested with paired
 Wilcoxon signed-rank tests across scenarios (Table 19). Where an interval or a test is not reported,
 it is because the underlying per-fold artifact was not retained, and we say so at that point rather
 than omit it silently.
 
 ## 8.1 RQ1 — Interpretable Attribution versus Learning
 
-Every figure in this section is produced by one evaluation contract (§7.3): all six variants are
-scored on an identical held-out node set, drawn from a single train/validation/test split pinned by
-node identity and shared across variants. The previously reported version of this table did not have
-that property, and the correction changes its conclusion; §7.3 documents what changed and why.
+> **Provenance.** This section reports the twelve-scenario corpus. It replaces the seven-scenario
+> figures of an earlier revision, whose Leave-One-Scenario-Out artifact was not retained. Every figure
+> is transcribed from the artifact-reconciled JSS supplement ([`supplementary.tex`](../jss/latex/supplementary.tex)
+> §§S17, S25 and the registered LOSO sweep), with the artifact behind each table named in its caption;
+> per [`outline.md`](outline.md#source-integrity), re-read each figure from its artifact when this
+> section moves into the thesis. Predictor names follow the current manuscript: Topo is this draft's
+> Topo-BL, HGT and `HGT-QoS` are HGL and $HGL\text{-}QoS$, and RM / $Q(v)$ is the RMAV composite.
+> The small untyped GATs are `GAT-S-P` and `GAT-S-P-w` in distribution (this draft's GL and GL-QoS,
+> reading the Application–Library projection) and `GAT-S` and `GAT-S-w` under LOSO (reading the
+> native multigraph).
+
+Every figure in this section is produced by one evaluation contract (§7.3): each predictor is scored
+on the same Application node set. In distribution, that set is a held-out 60/20/20 node split, redrawn
+per seed and shared across variants. Out of distribution, it is the complete Application population of
+the held-out scenario (26 to 300 nodes, $K = \mathrm{round}(0.2\,|V_{\text{app}}|)$ from 5 to 60).
 
 **In-distribution, typed learning leads on the point estimate.** Table 18 reports Spearman $\rho$
-against simulated impact $I^*(v)$ on the held-out split, averaged over five seeds, with bootstrap
-95% confidence intervals ($B = 2000$) and the held-out sample size $n$ on which each row's
-correlations are computed:
+against simulated impact $I^*(v)$ on the held-out split, averaged over five seeds, with the held-out
+sample size $n$ on which each row's correlations are computed:
 
 **Table 18. In-distribution held-out Spearman $\rho$ against $I^*(v)$**, seed means over
-$\{42,123,456,789,2024\}$ with bootstrap 95% CIs. $n$ is the number of held-out Application-type
-components scored in that scenario (§7.3).
+$\{42,123,456,789,2024\}$; $n$ is the number of held-out Application components. The last row gives
+the mean Overlap@$K$. Artifact: `results/main_table.json` (Supplementary §S17).
 
-| Scenario | $n$ | Topo-BL | Topo-QoS | GL | GL-QoS | HGL | $HGL\text{-}QoS$ |
+| Scenario | $n$ | Topo | Topo-QoS | GAT-S-P | GAT-S-P-w | HGT | `HGT-QoS` |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| AV System | 16 | 0.308 [0.13, 0.46] | 0.750 [0.55, 0.91] | 0.760 [0.66, 0.84] | 0.655 [0.40, 0.88] | 0.713 [0.51, 0.88] | 0.692 [0.47, 0.87] |
-| Enterprise | 60 | 0.393 [0.29, 0.50] | 0.797 [0.75, 0.85] | 0.853 [0.81, 0.89] | 0.513 [0.21, 0.79] | **0.885** [0.86, 0.91] | 0.883 [0.84, 0.92] |
-| Financial Trading | 12 | 0.246 [−0.05, 0.56] | 0.709 [0.58, 0.84] | 0.851 [0.82, 0.89] | 0.874 [0.85, 0.89] | 0.882 [0.85, 0.91] | **0.903** [0.88, 0.92] |
-| Healthcare | 10 | −0.182 [−0.40, 0.06] | 0.772 [0.59, 0.88] | 0.815 [0.76, 0.87] | 0.804 [0.74, 0.85] | 0.842 [0.80, 0.87] | **0.845** [0.80, 0.88] |
-| Hub-and-Spoke | 14 | 0.299 [0.12, 0.48] | 0.511 [0.21, 0.76] | 0.494 [0.21, 0.72] | 0.475 [0.34, 0.63] | 0.537 [0.43, 0.65] | **0.557** [0.47, 0.65] |
-| IoT Smart City | 40 | −0.063 [−0.17, 0.05] | 0.068 [−0.07, 0.20] | 0.674 [0.54, 0.81] | 0.474 [0.27, 0.67] | **0.891** [0.87, 0.91] | 0.883 [0.86, 0.91] |
-| Microservices | 18 | 0.302 [0.07, 0.54] | 0.556 [0.38, 0.71] | 0.524 [0.41, 0.63] | 0.436 [0.31, 0.56] | 0.362 [0.05, 0.55] | 0.354 [0.18, 0.53] |
-| **Mean** | — | **0.186** [0.02, 0.32] | **0.595** [0.41, 0.74] | **0.710** [0.60, 0.81] | **0.604** [0.49, 0.73] | **0.730** [0.58, 0.86] | **0.731** [0.57, 0.86] |
+| ATM | 5 | 0.538 | **0.557** | −0.393 | −0.080 | 0.492 | 0.348 |
+| AV System | 16 | 0.188 | 0.797 | **0.816** | 0.465 | 0.637 | 0.558 |
+| Enterprise | 60 | 0.443 | 0.793 | 0.779 | 0.481 | 0.861 | **0.878** |
+| Enterprise Integration (ESB) | 14 | 0.179 | 0.429 | 0.363 | −0.156 | 0.421 | **0.476** |
+| Financial Trading | 12 | 0.387 | 0.512 | 0.565 | 0.666 | 0.693 | **0.730** |
+| Healthcare | 10 | 0.291 | 0.399 | **0.725** | 0.575 | 0.575 | 0.607 |
+| Industrial SCADA | 28 | 0.601 | 0.710 | 0.656 | 0.478 | 0.787 | **0.839** |
+| IoT Smart City | 40 | 0.320 | 0.397 | 0.580 | 0.538 | 0.849 | **0.850** |
+| Logistics Fleet | 22 | 0.511 | 0.652 | 0.746 | 0.780 | 0.796 | **0.815** |
+| Microservices | 18 | 0.219 | 0.344 | 0.351 | 0.363 | 0.141 | **0.664** |
+| Real-Time Gaming | 15 | 0.360 | **0.802** | 0.464 | 0.471 | 0.651 | 0.641 |
+| Telecom RAN | 24 | 0.402 | 0.422 | **0.608** | 0.350 | 0.591 | 0.526 |
+| **Mean $\rho$** | — | 0.370 | 0.568 | 0.522 | 0.411 | 0.624 | **0.661** |
+| **Mean Overlap@$K$** | — | 0.379 | 0.390 | 0.391 | 0.346 | 0.501 | **0.503** |
 
-The heterogeneous predictor leads the strongest non-learning baseline by $\Delta\rho = +0.135$
-(HGL 0.730 vs Topo-QoS 0.595). Its lead over the *homogeneous* learned baseline is much narrower —
-$+0.020$ over GL (0.730 vs 0.710) — and it is not uniform: GL wins on AV and Microservices, HGL wins
-decisively on IoT (0.891 vs 0.674). In-distribution, therefore, these data do **not** establish that
-relation-specific message passing is what supplies the learned margin; the two learned families are
-separated by less than the across-seed spread. The claim that typing matters is carried by the
-out-of-distribution and in-domain k-fold results below, not by this table, and we state it there
-rather than here.
+`HGT-QoS` leads the strongest non-learning baseline by $\Delta\rho = +0.093$ (0.661 against
+`Topo-QoS` 0.568), and the typed pair leads every other predictor on critical-set overlap (0.50
+against 0.35–0.39). Its lead over the small homogeneous GATs is larger still ($+0.118$ and $+0.222$, Table 19), but
+this table cannot attribute that margin to typing: the typed pair reads the native multigraph and the
+homogeneous pair reads the Application–Library projection, so the difference mixes relation-specific
+message passing with multi-entity visibility. The typing question is settled by the capacity- and
+channel-matched control of §9.1.1 (Table 26), not by this table, and there the answer is that typing
+adds nothing.
 
-**Significance testing, and what it does and does not license.** Table 19 reports the paired Wilcoxon
-signed-rank test promised in §7.3, computed across the seven scenarios on the per-scenario mean $\rho$.
-We report it in full because it qualifies our own headline:
+**Significance testing, and what it does and does not license.** Table 19 reports the paired
+Wilcoxon signed-rank test promised in §7.3, computed across the twelve scenarios on the per-scenario
+mean $\rho$. We report it in full because it qualifies our own headline:
 
-**Table 19. Paired Wilcoxon signed-rank tests across the seven scenarios** ($n = 7$; two-sided).
+**Table 19. Paired Wilcoxon signed-rank tests across the twelve in-distribution scenarios**
+($n = 12$; two-sided). Artifact: `results/main_table.json` (Supplementary, In-Distribution
+Significance Tests).
 
 | Comparison | $\Delta\rho$ | Scenarios won | $W$ | $p$ | |
 |---|---:|:---:|---:|---:|:---|
-| HGL vs Topo-BL | +0.544 | 7/7 | 0.0 | 0.016 | significant |
-| HGL vs GL-QoS | +0.126 | 6/7 | 5.0 | 0.156 | n.s. |
-| HGL vs Topo-QoS | +0.135 | 5/7 | 8.0 | 0.375 | n.s. |
-| GL vs Topo-QoS | +0.116 | 5/7 | 5.0 | 0.156 | n.s. |
-| HGL vs GL | +0.020 | 5/7 | 11.0 | 0.688 | n.s. |
-| $HGL\text{-}QoS$ vs HGL | +0.001 | 3/7 | 13.0 | 0.938 | n.s. |
+| `HGT-QoS` vs Topo | +0.291 | 11/12 | 2.0 | 0.0015 | significant |
+| Topo-QoS vs Topo | +0.198 | 12/12 | 0.0 | 0.0005 | significant |
+| `HGT-QoS` vs GAT-S-P-w | +0.222 | 11/12 | 3.0 | 0.0024 | significant (substrate-confounded) |
+| `HGT-QoS` vs GAT-S-P | +0.118 | 9/12 | 21.0 | 0.176 | n.s. |
+| `HGT-QoS` vs Topo-QoS | +0.093 | 9/12 | 23.0 | 0.233 | n.s. |
+| HGT vs GAT-S-P | +0.082 | 8/12 | 29.0 | 0.470 | n.s. |
+| `HGT-QoS` vs HGT | +0.037 | 8/12 | 32.0 | 0.622 | n.s. |
+| GAT-S-P-w vs Topo-QoS | −0.129 | 4/12 | 21.0 | 0.176 | n.s. |
 
-Only the comparison against the unweighted structural baseline reaches significance. **The
-in-distribution margin over `Topo-QoS` — the $+0.135$ quoted above — is not established by a paired
-test across scenarios** ($p = 0.375$), and neither is the $+0.020$ over the homogeneous learned
-model, which the preceding paragraph already declined to claim. Two readings are needed together.
-The test is genuinely underpowered: at $n = 7$ paired scenarios the smallest attainable two-sided
-$p$ is $0.016$, so *only* a clean 7-of-7 sweep can ever reach $p < 0.05$, and "not significant" here
-is not evidence of no effect. But it is equally not evidence of an effect, and the effect is carried
-by 5 of 7 scenarios with `Topo-QoS` winning on none of the two it loses by much. We therefore state
-the in-distribution ranking result as a point-estimate lead that this design cannot confirm, and we
-do not treat it as the paper's load-bearing evidence for learning. That role belongs to the
-critical-set result below, and — with the qualification stated there — to the transfer protocols.
+Both comparisons against unweighted centrality are significant, and so is QoS weighting of the
+closed-form score itself, on all twelve scenarios. **The in-distribution margin over `Topo-QoS` is
+not established by a paired test across scenarios** ($+0.093$, $p = 0.233$). At $n = 12$ the
+smallest attainable two-sided $p$ is $0.00049$, so significance no longer requires a clean sweep as
+it did at seven scenarios, and a 9-of-12 lead that does not reach it remains unconfirmed. We therefore state the in-distribution ranking
+result as a point-estimate lead that this design cannot confirm.
 
-**On the interpretable predictor's absence from Table 18.** $Q(v)$ appears in the LOSO table below but
-not in Table 18. The in-distribution harness scores it under a separate path that does not emit the
-held-out per-scenario correlations the other six variants produce, so adding a column here would mean
-quoting a figure computed under a different contract — exactly the defect §7.3 documents and
-corrects. We leave the cell empty rather than fill it inconsistently; §8.3's normalisation and
+**On the interpretable predictor's absence from Table 18.** $Q(v)$ appears in the LOSO table below
+but not in Table 18. The in-distribution harness scores it under a separate path that does not emit
+the held-out per-scenario correlations the other six variants produce, so adding a column here would
+mean quoting a figure computed under a different contract, which is exactly the defect §7.3 documents
+and corrects. We leave the cell empty rather than fill it inconsistently; §8.3's normalisation and
 shrinkage sweeps characterise $Q(v)$'s in-distribution ranking behaviour directly, and its inductive
 result is in Table 20.
 
 Two boundary conditions frame the whole table. The ground truth agrees with *itself* at test–retest
-$\rho$ of 0.807–1.000 (§7.5), so HGL's mean 0.730 sits within the spread of what it is scored
-against rather than underperforming a distant optimum — though the lowest-ceiling scenario is also
-Microservices (§7.5), so the two boundary conditions below are not independent. And Microservices — by construction the sparse,
-low-centralisation topology with few genuine bottlenecks — is where every learned predictor is
-weakest (HGL 0.362), while the structural baselines degenerate on Healthcare and IoT ($\rho \le 0$).
-No predictor in this study is uniformly best.
+$\rho$ of 0.811–1.000 (median 0.982; §7.5), so `HGT-QoS`'s mean 0.661 sits well inside what the labels
+can support rather than near a ceiling. And the held-out sets are small on several scenarios: $n = 5$
+on ATM gives $K = 1$, so a single rank swap moves $\rho$ substantially, and the per-scenario cells on
+the smaller topologies are coarsely quantised. The row means, not individual cells, carry the
+comparison. No predictor is uniformly best: `Topo-QoS` wins on ATM and Real-Time Gaming, a small GAT
+on AV, Healthcare and Telecom RAN, and the typed pair on the remaining seven.
 
-**Out of distribution, the typed model leads.** Under
-Leave-One-Scenario-Out evaluation — the true pre-deployment condition, in which the model must rank a
-system whose cascade dynamics it has never seen — we obtain:
+**Out of distribution, the learned engines lead but do not significantly outperform the
+closed-form score.** Under Leave-One-Scenario-Out evaluation, the true pre-deployment condition in
+which the model must rank a system whose cascade dynamics it has never seen, the registered sweep
+gives:
 
-**Table 20. Inductive Leave-One-Scenario-Out evaluation.** Cross-fold mean $\rho$ against $I^*(v)$,
-across-fold standard deviation, and $F_1@K$ on the held-out scenario.
+**Table 20. Inductive Leave-One-Scenario-Out evaluation, registered sweep.** Twelve folds, five
+seeds, Application population. Fold score = mean over seeds; CI = bootstrap over folds
+($B = 2000$); $\Delta\rho$ is paired by fold against `Topo-QoS`; fold $\sigma$ = spread of the twelve
+fold means; seed $\sigma$ = median within-fold spread; $\rho_{>0}$ = the same predictions scored only
+on components with positive impact. Artifacts: `results/loso_all_variants_v5.json`,
+`results/loso_significance_v5.json` (Supplementary, Registered LOSO Sweep and §S25).
 
-| Variant | Mean $\rho$ (LOSO) | Std $\rho$ | $F_1@K$ | Training required |
-|---|---:|---:|---:|:---:|
-| Topo-BL | 0.105 | 0.151 | 0.179 | no |
-| Topo-QoS | 0.521 | 0.305 | 0.308 | **no** |
-| RMAV / $Q(v)$ | −0.093 | 0.140 | 0.209 | no |
-| GL (homogeneous) | 0.436 | 0.120 | 0.440 | yes |
-| GL-QoS (homogeneous) | 0.430 | 0.125 | 0.435 | yes |
-| **HGL (typed)** | **0.608** | 0.177 | **0.465** | yes |
-| $HGL\text{-}QoS$ (typed + QoS) | 0.595 | 0.190 | 0.461 | yes |
+| Variant | Mean $\rho$ [95% CI] | $\Delta\rho$ vs Topo-QoS [95% CI] | Fold $\sigma$ | Seed $\sigma$ | Overlap@$K$ | $\rho_{>0}$ | Training |
+|---|---|---|---:|---:|---:|---:|:---:|
+| Topo | 0.349 [0.254, 0.452] | −0.204 [−0.286, −0.122] | 0.173 | — | 0.366 | 0.181 | no |
+| Topo-QoS | 0.553 [0.443, 0.657] | — | 0.192 | — | 0.388 | 0.280 | **no** |
+| RM / $Q(v)$ | 0.205 [0.092, 0.320] | −0.348 [−0.432, −0.265] | 0.195 | — | 0.322 | 0.102 | no |
+| GAT-S (homogeneous) | 0.317 [0.254, 0.381] | −0.236 [−0.342, −0.125] | 0.111 | 0.298 | 0.328 | 0.159 | yes |
+| GAT-S-w (homogeneous) | 0.604 [0.538, 0.665] | +0.051 [−0.067, +0.169] | 0.112 | 0.024 | **0.431** | 0.328 | yes |
+| HGT (typed) | 0.551 [0.474, 0.617] | −0.002 [−0.066, +0.072] | 0.124 | 0.114 | 0.427 | 0.299 | yes |
+| **`HGT-QoS` (typed + QoS)** | **0.638** [0.561, 0.710] | +0.085 [−0.029, +0.194] | 0.133 | 0.052 | 0.424 | **0.356** | yes |
 
-`Topo-QoS` is a QoS-weighted centrality that requires no training, no labels, and no transfer
-assumption; because it is never fitted, its out-of-distribution score *is* its score. HGL reaches
-$\rho = 0.608$ against its $0.521$, and leads on $F_1@K$ as well (0.465 vs 0.308). The same ordering
-holds under the in-domain k-fold protocol, where the separation is wider still — HGL-QoS 0.693 and
-HGL 0.666 against Topo-QoS 0.492 — and where the typed models are also the *most stable* across folds
-($\sigma = 0.07$ against $0.34$ for Topo-QoS).
+`Topo-QoS` is a QoS-weighted centrality that requires no training, no labels and no transfer
+assumption; because it is never fitted, its out-of-distribution score *is* its score. `HGT-QoS`
+reaches $\rho = 0.638$ against its $0.553$ and wins 9 of 12 folds, but the registered confirmatory
+contrast is not significant ($p = 0.151$, Holm $0.303$), and HGT without the QoS channel ties it
+($-0.002$, $p = 0.470$). Every learned interval in the $\Delta\rho$ column spans zero. The learned
+engines are, however, markedly more stable across folds than the closed-form score (fold $\sigma$
+0.11–0.13 against 0.19), and the two fail in different places: `HGT-QoS` loses substantively on
+Enterprise ($0.461$ against $0.795$) and Telecom RAN ($0.407$ against $0.576$), and gains $+0.229$ and
+$+0.210$ on Microservices and ATM, where `Topo-QoS` is weakest. Enterprise is the largest graph (520
+nodes) with by far the densest derived projection (26,276 edges), yet neither graph size ($\rho =
+-0.434$ with the margin, $p = 0.159$) nor density predicts in advance which engine wins on an unseen
+architecture. A later CPU sweep of the same protocol, on which the amendments of §9.1.1 were
+evaluated, agrees on every conclusion (`HGT-QoS` $0.622$; Table 25).
 
 **This comparison is only meaningful because the baseline was repaired first.** In an earlier
 revision, `Topo-QoS` scored *no* QoS weighting at all on the logical-dependency substrate: QoS is
 declared on the Topic node, but the harness looked for it on the pub-sub relationship, which the
 generated topologies emit without one. The lookup never matched, every derived dependency edge kept a
-unit weight, and the QoS-weighted baseline silently computed plain betweenness on all seven scenarios
-— it was `Topo-BL` under another name. We resolve $w(t)$ from the shared Topic instead, taking the
-strongest contract when a pair communicates over several topics. A baseline that is accidentally
-identical to the one it is meant to improve on will always flatter whatever it is compared against,
-and the figures above are reported only after that defect was removed.
+unit weight, and the QoS-weighted baseline silently computed plain betweenness on every scenario; it
+was Topo under another name. We resolve $w(t)$ from the shared Topic instead, taking the strongest
+contract when a pair communicates over several topics. A baseline that is accidentally identical to
+the one it is meant to improve on will always flatter whatever it is compared against, and the
+figures above are reported only after that defect was removed. With it removed, QoS weighting is the
+largest single gain in the table: $+0.204$ over unweighted centrality, on all twelve folds.
 
-Even so, we state the ranking result carefully, because of this paper's own history with it. An
-earlier version reported typed learning as the out-of-distribution winner on figures produced by an
-untrained sweep (§9.2); a later version, after correcting the evaluation contract, reported a tie and
-stated plainly that learning did not beat the training-free baseline on rank correlation. On the
-regenerated corpus, rebuilt ground-truth caches (§7.1) and repaired baseline, the ordering favours the
-typed model. A conclusion that has moved this often under changes to the *measurement apparatus*
-rather than to the method deserves an explicit statement of what would settle it: an evaluation on
-topologies that do not share a generator (§9.3), which this submission does not have.
+**The history of this result, and what now settles it.** An earlier version reported typed learning
+as the out-of-distribution winner on figures produced by an untrained sweep (§9.2). A later version,
+after correcting the evaluation contract, reported a tie. The seven-scenario revision then reported a
+typed lead ($0.608$ against $0.521$) from a run whose artifact was overwritten, against a retained
+pre-repair run that recorded the opposite ordering. A conclusion that moved this often under changes
+to the *measurement apparatus* needed two things before it could be stated: a larger corpus and an
+analysis fixed before the result existed. Table 20 has both. Its contrasts were registered before the
+twelve-fold harness produced any result (Amendment 3 re-baselined them on this sweep), its artifact is
+retained in the replication package, and an independent CPU sweep reproduced its conclusions. On that footing, the answer is the tie, not the lead: learned engines are statistically on
+par with the repaired closed-form score out of distribution.
 
-We must add a second, sharper qualification, which we prefer to state than to let a reader discover.
-**Unlike Table 18, the run behind Table 20 was not persisted to a retained artifact.** Table 18
-regenerates exactly from a stored result file; the corresponding Leave-One-Scenario-Out result file
-was overwritten during the revision, and the most recent retained LOSO run log — produced *before*
-the baseline repair described above — records a different ordering, with `Topo-QoS` at $\rho = 0.609$
-against HGL at $0.597$ and $F_1@K$ of $0.416$ against $0.548$. That is the ordering under which the
-training-free baseline ties the typed model on rank correlation. We report the post-repair figures in
-Table 20 because they come from the corrected apparatus, but three changes are confounded in the
-interval between the two runs — the baseline repair, the corpus regeneration, and the ground-truth
-cache rebuild — and we cannot attribute the shift to the repair alone. Readers should therefore treat
-Table 20's *ranking* margin as provisional pending a re-run under the final apparatus with the
-artifact retained, and weight the $F_1@K$ column, which favours the typed model under both runs,
-accordingly. This is the same class of defect §9.2 discloses, caught one revision later, and we
-regard the standing lesson as the one stated there: a result whose artifact is not retained is not
-yet a result.
+**Set identification no longer separates the engines out of distribution.** In the seven-scenario
+revision, $F_1@K$ was the more robust half of the learned advantage. On twelve folds, the learned
+engines still lead on Overlap@$K$ (0.424–0.431 against 0.388), but the fold-level difference is not
+significant either ($\Delta = +0.037$, $p = 0.470$ for `HGT-QoS`), and top-$K$ metrics inherit the
+label churn documented in §7.5: cross-seed Jaccard of the ground truth's own top-$K$ set has median
+0.847 and falls to 0.370 on Logistics Fleet. Identification separates the engines clearly only
+in distribution (Table 18) and under zero-shot transfer to the five open-source system models, where
+the learned engines roughly double closed-form top-$K$ overlap (§9.1.1).
 
-**The learned advantage is most robust in set identification.** $F_1@K$ — the overlap between the
-predicted and actual top-$K$ critical sets — favours the typed model by a wider relative margin than
-$\rho$ does: 0.465 for HGL against 0.308 for Topo-QoS, a 51% relative improvement, with the same
-ordering holding for both homogeneous learned baselines over both structural ones. This matters
-operationally more than the ranking result. An architect does not consume a total order over 150
-components; they consume a shortlist. Unlike the $\rho$ comparison, this one does not invert under
-any of the three protocols we ran.
+**Half of every correlation is inertness detection.** Between 21% and 52% of each held-out
+Application population carries zero simulated impact. Restricted to the components that do propagate
+failures, every predictor keeps only 49–56% of its full-population correlation ($\rho_{>0}$ column),
+with no separation between learned and training-free families and the method ordering unchanged.
 
-RQ1 therefore resolves as a scope condition rather than a verdict. Learning leads on the point
-estimate under all three protocols, on both metrics — but the *ranking* half of that answer is not
-established: it fails the paired significance test in-distribution ($p = 0.375$, Table 19), it rests
-on an unretained artifact out of distribution, and the strongest non-learning comparator is degraded
-on 2 of 7 scenarios. The set-identification advantage is the more defensible half, being the one
-result that survives both the protocol changes and the apparatus changes documented above. Three
-caveats bound even that: the LOSO across-fold standard deviation remains substantial (0.177 for HGL),
-top-$K$ metrics inherit the label churn documented in §7.5 — the ground truth's own top-$K$ set
-agrees with itself at Jaccard 0.44–1.00 across seeds, with Microservices the worst at 0.44 — and the
-interpretable RMAV predictor $Q(v)$ does not transfer at all ($\rho = -0.093$ LOSO, $-0.123$ k-fold),
-which is a negative result about the composite score's ranking use, not about its attribution use
-(§8.3). The practical recommendation we are willing to defend is correspondingly narrow: use typed
-learning when the deliverable is a shortlist, and treat the ranking comparison as open.
+**Learning outperforms the closed-form score only in combination with it.** Two engines registered
+after this sweep (Amendments 5 and 6) give a learned model the rank-normalised `Topo-QoS` score as
+an input and learn a logit-scale correction to it. On the CPU sweep, Hybrid-HGT reaches $\rho =
+0.657$ ($+0.103$) and Hybrid-GAT $0.683$ ($+0.130$) against `Topo-QoS`, each on 11 of 12 folds, and
+both survive Holm correction pooled over all eleven registered contrasts (§9.1.1, Table 25). They are
+the only engines in this study that significantly outperform closed-form ranking, and they do so
+because they keep the closed-form engine's strength on Enterprise and Telecom RAN while adding the
+learned engine's gains elsewhere.
+
+The in-domain k-fold protocol reported in the seven-scenario revision has not been re-run on the
+twelve-scenario corpus (`make -f reproduce/Makefile kfold`), so no k-fold figure is reported here.
+
+RQ1 therefore resolves as a scope condition rather than a verdict. On its own, learning leads the
+strongest non-learning baseline on the point estimate both in and out of distribution, and on
+neither protocol is that lead significant. The interpretable composite $Q(v)$ transfers only weakly
+($\rho = 0.205$ LOSO, below both centralities), which is a negative result about the composite
+score's ranking use, not about its attribution use (§8.3). What learning does establish is
+complementarity: it fails on different architectures from the closed-form score, so a hybrid that
+corrects the closed-form score significantly outperforms it, and a pure learned engine with the QoS
+edge channel transfers best to architectures unlike the training corpus. The practical
+recommendation we are willing to defend is correspondingly specific: use `Topo-QoS` as the
+training-free default, a hybrid for architectures that resemble the training corpus, and a pure
+learned engine with the QoS channel for substantially different ones.
 
 ## 8.2 RQ2 — What Taking Node and Edge Type Seriously Shows (and Does Not Show)
 
@@ -2304,9 +2334,8 @@ by the audit, and the one we would defend most confidently.
 > which `reproduce/reconcile_manuscript.py` checks against their `results/` artifacts; the artifact
 > behind each table is named in its caption. Per the source-integrity rules in
 > [`outline.md`](outline.md#source-integrity), re-read each figure from its artifact when this
-> subsection moves into the thesis. These figures come from a later, larger corpus (twelve LOSO folds
-> rather than seven) and supersede the older figures of §8.1 wherever the two disagree. Predictor
-> names follow the current manuscript: `HGT-QoS` is this draft's
+> subsection moves into the thesis. These figures come from the twelve-scenario corpus that §8.1
+> reports. Predictor names follow the current manuscript: `HGT-QoS` is this draft's
 > `HGL-QoS`; `GAT` and `GAT-QoS` are untyped GATs matched to HGT in parameter budget, which have no
 > counterpart in Table 18.
 
