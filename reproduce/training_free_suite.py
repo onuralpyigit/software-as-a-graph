@@ -21,6 +21,8 @@ and without Neo4j:
                     and QoS-weighted betweenness on the projection.
 
 Labels are cached under output/tf_labels/ keyed by scenario and oracle setting.
+The script re-executes itself with PYTHONHASHSEED=0: the CDI sample breaks
+degree ties in set-iteration order, which otherwise varies between processes.
 Every artifact is written to results/ with a provenance stamp.
 
 Usage:
@@ -35,6 +37,7 @@ import copy
 import heapq
 import json
 import math
+import os
 import random
 import sys
 from pathlib import Path
@@ -108,6 +111,18 @@ PUBLISHED_HGT_QOS_CPU = {
     "Healthcare": 0.730, "Enterprise Integration (ESB)": 0.548, "Industrial SCADA": 0.684,
     "IoT Smart City": 0.688, "Logistics Fleet": 0.771, "Microservices": 0.475,
     "Real-Time Gaming": 0.789, "Telecom RAN": 0.427,
+}
+PUBLISHED_HYBRID_HGT_CPU = {
+    "ATM": 0.429, "AV System": 0.782, "Enterprise": 0.735, "Financial Trading": 0.754,
+    "Healthcare": 0.625, "Enterprise Integration (ESB)": 0.564, "Industrial SCADA": 0.758,
+    "IoT Smart City": 0.590, "Logistics Fleet": 0.792, "Microservices": 0.366,
+    "Real-Time Gaming": 0.837, "Telecom RAN": 0.648,
+}
+PUBLISHED_HYBRID_GAT_CPU = {
+    "ATM": 0.447, "AV System": 0.793, "Enterprise": 0.768, "Financial Trading": 0.797,
+    "Healthcare": 0.686, "Enterprise Integration (ESB)": 0.568, "Industrial SCADA": 0.768,
+    "IoT Smart City": 0.654, "Logistics Fleet": 0.806, "Microservices": 0.429,
+    "Real-Time Gaming": 0.825, "Telecom RAN": 0.656,
 }
 PUBLISHED_GAT_QOS_CPU = {
     "ATM": 0.506, "AV System": 0.732, "Enterprise": 0.407, "Financial Trading": 0.713,
@@ -265,6 +280,13 @@ def paired(a: List[float], b: List[float], seed: int = 0, B: int = 2000) -> Dict
     }
 
 
+def mean_ci(xs: List[Optional[float]], seed: int = 0, B: int = 2000) -> List[float]:
+    x = np.asarray([v for v in xs if v is not None])
+    rng = np.random.default_rng(seed)
+    boots = [float(np.mean(rng.choice(x, size=len(x), replace=True))) for _ in range(B)]
+    return [float(np.percentile(boots, 2.5)), float(np.percentile(boots, 97.5))]
+
+
 def holm(ps: Dict[str, float]) -> Dict[str, float]:
     items = sorted(ps.items(), key=lambda kv: kv[1])
     m = len(items)
@@ -385,6 +407,8 @@ def cmd_baselines(_: argparse.Namespace) -> int:
             "systems_mean_rho_active": _mean(col(p, "rho_active", systems)),
             "systems_mean_overlap": _mean(col(p, "overlap_at_k", systems)),
             "systems_mean_pr_auc": _mean(col(p, "pr_auc", systems)),
+            "loso_rho_ci95": mean_ci(col(p)),
+            "systems_rho_ci95": mean_ci(col(p, src=systems)),
         }
         for p in PREDICTORS
     }
@@ -393,14 +417,22 @@ def cmd_baselines(_: argparse.Namespace) -> int:
     ph = holm({p: c["p"] for p, c in contrasts.items()})
     for p in contrasts:
         contrasts[p]["p_holm"] = ph[p]
+    # Descriptive: the unweighted projection betweenness is outside the registered
+    # family (Amendment 7 names four rankers), so it carries no Holm value.
+    contrasts["Topo (projection)"] = paired(
+        [loso[n]["Topo (projection)"]["rho"] for n in names], tq)
     vs_learned = {
         p: {
             "vs_HGT-QoS_cpu": paired([loso[n][p]["rho"] for n in names],
                                      [PUBLISHED_HGT_QOS_CPU[n] for n in names]),
             "vs_GAT-QoS_cpu": paired([loso[n][p]["rho"] for n in names],
                                      [PUBLISHED_GAT_QOS_CPU[n] for n in names]),
+            "vs_Hybrid-HGT_cpu": paired([loso[n][p]["rho"] for n in names],
+                                        [PUBLISHED_HYBRID_HGT_CPU[n] for n in names]),
+            "vs_Hybrid-GAT_cpu": paired([loso[n][p]["rho"] for n in names],
+                                        [PUBLISHED_HYBRID_GAT_CPU[n] for n in names]),
         }
-        for p in NEW_RANKERS
+        for p in NEW_RANKERS + ["Topo (projection)"]
     }
     best = max(NEW_RANKERS, key=lambda p: summary[p]["loso_mean_rho"] or -1)
     r1 = (summary[best]["loso_mean_rho"] or -1) >= 0.622
@@ -417,7 +449,7 @@ def cmd_baselines(_: argparse.Namespace) -> int:
               f"| systems {s['systems_mean_rho']:.3f}")
     for p, c in contrasts.items():
         print(f"{p:10s} vs Topo-QoS {c['delta']:+.3f} {c['ci95']} {c['won']}/12 "
-              f"p={c['p']:.4f} holm={c['p_holm']:.4f}")
+              f"p={c['p']:.4f} holm={c.get('p_holm', float('nan')):.4f}")
     print(f"best new ranker {best}; R1 {'TRIGGERED' if r1 else 'not triggered'}")
     print("inert rule:", inert)
     _write("tf_baselines.json", {
@@ -621,6 +653,12 @@ def cmd_substrate(_: argparse.Namespace) -> int:
 
 
 def main() -> int:
+    # CDI's BFS sample is the top-degree nodes of a set, so equal-degree ties are
+    # ordered by string hashing, which Python salts per process. Pin the salt so
+    # the CDI arm (and anything else iterating a set of node ids) is deterministic.
+    if os.environ.get("PYTHONHASHSEED") != "0":
+        env = {**os.environ, "PYTHONHASHSEED": "0"}
+        os.execve(sys.executable, [sys.executable, *sys.argv], env)
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("command", choices=["gate", "baselines", "controls", "oracle",
                                         "descriptives", "qos-indep", "make-variant", "substrate",
