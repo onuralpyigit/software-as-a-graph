@@ -1260,8 +1260,10 @@ conclusion. We report correlation *by node type* throughout (§8) on that basis,
 pooling was shown to be actively misleading here.
 
 **Three scoping conditions on this check.** First, it is computed against $I_{\text{comp}}(v)$, whereas
-the predictor tables in §8.1 are computed against $I^*(v)$; the two oracles agree at mean
-$\rho = 0.394$ (§7.5), so this consistency check does not transfer to those tables. Second, the check
+the predictor tables in §8.1 are computed against $I^*(v)$; over the twelve LOSO topologies those
+tables use, the two oracles agree at mean $\rho = 0.395$ (range 0.083–0.653, Application
+population; JSS Supplementary, Convergent Validity), so this consistency check does not transfer to
+those tables. Second, the check
 was worth running on its own terms: the effect it looked for *does* occur elsewhere in this study. In
 the predictor evaluation, pooling Application and Library nodes into a single correlation moved HGT
 on `av_system` from $\rho = 0.836$ within Applications to $0.46$ pooled — a case where a pooled
@@ -1738,9 +1740,12 @@ except where the architecture differs by construction.
 | Loss | composite MSE $+\ 0.5\,$multitask $+\ 0.3\,$ListMLE ranking $+\ 0.1\,$pairwise margin $+\ 0.1\,$RMAV consistency |
 
 **Hardware and runtime.** Training and evaluation were run on a single workstation; the LOSO sweep is
-the dominant cost, at roughly 31 minutes for HGT and 36 for `HGT-QoS` across all folds and
-seeds, against 5–6 minutes for the homogeneous variants and well under a minute for the training-free
-baselines. The CI/CD gate measurements of §8.4 were taken on the same machine rather than on hosted
+the dominant cost. In the last sweep with recorded per-arm wall-clock (CPU, sequential, twelve folds
+$\times$ five seeds $= 60$ fits per arm), training took $0.6$ h for `GAT-S`, $0.9$ h for `GAT-S-w`,
+$1.4$ h for HGT and $4.9$ h for `HGT-QoS`, $7.7$ CPU-hours in all; the GPU sweep behind Table 20 did
+not record per-fit durations (JSS Supplementary, Analysis Gate Against Direct Simulation). The
+training-free baselines need no training; their cost is the structural analysis that every
+predictor shares, timed in §8.4. The CI/CD gate measurements of §8.4 were taken on the same machine rather than on hosted
 runner hardware, so they should be read as an order-of-magnitude feasibility result rather than as a
 calibrated figure for any particular CI provider.
 
