@@ -148,7 +148,7 @@ logger = logging.getLogger("loso_evaluate")
 _STRUCTURAL_VARIANTS = ("topo_baseline", "topo_qos")
 _HOMOGENEOUS_VARIANTS = (
     "gl", "gl_qos", "gl_full_cap", "gl_full_qos_cap", "gl_full_qos16_cap",
-    "gl_qos16_prior",
+    "gl_qos16_prior", "gl_full_qos16_nfmask",
 )
 _HGT_VARIANTS = ("hgl", "hgl_qos", "hgl_qos_uni", "hgl_qos_prior", "topology_rm")
 #: HGT arms that receive the closed-form Topo-QoS prior (Amendment 5).
@@ -156,7 +156,7 @@ _PRIOR_VARIANTS = ("hgl_qos_prior", "gl_qos16_prior")
 #: Learned, but not a graph model: gradient boosting on the same typed node
 #: features the GNNs read. Its own branch because it has no HeteroData forward
 #: pass, no checkpoint and no epochs -- see saag/prediction/models/tabular.py.
-_TABULAR_VARIANTS = ("tab_gbm",)
+_TABULAR_VARIANTS = ("tab_gbm", "tab_gbm_qos")
 KNOWN_VARIANTS = (
     _STRUCTURAL_VARIANTS + _HOMOGENEOUS_VARIANTS + _HGT_VARIANTS
     + _TABULAR_VARIANTS
@@ -459,6 +459,23 @@ def _build_validation_hetero(
         store.val_mask = labelled
         store.test_mask = torch.zeros(n, dtype=torch.bool)
     return data
+
+
+def _graft_qos_edge_attr(
+    data: HeteroData, bundle: ScenarioBundle, rank_normalize_features: bool
+) -> None:
+    """Replace ``data``'s edge attributes with the QoS-on build's, in place.
+
+    For arms that keep the QoS edge channel but mask the QoS-derived node
+    features (``Variant.node_qos=False``): ``data`` is built exactly as the
+    QoS-off arm builds it, and only its ``edge_attr`` is taken from the QoS-on
+    build, so each input is bit-identical to one of the two parent arms.
+    """
+    qos = _build_training_hetero(bundle, True, rank_normalize_features)
+    for rel in data.edge_types:
+        if not torch.equal(data[rel].edge_index, qos[rel].edge_index):
+            raise RuntimeError(f"{bundle.scenario_id} {rel}: edge order differs between QoS builds")
+        data[rel].edge_attr = qos[rel].edge_attr
 
 
 def _select_val_bundle(
@@ -856,8 +873,10 @@ def _run_seed(
             from saag.prediction.trainer import GNNTrainer, evaluate
 
             # Any arm with an edge channel needs QoS on the graph; the
-            # registry owns which those are.
-            use_qos = _registry.edge_dim(variant, "loso") is not None
+            # registry owns which those are. An arm that masks the QoS node
+            # features is built QoS-off and has the QoS edges grafted back on.
+            use_qos = _registry.node_qos_for(variant, "loso")
+            graft_edges = _registry.edge_dim(variant, "loso") is not None and not use_qos
             use_prior = variant in _PRIOR_VARIANTS
             train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
             holdout_graph, holdout_sm = _prepare_bundle_graph(holdout, use_qos)
@@ -872,6 +891,8 @@ def _run_seed(
                 append_prior=use_prior,
             )
             data = conv.hetero_data
+            if graft_edges:
+                _graft_qos_edge_attr(data, primary, rank_normalize_features)
             create_node_splits(data, seed=seed)
 
             # Training-set parity with the HGT branch below. This branch
@@ -884,6 +905,9 @@ def _run_seed(
                 _build_training_hetero(b, use_qos, rank_normalize_features, use_prior)
                 for b in inductives
             ]
+            if graft_edges:
+                for b, ig in zip(inductives, inductive_data):
+                    _graft_qos_edge_attr(ig, b, rank_normalize_features)
             for ig in inductive_data:
                 create_node_splits(ig, seed=seed)
 
@@ -900,6 +924,8 @@ def _run_seed(
                 val_data = _build_validation_hetero(
                     val_bundle, use_qos, rank_normalize_features, use_prior
                 )
+                if graft_edges:
+                    _graft_qos_edge_attr(val_data, val_bundle, rank_normalize_features)
                 normalize_labels_robust(val_data, rank_normalize=rank_normalize_labels)
 
             if inductive_data:
@@ -953,6 +979,8 @@ def _run_seed(
                 append_prior=use_prior,
             )
             data_h = conv_h.hetero_data
+            if graft_edges:
+                _graft_qos_edge_attr(data_h, holdout, rank_normalize_features)
             create_node_splits(data_h, seed=seed)
             metrics = evaluate(model, data_h, "test_mask", target_device)
 
@@ -1078,25 +1106,31 @@ def _run_seed(
             # message passing rather than to the features or the labels.
             from saag.prediction.models.tabular import fit_predict_tabular
 
-            # QoS lives on the edge channel, which this arm has no way to read;
-            # the node features are identical either way. Building without it
-            # keeps the graph construction on the same path as GAT-N.
-            use_qos = False
+            # The node features are NOT identical with and without QoS: the
+            # QoS-off build zeroes the qos_weight*/w*/qspof/qos_aggregate
+            # columns and Topic criticality. tab_gbm reads GAT's node features,
+            # tab_gbm_qos reads GAT-QoS's.
+            use_qos = _registry.node_qos_for(variant, "loso")
             holdout_graph, holdout_sm = _prepare_bundle_graph(holdout, use_qos)
             conv = networkx_to_hetero_data(
                 holdout_graph, holdout_sm, holdout.simulation, holdout.rm,
                 qos_enabled=use_qos,
                 rank_normalize_features=rank_normalize_features,
             )
+            # `primary` is the main training graph and `inductives` are the
+            # additional ones -- the HGT branch passes them through two
+            # separate arguments, so both are needed here to train on the
+            # same N-1 graphs the GNN arms see.
+            train_tab = [
+                _build_training_hetero(b, use_qos, rank_normalize_features)
+                for b in [primary, *inductives]
+            ]
+            # Same per-graph label transform the GNN arms train on; raw labels
+            # would put scenarios whose mean I*(v) differs 20x on one scale.
+            for td in train_tab:
+                normalize_labels_robust(td, rank_normalize=rank_normalize_labels)
             pred_scores = fit_predict_tabular(
-                train_data=[
-                    # `primary` is the main training graph and `inductives` are
-                    # the additional ones -- the HGT branch passes them through
-                    # two separate arguments, so both are needed here to train
-                    # on the same N-1 graphs the GNN arms see.
-                    _build_training_hetero(b, use_qos, rank_normalize_features)
-                    for b in [primary, *inductives]
-                ],
+                train_data=train_tab,
                 holdout_data=conv.hetero_data,
                 holdout_id_map=conv.node_id_map,
                 seed=seed,

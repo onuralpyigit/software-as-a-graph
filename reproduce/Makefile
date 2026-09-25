@@ -16,6 +16,7 @@
 #   make seed-robustness — 2x2 under median / trimmed seed aggregation (no training)
 #   make rq-hybrid       — SaG-Hybrid vs Topo-QoS vs HGT-QoS, one CPU sweep (Amendment 5)
 #   make rq-hybrid-gat   — SaG-Hybrid-GAT vs Topo-QoS vs GAT-N-QoS16-C, one CPU sweep (Amendment 6)
+#   make rq-attribution  — GBM-Feat / GAT-QoS-nf attribution controls + receptive-field probe (Amendment 7)
 #   make omnibus         — one Holm correction over every registered contrast (no training)
 #   make nested-search   — nested-CV config search (opt-in, expensive; GRID=stage1|stage2|full)
 #   make convergent-validity — JSS Table 13: Three-oracle rank agreement (opt-in; expensive)
@@ -48,7 +49,7 @@ SCENARIOS_DIR ?= data/scenarios
 RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
-.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat nested-search kfold convergent-validity \
+.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution nested-search kfold convergent-validity \
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 \
@@ -193,6 +194,32 @@ rq-hybrid-gat:
 	$(PYTHON) reproduce/loso_significance.py \
 	    --input $(RESULTS_DIR)/loso_hybrid_gat_cpu.json \
 	    --output $(RESULTS_DIR)/loso_significance_hybrid_gat_cpu.json
+
+# Attribution controls (PREREGISTRATION.md Amendment 7, post hoc, exploratory):
+# GAT and GAT-QoS re-run in the SAME invocation as the three new arms, because
+# the contrasts pair them by fold. Then zero-shot for the five learned arms and
+# the receptive-field probe (which reads the zero-shot checkpoints).
+ATTRIBUTION_ZS = gl_full_cap gl_full_qos16_nfmask gl_full_qos16_cap tab_gbm tab_gbm_qos
+
+rq-attribution:
+	$(PYTHON) reproduce/loso_all_variants.py \
+	    --variants topo_qos gl_full_cap gl_full_qos16_cap gl_full_qos16_nfmask tab_gbm tab_gbm_qos \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --epochs $(EPOCHS) --seeds $(SEEDS) --device cpu \
+	    --jobs $(HYBRID_JOBS) --torch-threads 1 \
+	    --output-base $(OUTPUT_DIR)/loso_cpu_attribution \
+	    --output $(RESULTS_DIR)/loso_attribution_cpu.json
+	$(PYTHON) reproduce/attribution_contrasts.py \
+	    --input $(RESULTS_DIR)/loso_attribution_cpu.json \
+	    --output $(RESULTS_DIR)/attribution_contrasts.json
+	for v in $(ATTRIBUTION_ZS); do \
+	    $(PYTHON) reproduce/realworld_zeroshot.py --variant $$v --layers 3 --epochs $(EPOCHS) \
+	        --device cpu --workdir $(OUTPUT_DIR)/realworld_zeroshot_attribution \
+	        --output $(RESULTS_DIR)/realworld_zeroshot_$${v}_attribution.json || exit 1; \
+	done
+	$(PYTHON) reproduce/receptive_field_probe.py \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --output $(RESULTS_DIR)/receptive_field_probe.json
 
 seed-robustness:
 	$(PYTHON) reproduce/factorial_seed_robustness.py \
