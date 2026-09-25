@@ -206,3 +206,48 @@ def test_too_few_common_nodes_still_reports_coverage():
     assert m["n_predicted"] == 2
     assert m["n_labeled"] == 1
     assert m["n_evaluated"] == 0
+
+
+def _low_scale_truth(n=20):
+    """Max I* of 0.3, so half the max (0.15) and an absolute 0.2 disagree."""
+    true = {f"n{i}": 0.001 * i for i in range(n)}
+    true.update({"n0": 0.3, "n1": 0.25, "n2": 0.21, "n3": 0.15})
+    return true
+
+
+def test_absolute_tau_cuts_at_the_value_not_the_scenario_max():
+    true = _low_scale_truth()
+    pred = dict(true)
+
+    relative = compute_inductive_metrics(pred, true, _graph(true))
+    absolute = compute_inductive_metrics(pred, true, _graph(true), tau_abs=0.2)
+
+    assert relative["tau_mode"] == "relative"
+    assert relative["tau"] == pytest.approx(0.15), "tau_frac * max(I*)"
+    assert relative["n_true_critical"] == 4
+    assert absolute["tau_mode"] == "absolute"
+    assert absolute["tau"] == pytest.approx(0.2)
+    assert absolute["n_true_critical"] == 3, "only n0,n1,n2 lose >= 20% of feeds"
+    assert absolute["pr_auc"] == pytest.approx(1.0), "perfect ranking of that set"
+
+
+def test_absolute_tau_does_not_move_with_label_scale():
+    """The same components clear 0.2 however high the scenario's max is."""
+    true = _low_scale_truth()
+    scaled = dict(true, n0=1.0)
+
+    m = compute_inductive_metrics(scaled, scaled, _graph(scaled), tau_abs=0.2)
+    m_rel = compute_inductive_metrics(scaled, scaled, _graph(scaled))
+
+    assert m["n_true_critical"] == 3
+    assert m_rel["n_true_critical"] == 1, "the relative cut rises to 0.5 with the max"
+
+
+def test_absolute_tau_above_every_label_is_undefined_not_zero():
+    true = _low_scale_truth()
+
+    m = compute_inductive_metrics(dict(true), true, _graph(true), tau_abs=0.5)
+
+    assert m["n_true_critical"] == 0
+    assert np.isnan(m["pr_auc"])
+    assert np.isnan(m["precision_at_tau"])
