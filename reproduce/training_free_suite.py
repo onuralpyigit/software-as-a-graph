@@ -15,8 +15,10 @@ and without Neo4j:
                     permuted across topics; labels untouched).
 * ``oracle``      — I*(v) relabelled over propagation threshold x depth-damping step.
 * ``descriptives``— size, zero share, projection density and tie fraction per graph.
-* ``qos-indep``   — Topo / Topo-QoS on the corpus regenerated with
-                    ``qos_affinity: false`` (see tools/generation/generator.py).
+* ``make-variant``— regenerate the twelve folds with ``qos_affinity=False``.
+* ``qos-indep``   — Topo / Topo-QoS on that QoS-independent corpus.
+* ``substrate``   — what the published ``Topo`` column measured, beside unweighted
+                    and QoS-weighted betweenness on the projection.
 
 Labels are cached under output/tf_labels/ keyed by scenario and oracle setting.
 Every artifact is written to results/ with a provenance stamp.
@@ -562,14 +564,72 @@ def cmd_qos_indep(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_make_variant(args: argparse.Namespace) -> int:
+    """Regenerate the twelve fold scenarios with ``qos_affinity=False``."""
+    from tools.generation import GenerationService, load_config
+
+    manifest = json.loads((SCENARIOS_DIR / "MANIFEST.json").read_text())["datasets"]
+    vdir = Path(args.variant_dir)
+    vdir.mkdir(parents=True, exist_ok=True)
+    for sid in FOLDS:
+        config = load_config(SCENARIOS_DIR / manifest[sid]["config"])
+        config.qos_affinity = False
+        data = GenerationService(config=config).generate()
+        (vdir / f"{sid}.json").write_text(json.dumps(data, indent=2))
+        print(f"wrote {vdir / (sid + '.json')}")
+    return 0
+
+
+def cmd_substrate(_: argparse.Namespace) -> int:
+    """What the published ``Topo`` column measured.
+
+    The LOSO ``topo_baseline`` read betweenness from the analysis stage's cached
+    app-layer metrics, not from the projection ``Topo-QoS`` uses. Rebuild that
+    betweenness in memory (``MemoryRepository``; Neo4j is not available here, and
+    the two repositories differ slightly on Rule-1 weights, see CLAUDE.md) and set
+    it beside unweighted and QoS-weighted betweenness on the projection.
+    """
+    from reproduce.ahp_sensitivity import full_pipeline_structural
+
+    rows: Dict[str, Any] = {}
+    for sid, name in FOLDS.items():
+        path = SCENARIOS_DIR / f"{sid}.json"
+        topo = _topology(path)
+        lab = labels_for(path)["impact"]
+        graph = build_graph_from_json(topo)
+        st = full_pipeline_structural(topo, layer="app")
+        comps = st.components if hasattr(st, "components") else st
+        app_layer = {str(n): float(getattr(m, "betweenness", 0.0) or 0.0)
+                     for n, m in comps.items()}
+        flow = _flow(topo)
+        rows[name] = {
+            "published Topo": PUBLISHED_TOPO[name],
+            "app-layer BT (memory rebuild)": score(app_layer, lab, graph)["rho"],
+            "projection BT, unweighted": score(topo_unweighted(flow), lab, graph)["rho"],
+            "projection BT, QoS-weighted (Topo-QoS)": score(topo_qos(flow), lab, graph)["rho"],
+        }
+        print(name, {k: round(v, 3) for k, v in rows[name].items()})
+    names = list(FOLDS.values())
+    summ = {k: _mean([rows[n][k] for n in names]) for k in rows[names[0]]}
+    contr = {"projection unweighted vs QoS-weighted": paired(
+        [rows[n]["projection BT, unweighted"] for n in names],
+        [rows[n]["projection BT, QoS-weighted (Topo-QoS)"] for n in names])}
+    print(json.dumps(summ, indent=1), contr)
+    _write("topo_substrate_check.json", {"per_fold": rows, "summary": summ,
+                                         "contrasts": contr}, experiment="substrate")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("command", choices=["gate", "baselines", "controls", "oracle",
-                                        "descriptives", "qos-indep", "all"])
+                                        "descriptives", "qos-indep", "make-variant", "substrate",
+                                        "all"])
     ap.add_argument("--variant-dir", default="output/variants/qos_indep")
     args = ap.parse_args()
     cmds = {"gate": cmd_gate, "baselines": cmd_baselines, "controls": cmd_controls,
-            "oracle": cmd_oracle, "descriptives": cmd_descriptives, "qos-indep": cmd_qos_indep}
+            "oracle": cmd_oracle, "descriptives": cmd_descriptives, "qos-indep": cmd_qos_indep,
+            "make-variant": cmd_make_variant, "substrate": cmd_substrate}
     if args.command == "all":
         rc = cmd_gate(args)
         if rc:

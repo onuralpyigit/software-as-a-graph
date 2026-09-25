@@ -438,6 +438,8 @@ class StatisticalGraphGenerator:
         same QoS level).  See _APP_TYPE_QOS_AFFINITY.
         """
         affinity = _APP_TYPE_QOS_AFFINITY.get(app_type)
+        if not self.config.qos_affinity:
+            affinity = None
         if not affinity or not topics:
             return list(topics)
         pref_rel = set(affinity["reliability"])
@@ -693,7 +695,9 @@ class StatisticalGraphGenerator:
         app_scores: Dict[str, float] = {}
         for a in apps:
             t_ids = pub_topics_by_app.get(a.id, []) + sub_topics_by_app.get(a.id, [])
-            if t_ids:
+            if t_ids and not self.config.qos_affinity:
+                app_qos = 0.5
+            elif t_ids:
                 t_scores = [topic_imp.get(tid, 0.5) for tid in t_ids]
                 app_qos = 0.55 * max(t_scores) + 0.45 * (sum(t_scores) / len(t_scores))
             else:
