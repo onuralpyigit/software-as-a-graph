@@ -1930,25 +1930,44 @@ learned engine with the QoS channel for substantially different ones.
 
 ## 8.2 RQ2 — What Taking Node and Edge Type Seriously Shows (and Does Not Show)
 
-We report four analyses that take node and edge *type* seriously: one positive result, one newly
-measured result, and two negative ones.
+We report four analyses that take node and edge *type* seriously: one that reverses our earlier
+reading of relation typing, one newly measured result, one negative result, and a scoping caveat.
+Figures for the typing analysis come from the twelve-scenario corpus of §8.1 and carry the same
+provenance note.
 
-**Heterogeneity is the dominant source of predictive gain — but only where the model must
-generalise.** Isolating architecture from QoS encoding, the typed model's advantage over the
-homogeneous baseline is negligible in-distribution ($\Delta\rho = +0.020$; HGL 0.730 vs GL 0.710) and
-grows sharply as the evaluation moves away from the training distribution: $+0.172$ under LOSO
-(0.608 vs 0.436) and $+0.257$ under in-domain k-fold (0.666 vs 0.409). The typed model is also far
-more stable across folds ($\sigma = 0.07$ vs $0.15$ for GL under k-fold).
+**Relation typing adds nothing once capacity and edge-channel width are matched; the QoS edge
+channel does.** The seven-scenario revision reported the typed model's advantage over the
+homogeneous baseline as negligible in distribution ($+0.020$) and growing sharply out of
+distribution ($+0.172$ under LOSO, $+0.257$ under in-domain k-fold), and read that pattern as relation
+typing carrying over under distribution shift. The twelve-scenario registered sweep reproduces the
+pattern in the unmatched comparison: HGT leads the small untyped `GAT-S` by $+0.234$ under LOSO, on
+12 of 12 folds ($p = 0.0005$). That comparison is confounded. `GAT-S` has 28,168 parameters against
+HGT's 434,620 and reads at most a scalar edge weight against HGT's relation one-hot, and it is also
+the least stable arm in the study (median within-fold seed spread $0.298$). Neither the Fisher-$z$
+transform nor robust seed aggregation could detect the confound, because both hold the same four
+unmatched arms fixed.
 
-That pattern is the interesting form of the result, and it is not the one we previously reported.
-When train and test come from the same topology, a homogeneous GAT can recover most of what typing
-provides, because the type signal is largely redundant with structure it can observe directly.
-When the model must rank a system whose cascade dynamics it has never seen, the relation-specific
-message passing is what carries over. Collapsing pub-sub types into a single node class discards
-information that survives the distribution shift; the ablation isolates that as the source of the
-gain, and locates it in generalisation rather than in fit. On $F_1@K$ the two learned families are
-much closer out of distribution (0.465 vs 0.440), so this is a claim about ranking transfer
-specifically, not about every metric.
+The control registered in Amendment 2, before any control result existed, removes both differences:
+`GAT` and `GAT-QoS` are untyped GATs at HGT's parameter budget (437,496 and 429,992), and `GAT-QoS`
+reads the same 16-D edge vector as `HGT-QoS`, relation one-hot included. At matched capacity the
+untyped design rises from $0.317$ to $0.563$ under LOSO, and the typing effect disappears: the typing
+main effect is $-0.014$ (4 of 12 folds, Holm $p = 0.94$) and the typing $\times$ QoS interaction is
+$+0.001$, while the QoS edge channel raises both designs by $+0.073$ on 10 of 12 folds, significantly
+for the untyped pair ($+0.072$, $p = 0.016$; §9.1.1, Table 26). The channel also stabilises training:
+the median seed spread of the untyped pair falls from $0.083$ to $0.010$.
+
+That is not the result we previously reported, and the difference matters for the thesis claim.
+What carries over to unseen architectures is learning over the QoS-annotated graph, not
+relation-specific parameters. Because `GAT-QoS` receives each edge's relation type as an input, the
+precise statement is that relation-typed *parameters* add nothing beyond relation-typed *inputs*. The
+same holds under zero-shot transfer to the five open-source system models, where `GAT-QoS` outperforms
+`HGT-QoS` on all five ($\rho = 0.805$ against $0.760$). Three limits bound the statement. Message
+directionality remains unmatched, because the registered `HGT-QoS-U` control has not been run. The
+in-distribution typed lead of Table 18 cannot speak to typing either way, because the two families
+read different substrates there. And $I^*(v)$ is a near-topological target (a topology-only
+relabelling recovers its ordering at $\rho = 0.965$), so on this target the QoS channel acts largely as
+a relation-identity and coupling-strength signal; an oracle that expressed deadline misses or
+durability replay would let the encodings contribute contract semantics as well.
 
 **Edge criticality, now measured rather than inferred.** Earlier versions of this framework labelled
 edges by projecting node labels through a hand-chosen bridge multiplier, $I_{\text{edge}}(u,v) =
@@ -2006,7 +2025,8 @@ expected to expose.
 
 **A scoping caveat this analysis must carry.** The library and stratified analyses in §5.4 and §5.5
 are computed against $I_{\text{comp}}(v)$, whereas Tables 18 and 20 are computed against $I^*(v)$.
-Those two oracles agree at mean $\rho = 0.394$ (§7.5). The negative library result is therefore a
+Those two oracles agree at mean $\rho = 0.395$ over the twelve LOSO topologies (range 0.083–0.653;
+§7.5). The negative library result is therefore a
 statement about $I_{\text{comp}}$, and does not license a corresponding claim about the $I^*$-backed
 tables. We flag this rather than let adjacency in the text imply mutual support.
 
@@ -2591,8 +2611,8 @@ comparative: which modelling choices perform better under identical conditions, 
 predictive accuracy in operation. Four further bounds apply, and we state them rather than leave them
 implicit.
 
-*The two oracles agree weakly.* $I^*(v)$ and $I_{\text{comp}}(v)$ correlate at mean $\rho = 0.394$
-(§7.5). Results established against one do not transfer to claims measured against the other, which
+*The two oracles agree weakly.* $I^*(v)$ and $I_{\text{comp}}(v)$ correlate at mean $\rho = 0.395$
+over the twelve LOSO topologies (range 0.083–0.653, Application population; §7.5). Results established against one do not transfer to claims measured against the other, which
 constrains this paper's own internal cross-referencing: §5.4's library finding and §5.5's stratified
 check are $I_{\text{comp}}$ results and are not evidence about the $I^*$-backed tables in §8.1.
 
@@ -2602,9 +2622,10 @@ had, or could have had, a published figure resting on it. The first two predate 
 regeneration of §7.1. First, the `Topo-QoS` baseline was applying no QoS weighting: $w(t)$ is declared
 on the Topic node, the harness looked for it on the pub-sub relationship, and the generated
 topologies carry none there, so every derived dependency edge kept a unit weight and the baseline
-computed plain betweenness on all seven scenarios. It has been repaired to resolve $w(t)$ from the
-shared Topic; the affected columns of Tables 18 and 20 and the k-fold table were recomputed, and the
-non-QoS variants were verified unchanged to machine precision. Second, HGT attention extraction
+computed plain betweenness on all seven scenarios of the corpus at the time. It has been repaired to
+resolve $w(t)$ from the shared Topic; the affected columns of the seven-scenario tables were
+recomputed, the non-QoS variants were verified unchanged to machine precision, and every
+twelve-scenario figure in §8.1 was produced after the repair. Second, HGT attention extraction
 captured nothing, because `HGTConv` in the pinned PyTorch Geometric release exposes no
 `return_attention_weights` argument and the extraction fell through its own error branch; attention
 is now captured from the layer's own softmax, and the attention subgraph of Figure 6 is generated
@@ -2628,10 +2649,11 @@ carried forward: the label test–retest $\rho$/Jaccard ceiling of §7.5, restat
 corrected, now process-independent values (previously reported as $\rho \in [0.928, 1.000]$, Jaccard
 $\in [0.56, 1.00]$, both measured within a single process and so blind to this defect); and §8.5's
 Autoware row, whose "sweep-to-sweep instability" was reported in an earlier draft as a property of
-that graph and is corrected there to what it actually was. Tables 18 and 20, and every scenario in
-Table 13, are unaffected: both use `cascade_depth_limit=0`, the setting at which the sixth defect
-below is provably a no-op, and neither exercises the code path this defect lived in independently of
-that setting.
+that graph and is corrected there to what it actually was. The seven-scenario tables of the earlier
+revision, and every scenario in Table 13, were unaffected: both use `cascade_depth_limit=0`, the
+setting at which the sixth defect below is provably a no-op, and neither exercises the code path this
+defect lived in independently of that setting. The twelve-scenario tables of §8.1 reproduce at their
+reported precision at fixed code, seeds and device.
 
 Fourth, `extract_rmav_scores_dict` — the function that turns `PredictionService`'s RMAV output into
 the GNN's auxiliary training target — keyed its lookup by an attribute (`component_id`) that the
@@ -2669,11 +2691,13 @@ are produced but never validated. Broker labels are degenerate in three of seven
 related reason. Any claim of coverage across "all five component types" would be unsupported, and
 the per-type results report those strata as undefined rather than as zero.
 
-*Reported figures approach the labels' own reproducibility.* The ground truth agrees with itself at
-test–retest $\rho$ of 0.807–1.000 and top-$K$ Jaccard of 0.44–1.00 across seeds (post the
-determinism fix above; these are now stable across `PYTHONHASHSEED`, unlike the figures an earlier
-draft reported). A model scoring near the former has saturated the labels rather than underperformed,
-and every top-$K$ metric inherits the latter's churn.
+*The labels bound what any predictor can show.* Across the twelve LOSO topologies the ground truth
+agrees with itself at test–retest $\rho$ of 0.811–1.000 (median 0.982), well above every engine's
+mean $\rho$, so the learned engines have not saturated the labels. Top-$K$ sets are noisier: the
+cross-seed Jaccard of the ground truth's own top-$K$ set has median 0.847 and falls to 0.370 on
+Logistics Fleet, and every top-$K$ metric inherits that churn. Between 21% and 52% of each held-out
+Application population carries zero simulated impact, and restricted to the components that do
+propagate failures, every predictor keeps only 49–56% of its correlation (§8.1, Table 20).
 
 *The behavioural oracle evaluates delivery drop under calibrated contention.* $I_{\text{dyn}}$ carries the
 construct-validity argument of §7.5, so the limits of what it measures bound that argument too. The discrete-event
@@ -2684,8 +2708,11 @@ as an architectural criticality signal: empirical multi-seed measurements show t
 ($\sigma_{\text{seed}} \approx 79.4\text{ ms}$) dwarfs across-node spread ($\sigma_{\text{across}} \approx 20.9\text{ ms}$),
 yielding an uninformative signal-to-noise ratio ($\text{SNR} = 0.26$), compounded by the fact that dropping a chatty publisher
 relieves contention and produces negative latency deltas. $I_{\text{dyn}}$ is therefore formulated strictly as unweighted
-delivery rate loss ($\text{SNR} = 1.46$). It corroborates that the cascade ranking tracks surviving message delivery
-($\rho = 0.907$ with $I^*$), serving as a convergent-validity probe rather than an independent multidimensional oracle.
+delivery rate loss ($\text{SNR} = 1.46$). Over the twelve LOSO topologies it agrees with $I^*$ at mean $\rho = 0.627$
+(range 0.186–0.953), below $I^*$'s own test–retest, and $\rho^{+} = 0.429$ on components both oracles score non-zero,
+so much of the agreement concerns which components are harmless. It is a convergent-validity probe rather than an
+independent multidimensional oracle, and it is itself stochastic: on the three folds re-run across seeds its own
+test–retest is 0.741–0.972.
 
 **Internal validity.** The chief internal risk is circular validation — a predictor scoring well
 because its inputs leaked from its labels. The framework addresses this by *view* separation:
@@ -2718,48 +2745,81 @@ Both are fixed and all reported figures come from the corrected runs, but the ep
 finding about this class of experiment: a silently-cached artifact is indistinguishable from a
 trained one in the output, and only the implausible wall-clock time exposed it.
 
-*Artifact retention is uneven across the reported tables, and one headline table cannot currently be
-regenerated.* Table 18 and the sensitivity sweeps of §8.3 regenerate exactly from stored result
-files — a claim that held only approximately before the determinism defect above was fixed, since a
-re-run in a fresh process was not guaranteed to reproduce a stored `FaultInjector` label exactly
-even at an unchanged seed. It now holds without qualification.
-The Leave-One-Scenario-Out result file behind Table 20 does not exist: it was overwritten during the
-revision, and the most recent retained log for that sweep predates the baseline repair and records a
-different ordering (§8.1). We disclose this rather than present Table 20 on the same footing as
-Table 18, and we regard it as the direct continuation of the two defects above. The common mechanism
-in all three is that an experiment's *evidence* and its *output* were allowed to come apart — a
-cached checkpoint, a mismatched sample, an unretained result file — and in each case the number
-looked entirely ordinary. The discipline this study now imposes, and did not impose soon enough, is
-that no figure enters the manuscript unless the artifact that produced it is retained and the figure
-can be recomputed from it. Table 20 is the outstanding exception, and re-running it under the final
-apparatus is the first item of remaining work.
+Two matching conditions bound the learned comparisons. Substrate, training set, depth and early
+stopping are matched across learned arms, and every typing conclusion rests on the capacity- and
+channel-matched control (§8.2), not on the unmatched comparison it superseded. Message
+directionality remains unmatched, because the registered `HGT-QoS-U` control has not been run. No
+hyperparameter was tuned on an evaluation split.
+
+*Artifact retention, and why learned figures name their sweep.* Table 18 and the sensitivity sweeps
+of §8.3 regenerate exactly from stored result files, a claim that held only approximately before the
+determinism defect above was fixed, since a re-run in a fresh process was not guaranteed to reproduce
+a stored `FaultInjector` label exactly even at an unchanged seed. The seven-scenario
+Leave-One-Scenario-Out table of the earlier revision was not so lucky: its result file was overwritten
+during the revision, and the most recent retained log predated the baseline repair and recorded a
+different ordering. That table has been withdrawn, not repaired. Table 20 replaces it with the
+registered twelve-fold sweep, whose artifact is retained and whose conclusions an independent CPU
+sweep reproduced (§8.1). The common mechanism in all three defects of this kind is that an
+experiment's *evidence* and its *output* were allowed to come apart (a cached checkpoint, a
+mismatched sample, an unretained result file), and in each case the number looked entirely ordinary.
+The discipline this study now imposes, and did not impose soon enough, is that no figure enters the
+manuscript unless the artifact that produced it is retained and the figure can be recomputed from it.
+
+Retention is not the same as repeatability across environments. At fixed code, seeds and device,
+every figure reproduces at its reported precision, and all training-free cells also reproduce across
+devices. Learned cells do not: they move across code revisions and devices by up to 0.172 in a fold
+mean (`HGT-QoS`: 0.041), through a since-fixed PyTorch Geometric device-placement issue, stale
+checkpoint resumption and non-deterministic CUDA reductions. `HGT-QoS` therefore reads 0.638 on the
+registered GPU sweep and 0.622 on the CPU sweep of §9.1.1, every learned figure names its sweep, and
+every comparison is made within one sweep.
 
 **External validity.** This is the weakest dimension of the study, and we regard it as the
 highest-value follow-up (§9.3).
 
-*The corpus spans ten deployment domains, but only three architectures are not ours.* Seven scenarios
-come from a single statistical topology generator; the three real-world graphs (Autoware.universe
-ROS 2, the Cloud-Native Microservices mesh, and Train-Ticket) are transcribed from published
-open-source architectures. On the latter, SaG achieves mean rank correlation over five seeds of
-$\rho = 0.688$, $0.778$ and $0.759$, and up to $F_1@K = 1.000$ on two of the three.
+*The synthetic corpus comes from one generator family.* The twelve LOSO topologies span
+autonomous vehicles, financial trading, healthcare, industrial SCADA, smart-city IoT, telecom RAN,
+logistics, gaming, microservices, enterprise integration and air-traffic management, but all twelve,
+and their code metrics, come from one generator. Leave-One-Scenario-Out evaluation therefore confirms
+transfer across configurations of that generator, not across independently designed systems.
 
-*None of the three clears the framework's own gate.* All three fail SPOF-F1; Autoware additionally
-fails the $\rho$ threshold and Cloud Microservices the predictive-gain threshold, for 5 failed checks
-of 15 (§8.5). The $F_1@K = 1.000$ figures are partly a tie-breaking artifact of $K$ exceeding the
-count of genuinely non-zero-impact components. We read the result as evidence that the predictive
-*ranking* transfers beyond the generator to independently-sourced architectures — not as a
-demonstration of production readiness.
+*The five system models are small and hand-authored.* Autoware.universe (ROS 2), EdgeX Foundry and
+Home Assistant, plus meshes modelled after Online Boutique and Train-Ticket, were each written by one
+author as typed multigraphs from public documentation (22–41 Applications). Brokers, QoS profiles,
+code metrics and host specifications are partly assumed, and no second modeller has re-derived any
+model; `reproduce/model_agreement.py` implements the re-modelling protocol for when one does. Two
+models depart materially from their originals: the Online Boutique model is a 22-application pub-sub
+mesh with four brokers, whereas the original is about eleven gRPC services with no broker, and the
+Train-Ticket model represents its service-discovery server as a broker. Zero-shot, the learned engines
+rank these models at $\rho = 0.760$ (`HGT-QoS`) and $0.805$ (`GAT-QoS`) against $0.511$–$0.526$ for
+every training-free score (§9.1.1), but restricted to components that propagate failures every
+interval spans zero at five systems. We read this as evidence that learned ranking transfers to
+independently authored architecture models under simulated reachability, not to deployed systems.
 
-*The paradigm count is two, not three.* Train-Ticket and Cloud Microservices are both microservice
-meshes, so cyber-physical pub-sub is represented by Autoware alone. Leave-One-Scenario-Out evaluation
-confirms inductive transfer across held-out *synthetic* architectures only, since all seven share a
-generator. Expanding to further middleware paradigms and to hardware-in-the-loop deployments is
-future work (§9.3).
+*None of the three models evaluated in §8.5 clears the framework's own gate.* All three fail SPOF-F1;
+Autoware additionally fails the $\rho$ threshold and Cloud Microservices the predictive-gain
+threshold, for 5 failed checks of 15. This is not a demonstration of production readiness.
+
+*The paradigm split is untested.* $\rho_{>0}$ is positive on the three models of publish–subscribe
+systems and non-positive on the two modelled after RPC systems. Both RPC-derived models are encoded
+as publish–subscribe graphs with no synchronous edge and labelled by the same forward-propagating
+oracle, so the split cannot be attributed to call-tree semantics; testing it requires synchronous
+edges in the schema and a backward-propagating oracle (§9.3).
 
 **Conclusion validity.** Criticality scores and simulated impact metrics exhibit heavy-tailed,
 non-parametric distributions that violate normality assumptions. To prevent classification bias, we
 apply non-parametric rank correlations (Spearman $\rho$), top-$K$ Jaccard metrics, and adaptive
 box-plot thresholding ($Q3 + 1.5\,\mathrm{IQR}$) rather than parametric z-scores or arbitrary absolute cutoffs (§4.4).
+
+LOSO folds share ten of their eleven training scenarios, so the paired tests across folds are
+anti-conservative and every $p$-value is nominal; we read them alongside fold-level sign consistency
+and bootstrap intervals. The primary contrast (`HGT-QoS` against `Topo-QoS`) was registered in the
+repository before the twelve-fold harness produced any result, and three amendments registered
+further contrasts, each before its run: the matched control (Amendment 2) and the two hybrids
+(Amendments 5 and 6). We call this *registered* rather than pre-registered, because the plan has no
+third-party timestamp. The sequence was adaptive, since Amendment 6 followed Amendment 2's result, so
+we also pool all eleven registered contrasts under one Holm correction: both hybrid primaries remain
+significant ($p_{\text{omni}} = 0.016$ and $0.034$), and no other registered contrast reaches
+$\alpha = 0.05$ ($p_{\text{omni}} \ge 0.38$).
 
 ## 9.3 Limitations and Future Work
 
