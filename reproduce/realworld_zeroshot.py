@@ -620,7 +620,8 @@ def main() -> int:
     p.add_argument("--realworld-cache", type=Path, default=Path("output/realworld_cache"))
     p.add_argument("--variant", default="hgl_qos", choices=["hgl_qos", "hgl", "hgl_qos_prior",
                             "gl_full_cap", "gl_full_qos16_cap", "gl_qos16_prior",
-                            "gl_full_qos16_nfmask", "tab_gbm", "tab_gbm_qos", "hgl_qos_uni"])
+                            "gl_full_qos16_nfmask", "tab_gbm", "tab_gbm_qos", "hgl_qos_uni",
+                            "gl_full_qos_cap"])
     p.add_argument("--seeds", default="42,123,456,789,2024")
     p.add_argument("--epochs", type=int, default=150)
     p.add_argument("--layers", type=int, default=2)
@@ -651,7 +652,7 @@ def main() -> int:
 
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()]
     homogeneous = args.variant in ("gl_full_cap", "gl_full_qos16_cap", "gl_qos16_prior",
-                                   "gl_full_qos16_nfmask")
+                                   "gl_full_qos16_nfmask", "gl_full_qos_cap")
     tabular = args.variant in ("tab_gbm", "tab_gbm_qos")
     use_qos = (
         _registry.node_qos_for(args.variant, "loso") if homogeneous or tabular

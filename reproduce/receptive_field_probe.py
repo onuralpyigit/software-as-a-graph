@@ -45,6 +45,7 @@ CHECKPOINTS = {
     "gl_full_qos16_nfmask": "output/realworld_zeroshot_attribution/gl_full_qos16_nfmask/seed_42/best_model.pt",
     "gl_full_qos16_cap": "output/realworld_zeroshot_attribution/gl_full_qos16_cap/seed_42/best_model.pt",
     "gl_qos16_prior": "output/realworld_zeroshot_cpu_hybrid_gat/gl_qos16_prior/seed_42/best_model.pt",
+    "gl_full_qos_cap": "output/realworld_zeroshot_capacity/gl_full_qos_cap/seed_42/best_model.pt",
 }
 CHECK_SCENARIOS = ("enterprise_system", "healthcare_system")
 

@@ -18,6 +18,7 @@
 #   make rq-hybrid-gat   — SaG-Hybrid-GAT vs Topo-QoS vs GAT-N-QoS16-C, one CPU sweep (Amendment 6)
 #   make rq-attribution  — GBM-Feat / GAT-QoS-nf attribution controls + receptive-field probe (Amendment 7)
 #   make rq-directionality — HGT-QoS vs HGT-QoS-U (Amendment 2's directionality arm), LOSO + zero-shot
+#   make rq-capacity     — HGT-QoS vs GAT-w (Amendment 2's capacity arm), LOSO + zero-shot
 #   make omnibus         — one Holm correction over every registered contrast (no training)
 #   make nested-search   — nested-CV config search (opt-in, expensive; GRID=stage1|stage2|full)
 #   make convergent-validity — JSS Table 13: Three-oracle rank agreement (opt-in; expensive)
@@ -50,7 +51,7 @@ SCENARIOS_DIR ?= data/scenarios
 RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
-.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution rq-directionality nested-search kfold convergent-validity \
+.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution rq-directionality rq-capacity nested-search kfold convergent-validity \
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 \
@@ -242,6 +243,26 @@ rq-directionality:
 	        --device cpu --workdir $(OUTPUT_DIR)/realworld_zeroshot_directionality \
 	        --output $(RESULTS_DIR)/realworld_zeroshot_$${v}_directionality.json || exit 1; \
 	done
+
+# Amendment 2's capacity-only control, the last registered arm: GAT-w is an
+# untyped GAT at HGT's parameter budget reading the scalar QoS weight. Only
+# topo_qos and hgl_qos share the invocation: adding GAT-QoS or HGT-QoS-U would
+# make loso_significance emit their control contrasts again, and the omnibus
+# would count them twice.
+rq-capacity:
+	$(PYTHON) reproduce/loso_all_variants.py \
+	    --variants topo_qos hgl_qos gl_full_qos_cap \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --epochs $(EPOCHS) --seeds $(SEEDS) --device cpu \
+	    --jobs $(HYBRID_JOBS) --torch-threads 1 \
+	    --output-base $(OUTPUT_DIR)/loso_cpu_capacity \
+	    --output $(RESULTS_DIR)/loso_capacity_cpu.json
+	$(PYTHON) reproduce/loso_significance.py \
+	    --input $(RESULTS_DIR)/loso_capacity_cpu.json \
+	    --output $(RESULTS_DIR)/loso_significance_capacity_cpu.json
+	OMP_NUM_THREADS=4 $(PYTHON) reproduce/realworld_zeroshot.py --variant gl_full_qos_cap --layers 3 \
+	    --epochs $(EPOCHS) --device cpu --workdir $(OUTPUT_DIR)/realworld_zeroshot_capacity \
+	    --output $(RESULTS_DIR)/realworld_zeroshot_gl_full_qos_cap_capacity.json
 
 seed-robustness:
 	$(PYTHON) reproduce/factorial_seed_robustness.py \
