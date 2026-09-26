@@ -278,8 +278,10 @@ def cmd_partial(_: argparse.Namespace) -> int:
             xs = [per[f][r][key] for f in folds if per[f][r][key] is not None]
             s[key] = {"mean": _mean(xs), "ci95": mean_ci(xs) if len(xs) > 1 else None,
                       "n_folds": len(xs)}
-        s["vs_topo_qos"] = (paired([per[f][r]["rho"] for f in folds],
-                                   [per[f]["Topo-QoS"]["rho"] for f in folds])
+        both = [f for f in folds
+                if per[f][r]["rho"] is not None and per[f]["Topo-QoS"]["rho"] is not None]
+        s["vs_topo_qos"] = (paired([per[f][r]["rho"] for f in both],
+                                   [per[f]["Topo-QoS"]["rho"] for f in both])
                             if r != "Topo-QoS" else None)
         ci = s["partial_given_istar"]["ci95"]
         s["D3"] = None if ci is None else ("D3" if ci[0] <= 0 <= ci[1] else
