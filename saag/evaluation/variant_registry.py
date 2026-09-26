@@ -21,7 +21,7 @@ A label is the architecture followed by what distinguishes it:
     Heterogeneous graph learning (HGT)     HGT  | HGT-QoS
     Hybrid engines                         Hybrid-HGT | Hybrid-GAT
     RQ2 confound controls                  GAT | GAT-w | GAT-QoS | HGT-QoS-U
-    Dependency-graph learning (Amdt. 9)    GAT-P | GAT-P-QoS | Hybrid-GAT-P | HGT-P-QoS
+    Dependency-graph learning (Amdt. 9)    GAT-P | GAT-P-QoS | GAT-P+InDeg | HGT-P-QoS
 
     -S     small GAT (28,168 parameters)
     -w     scalar QoS edge weight w(e)
@@ -34,7 +34,8 @@ Unsuffixed GAT and GAT-QoS are the capacity-matched controls, at HGT's
 parameter budget, so the matched 2x2 reads {GAT, HGT} x {-, -QoS}. ``SaG`` is
 reserved for the framework and is never a variant name.
 
-The labels changed on 2026-09-24. :data:`LEGACY_LABELS` maps each earlier label
+The labels changed on 2026-09-24 (and Hybrid-GAT-P became GAT-P+InDeg on
+2026-09-26, so that "Hybrid" always means a Topo-QoS prior). :data:`LEGACY_LABELS` maps each earlier label
 to its current one, and :func:`relabel` applies it. Published artifacts and
 PREREGISTRATION.md still carry the earlier labels.
 
@@ -351,7 +352,7 @@ _VARIANT_LIST = [
         family="dependency",
         substrate="projection",
         qos="full16",
-        label="Hybrid-GAT-P",
+        label="GAT-P+InDeg",
         blurb="GAT-P-QoS learning a residual correction on the rank-normalised "
               "InDeg (direct-dependent count) prior",
         hidden_channels=288,
@@ -385,6 +386,7 @@ LEGACY_LABELS: Dict[str, str] = {
     "GAT-N": "GAT-S",
     "SaG-Hybrid-GAT": "Hybrid-GAT",
     "SaG-Hybrid": "Hybrid-HGT",
+    "Hybrid-GAT-P": "GAT-P+InDeg",
 }
 
 _LEGACY_RE = re.compile(

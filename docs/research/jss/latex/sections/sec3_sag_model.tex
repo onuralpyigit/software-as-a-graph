@@ -10,7 +10,7 @@ Figure~\ref{fig:1} presents the end-to-end architecture of the SaG framework. Th
 \label{fig:1}
 \end{figure}
 
-\subsection{Formal Multigraph Definition}
+\subsection{Multigraph Definition}
 \label{sec:3.1}
 
 A distributed system is described as a typed, weighted, directed multigraph:
@@ -83,9 +83,9 @@ Overlap@$K$             & Top-$K$ identification set overlap ($K = 0.20\,|V_{\te
 \subsection{Quality-of-Service Link Weighting}
 \label{sec:3.2}
 
-A link's strength depends on its Quality-of-Service (QoS) contract: a \texttt{RELIABLE} topic with \texttt{TRANSIENT\_LOCAL} durability couples services more strongly than a \texttt{BEST\_EFFORT} telemetry stream. Each topic $t$ carries an aggregate weight $w(t) \in (0, 1]$ combining declared QoS policies (reliability, durability, priority) with payload size and publication frequency. The weighting follows an Analytic Hierarchy Process (AHP) derivation whose pairwise comparison matrices and consistency checks ($CR = 0.016$) are detailed in Supplementary Section~\ref{S-supp:ahp}.
+A link's strength depends on its Quality-of-Service (QoS) contract: a \texttt{RELIABLE} topic with \texttt{TRANSIENT\_LOCAL} durability couples services more strongly than a \texttt{BEST\_EFFORT} telemetry stream. Each topic $t$ carries an aggregate weight $w(t) \in (0, 1]$ combining declared QoS policies (reliability, durability, priority) with payload size and publication frequency. The sub-weights of reliability, durability and priority come from an Analytic Hierarchy Process (AHP) pairwise-comparison matrix that was stated independently rather than back-solved from a target vector ($CR = 0.016$, non-degenerate; Supplementary Section~\ref{S-supp:ahp}, which also shows that three of the framework's other AHP matrices do encode a declared vector).
 
-Crucially, our evaluation uncovers that QoS weighting does not improve closed-form architectural ranking: unweighted betweenness on the Application--Library projection scores $\rho = 0.591$, outperforming QoS-weighted betweenness (\texttt{Topo-QoS}, $\rho = 0.553$) by $+0.038$ (Section~\ref{sec:rq1}). Unweighted topological structures drive performance across both static and dynamic simulations.
+On the reachability oracle, QoS weighting does not improve closed-form ranking: unweighted betweenness on the Application--Library projection scores $\rho = 0.591$, against $0.553$ for QoS-weighted betweenness (\texttt{Topo-QoS}; Section~\ref{sec:rq1}). On the multi-criteria oracle the order reverses, and \texttt{Topo-QoS} is the best training-free ranker (Section~\ref{sec:rq1}). The dependency counts evaluated in this paper are unweighted and do not read $w(t)$.
 
 \subsection{Logical Dependency Projection (\texttt{DEPENDS\_ON})}
 \label{sec:3.3}
@@ -115,7 +115,16 @@ Structural edges do not directly reflect failure propagation: a subscriber depen
 
 Rules~1 and~2 combine topics $T$ joining a pair by probabilistic union \cite{pearl1988probabilistic,beliakov2007aggregation,yager1988owa}, ensuring parallel failure paths increase coupling. Rule~5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ \cite{hardy1952inequalities}, and Rules~3 and~4 lift dependencies to hosts by maximum.
 
-\noindent\textbf{Sequential cascades and simultaneous blasts.} Rule~1 captures sequential cascades, where a failed publisher starves subscribers through queues and buffers. For Applications, counting incoming edges under Rule~1 is mathematically identical to counting distinct subscribers across published topics (the raw 2-hop subscriber count, or afferent coupling / AIS \cite{martin2003agile,rud2006ais}). Rule~5 captures simultaneous blasts, where a crashed library takes down all dependent applications at once; this rule adds $+0.058$ to transitive reachability on synthetic topologies (Section~\ref{sec:rq1}). Rules~2, 3, 4 and~6 represent infrastructural and broker dependencies that remain unexercised in the application-layer evaluation.
+\noindent\textbf{Sequential cascades and simultaneous blasts.} Rule~1 captures sequential cascades, where a failed publisher starves subscribers through queues and buffers. Rule~5 captures simultaneous blasts, where a crashed library takes down all dependent applications at once. Libraries that publish or subscribe are endpoints of Rule~1 in their own right, and an Application reaches a library's topics transitively through Rule~5. Rules~2, 3, 4 and~6 represent infrastructural and broker dependencies; they are defined for completeness but are not exercised by the Application-level evaluation in this paper.
+
+\noindent\textbf{Proposition 1 (dependency count = typed two-hop count).} Let $G_{\text{flow}}$ be the Application--Library projection (Rules~1 and~5) and $v$ an Application. Then
+\begin{equation}
+\label{eq:indeg}
+\texttt{InDeg}(v) \;=\; \bigl|\{\,u \neq v : \exists t \in V_{\text{topic}},\; (v, t) \in \texttt{PUBLISHES\_TO} \wedge (u, t) \in \texttt{SUBSCRIBES\_TO}\,\}\bigr|.
+\end{equation}
+\emph{Proof.} Rule~5 edges end at Libraries, so every edge into an Application is a Rule~1 edge $u \to v$, which exists exactly when $u \neq v$ subscribes to a topic that $v$ publishes; parallel topics collapse into one edge. $\square$
+
+\noindent The right-hand side of Eq.~\eqref{eq:indeg} is publish--subscribe afferent coupling (fan-in, the Absolute Importance of the Service \cite{martin2003agile,rud2006ais}), and it is a typed two-hop query on the raw multigraph. \texttt{InDeg} therefore needs no projection to compute; the projection states which typed query to ask. The equality is also checked on all seventeen corpus graphs (maximum absolute difference $0$). What the projection adds beyond this query is measured separately: Rule~5 raises transitive reach by $+0.058$ (Section~\ref{sec:rq1}).
 
 \begin{figure}[htbp]
 \centering

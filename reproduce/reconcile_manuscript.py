@@ -1675,7 +1675,8 @@ def check_dependency_graph(rep: Report) -> None:
     if seen != 3:
         rep.findings.append(Finding("tab:hybrid", "dependency-graph rows", "rows", seen, 3))
 
-    means, con, zs = dg["means"], dg["contrasts"], dg["zeroshot"]
+    means, zs = dg["means"], dg["zeroshot"]
+    con = {_registry.relabel(k): v for k, v in dg["contrasts"].items()}
     # Table tab:dg-learners (if present in main text).
     if r"\label{tab:dg-learners}" in tex:
         arms = {_registry.label(v, "loso"): v for v in

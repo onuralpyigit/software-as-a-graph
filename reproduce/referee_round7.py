@@ -85,7 +85,7 @@ LEARNED = {
     "Hybrid-GAT": ("output/loso_cpu_hybrid_gat/gl_qos16_prior", 0.683),
     "GAT-P-QoS": ("output/loso_cpu_dependency_graph/gl_proj_qos16_cap", 0.748),
     "HGT-P-QoS": ("output/loso_cpu_dependency_graph/hgl_proj_qos", 0.514),
-    "Hybrid-GAT-P": ("output/loso_cpu_dependency_graph/gl_proj_qos16_indeg_prior", 0.758),
+    "GAT-P+InDeg": ("output/loso_cpu_dependency_graph/gl_proj_qos16_indeg_prior", 0.758),
 }
 G3_TOL = 1e-3
 K_GRID = [0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50]
@@ -540,15 +540,21 @@ def cmd_latency(args: argparse.Namespace) -> int:
             "indeg_s": _time(lambda: indeg(flow), args.repeats),
             "reach_s": _time(lambda: reach(flow), args.repeats),
         }
-        row["istar_s"] = _time(lambda: FaultInjector(
+        # I* grows roughly quadratically with size (about 5 s at 250 components and
+        # 20 s at 500 on this machine), so above --istar-max it is not timed.
+        row["istar_s"] = None if n > args.istar_max else _time(lambda: FaultInjector(
             graph=build_graph_from_json(topo), seeds=SEEDS, cascade_depth_limit=0,
             propagation_threshold=0.2, qos_factor_mode="ladder",
-        ).run(node_types=["Application", "Broker", "Library"]), args.repeats)
+        ).run(node_types=["Application", "Broker", "Library"]),
+            args.repeats if n <= args.istar_full_repeats_max else 1)
+        row["istar_repeats"] = (0 if n > args.istar_max else
+                                args.repeats if n <= args.istar_full_repeats_max else 1)
         row["count_path_s"] = row["projection_s"] + row["indeg_s"]
         rows.append(row)
         print({k: (round(v, 5) if isinstance(v, float) else v) for k, v in row.items()}, flush=True)
     _write("referee_round7_latency.json", {"sizes": rows}, experiment="R6",
-           repeats=args.repeats, statistic="median")
+           repeats=args.repeats, statistic="median", istar_max=args.istar_max,
+           istar_full_repeats_max=args.istar_full_repeats_max)
     return 0
 
 
@@ -558,6 +564,10 @@ def main() -> int:
                                       "latency", "all"])
     ap.add_argument("--sizes", type=int, nargs="+", default=[250, 500, 1000, 2000, 5000, 10000])
     ap.add_argument("--repeats", type=int, default=5)
+    ap.add_argument("--istar-max", type=int, default=10000,
+                    help="largest size at which the I* labelling pass is timed")
+    ap.add_argument("--istar-full-repeats-max", type=int, default=10000,
+                    help="above this size I* is timed once rather than --repeats times")
     args = ap.parse_args()
     stages = {"raw": cmd_raw, "partial": cmd_partial, "learned": cmd_learned,
               "recall": cmd_recall, "zeroshot": cmd_zeroshot, "latency": cmd_latency}
