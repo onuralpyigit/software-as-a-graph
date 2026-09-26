@@ -131,6 +131,14 @@ PUBLISHED_GAT_QOS_CPU = {
     "IoT Smart City": 0.720, "Logistics Fleet": 0.654, "Microservices": 0.479,
     "Real-Time Gaming": 0.685, "Telecom RAN": 0.574,
 }
+# Feature-only gradient-boosting control (Amendment 8), Supplementary per-fold
+# attribution table; the "Hub-and-Spoke" row there is the ESB fold.
+PUBLISHED_GBM_FEAT = {
+    "ATM": 0.304, "AV System": 0.748, "Enterprise": 0.533, "Financial Trading": 0.762,
+    "Healthcare": 0.781, "Enterprise Integration (ESB)": 0.539, "Industrial SCADA": 0.856,
+    "IoT Smart City": 0.721, "Logistics Fleet": 0.622, "Microservices": 0.427,
+    "Real-Time Gaming": 0.710, "Telecom RAN": 0.703,
+}
 
 
 # ── labels ────────────────────────────────────────────────────────────────────
@@ -432,6 +440,8 @@ def cmd_baselines(_: argparse.Namespace) -> int:
                                         [PUBLISHED_HYBRID_HGT_CPU[n] for n in names]),
             "vs_Hybrid-GAT_cpu": paired([loso[n][p]["rho"] for n in names],
                                         [PUBLISHED_HYBRID_GAT_CPU[n] for n in names]),
+            "vs_GBM-Feat": paired([loso[n][p]["rho"] for n in names],
+                                  [PUBLISHED_GBM_FEAT[n] for n in names]),
         }
         for p in NEW_RANKERS + ["Topo (projection)"]
     }

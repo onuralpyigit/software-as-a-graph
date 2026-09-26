@@ -74,6 +74,7 @@ __all__ = [
     "edge_dim",
     "hidden_for",
     "bidirectional_for",
+    "node_qos_for",
 ]
 
 
@@ -104,6 +105,10 @@ class Variant:
     #: Which Section 7.2 confound this arm controls for, or ``None`` for the
     #: variants the manuscript actually reports as columns.
     control_for: Optional[str] = None
+    #: Whether the QoS-derived *node* features are kept. ``None`` means they
+    #: follow the edge channel (QoS on iff ``qos != "none"``), which is true of
+    #: every arm except the two that decouple them.
+    node_qos: Optional[bool] = None
 
 
 FAMILY_ORDER = ["structural", "tabular", "homogeneous", "heterogeneous", "hybrid", "control"]
@@ -225,6 +230,16 @@ _VARIANT_LIST = [
               "the aggregation or just the features",
     ),
     Variant(
+        variant_id="tab_gbm_qos",
+        family="tabular",
+        substrate="native",
+        qos="none",
+        label="GBM-Feat-QoS",
+        blurb="GBM-Feat reading the QoS-derived node features GAT-QoS reads; "
+              "the non-graph counterpart of GAT-QoS rather than of GAT",
+        node_qos=True,
+    ),
+    Variant(
         variant_id="gl_full_qos_cap",
         family="control",
         substrate="native",
@@ -246,6 +261,18 @@ _VARIANT_LIST = [
               "control for RQ2",
         hidden_channels=288,
         control_for="edge_channel",
+    ),
+    Variant(
+        variant_id="gl_full_qos16_nfmask",
+        family="control",
+        substrate="native",
+        qos="full16",
+        label="GAT-QoS-nf",
+        blurb="GAT-QoS with its QoS-derived node features masked as in GAT and "
+              "the 16-D QoS edge channel kept; separates the two QoS inputs",
+        hidden_channels=288,
+        control_for="node_qos",
+        node_qos=False,
     ),
     Variant(
         # PREREGISTRATION.md Amendment 5. HGT-QoS reading the rank-normalised
@@ -399,6 +426,18 @@ def edge_dim(variant_id: str, harness: str = "in_distribution") -> Optional[int]
     can branch on this one value instead of re-listing variant ids.
     """
     return _EDGE_DIM_BY_QOS[_lookup(variant_id, harness).qos]
+
+
+def node_qos_for(variant_id: str, harness: str = "in_distribution") -> bool:
+    """Whether ``variant_id`` reads the QoS-derived node features.
+
+    Follows the edge channel unless the variant decouples the two
+    (:attr:`Variant.node_qos`).
+    """
+    variant = _lookup(variant_id, harness)
+    if variant.node_qos is not None:
+        return variant.node_qos
+    return edge_dim(variant_id, harness) is not None
 
 
 def hidden_for(

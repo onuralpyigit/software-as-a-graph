@@ -14,7 +14,8 @@ carry the paper's three findings at a glance:
        -> the engines are complementary; the prior removes the learned
           engine's losses on the folds where closed-form structure is strongest.
     C. Cell means of the capacity- and channel-matched 2x2.
-       -> the QoS channel moves accuracy; typing does not.
+       -> QoS inputs move accuracy (Table 9: the node columns, not the edge
+          channel); typing does not.
 
 Everything is read from the same artifacts that back Tables 7-10 and is
 reconciled against them by ``reconcile_manuscript.py``:
@@ -177,7 +178,7 @@ def panel_c(ax, matched):
     ref = matched["topo_qos"]["mean_rho"]
     ax.axhline(ref, color=COLOUR["topo_qos"], lw=0.9, ls=(0, (4, 2)))
     ax.text(1.08, ref + 0.002, "Topo-QoS", color=INK2, fontsize=6.0, va="bottom")
-    ax.set_xticks(x, ["no QoS\nchannel", "16-D QoS\nchannel"])
+    ax.set_xticks(x, ["QoS inputs\noff", "QoS inputs\non"])
     ax.set_xlim(-0.25, 2.05)
     ax.set_ylim(0.53, 0.65)
     ax.set_ylabel(r"mean LOSO $\rho$")

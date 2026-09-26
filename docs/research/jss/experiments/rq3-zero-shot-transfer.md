@@ -2,7 +2,7 @@
 
 > **Amendment 7 update.** Scored on the same models and oracle settings, the training-free dependency counts reach Reach 0.938 and InDeg 0.863, with no training. Part of why every ranker scores higher here than under LOSO is label structure: 51% of system-model Applications are inert, against 31% in the folds. See [amendment7-training-free.md](amendment7-training-free.md).
 
-**Paper:** §7.3, Table 9 (and the transfer columns of Table 7). **Extended results:** Supplement
+**Paper:** §7.3, Table 10 (and the transfer columns of Table 7). **Extended results:** Supplement
 S27 (bootstrap intervals and active stratum), S15 (PR-AUC, F1@τ, nDCG), S7 (explanation layer on
 the same models), S29 (2-layer configuration).
 
@@ -44,13 +44,18 @@ PYTHONPATH=. python reproduce/realworld_zeroshot.py --variant hgl_qos --layers 3
 
 `--variant` also accepts `hgl`, `hgl_qos_prior`, `gl_full_qos16_cap` and `gl_qos16_prior` (see
 `--help`). The published artifacts are:
-- `realworld_zeroshot_v7.json` (`HGT-QoS`, Table 9);
-- `realworld_zeroshot_*_cpu.json` (the CPU rows of Table 7 and the `GAT-QoS` column of Table 9).
+- `realworld_zeroshot_v7.json` (`HGT-QoS`, Table 10);
+- `realworld_zeroshot_*_cpu.json` (the CPU rows of Table 7 and the `GAT-QoS` column of Table 10);
+- `realworld_zeroshot_{gl_full_cap,tab_gbm}_attribution.json` (the `GAT` and `GBM-Feat` columns of Table 10;
+  [rq2-attribution-controls.md](rq2-attribution-controls.md)).
 
 ## Headline result
 
 Learned engines rank zero-shot at ρ = 0.760 (`HGT-QoS`) and 0.805 (`GAT-QoS`), against
-0.511–0.526 for every training-free score. They roughly double top-K overlap. On the active stratum
+0.511–0.526 for every training-free score. Plain `GAT`, with no QoS input and no message passing
+at Applications, transfers best (0.831), and gradient boosting on the same features reaches 0.757,
+so most of the margin is learning on SaG's per-component features. Learned models raise top-K
+overlap from 0.248 to 0.40–0.55. On the active stratum
 (components with $I^* > 0$), every interval spans zero at five systems, so that comparison is
 unresolved.
 

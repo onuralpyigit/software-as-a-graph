@@ -32,7 +32,7 @@ def _cfg(**over):
     base = dict(
         layer="app", epochs=300, lr=3e-4, hidden=64, heads=4, layers=3,
         dropout=0.2, mode="gnn", variant="hgl_qos", eval_population="application",
-        weight_decay=1e-4, warmup_T0=None, multitask_weight=0.5,
+        critical_threshold=None, weight_decay=1e-4, warmup_T0=None, multitask_weight=0.5,
         rm_consistency_weight=0.0, ranking_weight=0.3, pairwise_ranking_weight=0.1,
         rank_normalize_features=False, rank_normalize_labels=False,
     )
@@ -53,6 +53,7 @@ def test_identical_configurations_fingerprint_alike():
 @pytest.mark.parametrize("field,value", [
     ("epochs", 299), ("lr", 1e-3), ("variant", "hgl"), ("layers", 2),
     ("rank_normalize_labels", True), ("eval_population", "labeled"),
+    ("critical_threshold", 0.2),
 ])
 def test_any_changed_parameter_changes_the_fingerprint(field, value):
     assert fit_fingerprint(_cfg()) != fit_fingerprint(_cfg(**{field: value}))

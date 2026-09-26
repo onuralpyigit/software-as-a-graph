@@ -55,13 +55,15 @@ INK, INK2, GRID = "#1F2937", "#475569", "#E5E7EB"
 # surface); grey is the neutral reference for the betweenness engines, not a slot.
 COUNT, LEARN, HYBRID, REF = "#0072B2", "#E69F00", "#AA3377", "#8C8C8C"
 
-# Published CPU-sweep means and fold-bootstrap intervals (manuscript Table 7).
+# Published CPU-sweep means and fold-bootstrap intervals (manuscript Table 7;
+# GBM-Feat from the attribution controls of Section 7.2, Amendment 8).
 PUBLISHED = {
     "Topo": (0.349, 0.254, 0.452),
     "HGT-QoS": (0.622, 0.547, 0.690),
     "GAT-QoS": (0.635, 0.567, 0.696),
     "Hybrid-HGT": (0.657, 0.572, 0.733),
     "Hybrid-GAT": (0.683, 0.603, 0.753),
+    "GBM-Feat": (0.642, 0.547, 0.725),
 }
 SHORT = {
     "ATM": "ATM", "AV System": "AV", "Enterprise": "Enterprise",
@@ -97,6 +99,7 @@ def panel_a(ax, tf: dict) -> None:
         ("Reach-QoS", s["Reach-QoS"]["loso_mean_rho"], *s["Reach-QoS"]["loso_rho_ci95"], COUNT, "o"),
         ("Hybrid-GAT", *PUBLISHED["Hybrid-GAT"], HYBRID, "D"),
         ("Hybrid-HGT", *PUBLISHED["Hybrid-HGT"], HYBRID, "D"),
+        ("GBM-Feat", *PUBLISHED["GBM-Feat"], LEARN, "s"),
         ("GAT-QoS", *PUBLISHED["GAT-QoS"], LEARN, "s"),
         ("HGT-QoS", *PUBLISHED["HGT-QoS"], LEARN, "s"),
         ("Betweenness (proj.)", s["Topo (projection)"]["loso_mean_rho"],

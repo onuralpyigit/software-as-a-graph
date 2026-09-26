@@ -58,7 +58,9 @@ CONTROL_VARIANTS = [
     "gl_full_cap", "gl_full_qos_cap", "gl_full_qos16_cap", "hgl_qos_uni",
     # Not a confound control but the same kind of arm: learned, scored on the
     # same folds, and only meaningful paired against the GNNs it is compared to.
-    "tab_gbm",
+    "tab_gbm", "tab_gbm_qos",
+    # GAT-QoS with its QoS node features masked; separates the two QoS inputs.
+    "gl_full_qos16_nfmask",
     # SaG-Hybrid (PREREGISTRATION.md Amendments 5 and 6): opt-in for the same reason.
     "hgl_qos_prior", "gl_qos16_prior",
 ]
@@ -78,7 +80,7 @@ _DISPATCH_COST = {
     "hgl_qos_prior": 0, "gl_qos16_prior": 0, "hgl_qos": 0, "hgl": 1, "gl_qos": 2, "gl": 3,
     "topology_rm": 4, "topo_qos": 5, "topo_baseline": 6,
     # No epochs and no forward pass: seconds, not hours.
-    "tab_gbm": 7,
+    "tab_gbm": 7, "tab_gbm_qos": 7,
 }
 
 

@@ -16,6 +16,9 @@
 #   make seed-robustness — 2x2 under median / trimmed seed aggregation (no training)
 #   make rq-hybrid       — SaG-Hybrid vs Topo-QoS vs HGT-QoS, one CPU sweep (Amendment 5)
 #   make rq-hybrid-gat   — SaG-Hybrid-GAT vs Topo-QoS vs GAT-N-QoS16-C, one CPU sweep (Amendment 6)
+#   make rq-attribution  — GBM-Feat / GAT-QoS-nf attribution controls + receptive-field probe (Amendment 8)
+#   make rq-directionality — HGT-QoS vs HGT-QoS-U (Amendment 2's directionality arm), LOSO + zero-shot
+#   make rq-capacity     — HGT-QoS vs GAT-w (Amendment 2's capacity arm), LOSO + zero-shot
 #   make omnibus         — one Holm correction over every registered contrast (no training)
 #   make nested-search   — nested-CV config search (opt-in, expensive; GRID=stage1|stage2|full)
 #   make convergent-validity — JSS Table 13: Three-oracle rank agreement (opt-in; expensive)
@@ -48,7 +51,7 @@ SCENARIOS_DIR ?= data/scenarios
 RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
-.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat nested-search kfold convergent-validity \
+.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution rq-directionality rq-capacity nested-search kfold convergent-validity \
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 \
@@ -193,6 +196,73 @@ rq-hybrid-gat:
 	$(PYTHON) reproduce/loso_significance.py \
 	    --input $(RESULTS_DIR)/loso_hybrid_gat_cpu.json \
 	    --output $(RESULTS_DIR)/loso_significance_hybrid_gat_cpu.json
+
+# Attribution controls (PREREGISTRATION.md Amendment 8, post hoc, exploratory):
+# GAT and GAT-QoS re-run in the SAME invocation as the three new arms, because
+# the contrasts pair them by fold. Then zero-shot for the five learned arms and
+# the receptive-field probe (which reads the zero-shot checkpoints).
+ATTRIBUTION_ZS = gl_full_cap gl_full_qos16_nfmask gl_full_qos16_cap tab_gbm tab_gbm_qos
+
+rq-attribution:
+	$(PYTHON) reproduce/loso_all_variants.py \
+	    --variants topo_qos gl_full_cap gl_full_qos16_cap gl_full_qos16_nfmask tab_gbm tab_gbm_qos \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --epochs $(EPOCHS) --seeds $(SEEDS) --device cpu \
+	    --jobs $(HYBRID_JOBS) --torch-threads 1 \
+	    --output-base $(OUTPUT_DIR)/loso_cpu_attribution \
+	    --output $(RESULTS_DIR)/loso_attribution_cpu.json
+	$(PYTHON) reproduce/attribution_contrasts.py \
+	    --input $(RESULTS_DIR)/loso_attribution_cpu.json \
+	    --output $(RESULTS_DIR)/attribution_contrasts.json
+	for v in $(ATTRIBUTION_ZS); do \
+	    $(PYTHON) reproduce/realworld_zeroshot.py --variant $$v --layers 3 --epochs $(EPOCHS) \
+	        --device cpu --workdir $(OUTPUT_DIR)/realworld_zeroshot_attribution \
+	        --output $(RESULTS_DIR)/realworld_zeroshot_$${v}_attribution.json || exit 1; \
+	done
+	$(PYTHON) reproduce/receptive_field_probe.py \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --output $(RESULTS_DIR)/receptive_field_probe.json
+
+# Amendment 2's directionality control, first run after Amendment 8: HGT-QoS-U
+# drops HGT's reverse pass, which is the only route by which any message reaches
+# an Application, so the contrast tests HGT's message passing directly. HGT-QoS
+# is re-run in the SAME invocation because the contrast pairs them by fold.
+rq-directionality:
+	$(PYTHON) reproduce/loso_all_variants.py \
+	    --variants topo_qos hgl_qos hgl_qos_uni \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --epochs $(EPOCHS) --seeds $(SEEDS) --device cpu \
+	    --jobs $(HYBRID_JOBS) --torch-threads 1 \
+	    --output-base $(OUTPUT_DIR)/loso_cpu_directionality \
+	    --output $(RESULTS_DIR)/loso_directionality_cpu.json
+	$(PYTHON) reproduce/loso_significance.py \
+	    --input $(RESULTS_DIR)/loso_directionality_cpu.json \
+	    --output $(RESULTS_DIR)/loso_significance_directionality_cpu.json
+	for v in hgl_qos hgl_qos_uni; do \
+	    OMP_NUM_THREADS=4 $(PYTHON) reproduce/realworld_zeroshot.py --variant $$v --layers 3 --epochs $(EPOCHS) \
+	        --device cpu --workdir $(OUTPUT_DIR)/realworld_zeroshot_directionality \
+	        --output $(RESULTS_DIR)/realworld_zeroshot_$${v}_directionality.json || exit 1; \
+	done
+
+# Amendment 2's capacity-only control, the last registered arm: GAT-w is an
+# untyped GAT at HGT's parameter budget reading the scalar QoS weight. Only
+# topo_qos and hgl_qos share the invocation: adding GAT-QoS or HGT-QoS-U would
+# make loso_significance emit their control contrasts again, and the omnibus
+# would count them twice.
+rq-capacity:
+	$(PYTHON) reproduce/loso_all_variants.py \
+	    --variants topo_qos hgl_qos gl_full_qos_cap \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --epochs $(EPOCHS) --seeds $(SEEDS) --device cpu \
+	    --jobs $(HYBRID_JOBS) --torch-threads 1 \
+	    --output-base $(OUTPUT_DIR)/loso_cpu_capacity \
+	    --output $(RESULTS_DIR)/loso_capacity_cpu.json
+	$(PYTHON) reproduce/loso_significance.py \
+	    --input $(RESULTS_DIR)/loso_capacity_cpu.json \
+	    --output $(RESULTS_DIR)/loso_significance_capacity_cpu.json
+	OMP_NUM_THREADS=4 $(PYTHON) reproduce/realworld_zeroshot.py --variant gl_full_qos_cap --layers 3 \
+	    --epochs $(EPOCHS) --device cpu --workdir $(OUTPUT_DIR)/realworld_zeroshot_capacity \
+	    --output $(RESULTS_DIR)/realworld_zeroshot_gl_full_qos_cap_capacity.json
 
 seed-robustness:
 	$(PYTHON) reproduce/factorial_seed_robustness.py \

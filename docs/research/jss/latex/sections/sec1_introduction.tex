@@ -22,12 +22,12 @@ The central thesis is that making dependencies explicit is the decisive investme
 
 \begin{itemize}\tightlist
 \item \textbf{RQ1 (Ranking accuracy):} \emph{How accurately do training-free, learned and hybrid engines on SaG's graphs rank components by cascading-failure impact on unseen architectures, and what drives the accuracy of the training-free engines?}
-\item \textbf{RQ2 (What learning needs):} \emph{Does the learned engines' accuracy come from relation-specific (typed) parameters or from the edge encoding, once model capacity and edge-channel width are matched?}
+\item \textbf{RQ2 (What learning needs):} \emph{Where does the learned engines' accuracy come from---relation-specific (typed) parameters, message passing, the QoS edge encoding, or the per-component features SaG extracts---once model capacity and edge-channel width are matched?}
 \item \textbf{RQ3 (Transfer):} \emph{How well do these rankers transfer to independently authored models of five open-source systems?}
 \item \textbf{RQ4 (Cost):} \emph{What does the analysis cost at CI/CD time, and how does it compare with running the simulation directly?}
 \end{itemize}
 
-\noindent Every headline contrast was registered with a decision rule before its results existed: the primary contrast, the matched control, both hybrid engines, and the training-free dependency counts with their QoS-attribution controls. Section~\ref{sec:6.4} and Supplementary Section~\ref{S-supp:amendments} log every amendment.
+\noindent Every headline contrast was registered with a decision rule before its results existed: the primary contrast, the matched control, both hybrid engines, and the training-free dependency counts with their QoS-attribution controls. Section~\ref{sec:6.4} and Supplementary Section~\ref{S-supp:amendments} log every amendment. The attribution controls of Section~\ref{sec:rq2}, which separate message passing and the QoS node features from the edge encoding, were added after the matched control's result; they are exploratory and are logged as Amendment~8.
 
 \subsection{Key Findings at a Glance}
 \label{sec:findings}
@@ -35,8 +35,8 @@ The central thesis is that making dependencies explicit is the decisive investme
 \begin{enumerate}\tightlist
     \item \textbf{Counting dependents ranks failure impact best.} On SaG's dependency projection, the number of a component's dependents ranks its simulated cascade impact at Spearman $\rho = 0.764$ on held-out architectures, above the registered betweenness engine on all twelve ($+0.211$) and above every learned and hybrid engine ($0.622$--$0.683$). It identifies the components whose failure reaches no one with $94\%$ balanced accuracy (Section~\ref{sec:rq1}).
     \item \textbf{The dependency projection, not QoS weighting, carries the signal.} Registered controls attribute the closed-form engine's gain over the registered centrality baseline ($0.349 \to 0.553$) to the projection: constant or permuted topic weights rank as well as the declared QoS contracts (Section~\ref{sec:rq1-qos}).
-    \item \textbf{Learning helps over betweenness, and simple models suffice.} Hybrid engines are the only learned engines that significantly beat the closed-form engine ($+0.103$ and $+0.130$, 11 of 12 folds), and an untyped attention network matches a heterogeneous transformer at equal capacity (Sections~\ref{sec:rq1} and~\ref{sec:rq2}).
-    \item \textbf{Rankings transfer.} Trained only on synthetic data, learned engines transfer to five open-source system models at $\rho = 0.760$--$0.805$, and dependency counts reach $0.86$--$0.94$ with no training at all (Section~\ref{sec:rq3}).
+    \item \textbf{Learning helps over betweenness, and its accuracy comes from SaG's features.} Hybrid engines are the only learned engines that significantly beat the closed-form engine ($+0.103$ and $+0.130$, 11 of 12 folds). Matched controls show that relation-specific parameters, message passing and the QoS edge encoding add nothing measurable, and a gradient-boosted regressor on the same per-component features matches the neural engines ($0.642$; Sections~\ref{sec:rq1} and~\ref{sec:rq2}).
+    \item \textbf{Rankings transfer.} Trained only on synthetic data, learned models transfer to five open-source system models at $\rho = 0.757$--$0.831$, and dependency counts reach $0.86$--$0.94$ with no training at all (Section~\ref{sec:rq3}).
     \item \textbf{The best ranker is the cheapest.} Deriving the projection and counting dependents takes under a tenth of a second on the largest architecture, against seconds for the simulator and minutes for the learned engines' features (Section~\ref{sec:rq4}).
 \end{enumerate}
 
@@ -45,7 +45,7 @@ The central thesis is that making dependencies explicit is the decisive investme
 
 \begin{enumerate}\tightlist
     \item \textbf{A typed architecture model with an explicit dependency projection} for pub-sub systems, whose six derivation rules turn publish, subscribe, routing, hosting and library relations into dependencies and separate sequential cascades from simultaneous blasts (Section~\ref{sec:3}). On it, training-free dependency counts are accurate, transferable and effectively free.
-    \item \textbf{A controlled comparison of what learning adds} (Sections~\ref{sec:4} and~\ref{sec:7}): heterogeneous and homogeneous graph neural networks at matched capacity, hybrid engines that correct a closed-form prior, and training-free dependency counts, all under the same leave-one-scenario-out protocol and zero-shot transfer.
+    \item \textbf{A controlled comparison of what learning adds} (Sections~\ref{sec:4} and~\ref{sec:7}): heterogeneous and homogeneous graph neural networks at matched capacity, directionality and capacity controls, a feature-only regressor, hybrid engines that correct a closed-form prior, and training-free dependency counts, all under the same leave-one-scenario-out protocol and zero-shot transfer.
     \item \textbf{Registered attribution of where accuracy comes from}, including controls that separate the dependency projection from the QoS contracts and that overturned an earlier interpretation of this study (Sections~\ref{sec:rq1-qos} and~\ref{sec:6.4}).
     \item \textbf{A standards-grounded explanation layer} (Section~\ref{sec:5}) that profiles each flagged component along ISO/IEC 25010 Availability, Fault Tolerance and Maintainability and names a remediation class, presented as a design proposal for validation.
     \item \textbf{An open benchmark and replication package} in the spirit of the JSS Open Science initiative: seventeen architectures totaling 2,812 components, twelve of which regenerate byte-identically from committed configurations, a torch-free harness for every training-free result, and a reconciler that mechanically checks every reported table value against the released artifacts.

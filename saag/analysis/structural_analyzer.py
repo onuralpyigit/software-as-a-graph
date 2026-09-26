@@ -54,6 +54,7 @@ from saag.core.layers import (
     get_layer_definition,
 )
 from saag.core.metrics import StructuralMetrics, EdgeMetrics, GraphSummary
+from saag.core.models import QoSPolicy
 
 from .graph_ops import (
     articulation_points_disconnected,
@@ -835,19 +836,18 @@ class StructuralAnalyzer:
         for comp in graph_data.components:
             if getattr(comp, "component_type", "") != "Topic":
                 continue
-            props = getattr(comp, "properties", {}) or {}
-            qos = props.get("qos", {})
+            # Both repositories store Topic QoS flat (qos_reliability, ...);
+            # reading only the nested "qos" dict left this profile empty for
+            # every repository-loaded system. from_node_attrs reads either shape.
+            qos = QoSPolicy.from_node_attrs(getattr(comp, "properties", {}) or {})
 
-            dur = qos.get("durability", "").lower().replace(" ", "_") if qos else ""
-            rel = qos.get("reliability", "").lower().replace(" ", "_") if qos else ""
-            pri = qos.get("transport_priority", "").lower().replace(" ", "_") if qos else ""
+            dur = qos.durability.lower().replace(" ", "_")
+            rel = qos.reliability.lower().replace(" ", "_")
+            pri = qos.transport_priority.lower().replace(" ", "_")
 
-            if dur:
-                durability[dur] = durability.get(dur, 0) + 1
-            if rel:
-                reliability[rel] = reliability.get(rel, 0) + 1
-            if pri:
-                priority[pri] = priority.get(pri, 0) + 1
+            durability[dur] = durability.get(dur, 0) + 1
+            reliability[rel] = reliability.get(rel, 0) + 1
+            priority[pri] = priority.get(pri, 0) + 1
             total += 1
 
         return {

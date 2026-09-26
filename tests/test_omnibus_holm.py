@@ -19,6 +19,10 @@ def results_dir(tmp_path):
             {"quantity": q, "label": q, "mean_delta": 0.0, "p": p, "p_holm": p}
             for q, p in (("typing", 0.47), ("qos", 0.042), ("interaction", 0.73))],
         ("loso_significance_rq2_matched.json", "rq2_controls"): [_row(0.38), _row(0.57)],
+        # Amendment 2's directionality control, run later in its own sweep.
+        ("loso_significance_directionality_cpu.json", "rq2_controls"): [_row(0.91)],
+        # ... and its capacity control, in a third.
+        ("loso_significance_capacity_cpu.json", "rq2_controls"): [_row(0.68)],
         ("loso_significance_hybrid_cpu.json", "hybrid"): [_row(0.0034), _row(0.73)],
         ("loso_significance_hybrid_gat_cpu.json", "hybrid_gat"): [_row(0.0015), _row(0.30)],
     }
@@ -32,7 +36,7 @@ def results_dir(tmp_path):
 
 def test_family_is_the_registered_blocks_only(results_dir):
     family = collect(results_dir)
-    assert len(family) == 11
+    assert len(family) == 13
     assert {r["registration"] for r in family} == {"plan", "amendment_2", "amendment_5", "amendment_6"}
     # Exploratory rows (planted with a tiny p) never enter the family.
     assert min(r["p"] for r in family) == 0.0015
@@ -41,8 +45,19 @@ def test_family_is_the_registered_blocks_only(results_dir):
 
 def test_omnibus_holm_matches_hand_computation(results_dir):
     rows = {r["p"]: r["p_holm_omnibus"] for r in omnibus(collect(results_dir))}
-    assert rows[0.0015] == pytest.approx(11 * 0.0015)
-    assert rows[0.0034] == pytest.approx(10 * 0.0034)
-    assert rows[0.042] == pytest.approx(9 * 0.042)
+    assert rows[0.0015] == pytest.approx(13 * 0.0015)
+    assert rows[0.0034] == pytest.approx(12 * 0.0034)
+    assert rows[0.042] == pytest.approx(11 * 0.042)
     # Monotone and capped at 1.
     assert rows[0.73] == 1.0
+
+
+def test_family_holm_spans_artifacts(results_dir):
+    """A family split across sweeps is corrected as one; a single-artifact family is untouched."""
+    family = {r["p"]: r["p_holm_family"] for r in collect(results_dir)}
+    # Amendment 2's controls: 0.38 / 0.57 in one artifact, 0.91 and 0.68 in two
+    # others -> Holm over 4.
+    assert family[0.38] == pytest.approx(min(1.0, 4 * 0.38))
+    assert family[0.91] == pytest.approx(1.0)
+    # The plan's two contrasts live in one artifact: Holm over 2, as that artifact had it.
+    assert family[0.15] == pytest.approx(2 * 0.15)

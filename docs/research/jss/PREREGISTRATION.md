@@ -479,3 +479,125 @@ with the published CPU `HGT-QoS` values (S23).
 
 **What is unchanged.** All registered contrasts of the plan and Amendments 1–6, their
 families and their outcomes. No learned model is retrained.
+
+---
+
+## Amendment 8 — attribution controls (2026-09-26, after their results existed)
+
+*Numbering note.* This amendment was first committed as "Amendment 7" on a parallel
+branch. When the branches were merged, the record was put in date order: the
+training-free amendment above (2026-09-25) keeps 7, and this one becomes 8. Its
+text is otherwise unchanged.
+
+**Status when written:** every run below is complete. This amendment is post hoc,
+and everything it adds is exploratory. It registers no contrast and changes no
+registered conclusion. It records why the manuscript's *interpretation* of RQ2
+and RQ3 changed.
+
+**Why it exists.** A receptive-field probe
+(`reproduce/receptive_field_probe.py`) showed that no relation on the native
+multigraph targets an Application. Every edge points from Application to Topic,
+Node or Library, and `GATConv` aggregates from source to target only. The
+untyped GAT arms of Amendment 2 (`gl_full_cap`, `gl_full_qos16_cap`) and
+Amendment 6 (`gl_qos16_prior`) therefore score every Application from its own
+features. On their trained checkpoints, deleting every edge changes no
+Application prediction. HGT reaches Applications through its reverse pass.
+
+Two consequences for the registered 2×2:
+- It compared typed message passing with per-component learning, not two
+  message-passing architectures.
+- Its Q factor switched two inputs at once: the 16-D edge channel and three
+  QoS node columns (`qos_weight`, `qos_weight_in`, `qos_weight_out`).
+
+The registered arms are reported as registered. Nothing registered is re-run
+or replaced.
+
+**Added arms.**
+- `tab_gbm` (GBM-Feat). It was declared post hoc in Amendment 3 and never run
+  until now. Before its first run it was given the neural arms' per-graph label
+  transform (`normalize_labels_robust`), because the earlier code fed it raw
+  labels. A code comment claiming its node features are identical with and
+  without QoS was wrong and was corrected.
+- `tab_gbm_qos` (GBM-Feat-QoS): GBM-Feat reading the QoS-on node features.
+- `gl_full_qos16_nfmask` (GAT-QoS-nf): `gl_full_qos16_cap` with GAT's node
+  features and GAT-QoS's edge attributes. Each input is bit-identical to one
+  parent arm.
+
+**Run.** One CPU invocation (`make -f reproduce/Makefile rq-attribution`):
+- LOSO arms: `topo_qos`, `gl_full_cap`, `gl_full_qos16_cap`,
+  `gl_full_qos16_nfmask`, `tab_gbm` and `tab_gbm_qos`.
+- Protocol: 12 folds × 5 seeds, Application population.
+- Zero-shot on the five system models for the five learned arms, at 3 layers
+  and 300 epochs.
+- Checks: `gl_full_cap`, `gl_full_qos16_cap` and `topo_qos` reproduce their
+  earlier rows bit for bit.
+
+**Contrasts.** Five, as two-sided Wilcoxon tests over folds with Holm correction
+across the five (`reproduce/attribution_contrasts.py`). No decision rule was
+fixed in advance.
+
+| Contrast | Δρ | Won | p | p_Holm |
+|:---|---:|:---:|---:|---:|
+| GAT-QoS vs GAT-QoS-nf (QoS node columns) | +0.095 | 11/12 | 0.0049 | 0.024 |
+| GAT-QoS-nf vs GAT (QoS edge channel) | −0.023 | 3/12 | 0.064 | 0.192 |
+| GBM-Feat-QoS vs GBM-Feat | −0.010 | 5/12 | 0.519 | 1.000 |
+| GAT vs GBM-Feat | −0.079 | 1/12 | 0.0093 | 0.037 |
+| GAT-QoS vs GBM-Feat-QoS | +0.003 | 7/12 | 1.000 | 1.000 |
+
+**What changed in the manuscript.** RQ2 now asks where learned accuracy comes
+from, and the answer is the per-component features:
+- relation typing, message passing and the QoS edge encoding add nothing
+  measurable;
+- the untyped engine's QoS gain is carried by the three node columns.
+
+RQ3 keeps its numbers and adds GAT (0.831) and GBM-Feat (0.757) to the transfer
+table. The directionality control (`hgl_qos_uni`) is still unrun. Without its
+reverse pass HGT would also score Applications per node, so that control now
+tests whether HGT's message passing contributes at all.
+
+## Results log — Amendment 2's directionality arm (2026-09-26)
+
+This is not an amendment: it records a registered arm being run, under Amendment
+2's reporting commitment ("every arm that is run is reported").
+
+`hgl_qos_uni` (HGT-QoS-U: HGT-QoS without its reverse pass, 330,895 parameters)
+was run in one CPU invocation with `topo_qos` and `hgl_qos`, using
+`make -f reproduce/Makefile rq-directionality` at a clean commit. Both
+comparators reproduce their published rows bit for bit. On this substrate the
+reverse pass is HGT's only route into Applications (Amendment 8), so HGT-QoS-U
+scores each Application from its own features.
+
+- **Registered contrast** (Amendment 2 control family). HGT-QoS vs HGT-QoS-U:
+  Δρ = −0.010 [−0.064, +0.036], 6/12 folds, W = 37, p = 0.910. Holm across
+  Amendment 2's three run controls gives 1.000.
+- **Zero-shot.** HGT-QoS-U scores 0.804 against HGT-QoS 0.760. It is higher on
+  all five system models.
+- **Omnibus.** The contrast joins the pooled family, which grows from 11 to 12.
+  Hybrid-GAT p_omni = 0.018 (was 0.016) and Hybrid-HGT p_omni = 0.038 (was
+  0.034); both remain significant. Amendment 2's other two controls move from
+  a family p_Holm of 0.761 to 1.000.
+
+Directionality therefore does not confound the typing result, and HGT's message
+passing contributes nothing measurable on this target. The capacity-only control
+`gl_full_qos_cap` (GAT-w) remains unrun.
+
+## Results log — Amendment 2's capacity arm (2026-09-26)
+
+`gl_full_qos_cap` (GAT-w: untyped GAT at HGT's budget, 439,272 parameters,
+QoS-on node features and a scalar edge weight) was the last registered model
+arm left unrun. It was run with `make -f reproduce/Makefile rq-capacity` at a
+clean commit, in one CPU invocation with `topo_qos` and `hgl_qos`. Both
+comparators reproduce bit for bit. Like every untyped arm, GAT-w scores
+Applications per node.
+
+- **Registered contrast** (Amendment 2 control family). HGT-QoS vs GAT-w:
+  Δρ = −0.011 [−0.056, +0.031], 5/12 folds, W = 33, p = 0.677. Holm across all
+  four controls gives 1.000.
+- **Descriptive.** GAT-w scores 0.633. It is level with GAT-QoS (−0.002) and
+  above GAT (+0.070, 10/12). Its zero-shot ρ is 0.794.
+- **Omnibus.** The family grows to 13. Hybrid-GAT p_omni = 0.019 and Hybrid-HGT
+  p_omni = 0.041; both remain significant.
+
+Every model arm Amendment 2 registered has now been run. Its label-side arm (a
+sweep against a cache with the oracle's QoS ladder disabled) was not run as a
+sweep; the manuscript bounds the label's QoS content instead (§4.3).

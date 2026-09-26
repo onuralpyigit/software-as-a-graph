@@ -2,7 +2,7 @@
 
 > **Amendment 7 update.** The strongest rankers are also the cheapest. The projection plus InDeg takes at most 0.06 s per scenario, and Reach at most 0.15 s (`results/dependency_count_cost.json`). That compares with 4.5 s for the simulator and 79 s for the analysis gate on Enterprise.
 
-**Paper:** §7.4, Table 10, and the sustainability paragraph of §8.1. **Extended results:**
+**Paper:** §7.4, Table 11, and the sustainability paragraph of §8.1. **Extended results:**
 Supplement S28 (per-scenario gate vs. oracle, training cost).
 
 ## Reproduce
@@ -47,5 +47,5 @@ paired measurement session at one commit and corpus digest.
   (0.83 Wh), and training the four arms once costs about 0.78 MJ (0.22 kWh).
   - Both figures are upper bounds from wall-clock time, not RAPL/NVML measurements.
   - SaG's sustainability case is avoided staging infrastructure, not CPU time.
-- **Not implemented.** Incremental re-scoring of only the $k$-hop neighbourhood of a change. Table 10
+- **Not implemented.** Incremental re-scoring of only the $k$-hop neighbourhood of a change. Table 11
   times full recomputation.

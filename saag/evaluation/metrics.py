@@ -328,6 +328,7 @@ def compute_inductive_metrics(
     graph,
     top_k_frac: float = 0.20,
     tau_frac: float = 0.50,
+    tau_abs: Optional[float] = None,
     population: str = "labeled",
     eval_keys: Optional[Iterable[str]] = None,
     label_stability: Optional[Mapping[str, Any]] = None,
@@ -355,6 +356,12 @@ def compute_inductive_metrics(
 
     Parameters
     ----------
+    tau_abs:
+        Absolute cut for the true critical set (``I*(v) >= tau_abs``) in place
+        of ``tau_frac * max(y_true)``. Reads as "failure loses at least this
+        share of subscriber feeds" — a severity cut, not an availability one.
+        The prediction-side cut stays relative: predictions are not on the
+        I*(v) scale.
     population:
         Node population to score on. Ignored when ``eval_keys`` is given.
     eval_keys:
@@ -429,7 +436,7 @@ def compute_inductive_metrics(
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
 
     label_scale_max = float(y_true.max())
-    tau = tau_frac * label_scale_max
+    tau = tau_abs if tau_abs is not None else tau_frac * label_scale_max
     true_critical = y_true >= tau if label_scale_max > 0 else np.zeros_like(y_true, dtype=bool)
     n_true_critical = int(true_critical.sum())
 
@@ -541,6 +548,7 @@ def compute_inductive_metrics(
         "f1_at_tau": f1_tau,
         "n_true_critical": n_true_critical,
         "tau": tau,
+        "tau_mode": "absolute" if tau_abs is not None else "relative",
         "pr_auc": pr_auc,
         # Same relative cut applied to both vectors: the only P/R pair here that
         # is free to diverge because of the ranking rather than set sizes.
