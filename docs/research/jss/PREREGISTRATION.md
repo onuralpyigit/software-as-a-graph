@@ -1097,3 +1097,39 @@ Everything else is descriptive, with bootstrap 95% CIs over folds (B = 2,000).
    - Table 6's means under Fisher-z and |V_app|-weighted averaging;
    - the per-fold seed range and seed SD of each learned engine.
 5. **R1 population fix, found on the first R1 run.** `subscriber_count_raw` and `pubs_raw` emit only components that publish, and the shared metric code scores only the nodes a ranker emits. The first R1 run therefore scored `Raw2Hop` and `Pubs-raw` on publishers only, which is how `Raw2Hop` showed ρ = 0.533 even though it is identical to `InDeg` on every Application. Every R1 ranker now emits a score, 0 for non-publishers, for every Application, and R1–R4 are re-run. The same defect affects Amendment 10's published `Pubs-raw` arm (`derivation_ablation.json`). It is reported and corrected there too; see the Amendment 10 correction in Supplementary S24.
+
+---
+
+## Amendment 13 — dependency counts reclassified as oracle-proximal references (2026-09-26, after all results existed)
+
+**Status when written.** Every number this amendment touches is already published. No arm is run, re-run, dropped or added, and no label changes. This is a reporting deviation, recorded as such.
+
+**Why it exists.** The authors decided not to use `InDeg` and `Reach` as predictors. The reason is circularity with the labelling simulator:
+- By Proposition 1, the first propagation wave of `I*` is exactly the set that `InDeg` counts.
+- The post hoc first-order expansion of `I*` (Analytic-I*) reaches ρ = 0.808.
+- `Reach` counts the transitive dependents that a reachability cascade visits, and it keeps no `I_dyn` signal beyond `I*` (partial ρ 0.058, CI includes 0; Amendment 12, R2).
+
+A ranker that restates the oracle's propagation rule measures how much of the oracle is its own rule, not how well the ranker predicts. Deleting these rows would not remove the circularity, for three reasons:
+- the learned engines read in-degree (`in_degree_centrality`) and a QoS-weighted in-degree (`qos_weight_in`) as node features;
+- they are trained on `I*` labels;
+- `GAT-P+InDeg` uses `InDeg` as its prior.
+
+The rows are therefore kept, as a measure of the circularity, and stop being candidates.
+
+### What changes
+
+| Item | Before | After |
+|:---|:---|:---|
+| `InDeg`, `Reach` (Amendment 7), `Pubs-raw`, `Reach-R1` (Amendments 10/12) | Candidate predictors, Δρ/Won/Holm against `Topo-QoS` | *Reference rankings*, reported beside Analytic-I*, with ρ, ρ>0 and Overlap@K only. No contrast against `Topo-QoS` is claimed. |
+| Amendment 7 contrasts `InDeg`/`Reach` vs `Topo-QoS`; Amendment 10/12 contrasts `InDeg` vs raw baselines | Exploratory claims | Kept in the Supplement as descriptive comparisons among references. They carry no claim in the body. |
+| Amendment 9 contrasts of learners vs `InDeg`/`Reach` | Exploratory | Reported as the distance of a learner from the reference. "Matches but never exceeds" stays. |
+| `GAT-P+InDeg` (Amendment 9) | Body row | Supplement only, because its prior is a reference. |
+| Partial ρ(·, `I_dyn` \| `I*`) (Amendment 12, R2) | Evidence for `InDeg` | Kept as a *circularity bound*: how much of a reference survives outside the oracle it restates. |
+| Recall curves (Amendment 12, R4) | `InDeg` leads | `GAT-P-QoS` and `Topo-QoS` are the contenders. `InDeg` and Analytic-I* are drawn as references. |
+| Practical guidance (§8.1) | Recommends `InDeg`/`Reach` | Recommends no reference. For `I*` it says run the oracle directly, which is cheap. For `I_comp` it recommends `Topo-QoS` or Degree-raw. For `I_dyn` it says no contender reaches the reference. |
+
+### What is unchanged
+- Every registered confirmatory contrast.
+- The 13-contrast omnibus.
+- Every published value, CI and fold count.
+- The feature set of the learned engines. The in-degree feature path is disclosed, not ablated.

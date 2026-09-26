@@ -60,6 +60,10 @@ A defect found while answering M2 also corrected a published supplementary numbe
 - **Reconciler.** Two hard-coded "truths" (seed spread 0.208; GAT-P-QoS 0.748 in §8.2) are replaced by artifact reads.
 - **GenAI declaration.** It now also covers drafting of revision text; the updated declaration was approved by the authors on 2026-09-26.
 
+## Author-initiated change after this response (Amendment 13)
+
+The authors decided not to use `InDeg` and `Reach` as predictors, because they restate the primary oracle's propagation rule (Proposition 1). They are now reported as *references* next to the first-order expansion of `I*`, and carry no contrast against `Topo-QoS`. They no longer appear in the title, abstract, highlights, conclusion, predictor taxonomy or guidance table, and `GAT-P+InDeg` has moved to the supplement. No number changed. The M3 answer above still holds: the partial correlation is kept as the bound on how much of the reference survives outside `I*`. The new title is "Software-as-a-Graph: Benchmarking Centrality and Graph Learning for Pre-Deployment Cascade-Impact Ranking in Publish–Subscribe Systems". See `PREREGISTRATION.md` Amendment 13 and `experiments/amendment13-reference-demotion.md`.
+
 ## Not done, and stated as limitations (§8.4)
 
 - validation against observed outages;

@@ -1,7 +1,7 @@
 # JSS experiments: protocols, commands and artifacts
 
 This folder is the experiment companion to the *Journal of Systems and Software* paper
-**"Software-as-a-Graph: Benchmarking Dependency Counts and Graph Learning for Pre-Deployment
+**"Software-as-a-Graph: Benchmarking Centrality and Graph Learning for Pre-Deployment
 Cascade-Impact Ranking in Publish–Subscribe Systems"**. The paper keeps the headline results and the
 evidence each one needs. Each page here documents one experiment:
 - the protocol and hyperparameters that the paper summarises in a sentence;
@@ -38,6 +38,7 @@ root.
 | §7.1–7.3, Tables 7–8, §8.2 | Graph learning on the dependency graph vs. dependency counts (Amendment 9, exploratory) | [amendment9-dependency-graph-learning.md](amendment9-dependency-graph-learning.md) | `make -f reproduce/Makefile rq-dependency-graph` | Supp. S33 |
 | §7.1, §8.3 | Value of the dependency derivation: InDeg vs raw-graph counts, Rule 5 in reach (Amendment 10, exploratory) | [amendment10-derivation.md](amendment10-derivation.md) | `python reproduce/training_free_suite.py derivation` | Supp. S33 |
 | §7.1, Tables 6–7, Fig. 6, §8 | Round-7 referee analyses: raw-graph rankers, partial ρ beyond I*, learned engines on all oracles, recall@k, single-harness zero-shot, latency (Amendment 12, exploratory) | [amendment12-referee.md](amendment12-referee.md) | `make -f reproduce/Makefile rq-referee-round7` | Supp. S-referee |
+| §1, §4.4, §6.2, §7, §8, Figs. 5–6 | Dependency counts reported as references that restate I*, not as predictors; GAT-P+InDeg to the supplement (Amendment 13, reporting deviation, no new runs) | [amendment13-reference-demotion.md](amendment13-reference-demotion.md) | none (figures re-rendered) | Supp. amendment log |
 | §6.4, §8.2 | Registered plan, amendments, omnibus correction, repeatability | [repeatability-and-amendments.md](repeatability-and-amendments.md) | `make -f reproduce/Makefile omnibus` | Supp. S24 |
 
 Section and table numbers are those of the compiled manuscript at the submission tag. The LaTeX

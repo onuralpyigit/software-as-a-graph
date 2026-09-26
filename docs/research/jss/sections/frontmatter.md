@@ -1,4 +1,4 @@
-# Software-as-a-Graph: Benchmarking Dependency Counts and Graph Learning for Pre-Deployment Cascade-Impact Ranking in Publish–Subscribe Systems
+# Software-as-a-Graph: Benchmarking Centrality and Graph Learning for Pre-Deployment Cascade-Impact Ranking in Publish–Subscribe Systems
 
 **Authors.** Ibrahim Onuralp Yigit, Feza Buzluca
 

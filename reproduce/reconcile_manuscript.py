@@ -1215,6 +1215,16 @@ def check_system_models_transfer(rep: Report) -> None:
                 rep.findings.append(Finding("tab:system_models_transfer", name, "pr_auc", got_prauc, round(prauc_truth, 4)))
 
 
+#: Rankings that restate I*'s propagation rule (Proposition 1). Amendment 13 reports
+#: them as references beside Analytic-I*, never as predictors: no contrast against
+#: Topo-QoS in the body, no row in the predictor taxonomy or the guidance table.
+REFERENCE_RANKERS = ("InDeg", "Reach", "Pubs-raw", "Reach-R1")
+
+#: Engines whose prior is a reference ranking; Amendment 13 keeps them in the
+#: supplement only.
+SUPPLEMENT_ONLY_ENGINES = ("GAT-P+InDeg",)
+
+
 def check_independent_oracles(rep: Report) -> None:
     """Table tab:independent_oracles: rankers against I*, I_dyn (n=30 sample), I_comp.
 
@@ -1247,7 +1257,8 @@ def check_independent_oracles(rep: Report) -> None:
 
     rows = {"Analytic $I^*$": tf("Analytic-I*"), "InDeg": tf("InDeg"), "Reach": tf("Reach"),
             "Topo-QoS": tf("Topo-QoS"), "Pubs-raw": tf("Pubs-raw"), "Degree-raw": tf("Degree-raw")}
-    rows.update({k: learned(k) for k in lrn if isinstance(lrn[k], dict) and "summary" in lrn[k]})
+    rows.update({k: learned(k) for k in lrn if isinstance(lrn[k], dict) and "summary" in lrn[k]
+                 and k not in SUPPLEMENT_ONLY_ENGINES})
     seen = 0
     for row in _rows(tex, r"\midrule", after_label=r"\label{tab:independent_oracles}"):
         cells = _cells(row)
@@ -1676,9 +1687,13 @@ def check_dependency_graph(rep: Report) -> None:
         raw_name = _label(cells[0])
         name = raw_name.split()[0] if raw_name.startswith(("InDeg", "Reach")) else raw_name
         if name in counts:
-            s_, c = tf["summary"][counts[name]], tf["contrasts_vs_topo_qos"][counts[name]]
-            truths = ((1, s_["loso_mean_rho"], "mean_rho"), (3, c["delta"], "delta"),
-                      (4, c["won"], "won"), (6, s_["loso_mean_overlap"], "overlap_at_k"))
+            s_ = tf["summary"][counts[name]]
+            truths = ((1, s_["loso_mean_rho"], "mean_rho"), (6, s_["loso_mean_overlap"], "overlap_at_k"))
+            for idx in (3, 4, 5):  # Amendment 13: a reference carries no contrast
+                rep.checked += 1
+                if idx >= len(cells) or cells[idx] != "---":
+                    rep.findings.append(Finding("tab:hybrid", name, f"cell {idx}",
+                                                cells[idx] if idx < len(cells) else None, "---"))
         elif name in learners:
             v = learners[name]
             f = np.array([dg["per_fold"][v][k]["rho"] for k in folds])
@@ -1734,19 +1749,18 @@ def check_dependency_graph(rep: Report) -> None:
            r"without Rule~5, \\texttt\{Reach\} falls by " + num + r" \((\d+)/12 folds, Holm \$p = ([\d.]+)[\$;]",
            [(1, c10["Reach vs Reach-R1"]["delta"]), (2, c10["Reach vs Reach-R1"]["won"]),
             (3, c10["Reach vs Reach-R1"]["p_holm"])])
-    _quote(rep, "abstract", _tex("abstract.tex"),
-           r"ranked reachability-simulated impact at \$\\rho = ([\d.]+)\$.*?"
-           r"transitive dependents reached \$([\d.]+)\$.*?"
-           r"matched the count \(\$([\d.]+)\$\)",
-           [(1, tf["summary"]["InDeg"]["loso_mean_rho"]), (2, tf["summary"]["Reach"]["systems_mean_rho"]),
-            (3, means["gl_proj_qos16_cap"]["loso_mean_rho"])])
-    part, raw12 = _load("referee_round7_partial.json"), _load("referee_round7_raw_baselines.json")
-    if part is not None and raw12 is not None:
+    ioe = _load("independent_oracle_evaluation.json")
+    raw12, lrn = _load("referee_round7_raw_baselines.json"), _load("referee_round7_learned_oracles.json")
+    if None not in (ioe, raw12, lrn):
+        learned_comp = max(v["summary"]["i_comp"]["rho"]["mean"] for k, v in lrn.items()
+                           if isinstance(v, dict) and "summary" in v and k not in SUPPLEMENT_ONLY_ENGINES)
         _quote(rep, "abstract", _tex("abstract.tex"),
-               r"partial correlation of \$([\d.]+)\$.*?\(\$([\d.]+)\$ vs\.\\ \$([\d.]+)\$\)",
-               [(1, part["summary"]["InDeg"]["partial_given_istar"]["mean"]),
-                (2, raw12["summary"]["i_comp"]["Topo-QoS"]["loso"]["mean"]),
-                (3, raw12["summary"]["i_comp"]["InDeg"]["loso"]["mean"])])
+               r"first-order expansion reaches Spearman \$\\rho = ([\d.]+)\$ and the direct-dependent count \$([\d.]+)\$.*?"
+               r"reached \$([\d.]+)\$, approaching the reference.*?"
+               r"weighted centrality \(\$([\d.]+)\$\) ranked above every learned engine \(\$\\le ([\d.]+)\$\)",
+               [(1, ioe["summary"]["i_star"]["Analytic-I*"]["mean_rho"]), (2, tf["summary"]["InDeg"]["loso_mean_rho"]),
+                (3, means["gl_proj_qos16_cap"]["loso_mean_rho"]),
+                (4, raw12["summary"]["i_comp"]["Topo-QoS"]["loso"]["mean"]), (5, learned_comp)])
     regimes = _load("engine_regimes.json")
     if regimes is not None:
         by = regimes["loso"]["regimes_by_topo_qos_tercile"]
@@ -1847,15 +1861,33 @@ def check_referee_round7(rep: Report) -> None:
             (3, ps["InDeg"]["partial_given_istar"]["ci95"][1]), (4, ps["InDeg"]["partial_given_analytic"]["mean"]),
             (5, ps["InDeg"]["partial_given_analytic"]["ci95"][0]), (6, ps["InDeg"]["partial_given_analytic"]["ci95"][1]),
             (7, ps["Reach"]["partial_given_istar"]["mean"])])
+    gat, topo_c = rec["curves"]["i_star"]["GAT-P-QoS"]["curve"], rec["curves"]["i_star"]["Topo-QoS"]["curve"]
+    ana, gat_dyn = rec["curves"]["i_star"]["Analytic-I*"]["curve"], rec["curves"]["i_dyn"]["GAT-P-QoS"]["curve"]
+    indeg_dyn = rec["curves"]["i_dyn"]["InDeg"]["curve"]
     _quote(rep, "sec:rq1", tex,
-           r"At \$k = 20\\%\$, \\texttt\{InDeg\} recovers " + num + r" of the critical set \(tie-breaking bounds "
-           + num + "--" + num + r"\).*?top \$45\\%\$ by \\texttt\{InDeg\} \(" + num,
+           r"At \$k = 20\\%\$, \\texttt\{GAT-P-QoS\} recovers " + num + r" of the critical set and \\texttt\{Topo-QoS\} "
+           + num + r".*?top \$40\\%\$ by \\texttt\{GAT-P-QoS\} \(" + num,
+           [(1, gat["0.20"]["expected"]), (2, topo_c["0.20"]["expected"]), (3, gat["0.40"]["expected"])])
+    _quote(rep, "sec:rq1", tex,
+           r"at \$k = 20\\%\$, \\texttt\{InDeg\} recovers " + num + r" \(tie-breaking bounds " + num + "--" + num
+           + r"\), and \$80\\%\$ needs the top \$45\\%\$ by \\texttt\{InDeg\} \(" + num
+           + r"\) or by the first-order expansion \(" + num,
            [(1, cur["0.20"]["expected"]), (2, cur["0.20"]["pessimistic"]), (3, cur["0.20"]["optimistic"]),
-            (4, cur["0.45"]["expected"])])
-    rep.checked += 1
-    if rec["curves"]["i_star"]["InDeg"]["safety_margin"]["0.80"] != 0.45:
-        rep.findings.append(Finding("sec:rq1", "InDeg 80% recall margin", "k", "45%",
-                                    rec["curves"]["i_star"]["InDeg"]["safety_margin"]["0.80"]))
+            (4, cur["0.45"]["expected"]), (5, ana["0.45"]["expected"])])
+    _quote(rep, "sec:rq1", tex,
+           r"\\texttt\{GAT-P-QoS\} reaches " + num + r" at \$40\\%\$ and " + num + r" at \$50\\%\$, against "
+           + num + r" at \$40\\%\$ for the \\texttt\{InDeg\} reference",
+           [(1, gat_dyn["0.40"]["expected"]), (2, gat_dyn["0.50"]["expected"]), (3, indeg_dyn["0.40"]["expected"])])
+    for key, k80 in (("InDeg", 0.45), ("GAT-P-QoS", 0.40), ("Analytic-I*", 0.45)):
+        rep.checked += 1
+        if rec["curves"]["i_star"][key]["safety_margin"]["0.80"] != k80:
+            rep.findings.append(Finding("sec:rq1", f"{key} 80% recall margin", "k", k80,
+                                        rec["curves"]["i_star"][key]["safety_margin"]["0.80"]))
+    for key in ("Topo-QoS", "Reach"):
+        rep.checked += 1
+        if rec["curves"]["i_star"][key]["safety_margin"]["0.80"] is not None:
+            rep.findings.append(Finding("sec:rq1", f"{key} 80% recall margin", "k", "none within 50%",
+                                        rec["curves"]["i_star"][key]["safety_margin"]["0.80"]))
 
     try:
         from reproduce import render_referee_tables as rr
@@ -1911,6 +1943,75 @@ def check_referee_round7(rep: Report) -> None:
                 rep.findings.append(Finding("highlights", line[:30], "characters", len(line), 85))
 
 
+def check_reference_demotion(rep: Report) -> None:
+    """Amendment 13: dependency counts are references, not predictors.
+
+    ``InDeg``, ``Reach``, Pubs-raw and Reach-R1 restate I*'s propagation rule
+    (Proposition 1). They may appear only in the reference blocks of the results
+    tables and in the circularity discussion. They must not appear in the title,
+    abstract, highlights, conclusion, predictor taxonomy or guidance table, and
+    an engine whose prior is a reference must not have a row in the main text.
+    The numbers in the reference rows are checked by the table checks.
+    """
+    ref_pat = re.compile(r"InDeg|\bReach\b|Pubs-raw|Reach-R1")
+
+    def _absent(where: str, text: str) -> None:
+        rep.checked += 1
+        m = ref_pat.search(text)
+        if m:
+            rep.findings.append(Finding(where, "reference ranker", "mention", m.group(), "absent",
+                                        "Amendment 13: references are not predictors"))
+
+    manuscript = (LATEX / "manuscript.tex").read_text()
+    title = manuscript[manuscript.index(r"\title{"):manuscript.index(r"\author", manuscript.index(r"\title{"))]
+    _absent("title", title)
+    _absent("abstract", _tex("abstract.tex"))
+    _absent("highlights", (LATEX / "highlights.tex").read_text())
+    _absent("sec:9", _tex("sec9_conclusion.tex"))
+    for fname, label in (("sec6_experimental_setup.tex", "tab:predictor_taxonomy"),
+                         ("sec8_discussion.tex", "tab:guidance")):
+        tex = _tex(fname)
+        k = tex.index(r"\label{%s}" % label)
+        _absent(label, tex[tex.index(r"\begin{tabular}", k):tex.index(r"\end{tabular}", k)])
+
+    for fname in sorted(p.name for p in SECTIONS.glob("*.tex")):
+        for line in _tex(fname).splitlines():
+            if any(line.strip().startswith(r"\textbf{%s}" % e) for e in SUPPLEMENT_ONLY_ENGINES):
+                rep.findings.append(Finding(fname, line.strip()[:30], "row", "present", "absent",
+                                            "Amendment 13: supplement only"))
+    rep.checked += 1
+
+    # Each results table: references sit in the reference block and nowhere else.
+    sec7 = _tex("sec7_results.tex")
+    blocks = {"tab:hybrid": {"Analytic $I^*$", "InDeg", "Reach", "Pubs-raw", "Reach-R1"},
+              "tab:independent_oracles": {"Analytic $I^*$", "InDeg", "Reach", "Pubs-raw"},
+              "tab:system_models_transfer": {"Reach", "InDeg"}}
+    for label, expected in blocks.items():
+        k = sec7.index(r"\label{%s}" % label)
+        body = sec7[sec7.index(r"\toprule", k):sec7.index(r"\bottomrule", k)]
+        in_ref, got_ref, stray = False, set(), set()
+        for line in body.splitlines():
+            s = line.strip()
+            if s.startswith(r"\multicolumn"):
+                in_ref = "Reference" in s
+                continue
+            if s == r"\midrule":
+                in_ref = False
+                continue
+            if not s.startswith(r"\textbf{"):
+                continue
+            name = _label(_cells(s)[0]).replace("$^S$", "").replace("$^\\S$", "").split(" (")[0].strip()
+            name = name.replace("$^S$", "").strip()
+            if in_ref:
+                got_ref.add(name)
+            elif name in REFERENCE_RANKERS or name == "Analytic $I^*$":
+                stray.add(name)
+        rep.checked += 1
+        if got_ref != expected or stray:
+            rep.findings.append(Finding(label, "reference block", "rows",
+                                        f"ref={sorted(got_ref)} stray={sorted(stray)}", sorted(expected)))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1951,6 +2052,7 @@ def main() -> int:
     check_omnibus_holm(rep)
     check_engine_regimes(rep)
     check_dependency_graph(rep)
+    check_reference_demotion(rep)
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts "
           f"({len(rep.skipped)} check(s) skipped).\n")
