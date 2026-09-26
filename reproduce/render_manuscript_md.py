@@ -82,7 +82,7 @@ def preprocess(tex: str, labels: dict, cites: dict) -> str:
         prefix = f"{num}. " if num else ""
         return f"\\{cmd}{{{prefix}{title}}}"
 
-    tex = re.sub(r"\\(section|subsection|subsubsection)\{([^}]*)\}\s*\n\\label\{([^}]+)\}",
+    tex = re.sub(r"\\(section|subsection|subsubsection)\{((?:[^{}]|\{[^{}]*\})*)\}\s*\n\\label\{([^}]+)\}",
                  head, tex)
 
     def eq_label(m):

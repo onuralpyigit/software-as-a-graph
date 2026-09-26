@@ -59,7 +59,7 @@ A link’s strength depends on its Quality-of-Service (QoS) contract: a `RELIABL
 
 Crucially, our evaluation uncovers that QoS weighting does not improve closed-form architectural ranking: unweighted betweenness on the Application–Library projection scores $\rho = 0.591$, outperforming QoS-weighted betweenness (`Topo-QoS`, $\rho = 0.553$) by $+0.038$ (§7.1). Unweighted topological structures drive performance across both static and dynamic simulations.
 
-## Logical Dependency Projection (`DEPENDS_ON`)
+## 3.3 Logical Dependency Projection (`DEPENDS_ON`)
 
 Structural edges do not directly reflect failure propagation: a subscriber depends on a publisher, yet no direct edge joins them in pub-sub topologies. SaG derives an explicit semantic relation, `DEPENDS_ON`, directed from *dependent* to *dependency* (“if the target fails, the source is impacted”), via the rules of Table 3.
 
