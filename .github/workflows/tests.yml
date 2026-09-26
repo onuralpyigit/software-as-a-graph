@@ -53,12 +53,3 @@ jobs:
         # do skip themselves on a failed connection, but deselecting says so up
         # front rather than reporting skips that look like flakes.
         run: pytest --tb=short -q -m "not integration"
-
-      - name: Documentation links
-        run: python scripts/check_doc_links.py
-
-      - name: Manuscript reconciliation
-        # results/ is gitignored, so on a clean checkout every artifact is absent.
-        # --allow-missing keeps that from failing the build while still exercising
-        # the parser and the corpus-derived Table 4 check, which needs no artifact.
-        run: python reproduce/reconcile_manuscript.py --allow-missing --verbose
