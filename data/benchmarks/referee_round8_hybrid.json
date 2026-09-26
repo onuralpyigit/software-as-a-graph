@@ -1,0 +1,456 @@
+{
+  "gate_G1": {
+    "Hybrid-HGT vs HGT-QoS": {
+      "artifact_delta": 0.03490303784178617,
+      "delta": 0.03490303784178617,
+      "artifact_p": 0.7333984375,
+      "p": 0.7333984375,
+      "passed": true
+    },
+    "Hybrid-GAT vs GAT-QoS": {
+      "artifact_delta": 0.048107554904070114,
+      "delta": 0.048107554904070114,
+      "artifact_p": 0.30126953125,
+      "p": 0.30126953125,
+      "passed": true
+    }
+  },
+  "registered_amendments_5_6": {
+    "Hybrid-HGT vs HGT-QoS": {
+      "delta": 0.03490303784178617,
+      "ci95": [
+        -0.031104519073865394,
+        0.10768529335094384
+      ],
+      "won": 8,
+      "n": 12,
+      "p": 0.7333984375
+    },
+    "Hybrid-GAT vs GAT-QoS": {
+      "delta": 0.048107554904070114,
+      "ci95": [
+        -0.01900513126957368,
+        0.12314458495713398
+      ],
+      "won": 7,
+      "n": 12,
+      "p": 0.30126953125
+    },
+    "Hybrid-HGT vs Topo-QoS": {
+      "delta": 0.10339866122690056,
+      "ci95": [
+        0.054773426078567646,
+        0.15122360809351512
+      ],
+      "won": 11,
+      "n": 12,
+      "p": 0.00341796875
+    },
+    "Hybrid-GAT vs Topo-QoS": {
+      "delta": 0.1299727866745772,
+      "ci95": [
+        0.07509713045588774,
+        0.18842313243765704
+      ],
+      "won": 11,
+      "n": 12,
+      "p": 0.00146484375
+    }
+  },
+  "F7": {
+    "Hybrid-HGT vs Topo (projection)": {
+      "delta": 0.06523064993075829,
+      "ci95": [
+        0.014052985545734366,
+        0.1174697648187122
+      ],
+      "won": 9,
+      "n": 12,
+      "p": 0.04248046875,
+      "p_holm": 0.0849609375
+    },
+    "Hybrid-HGT vs Topo-Mult": {
+      "delta": 0.06115415802561491,
+      "ci95": [
+        0.012074800669304869,
+        0.11551714913282647
+      ],
+      "won": 8,
+      "n": 12,
+      "p": 0.0771484375,
+      "p_holm": 0.0849609375
+    },
+    "Hybrid-GAT vs Topo (projection)": {
+      "delta": 0.09180477537843496,
+      "ci95": [
+        0.034459673902158074,
+        0.15272283303398873
+      ],
+      "won": 10,
+      "n": 12,
+      "p": 0.01220703125,
+      "p_holm": 0.048828125
+    },
+    "Hybrid-GAT vs Topo-Mult": {
+      "delta": 0.08772828347329158,
+      "ci95": [
+        0.030996830131255156,
+        0.15087123975973873
+      ],
+      "won": 9,
+      "n": 12,
+      "p": 0.01220703125,
+      "p_holm": 0.048828125
+    }
+  },
+  "sensitivity": {
+    "Hybrid-HGT vs HGT-QoS": {
+      "weighted": {
+        "delta_weighted": 0.08260133465578454,
+        "p_signflip": 0.33935546875,
+        "ci95": [
+          -0.032106612715010044,
+          0.1907206787967533
+        ]
+      },
+      "nadeau_bengio": {
+        "scenario": {
+          "mean": 0.03490303784178617,
+          "t": 0.6384385550276399,
+          "df": 11,
+          "ratio": 0.09090909090909091,
+          "p": 0.5362539532458865
+        },
+        "applications": {
+          "mean": 0.03490303784178617,
+          "t": 0.630740763195684,
+          "df": 11,
+          "ratio": 0.09518808074858694,
+          "p": 0.541092977364527
+        }
+      }
+    },
+    "Hybrid-GAT vs GAT-QoS": {
+      "weighted": {
+        "delta_weighted": 0.10029945597523762,
+        "p_signflip": 0.21142578125,
+        "ci95": [
+          -0.014844577864523109,
+          0.21895153442346096
+        ]
+      },
+      "nadeau_bengio": {
+        "scenario": {
+          "mean": 0.048107554904070114,
+          "t": 0.8736062107519249,
+          "df": 11,
+          "ratio": 0.09090909090909091,
+          "p": 0.4010024649386654
+        },
+        "applications": {
+          "mean": 0.048107554904070114,
+          "t": 0.8630729515987696,
+          "df": 11,
+          "ratio": 0.09518808074858694,
+          "p": 0.40652177418439184
+        }
+      }
+    },
+    "Hybrid-HGT vs Topo-QoS": {
+      "weighted": {
+        "delta_weighted": 0.08142162519412893,
+        "p_signflip": 0.03759765625,
+        "ci95": [
+          0.010678241724773663,
+          0.15730080556398854
+        ]
+      },
+      "nadeau_bengio": {
+        "scenario": {
+          "mean": 0.10339866122690056,
+          "t": 2.7493101294525126,
+          "df": 11,
+          "ratio": 0.09090909090909091,
+          "p": 0.018913971733518498
+        },
+        "applications": {
+          "mean": 0.10339866122690056,
+          "t": 2.7161611022025887,
+          "df": 11,
+          "ratio": 0.09518808074858694,
+          "p": 0.02006868230413006
+        }
+      }
+    },
+    "Hybrid-GAT vs Topo-QoS": {
+      "weighted": {
+        "delta_weighted": 0.11084594978092117,
+        "p_signflip": 0.0048828125,
+        "ci95": [
+          0.038016513756970544,
+          0.1968966711071696
+        ]
+      },
+      "nadeau_bengio": {
+        "scenario": {
+          "mean": 0.1299727866745772,
+          "t": 2.9166385750272266,
+          "df": 11,
+          "ratio": 0.09090909090909091,
+          "p": 0.014021535145067654
+        },
+        "applications": {
+          "mean": 0.1299727866745772,
+          "t": 2.8814720324949694,
+          "df": 11,
+          "ratio": 0.09518808074858694,
+          "p": 0.014931912414479331
+        }
+      }
+    },
+    "Hybrid-HGT vs Topo (projection)": {
+      "weighted": {
+        "delta_weighted": 0.04615040306520232,
+        "p_signflip": 0.384765625,
+        "ci95": [
+          -0.031068653233926657,
+          0.12802323980977265
+        ]
+      },
+      "nadeau_bengio": {
+        "scenario": {
+          "mean": 0.06523064993075829,
+          "t": 1.6063323285206683,
+          "df": 11,
+          "ratio": 0.09090909090909091,
+          "p": 0.13650240756699517
+        },
+        "applications": {
+          "mean": 0.06523064993075829,
+          "t": 1.5869644319854133,
+          "df": 11,
+          "ratio": 0.09518808074858694,
+          "p": 0.14082787570604505
+        }
+      }
+    },
+    "Hybrid-HGT vs Topo-Mult": {
+      "weighted": {
+        "delta_weighted": 0.04566925442011761,
+        "p_signflip": 0.36767578125,
+        "ci95": [
+          -0.030646280443729888,
+          0.12534098620195958
+        ]
+      },
+      "nadeau_bengio": {
+        "scenario": {
+          "mean": 0.06115415802561491,
+          "t": 1.4796454787669002,
+          "df": 11,
+          "ratio": 0.09090909090909091,
+          "p": 0.16702794968394463
+        },
+        "applications": {
+          "mean": 0.06115415802561491,
+          "t": 1.4618050729973127,
+          "df": 11,
+          "ratio": 0.09518808074858694,
+          "p": 0.17176725923066827
+        }
+      }
+    },
+    "Hybrid-GAT vs Topo (projection)": {
+      "weighted": {
+        "delta_weighted": 0.07557472765199455,
+        "p_signflip": 0.12158203125,
+        "ci95": [
+          -0.0040965461624247815,
+          0.16502507020270388
+        ]
+      },
+      "nadeau_bengio": {
+        "scenario": {
+          "mean": 0.09180477537843496,
+          "t": 1.9800954623522025,
+          "df": 11,
+          "ratio": 0.09090909090909091,
+          "p": 0.07325734678081641
+        },
+        "applications": {
+          "mean": 0.09180477537843496,
+          "t": 1.9562210228206993,
+          "df": 11,
+          "ratio": 0.09518808074858694,
+          "p": 0.07630446787808087
+        }
+      }
+    },
+    "Hybrid-GAT vs Topo-Mult": {
+      "weighted": {
+        "delta_weighted": 0.07509357900690984,
+        "p_signflip": 0.12060546875,
+        "ci95": [
+          -0.003260625751756784,
+          0.16241736729154843
+        ]
+      },
+      "nadeau_bengio": {
+        "scenario": {
+          "mean": 0.08772828347329158,
+          "t": 1.8456897992948376,
+          "df": 11,
+          "ratio": 0.09090909090909091,
+          "p": 0.09200166061353987
+        },
+        "applications": {
+          "mean": 0.08772828347329158,
+          "t": 1.8234359179315462,
+          "df": 11,
+          "ratio": 0.09518808074858694,
+          "p": 0.0955004333763263
+        }
+      }
+    }
+  },
+  "means": {
+    "HGT-QoS": {
+      "arithmetic": 0.6216350455265719,
+      "size_weighted": 0.5946918398553015
+    },
+    "Hybrid-HGT": {
+      "arithmetic": 0.6565380833683582,
+      "size_weighted": 0.6772931745110861
+    },
+    "GAT-QoS": {
+      "arithmetic": 0.6350046539119647,
+      "size_weighted": 0.6064180431226406
+    },
+    "Hybrid-GAT": {
+      "arithmetic": 0.6831122088160347,
+      "size_weighted": 0.7067174990978783
+    },
+    "Topo-QoS": {
+      "arithmetic": 0.5531394221414575,
+      "size_weighted": 0.5958715493169571
+    },
+    "Topo (projection)": {
+      "arithmetic": 0.5913074334375997,
+      "size_weighted": 0.6311427714458836
+    },
+    "Topo-Mult": {
+      "arithmetic": 0.5953839253427432,
+      "size_weighted": 0.6316239200909683
+    }
+  },
+  "per_fold": {
+    "HGT-QoS": {
+      "atm_system": 0.5226057529236176,
+      "av_system": 0.7035779928474517,
+      "enterprise_system": 0.425903785342667,
+      "financial_trading_system": 0.695104891711547,
+      "healthcare_system": 0.7303062709607357,
+      "hub_and_spoke_system": 0.5481518236176625,
+      "industrial_scada_system": 0.683709946451834,
+      "iot_smart_city_system": 0.6882456266650809,
+      "logistics_fleet_system": 0.7707277298021755,
+      "microservices_system": 0.4751393089745607,
+      "realtime_gaming_system": 0.7888496628117652,
+      "telecom_ran_system": 0.42729775420976523
+    },
+    "Hybrid-HGT": {
+      "atm_system": 0.42904058265763945,
+      "av_system": 0.7816639085207863,
+      "enterprise_system": 0.7345135340996276,
+      "financial_trading_system": 0.7537313588762805,
+      "healthcare_system": 0.6249805788640567,
+      "hub_and_spoke_system": 0.5642401518727131,
+      "industrial_scada_system": 0.7584243727208101,
+      "iot_smart_city_system": 0.5902797104597071,
+      "logistics_fleet_system": 0.7918200199423495,
+      "microservices_system": 0.36560935551914886,
+      "realtime_gaming_system": 0.836588340623841,
+      "telecom_ran_system": 0.6475650862633369
+    },
+    "GAT-QoS": {
+      "atm_system": 0.5055127761105372,
+      "av_system": 0.731611846262757,
+      "enterprise_system": 0.40749947480478194,
+      "financial_trading_system": 0.7134646779755948,
+      "healthcare_system": 0.7983703287478553,
+      "hub_and_spoke_system": 0.6303834059252347,
+      "industrial_scada_system": 0.7208818711191824,
+      "iot_smart_city_system": 0.7202664779998796,
+      "logistics_fleet_system": 0.6541422005337407,
+      "microservices_system": 0.4785937583240486,
+      "realtime_gaming_system": 0.6849432055188599,
+      "telecom_ran_system": 0.5743858236211034
+    },
+    "Hybrid-GAT": {
+      "atm_system": 0.4471632568690982,
+      "av_system": 0.7929629235239594,
+      "enterprise_system": 0.7683043714213581,
+      "financial_trading_system": 0.7965825282787053,
+      "healthcare_system": 0.6863084611893205,
+      "hub_and_spoke_system": 0.5682745662073678,
+      "industrial_scada_system": 0.7681960907159724,
+      "iot_smart_city_system": 0.653580661507413,
+      "logistics_fleet_system": 0.8057808115852116,
+      "microservices_system": 0.4287144777407499,
+      "realtime_gaming_system": 0.8251455144995227,
+      "telecom_ran_system": 0.656332842253738
+    },
+    "Topo-QoS": {
+      "atm_system": 0.3109239422098597,
+      "av_system": 0.7526918117294357,
+      "enterprise_system": 0.7953082495191883,
+      "financial_trading_system": 0.5864231295106708,
+      "healthcare_system": 0.36869084150771025,
+      "hub_and_spoke_system": 0.42951365098479605,
+      "industrial_scada_system": 0.6503746663112442,
+      "iot_smart_city_system": 0.3512103555774073,
+      "logistics_fleet_system": 0.7406995865664335,
+      "microservices_system": 0.26538514238447786,
+      "realtime_gaming_system": 0.8102612338299412,
+      "telecom_ran_system": 0.5761904555663259
+    },
+    "Topo (projection)": {
+      "atm_system": 0.29126443727458634,
+      "av_system": 0.79088186414737,
+      "enterprise_system": 0.8436800718985596,
+      "financial_trading_system": 0.6938624880282648,
+      "healthcare_system": 0.4018557436520509,
+      "hub_and_spoke_system": 0.5444771832002182,
+      "industrial_scada_system": 0.6678944743156646,
+      "iot_smart_city_system": 0.3665630339997603,
+      "logistics_fleet_system": 0.7359209677901185,
+      "microservices_system": 0.3479841763074413,
+      "realtime_gaming_system": 0.8553349129774572,
+      "telecom_ran_system": 0.5559698476597057
+    },
+    "Topo-Mult": {
+      "atm_system": 0.3503115253290668,
+      "av_system": 0.7837933778765391,
+      "enterprise_system": 0.840261213101314,
+      "financial_trading_system": 0.7015668112629251,
+      "healthcare_system": 0.37399438870703494,
+      "hub_and_spoke_system": 0.5710051684463168,
+      "industrial_scada_system": 0.6660217308353465,
+      "iot_smart_city_system": 0.37147147658148044,
+      "logistics_fleet_system": 0.7334464583273581,
+      "microservices_system": 0.3458499130666454,
+      "realtime_gaming_system": 0.8543993416887169,
+      "telecom_ran_system": 0.552485698890174
+    }
+  },
+  "provenance": {
+    "commit": "ce60b5353fee53dfa5ddeee7f5f6c83cf6de27ce",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/referee_round8.py",
+      "amendment": 14,
+      "experiment": "F7 hybrid attribution"
+    }
+  }
+}
