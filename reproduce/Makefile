@@ -56,7 +56,7 @@ ORACLE_ROBUST_WORKERS ?= 8
 
 .PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution rq-directionality rq-capacity rq-dependency-graph rq-oracle-robust jss-regimes nested-search kfold convergent-validity \
         passive-strata \
-        topic-weight-sensitivity weight-global-sensitivity inference-latency \
+        topic-weight-sensitivity weight-global-sensitivity inference-latency rq-referee-round7 \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 \
         jss-figures jss-figS1 jss-figS2 jss-tables all bundle smoke-test clean clean-all
 
@@ -303,6 +303,12 @@ rq-dependency-graph:
 rq-oracle-robust:
 	OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 $(PYTHON) reproduce/oracle_robust_ltr.py all --workers $(ORACLE_ROBUST_WORKERS)
 
+# Amendment 12 (round-7 referee analyses): raw-graph baselines, partial correlations
+# beyond I*, learned engines on I_dyn/I_comp, recall@k curves, single-harness
+# zero-shot, and counting latency by size. Needs rq-oracle-robust's I_dyn-full labels.
+rq-referee-round7:
+	OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 $(PYTHON) reproduce/referee_round7.py all
+
 # Where graph learning helps and where it does not (manuscript Section 8.2,
 # post hoc, exploratory). Trains nothing: joins the per-fold and zero-shot
 # artifacts of the targets above with per-scenario corpus descriptors.
@@ -508,9 +514,9 @@ jss-tables:
 # ─────────────────────────────────────────────────────────────────────────────
 
 inference-latency:
-	$(PYTHON) reproduce/inference_latency.py \
-	    --output $(RESULTS_DIR)/inference_latency.json
-	@echo "✓ Per-stage latency ready: $(RESULTS_DIR)/inference_latency.json"
+	$(PYTHON) reproduce/inference_latency.py --sizes 250 500 1000 2000 \
+	    --output $(RESULTS_DIR)/inference_latency_v3.json
+	@echo "✓ Per-stage latency ready: $(RESULTS_DIR)/inference_latency_v3.json (manuscript Table 10)"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Full pipeline
