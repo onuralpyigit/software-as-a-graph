@@ -30,7 +30,7 @@ root.
 | §7.1, Table 7 | LOSO ranking of the engines vs. baselines (registered GPU sweep: Supp. S30) | [rq1-engines-loso.md](rq1-engines-loso.md) | `make -f reproduce/Makefile table4` | Supp. S25, S30 |
 | §7.1, Table 7 | Hybrid-HGT and Hybrid-GAT | [rq1-hybrid.md](rq1-hybrid.md) | `make -f reproduce/Makefile rq-hybrid rq-hybrid-gat` | Supp. S23, S24 |
 | §7.2, Table 8 | Capacity- and channel-matched typing × QoS control | [rq2-matched-control.md](rq2-matched-control.md) | `make -f reproduce/Makefile rq2-matched` | Supp. S16, S21, S26 |
-| §6.2, §7.2, Table 9 | Attribution controls: receptive field, QoS node columns vs edge channel, feature-only GBM (Amendment 8, exploratory) | [rq2-attribution-controls.md](rq2-attribution-controls.md) | `make -f reproduce/Makefile rq-attribution` | Supp. S31 |
+| §6.2, §7.2, Table 9 | Attribution controls: receptive field, QoS node columns vs edge channel, feature-only GBM (Amendment 8, exploratory) | [rq2-attribution-controls.md](rq2-attribution-controls.md) | `make -f reproduce/Makefile rq-attribution` | Supp. S32 |
 | §7.3, Table 10 | Zero-shot transfer to five open-source system models | [rq3-zero-shot-transfer.md](rq3-zero-shot-transfer.md) | `python reproduce/realworld_zeroshot.py` | Supp. S7, S15, S27, S29 |
 | §7.4, Table 11 | Analysis cost and comparison with direct simulation | [rq4-cost.md](rq4-cost.md) | `make -f reproduce/Makefile inference-latency` | Supp. S28 |
 | §4.3, §8.2 | Oracles, label QoS content, convergent validity, parameter sensitivity | [oracles-and-sensitivity.md](oracles-and-sensitivity.md) | `make -f reproduce/Makefile convergent-validity` | Supp. S1–S4, S9 |

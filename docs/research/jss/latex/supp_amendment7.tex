@@ -34,18 +34,18 @@ Telecom RAN & 0.576 & 0.556 & 0.698 & 0.535 & 0.736 & 0.450 \\
 \begin{table}[htbp]
 \centering
 \small
-\caption{Paired contrasts of the training-free rankers over the twelve LOSO folds (two-sided Wilcoxon, bootstrap 95\% CI of the mean difference, $B = 2{,}000$). The registered family (Amendment~7) is the four new rankers against \texttt{Topo-QoS}, Holm-corrected in parentheses; the unweighted projection betweenness is descriptive. The last four columns pair each ranker with the published CPU per-fold values of the learned and hybrid engines (Section~\ref{supp:hybrid-folds}): $\Delta\rho$ (folds won, $p$).}
+\caption{Paired contrasts of the training-free rankers over the twelve LOSO folds (two-sided Wilcoxon, bootstrap 95\% CI of the mean difference, $B = 2{,}000$). The registered family (Amendment~7) is the four new rankers against \texttt{Topo-QoS}, Holm-corrected in parentheses; the unweighted projection betweenness is descriptive. The last five columns pair each ranker with the published CPU per-fold values of the learned and hybrid engines (Section~\ref{supp:hybrid-folds}) and of the feature-only regressor (Amendment~8, Section~\ref{supp:attribution}): $\Delta\rho$ (folds won, $p$).}
 \label{tab:a7-contrasts}
 \resizebox{\linewidth}{!}{%
-\begin{tabular}{llllllll}
+\begin{tabular}{lllllllll}
 \toprule
-\textbf{Ranker} & \textbf{$\Delta\rho$ vs \texttt{Topo-QoS} [95\% CI]} & \textbf{Won} & \textbf{$p$ ($p_{\text{Holm}}$)} & \textbf{vs \texttt{HGT-QoS}} & \textbf{vs \texttt{GAT-QoS}} & \textbf{vs Hybrid-HGT} & \textbf{vs Hybrid-GAT} \\
+\textbf{Ranker} & \textbf{$\Delta\rho$ vs \texttt{Topo-QoS} [95\% CI]} & \textbf{Won} & \textbf{$p$ ($p_{\text{Holm}}$)} & \textbf{vs \texttt{HGT-QoS}} & \textbf{vs \texttt{GAT-QoS}} & \textbf{vs Hybrid-HGT} & \textbf{vs Hybrid-GAT} & \textbf{vs \texttt{GBM-Feat}} \\
 \midrule
-InDeg & +0.211 [+0.132, +0.299] & 12/12 & 0.0005 (0.0020) & +0.143 (10/12, 0.0024) & +0.129 (10/12, 0.0049) & +0.108 (10/12, 0.0024) & +0.081 (11/12, 0.0024) \\
-Reach & +0.178 [+0.088, +0.268] & 11/12 & 0.0034 (0.0068) & +0.110 (10/12, 0.0024) & +0.097 (9/12, 0.0161) & +0.075 (9/12, 0.0425) & +0.049 (10/12, 0.0771) \\
-Reach-QoS & +0.161 [+0.097, +0.235] & 12/12 & 0.0005 (0.0020) & +0.092 (9/12, 0.0771) & +0.079 (8/12, 0.1099) & +0.057 (10/12, 0.0269) & +0.031 (9/12, 0.1099) \\
-CDI & $-$0.320 [$-$0.451, $-$0.189] & 1/12 & 0.0034 (0.0068) & $-$0.388 (1/12, 0.0010) & $-$0.402 (0/12, 0.0005) & $-$0.423 (0/12, 0.0005) & $-$0.450 (0/12, 0.0005) \\
-Betweenness (proj.) & +0.038 [+0.014, +0.063] & 9/12 & 0.0210 & $-$0.030 (4/12, 0.5693) & $-$0.044 (4/12, 0.4697) & $-$0.065 (3/12, 0.0425) & $-$0.092 (2/12, 0.0122) \\
+InDeg & +0.211 [+0.132, +0.299] & 12/12 & 0.0005 (0.0020) & +0.143 (10/12, 0.0024) & +0.129 (10/12, 0.0049) & +0.108 (10/12, 0.0024) & +0.081 (11/12, 0.0024) & +0.122 (10/12, 0.0024) \\
+Reach & +0.178 [+0.088, +0.268] & 11/12 & 0.0034 (0.0068) & +0.110 (10/12, 0.0024) & +0.097 (9/12, 0.0161) & +0.075 (9/12, 0.0425) & +0.049 (10/12, 0.0771) & +0.089 (9/12, 0.0923) \\
+Reach-QoS & +0.161 [+0.097, +0.235] & 12/12 & 0.0005 (0.0020) & +0.092 (9/12, 0.0771) & +0.079 (8/12, 0.1099) & +0.057 (10/12, 0.0269) & +0.031 (9/12, 0.1099) & +0.072 (10/12, 0.0210) \\
+CDI & $-$0.320 [$-$0.451, $-$0.189] & 1/12 & 0.0034 (0.0068) & $-$0.388 (1/12, 0.0010) & $-$0.402 (0/12, 0.0005) & $-$0.423 (0/12, 0.0005) & $-$0.450 (0/12, 0.0005) & $-$0.409 (0/12, 0.0005) \\
+Betweenness (proj.) & +0.038 [+0.014, +0.063] & 9/12 & 0.0210 & $-$0.030 (4/12, 0.5693) & $-$0.044 (4/12, 0.4697) & $-$0.065 (3/12, 0.0425) & $-$0.092 (2/12, 0.0122) & $-$0.051 (5/12, 0.3804) \\
 \bottomrule
 \end{tabular}%
 }

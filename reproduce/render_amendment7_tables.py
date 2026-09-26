@@ -135,7 +135,8 @@ def contrasts_table(tf: Dict[str, Any]) -> str:
             f"{cc['won']}/12",
             f"{cc['p']:.4f}" + (f" ({cc['p_holm']:.4f})" if "p_holm" in cc else ""),
         ]
-        for k in ("vs_HGT-QoS_cpu", "vs_GAT-QoS_cpu", "vs_Hybrid-HGT_cpu", "vs_Hybrid-GAT_cpu"):
+        for k in ("vs_HGT-QoS_cpu", "vs_GAT-QoS_cpu", "vs_Hybrid-HGT_cpu", "vs_Hybrid-GAT_cpu",
+                  "vs_GBM-Feat"):
             d = v[p][k]
             cells.append(f"{_f(d['delta'], sign=True)} ({d['won']}/12, {d['p']:.4f})")
         rows.append(rf"{LABEL[p]} & " + " & ".join(cells) + r" \\")
@@ -145,16 +146,17 @@ def contrasts_table(tf: Dict[str, Any]) -> str:
         r"(two-sided Wilcoxon, bootstrap 95\% CI of the mean difference, $B = 2{,}000$). The "
         r"registered family (Amendment~7) is the four new rankers against \texttt{Topo-QoS}, "
         r"Holm-corrected in parentheses; the unweighted projection betweenness is descriptive. "
-        r"The last four columns pair each ranker with the published CPU per-fold values of the "
-        r"learned and hybrid engines (Section~\ref{supp:hybrid-folds}): $\Delta\rho$ "
+        r"The last five columns pair each ranker with the published CPU per-fold values of the "
+        r"learned and hybrid engines (Section~\ref{supp:hybrid-folds}) and of the feature-only "
+        r"regressor (Amendment~8, Section~\ref{supp:attribution}): $\Delta\rho$ "
         r"(folds won, $p$).}",
         r"\label{tab:a7-contrasts}",
         r"\resizebox{\linewidth}{!}{%",
-        r"\begin{tabular}{llllllll}",
+        r"\begin{tabular}{lllllllll}",
         r"\toprule",
         r"\textbf{Ranker} & \textbf{$\Delta\rho$ vs \texttt{Topo-QoS} [95\% CI]} & \textbf{Won} & "
         r"\textbf{$p$ ($p_{\text{Holm}}$)} & \textbf{vs \texttt{HGT-QoS}} & \textbf{vs \texttt{GAT-QoS}} & "
-        r"\textbf{vs Hybrid-HGT} & \textbf{vs Hybrid-GAT} \\",
+        r"\textbf{vs Hybrid-HGT} & \textbf{vs Hybrid-GAT} & \textbf{vs \texttt{GBM-Feat}} \\",
         r"\midrule",
         *rows,
         r"\bottomrule", r"\end{tabular}%", r"}", r"\end{table}",

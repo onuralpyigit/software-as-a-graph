@@ -18,13 +18,13 @@ The central thesis is that making dependencies explicit is the decisive investme
 
 - **RQ1 (Ranking accuracy):** *How accurately do training-free, learned and hybrid engines on SaG’s graphs rank components by cascading-failure impact on unseen architectures, and what drives the accuracy of the training-free engines?*
 
-- **RQ2 (What learning needs):** *Does the learned engines’ accuracy come from relation-specific (typed) parameters or from the edge encoding, once model capacity and edge-channel width are matched?*
+- **RQ2 (What learning needs):** *Where does the learned engines’ accuracy come from—relation-specific (typed) parameters, message passing, the QoS edge encoding, or the per-component features SaG extracts—once model capacity and edge-channel width are matched?*
 
 - **RQ3 (Transfer):** *How well do these rankers transfer to independently authored models of five open-source systems?*
 
 - **RQ4 (Cost):** *What does the analysis cost at CI/CD time, and how does it compare with running the simulation directly?*
 
-Every headline contrast was registered with a decision rule before its results existed: the primary contrast, the matched control, both hybrid engines, and the training-free dependency counts with their QoS-attribution controls. §6.4 and Supplementary §S24 log every amendment.
+Every headline contrast was registered with a decision rule before its results existed: the primary contrast, the matched control, both hybrid engines, and the training-free dependency counts with their QoS-attribution controls. §6.4 and Supplementary §S24 log every amendment. The attribution controls of §7.2, which separate message passing and the QoS node features from the edge encoding, were added after the matched control’s result; they are exploratory and are logged as Amendment 8.
 
 ## 1.4 Key Findings at a Glance
 
@@ -32,9 +32,9 @@ Every headline contrast was registered with a decision rule before its results e
 
 2.  **The dependency projection, not QoS weighting, carries the signal.** Registered controls attribute the closed-form engine’s gain over the registered centrality baseline ($0.349 \to 0.553$) to the projection: constant or permuted topic weights rank as well as the declared QoS contracts (§7.1.2).
 
-3.  **Learning helps over betweenness, and simple models suffice.** Hybrid engines are the only learned engines that significantly beat the closed-form engine ($+0.103$ and $+0.130$, 11 of 12 folds), and an untyped attention network matches a heterogeneous transformer at equal capacity (§§7.1 and 7.2).
+3.  **Learning helps over betweenness, and its accuracy comes from SaG’s features.** Hybrid engines are the only learned engines that significantly beat the closed-form engine ($+0.103$ and $+0.130$, 11 of 12 folds). Matched controls show that relation-specific parameters, message passing and the QoS edge encoding add nothing measurable, and a gradient-boosted regressor on the same per-component features matches the neural engines ($0.642$; §§7.1 and 7.2).
 
-4.  **Rankings transfer.** Trained only on synthetic data, learned engines transfer to five open-source system models at $\rho = 0.760$–$0.805$, and dependency counts reach $0.86$–$0.94$ with no training at all (§7.3).
+4.  **Rankings transfer.** Trained only on synthetic data, learned models transfer to five open-source system models at $\rho = 0.757$–$0.831$, and dependency counts reach $0.86$–$0.94$ with no training at all (§7.3).
 
 5.  **The best ranker is the cheapest.** Deriving the projection and counting dependents takes under a tenth of a second on the largest architecture, against seconds for the simulator and minutes for the learned engines’ features (§7.4).
 
@@ -42,7 +42,7 @@ Every headline contrast was registered with a decision rule before its results e
 
 1.  **A typed architecture model with an explicit dependency projection** for pub-sub systems, whose six derivation rules turn publish, subscribe, routing, hosting and library relations into dependencies and separate sequential cascades from simultaneous blasts (§3). On it, training-free dependency counts are accurate, transferable and effectively free.
 
-2.  **A controlled comparison of what learning adds** (§§4 and 7): heterogeneous and homogeneous graph neural networks at matched capacity, hybrid engines that correct a closed-form prior, and training-free dependency counts, all under the same leave-one-scenario-out protocol and zero-shot transfer.
+2.  **A controlled comparison of what learning adds** (§§4 and 7): heterogeneous and homogeneous graph neural networks at matched capacity, directionality and capacity controls, a feature-only regressor, hybrid engines that correct a closed-form prior, and training-free dependency counts, all under the same leave-one-scenario-out protocol and zero-shot transfer.
 
 3.  **Registered attribution of where accuracy comes from**, including controls that separate the dependency projection from the QoS contracts and that overturned an earlier interpretation of this study (§§7.1.2 and 6.4).
 
