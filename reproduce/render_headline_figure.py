@@ -77,11 +77,10 @@ ENGINES = [  # (variant, printed label, colour), top to bottom
         ("hgl_qos_prior", "#D55E00"),
         ("gl_qos16_prior", "#009E73"),
         ("gl_proj_qos16_cap", "#7B3F8C"),
-        ("gl_proj_qos16_indeg_prior", "#005F46"),
     )
 ]
 #: Learners on the dependency graph (Amendment 9), read from their own artifacts.
-DEPENDENCY_GRAPH = ("gl_proj_qos16_cap", "gl_proj_qos16_indeg_prior")
+DEPENDENCY_GRAPH = ("gl_proj_qos16_cap",)
 COLOUR = {v: c for v, _, c in ENGINES}
 FOLD = {  # two-line tick labels for panel B
     "atm_system": "ATM\n", "av_system": "AV\nSystem", "enterprise_system": "Enter-\nprise",

@@ -38,7 +38,7 @@ SaG's training-free engines on the dependency graph (\texttt{Topo-QoS}, \texttt{
 \begin{table}[htbp]
 \centering
 \small
-\caption{Predictors reported in this paper. \texttt{-QoS}: QoS-weighted distances (Topo) or the 16-D QoS edge vector (GNNs); \texttt{-P}: trained on the dependency graph; \texttt{Hybrid-X}: engine X corrected by the \texttt{Topo-QoS} prior (Hybrid-GAT-P: by the \texttt{InDeg} prior). Every predictor run in the study, with the earlier names used by the registered plan and the artifacts: Supplementary Section~\ref{S-supp:taxonomy}.}
+\caption{Predictors reported in this paper. \texttt{-QoS}: QoS-weighted distances (Topo) or the 16-D QoS edge vector (GNNs); \texttt{-P}: trained on the dependency graph; \texttt{Hybrid-X}: engine X corrected by the \texttt{Topo-QoS} prior (Hybrid-GAT-P: by the \texttt{InDeg} prior). Each learner on the dependency graph keeps its raw-multigraph counterpart's architecture, edge features and parameter budget (\texttt{HGT-P-QoS} at width 100: $430{,}680$ parameters). Every predictor run in the study, with the earlier names used by the registered plan and the artifacts: Supplementary Section~\ref{S-supp:taxonomy}.}
 \label{tab:predictor_taxonomy}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{llccccl}
@@ -62,8 +62,7 @@ SaG's training-free engines on the dependency graph (\texttt{Topo-QoS}, \texttt{
 \textbf{Hybrid-GAT} & Native Multigraph & Homogeneous & 16-D QoS Vector & 431{,}433 & Yes & \texttt{GAT-QoS} + prior \\
 \midrule
 \multicolumn{7}{l}{\textit{Learned on the dependency graph (Amendment~9)}} \\
-\textbf{GAT-P-QoS} & App--Lib \texttt{DEPENDS\_ON} & Homogeneous & 16-D QoS Vector & 429{,}992 & Yes & \texttt{GAT-QoS} on the dependency graph \\
-\textbf{Hybrid-GAT-P} & App--Lib \texttt{DEPENDS\_ON} & Homogeneous & 16-D QoS Vector & 431{,}433 & Yes & \texttt{GAT-P-QoS} + \texttt{InDeg} prior \\
+\textbf{GAT-P}, \textbf{GAT-P-QoS}, \textbf{HGT-P-QoS}, \textbf{Hybrid-GAT-P} & App--Lib \texttt{DEPENDS\_ON} & As counterpart & As counterpart & As counterpart & Yes & \texttt{GAT}, \texttt{GAT-QoS}, \texttt{HGT-QoS}, Hybrid-GAT on the dependency graph \\
 \bottomrule
 \end{tabular}%
 }
