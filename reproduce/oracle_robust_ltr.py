@@ -31,7 +31,7 @@ import json
 import os
 import sys
 import time
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -71,6 +71,7 @@ DATA_BENCHMARKS = ROOT / "data" / "benchmarks"
 RESULTS = ROOT / "results"
 IDYN_N30_CACHE = RESULTS / "idyn_scenario_cache_jss12.json"
 IDYN_FULL_CACHE = RESULTS / "idyn_full_labels_cache.json"
+IDYN_PARTIAL_CACHE = RESULTS / "idyn_full_labels_partial.json"
 ICOMP_SYSTEMS_CACHE = RESULTS / "icomp_systems_labels_cache.json"
 PUBLISHED_ORACLE_EVAL = DATA_BENCHMARKS / "independent_oracle_evaluation.json"
 
@@ -239,13 +240,25 @@ def idyn_full_labels(names: List[str], workers: int) -> Dict[str, Any]:
         if cached.get("key") == key and set(names) <= set(cached["labels"]):
             print(f"loaded I_dyn-full from {IDYN_FULL_CACHE}")
             return cached["labels"]
-    jobs = [(n, s) for n in names for s in SEEDS]
-    print(f"I_dyn-full: {len(jobs)} (scenario, seed) jobs on {workers} workers")
     out: Dict[str, Any] = {n: {"per_seed": {}, "seconds": {}} for n in names}
-    with ProcessPoolExecutor(max_workers=workers) as ex:
-        for name, seed, labels, secs in ex.map(_idyn_job, jobs):
+    # Each finished (scenario, seed) job is checkpointed, so a crashed or
+    # OOM-killed run resumes instead of repeating hours of simulation.
+    if IDYN_PARTIAL_CACHE.exists():
+        part = json.loads(IDYN_PARTIAL_CACHE.read_text())
+        if part.get("key") == key:
+            for n, block in part["labels"].items():
+                if n in out:
+                    out[n] = block
+    jobs = [(n, s) for n in names for s in SEEDS if str(s) not in out[n]["per_seed"]]
+    print(f"I_dyn-full: {len(jobs)} (scenario, seed) jobs on {workers} workers")
+    RESULTS.mkdir(exist_ok=True)
+    with ProcessPoolExecutor(max_workers=workers, max_tasks_per_child=1) as ex:
+        futures = [ex.submit(_idyn_job, j) for j in jobs]
+        for fut in as_completed(futures):
+            name, seed, labels, secs = fut.result()
             out[name]["per_seed"][str(seed)] = labels
             out[name]["seconds"][str(seed)] = round(secs, 2)
+            IDYN_PARTIAL_CACHE.write_text(json.dumps({"key": key, "labels": out}))
             print(f"  {name} seed {seed}: {len(labels)} apps in {secs:.0f}s", flush=True)
     for name, block in out.items():
         # A component the engine cannot observe is omitted, not scored 0.0; the
