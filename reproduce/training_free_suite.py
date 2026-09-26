@@ -66,6 +66,7 @@ from saag.simulation.fault_injector import FaultInjector  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 SCENARIOS_DIR = ROOT / "data" / "scenarios"
+DATA_BENCHMARKS = ROOT / "data" / "benchmarks"
 LABEL_CACHE = ROOT / "output" / "tf_labels"
 RESULTS = ROOT / "results"
 SEEDS = [42, 123, 456, 789, 2024]
@@ -310,9 +311,14 @@ def holm(ps: Dict[str, float]) -> Dict[str, float]:
 
 def _write(name: str, payload: Dict[str, Any], **config: Any) -> Path:
     RESULTS.mkdir(exist_ok=True)
+    DATA_BENCHMARKS.mkdir(parents=True, exist_ok=True)
     payload["provenance"] = stamp(script="reproduce/training_free_suite.py", **config)
     path = RESULTS / name
     path.write_text(json.dumps(payload, indent=2, sort_keys=False))
+    if name == "tf_baselines.json":
+        bpath = DATA_BENCHMARKS / name
+        bpath.write_text(json.dumps(payload, indent=2, sort_keys=False))
+        print(f"wrote {bpath}")
     print(f"wrote {path}")
     return path
 
@@ -778,7 +784,10 @@ def cmd_derivation(_: argparse.Namespace) -> int:
     def col(a: str, src=loso, key: str = "rho") -> List[Optional[float]]:
         return [src[n][a][key] for n in src]
 
-    tf = json.loads((RESULTS / "tf_baselines.json").read_text())
+    tf_path = DATA_BENCHMARKS / "tf_baselines.json"
+    if not tf_path.exists():
+        tf_path = RESULTS / "tf_baselines.json"
+    tf = json.loads(tf_path.read_text())
     check = {a: max(abs(loso[n][a]["rho"] - tf["per_fold"][n][a]["rho"]) for n in names)
              for a in ("InDeg", "Reach")}
     identity = max(r["identity_max_abs_diff"] for r in (*loso.values(), *systems.values()))

@@ -40,7 +40,10 @@ LABEL = {
 
 
 def _load(name: str) -> Dict[str, Any]:
-    return json.loads((RESULTS / name).read_text())
+    p = RESULTS / name
+    if not p.exists():
+        p = ROOT / "data" / "benchmarks" / name
+    return json.loads(p.read_text())
 
 
 def _f(x: Optional[float], nd: int = 3, sign: bool = False) -> str:

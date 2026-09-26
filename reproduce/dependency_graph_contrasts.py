@@ -73,7 +73,12 @@ REACH_SYSTEMS_PUBLISHED = 0.938
 
 
 def _load(path: str) -> Dict[str, Any]:
-    return json.loads(Path(path).read_text())
+    p = Path(path)
+    if not p.exists():
+        alt = Path("data/benchmarks") / p.name
+        if alt.exists():
+            return json.loads(alt.read_text())
+    return json.loads(p.read_text())
 
 
 def _loso_rows(artifact: Dict[str, Any], variant: str) -> Dict[str, Dict[str, Optional[float]]]:

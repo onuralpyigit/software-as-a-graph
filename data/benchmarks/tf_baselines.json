@@ -138,7 +138,7 @@
       "Reach": {
         "rho": 0.8264915765406635,
         "rho_active": 0.17357016411740947,
-        "overlap_at_k": 0.2833333333333333,
+        "overlap_at_k": 0.31666666666666665,
         "pr_auc": 0.21884920634920635,
         "n_apps": 300,
         "n_active": 183
@@ -162,7 +162,7 @@
       "InDeg": {
         "rho": 0.8907089690283002,
         "rho_active": 0.6597850850106933,
-        "overlap_at_k": 0.6,
+        "overlap_at_k": 0.5833333333333334,
         "pr_auc": 0.326931249509965,
         "n_apps": 300,
         "n_active": 183
@@ -1044,7 +1044,7 @@
     "Reach": {
       "loso_mean_rho": 0.7316013335809148,
       "loso_mean_rho_active": 0.2864344269688956,
-      "loso_mean_overlap": 0.3408399470899471,
+      "loso_mean_overlap": 0.34361772486772485,
       "systems_mean_rho": 0.9376325586070603,
       "systems_mean_rho_active": 0.871207623914102,
       "systems_mean_overlap": 0.76,
@@ -1095,7 +1095,7 @@
     "InDeg": {
       "loso_mean_rho": 0.7642208030669431,
       "loso_mean_rho_active": 0.516353417097648,
-      "loso_mean_overlap": 0.5055194805194805,
+      "loso_mean_overlap": 0.5041305916305916,
       "systems_mean_rho": 0.8626953472911614,
       "systems_mean_rho_active": 0.3213753625778357,
       "systems_mean_overlap": 0.52,
@@ -1439,8 +1439,8 @@
     "triggered": true
   },
   "provenance": {
-    "commit": "ca495de47d5467ec59a89db272ee9b91caace836",
-    "dirty": false,
+    "commit": "4d6b7ccdfdd65d889122cfc4ac20bcc42653052d",
+    "dirty": true,
     "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
     "config": {
       "script": "reproduce/training_free_suite.py",

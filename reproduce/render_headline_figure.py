@@ -100,7 +100,10 @@ plt.rcParams.update({
 
 
 def _load(name: str) -> dict:
-    return json.loads((RESULTS / name).read_text())
+    p = RESULTS / name
+    if not p.exists():
+        p = ROOT / "data" / "benchmarks" / name
+    return json.loads(p.read_text())
 
 
 def _folds(table: dict, variant: str) -> dict:

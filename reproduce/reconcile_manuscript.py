@@ -102,6 +102,9 @@ class Report:
 def _load(name: str) -> Optional[dict]:
     p = RESULTS / name
     if not p.exists():
+        alt = (ROOT / "data" / "benchmarks") / name
+        if alt.exists():
+            return json.loads(alt.read_text())
         return None
     return json.loads(p.read_text())
 
