@@ -141,8 +141,13 @@ def raw_rankers(topology: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
     }
 
 
+#: Taken once, at process start: the artifacts go to the tracked data/benchmarks/,
+#: so stamping each as it is written would mark all but the first as dirty.
+_PROV = stamp(script="reproduce/referee_round7.py", amendment=12)
+
+
 def _write(name: str, payload: Dict[str, Any], **config: Any) -> Path:
-    payload["provenance"] = stamp(script="reproduce/referee_round7.py", amendment=12, **config)
+    payload["provenance"] = {**_PROV, "config": {**_PROV["config"], **config}}
     DATA_BENCHMARKS.mkdir(parents=True, exist_ok=True)
     RESULTS.mkdir(exist_ok=True)
     text = json.dumps(payload, indent=2)
