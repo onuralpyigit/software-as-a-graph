@@ -420,7 +420,7 @@ jss-fig4:
 	$(PYTHON) reproduce/render_jss_diagrams.py --only 4
 
 jss-fig5:
-	PYTHONPATH=. $(PYTHON) reproduce/render_amendment7_figure.py
+	PYTHONPATH=. $(PYTHON) reproduce/render_headline_figure.py
 
 jss-figS1:
 	$(PYTHON) reproduce/render_shrinkage_figure.py

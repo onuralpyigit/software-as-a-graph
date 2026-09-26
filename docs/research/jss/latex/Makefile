@@ -64,7 +64,7 @@ zip: $(MAIN).pdf supplementary.pdf
 	zip -r submission_package.zip \
 	    $(MAIN).tex sections/ refs.bib vendor/ figures/*.pdf figures/*.png \
 	    title_page.tex highlights.tex vitae.tex $(MAIN).bbl $(MAIN).aux \
-	    supplementary.tex supp_amendment7.tex supplementary.bbl supplementary.aux supplementary.pdf \
+	    supplementary.tex supplementary.bbl supplementary.aux supplementary.pdf \
 	    LENGTH_JUSTIFICATION.md -x '*.dot'
 	@echo "✓ submission_package.zip ready (manuscript + supplement + title page + highlights + vitae)."
 
