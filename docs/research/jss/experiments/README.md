@@ -35,6 +35,7 @@ root.
 | §7.4, Table 11 | Analysis cost and comparison with direct simulation | [rq4-cost.md](rq4-cost.md) | `make -f reproduce/Makefile inference-latency` | Supp. S28 |
 | §4.3, §8.2 | Oracles, label QoS content, convergent validity, parameter sensitivity | [oracles-and-sensitivity.md](oracles-and-sensitivity.md) | `make -f reproduce/Makefile convergent-validity` | Supp. S1–S4, S9 |
 | §7.1, §7.1.2, Table 7, Fig. 5 | Dependency counts and QoS-attribution controls (Amendment 7) | [amendment7-training-free.md](amendment7-training-free.md) | `python reproduce/training_free_suite.py all` | Supp. S31 |
+| — (not in the manuscript) | Graph learning on the dependency graph vs. dependency counts (Amendment 9, exploratory) | [amendment9-dependency-graph-learning.md](amendment9-dependency-graph-learning.md) | `make -f reproduce/Makefile rq-dependency-graph` | — |
 | §6.4, §8.2 | Registered plan, amendments, omnibus correction, repeatability | [repeatability-and-amendments.md](repeatability-and-amendments.md) | `make -f reproduce/Makefile omnibus` | Supp. S24 |
 
 Section and table numbers are those of the compiled manuscript at the submission tag. The LaTeX
