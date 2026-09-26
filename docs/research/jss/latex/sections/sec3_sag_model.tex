@@ -6,7 +6,7 @@ Figure~\ref{fig:1} presents the end-to-end architecture of the SaG framework. Th
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.70\linewidth]{figures/Figure_1}
-\caption{End-to-end architecture of the SaG framework. The predictive pathway runs down the centre: manifest ingestion, typed multigraph, \texttt{DEPENDS\_ON} projection with typed node properties, the ranking engines (closed-form, learned and hybrid; Figure~\ref{fig:engines}), and the ranked critical set. The dashed edge marks the ground-truth simulation oracles, which operate only on $G_{\text{structural}}$, train the predictor offline and take no part in inference. The explanation layer re-enters from the analysis multigraph and shares no parameters with the predictor, reaching flagged components through triage rather than data flow.}
+\caption{End-to-end architecture of the SaG framework. The predictive pathway runs down the centre: manifest ingestion, typed multigraph, \texttt{DEPENDS\_ON} projection with typed node properties, the ranking engines (closed-form, learned and hybrid; Figure~\ref{fig:engines}), and the ranked critical set. The dashed edge marks the ground-truth simulation oracles, which operate only on $G_{\text{structural}}$, train the predictor offline and take no part in inference. The proposed explanation layer (Section~\ref{sec:5}, not evaluated) reads the same analysis multigraph, shares no parameters with the predictor, and is applied to components after they have been ranked; no output of the predictor flows into it.}
 \label{fig:1}
 \end{figure}
 
