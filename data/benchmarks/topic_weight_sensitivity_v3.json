@@ -358,5 +358,13 @@
       }
     },
     "note": "A small spread means the declared (beta, alpha, psi) is not load-bearing: every triple in the grid, including a uniform prior, induces essentially the same ordering and the same downstream rho. That is the structural justification for the constant \u2014 it is an argument that the choice does not matter, not a claim that the shipped value is optimal. Read `term_contributions_at_shipped` alongside it: SizeNorm is log-compressed into a narrow band, so its weighted spread is far below the QoS term's and it cannot reorder topics whatever alpha is set to. rho is scored on the Application population against I*(v), the primary oracle. The GNN variants are not retrained across the grid; this bounds the constant's effect on the closed-form scorers only."
+  },
+  "provenance": {
+    "commit": "efeb27e3845b41041c30a59996b7dc44f2421df6",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/topic_weight_sensitivity.py"
+    }
   }
 }

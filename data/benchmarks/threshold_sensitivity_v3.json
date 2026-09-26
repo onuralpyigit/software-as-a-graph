@@ -224,5 +224,13 @@
     "threshold_rho_spread": 0.0835,
     "normalization_rho_spread": 0.0369,
     "note": "A small threshold spread means the reported ordering does not depend on the cascade-eligibility cutoff. A small normalisation spread means it does not depend on rank- vs magnitude-scaling. Neither spread says the ordering is *correct* \u2014 only that it is stable under the free parameters of the ground truth and the scorer."
+  },
+  "provenance": {
+    "commit": "efeb27e3845b41041c30a59996b7dc44f2421df6",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/threshold_sensitivity.py"
+    }
   }
 }

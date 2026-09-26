@@ -761,5 +761,25 @@
         "wt": 0.020080840000000003
       }
     }
-  ]
+  ],
+  "provenance": {
+    "commit": "efeb27e3845b41041c30a59996b7dc44f2421df6",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/qos_label_ablation.py",
+      "label_arms": [
+        "none",
+        "wt",
+        "ladder"
+      ],
+      "seeds": [
+        42,
+        123,
+        456,
+        789,
+        2024
+      ]
+    }
+  }
 }

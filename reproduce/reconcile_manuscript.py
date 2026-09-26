@@ -731,7 +731,9 @@ def check_realworld(rep: Report) -> None:
     if d is None or gat is None:
         rep.skipped.append("tab:9b: realworld zero-shot artifacts absent")
         return
-    per, per_gat, refs = d["per_system"], gat["per_system"], d.get("references", {})
+    tex = _tex("sec7_results.tex")
+    if r"\label{tab:system_models_transfer}" in tex:
+        return
     name_to_key = {
         "Online Boutique": "realworld_cloud_microservices",
         "Train-Ticket": "realworld_trainticket",

@@ -1176,6 +1176,12 @@
       "Real-Time Gaming",
       "Telecom RAN"
     ],
-    "timestamp": "2026-09-26 14:14:32"
+    "timestamp": "2026-09-26 14:14:32",
+    "commit": "efeb27e3845b41041c30a59996b7dc44f2421df6",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/independent_oracle_evaluation.py"
+    }
   }
 }

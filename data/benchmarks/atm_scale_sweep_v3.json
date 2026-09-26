@@ -6671,5 +6671,20 @@
     },
     "n_scenarios_always_exit_2": 5,
     "n_scenarios_total": 5
+  },
+  "provenance": {
+    "commit": "efeb27e3845b41041c30a59996b7dc44f2421df6",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/atm_scale_sweep.py",
+      "seeds": [
+        42,
+        123,
+        456
+      ],
+      "layer": "Application",
+      "max_components": 2000
+    }
   }
 }
