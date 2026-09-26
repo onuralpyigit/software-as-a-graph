@@ -57,7 +57,7 @@ ORACLE_ROBUST_WORKERS ?= 8
 .PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution rq-directionality rq-capacity rq-dependency-graph rq-oracle-robust jss-regimes nested-search kfold convergent-validity \
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency rq-referee-round7 \
-        figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 \
+        figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 jss-fig6 jss-graphical-abstract \
         jss-figures jss-figS1 jss-figS2 jss-tables all bundle smoke-test clean clean-all
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -495,8 +495,14 @@ jss-figS2:
 	    --output docs/research/jss/latex/figures/Figure_S2
 	@echo "✓ Figure S2 (HGT attention subgraph) ready."
 
-jss-figures: jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 jss-figS1 jss-figS2
-	@echo "✓ All JSS figures ready (5 in the manuscript, 2 supplementary)."
+jss-fig6:
+	PYTHONPATH=. $(PYTHON) reproduce/render_recall_figure.py
+
+jss-graphical-abstract:
+	PYTHONPATH=. $(PYTHON) reproduce/render_graphical_abstract.py
+
+jss-figures: jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 jss-fig6 jss-figS1 jss-figS2 jss-graphical-abstract
+	@echo "✓ All JSS figures ready (6 in the manuscript, 2 supplementary, graphical abstract)."
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Manuscript tables generated from committed configs/artifacts rather than by

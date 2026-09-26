@@ -47,9 +47,9 @@ A defect found while answering M2 also corrected a published supplementary numbe
 | 11 | Table 7 rebuilt: the redundant `I_comp` ρ>0 columns are gone; CIs and a partial-ρ column added; learned rows added. |
 | 12 | Implementation paths removed from §4, §6 and §8 prose. |
 | 13 | §3.2 states that the topic-QoS matrix was stated independently (CR 0.016, non-degenerate) and that three other matrices encode a declared vector. |
-| 14 | DDS and SQuaRE capitalization fixed. Beliakov is now a book with a DOI; Khodabandeh now has pages and a DOI. **Reference [56] (Santos et al., TSE 47(10) 2019) could not be found in Crossref** and was replaced by the verifiable HAROS paper (IRC 2019, DOI 10.1109/IRC.2019.00018). **The authors should confirm the intended citation.** |
+| 14 | DDS and SQuaRE capitalization fixed. Beliakov is now a book with a DOI; Khodabandeh now has pages and a DOI. **Reference [56] (Santos et al., TSE 47(10) 2019) could not be found in Crossref** and was replaced by the verifiable HAROS paper (IRC 2019, DOI 10.1109/IRC.2019.00018); the replacement was confirmed by the authors on 2026-09-26. |
 | 15 | Length justification updated to the compiled page count. |
-| 16 | Graphical abstract: **not produced.** The Guide encourages but does not require one. |
+| 16 | Graphical abstract added (`latex/figures/graphical_abstract.pdf`, 13 × 5 cm, 1535 × 590 px ≥ 1328 × 531 required), every number read from an artifact (`reproduce/render_graphical_abstract.py`). |
 | 17 | Data statement now says which reported numbers depend on the four unstamped artifacts (only §4.3's 0.965/0.977). |
 | 18 | Results claims removed from §1.1. |
 | 19 | Figure 1 caption now says what the dashed route is: the proposed layer is applied after ranking and receives no predictor output. |
@@ -58,7 +58,7 @@ A defect found while answering M2 also corrected a published supplementary numbe
 
 - **Amendment 10, Pubs-raw.** Scored on publishers only because of a population defect. Corrected from 0.431 to 0.731, so `InDeg`'s margin over it falls from +0.334 to +0.033 (decision E1 still applies). The artifact is regenerated from a clean tree; the supplementary table, amendment log and experiment page are updated.
 - **Reconciler.** Two hard-coded "truths" (seed spread 0.208; GAT-P-QoS 0.748 in §8.2) are replaced by artifact reads.
-- **GenAI declaration.** It now also covers drafting of revision text. The sentence "the choice of experiments … [is] the authors' own" is left for the authors to confirm, since Amendment 12's analyses answer a Claude-drafted review.
+- **GenAI declaration.** It now also covers drafting of revision text; the updated declaration was approved by the authors on 2026-09-26.
 
 ## Not done, and stated as limitations (§8.4)
 
@@ -68,5 +68,4 @@ A defect found while answering M2 also corrected a published supplementary numbe
 - a learner without in-degree features;
 - full-population `I_dyn` (Amendment 11, stopped);
 - a second modeller;
-- energy measurement;
-- a graphical abstract.
+- energy measurement.
