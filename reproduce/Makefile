@@ -20,6 +20,7 @@
 #   make rq-directionality — HGT-QoS vs HGT-QoS-U (Amendment 2's directionality arm), LOSO + zero-shot
 #   make rq-capacity     — HGT-QoS vs GAT-w (Amendment 2's capacity arm), LOSO + zero-shot
 #   make rq-dependency-graph — learners on the DEPENDS_ON projection vs InDeg/Reach (Amendment 9)
+#   make rq-oracle-robust — GBM over dependency-graph signals across I*/I_dyn/I_comp (Amendment 11)
 #   make omnibus         — one Holm correction over every registered contrast (no training)
 #   make nested-search   — nested-CV config search (opt-in, expensive; GRID=stage1|stage2|full)
 #   make convergent-validity — JSS Table 13: Three-oracle rank agreement (opt-in; expensive)
@@ -51,8 +52,9 @@ EPOCHS_FAST ?= 50      # for quick smoke-test
 SCENARIOS_DIR ?= data/scenarios
 RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
+ORACLE_ROBUST_WORKERS ?= 8
 
-.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution rq-directionality rq-capacity rq-dependency-graph jss-regimes nested-search kfold convergent-validity \
+.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution rq-directionality rq-capacity rq-dependency-graph rq-oracle-robust jss-regimes nested-search kfold convergent-validity \
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 \
@@ -293,6 +295,13 @@ rq-dependency-graph:
 	$(PYTHON) reproduce/dependency_graph_contrasts.py \
 	    --input $(RESULTS_DIR)/loso_dependency_graph_cpu.json \
 	    --output $(RESULTS_DIR)/dependency_graph_contrasts.json
+
+# Learned combination of dependency-graph signals across the three oracles
+# (PREREGISTRATION.md Amendment 11). CPU only; the I_dyn-full labels (~3 CPU-h)
+# dominate and are cached under results/ by corpus digest. Writes
+# data/benchmarks/{idyn_full_labels_jss12,oracle_robust_ltr,oracle_robust_significance}.json.
+rq-oracle-robust:
+	OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 $(PYTHON) reproduce/oracle_robust_ltr.py all --workers $(ORACLE_ROBUST_WORKERS)
 
 # Where graph learning helps and where it does not (manuscript Section 8.2,
 # post hoc, exploratory). Trains nothing: joins the per-fold and zero-shot

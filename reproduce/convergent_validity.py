@@ -56,7 +56,7 @@ import logging
 import sys
 from itertools import combinations
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -164,6 +164,7 @@ def _message_flow_labels(
     qos_mode: str = "full",
     target_utilization: Optional[float] = 0.65,
     return_signals: bool = False,
+    only: Optional[Iterable[str]] = None,
 ) -> Dict[str, float] | tuple[Dict[str, float], Optional[Dict[str, Any]]]:
     """I_dyn(v) — the delivery-rate loss surviving consumers actually suffer.
 
@@ -171,6 +172,9 @@ def _message_flow_labels(
     components that carry pub/sub traffic are scored: the engine cannot observe
     Brokers (ROUTES) or Nodes (RUNS_ON), and a component it cannot observe is
     omitted rather than recorded as impact 0.0.
+
+    ``only`` restricts the candidates to those ids (e.g. the Application
+    population) before ``max_candidates`` is applied; candidate order is kept.
     """
     from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     from saag.simulation.message_flow_simulator import MessageFlowSimulator
@@ -183,6 +187,9 @@ def _message_flow_labels(
         target_utilization=target_utilization,
     ).run()
     candidates = list(probe.labeled_node_ids)
+    if only is not None:
+        keep = set(only)
+        candidates = [c for c in candidates if c in keep]
     if max_candidates is not None:
         candidates = candidates[:max_candidates]
 
