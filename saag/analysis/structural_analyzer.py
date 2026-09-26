@@ -81,13 +81,31 @@ _CQP_WEIGHTS = (0.10, 0.35, 0.30, 0.25)
 _PSPOF_SUB_SATURATION = 5.0
 
 
+#: Phase-time collector, active only inside :func:`record_phases`.
+_PHASE_SINK: Optional[Dict[str, float]] = None
+
+
+@contextmanager
+def record_phases() -> Iterator[Dict[str, float]]:
+    """Accumulate each phase's wall-clock seconds into the yielded dict (cost reconciliation)."""
+    global _PHASE_SINK
+    previous, _PHASE_SINK = _PHASE_SINK, {}
+    try:
+        yield _PHASE_SINK
+    finally:
+        _PHASE_SINK = previous
+
+
 @contextmanager
 def _phase(logger: logging.Logger, label: str) -> Iterator[None]:
     """Log the start and wall-clock duration of one analysis phase."""
     t0 = time.perf_counter()
     logger.info("  %s…", label)
     yield
-    logger.info("  %s done (%.2fs)", label, time.perf_counter() - t0)
+    dt = time.perf_counter() - t0
+    if _PHASE_SINK is not None:
+        _PHASE_SINK[label] = _PHASE_SINK.get(label, 0.0) + dt
+    logger.info("  %s done (%.2fs)", label, dt)
 
 
 # ---------------------------------------------------------------------------
