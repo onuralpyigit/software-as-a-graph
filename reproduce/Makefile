@@ -305,7 +305,7 @@ rq-oracle-robust:
 
 # Amendment 12 (round-7 referee analyses): raw-graph baselines, partial correlations
 # beyond I*, learned engines on I_dyn/I_comp, recall@k curves, single-harness
-# zero-shot, and counting latency by size. Needs rq-oracle-robust's I_dyn-full labels.
+# zero-shot, and counting latency by size. I_dyn is the published n=30 lexical sample (Amendment 12 deviation).
 rq-referee-round7:
 	OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 $(PYTHON) reproduce/referee_round7.py all
 

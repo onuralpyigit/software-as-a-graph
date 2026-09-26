@@ -1083,3 +1083,16 @@ Everything else is descriptive, with bootstrap 95% CIs over folds (B = 2,000).
 **Stopping rule.** No additional ranker, conditioning variable or k grid is added after results exist without a further amendment.
 
 **What is unchanged.** All previously registered contrasts, the 13-contrast omnibus, and every published label. No model is retrained.
+
+### Amendment 12 — deviations, recorded before R1–R4 were run (2026-09-26)
+
+1. **`I_dyn` labels.** Amendment 11's run was stopped at the authors' request, before any of its full-population labels were written. Its first attempt had been killed by the out-of-memory killer. R1–R4 therefore score `I_dyn` on the published seed-42 sample: the first 30 Applications of each fold in lexicographic order, all 26 on ATM, with no system models. Consequences:
+   - The lexical-sample limitation (Round 5, M1; round 7, M3) is **not** resolved, and the manuscript keeps saying so.
+   - The five-seed test–retest term of R2 cannot be computed, so the manuscript cites the published reliability range instead (Supplementary S9).
+   - Every R1–R3 cell on `I_dyn` rests on 26–30 Applications per fold.
+   - Amendment 11's arms remain registered and unrun.
+2. **Gate G3 (R3)** failed for every engine. The saved `inductive_predictions.json` is the mean of the five seeds' *predictions*, whereas the published LOSO value is the mean of the per-seed ρ. The per-seed logs (`workspace/fold_*/seed_*/seed_result.json`) reproduce every published mean to within rounding. R3 is reported as a seed-ensemble statistic, beside its own `I*` value, and is not compared with Table 6's per-seed means.
+3. **R6.** `I*` labelling time grows roughly quadratically with graph size: 5 s at 250 components, 21 s at 500 and 104 s at 1,000. It is timed as registered (median of 5) up to 2,000 components, once at 5,000, and not at 10,000. The counting path is timed at every size as registered.
+4. **Added, descriptive, not registered.** Two things are computed from existing artifacts only (`referee_round7.py averaging`), with no ranker or oracle added:
+   - Table 6's means under Fisher-z and |V_app|-weighted averaging;
+   - the per-fold seed range and seed SD of each learned engine.

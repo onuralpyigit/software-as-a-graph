@@ -18,7 +18,7 @@ Everything registered in PREREGISTRATION.md Amendment 12:
                  per-scenario structural descriptors.
 * ``latency``  — R6: projection + count vs one I* labelling pass, by graph size.
 
-R1-R4 need Amendment 11's I_dyn-full labels (``make rq-oracle-robust``).
+I_dyn is the published n=30 lexical sample (Amendment 12 deviation; see IDYN_N30).
 
 Usage:
     PYTHONPATH=. python reproduce/referee_round7.py all
@@ -71,7 +71,11 @@ from saag.evaluation.metrics import compute_inductive_metrics  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 DATA_BENCHMARKS = ROOT / "data" / "benchmarks"
 RESULTS = ROOT / "results"
-IDYN_FULL = DATA_BENCHMARKS / "idyn_full_labels_jss12.json"
+#: Deviation (Amendment 12, logged): Amendment 11 was stopped before its full-population
+#: labels existed, so I_dyn is the published seed-42 sample -- the first 30 Applications
+#: of each fold in lexicographic order (all 26 on ATM), LOSO folds only.
+IDYN_N30 = RESULTS / "idyn_scenario_cache_jss12.json"
+IDYN_SOURCE = "published n=30 lexical sample, seed 42 (results/idyn_scenario_cache_jss12.json)"
 ICOMP_SYSTEMS_CACHE = RESULTS / "icomp_systems_labels_cache.json"
 ORACLES = ("i_star", "i_dyn", "i_comp")
 
@@ -103,16 +107,14 @@ def _apps(graph: nx.Graph) -> List[str]:
 
 
 def load_oracles(names: List[str]) -> Dict[str, Dict[str, Dict[str, float]]]:
-    """I*, I_dyn-full (Amendment 11, 5-seed mean) and I_comp, keyed by scenario id."""
-    if not IDYN_FULL.exists():
-        raise SystemExit(f"{IDYN_FULL} missing: run `make -f reproduce/Makefile rq-oracle-robust`")
-    idyn = json.loads(IDYN_FULL.read_text())["labels"]
+    """I*, I_dyn (published n=30 lexical sample; see IDYN_N30) and I_comp, by scenario id."""
+    idyn = json.loads(IDYN_N30.read_text())
     icomp = dict(json.loads(ICOMP_CACHE.read_text()))
     if ICOMP_SYSTEMS_CACHE.exists():
         icomp.update(json.loads(ICOMP_SYSTEMS_CACHE.read_text())["labels"])
     return {
         "i_star": {n: labels_for(SCENARIOS_DIR / f"{n}.json")["impact"] for n in names},
-        "i_dyn": {n: idyn[n]["mean"] for n in names if n in idyn},
+        "i_dyn": {n: idyn[n] for n in names if n in idyn},
         "i_comp": {n: icomp[n] for n in names if n in icomp},
     }
 
@@ -231,28 +233,9 @@ def partial_spearman(x: List[float], y: List[float], z: List[float]) -> Optional
     return float(np.corrcoef(res[0], res[1])[0, 1])
 
 
-def _retest(block: Dict[str, Any], apps: List[str]) -> Optional[float]:
-    """Median pairwise Spearman across I_dyn seeds, stepped up to the 5-seed mean."""
-    seeds = list(block["per_seed"])
-    shared = [a for a in apps if all(a in block["per_seed"][s] for s in seeds)]
-    rr = []
-    for i in range(len(seeds)):
-        for j in range(i + 1, len(seeds)):
-            a = [block["per_seed"][seeds[i]][v] for v in shared]
-            b = [block["per_seed"][seeds[j]][v] for v in shared]
-            if len(set(a)) > 1 and len(set(b)) > 1:
-                rr.append(spearmanr(a, b).correlation)
-    if not rr:
-        return None
-    r = float(np.median(rr))
-    k = len(seeds)
-    return k * r / (1 + (k - 1) * r)  # Spearman-Brown
-
-
 def cmd_partial(_: argparse.Namespace) -> int:
     folds = list(FOLDS)
     oracles = load_oracles(folds)
-    idyn_blocks = json.loads(IDYN_FULL.read_text())["labels"]
     rankers = ("InDeg", "Reach", "Topo-QoS", "Analytic-I*", "RevPR-raw", "PR-raw")
     per: Dict[str, Any] = {}
     for sid in folds:
@@ -262,7 +245,7 @@ def cmd_partial(_: argparse.Namespace) -> int:
         dyn, star = oracles["i_dyn"][sid], oracles["i_star"][sid]
         apps = [a for a in _apps(graph) if a in dyn and a in star]
         ana = rk["Analytic-I*"]
-        row: Dict[str, Any] = {"n": len(apps), "retest_5seed": _retest(idyn_blocks[sid], apps),
+        row: Dict[str, Any] = {"n": len(apps),
                                "rho_istar_idyn": float(spearmanr([star[a] for a in apps],
                                                                  [dyn[a] for a in apps]).correlation)}
         for r in rankers:
@@ -275,7 +258,7 @@ def cmd_partial(_: argparse.Namespace) -> int:
                                            partial_spearman(x, y, [ana.get(a, 0.0) for a in apps])),
             }
         per[sid] = row
-        print(f"{sid:28s} n={row['n']:3d} retest={row['retest_5seed']:.3f} " + " ".join(
+        print(f"{sid:28s} n={row['n']:3d} " + " ".join(
             f"{r}={row[r]['rho']:.3f}|{row[r]['partial_given_istar'] if row[r]['partial_given_istar'] is None else round(row[r]['partial_given_istar'], 3)}"
             for r in rankers))
     summary: Dict[str, Any] = {}
@@ -292,21 +275,18 @@ def cmd_partial(_: argparse.Namespace) -> int:
         s["D3"] = None if ci is None else ("D3" if ci[0] <= 0 <= ci[1] else
                                            ("D3'" if s["partial_given_istar"]["mean"] > 0 else "negative"))
         summary[r] = s
-    retest = [per[f]["retest_5seed"] for f in folds if per[f]["retest_5seed"] is not None]
     summary["_oracle"] = {
+        "idyn_source": IDYN_SOURCE,
         "rho_istar_idyn": _summ({f: {"rho": per[f]["rho_istar_idyn"]} for f in folds}, folds),
-        "retest_5seed": {"mean": _mean(retest), "min": float(min(retest)), "max": float(max(retest))},
-        # A deterministic ranker's attainable rho against a label of reliability r
-        # is bounded by sqrt(r).
-        "ceiling_mean": _mean([float(np.sqrt(r)) for r in retest]),
         "n_per_fold": {f: per[f]["n"] for f in folds},
     }
     for r in rankers:
         print(f"{r:12s} rho={summary[r]['rho']['mean']:.3f} "
               f"partial|I*={summary[r]['partial_given_istar']['mean']} "
               f"CI={summary[r]['partial_given_istar']['ci95']} {summary[r]['D3']}")
-    print("oracle:", summary["_oracle"]["rho_istar_idyn"], summary["_oracle"]["retest_5seed"])
-    _write("referee_round7_partial.json", {"per_fold": per, "summary": summary},
+    print("oracle:", summary["_oracle"]["rho_istar_idyn"])
+    _write("referee_round7_partial.json", {"per_fold": per, "summary": summary,
+                                           "idyn_source": IDYN_SOURCE},
            experiment="R2")
     return 0
 
