@@ -786,3 +786,32 @@ The five system models are reported descriptively.
 | E3 | Always | Every arm is reported in the supplement. |
 
 **What is unchanged.** All earlier registered contrasts and the 13-contrast omnibus.
+
+## Results log — Amendments 7, 9 and 10 in the manuscript (2026-09-26)
+
+This is not an amendment. It records how the text consequences of three registered families were
+applied when the manuscript was revised to lead with the dependency graph.
+
+**Amendment 7.** R1, R2, R2′ and R3 all applied, but the v4 manuscript had not carried them out.
+They are now carried out:
+- **R1.** The abstract, §1 and §9 say that no learned engine beats the training-free dependency
+  count on this oracle. The learners on the dependency graph *match* it (Amendment 9).
+- **R2.** The Topo → Topo-QoS gain is attributed to "QoS-weighted dependency multiplicity" on the
+  Application–Library graph, not to QoS contract content (§6.2, §7.1).
+- **R2′.** The generator's QoS–topology coupling is reported as part of that mechanism (§7.1).
+- **R3.** `InDeg` and `Reach` appear in Table 7. Every arm is in Supplementary S32, which is
+  rendered from the committed artifacts and reconciled.
+
+**Amendment 9.** D3, M and Z applied, and each is reported in §7.1–7.3 and §8.
+- **D3:** no arm exceeds `InDeg`.
+- **M:** the dependency-graph GATs beat their raw-multigraph counterparts.
+- **Z:** `Reach` stays the recommendation for unseen systems.
+
+All twelve contrasts are in Table 8 and Supplementary S33.
+
+**Amendment 10.** E1, E2 and E3 applied.
+- **E1:** §3, §7.1 and §8.3 say the derivation is what makes the count predictive.
+- **E2:** §7.1 says the library rule adds to transitive reach.
+- **E3:** every arm is in Supplementary S33.
+
+**Unchanged.** The 13-contrast confirmatory omnibus, and every registered decision.

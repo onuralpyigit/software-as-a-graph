@@ -1,8 +1,8 @@
 # JSS experiments: protocols, commands and artifacts
 
 This folder is the experiment companion to the *Journal of Systems and Software* paper
-**"Software-as-a-Graph: Explicit Dependency Graphs Predict Cascading-Failure Impact in
-Publish–Subscribe Systems Before Deployment"**. The paper keeps the headline results and the
+**"Software-as-a-Graph: Dependency-Graph Analysis and Learning for Pre-Deployment
+Cascading-Failure Ranking in Publish–Subscribe Systems"**. The paper keeps the headline results and the
 evidence each one needs. Each page here documents one experiment:
 - the protocol and hyperparameters that the paper summarises in a sentence;
 - the command that reproduces it;
@@ -17,7 +17,7 @@ reported figure against the artifact that produced it. These pages deliberately 
 tables, since a hand-copied table is exactly the kind of number that drifts. They quote only
 abstract-level headline values, and point to the table that carries the full result.
 
-**Where the artifacts live.** `results/` is not tracked in git, except the Amendment 7 artifacts. The JSON artifacts named below ship
+**Where the artifacts live.** `results/` is not tracked in git, except the Amendment 7, 9 and 10 artifacts. The JSON artifacts named below ship
 in the Zenodo replication package ([10.5281/zenodo.14922108](https://doi.org/10.5281/zenodo.14922108))
 as a dated bundle `SaG_JSS_Results_<stamp>` with a `MANIFEST.json` of SHA-256 digests, commit hashes
 and corpus provenance. Every `make` target below writes into `results/` when run from the repository
@@ -29,13 +29,14 @@ root.
 |---|---|---|---|---|
 | §7.1, Table 7 | LOSO ranking of the engines vs. baselines (registered GPU sweep: Supp. S30) | [rq1-engines-loso.md](rq1-engines-loso.md) | `make -f reproduce/Makefile table4` | Supp. S25, S30 |
 | §7.1, Table 7 | Hybrid-HGT and Hybrid-GAT | [rq1-hybrid.md](rq1-hybrid.md) | `make -f reproduce/Makefile rq-hybrid rq-hybrid-gat` | Supp. S23, S24 |
-| §7.2, Table 8 | Capacity- and channel-matched typing × QoS control | [rq2-matched-control.md](rq2-matched-control.md) | `make -f reproduce/Makefile rq2-matched` | Supp. S16, S21, S26 |
-| §6.2, §7.2, Table 9 | Attribution controls: receptive field, QoS node columns vs edge channel, feature-only GBM (Amendment 8, exploratory) | [rq2-attribution-controls.md](rq2-attribution-controls.md) | `make -f reproduce/Makefile rq-attribution` | Supp. S32 |
+| §7.2, Table 9 | Capacity- and channel-matched typing × QoS control | [rq2-matched-control.md](rq2-matched-control.md) | `make -f reproduce/Makefile rq2-matched` | Supp. S16, S21, S26 |
+| §7.2, §8.2 | Attribution controls: receptive field, QoS node columns vs edge channel, feature-only GBM (Amendment 8, exploratory) | [rq2-attribution-controls.md](rq2-attribution-controls.md) | `make -f reproduce/Makefile rq-attribution` | Supp. S32 |
 | §7.3, Table 10 | Zero-shot transfer to five open-source system models | [rq3-zero-shot-transfer.md](rq3-zero-shot-transfer.md) | `python reproduce/realworld_zeroshot.py` | Supp. S7, S15, S27, S29 |
 | §7.4, Table 11 | Analysis cost and comparison with direct simulation | [rq4-cost.md](rq4-cost.md) | `make -f reproduce/Makefile inference-latency` | Supp. S28 |
 | §4.3, §8.2 | Oracles, label QoS content, convergent validity, parameter sensitivity | [oracles-and-sensitivity.md](oracles-and-sensitivity.md) | `make -f reproduce/Makefile convergent-validity` | Supp. S1–S4, S9 |
-| §7.1, §7.1.2, Table 7, Fig. 5 | Dependency counts and QoS-attribution controls (Amendment 7) | [amendment7-training-free.md](amendment7-training-free.md) | `python reproduce/training_free_suite.py all` | Supp. S31 |
-| — (not in the manuscript) | Graph learning on the dependency graph vs. dependency counts (Amendment 9, exploratory) | [amendment9-dependency-graph-learning.md](amendment9-dependency-graph-learning.md) | `make -f reproduce/Makefile rq-dependency-graph` | — |
+| §7.1, Table 7, Fig. 5 | Dependency counts and QoS-attribution controls (Amendment 7) | [amendment7-training-free.md](amendment7-training-free.md) | `python reproduce/training_free_suite.py all` | Supp. S32 |
+| §7.1–7.3, Tables 7–8, §8.2 | Graph learning on the dependency graph vs. dependency counts (Amendment 9, exploratory) | [amendment9-dependency-graph-learning.md](amendment9-dependency-graph-learning.md) | `make -f reproduce/Makefile rq-dependency-graph` | Supp. S33 |
+| §7.1, §8.3 | Value of the dependency derivation: InDeg vs raw-graph counts, Rule 5 in reach (Amendment 10, exploratory) | [amendment10-derivation.md](amendment10-derivation.md) | `python reproduce/training_free_suite.py derivation` | Supp. S33 |
 | §6.4, §8.2 | Registered plan, amendments, omnibus correction, repeatability | [repeatability-and-amendments.md](repeatability-and-amendments.md) | `make -f reproduce/Makefile omnibus` | Supp. S24 |
 
 Section and table numbers are those of the compiled manuscript at the submission tag. The LaTeX
@@ -48,7 +49,7 @@ A name gives the architecture and then what distinguishes it:
 - `-QoS` means QoS-weighted distances for `Topo`, and the 16-D QoS edge vector for a GNN.
 - `-w` means a scalar QoS edge weight.
 - `-S` means a small GAT (28k parameters).
-- `-P` means the flow projection rather than the native multigraph.
+- `-P` means the Application–Library `DEPENDS_ON` dependency graph rather than the native multigraph.
 - `Hybrid-X` means engine X corrected by the `Topo-QoS` prior.
 
 Unsuffixed `GAT` and `GAT-QoS` are matched to HGT's parameter budget.

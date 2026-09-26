@@ -1,7 +1,7 @@
 # Amendment 9: graph learning on the dependency graph
 
-**Paper:** not in the manuscript. This is an exploratory evaluation for the JSS paper; the v4
-manuscript is unchanged.
+**Paper:** §7.1 (Table 7, dependency-graph learner rows), §7.2 (Table 8), §7.3, §8.1–8.2 (Tables
+12–13), Figure 5; Supplementary S33 (Tables S40–S43).
 **Registered:** [`PREREGISTRATION.md`](../PREREGISTRATION.md), Amendment 9 (commit `0b3f7ca0`),
 before any learned arm's number existed. The closed-form comparators (`InDeg`, `Reach`) were
 already published by Amendment 7.
@@ -181,11 +181,12 @@ The native arms' values come from their published zero-shot artifacts (`realworl
 - **A smoke run preceded the registered run.** It was a 2-epoch, 1-seed wiring check, run after
   Amendment 9 was committed. Nothing was changed on the basis of it.
 
-## Open obligation (Amendment 7, R3)
+## Amendment 7's reporting obligation (R3): discharged
 
-Amendment 7's rule R3 says every one of its arms is reported in the manuscript or supplement. R1
-was triggered: `InDeg` ≥ 0.622. The current manuscript (v4, restored 2026-09-26) reports neither
-`InDeg` nor `Reach`. This page flags that obligation; it does not discharge it.
+Amendment 7's rule R3 says every one of its arms is reported in the manuscript or supplement. When
+this page was first written, the v4 manuscript reported neither `InDeg` nor `Reach`. The
+dependency-graph revision of the manuscript reports them in Table 7 and restores Amendment 7's
+tables as Supplementary S32, which discharges R1, R2, R2′ and R3.
 
 ## Artifacts
 
