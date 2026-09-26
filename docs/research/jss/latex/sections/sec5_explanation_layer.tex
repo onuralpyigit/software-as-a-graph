@@ -18,7 +18,7 @@ Figure~\ref{fig:rm} summarizes the layer. All metrics are rank-normalized to $[0
     \item $R(v) = r_{\text{FT}} \cdot FT(v) + (1 - r_{\text{FT}}) \cdot A(v)$ with $r_{\text{FT}} = 0.36$;
     \item $M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))$, over betweenness, QoS-weighted efferent coupling, code-quality penalty, coupling risk and clustering.
 \end{itemize}
-The composite is $Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)$, and an ISO/IEC 25019 context-of-use vector can reweight $R$ and $M$. Intra-dimension weights are shrunk towards a uniform prior ($\lambda = 0.70$). If $Q(v)$ is used to rank, a fully uniform prior is better ($0.319$ vs.\ $0.200$; Supplementary Section~\ref{S-supp:params}). The AHP matrices and their consistency diagnostics are in Supplementary Section~\ref{S-supp:ahp}. Components above the Tukey upper fence of $Q$ are flagged CRITICAL (mean $4.2\%$ of components). High $A$ with low $FT$ indicates a single point of failure that needs replication, while high $FT$ indicates a cascade hub that needs circuit breakers (example card: Supplementary Section~\ref{S-supp:card}).
+The composite is $Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)$, and an ISO/IEC 25019 context-of-use vector can reweight $R$ and $M$. Intra-dimension weights are shrunk towards a uniform prior ($\lambda = 0.70$). If $Q(v)$ is used to rank, a fully uniform prior is better ($0.319$ vs.\ $0.200$; Supplementary Section~\ref{S-supp:params}). The AHP matrices and their consistency diagnostics are in Supplementary Section~\ref{S-supp:ahp}. Components above the Tukey upper fence of $Q$ are flagged CRITICAL (mean $4.2\%$ of components). High $A$ with low $FT$ indicates a single point of failure that needs replication, while high $FT$ indicates a cascade hub that needs circuit breakers (example card: Supplementary Section~\ref{S-supp:card}). The layer names the remediation class; generating candidate repairs and verifying them counterfactually is the subject of companion work on prescriptive remediation and is not evaluated here.
 
 \begin{figure}[htbp]
 \centering
@@ -26,8 +26,3 @@ The composite is $Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)$, and an ISO/IEC 2501
 \caption{The explanation layer. Rank-normalized graph metrics feed the ISO/IEC 25010 sub-characteristics Fault Tolerance, Availability and Maintainability (CR: coupling risk; CC: clustering coefficient), which combine into Reliability and the composite $Q(v)$. A component above the Tukey fence of $Q$ is flagged, and its $FT$/$A$/$M$ profile names the remediation class.}
 \label{fig:rm}
 \end{figure}
-
-\subsection{Counterfactual Verification of Remediation}
-\label{sec:5.3}
-
-Candidate repairs (broker replication, circuit-breaker insertion, topic decoupling) are generated for flagged components and verified counterfactually in memory. A repair is accepted only if it reduces systemic impact beyond seed noise ($\Delta \bar{I}_{\text{comp}} > \kappa \cdot \sigma_{\text{seed}}$, $\kappa \ge 1$) without introducing new articulation points. Developer studies and patch-synthesis benchmarks are future work.

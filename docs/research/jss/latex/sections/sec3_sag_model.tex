@@ -64,7 +64,7 @@ where:
 \begin{table}[htbp]
 \centering
 \small
-\caption{Notation used throughout. Entity and edge types: Table~\ref{tab:1}; simulation oracles: Table~\ref{tab:oracle_roles}.}
+\caption{Notation used throughout. Entity and edge types: Table~\ref{tab:1}; simulation oracles: Section~\ref{sec:4.3}.}
 \label{tab:notation}
 \begin{tabular}{@{}l@{\hspace{5pt}}l@{\hspace{10pt}}l@{\hspace{5pt}}l@{}}
 \toprule
@@ -72,7 +72,7 @@ $G_{\text{structural}}$ & Raw multigraph; oracles only & $Q(v)$ & RM composite q
 $G_{\text{analysis}}$ & \texttt{DEPENDS\_ON} projection; predictor input & $\rho$ & Spearman $\rho$, full population \\
 $V_{\text{app}}$ & Application nodes; the scored population & $\rho_{>0}$ & Spearman $\rho$, active stratum ($I^* > 0$) \\
 $w(t)$, $w(e)$ & QoS topic weight, edge weight & Overlap@$K$ & Top-$K$ set overlap, $K = 0.20\,|V_{\text{app}}|$ \\
-$I^*(v)$ & Primary cascade-reachability oracle & $I_{\text{comp}}$, $I_{\text{dyn}}$, $I_M$ & Further oracles (Table~\ref{tab:oracle_roles}) \\
+$I^*(v)$ & Primary cascade-reachability oracle & $I_{\text{dyn}}(v)$ & Queue-flow oracle; convergent validity \\
 \bottomrule
 \end{tabular}
 \end{table}

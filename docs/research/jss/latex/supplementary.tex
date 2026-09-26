@@ -109,7 +109,7 @@ The multi-metric composite failure oracle
 \begin{equation}
 I_{\text{comp}}(v) = w_1 \cdot \text{ReachabilityLoss} + w_2 \cdot \text{Fragmentation} + w_3 \cdot \text{ThroughputLoss} + w_4 \cdot \text{FlowDisruption}
 \end{equation}
-defines failure impact across four operational dimensions, parameterized by the AHP-derived severity weights $(0.35, 0.25, 0.25, 0.15)$. Section~\ref{M-sec:6.3} of the main manuscript documents that evaluating the RM explanation layer $Q(v)$ against $I_{\text{comp}}(v)$ reveals Simpson's paradox: stratified rank correlations are $\rho = 0.566$ (Application), $0.119$ (Broker), and $0.244$ (Node), while pooling all component types collapses the correlation to $\rho = 0.098$ --- strictly below every per-type stratum it aggregates.
+defines failure impact across four operational dimensions, parameterized by the AHP-derived severity weights $(0.35, 0.25, 0.25, 0.15)$. It is a secondary oracle that the main manuscript does not use: it labels the explanation layer's evaluation in this supplement (Section~\ref{supp:detection}) and enters the inter-oracle comparison of Section~\ref{supp:convergent}.
 
 To determine whether this phenomenon is an artifact of the specific AHP weight vector or a structural property of type-heterogeneous aggregation, we conducted two global sensitivity analyses across the 4-simplex ($\sum_{i=1}^4 w_i = 1, w_i \ge 0$) using the manuscript's twelve-scenario corpus (\texttt{results/icomp\_sensitivity\_jss12.json}):
 \begin{enumerate}
@@ -209,7 +209,7 @@ Availability & 5 & $-0.0029$ & $0.0006$ \\
 \begin{table}[htbp]
 \centering
 \small
-\caption{Matrix over the four composite-impact criteria --- reachability loss (RL), fragmentation (FR), throughput loss (TL), flow disruption (FD) --- backing $I_{\text{comp}}(v)$ (Section~\ref{M-sec:4.3} of the main manuscript). Raw priority vector $(0.389, 0.255, 0.255, 0.100)$; after the framework's $\lambda = 0.7$ shrinkage toward a uniform prior, $(0.347, 0.254, 0.254, 0.145)$, which the shipped $(0.35, 0.25, 0.25, 0.15)$ round. Per Table~\ref{tab:ahp-diag} this matrix is rank-one, so it documents the provenance of those constants without independently justifying them.}
+\caption{Matrix over the four composite-impact criteria --- reachability loss (RL), fragmentation (FR), throughput loss (TL), flow disruption (FD) --- backing $I_{\text{comp}}(v)$ (Section~\ref{supp:icomp}). Raw priority vector $(0.389, 0.255, 0.255, 0.100)$; after the framework's $\lambda = 0.7$ shrinkage toward a uniform prior, $(0.347, 0.254, 0.254, 0.145)$, which the shipped $(0.35, 0.25, 0.25, 0.15)$ round. Per Table~\ref{tab:ahp-diag} this matrix is rank-one, so it documents the provenance of those constants without independently justifying them.}
 \label{tab:ahp-impact}
 \begin{tabular}{lcccc}
 \toprule

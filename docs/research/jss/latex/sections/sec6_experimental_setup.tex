@@ -81,7 +81,7 @@ where BT is normalized betweenness, $\text{BT}_{w}$ is betweenness over edge dis
 \subsection{Metrics, Protocols and Statistics}
 \label{sec:6.3}
 
-\noindent\textbf{Population.} Every predictor in a table is scored on the same node population, the Application set $V_{\text{app}}$. Pooling entity types conflates distinct base rates. Against $I_{\text{comp}}$, RM correlates at $\rho = 0.597$ on Applications but only $0.217$ pooled over all types (Supplementary Section~\ref{S-supp:detection}).
+\noindent\textbf{Population.} Every predictor in a table is scored on the same node population, the Application set $V_{\text{app}}$. Pooling entity types conflates distinct base rates (Supplementary Section~\ref{S-supp:detection}).
 
 \noindent\textbf{Metrics.} Ranking is measured by Spearman $\rho$ against $I^*(v)$. Critical-set identification is measured by Overlap@$K$, the fraction of the true top-$K$ recovered by the predicted top-$K$ with $K = \text{round}(0.20\,|V_{\text{app}}|)$, at which top-$K$ precision, recall and $F_1$ coincide. PR-AUC, $F_1@\tau$ and nDCG@10 are reported in Supplementary Section~\ref{S-supp:identification}.
 

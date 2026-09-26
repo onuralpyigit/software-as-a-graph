@@ -1467,7 +1467,7 @@ def check_engine_regimes(rep: Report) -> None:
     ):
         _quote(rep, "sec:8.2", sec8, pattern, truths)
 
-    # The two registered control arms, quoted in Section 7.2 and the supplement.
+    # The two registered control arms: HGT-QoS-U quoted in Section 7.2, both in the supplement.
     dirn = _load("loso_significance_directionality_cpu.json") or {}
     capa = _load("loso_significance_capacity_cpu.json") or {}
     ctl = {r["variant"] + "|" + r["baseline"]: r for a in (dirn, capa) for r in a.get("rq2_controls", [])}
@@ -1477,11 +1477,12 @@ def check_engine_regimes(rep: Report) -> None:
         return
     sec7 = _tex("sec7_results.tex")
     _quote(rep, "sec:rq2", sec7,
-           r"reaches \$\\rho = ([\d.]+)\$, level with the 16-D.*?reaches " + num + r" against \\texttt\{HGT-QoS\}'s "
+           r"The directionality control registered in Amendment~2 agrees:.*?reaches " + num
+           + r" against \\texttt\{HGT-QoS\}'s "
            + num + r" \(registered contrast \\texttt\{HGT-QoS\} vs.\\ \\texttt\{HGT-QoS-U\} " + num
            + r", \\texttt\{HGT-QoS\} ahead on (\d+)/12 folds, \$p = ([\d.]+)\$",
-           [(1, L["mean_rho"]["GAT-w"]), (2, L["mean_rho"]["HGT-QoS-U"]), (3, L["mean_rho"]["HGT-QoS"]),
-            (4, uni["mean_delta"]), (5, uni["wins"]), (6, uni["p"])])
+           [(1, L["mean_rho"]["HGT-QoS-U"]), (2, L["mean_rho"]["HGT-QoS"]),
+            (3, uni["mean_delta"]), (4, uni["wins"]), (5, uni["p"])])
     _quote(rep, "supp:amendments", _supp(),
            r"reaches \$\\rho = ([\d.]+)\$ \(registered contrast \\texttt\{HGT-QoS\} vs.\\ \\texttt\{GAT-w\} " + num
            + r", \\texttt\{HGT-QoS\} ahead on (\d+)/12 folds, \$p = ([\d.]+)\$\).*?reaches " + num
