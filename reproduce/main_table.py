@@ -930,12 +930,32 @@ def topo_qos_prior(scenario: str, cache_dir: Optional[Path] = None) -> Dict[str,
     closed-form engine it encodes. Average ranks for ties, scaled by (n - 1).
     Only Applications and Libraries are scored; callers treat absent ids as 0.
     """
-    from scipy.stats import rankdata
-
     graph, struct, _sim, _rm, _gt = _load_scenario_data(
         scenario, substrate="projection", cache_dir=cache_dir
     )
-    raw = _compute_topo_baseline_scores(graph, struct, use_qos=True) or {}
+    return _rank_normalise(_compute_topo_baseline_scores(graph, struct, use_qos=True) or {})
+
+
+def indeg_prior(scenario: str, cache_dir: Optional[Path] = None) -> Dict[str, float]:
+    """Hybrid-GAT-P prior (Amendment 9): direct-dependent count, rank-normalised.
+
+    In-degree on ``derive_flow_projection`` of the scenario's topology -- the
+    same graph and score as Amendment 7's ``InDeg`` -- normalised exactly as
+    :func:`topo_qos_prior`. Topology source as in ``_load_scenario_data``.
+    """
+    from saag.prediction.structural_predictor import derive_flow_projection
+
+    cache_dir = Path(cache_dir) if cache_dir is not None else _find_cache_dir(scenario)
+    cache_topo = cache_dir / "topology.json"
+    path = cache_topo if cache_topo.exists() else SCENARIOS_DIR / f"{scenario}.json"
+    flow = derive_flow_projection(json.loads(path.read_text()))
+    return _rank_normalise({str(v): float(d) for v, d in flow.in_degree()})
+
+
+def _rank_normalise(raw: Dict[str, float]) -> Dict[str, float]:
+    """Average ranks for ties, scaled by (n - 1) to [0, 1]; one node gets 0.5."""
+    from scipy.stats import rankdata
+
     if not raw:
         return {}
     ids = sorted(raw)

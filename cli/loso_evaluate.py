@@ -95,7 +95,7 @@ import os
 import shutil
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -149,10 +149,12 @@ _STRUCTURAL_VARIANTS = ("topo_baseline", "topo_qos")
 _HOMOGENEOUS_VARIANTS = (
     "gl", "gl_qos", "gl_full_cap", "gl_full_qos_cap", "gl_full_qos16_cap",
     "gl_qos16_prior", "gl_full_qos16_nfmask",
+    # Amendment 9: the same GATs on the DEPENDS_ON projection.
+    "gl_proj_cap", "gl_proj_qos16_cap", "gl_proj_qos16_indeg_prior",
 )
-_HGT_VARIANTS = ("hgl", "hgl_qos", "hgl_qos_uni", "hgl_qos_prior", "topology_rm")
-#: HGT arms that receive the closed-form Topo-QoS prior (Amendment 5).
-_PRIOR_VARIANTS = ("hgl_qos_prior", "gl_qos16_prior")
+_HGT_VARIANTS = (
+    "hgl", "hgl_qos", "hgl_qos_uni", "hgl_qos_prior", "topology_rm", "hgl_proj_qos",
+)
 #: Learned, but not a graph model: gradient boosting on the same typed node
 #: features the GNNs read. Its own branch because it has no HeteroData forward
 #: pass, no checkpoint and no epochs -- see saag/prediction/models/tabular.py.
@@ -395,24 +397,79 @@ def _prepare_bundle_graph(
         return bundle.graph, bundle.structural
     from reproduce.main_table import _mask_qos_in_graph, _mask_qos_in_structural
 
-    return _mask_qos_in_graph(bundle.graph), _mask_qos_in_structural(bundle.structural)
+    masked = _mask_qos_in_graph(bundle.graph)
+    # The mask rebuilds the graph and drops graph-level attributes; a
+    # dependency-graph bundle's native source (see _dependency_graph) must survive.
+    if "infra_source" in bundle.graph.graph:
+        masked.graph["infra_source"] = bundle.graph.graph["infra_source"]
+    return masked, _mask_qos_in_structural(bundle.structural)
+
+
+_DEPENDENCY_GRAPH_CACHE: Dict[str, nx.DiGraph] = {}
+
+
+def _dependency_graph(bundle: ScenarioBundle) -> nx.DiGraph:
+    """The bundle's Application--Library DEPENDS_ON projection (Amendment 9).
+
+    Edges are ``derive_depends_on_edges`` of the cached topology (Rules 1 and 5,
+    dependent -> dependency), the set Amendment 7's InDeg and Reach read. Nodes
+    keep the native graph's order and attributes, and edges are sorted by that
+    order, so the build does not depend on set iteration. ``weight`` carries the
+    edge's ``qos_weight``: it is ``edge_attr[:, 0]``, and the derivation's own
+    ``weight`` is a constant 1.0. The native graph rides along as
+    ``graph["infra_source"]`` so Library infra features match the native build.
+    """
+    key = f"{bundle.cache_dir}::{bundle.scenario_id}"
+    if key not in _DEPENDENCY_GRAPH_CACHE:
+        from saag.prediction.structural_predictor import derive_depends_on_edges
+
+        native = bundle.graph
+        topology = json.loads((Path(bundle.cache_dir) / "topology.json").read_text())
+        g = nx.DiGraph(infra_source=native)
+        for n, attrs in native.nodes(data=True):
+            if (attrs.get("component_type") or attrs.get("type")) in ("Application", "Library"):
+                g.add_node(n, **attrs)
+        order = {n: i for i, n in enumerate(g.nodes)}
+        edges = [e for e in derive_depends_on_edges(topology)
+                 if str(e["source"]) in order and str(e["target"]) in order]
+        for e in sorted(edges, key=lambda e: (order[str(e["source"])], order[str(e["target"])])):
+            qw = float(e.get("qos_weight", 1.0))
+            g.add_edge(str(e["source"]), str(e["target"]),
+                       type="DEPENDS_ON", dependency_type=e.get("type", "app_to_app"),
+                       weight=qw, qos_weight=qw, qos_profile=e.get("qos_profile") or {},
+                       path_count=e.get("path_count", 1))
+        _DEPENDENCY_GRAPH_CACHE[key] = g
+    return _DEPENDENCY_GRAPH_CACHE[key]
+
+
+def _dependency_bundle(bundle: Optional[ScenarioBundle]) -> Optional[ScenarioBundle]:
+    """``bundle`` with its graph swapped for :func:`_dependency_graph`.
+
+    Labels, features, cache directory and the *native* ``n_nodes`` are kept, so
+    primary / inner-validation selection is the same as for the native arms.
+    """
+    return None if bundle is None else replace(bundle, graph=_dependency_graph(bundle))
 
 
 _PRIOR_CACHE: Dict[str, Dict[str, float]] = {}
 
 
-def _with_prior(bundle: ScenarioBundle, sm: Dict[str, Any]) -> Dict[str, Any]:
-    """Copy of ``sm`` with each node's ``topo_prior`` added (Amendment 5).
+def _with_prior(bundle: ScenarioBundle, sm: Dict[str, Any], kind: Any = "topo_qos") -> Dict[str, Any]:
+    """Copy of ``sm`` with each node's ``topo_prior`` column added.
 
-    The prior is the rank-normalised published Topo-QoS score, computed once per
-    scenario and memoised per process. ``sm`` itself is never mutated: it may be
-    the bundle's own structural dict, shared with every other variant.
+    ``kind`` names the closed-form score (``"topo_qos"``, Amendment 5; or
+    ``"indeg"``, Amendment 9); ``True`` means ``"topo_qos"``. The prior is
+    rank-normalised, computed once per scenario and memoised per process.
+    ``sm`` itself is never mutated: it may be the bundle's own structural dict,
+    shared with every other variant.
     """
-    from reproduce.main_table import topo_qos_prior
+    from reproduce.main_table import indeg_prior, topo_qos_prior
 
-    key = f"{bundle.cache_dir}::{bundle.scenario_id}"
+    kind = "topo_qos" if kind is True else kind
+    key = f"{bundle.cache_dir}::{bundle.scenario_id}::{kind}"
     if key not in _PRIOR_CACHE:
-        _PRIOR_CACHE[key] = topo_qos_prior(bundle.scenario_id, cache_dir=bundle.cache_dir)
+        fn = {"topo_qos": topo_qos_prior, "indeg": indeg_prior}[kind]
+        _PRIOR_CACHE[key] = fn(bundle.scenario_id, cache_dir=bundle.cache_dir)
     prior = _PRIOR_CACHE[key]
     out = {nid: dict(vals) for nid, vals in sm.items()}
     for nid, p in prior.items():
@@ -422,24 +479,28 @@ def _with_prior(bundle: ScenarioBundle, sm: Dict[str, Any]) -> Dict[str, Any]:
 
 def _build_training_hetero(
     bundle: ScenarioBundle, use_qos: bool, rank_normalize_features: bool,
-    append_prior: bool = False,
+    append_prior: Any = False,
 ) -> HeteroData:
-    """HeteroData for one training scenario, splits left to the caller."""
+    """HeteroData for one training scenario, splits left to the caller.
+
+    ``append_prior`` is falsy, ``True`` (the Topo-QoS prior) or a prior kind
+    accepted by :func:`_with_prior`.
+    """
     graph, sm = _prepare_bundle_graph(bundle, use_qos)
     if append_prior:
-        sm = _with_prior(bundle, sm)
+        sm = _with_prior(bundle, sm, append_prior)
     return networkx_to_hetero_data(
         graph, sm, bundle.simulation, bundle.rm,
         qos_enabled=use_qos,
         rank_normalize_features=rank_normalize_features,
         edge_simulation_results=bundle.edge_simulation or None,
-        append_prior=append_prior,
+        append_prior=bool(append_prior),
     ).hetero_data
 
 
 def _build_validation_hetero(
     bundle: ScenarioBundle, use_qos: bool, rank_normalize_features: bool,
-    append_prior: bool = False,
+    append_prior: Any = False,
 ) -> HeteroData:
     """HeteroData for the inner validation scenario.
 
@@ -826,6 +887,15 @@ def _run_seed(
     rank_normalize_features = cfg["rank_normalize_features"]
     rank_normalize_labels = cfg["rank_normalize_labels"]
 
+    # Amendment 9: dependency-graph arms learn on the same bundles with the
+    # native graph swapped for its DEPENDS_ON projection. Scoring below reads
+    # plan.holdout, so the scored population and labels do not change.
+    if _registry.learns_on_projection(variant, "loso"):
+        holdout, primary, val_bundle = (
+            _dependency_bundle(b) for b in (holdout, primary, val_bundle)
+        )
+        inductives = [_dependency_bundle(b) for b in inductives]
+
     logger.info("  ── seed %d ──", seed)
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -883,18 +953,18 @@ def _run_seed(
             # features is built QoS-off and has the QoS edges grafted back on.
             use_qos = _registry.node_qos_for(variant, "loso")
             graft_edges = _registry.edge_dim(variant, "loso") is not None and not use_qos
-            use_prior = variant in _PRIOR_VARIANTS
+            use_prior = _registry.prior_for(variant)
             train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
             holdout_graph, holdout_sm = _prepare_bundle_graph(holdout, use_qos)
             if use_prior:
-                train_sm = _with_prior(primary, train_sm)
-                holdout_sm = _with_prior(holdout, holdout_sm)
+                train_sm = _with_prior(primary, train_sm, use_prior)
+                holdout_sm = _with_prior(holdout, holdout_sm, use_prior)
 
             conv = networkx_to_hetero_data(
                 train_graph, train_sm, primary.simulation, primary.rm,
                 qos_enabled=use_qos,
                 rank_normalize_features=rank_normalize_features,
-                append_prior=use_prior,
+                append_prior=bool(use_prior),
             )
             data = conv.hetero_data
             if graft_edges:
@@ -951,7 +1021,7 @@ def _run_seed(
                                    hidden_channels=_registry.hidden_for(variant, hidden, "loso"),
                                    num_heads=heads,
                                    num_layers=layers, dropout=dropout,
-                                   edge_dim=edge_dim, topo_prior=use_prior)
+                                   edge_dim=edge_dim, topo_prior=bool(use_prior))
             model.to(target_device)
             best_path = ckpt_dir / "best_model.pt"
             if best_path.exists():
@@ -982,7 +1052,7 @@ def _run_seed(
                 holdout_graph, holdout_sm, holdout.simulation, holdout.rm,
                 qos_enabled=use_qos,
                 rank_normalize_features=rank_normalize_features,
-                append_prior=use_prior,
+                append_prior=bool(use_prior),
             )
             data_h = conv_h.hetero_data
             if graft_edges:
@@ -1016,13 +1086,13 @@ def _run_seed(
         elif variant in _HGT_VARIANTS:
             # hgl_qos (default), hgl, hgl_qos_uni or topology_rm → GNNService
             effective_mode = "rm" if variant == "topology_rm" else mode
-            use_qos = variant in ("hgl_qos", "hgl_qos_uni", "hgl_qos_prior")
-            use_prior = variant in _PRIOR_VARIANTS
+            use_qos = variant in ("hgl_qos", "hgl_qos_uni", "hgl_qos_prior", "hgl_proj_qos")
+            use_prior = _registry.prior_for(variant)
             train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
             holdout_graph, holdout_sm = _prepare_bundle_graph(holdout, use_qos)
             if use_prior:
-                train_sm = _with_prior(primary, train_sm)
-                holdout_sm = _with_prior(holdout, holdout_sm)
+                train_sm = _with_prior(primary, train_sm, use_prior)
+                holdout_sm = _with_prior(holdout, holdout_sm, use_prior)
 
             best_path = ckpt_dir / "best_model.pt"
             if best_path.exists():
@@ -1036,7 +1106,7 @@ def _run_seed(
             else:
                 service = GNNService(
                     checkpoint_dir=str(ckpt_dir),
-                    hidden_channels=hidden,
+                    hidden_channels=_registry.hidden_for(variant, hidden, "loso"),
                     num_heads=heads,
                     num_layers=effective_layers,
                     dropout=dropout,
@@ -1046,7 +1116,7 @@ def _run_seed(
                     # cross-cutting CLI ablation. The directionality control
                     # is the only arm that turns this off.
                     use_bidirectional=_registry.bidirectional_for(variant),
-                    topo_prior=use_prior,
+                    topo_prior=bool(use_prior),
                 )
                 service.train(
                     graph=train_graph,
@@ -1170,7 +1240,7 @@ def _run_seed(
     true_impact = {nid: float(d.get("composite", 0.0)) for nid, d in holdout.simulation.items()}
 
     m = compute_inductive_metrics(
-        pred_scores, true_impact, holdout.graph, population=eval_population,
+        pred_scores, true_impact, plan.holdout.graph, population=eval_population,
         tau_abs=critical_threshold,
     )
     m["seed"] = seed

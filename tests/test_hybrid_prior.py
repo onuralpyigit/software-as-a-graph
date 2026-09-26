@@ -110,6 +110,25 @@ def test_prior_is_rank_normalised_topo_qos():
     assert rho == pytest.approx(1.0)
 
 
+def test_indeg_prior_is_rank_normalised_indeg():
+    """Hybrid-GAT-P's prior (Amendment 9) orders nodes exactly as Amendment 7's InDeg."""
+    import json
+
+    from scipy.stats import spearmanr
+
+    from reproduce.main_table import indeg_prior
+    from reproduce.training_free_suite import indeg
+    from saag.prediction.structural_predictor import derive_flow_projection
+
+    path = Path("data/scenarios/atm_system.json")
+    prior = indeg_prior("atm_system", cache_dir=Path("/nonexistent"))  # falls back to the dataset
+    raw = indeg(derive_flow_projection(json.loads(path.read_text())))
+    assert set(prior) == set(raw)
+    assert all(0.0 <= v <= 1.0 for v in prior.values())
+    ids = sorted(raw)
+    assert spearmanr([prior[i] for i in ids], [raw[i] for i in ids]).correlation == pytest.approx(1.0)
+
+
 # ── SaG-Hybrid-GAT (PREREGISTRATION.md Amendment 6) ──────────────────────────
 
 def _gat(topo_prior):
