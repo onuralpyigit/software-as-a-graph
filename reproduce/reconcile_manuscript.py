@@ -45,6 +45,7 @@ if str(ROOT) not in sys.path:
 
 from reproduce._provenance import corpus_digest  # noqa: E402
 from reproduce.omnibus_holm import collect, omnibus  # noqa: E402
+from reproduce import engine_regimes as _regimes  # noqa: E402
 from saag.evaluation import variant_registry as _registry  # noqa: E402
 
 SECTIONS = ROOT / "docs/research/jss/latex/sections"
@@ -870,6 +871,8 @@ FRESHNESS_TARGETS = {
     "realworld_zeroshot_gl_qos16_prior_cpu.json": "Table 14 Hybrid-GAT system models",
     # Holm over every registered contrast of the plan and its amendments.
     "omnibus_registered_holm.json": "Section 6.3 / Supplementary S24 omnibus correction",
+    # Where graph learning helps (post hoc): Section 8.2 and Supplementary Engine Regimes.
+    "engine_regimes.json": "Section 8.2 / Supplementary Engine Regimes",
 }
 
 #: Artifacts that never read the corpus, so the corpus-freshness rule cannot
@@ -1219,7 +1222,7 @@ def check_contrasts_matched(rep: Report) -> None:
 #: (file, pattern). Each pattern captures (SaG-Hybrid, SaG-Hybrid-GAT) in that
 #: order; the sites that name one engine first say so in the pattern.
 OMNIBUS_PROSE = [
-    ("sec7_results.tex", r"eleven registered contrasts of the study \(\$p_\{\\text\{omni\}\} = ([\d.]+)\$ and \$([\d.]+)\$"),
+    ("sec7_results.tex", r"thirteen registered contrasts of the study \(\$p_\{\\text\{omni\}\} = ([\d.]+)\$ and \$([\d.]+)\$"),
 ]
 
 
@@ -1302,6 +1305,275 @@ def check_omnibus_holm(rep: Report) -> None:
                 rep.findings.append(Finding("omnibus prose", f, v, float(got), round(want[v], 4)))
 
 
+def _quote(rep: Report, where: str, text: str, pattern: str,
+           truths: List[Tuple[int, float]]) -> None:
+    """Check figures quoted in prose: capture group ``i`` must equal ``truth``
+    at the precision it is printed with."""
+    m = re.search(pattern, text, re.S)
+    if m is None:
+        rep.findings.append(Finding(where, pattern[:34], "quote", "not found", None,
+                                    "quote moved or reworded"))
+        return
+    for i, truth in truths:
+        raw = m.group(i).replace("+", "")
+        decimals = len(raw.split(".")[1]) if "." in raw else 0
+        rep.checked += 1
+        if abs(float(raw) - round(truth, decimals)) > 1e-9:
+            rep.findings.append(Finding(where, pattern[:34], f"group {i}", float(raw), round(truth, 4)))
+
+
+#: Supplement Table tab:supp-regimes-desc, column order.
+REGIME_DESC_COLUMNS = ("n_apps", "n_topics", "n_brokers", "n_hosts", "n_libraries", "edges_per_node",
+                       "uses_per_app", "subscriber_gini", "zero_share", "tie_fraction",
+                       "projection_density")
+
+
+def check_engine_regimes(rep: Report) -> None:
+    """Section 8.2 and the supplement's Engine Regimes section.
+
+    The artifact must equal a fresh ``engine_regimes.build()`` over the sweep
+    artifacts it joins, so a re-run sweep cannot leave the regime figures
+    behind. Then every figure quoted in Sections 7.2, 8.1 and 8.2, the regime
+    table, and the four supplement tables are checked against it.
+    """
+    art = _load("engine_regimes.json")
+    if art is None:
+        rep.skipped.append("engine_regimes.json absent; Section 8.2 unchecked")
+        return
+    try:
+        fresh = _regimes.build()
+    except (OSError, KeyError, ValueError) as exc:
+        rep.skipped.append(f"engine_regimes: a source artifact is unreadable ({exc})")
+        fresh = None
+    if fresh is not None:
+        rep.checked += 1
+        if json.loads(json.dumps(fresh)) != {k: v for k, v in art.items() if k != "provenance"}:
+            rep.findings.append(Finding("engine_regimes", "artifact", "content", "differs",
+                                        "fresh build", "artifact stale"))
+
+    L, Z = art["loso"], art["zero_shot"]
+    pf, reg, zs = L["per_fold"], L["regimes_by_topo_qos_tercile"], Z["per_system"]
+    corr = {(c["quantity"], c["descriptor"]): c for c in L["correlations"]}
+    cov = L["receptive_field_coverage"]
+    rf = cov["hgl_qos_rf_share"].values()
+    folds = L["folds"]
+
+    def zs_range(systems, key, arms=_regimes.PURE_LEARNED):
+        vals = [zs[a][s_][key] for a in arms for s_ in systems]
+        return min(vals), max(vals)
+
+    pubsub = _regimes.PUBSUB_ORIGINALS
+    rpc = [s_ for s_ in Z["systems"] if s_ not in pubsub]
+    ps_lo, ps_hi = zs_range(pubsub, "rho")
+    ps_cf_lo, ps_cf_hi = zs_range(pubsub, "rho", ("Topo", "Topo-QoS"))
+    ps_pos_lo, ps_pos_hi = zs_range(pubsub, "rho_pos")
+    rpc_lo, rpc_hi = zs_range(rpc, "rho")
+    rpc_pos_lo, rpc_pos_hi = zs_range(rpc, "rho_pos")
+    cf_pos_max = zs_range(pubsub, "rho_pos", ("Topo", "Topo-QoS"))[1]
+    rep.checked += 1
+    if cf_pos_max >= 0:
+        rep.findings.append(Finding("tab:regimes", "originally pub-sub", "closed-form rho>0",
+                                    "negative", round(cf_pos_max, 4)))
+    w = {t: reg[t]["wins_vs_topo_qos"] for t in reg}
+    for t, arms in (("weak", ("HGT-QoS", "GAT-QoS")), ("middle", ("Hybrid-HGT", "Hybrid-GAT"))):
+        rep.checked += 1
+        if len({w[t][a] for a in arms}) != 1:
+            rep.findings.append(Finding("tab:regimes", t, "'both' wins", "equal",
+                                        str({a: w[t][a] for a in arms})))
+    m = lambda t, a: reg[t]["mean_rho"][a]
+    n = lambda t: len(reg[t]["folds"])
+    num = r"\$([-+]?[\d.]+)\$"
+
+    sec8 = _tex("sec8_discussion.tex")
+    table = sec8[sec8.index(r"\label{tab:regimes}"):sec8.index(r"\end{table}", sec8.index(r"\label{tab:regimes}"))]
+    _quote(rep, "tab:regimes", table,
+           r"Closed-form ranks poorly.*?\\texttt\{Topo-QoS\} " + num + r"; \\texttt\{HGT-QoS\} " + num
+           + r", \\texttt\{GAT-QoS\} " + num + r", both (\d+)/(\d+) folds.*?hybrids " + num + " / " + num,
+           [(1, m("weak", "Topo-QoS")), (2, m("weak", "HGT-QoS")), (3, m("weak", "GAT-QoS")),
+            (4, w["weak"]["HGT-QoS"]), (5, n("weak")), (6, m("weak", "Hybrid-HGT")), (7, m("weak", "Hybrid-GAT"))])
+    _quote(rep, "tab:regimes", table,
+           r"Intermediate.*?\\texttt\{Topo-QoS\} " + num + r"; \\texttt\{HGT-QoS\} " + num
+           + r", \\texttt\{GAT-QoS\} " + num + r"; Hybrid-HGT " + num + r", Hybrid-GAT " + num
+           + r", both (\d+)/(\d+) folds",
+           [(1, m("middle", "Topo-QoS")), (2, m("middle", "HGT-QoS")), (3, m("middle", "GAT-QoS")),
+            (4, m("middle", "Hybrid-HGT")), (5, m("middle", "Hybrid-GAT")),
+            (6, w["middle"]["Hybrid-HGT"]), (7, n("middle"))])
+    _quote(rep, "tab:regimes", table,
+           r"Closed-form ranks well.*?\\texttt\{Topo-QoS\} " + num + r"; \\texttt\{HGT-QoS\} " + num
+           + r" \((\d+)/(\d+) folds\), \\texttt\{GAT-QoS\} " + num + r" \((\d+)/(\d+)\); hybrids "
+           + num + " / " + num,
+           [(1, m("strong", "Topo-QoS")), (2, m("strong", "HGT-QoS")), (3, w["strong"]["HGT-QoS"]),
+            (4, n("strong")), (5, m("strong", "GAT-QoS")), (6, w["strong"]["GAT-QoS"]), (7, n("strong")),
+            (8, m("strong", "Hybrid-HGT")), (9, m("strong", "Hybrid-GAT"))])
+    _quote(rep, "tab:regimes", table,
+           r"originally pub-sub.*?Learned " + num + "--" + num + r" vs.\\ closed-form " + num + "--" + num
+           + r"; learned \$\\rho_\{>0\}\$ " + num + "--" + num,
+           [(1, ps_lo), (2, ps_hi), (3, ps_cf_lo), (4, ps_cf_hi), (5, ps_pos_lo), (6, ps_pos_hi)])
+    _quote(rep, "tab:regimes", table,
+           r"originally RPC.*?Learned " + num + "--" + num + r", but Topo " + num
+           + r" on Online Boutique; learned \$\\rho_\{>0\}\$ " + num + " to " + num,
+           [(1, rpc_lo), (2, rpc_hi), (3, zs["Topo"]["realworld_cloud_microservices"]["rho"]),
+            (4, rpc_pos_lo), (5, rpc_pos_hi)])
+    _quote(rep, "tab:guidance", sec8,
+           r"Every pure learned engine's \$\\rho_\{>0\}\$ lies in \$\[([-+]?[\d.]+), ([-+]?[\d.]+)\]\$",
+           [(1, rpc_pos_lo), (2, rpc_pos_hi)])
+
+    weak = reg["weak"]
+    give_up = sorted(m("weak", e) - m("weak", h) for e, h in (("HGT-QoS", "Hybrid-HGT"), ("GAT-QoS", "Hybrid-GAT")))
+    hq_gq_wins = sum(pf["HGT-QoS"][f]["rho"] > pf["GAT-QoS"][f]["rho"] for f in folds)
+    apps = sorted(d["n_apps"] for d in L["descriptors"].values())
+    for pattern, truths in (
+        (r"the untyped \\texttt\{GAT\} without them reaches " + num + " zero-shot", [(1, Z["mean_rho"]["GAT"])]),
+        (r"\\texttt\{HGT-QoS\} scores " + num + ", " + num + " and " + num + r", whereas \\texttt\{Topo-QoS\} scores "
+         + num + ", " + num + " and " + num,
+         [(1, m("weak", "HGT-QoS")), (2, m("middle", "HGT-QoS")), (3, m("strong", "HGT-QoS")),
+          (4, m("weak", "Topo-QoS")), (5, m("middle", "Topo-QoS")), (6, m("strong", "Topo-QoS"))]),
+        (r"gives up " + num + "--" + num + " against its learned engine", [(1, give_up[0]), (2, give_up[1])]),
+        (r"reach \$\\rho = ([\d.]+)\$ under LOSO, level with \\texttt\{GAT-QoS\} \(" + num + r"\)",
+         [(1, L["mean_rho"]["GBM-Feat"]), (2, L["mean_rho"]["GAT-QoS"])]),
+        (r"\\texttt\{GAT-QoS\} reaches \$\\rho = ([\d.]+)\$ and \$\\rho_\{>0\} = ([\d.]+)\$, against " + num
+         + " and " + num + r" for \\texttt\{GBM-Feat\}",
+         [(1, Z["mean_rho"]["GAT-QoS"]), (2, Z["mean_rho_pos"]["GAT-QoS"]),
+          (3, Z["mean_rho"]["GBM-Feat"]), (4, Z["mean_rho_pos"]["GBM-Feat"])]),
+        (r"trees lead on the active stratum \(" + num + r" vs.\\ " + num + r"\)",
+         [(1, L["mean_rho_pos"]["GBM-Feat"]), (2, L["mean_rho_pos"]["GAT-QoS"])]),
+        (r"most on Enterprise \(" + num + r" vs.\\ " + num + r"\)",
+         [(1, pf["HGT-QoS"]["enterprise_system"]["rho"]), (2, pf["Topo-QoS"]["enterprise_system"]["rho"])]),
+        (r"with (\d+) applications against at most (\d+) elsewhere", [(1, apps[-1]), (2, apps[-2])]),
+        (r"\(\$(\d+)\$--\$(\d+)\\%\$ per fold\)", [(1, 100 * min(rf)), (2, 100 * max(rf))]),
+        (r"per-fold \$\\rho\$ \(Spearman " + num + r"\) or with its gain over \\texttt\{Topo-QoS\} \(" + num + r"\)",
+         [(1, cov["HGT-QoS rho"]["rho"]), (2, cov["HGT-QoS - Topo-QoS"]["rho"])]),
+        (r"\\texttt\{HGT-QoS\} wins (\d+) of (\d+) folds against \\texttt\{GAT-QoS\}", [(1, hq_gq_wins), (2, len(folds))]),
+        (r"its Spearman correlation is " + num + " with the number of applications, " + num + " with topics and "
+         + num + r" with brokers \(Enterprise " + num + ", Healthcare " + num + r"\)",
+         [(1, corr[("HGT - GAT", "n_apps")]["rho"]), (2, corr[("HGT - GAT", "n_topics")]["rho"]),
+          (3, corr[("HGT - GAT", "n_brokers")]["rho"]),
+          (4, pf["HGT"]["enterprise_system"]["rho"] - pf["GAT"]["enterprise_system"]["rho"]),
+          (5, pf["HGT"]["healthcare_system"]["rho"] - pf["GAT"]["healthcare_system"]["rho"])]),
+        (r"vanishes once QoS inputs are present \(" + num + " with applications\)",
+         [(1, corr[("HGT-QoS - GAT-QoS", "n_apps")]["rho"])]),
+        (r"one of (\d+) descriptor--gain correlations.*?\(\$q \\ge ([\d.]+)\$\)",
+         [(1, L["n_tests"]), (2, L["min_q_bh"] - 0.005)]),
+        (r"falls with size \(Spearman " + num + " with applications, " + num + r" with libraries\), while the "
+         r"hybrid's correction gains value \(" + num + r"\)",
+         [(1, corr[("HGT-QoS - Topo-QoS", "n_apps")]["rho"]), (2, corr[("HGT-QoS - Topo-QoS", "n_libraries")]["rho"]),
+          (3, corr[("Hybrid-HGT - HGT-QoS", "n_apps")]["rho"])]),
+    ):
+        _quote(rep, "sec:8.2", sec8, pattern, truths)
+
+    # The two registered control arms, quoted in Section 7.2 and the supplement.
+    dirn = _load("loso_significance_directionality_cpu.json") or {}
+    capa = _load("loso_significance_capacity_cpu.json") or {}
+    ctl = {r["variant"] + "|" + r["baseline"]: r for a in (dirn, capa) for r in a.get("rq2_controls", [])}
+    uni, capr = ctl.get("hgl_qos|hgl_qos_uni"), ctl.get("hgl_qos|gl_full_qos_cap")
+    if uni is None or capr is None:
+        rep.skipped.append("registered control contrasts absent; Section 7.2 control quotes unchecked")
+        return
+    sec7 = _tex("sec7_results.tex")
+    _quote(rep, "sec:rq2", sec7,
+           r"reaches \$\\rho = ([\d.]+)\$, level with the 16-D.*?reaches " + num + r" against \\texttt\{HGT-QoS\}'s "
+           + num + r" \(registered contrast \\texttt\{HGT-QoS\} vs.\\ \\texttt\{HGT-QoS-U\} " + num
+           + r", \\texttt\{HGT-QoS\} ahead on (\d+)/12 folds, \$p = ([\d.]+)\$",
+           [(1, L["mean_rho"]["GAT-w"]), (2, L["mean_rho"]["HGT-QoS-U"]), (3, L["mean_rho"]["HGT-QoS"]),
+            (4, uni["mean_delta"]), (5, uni["wins"]), (6, uni["p"])])
+    _quote(rep, "supp:amendments", _supp(),
+           r"reaches \$\\rho = ([\d.]+)\$ \(registered contrast \\texttt\{HGT-QoS\} vs.\\ \\texttt\{GAT-w\} " + num
+           + r", \\texttt\{HGT-QoS\} ahead on (\d+)/12 folds, \$p = ([\d.]+)\$\).*?reaches " + num
+           + r" \(\\texttt\{HGT-QoS\} vs.\\ \\texttt\{HGT-QoS-U\} " + num + r", (\d+)/12, \$p = ([\d.]+)\$\), "
+           r"and transfers zero-shot at " + num + " against " + num,
+           [(1, L["mean_rho"]["GAT-w"]), (2, capr["mean_delta"]), (3, capr["wins"]), (4, capr["p"]),
+            (5, L["mean_rho"]["HGT-QoS-U"]), (6, uni["mean_delta"]), (7, uni["wins"]), (8, uni["p"]),
+            (9, Z["mean_rho"]["HGT-QoS-U"]), (10, Z["mean_rho"]["HGT-QoS"])])
+
+    # Supplement tables, cell by cell.
+    supp = _supp()
+    _quote(rep, "supp:regimes", supp,
+           r"over the twelve folds, (\d+) correlations in all.*?the smallest is " + num
+           + r".*?its Spearman correlation is " + num + r" with \\texttt\{HGT-QoS\}'s per-fold \$\\rho\$, " + num
+           + r" with its gain over \\texttt\{Topo-QoS\}, and " + num,
+           [(1, L["n_tests"]), (2, L["min_q_bh"]), (3, cov["HGT-QoS rho"]["rho"]),
+            (4, cov["HGT-QoS - Topo-QoS"]["rho"]), (5, cov["Hybrid-HGT - HGT-QoS"]["rho"])])
+    fold_of = {v: k for k, v in _regimes.FOLD_LABELS.items()}
+    sys_of = {v: k for k, v in _regimes.SYSTEM_LABELS.items()}
+
+    def body(label):
+        if label not in supp:
+            rep.skipped.append(f"{label} absent from supplementary.tex")
+            return None, []
+        i = supp.index(r"\toprule", supp.index(label))
+        head = [_label(c) for c in _cells(supp[i:supp.index(r"\midrule", i)].split("\n")[1])]
+        j = supp.index(r"\midrule", i)
+        return head, [ln.strip() for ln in supp[j:supp.index(r"\bottomrule", j)].split("\n")[1:]]
+
+    def cmp(where, row, col, got, want, tol=0.0006):
+        rep.checked += 1
+        if got is None or abs(got - want) > tol:
+            rep.findings.append(Finding(where, row, col, got, round(want, 4)))
+
+    head, rows = body(r"\label{tab:supp-regimes-folds}")
+    for ln in rows:
+        cells = _cells(ln)
+        if len(cells) < 3:
+            continue
+        name = _label(cells[0])
+        for col, cell in zip(head[2:], cells[2:]):
+            if name in fold_of:
+                cmp("tab:supp-regimes-folds", name, col, _num(cell), pf[col][fold_of[name]]["rho"])
+            elif name.startswith("Mean"):
+                key = "mean_rho_pos" if "rho" in name else "mean_rho"
+                cmp("tab:supp-regimes-folds", name, col, _num(cell), L[key][col])
+        if name in fold_of:
+            rep.checked += 1
+            want_t = {"weak": "W", "middle": "I", "strong": "S"}[
+                next(t for t in reg if fold_of[name] in reg[t]["folds"])]
+            if cells[1].strip() != want_t:
+                rep.findings.append(Finding("tab:supp-regimes-folds", name, "tercile", cells[1].strip(), want_t))
+
+    _, rows = body(r"\label{tab:supp-regimes-desc}")
+    for ln in rows:
+        cells = _cells(ln)
+        name = _label(cells[0]) if cells else ""
+        if name not in fold_of:
+            continue
+        f = fold_of[name]
+        for key, cell in zip(REGIME_DESC_COLUMNS, cells[1:]):
+            cmp("tab:supp-regimes-desc", name, key, _num(cell), L["descriptors"][f][key], tol=0.006)
+        cmp("tab:supp-regimes-desc", name, "rf_share", _num(cells[-1]), cov["hgl_qos_rf_share"][f], tol=0.006)
+
+    head, rows = body(r"\label{tab:supp-regimes-corr}")
+    gains = list(dict.fromkeys(c["quantity"] for c in L["correlations"]))
+    descs = list(dict.fromkeys(c["descriptor"] for c in L["correlations"]))
+    data_rows = [ln for ln in rows if len(_cells(ln)) == len(gains) + 1]
+    rep.checked += 1
+    if len(data_rows) != len(descs):
+        rep.findings.append(Finding("tab:supp-regimes-corr", "rows", "count", len(data_rows), len(descs)))
+    for desc, ln in zip(descs, data_rows):
+        for g, cell in zip(gains, _cells(ln)[1:]):
+            c = corr[(g, desc)]
+            cmp("tab:supp-regimes-corr", desc, g, _num(cell.replace("+", "")), c["rho"], tol=0.006)
+            rep.checked += 1
+            if ("*" in cell) != (c["p"] < 0.05):
+                rep.findings.append(Finding("tab:supp-regimes-corr", desc, g + " star", "*" in cell, c["p"] < 0.05))
+
+    head, rows = body(r"\label{tab:supp-regimes-zs}")
+    key = None
+    for ln in rows:
+        if r"\multicolumn" in ln:
+            key = "rho_pos" if "rho_{>0}" in ln else "rho"
+            continue
+        cells = _cells(ln)
+        if len(cells) < 2 or key is None:
+            continue
+        name = _label(cells[0])
+        for col, cell in zip(head[1:], cells[1:]):
+            got = _num(cell.replace("$", ""))
+            if name in sys_of:
+                cmp("tab:supp-regimes-zs", name, f"{col} {key}", got, zs[col][sys_of[name]][key])
+            elif name == "Mean":
+                cmp("tab:supp-regimes-zs", name, f"{col} {key}", got,
+                    Z["mean_rho" if key == "rho" else "mean_rho_pos"][col])
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1337,6 +1609,7 @@ def main() -> int:
     check_hybrid_table(rep)
     check_contrasts_matched(rep)
     check_omnibus_holm(rep)
+    check_engine_regimes(rep)
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts "
           f"({len(rep.skipped)} check(s) skipped).\n")
