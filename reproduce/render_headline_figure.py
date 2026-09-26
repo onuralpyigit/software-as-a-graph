@@ -8,8 +8,9 @@ carry the paper's three findings at a glance:
 
     A. Accuracy on unseen synthetic architectures (LOSO) against zero-shot
        transfer to the five system models, per engine, with 95% CIs.
-       -> dependency counts on the derived graph rank best and transfer best;
-          learners that read the dependency graph reach their level.
+       -> learners that read the dependency graph approach, but never exceed,
+          InDeg; the dependency counts are drawn as references (Amendment 13:
+          they restate I*'s propagation rule and are not predictors).
     B. Per-fold Delta-rho against Topo-QoS for HGT-QoS and Hybrid-HGT, folds
        ordered by the closed-form engine's own score.
        -> the engines are complementary; the prior removes the learned
@@ -64,14 +65,16 @@ OUT = Path("docs/research/jss/latex/figures/Figure_5")
 INK, INK2, GRID = "#1F2937", "#475569", "#E5E7EB"
 # Engine identity, fixed across the paper's figures (Okabe-Ito; validated with
 # the dataviz palette checker: CVD and normal-vision separation pass).
-#: Training-free dependency counts (Amendment 7) are not registry variants.
-COUNTS = {"InDeg": "#000000", "Reach": "#56B4E9"}
+#: Training-free dependency counts (Amendment 7) are not registry variants. They
+#: restate I*'s propagation rule, so they are drawn as grey hollow references above
+#: a separator, not as predictors (Amendment 13).
+COUNTS = {"InDeg": "#475569", "Reach": "#94A3B8"}
 ENGINES = [  # (variant, printed label, colour), top to bottom
-    (v, v if v in COUNTS else label(v, "loso"), c) for v, c in (
+    (v, f"{v} (ref.)" if v in COUNTS else label(v, "loso"), c) for v, c in (
+        ("InDeg", COUNTS["InDeg"]),
+        ("Reach", COUNTS["Reach"]),
         ("topo_baseline", "#999999"),
         ("topo_qos", "#0072B2"),
-        ("Reach", COUNTS["Reach"]),
-        ("InDeg", COUNTS["InDeg"]),
         ("hgl_qos", "#E69F00"),
         ("gl_full_qos16_cap", "#CC79A7"),
         ("hgl_qos_prior", "#D55E00"),
@@ -141,11 +144,19 @@ def load():
 def panel_a(ax, loso_ci, rw):
     ys = np.arange(len(ENGINES))[::-1]
     for y, (v, label, c) in zip(ys, ENGINES):
-        for (m, lo, hi), dy, marker, face in ((loso_ci[v], 0.15, "o", c), (rw[v], -0.15, "D", "white")):
-            ax.plot([lo, hi], [y + dy, y + dy], color=c, lw=1.2, solid_capstyle="round", zorder=2)
+        ref = v in COUNTS
+        for (m, lo, hi), dy, marker, face in ((loso_ci[v], 0.15, "o", "white" if ref else c),
+                                              (rw[v], -0.15, "D", "white")):
+            ax.plot([lo, hi], [y + dy, y + dy], color=c, lw=1.2, ls=(0, (2, 1.5)) if ref else "-",
+                    solid_capstyle="round", zorder=2)
             ax.plot(m, y + dy, marker=marker, ms=5.0 if marker == "o" else 4.2, mfc=face, mec=c,
                     mew=1.3, zorder=3, ls="none")
+    sep = ys[len(COUNTS) - 1] - 0.5  # references sit above this line
+    ax.axhline(sep, color=INK2, lw=0.6, ls=(0, (1, 1.5)))
     ax.set_yticks(ys, [lab for _, lab, _ in ENGINES])
+    for tick, (v, _, _) in zip(ax.get_yticklabels(), ENGINES):
+        if v in COUNTS:
+            tick.set_color(INK2)
     ax.set_xlim(0.2, 1.0)
     ax.set_xticks([0.2, 0.4, 0.6, 0.8, 1.0])
     ax.set_ylim(-0.6, len(ENGINES) + 0.3)  # headroom row for the legend
@@ -158,7 +169,7 @@ def panel_a(ax, loso_ci, rw):
                label="zero-shot (5 systems)"),
     ], loc="upper right", ncol=2, frameon=False, fontsize=6.2, handletextpad=0.2,
        columnspacing=1.0, borderaxespad=0.0)
-    ax.set_title("A. Dependency counts and dependency-graph learners lead", loc="left", fontsize=7.6,
+    ax.set_title("A. Learners approach, never exceed, the InDeg reference", loc="left", fontsize=7.6,
                  fontweight="bold", color=INK)
 
 

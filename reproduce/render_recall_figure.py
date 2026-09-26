@@ -26,10 +26,14 @@ SRC = ROOT / "data" / "benchmarks" / "referee_round7_recall.json"
 OUT = ROOT / "docs" / "research" / "jss" / "latex" / "figures" / "Figure_6"
 
 INK, INK2, GRID = "#1F2937", "#475569", "#E5E7EB"
-#: Same engine colours as Figure 5 (Okabe-Ito); the first-order expansion is grey.
-SERIES = [("InDeg", "InDeg", "#000000"), ("GAT-P-QoS", "GAT-P-QoS", "#7B3F8C"),
-          ("Analytic-I*", "First-order $I^*$", "#999999"), ("Reach", "Reach", "#56B4E9"),
-          ("Topo-QoS", "Topo-QoS", "#0072B2")]
+#: Predictors in their Figure 5 colours (Okabe-Ito), solid with markers. Reference
+#: rankings restate I*'s propagation rule (Amendment 13) and are drawn as grey
+#: unmarked lines with their own dash pattern.
+SERIES = [("GAT-P-QoS", "GAT-P-QoS", "#7B3F8C", "-"), ("Topo-QoS", "Topo-QoS", "#0072B2", "-"),
+          ("Analytic-I*", "First-order $I^*$ (ref.)", "#9CA3AF", (0, (1, 1.5))),
+          ("InDeg", "InDeg (ref.)", "#475569", (0, (4, 2))),
+          ("Reach", "Reach (ref.)", "#94A3B8", (0, (5, 1.5, 1, 1.5)))]
+REFERENCES = {"Analytic-I*", "InDeg", "Reach"}
 TITLES = {"i_star": "A. Against $I^*$ (all Applications)",
           "i_dyn": "B. Against $I_{\\mathrm{dyn}}$ ($n = 30$ per fold)"}
 
@@ -45,15 +49,16 @@ def main() -> None:
     curves = json.loads(SRC.read_text())["curves"]
     fig, axes = plt.subplots(1, 2, figsize=(6.5, 2.6), sharey=True)
     for ax, oracle in zip(axes, ("i_star", "i_dyn")):
-        for key, name, colour in SERIES:
+        for key, name, colour, ls in SERIES:
             c = curves[oracle][key]["curve"]
             ks = sorted(c, key=float)
             x = [100 * float(k) for k in ks]
             if key == "InDeg":  # Reach's zero-reach ties span most of the axis; see caption
                 ax.fill_between(x, [c[k]["pessimistic"] for k in ks],
                                 [c[k]["optimistic"] for k in ks], color=colour, alpha=0.15, lw=0)
-            ax.plot(x, [c[k]["expected"] for k in ks], color=colour, lw=1.5, marker="o", ms=2.8,
-                    label=name)
+            ref = key in REFERENCES
+            ax.plot(x, [c[k]["expected"] for k in ks], color=colour, lw=1.1 if ref else 1.6, ls=ls,
+                    marker=None if ref else "o", ms=2.8, label=name, zorder=2 if ref else 3)
         ax.axhline(0.8, color=INK2, lw=0.7, ls=(0, (1, 2)))
         ax.set_xlabel("Share of Applications flagged (top $k$%)")
         ax.set_title(TITLES[oracle], loc="left", fontsize=7.6, fontweight="bold", color=INK)

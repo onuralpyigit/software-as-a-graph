@@ -4,9 +4,11 @@ reproduce/render_graphical_abstract.py — JSS graphical abstract
 ================================================================
 
 A 13 x 5 cm graphical abstract (the Guide's 1328 x 531 px, exceeded at 300 dpi):
-(1) a pub-sub topology and the dependency edges derived from it, (2) the headline
-ranking comparison on the reachability oracle, (3) what the other two oracles and the
-cost measurements add. Every number is read from a committed artifact.
+(1) a pub-sub topology and the dependency edges derived from it, (2) the predictors on
+the reachability oracle against reference rankings that restate that oracle's first
+wave (Amendment 13: dependency counts are references, not predictors), (3) what the
+confirmatory tests, the other two oracles and the cost measurements add. Every number
+is read from a committed artifact.
 
 Usage:
     PYTHONPATH=. python reproduce/render_graphical_abstract.py
@@ -28,7 +30,7 @@ BENCH = ROOT / "data" / "benchmarks"
 OUT = ROOT / "docs" / "research" / "jss" / "latex" / "figures" / "graphical_abstract"
 
 INK, INK2, SURFACE = "#1F2937", "#475569", "#FCFCFB"
-#: Highlight pattern: one accent for the count, a neutral for the comparators
+#: Highlight pattern: one accent for the best predictor, a neutral for the others
 #: (validated: CVD and normal-vision separation and contrast pass; the neutral's
 #: chroma is intentionally below the categorical floor).
 ACCENT, NEUTRAL = "#0072B2", "#8C939E"
@@ -40,17 +42,21 @@ plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 7, "pdf.fonttype
 def _numbers() -> dict:
     tf = json.loads((BENCH / "tf_baselines.json").read_text())["summary"]
     dg = json.loads((ROOT / "results" / "dependency_graph_contrasts.json").read_text())["means"]
-    part = json.loads((BENCH / "referee_round7_partial.json").read_text())["summary"]
     raw = json.loads((BENCH / "referee_round7_raw_baselines.json").read_text())["summary"]
     rec = json.loads((BENCH / "referee_round7_recall.json").read_text())["curves"]
+    ioe = json.loads((ROOT / "results" / "independent_oracle_evaluation.json").read_text())["summary"]
+    hyb = json.loads((ROOT / "results" / "loso_hybrid_gat_cpu.json").read_text())["comparison_table"]
+    lrn = json.loads((BENCH / "referee_round7_learned_oracles.json").read_text())
     return {
         "Topo-QoS": tf["Topo-QoS"]["loso_mean_rho"],
+        "Hybrid-GAT": hyb["gl_qos16_prior"]["mean_rho"],
         "GAT-P-QoS": dg["gl_proj_qos16_cap"]["loso_mean_rho"],
         "InDeg": tf["InDeg"]["loso_mean_rho"],
-        "partial": part["InDeg"]["partial_given_istar"]["mean"],
+        "Analytic-I*": ioe["i_star"]["Analytic-I*"]["mean_rho"],
         "comp_topo": raw["i_comp"]["Topo-QoS"]["loso"]["mean"],
-        "comp_indeg": raw["i_comp"]["InDeg"]["loso"]["mean"],
-        "margin": rec["i_star"]["InDeg"]["safety_margin"]["0.80"],
+        "comp_learned": max(v["summary"]["i_comp"]["rho"]["mean"] for k, v in lrn.items()
+                            if isinstance(v, dict) and "summary" in v and k != "GAT-P+InDeg"),
+        "margin": rec["i_star"]["GAT-P-QoS"]["safety_margin"]["0.80"],
     }
 
 
@@ -83,28 +89,32 @@ def panel_graph(ax) -> None:
         ax.add_patch(FancyArrowPatch(s, a1, arrowstyle="-|>", mutation_scale=6, color=ACCENT, lw=1.2,
                                      connectionstyle="arc3,rad=0.35" if s == a2 else "arc3,rad=-0.35",
                                      shrinkA=6, shrinkB=6, zorder=2))
-    ax.text(0.5, 0.06, "publish / subscribe (grey)\nderived DEPENDS_ON (blue)\nInDeg(a1) = 2 = afferent coupling",
+    ax.text(0.5, 0.06, "publish / subscribe (grey)\nderived DEPENDS_ON (blue)\nInDeg(a1) = 2: the oracle's first wave",
             ha="center", va="bottom", fontsize=5.6, color=INK2, linespacing=1.25)
 
 
 def panel_bars(ax, n: dict) -> None:
     rows = [("QoS-weighted centrality", n["Topo-QoS"], NEUTRAL),
-            ("GNN on dependency graph", n["GAT-P-QoS"], NEUTRAL),
-            ("InDeg (count dependents)", n["InDeg"], ACCENT)]
+            ("Hybrid GNN", n["Hybrid-GAT"], NEUTRAL),
+            ("GNN, dependency graph", n["GAT-P-QoS"], ACCENT)]
     ys = range(len(rows))
     ax.barh(list(ys), [v for _, v, _ in rows], color=[c for *_, c in rows], height=0.42)
     for y, (name, v, _) in zip(ys, rows):
         ax.text(0.0, y + 0.3, name, va="bottom", ha="left", fontsize=5.8, color=INK)
-        ax.text(v + 0.015, y, f"{v:.2f}", va="center", ha="left", fontsize=6, color=INK)
+        ax.text(v - 0.015, y, f"{v:.2f}", va="center", ha="right", fontsize=6, color="white")
+    # References restate I*'s rule (Amendment 13): drawn as lines, not as predictors.
+    for x, ls in ((n["InDeg"], (0, (3, 1.5))), (n["Analytic-I*"], (0, (1, 1.2)))):
+        ax.axvline(x, color=INK2, lw=0.8, ls=ls, ymin=0.02, ymax=0.97)
     ax.set_facecolor(SURFACE)
     ax.set_ylim(-0.4, len(rows) - 0.2)
     ax.set_xlim(0, 1)
     ax.set_yticks([])
     ax.set_xticks([0, 0.5, 1.0])
-    ax.set_xlabel("Spearman ρ, 12 synthetic architectures", fontsize=5.6, color=INK2)
+    ax.set_xlabel(f"Spearman ρ, 12 synthetic architectures\nlines: references InDeg {n['InDeg']:.2f}, "
+                  f"first-order I* {n['Analytic-I*']:.2f}", fontsize=5.3, color=INK2, linespacing=1.15)
     for side in ("top", "right", "left"):
         ax.spines[side].set_visible(False)
-    ax.set_title("2. Count vs. learning", loc="left", fontsize=7.4,
+    ax.set_title("2. Predictors vs. references", loc="left", fontsize=7.4,
                  fontweight="bold", color=INK)
 
 
@@ -112,11 +122,11 @@ def panel_text(ax, n: dict) -> None:
     ax.axis("off")
     ax.set_title("3. Beyond one simulator", loc="left", fontsize=7.4, fontweight="bold", color=INK)
     lines = [
-        "No learned engine beats\nthe count on any simulator.",
-        f"Queue-flow: count keeps\npartial ρ {n['partial']:.2f} beyond reachability.",
-        f"Multi-criteria: centrality\nranks higher ({n['comp_topo']:.2f} vs {n['comp_indeg']:.2f}).",
-        f"80% of the critical set\nneeds the top {100 * n['margin']:.0f}% by count.",
-        "Count: ms. One simulation:\nseconds to minutes.",
+        "Dependency counts restate the\nsimulator: references, not predictors.",
+        "Registered primary contrast null;\nhybrids beat centrality on 11/12.",
+        f"Multi-criteria: centrality ranks above\nevery learned engine ({n['comp_topo']:.2f} vs ≤{n['comp_learned']:.2f}).",
+        f"80% of the critical set needs\nthe top {100 * n['margin']:.0f}% by the best GNN.",
+        "One simulation: seconds; GNN\nfeature extraction: ~5.6x that.",
     ]
     for i, line in enumerate(lines):
         ax.text(0.0, 0.97 - i * 0.2, line, ha="left", va="top", fontsize=5.5, color=INK, linespacing=1.15)
