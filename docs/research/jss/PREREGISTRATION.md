@@ -1007,3 +1007,93 @@ example a top-K-weighted loss for Overlap@K (Round 5, M2) or a GNN trained on
   omnibus.
 - No published arm is retrained or replaced.
 - `I*` and `I_comp` labels.
+
+---
+
+## Amendment 12 — round-7 referee analyses: raw-graph baselines, beyond-first-order signal, learned engines on every oracle, recall curves (2026-09-26, mixed; see status per arm)
+
+**Status when written.** Amendment 11's harness (`make rq-oracle-robust`) was started immediately before this entry was written, to produce the `I_dyn-full` labels. No output of it had been read. Per arm, what already existed:
+
+- **R1 (raw-graph baselines).** On `I*`, Amendment 10 already published `Degree-raw`, `Pubs-raw` and `Reach-R1`, and the identity `InDeg` ≡ raw 2-hop subscriber count (max |Δ| = 0; `derivation_ablation.json`). The following have not been computed on any oracle, so R1 is *before any result* for them:
+  - `PR-raw` and `RevPR-raw`;
+  - all R1 arms on `I_dyn-full` and `I_comp`.
+- **R2 (beyond first order).** No partial correlation has been computed. Before any result.
+- **R3 (learned engines on `I_dyn`/`I_comp`).** The per-fold predictions exist (`output/loso_cpu_*/<variant>/inductive_predictions.json`), and their `I*` scores are published. Their scores on `I_dyn` or `I_comp` have never been computed. This arm is *after the predictions existed* and is exploratory.
+- **R4 (recall@k).** Overlap@K at k = 20% is published. The curves at other k, and the tie-aware estimates, have not been computed. Exploratory.
+- **R5 (single-harness zero-shot).** Both harnesses' values are published. Re-scoring `InDeg` and `Reach` on the learned engines' label set is *after their results existed*, and is a bookkeeping correction, not a test.
+- **R6 (latency).** `dependency_count_cost.json` (per fold) and `oracle_timing_jss12.json` are published. The size sweep is not. Descriptive.
+
+**Why it exists.** It answers the round-7 referee report (`docs/research/jss/reviews/review_2026-09-26_round7.md`):
+- M2: is the derivation needed, or only the choice of metric?
+- M3: does any ranker carry `I_dyn` signal beyond the first-order term of `I*`?
+- M3(v): are the learned engines ever scored on the independent oracles?
+- M6: is "sub-millisecond" true of the whole counting path?
+- M9: Table 9 mixes two harnesses.
+- M10: the safety margin is unsupported.
+
+### Labels
+
+Everything is scored on the Application population, with metrics from the shared code (`saag/evaluation/metrics.py`):
+- `I*`, unchanged;
+- `I_dyn-full`, from Amendment 11: every Application, the mean over five seeds;
+- `I_comp`, unchanged, as in Amendment 11.
+
+If Amendment 11's gate G1 or G2 fails, R1–R3 on `I_dyn` are not reported. Only the failure is reported.
+
+### Arms and quantities, fixed before any run
+
+| id | What | Scored on |
+|:---|:---|:---|
+| R1 | Training-free rankers computed **without** the `DEPENDS_ON` derivation, on the raw structural multigraph (`build_graph_from_json`): `Raw2Hop` (distinct subscribers of v's published topics, `subscriber_count_raw`; identical to `InDeg` by construction and reported as such, not tested); `Degree-raw`; `Pubs-raw`; `Reach-R1` (raw pub→topic→sub closure); `PR-raw` (PageRank, α = 0.85, unweighted); `RevPR-raw` (PageRank on the reversed raw multigraph) | `I*`, `I_dyn-full`, `I_comp`; 12 folds + 5 systems |
+| R2 | Partial Spearman ρ(r, `I_dyn-full` \| `I*`) and ρ(r, `I_dyn-full` \| `Analytic-I*`) per fold, for r ∈ {`InDeg`, `Reach`, `Topo-QoS`, `Analytic-I*`, R1 arms}. Computed as the Pearson correlation of the residuals of the rank-transformed r and `I_dyn` after a least-squares regression on the rank-transformed conditioning variable. A ranker identical to the conditioning variable is reported as undefined. | 12 folds |
+| R3 | `HGT-QoS`, `GAT-QoS`, `Hybrid-HGT`, `Hybrid-GAT`, `GAT-P-QoS` and `Hybrid-GAT-P`, re-scored from their saved seed-averaged predictions on `I_dyn-full` and `I_comp`. There is no retraining. **Gate G3:** the re-score on `I*` must reproduce each engine's published LOSO ρ within 1e-3, or that engine is not reported. | 12 folds |
+| R4 | Recall of the true top-20% set (tie-inclusive at its boundary) by the predicted top-k%, for k ∈ {10, 15, …, 50}. Ties in the prediction are resolved in expectation over uniformly random tie-breaking, which is computed exactly. Optimistic and pessimistic tie-breaking bounds are also reported. The rankers are `InDeg`, `Reach`, `Topo-QoS`, `Analytic-I*` and `GAT-P-QoS`, each scored on `I*` and `I_dyn-full`. | 12 folds |
+| R5 | `InDeg` and `Reach` scored with `compute_inductive_metrics` on the labels the learned engines' zero-shot harness reads (`output/realworld_cache/<sys>/failure_impact.json`). Also, per system and per fold: Application count, share with zero `I*`, fan-in (`InDeg`) Gini, and max projection depth. | 5 systems, 12 folds |
+| R6 | Median of 5 runs, per size, of: projection derivation; `InDeg`; `Reach`; and one `I*` labelling pass (`FaultInjector`, published settings). The graphs are the `inference_latency.py` generator at 250, 500, 1,000, 2,000, 5,000 and 10,000 components (seed 42). | generated graphs |
+
+### Contrasts
+
+There is one family (R1), Holm-corrected within itself and outside the omnibus:
+- two-sided Wilcoxon over the twelve folds of `InDeg` vs each of `PR-raw`, `RevPR-raw`, `Degree-raw`, `Pubs-raw`;
+- on each of the three oracles, giving 12 contrasts.
+
+Everything else is descriptive, with bootstrap 95% CIs over folds (B = 2,000).
+
+### Decision rules
+
+| Rule | Condition | What changes in the text |
+|:---|:---|:---|
+| D1 | Always, since the `Raw2Hop` ≡ `InDeg` identity holds | The paper states that `InDeg` is computable as a typed 2-hop query on the raw multigraph. Its advantage over centrality is attributed to choosing afferent coupling, not to the projection. The derivation is credited only with what is measured: which typed query to ask, and Rule 5's +0.058 for `Reach` (Amendment 10). |
+| D2 | `InDeg` beats every untyped raw baseline (Holm p < 0.05) on an oracle | The paper may say that untyped raw-graph metrics do not recover the signal on that oracle. |
+| D3 | The mean partial ρ(r, `I_dyn` \| `I*`) has a 95% CI that includes 0 | "r carries no measurable queue-flow signal beyond the reachability oracle". Every "independent confirmation" claim for r is removed. |
+| D3′ | The CI excludes 0 and the mean is > 0 | "r carries queue-flow signal beyond the reachability oracle", with the magnitude stated. |
+| D4 | Always | Every R3 cell is reported. If a learned engine beats `InDeg` on `I_dyn` or `I_comp`, that is stated without a significance claim. |
+| D5 | Always | The safety margin in §8.1 is the smallest k whose mean expected recall is ≥ 0.80 (and ≥ 0.90) on `I*`, read from the R4 curve and not asserted. If no k ≤ 50% reaches it, that is stated. |
+| D6 | Always | Table 9 reports all rows from one harness. The two-harness footnote is removed. |
+| D7 | Always | "Sub-millisecond" is used only for a quantity measured below 1 ms. The counting path is reported as projection plus count. |
+
+**Harness.** `reproduce/referee_round7.py`, run by `make -f reproduce/Makefile rq-referee-round7`. The artifacts go to `data/benchmarks/` with provenance stamps:
+- `referee_round7_raw_baselines.json`
+- `referee_round7_partial.json`
+- `referee_round7_learned_oracles.json`
+- `referee_round7_recall.json`
+- `referee_round7_zeroshot.json`
+- `referee_round7_latency.json`
+
+**Stopping rule.** No additional ranker, conditioning variable or k grid is added after results exist without a further amendment.
+
+**What is unchanged.** All previously registered contrasts, the 13-contrast omnibus, and every published label. No model is retrained.
+
+### Amendment 12 — deviations, recorded before R1–R4 were run (2026-09-26)
+
+1. **`I_dyn` labels.** Amendment 11's run was stopped at the authors' request, before any of its full-population labels were written. Its first attempt had been killed by the out-of-memory killer. R1–R4 therefore score `I_dyn` on the published seed-42 sample: the first 30 Applications of each fold in lexicographic order, all 26 on ATM, with no system models. Consequences:
+   - The lexical-sample limitation (Round 5, M1; round 7, M3) is **not** resolved, and the manuscript keeps saying so.
+   - The five-seed test–retest term of R2 cannot be computed, so the manuscript cites the published reliability range instead (Supplementary S9).
+   - Every R1–R3 cell on `I_dyn` rests on 26–30 Applications per fold.
+   - Amendment 11's arms remain registered and unrun.
+2. **Gate G3 (R3)** failed for every engine. The saved `inductive_predictions.json` is the mean of the five seeds' *predictions*, whereas the published LOSO value is the mean of the per-seed ρ. The per-seed logs (`workspace/fold_*/seed_*/seed_result.json`) reproduce every published mean to within rounding. R3 is reported as a seed-ensemble statistic, beside its own `I*` value, and is not compared with Table 6's per-seed means.
+3. **R6.** `I*` labelling time grows roughly quadratically with graph size: 5 s at 250 components, 21 s at 500 and 104 s at 1,000. It is timed as registered (median of 5) up to 2,000 components, once at 5,000, and not at 10,000. The counting path is timed at every size as registered.
+4. **Added, descriptive, not registered.** Two things are computed from existing artifacts only (`referee_round7.py averaging`), with no ranker or oracle added:
+   - Table 6's means under Fisher-z and |V_app|-weighted averaging;
+   - the per-fold seed range and seed SD of each learned engine.
+5. **R1 population fix, found on the first R1 run.** `subscriber_count_raw` and `pubs_raw` emit only components that publish, and the shared metric code scores only the nodes a ranker emits. The first R1 run therefore scored `Raw2Hop` and `Pubs-raw` on publishers only, which is how `Raw2Hop` showed ρ = 0.533 even though it is identical to `InDeg` on every Application. Every R1 ranker now emits a score, 0 for non-publishers, for every Application, and R1–R4 are re-run. The same defect affects Amendment 10's published `Pubs-raw` arm (`derivation_ablation.json`). It is reported and corrected there too; see the Amendment 10 correction in Supplementary S24.

@@ -1,0 +1,177 @@
+{
+  "per_ranker": {
+    "Analytic-I*": {
+      "arithmetic": 0.8083916666666666,
+      "fisher_z": 0.8260572148684583,
+      "size_weighted": 0.8427916729750189
+    },
+    "InDeg": {
+      "arithmetic": 0.7642333333333333,
+      "fisher_z": 0.7975598503455767,
+      "size_weighted": 0.8095501135503408
+    },
+    "Reach": {
+      "arithmetic": 0.7315999999999999,
+      "fisher_z": 0.7457324182036015,
+      "size_weighted": 0.7364971233913702
+    },
+    "Topo-QoS": {
+      "arithmetic": 0.5531416666666666,
+      "fisher_z": 0.5858643879053186,
+      "size_weighted": 0.5958735049205148
+    },
+    "GAT-P-QoS": {
+      "arithmetic": 0.7476769864282496,
+      "fisher_z": 0.7570321165988477,
+      "size_weighted": 0.7490312048973732
+    },
+    "GAT-P+InDeg": {
+      "arithmetic": 0.7578517903939499,
+      "fisher_z": 0.7870921448479654,
+      "size_weighted": 0.8014683477755089
+    },
+    "HGT-P-QoS": {
+      "arithmetic": 0.5143469536111598,
+      "fisher_z": 0.5447719075552042,
+      "size_weighted": 0.5175461478799606
+    },
+    "Topo": {
+      "arithmetic": 0.3486666666666667,
+      "fisher_z": 0.3616788611860104,
+      "size_weighted": 0.38933459500378503
+    },
+    "HGT-QoS": {
+      "arithmetic": 0.6216666666666665,
+      "fisher_z": 0.6379985051176005,
+      "size_weighted": 0.5947108251324754
+    },
+    "GAT-QoS": {
+      "arithmetic": 0.6349166666666667,
+      "fisher_z": 0.6480610537671313,
+      "size_weighted": 0.6062384557153673
+    },
+    "Hybrid-HGT": {
+      "arithmetic": 0.6566666666666666,
+      "fisher_z": 0.6784726798321914,
+      "size_weighted": 0.677440575321726
+    },
+    "Hybrid-GAT": {
+      "arithmetic": 0.6830833333333334,
+      "fisher_z": 0.703105967258213,
+      "size_weighted": 0.7066820590461772
+    }
+  },
+  "orders": {
+    "arithmetic": [
+      "Analytic-I*",
+      "InDeg",
+      "GAT-P+InDeg",
+      "GAT-P-QoS",
+      "Reach",
+      "Hybrid-GAT",
+      "Hybrid-HGT",
+      "GAT-QoS",
+      "HGT-QoS",
+      "Topo-QoS",
+      "HGT-P-QoS",
+      "Topo"
+    ],
+    "fisher_z": [
+      "Analytic-I*",
+      "InDeg",
+      "GAT-P+InDeg",
+      "GAT-P-QoS",
+      "Reach",
+      "Hybrid-GAT",
+      "Hybrid-HGT",
+      "GAT-QoS",
+      "HGT-QoS",
+      "Topo-QoS",
+      "HGT-P-QoS",
+      "Topo"
+    ],
+    "size_weighted": [
+      "Analytic-I*",
+      "InDeg",
+      "GAT-P+InDeg",
+      "GAT-P-QoS",
+      "Reach",
+      "Hybrid-GAT",
+      "Hybrid-HGT",
+      "GAT-QoS",
+      "Topo-QoS",
+      "HGT-QoS",
+      "HGT-P-QoS",
+      "Topo"
+    ]
+  },
+  "n_apps": {
+    "atm_system": 26,
+    "av_system": 80,
+    "enterprise_system": 300,
+    "financial_trading_system": 60,
+    "healthcare_system": 50,
+    "hub_and_spoke_system": 70,
+    "industrial_scada_system": 140,
+    "iot_smart_city_system": 200,
+    "logistics_fleet_system": 110,
+    "microservices_system": 90,
+    "realtime_gaming_system": 75,
+    "telecom_ran_system": 120
+  },
+  "seed_spread": {
+    "HGT-QoS": {
+      "mean_range": 0.2360862200432483,
+      "max_range": 1.0818311006925474,
+      "mean_sd": 0.09918353897493083,
+      "n_folds": 12
+    },
+    "GAT-QoS": {
+      "mean_range": 0.057307160410017544,
+      "max_range": 0.21639624207162478,
+      "mean_sd": 0.024010323764234277,
+      "n_folds": 12
+    },
+    "Hybrid-HGT": {
+      "mean_range": 0.12984068778624078,
+      "max_range": 0.4149685437523215,
+      "mean_sd": 0.053026584592109176,
+      "n_folds": 12
+    },
+    "Hybrid-GAT": {
+      "mean_range": 0.0939934133643594,
+      "max_range": 0.3162246263545357,
+      "mean_sd": 0.04222570660174691,
+      "n_folds": 12
+    },
+    "GAT-P-QoS": {
+      "mean_range": 0.07480518424279091,
+      "max_range": 0.19553502439571868,
+      "mean_sd": 0.030161471333497655,
+      "n_folds": 12
+    },
+    "HGT-P-QoS": {
+      "mean_range": 0.6042930060396676,
+      "max_range": 1.2156497496862788,
+      "mean_sd": 0.25438984937431214,
+      "n_folds": 12
+    },
+    "GAT-P+InDeg": {
+      "mean_range": 0.027699127900013106,
+      "max_range": 0.08203255940414061,
+      "mean_sd": 0.011184183614591683,
+      "n_folds": 12
+    }
+  },
+  "orders_identical": false,
+  "provenance": {
+    "commit": "3be5b7d2631c32e29d570c28b13e07a2b5e1dec5",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/referee_round7.py",
+      "amendment": 12,
+      "experiment": "averaging (descriptive, not registered)"
+    }
+  }
+}

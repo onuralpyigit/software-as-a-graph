@@ -34,11 +34,11 @@
         "n_active": 21
       },
       "Pubs-raw": {
-        "rho": 0.15527585097433233,
+        "rho": 0.4880566704775944,
         "rho_active": 0.07061092886216486,
-        "overlap_at_k": 0.25,
+        "overlap_at_k": 0.4000000000000001,
         "pr_auc": 0.6147186147186147,
-        "n_apps": 22,
+        "n_apps": 26,
         "n_active": 21
       },
       "identity_max_abs_diff": 0.0
@@ -77,11 +77,11 @@
         "n_active": 41
       },
       "Pubs-raw": {
-        "rho": 0.35137219061954456,
+        "rho": 0.8267528875717863,
         "rho_active": 0.3769685751503459,
-        "overlap_at_k": 0.5555555555555556,
+        "overlap_at_k": 0.5,
         "pr_auc": 0.5365340434419382,
-        "n_apps": 45,
+        "n_apps": 80,
         "n_active": 41
       },
       "identity_max_abs_diff": 0.0
@@ -120,11 +120,11 @@
         "n_active": 183
       },
       "Pubs-raw": {
-        "rho": 0.6452823314586537,
+        "rho": 0.8912514645622489,
         "rho_active": 0.6282104804048001,
-        "overlap_at_k": 0.3684210526315789,
-        "pr_auc": 0.33955222474759617,
-        "n_apps": 191,
+        "overlap_at_k": 0.6166666666666667,
+        "pr_auc": 0.3395522247475962,
+        "n_apps": 300,
         "n_active": 183
       },
       "identity_max_abs_diff": 0.0
@@ -163,11 +163,11 @@
         "n_active": 33
       },
       "Pubs-raw": {
-        "rho": 0.6008043986378617,
+        "rho": 0.8620386809714172,
         "rho_active": 0.5497578271716466,
-        "overlap_at_k": 0.5714285714285714,
+        "overlap_at_k": 0.6666666666666666,
         "pr_auc": 0.567955120672512,
-        "n_apps": 37,
+        "n_apps": 60,
         "n_active": 33
       },
       "identity_max_abs_diff": 0.0
@@ -206,11 +206,11 @@
         "n_active": 32
       },
       "Pubs-raw": {
-        "rho": 0.47067792311396295,
+        "rho": 0.7499935596605584,
         "rho_active": 0.3828754114464425,
-        "overlap_at_k": 0.42857142857142855,
+        "overlap_at_k": 0.5,
         "pr_auc": 0.5105885105885106,
-        "n_apps": 37,
+        "n_apps": 50,
         "n_active": 32
       },
       "identity_max_abs_diff": 0.0
@@ -249,11 +249,11 @@
         "n_active": 54
       },
       "Pubs-raw": {
-        "rho": -0.06977152237478129,
+        "rho": 0.431764766958243,
         "rho_active": 0.11738848167448399,
-        "overlap_at_k": 0.16666666666666666,
+        "overlap_at_k": 0.21428571428571427,
         "pr_auc": 0.1206896551724138,
-        "n_apps": 58,
+        "n_apps": 70,
         "n_active": 54
       },
       "identity_max_abs_diff": 0.0
@@ -292,11 +292,11 @@
         "n_active": 87
       },
       "Pubs-raw": {
-        "rho": 0.5160765230073909,
+        "rho": 0.80867204323535,
         "rho_active": 0.4317618325024806,
-        "overlap_at_k": 0.47368421052631576,
+        "overlap_at_k": 0.42857142857142855,
         "pr_auc": 0.6036412748590436,
-        "n_apps": 97,
+        "n_apps": 140,
         "n_active": 87
       },
       "identity_max_abs_diff": 0.0
@@ -335,11 +335,11 @@
         "n_active": 147
       },
       "Pubs-raw": {
-        "rho": 0.7791975865648054,
+        "rho": 0.8787903407990892,
         "rho_active": 0.7502856068633879,
-        "overlap_at_k": 0.625,
+        "overlap_at_k": 0.7250000000000001,
         "pr_auc": 0.1578568860122258,
-        "n_apps": 158,
+        "n_apps": 200,
         "n_active": 147
       },
       "identity_max_abs_diff": 0.0
@@ -378,11 +378,11 @@
         "n_active": 78
       },
       "Pubs-raw": {
-        "rho": 0.5550245967136874,
+        "rho": 0.8231614535831241,
         "rho_active": 0.5302643188907907,
-        "overlap_at_k": 0.25,
+        "overlap_at_k": 0.36363636363636365,
         "pr_auc": 0.6239705882352942,
-        "n_apps": 80,
+        "n_apps": 110,
         "n_active": 78
       },
       "identity_max_abs_diff": 0.0
@@ -421,11 +421,11 @@
         "n_active": 77
       },
       "Pubs-raw": {
-        "rho": 0.28700528872526737,
+        "rho": 0.5225557069064767,
         "rho_active": 0.24890720193422225,
-        "overlap_at_k": 0.3125,
+        "overlap_at_k": 0.3333333333333333,
         "pr_auc": 0.734873417721519,
-        "n_apps": 79,
+        "n_apps": 90,
         "n_active": 77
       },
       "identity_max_abs_diff": 0.0
@@ -464,11 +464,11 @@
         "n_active": 48
       },
       "Pubs-raw": {
-        "rho": 0.3969138730706486,
+        "rho": 0.8000850351355253,
         "rho_active": 0.3688238065762435,
-        "overlap_at_k": 0.10000000000000002,
+        "overlap_at_k": 0.6,
         "pr_auc": 0.5320261437908497,
-        "n_apps": 51,
+        "n_apps": 75,
         "n_active": 48
       },
       "identity_max_abs_diff": 0.0
@@ -507,11 +507,11 @@
         "n_active": 100
       },
       "Pubs-raw": {
-        "rho": 0.4797705232935112,
+        "rho": 0.6907830754033671,
         "rho_active": 0.4667675397553779,
-        "overlap_at_k": 0.45,
-        "pr_auc": 0.5780985413779892,
-        "n_apps": 101,
+        "overlap_at_k": 0.5,
+        "pr_auc": 0.5780985413779891,
+        "n_apps": 120,
         "n_active": 100
       },
       "identity_max_abs_diff": 0.0
@@ -552,11 +552,11 @@
         "n_active": 19
       },
       "Pubs-raw": {
-        "rho": -0.2562407489863065,
+        "rho": 0.40144376261972986,
         "rho_active": null,
-        "overlap_at_k": 0.6,
+        "overlap_at_k": 0.5,
         "pr_auc": 0.19230769230769232,
-        "n_apps": 26,
+        "n_apps": 32,
         "n_active": 19
       },
       "identity_max_abs_diff": 0.0
@@ -595,11 +595,11 @@
         "n_active": 10
       },
       "Pubs-raw": {
-        "rho": 0.14078879480850054,
+        "rho": 0.42929529124313864,
         "rho_active": -0.3601482890747321,
         "overlap_at_k": 0.5,
         "pr_auc": 0.5833333333333333,
-        "n_apps": 18,
+        "n_apps": 22,
         "n_active": 10
       },
       "identity_max_abs_diff": 0.0
@@ -638,11 +638,11 @@
         "n_active": 17
       },
       "Pubs-raw": {
-        "rho": 0.034286871195580375,
+        "rho": 0.34324557156764085,
         "rho_active": -0.35159205443052766,
         "overlap_at_k": 0.0,
         "pr_auc": 0.7879464285714286,
-        "n_apps": 21,
+        "n_apps": 24,
         "n_active": 17
       },
       "identity_max_abs_diff": 0.0
@@ -681,11 +681,11 @@
         "n_active": 8
       },
       "Pubs-raw": {
-        "rho": 0.5671481506567648,
+        "rho": 0.7866849849321849,
         "rho_active": 0.15087239139541087,
-        "overlap_at_k": 0.0,
+        "overlap_at_k": 0.5,
         "pr_auc": 0.08333333333333333,
-        "n_apps": 12,
+        "n_apps": 22,
         "n_active": 8
       },
       "identity_max_abs_diff": 0.0
@@ -724,11 +724,11 @@
         "n_active": 14
       },
       "Pubs-raw": {
-        "rho": 0.1580998959150872,
+        "rho": 0.4823434646104163,
         "rho_active": 0.17707686934279476,
-        "overlap_at_k": 0.3333333333333333,
+        "overlap_at_k": 0.375,
         "pr_auc": 0.49285714285714277,
-        "n_apps": 28,
+        "n_apps": 41,
         "n_active": 14
       },
       "identity_max_abs_diff": 0.0
@@ -776,13 +776,13 @@
       ]
     },
     "Pubs-raw": {
-      "loso_mean_rho": 0.4306357969837404,
+      "loso_mean_rho": 0.7311588071053984,
       "loso_mean_rho_active": 0.41021850093603224,
-      "systems_mean_rho": 0.12881659271792528,
+      "systems_mean_rho": 0.4886026149946221,
       "systems_mean_rho_active": -0.09594777069176355,
       "loso_rho_ci95": [
-        0.29921631555836375,
-        0.5452322381931836
+        0.6374263659020041,
+        0.8103352772049888
       ]
     }
   },
@@ -799,15 +799,15 @@
       "p_holm": 0.00146484375
     },
     "InDeg vs Pubs-raw": {
-      "delta": 0.33358500608320263,
+      "delta": 0.03306199596154464,
       "ci95": [
-        0.26614416254211115,
-        0.4078566854651819
+        0.017221211961076167,
+        0.05112010580680982
       ],
-      "won": 12,
+      "won": 11,
       "n": 12,
-      "p": 0.00048828125,
-      "p_holm": 0.00146484375
+      "p": 0.0009765625,
+      "p_holm": 0.001953125
     },
     "Reach vs Reach-R1": {
       "delta": 0.05771173329963356,
@@ -837,7 +837,7 @@
     }
   },
   "provenance": {
-    "commit": "ed7b2582fb315ddf8b2b21b4ff76a6c1b113a488",
+    "commit": "04fb6c4cc7069d00842d6ac3f6bc0487d3f284f8",
     "dirty": false,
     "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
     "config": {

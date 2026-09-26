@@ -45,7 +45,7 @@ LOSO mean ρ over the twelve held-out architectures:
 | `InDeg` | 0.764 |
 | `Reach` | 0.732 |
 | `Reach-R1` | 0.674 |
-| `Pubs-raw` | 0.431 |
+| `Pubs-raw` | 0.731 (corrected; was 0.431, see below) |
 | `Degree-raw` | 0.199 |
 
 Registered contrasts, Holm across the three:
@@ -53,11 +53,11 @@ Registered contrasts, Holm across the three:
 | Contrast | Δρ | Folds won | Holm p |
 |---|---|---|---|
 | `InDeg` vs `Degree-raw` | +0.565 | 12/12 | 0.0015 |
-| `InDeg` vs `Pubs-raw` | +0.334 | 12/12 | 0.0015 |
+| `InDeg` vs `Pubs-raw` | +0.033 (corrected; was +0.334) | 11/12 | 0.0020 |
 | `Reach` vs `Reach-R1` | +0.058 | 9/12 | 0.0068 |
 
 **Decision rules.**
-- **E1 applies.** Deriving topic-mediated dependencies is what makes the count predictive.
+- **E1 applies,** but by a much smaller margin after the correction below. `InDeg` beats both raw counts, yet merely counting the topics a component publishes comes within 0.033 of it. The typed query, not the derived graph as such, is what makes the count predictive (Proposition 1 in the manuscript).
 - **E2 applies.** The derived library rule adds to transitive reach.
 - **E3 applies.** Every arm is reported in Supplementary Table S44.
 
@@ -73,3 +73,11 @@ On the five system models none of the Libraries publishes or subscribes, so `Rea
 `results/derivation_ablation.json` (committed, like Amendments 7 and 9). The supplementary table
 is rendered from it by `reproduce/render_amendment9_tables.py` and checked byte for byte by
 `reproduce/reconcile_manuscript.py`.
+
+**Correction (2026-09-26, round-7 revision).** The published run scored `Pubs-raw` on publishers
+only. `pubs_raw` emits a score only for components that publish, and the shared metric code
+scores only the nodes a ranker emits, so every non-publisher (true count 0) dropped out of the
+population. `_derivation_set` now zero-fills every Application. With the fix, `Pubs-raw` rises
+from 0.431 to 0.731 and the `InDeg` margin falls from +0.334 to +0.033. The artifact
+`derivation_ablation.json` is regenerated, and Supplementary Table S44 is re-rendered from it.
+Amendment 12 found the defect (PREREGISTRATION.md, deviation 5).

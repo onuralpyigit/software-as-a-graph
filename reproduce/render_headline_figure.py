@@ -210,7 +210,7 @@ def panel_c(ax, matched):
     ax.set_ylabel(r"mean LOSO $\rho$")
     ax.grid(axis="y", color=GRID, lw=0.6)
     ax.set_axisbelow(True)
-    ax.set_title("C. Matched capacity: QoS\nmatters, typing does not", loc="left", fontsize=7.6,
+    ax.set_title("C. Matched capacity: \"QoS\"\ninputs n.s.; typing adds nothing", loc="left", fontsize=7.6,
                  fontweight="bold", color=INK)
 
 

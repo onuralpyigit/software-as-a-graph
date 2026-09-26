@@ -8,7 +8,7 @@
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lcccccccccc}
 \toprule
-\textbf{Holdout} & \textbf{InDeg} & \textbf{Reach} & \textbf{GAT} & \textbf{GAT-P} & \textbf{GAT-QoS} & \textbf{GAT-P-QoS} & \textbf{Hybrid-GAT} & \textbf{Hybrid-GAT-P} & \textbf{HGT-QoS} & \textbf{HGT-P-QoS} \\
+\textbf{Holdout} & \textbf{InDeg} & \textbf{Reach} & \textbf{GAT} & \textbf{GAT-P} & \textbf{GAT-QoS} & \textbf{GAT-P-QoS} & \textbf{Hybrid-GAT} & \textbf{GAT-P+InDeg} & \textbf{HGT-QoS} & \textbf{HGT-P-QoS} \\
 \midrule
 ATM & 0.495 & 0.670 & 0.398 & 0.406 & 0.506 & 0.603 & 0.447 & 0.501 & 0.523 & 0.181 \\
 AV System & 0.868 & 0.835 & 0.638 & 0.736 & 0.732 & 0.764 & 0.793 & 0.832 & 0.704 & 0.679 \\
@@ -46,9 +46,9 @@ GAT-P vs GAT & +0.090 & [+0.042, +0.148] & 11/12 & 0.0015 & 0.012 \\
 GAT-P-QoS vs InDeg & $-$0.017 & [$-$0.072, +0.051] & 4/12 & 0.4697 & 1.000 \\
 GAT-P-QoS vs Reach & +0.016 & [$-$0.024, +0.058] & 6/12 & 0.5693 & 1.000 \\
 GAT-P-QoS vs GAT-QoS & +0.113 & [+0.077, +0.162] & 12/12 & 0.0005 & 0.006 \\
-Hybrid-GAT-P vs InDeg & $-$0.006 & [$-$0.015, +0.002] & 3/12 & 0.2036 & 0.881 \\
-Hybrid-GAT-P vs Reach & +0.026 & [$-$0.035, +0.086] & 8/12 & 0.3804 & 1.000 \\
-Hybrid-GAT-P vs Hybrid-GAT & +0.075 & [+0.039, +0.113] & 11/12 & 0.0034 & 0.021 \\
+GAT-P+InDeg vs InDeg & $-$0.006 & [$-$0.015, +0.002] & 3/12 & 0.2036 & 0.881 \\
+GAT-P+InDeg vs Reach & +0.026 & [$-$0.035, +0.086] & 8/12 & 0.3804 & 1.000 \\
+GAT-P+InDeg vs Hybrid-GAT & +0.075 & [+0.039, +0.113] & 11/12 & 0.0034 & 0.021 \\
 HGT-P-QoS vs InDeg & $-$0.250 & [$-$0.377, $-$0.143] & 0/12 & 0.0005 & 0.006 \\
 HGT-P-QoS vs Reach & $-$0.217 & [$-$0.317, $-$0.131] & 0/12 & 0.0005 & 0.006 \\
 HGT-P-QoS vs HGT-QoS & $-$0.107 & [$-$0.238, +0.014] & 4/12 & 0.1763 & 0.881 \\
@@ -65,7 +65,7 @@ HGT-P-QoS vs HGT-QoS & $-$0.107 & [$-$0.238, +0.014] & 4/12 & 0.1763 & 0.881 \\
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lcccccccccc}
 \toprule
-\textbf{System model} & \textbf{InDeg} & \textbf{Reach} & \textbf{GAT} & \textbf{GAT-P} & \textbf{GAT-QoS} & \textbf{GAT-P-QoS} & \textbf{Hybrid-GAT} & \textbf{Hybrid-GAT-P} & \textbf{HGT-QoS} & \textbf{HGT-P-QoS} \\
+\textbf{System model} & \textbf{InDeg} & \textbf{Reach} & \textbf{GAT} & \textbf{GAT-P} & \textbf{GAT-QoS} & \textbf{GAT-P-QoS} & \textbf{Hybrid-GAT} & \textbf{GAT-P+InDeg} & \textbf{HGT-QoS} & \textbf{HGT-P-QoS} \\
 \midrule
 Autoware.universe (ROS 2) & 0.620 & 0.836 & 0.778 & 0.821 & 0.758 & 0.794 & 0.576 & 0.682 & 0.716 & 0.657 \\
 EdgeX Foundry & 0.896 & 0.997 & 0.853 & 0.846 & 0.815 & 0.841 & 0.748 & 0.813 & 0.793 & 0.786 \\
@@ -82,7 +82,7 @@ Train-Ticket & 0.867 & 0.966 & 0.786 & 0.815 & 0.777 & 0.774 & 0.642 & 0.752 & 0
 \begin{table}[htbp]
 \centering
 \small
-\caption{Receptive field of the dependency-graph learners at an Application (random weights, 3 layers): mean receptive-field size of the GAT, the share of Applications whose receptive field is exactly the Application and its dependents within three hops, and the share of the graph the bidirectional HGT reaches. Trained zero-shot checkpoints (seed 42), largest change in any Application prediction when every edge is deleted: GAT-P 0.51; GAT-P-QoS 0.54; Hybrid-GAT-P 0.32; HGT-P-QoS 0.61. Rendered from \texttt{results/dependency\_graph\_contrasts.json}.}
+\caption{Receptive field of the dependency-graph learners at an Application (random weights, 3 layers): mean receptive-field size of the GAT, the share of Applications whose receptive field is exactly the Application and its dependents within three hops, and the share of the graph the bidirectional HGT reaches. Trained zero-shot checkpoints (seed 42), largest change in any Application prediction when every edge is deleted: GAT-P 0.51; GAT-P-QoS 0.54; GAT-P+InDeg 0.32; HGT-P-QoS 0.61. Rendered from \texttt{results/dependency\_graph\_contrasts.json}.}
 \label{tab:a9-probe}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lcccc}
@@ -109,28 +109,28 @@ Telecom RAN & 120 & 87.7 & 1.000 & 0.912 \\
 \begin{table}[htbp]
 \centering
 \small
-\caption{The value of the dependency derivation (Amendment~10): dependency counts on the derived graph against counts available on the raw multigraph without derivation (Degree-raw: total degree; Pubs-raw: topics published) and against Rule-1-only reach (Reach-R1). Spearman $\rho$, Application population. Registered contrasts: InDeg vs Degree-raw +0.565 (12/12, Holm $p = 0.0015$); InDeg vs Pubs-raw +0.334 (12/12, Holm $p = 0.0015$); Reach vs Reach-R1 +0.058 (9/12, Holm $p = 0.0068$). Decision rules: E1 triggered, E2 triggered. For every Application in all seventeen graphs, \texttt{InDeg} equals the raw 2-hop subscriber count (max $|\Delta| = 0$). Rendered from \texttt{results/derivation\_ablation.json}.}
+\caption{The value of the dependency derivation (Amendment~10): dependency counts on the derived graph against counts available on the raw multigraph without derivation (Degree-raw: total degree; Pubs-raw: topics published) and against Rule-1-only reach (Reach-R1). Spearman $\rho$, Application population. Registered contrasts: InDeg vs Degree-raw +0.565 (12/12, Holm $p = 0.0015$); InDeg vs Pubs-raw +0.033 (11/12, Holm $p = 0.0020$); Reach vs Reach-R1 +0.058 (9/12, Holm $p = 0.0068$). Decision rules: E1 triggered, E2 triggered. For every Application in all seventeen graphs, \texttt{InDeg} equals the raw 2-hop subscriber count (max $|\Delta| = 0$). Rendered from \texttt{results/derivation\_ablation.json}.}
 \label{tab:a10-derivation}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lccccc}
 \toprule
 \textbf{Holdout} & \textbf{InDeg} & \textbf{Degree-raw} & \textbf{Pubs-raw} & \textbf{Reach} & \textbf{Reach-R1} \\
 \midrule
-ATM & 0.495 & $-$0.143 & 0.155 & 0.670 & 0.670 \\
-AV System & 0.868 & 0.120 & 0.351 & 0.835 & 0.801 \\
-Enterprise & 0.891 & 0.356 & 0.645 & 0.826 & 0.662 \\
-Financial Trading & 0.874 & 0.111 & 0.601 & 0.803 & 0.757 \\
-Healthcare & 0.831 & $-$0.054 & 0.471 & 0.819 & 0.792 \\
-Enterprise Integration (ESB) & 0.529 & $-$0.132 & $-$0.070 & 0.612 & 0.606 \\
-Industrial SCADA & 0.868 & 0.355 & 0.516 & 0.776 & 0.743 \\
-IoT Smart City & 0.898 & 0.414 & 0.779 & 0.655 & 0.655 \\
-Logistics Fleet & 0.836 & 0.485 & 0.555 & 0.759 & 0.631 \\
-Microservices & 0.548 & 0.118 & 0.287 & 0.656 & 0.487 \\
-Real-Time Gaming & 0.836 & 0.199 & 0.397 & 0.834 & 0.841 \\
-Telecom RAN & 0.698 & 0.565 & 0.480 & 0.535 & 0.441 \\
+ATM & 0.495 & $-$0.143 & 0.488 & 0.670 & 0.670 \\
+AV System & 0.868 & 0.120 & 0.827 & 0.835 & 0.801 \\
+Enterprise & 0.891 & 0.356 & 0.891 & 0.826 & 0.662 \\
+Financial Trading & 0.874 & 0.111 & 0.862 & 0.803 & 0.757 \\
+Healthcare & 0.831 & $-$0.054 & 0.750 & 0.819 & 0.792 \\
+Enterprise Integration (ESB) & 0.529 & $-$0.132 & 0.432 & 0.612 & 0.606 \\
+Industrial SCADA & 0.868 & 0.355 & 0.809 & 0.776 & 0.743 \\
+IoT Smart City & 0.898 & 0.414 & 0.879 & 0.655 & 0.655 \\
+Logistics Fleet & 0.836 & 0.485 & 0.823 & 0.759 & 0.631 \\
+Microservices & 0.548 & 0.118 & 0.523 & 0.656 & 0.487 \\
+Real-Time Gaming & 0.836 & 0.199 & 0.800 & 0.834 & 0.841 \\
+Telecom RAN & 0.698 & 0.565 & 0.691 & 0.535 & 0.441 \\
 \midrule
-\textbf{Mean} & 0.764 & 0.199 & 0.431 & 0.732 & 0.674 \\
-Five system models & 0.863 & 0.357 & 0.129 & 0.938 & 0.938 \\
+\textbf{Mean} & 0.764 & 0.199 & 0.731 & 0.732 & 0.674 \\
+Five system models & 0.863 & 0.357 & 0.489 & 0.938 & 0.938 \\
 \bottomrule
 \end{tabular}%
 }

@@ -23,7 +23,7 @@ from typing import Any, Dict, List
 
 from reproduce.render_amendment7_tables import _esc, _f
 from reproduce.training_free_suite import SYSTEMS
-from saag.evaluation.variant_registry import label
+from saag.evaluation.variant_registry import label, relabel
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results"
@@ -42,7 +42,7 @@ A9_COLUMNS = [
     ("InDeg", "InDeg"), ("Reach", "Reach"),
     ("gl_full_cap@published", "GAT"), ("gl_proj_cap", "GAT-P"),
     ("gl_full_qos16_cap@published", "GAT-QoS"), ("gl_proj_qos16_cap", "GAT-P-QoS"),
-    ("gl_qos16_prior@published", "Hybrid-GAT"), ("gl_proj_qos16_indeg_prior", "Hybrid-GAT-P"),
+    ("gl_qos16_prior@published", "Hybrid-GAT"), ("gl_proj_qos16_indeg_prior", "GAT-P+InDeg"),
     ("hgl_qos@published", "HGT-QoS"), ("hgl_proj_qos", "HGT-P-QoS"),
 ]
 A10_ARMS = ["InDeg", "Degree-raw", "Pubs-raw", "Reach", "Reach-R1"]
@@ -86,7 +86,7 @@ def a9_contrasts(d: Dict[str, Any]) -> str:
     rows = []
     for name, c in d["contrasts"].items():
         lo, hi = c["ci95"]
-        rows.append(rf"{_esc(name)} & {_f(c['delta'], sign=True)} & [{_f(lo, sign=True)}, {_f(hi, sign=True)}]"
+        rows.append(rf"{_esc(relabel(name))} & {_f(c['delta'], sign=True)} & [{_f(lo, sign=True)}, {_f(hi, sign=True)}]"
                     rf" & {c['won']}/{c['n']} & {c['p']:.4f} & {c['p_holm']:.3f} \\")
     dec = d["decisions"]
     rule = ", ".join(f"{k} {'triggered' if v['triggered'] else 'not triggered'}" for k, v in dec.items())

@@ -1216,41 +1216,55 @@ def check_system_models_transfer(rep: Report) -> None:
 
 
 def check_independent_oracles(rep: Report) -> None:
-    """Table tab:independent_oracles: Agreement across independent simulation paradigms."""
-    art = _load("independent_oracle_evaluation.json")
-    if art is None:
-        rep.skipped.append("independent_oracle_evaluation.json absent")
-        return
+    """Table tab:independent_oracles: rankers against I*, I_dyn (n=30 sample), I_comp.
+
+    Training-free rows: I* from independent_oracle_evaluation.json (raw-graph rows from
+    the Amendment 12 R1 artifact), I_dyn and the partial correlation from the R2
+    artifact, I_comp from R1. Learned rows: the R3 seed-ensemble artifact.
+    """
+    ioe = _load("independent_oracle_evaluation.json")
+    raw = _load("referee_round7_raw_baselines.json")
+    part = _load("referee_round7_partial.json")
+    lrn = _load("referee_round7_learned_oracles.json")
     tex = _tex("sec7_results.tex")
-    if r"\label{tab:independent_oracles}" not in tex:
-        rep.skipped.append("tab:independent_oracles absent")
+    if None in (ioe, raw, part, lrn) or r"\label{tab:independent_oracles}" not in tex:
+        rep.skipped.append("tab:independent_oracles: table or an Amendment 12 artifact absent")
         return
-    label_map = {
-        "Analytic $I^*$": "Analytic-I*",
-        "InDeg": "InDeg",
-        "Reach": "Reach",
-        "Topo-QoS": "Topo-QoS",
-    }
-    summ = art["summary"]
+    rs, ps = raw["summary"], part["summary"]
+
+    def tf(key: str):
+        i_star = (ioe["summary"]["i_star"][key]["mean_rho"] if key in ioe["summary"]["i_star"]
+                  else rs["i_star"][key]["loso"]["mean"])
+        i_dyn = ps[key]["rho"]["mean"] if key in ps else rs["i_dyn"][key]["loso"]["mean"]
+        partial = ps[key]["partial_given_istar"]["mean"] if key in ps else None
+        return [(1, i_star, "i_star"), (2, i_dyn, "i_dyn"), (3, partial, "partial"),
+                (4, rs["i_comp"][key]["loso"]["mean"], "i_comp")]
+
+    def learned(key: str):
+        sm = lrn[key]["summary"]
+        return [(1, sm["i_star"]["rho"]["mean"], "i_star"), (2, sm["i_dyn"]["rho"]["mean"], "i_dyn"),
+                (4, sm["i_comp"]["rho"]["mean"], "i_comp")]
+
+    rows = {"Analytic $I^*$": tf("Analytic-I*"), "InDeg": tf("InDeg"), "Reach": tf("Reach"),
+            "Topo-QoS": tf("Topo-QoS"), "Pubs-raw": tf("Pubs-raw"), "Degree-raw": tf("Degree-raw")}
+    rows.update({k: learned(k) for k in lrn if isinstance(lrn[k], dict) and "summary" in lrn[k]})
+    seen = 0
     for row in _rows(tex, r"\midrule", after_label=r"\label{tab:independent_oracles}"):
         cells = _cells(row)
         name = _label(cells[0])
-        key = label_map.get(name)
-        if key is None:
+        if name not in rows:
             continue
-        truths = [
-            (1, summ["i_star"][key]["mean_rho"], "i_star_mean_rho"),
-            (2, summ["i_star"][key]["mean_rho_active"], "i_star_rho_active"),
-            (3, summ["i_dyn"][key]["mean_rho"], "i_dyn_mean_rho"),
-            (4, summ["i_dyn"][key]["mean_rho_active"], "i_dyn_rho_active"),
-            (5, summ["i_comp"][key]["mean_rho"], "i_comp_mean_rho"),
-            (6, summ["i_comp"][key]["mean_rho_active"], "i_comp_rho_active"),
-        ]
-        for idx, truth, nm in truths:
+        seen += 1
+        for idx, truth, nm in rows[name]:
+            if truth is None:
+                continue
             got = _num(cells[idx]) if idx < len(cells) else None
             rep.checked += 1
-            if got is None or abs(got - truth) > 0.001:
+            if got is None or abs(got - truth) > 0.0006:
                 rep.findings.append(Finding("tab:independent_oracles", name, nm, got, round(truth, 4)))
+    rep.checked += 1
+    if seen != len(rows):
+        rep.findings.append(Finding("tab:independent_oracles", "rows", "count", seen, len(rows)))
 
 
 def check_contrasts_matched(rep: Report) -> None:
@@ -1497,14 +1511,20 @@ def check_engine_regimes(rep: Report) -> None:
     for pattern, truths in (
         (r"\\texttt\{GBM-Feat\}\) achieve \$\\rho = ([\d.]+)\$ under LOSO, level with \\texttt\{GAT-QoS\} \(\$([\d.]+)\$\)",
          [(1, L["mean_rho"]["GBM-Feat"]), (2, L["mean_rho"]["GAT-QoS"])]),
-        (r"typing main effect " + num + r", interaction " + num,
+        (r"typing added nothing measurable \(main effect " + num + r", interaction " + num,
          [(1, -0.014), (2, +0.001)]),
-        (r"within-fold seed spread " + num + r", mean \$\\rho = ([\d.]+)\$",
-         [(1, 0.208), (2, 0.514)]),
-        (r"\\texttt\{GAT-P-QoS\}\) converged reliably \(\$\\rho = ([\d.]+)\$",
-         [(1, 0.748)]),
     ):
         _quote(rep, "sec:8.2", sec8, pattern, truths)
+    avg = _load("referee_round7_averaging.json")
+    if avg is not None:
+        sp = avg["seed_spread"]
+        _quote(rep, "sec:8.2", sec8,
+               r"mean within-fold seed standard deviation " + num + r", mean \$\\rho = ([\d.]+)\$\)"
+               r".*?\\texttt\{GAT-P-QoS\} was not \(" + num + r", \$\\rho = ([\d.]+)\$\)",
+               [(1, sp["HGT-P-QoS"]["mean_sd"]), (2, avg["per_ranker"]["HGT-P-QoS"]["arithmetic"]),
+                (3, sp["GAT-P-QoS"]["mean_sd"]), (4, avg["per_ranker"]["GAT-P-QoS"]["arithmetic"])])
+    else:
+        rep.skipped.append("referee_round7_averaging.json absent; seed-spread quotes unchecked")
 
     # The two registered control arms: HGT-QoS-U quoted in Section 7.2, both in the supplement.
     dirn = _load("loso_significance_directionality_cpu.json") or {}
@@ -1675,7 +1695,8 @@ def check_dependency_graph(rep: Report) -> None:
     if seen != 3:
         rep.findings.append(Finding("tab:hybrid", "dependency-graph rows", "rows", seen, 3))
 
-    means, con, zs = dg["means"], dg["contrasts"], dg["zeroshot"]
+    means, zs = dg["means"], dg["zeroshot"]
+    con = {_registry.relabel(k): v for k, v in dg["contrasts"].items()}
     # Table tab:dg-learners (if present in main text).
     if r"\label{tab:dg-learners}" in tex:
         arms = {_registry.label(v, "loso"): v for v in
@@ -1714,12 +1735,18 @@ def check_dependency_graph(rep: Report) -> None:
            [(1, c10["Reach vs Reach-R1"]["delta"]), (2, c10["Reach vs Reach-R1"]["won"]),
             (3, c10["Reach vs Reach-R1"]["p_holm"])])
     _quote(rep, "abstract", _tex("abstract.tex"),
-           r"Spearman \$\\rho = ([\d.]+)\$, beating closed-form centrality on all twelve held-out architectures \(\$\+([\d.]+)\$\).*?"
-           r"reaches \$\\rho = ([\d.]+)\$ without training.*?"
-           r"match the count \(\$\\rho = ([\d.]+)\$\)",
-           [(1, tf["summary"]["InDeg"]["loso_mean_rho"]), (2, tf["contrasts_vs_topo_qos"]["InDeg"]["delta"]),
-            (3, tf["summary"]["Reach"]["systems_mean_rho"]),
-            (4, means["gl_proj_qos16_cap"]["loso_mean_rho"])])
+           r"ranked reachability-simulated impact at \$\\rho = ([\d.]+)\$.*?"
+           r"transitive dependents reached \$([\d.]+)\$.*?"
+           r"matched the count \(\$([\d.]+)\$\)",
+           [(1, tf["summary"]["InDeg"]["loso_mean_rho"]), (2, tf["summary"]["Reach"]["systems_mean_rho"]),
+            (3, means["gl_proj_qos16_cap"]["loso_mean_rho"])])
+    part, raw12 = _load("referee_round7_partial.json"), _load("referee_round7_raw_baselines.json")
+    if part is not None and raw12 is not None:
+        _quote(rep, "abstract", _tex("abstract.tex"),
+               r"partial correlation of \$([\d.]+)\$.*?\(\$([\d.]+)\$ vs\.\\ \$([\d.]+)\$\)",
+               [(1, part["summary"]["InDeg"]["partial_given_istar"]["mean"]),
+                (2, raw12["summary"]["i_comp"]["Topo-QoS"]["loso"]["mean"]),
+                (3, raw12["summary"]["i_comp"]["InDeg"]["loso"]["mean"])])
     regimes = _load("engine_regimes.json")
     if regimes is not None:
         by = regimes["loso"]["regimes_by_topo_qos_tercile"]
@@ -1779,6 +1806,111 @@ FOLD_NAMES_A7 = {
 }
 
 
+def check_referee_round7(rep: Report) -> None:
+    """Amendment 12 (round-7 referee analyses): Table 6's raw-graph rows, the prose
+    figures of Section 7.1, the rendered supplement tables, and the Guide's length
+    limits on the abstract (250 words) and the highlights (85 characters)."""
+    raw = _load("referee_round7_raw_baselines.json")
+    part = _load("referee_round7_partial.json")
+    rec = _load("referee_round7_recall.json")
+    if None in (raw, part, rec):
+        rep.skipped.append("Amendment 12 artifacts absent; round-7 checks skipped")
+        return
+    from reproduce.training_free_suite import FOLDS as _F, mean_ci as _ci
+    tex = _tex("sec7_results.tex")
+    per = raw["per_scenario"]
+    for row in _rows(tex, r"\midrule", after_label=r"\label{tab:hybrid}"):
+        cells = _cells(row)
+        name = _label(cells[0]).replace("$^\\S$", "").strip()
+        if name not in ("Degree-raw", "RevPR-raw", "Pubs-raw", "Reach-R1"):
+            continue
+        xs = [per[f]["i_star"][name]["rho"] for f in _F]
+        for idx, truth, nm in ((1, sum(xs) / len(xs), "mean_rho"),
+                               (2, sum(per[f]["i_star"][name]["rho_active"] for f in _F) / len(_F), "rho_active"),
+                               (6, sum(per[f]["i_star"][name]["overlap_at_k"] for f in _F) / len(_F), "overlap")):
+            got = _num(cells[idx])
+            rep.checked += 1
+            if got is None or abs(got - truth) > 0.0006:
+                rep.findings.append(Finding("tab:hybrid", name, nm, got, round(truth, 4)))
+        lo, hi = _ci(xs)
+        rep.checked += 1
+        if f"[{lo:.3f}, {hi:.3f}]".replace("-", "") not in cells[1].replace("$", "").replace("-", ""):
+            rep.findings.append(Finding("tab:hybrid", name, "ci95", cells[1], f"[{lo:.3f}, {hi:.3f}]"))
+
+    ps, cur = part["summary"], rec["curves"]["i_star"]["InDeg"]["curve"]
+    num = r"\$([-+]?[\d.]+)\$"
+    _quote(rep, "sec:rq1", tex,
+           r"After the rank of \$I\^\*\$ is removed, \\texttt\{InDeg\} keeps \$\\rho = ([\d.]+)\$ "
+           r"\$\[([\d.]+), ([\d.]+)\]\$ with \$I_\{\\text\{dyn\}\}\$, and " + num + r" \$\[([\d.]+), ([\d.]+)\]\$"
+           r".*?\\texttt\{Reach\} keeps nothing \(" + num,
+           [(1, ps["InDeg"]["partial_given_istar"]["mean"]), (2, ps["InDeg"]["partial_given_istar"]["ci95"][0]),
+            (3, ps["InDeg"]["partial_given_istar"]["ci95"][1]), (4, ps["InDeg"]["partial_given_analytic"]["mean"]),
+            (5, ps["InDeg"]["partial_given_analytic"]["ci95"][0]), (6, ps["InDeg"]["partial_given_analytic"]["ci95"][1]),
+            (7, ps["Reach"]["partial_given_istar"]["mean"])])
+    _quote(rep, "sec:rq1", tex,
+           r"At \$k = 20\\%\$, \\texttt\{InDeg\} recovers " + num + r" of the critical set \(tie-breaking bounds "
+           + num + "--" + num + r"\).*?top \$45\\%\$ by \\texttt\{InDeg\} \(" + num,
+           [(1, cur["0.20"]["expected"]), (2, cur["0.20"]["pessimistic"]), (3, cur["0.20"]["optimistic"]),
+            (4, cur["0.45"]["expected"])])
+    rep.checked += 1
+    if rec["curves"]["i_star"]["InDeg"]["safety_margin"]["0.80"] != 0.45:
+        rep.findings.append(Finding("sec:rq1", "InDeg 80% recall margin", "k", "45%",
+                                    rec["curves"]["i_star"]["InDeg"]["safety_margin"]["0.80"]))
+
+    try:
+        from reproduce import render_referee_tables as rr
+        import io
+        import contextlib
+        target = ROOT / "docs/research/jss/latex/supp_referee.tex"
+        before = target.read_text()
+        with contextlib.redirect_stdout(io.StringIO()):
+            rr.main()
+        after = target.read_text()
+        rep.checked += 1
+        if before != after:
+            target.write_text(before)
+            rep.findings.append(Finding("supp_referee.tex", "rendered tables", "content", "stale",
+                                        "re-render", "run reproduce/render_referee_tables.py"))
+    except FileNotFoundError:
+        rep.skipped.append("supp_referee.tex: an artifact is absent")
+
+    lat = _load("referee_round7_latency.json")
+    if lat is not None:
+        by_n = {r["n_actual"]: r for r in lat["sizes"]}
+        k0 = tex.index(r"\midrule", tex.index(r"\label{tab:count-scale}"))
+        body = tex[k0:tex.index(r"\bottomrule", k0)]
+        rows_cs = [ln.strip() for ln in body.split("\n") if ln.strip().endswith(r"\\")]
+        rep.checked += 1
+        if len(rows_cs) != len(by_n):
+            rep.findings.append(Finding("tab:count-scale", "rows", "count", len(rows_cs), len(by_n)))
+        for row in rows_cs:
+            cells = _cells(row)
+            n = _num(cells[0])
+            if n is None or int(n) not in by_n:
+                continue
+            r = by_n[int(n)]
+            truths = [(2, 1000 * r["count_path_s"], 0.051), (3, 1000 * r["reach_s"], 0.051)]
+            if r["istar_s"] is not None:
+                truths += [(4, r["istar_s"], 0.051), (5, r["istar_s"] / r["count_path_s"], 0.51)]
+            for idx, truth, tol in truths:
+                got = _num(cells[idx])
+                rep.checked += 1
+                if got is None or abs(got - truth) > tol:
+                    rep.findings.append(Finding("tab:count-scale", f"n={int(n)}", str(idx), got, round(truth, 2)))
+    else:
+        rep.skipped.append("referee_round7_latency.json absent; tab:count-scale unchecked")
+
+    words = len(re.sub(r"\$[^$]*\$", "X", _tex("abstract.tex")).split())
+    rep.checked += 1
+    if words > 250:
+        rep.findings.append(Finding("abstract", "length", "words", words, 250))
+    for line in (ROOT / "docs/research/jss/latex/highlights.tex").read_text().splitlines():
+        if line.strip() and not line.startswith(("%", "\\")):
+            rep.checked += 1
+            if len(line) > 85:
+                rep.findings.append(Finding("highlights", line[:30], "characters", len(line), 85))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1814,6 +1946,7 @@ def main() -> int:
     check_hybrid_table(rep)
     check_system_models_transfer(rep)
     check_independent_oracles(rep)
+    check_referee_round7(rep)
     check_contrasts_matched(rep)
     check_omnibus_holm(rep)
     check_engine_regimes(rep)

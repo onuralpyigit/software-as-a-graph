@@ -762,7 +762,9 @@ def _derivation_set(ids: Dict[str, str]) -> Dict[str, Dict[str, Any]]:
             "Reach": score(reach(flow), lab, graph),
             "Reach-R1": score(reach_r1(flow), lab, graph),
             "Degree-raw": score(degree_raw(topo), lab, graph),
-            "Pubs-raw": score(pubs_raw(topo), lab, graph),
+            # Zero-filled: pubs_raw emits publishers only, and the metric code scores
+            # only emitted nodes, so non-publishers would otherwise drop out.
+            "Pubs-raw": score({**{a: 0.0 for a in apps}, **pubs_raw(topo)}, lab, graph),
             # The registered identity: InDeg of an Application is its raw 2-hop
             # subscriber count, so this must be 0 on every graph.
             "identity_max_abs_diff": max(

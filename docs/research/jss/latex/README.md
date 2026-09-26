@@ -111,16 +111,18 @@ directions, and `make zip` ships both `.aux` files so the portal build resolves 
 
 ## Figures
 
-Five figures in the manuscript, each `\includegraphics`'d from a live section and cross-referenced
-with `\ref`, plus two in the supplement:
+Six figures in the manuscript, each `\includegraphics`'d from a live section and cross-referenced
+with `\ref`, two in the supplement, and a separately submitted graphical abstract:
 
 | Fig. | File | Content | Section | Generator |
 |:---:|---|---|---|---|
 | 1 | `Figure_1.pdf` | end-to-end SaG pipeline | §3 | `figures/src/figure1_pipeline.dot` |
 | 2 | `Figure_2.pdf` | running example: structural graph → `DEPENDS_ON` (cascade vs. blast) | §3.2 | `reproduce/render_jss_diagrams.py` |
 | 3 | `Figure_3.pdf` | the three ranking engines (hybrid mechanism) and the evaluation design | §4 | `reproduce/render_jss_diagrams.py` |
-| 4 | `Figure_4.pdf` | explanation layer: metrics → FT/A/M → Q(v) → remediation | §5.2 | `reproduce/render_jss_diagrams.py` |
+| 4 | `Figure_4.pdf` | proposed (not evaluated) explanation layer: metrics → FT/A/M → Q(v) → remediation | §5 | `reproduce/render_jss_diagrams.py` |
 | 5 | `Figure_5.pdf` | results at a glance: LOSO vs. transfer, per-fold hybrid effect, matched 2×2 | §7 | `reproduce/render_headline_figure.py` |
+| 6 | `Figure_6.pdf` | recall of the true top-20% set by each ranker's top k% (Amendment 12) | §7.1 | `reproduce/render_recall_figure.py` |
+| GA | `graphical_abstract.pdf` | graphical abstract (13 × 5 cm; submit as a separate file) | — | `reproduce/render_graphical_abstract.py` |
 | S1 | `Figure_S1.pdf` | AHP shrinkage sensitivity | Supp. S1 | `reproduce/render_shrinkage_figure.py` |
 | S2 | `Figure_S2.pdf` | HGT attention-weight case study | Supp. S8 | `reproduce/extract_attention.py` + `render_attention_subgraph.py` |
 

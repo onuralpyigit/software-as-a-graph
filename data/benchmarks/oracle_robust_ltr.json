@@ -1,0 +1,4995 @@
+{
+  "gates": {
+    "G1": {
+      "passed": true,
+      "tolerance": 1e-09,
+      "max_abs_diff": 0.0,
+      "n_uncompared": 0,
+      "per_fold": {
+        "atm_system": {
+          "n_published": 26,
+          "n_compared": 26,
+          "not_application": [],
+          "max_abs_diff": 0.0
+        },
+        "av_system": {
+          "n_published": 30,
+          "n_compared": 30,
+          "not_application": [],
+          "max_abs_diff": 0.0
+        },
+        "enterprise_system": {
+          "n_published": 30,
+          "n_compared": 30,
+          "not_application": [],
+          "max_abs_diff": 0.0
+        },
+        "financial_trading_system": {
+          "n_published": 30,
+          "n_compared": 30,
+          "not_application": [],
+          "max_abs_diff": 0.0
+        },
+        "healthcare_system": {
+          "n_published": 30,
+          "n_compared": 30,
+          "not_application": [],
+          "max_abs_diff": 0.0
+        },
+        "hub_and_spoke_system": {
+          "n_published": 30,
+          "n_compared": 30,
+          "not_application": [],
+          "max_abs_diff": 0.0
+        },
+        "industrial_scada_system": {
+          "n_published": 30,
+          "n_compared": 30,
+          "not_application": [],
+          "max_abs_diff": 0.0
+        },
+        "iot_smart_city_system": {
+          "n_published": 30,
+          "n_compared": 30,
+          "not_application": [],
+          "max_abs_diff": 0.0
+        },
+        "logistics_fleet_system": {
+          "n_published": 30,
+          "n_compared": 30,
+          "not_application": [],
+          "max_abs_diff": 0.0
+        },
+        "microservices_system": {
+          "n_published": 30,
+          "n_compared": 30,
+          "not_application": [],
+          "max_abs_diff": 0.0
+        },
+        "realtime_gaming_system": {
+          "n_published": 30,
+          "n_compared": 30,
+          "not_application": [],
+          "max_abs_diff": 0.0
+        },
+        "telecom_ran_system": {
+          "n_published": 30,
+          "n_compared": 30,
+          "not_application": [],
+          "max_abs_diff": 0.0
+        }
+      }
+    },
+    "G2": {
+      "passed": true,
+      "tolerance": 0.001,
+      "max_abs_diff": 4.96979379084328e-05,
+      "checks": [
+        {
+          "fold": "atm_system",
+          "oracle": "i_star",
+          "ranker": "Analytic-I*",
+          "rho": 0.7002584083230161,
+          "published": 0.7003,
+          "abs_diff": 4.1591676983920856e-05
+        },
+        {
+          "fold": "atm_system",
+          "oracle": "i_star",
+          "ranker": "InDeg",
+          "rho": 0.4947190447577717,
+          "published": 0.4947,
+          "abs_diff": 1.9044757771702336e-05
+        },
+        {
+          "fold": "atm_system",
+          "oracle": "i_star",
+          "ranker": "Reach",
+          "rho": 0.6701946185296532,
+          "published": 0.6702,
+          "abs_diff": 5.381470346788042e-06
+        },
+        {
+          "fold": "atm_system",
+          "oracle": "i_star",
+          "ranker": "Topo-QoS",
+          "rho": 0.3109239422098597,
+          "published": 0.3109,
+          "abs_diff": 2.3942209859684205e-05
+        },
+        {
+          "fold": "atm_system",
+          "oracle": "i_comp",
+          "ranker": "Analytic-I*",
+          "rho": 0.5989398772281038,
+          "published": 0.5989,
+          "abs_diff": 3.9877228103835094e-05
+        },
+        {
+          "fold": "atm_system",
+          "oracle": "i_comp",
+          "ranker": "InDeg",
+          "rho": 0.6456064120558074,
+          "published": 0.6456,
+          "abs_diff": 6.412055807425432e-06
+        },
+        {
+          "fold": "atm_system",
+          "oracle": "i_comp",
+          "ranker": "Reach",
+          "rho": -0.17289598081413354,
+          "published": -0.1729,
+          "abs_diff": 4.0191858664551106e-06
+        },
+        {
+          "fold": "atm_system",
+          "oracle": "i_comp",
+          "ranker": "Topo-QoS",
+          "rho": 0.7904374984190606,
+          "published": 0.7904,
+          "abs_diff": 3.749841906064422e-05
+        },
+        {
+          "fold": "av_system",
+          "oracle": "i_star",
+          "ranker": "Analytic-I*",
+          "rho": 0.839410386107006,
+          "published": 0.8394,
+          "abs_diff": 1.038610700598852e-05
+        },
+        {
+          "fold": "av_system",
+          "oracle": "i_star",
+          "ranker": "InDeg",
+          "rho": 0.8681557454814637,
+          "published": 0.8682,
+          "abs_diff": 4.425451853629081e-05
+        },
+        {
+          "fold": "av_system",
+          "oracle": "i_star",
+          "ranker": "Reach",
+          "rho": 0.8347244289000615,
+          "published": 0.8347,
+          "abs_diff": 2.4428900061490566e-05
+        },
+        {
+          "fold": "av_system",
+          "oracle": "i_star",
+          "ranker": "Topo-QoS",
+          "rho": 0.7526918117294357,
+          "published": 0.7527,
+          "abs_diff": 8.188270564368771e-06
+        },
+        {
+          "fold": "av_system",
+          "oracle": "i_comp",
+          "ranker": "Analytic-I*",
+          "rho": 0.7381531495255214,
+          "published": 0.7382,
+          "abs_diff": 4.685047447861024e-05
+        },
+        {
+          "fold": "av_system",
+          "oracle": "i_comp",
+          "ranker": "InDeg",
+          "rho": 0.7211386361959178,
+          "published": 0.7211,
+          "abs_diff": 3.8636195917818306e-05
+        },
+        {
+          "fold": "av_system",
+          "oracle": "i_comp",
+          "ranker": "Reach",
+          "rho": 0.5177866719646016,
+          "published": 0.5178,
+          "abs_diff": 1.3328035398441074e-05
+        },
+        {
+          "fold": "av_system",
+          "oracle": "i_comp",
+          "ranker": "Topo-QoS",
+          "rho": 0.73939816179647,
+          "published": 0.7394,
+          "abs_diff": 1.8382035299469024e-06
+        },
+        {
+          "fold": "enterprise_system",
+          "oracle": "i_star",
+          "ranker": "Analytic-I*",
+          "rho": 0.9170007522536799,
+          "published": 0.917,
+          "abs_diff": 7.522536799031698e-07
+        },
+        {
+          "fold": "enterprise_system",
+          "oracle": "i_star",
+          "ranker": "InDeg",
+          "rho": 0.8907089690283002,
+          "published": 0.8907,
+          "abs_diff": 8.969028300165327e-06
+        },
+        {
+          "fold": "enterprise_system",
+          "oracle": "i_star",
+          "ranker": "Reach",
+          "rho": 0.8264915765406635,
+          "published": 0.8265,
+          "abs_diff": 8.423459336492911e-06
+        },
+        {
+          "fold": "enterprise_system",
+          "oracle": "i_star",
+          "ranker": "Topo-QoS",
+          "rho": 0.7953082495191883,
+          "published": 0.7953,
+          "abs_diff": 8.249519188319177e-06
+        },
+        {
+          "fold": "enterprise_system",
+          "oracle": "i_comp",
+          "ranker": "Analytic-I*",
+          "rho": 0.7214311423230648,
+          "published": 0.7214,
+          "abs_diff": 3.114232306478115e-05
+        },
+        {
+          "fold": "enterprise_system",
+          "oracle": "i_comp",
+          "ranker": "InDeg",
+          "rho": 0.7359464547652874,
+          "published": 0.7359,
+          "abs_diff": 4.64547652874181e-05
+        },
+        {
+          "fold": "enterprise_system",
+          "oracle": "i_comp",
+          "ranker": "Reach",
+          "rho": 0.4539074277039825,
+          "published": 0.4539,
+          "abs_diff": 7.42770398248771e-06
+        },
+        {
+          "fold": "enterprise_system",
+          "oracle": "i_comp",
+          "ranker": "Topo-QoS",
+          "rho": 0.7479052128022422,
+          "published": 0.7479,
+          "abs_diff": 5.212802242193781e-06
+        },
+        {
+          "fold": "financial_trading_system",
+          "oracle": "i_star",
+          "ranker": "Analytic-I*",
+          "rho": 0.8360087093287525,
+          "published": 0.836,
+          "abs_diff": 8.70932875252084e-06
+        },
+        {
+          "fold": "financial_trading_system",
+          "oracle": "i_star",
+          "ranker": "InDeg",
+          "rho": 0.8737229810399816,
+          "published": 0.8737,
+          "abs_diff": 2.29810399815511e-05
+        },
+        {
+          "fold": "financial_trading_system",
+          "oracle": "i_star",
+          "ranker": "Reach",
+          "rho": 0.8028777057593944,
+          "published": 0.8029,
+          "abs_diff": 2.229424060551377e-05
+        },
+        {
+          "fold": "financial_trading_system",
+          "oracle": "i_star",
+          "ranker": "Topo-QoS",
+          "rho": 0.5864231295106708,
+          "published": 0.5864,
+          "abs_diff": 2.312951067073854e-05
+        },
+        {
+          "fold": "financial_trading_system",
+          "oracle": "i_comp",
+          "ranker": "Analytic-I*",
+          "rho": 0.7220104776359977,
+          "published": 0.722,
+          "abs_diff": 1.047763599770768e-05
+        },
+        {
+          "fold": "financial_trading_system",
+          "oracle": "i_comp",
+          "ranker": "InDeg",
+          "rho": 0.6943887098008651,
+          "published": 0.6944,
+          "abs_diff": 1.1290199134927903e-05
+        },
+        {
+          "fold": "financial_trading_system",
+          "oracle": "i_comp",
+          "ranker": "Reach",
+          "rho": 0.46092207366141924,
+          "published": 0.4609,
+          "abs_diff": 2.2073661419264035e-05
+        },
+        {
+          "fold": "financial_trading_system",
+          "oracle": "i_comp",
+          "ranker": "Topo-QoS",
+          "rho": 0.6697503020620915,
+          "published": 0.6698,
+          "abs_diff": 4.96979379084328e-05
+        },
+        {
+          "fold": "healthcare_system",
+          "oracle": "i_star",
+          "ranker": "Analytic-I*",
+          "rho": 0.8253061295888491,
+          "published": 0.8253,
+          "abs_diff": 6.129588849046463e-06
+        },
+        {
+          "fold": "healthcare_system",
+          "oracle": "i_star",
+          "ranker": "InDeg",
+          "rho": 0.8305711379591135,
+          "published": 0.8306,
+          "abs_diff": 2.8862040886479257e-05
+        },
+        {
+          "fold": "healthcare_system",
+          "oracle": "i_star",
+          "ranker": "Reach",
+          "rho": 0.8186292489808141,
+          "published": 0.8186,
+          "abs_diff": 2.924898081413385e-05
+        },
+        {
+          "fold": "healthcare_system",
+          "oracle": "i_star",
+          "ranker": "Topo-QoS",
+          "rho": 0.36869084150771025,
+          "published": 0.3687,
+          "abs_diff": 9.158492289773612e-06
+        },
+        {
+          "fold": "healthcare_system",
+          "oracle": "i_comp",
+          "ranker": "Analytic-I*",
+          "rho": 0.6554595232696512,
+          "published": 0.6555,
+          "abs_diff": 4.0476730348792955e-05
+        },
+        {
+          "fold": "healthcare_system",
+          "oracle": "i_comp",
+          "ranker": "InDeg",
+          "rho": 0.6297938702629641,
+          "published": 0.6298,
+          "abs_diff": 6.129737035953653e-06
+        },
+        {
+          "fold": "healthcare_system",
+          "oracle": "i_comp",
+          "ranker": "Reach",
+          "rho": 0.42188685964534334,
+          "published": 0.4219,
+          "abs_diff": 1.314035465665997e-05
+        },
+        {
+          "fold": "healthcare_system",
+          "oracle": "i_comp",
+          "ranker": "Topo-QoS",
+          "rho": 0.533777902668776,
+          "published": 0.5338,
+          "abs_diff": 2.209733122404689e-05
+        },
+        {
+          "fold": "hub_and_spoke_system",
+          "oracle": "i_star",
+          "ranker": "Analytic-I*",
+          "rho": 0.691081201437113,
+          "published": 0.6911,
+          "abs_diff": 1.8798562887001324e-05
+        },
+        {
+          "fold": "hub_and_spoke_system",
+          "oracle": "i_star",
+          "ranker": "InDeg",
+          "rho": 0.5286900159698147,
+          "published": 0.5287,
+          "abs_diff": 9.984030185261616e-06
+        },
+        {
+          "fold": "hub_and_spoke_system",
+          "oracle": "i_star",
+          "ranker": "Reach",
+          "rho": 0.6120353948036655,
+          "published": 0.612,
+          "abs_diff": 3.539480366554493e-05
+        },
+        {
+          "fold": "hub_and_spoke_system",
+          "oracle": "i_star",
+          "ranker": "Topo-QoS",
+          "rho": 0.42951365098479605,
+          "published": 0.4295,
+          "abs_diff": 1.36509847960542e-05
+        },
+        {
+          "fold": "hub_and_spoke_system",
+          "oracle": "i_comp",
+          "ranker": "Analytic-I*",
+          "rho": 0.48181691969857626,
+          "published": 0.4818,
+          "abs_diff": 1.6919698576256526e-05
+        },
+        {
+          "fold": "hub_and_spoke_system",
+          "oracle": "i_comp",
+          "ranker": "InDeg",
+          "rho": 0.5010332686290143,
+          "published": 0.501,
+          "abs_diff": 3.326862901431582e-05
+        },
+        {
+          "fold": "hub_and_spoke_system",
+          "oracle": "i_comp",
+          "ranker": "Reach",
+          "rho": -0.11825200566075776,
+          "published": -0.1183,
+          "abs_diff": 4.799433924224106e-05
+        },
+        {
+          "fold": "hub_and_spoke_system",
+          "oracle": "i_comp",
+          "ranker": "Topo-QoS",
+          "rho": 0.7157295284696842,
+          "published": 0.7157,
+          "abs_diff": 2.9528469684181324e-05
+        },
+        {
+          "fold": "industrial_scada_system",
+          "oracle": "i_star",
+          "ranker": "Analytic-I*",
+          "rho": 0.85090153983651,
+          "published": 0.8509,
+          "abs_diff": 1.5398365099672517e-06
+        },
+        {
+          "fold": "industrial_scada_system",
+          "oracle": "i_star",
+          "ranker": "InDeg",
+          "rho": 0.8677190263437373,
+          "published": 0.8677,
+          "abs_diff": 1.902634373729395e-05
+        },
+        {
+          "fold": "industrial_scada_system",
+          "oracle": "i_star",
+          "ranker": "Reach",
+          "rho": 0.7759987937074462,
+          "published": 0.776,
+          "abs_diff": 1.2062925538458558e-06
+        },
+        {
+          "fold": "industrial_scada_system",
+          "oracle": "i_star",
+          "ranker": "Topo-QoS",
+          "rho": 0.6503746663112442,
+          "published": 0.6504,
+          "abs_diff": 2.5333688755790895e-05
+        },
+        {
+          "fold": "industrial_scada_system",
+          "oracle": "i_comp",
+          "ranker": "Analytic-I*",
+          "rho": 0.7166832004305839,
+          "published": 0.7167,
+          "abs_diff": 1.679956941613714e-05
+        },
+        {
+          "fold": "industrial_scada_system",
+          "oracle": "i_comp",
+          "ranker": "InDeg",
+          "rho": 0.7088143899195072,
+          "published": 0.7088,
+          "abs_diff": 1.4389919507196147e-05
+        },
+        {
+          "fold": "industrial_scada_system",
+          "oracle": "i_comp",
+          "ranker": "Reach",
+          "rho": 0.4884914420442202,
+          "published": 0.4885,
+          "abs_diff": 8.557955779808779e-06
+        },
+        {
+          "fold": "industrial_scada_system",
+          "oracle": "i_comp",
+          "ranker": "Topo-QoS",
+          "rho": 0.7133333022407681,
+          "published": 0.7133,
+          "abs_diff": 3.3302240768029456e-05
+        },
+        {
+          "fold": "iot_smart_city_system",
+          "oracle": "i_star",
+          "ranker": "Analytic-I*",
+          "rho": 0.9284749067125099,
+          "published": 0.9285,
+          "abs_diff": 2.5093287490118854e-05
+        },
+        {
+          "fold": "iot_smart_city_system",
+          "oracle": "i_star",
+          "ranker": "InDeg",
+          "rho": 0.8983665792334004,
+          "published": 0.8984,
+          "abs_diff": 3.342076659962334e-05
+        },
+        {
+          "fold": "iot_smart_city_system",
+          "oracle": "i_star",
+          "ranker": "Reach",
+          "rho": 0.6547821006201733,
+          "published": 0.6548,
+          "abs_diff": 1.7899379826769035e-05
+        },
+        {
+          "fold": "iot_smart_city_system",
+          "oracle": "i_star",
+          "ranker": "Topo-QoS",
+          "rho": 0.3512103555774073,
+          "published": 0.3512,
+          "abs_diff": 1.0355577407306082e-05
+        },
+        {
+          "fold": "iot_smart_city_system",
+          "oracle": "i_comp",
+          "ranker": "Analytic-I*",
+          "rho": 0.5051857359374852,
+          "published": 0.5052,
+          "abs_diff": 1.4264062514812714e-05
+        },
+        {
+          "fold": "iot_smart_city_system",
+          "oracle": "i_comp",
+          "ranker": "InDeg",
+          "rho": 0.5019866357110685,
+          "published": 0.502,
+          "abs_diff": 1.3364288931505541e-05
+        },
+        {
+          "fold": "iot_smart_city_system",
+          "oracle": "i_comp",
+          "ranker": "Reach",
+          "rho": 0.05072805637235476,
+          "published": 0.0507,
+          "abs_diff": 2.8056372354756665e-05
+        },
+        {
+          "fold": "iot_smart_city_system",
+          "oracle": "i_comp",
+          "ranker": "Topo-QoS",
+          "rho": 0.582008749435516,
+          "published": 0.582,
+          "abs_diff": 8.749435515986725e-06
+        },
+        {
+          "fold": "logistics_fleet_system",
+          "oracle": "i_star",
+          "ranker": "Analytic-I*",
+          "rho": 0.8505913413244233,
+          "published": 0.8506,
+          "abs_diff": 8.658675576755925e-06
+        },
+        {
+          "fold": "logistics_fleet_system",
+          "oracle": "i_star",
+          "ranker": "InDeg",
+          "rho": 0.8362718624730591,
+          "published": 0.8363,
+          "abs_diff": 2.813752694097449e-05
+        },
+        {
+          "fold": "logistics_fleet_system",
+          "oracle": "i_star",
+          "ranker": "Reach",
+          "rho": 0.7588039701402441,
+          "published": 0.7588,
+          "abs_diff": 3.970140244113907e-06
+        },
+        {
+          "fold": "logistics_fleet_system",
+          "oracle": "i_star",
+          "ranker": "Topo-QoS",
+          "rho": 0.7406995865664335,
+          "published": 0.7407,
+          "abs_diff": 4.1343356649292673e-07
+        },
+        {
+          "fold": "logistics_fleet_system",
+          "oracle": "i_comp",
+          "ranker": "Analytic-I*",
+          "rho": 0.7533842655055765,
+          "published": 0.7534,
+          "abs_diff": 1.573449442349162e-05
+        },
+        {
+          "fold": "logistics_fleet_system",
+          "oracle": "i_comp",
+          "ranker": "InDeg",
+          "rho": 0.8249138045950686,
+          "published": 0.8249,
+          "abs_diff": 1.3804595068611647e-05
+        },
+        {
+          "fold": "logistics_fleet_system",
+          "oracle": "i_comp",
+          "ranker": "Reach",
+          "rho": 0.5018657541794421,
+          "published": 0.5019,
+          "abs_diff": 3.424582055788772e-05
+        },
+        {
+          "fold": "logistics_fleet_system",
+          "oracle": "i_comp",
+          "ranker": "Topo-QoS",
+          "rho": 0.7905902190471972,
+          "published": 0.7906,
+          "abs_diff": 9.780952802795895e-06
+        },
+        {
+          "fold": "microservices_system",
+          "oracle": "i_star",
+          "ranker": "Analytic-I*",
+          "rho": 0.6200605302272676,
+          "published": 0.6201,
+          "abs_diff": 3.946977273239227e-05
+        },
+        {
+          "fold": "microservices_system",
+          "oracle": "i_star",
+          "ranker": "InDeg",
+          "rho": 0.5477629691361394,
+          "published": 0.5478,
+          "abs_diff": 3.7030863860532115e-05
+        },
+        {
+          "fold": "microservices_system",
+          "oracle": "i_star",
+          "ranker": "Reach",
+          "rho": 0.6556574309624866,
+          "published": 0.6557,
+          "abs_diff": 4.2569037513318086e-05
+        },
+        {
+          "fold": "microservices_system",
+          "oracle": "i_star",
+          "ranker": "Topo-QoS",
+          "rho": 0.26538514238447786,
+          "published": 0.2654,
+          "abs_diff": 1.4857615522168022e-05
+        },
+        {
+          "fold": "microservices_system",
+          "oracle": "i_comp",
+          "ranker": "Analytic-I*",
+          "rho": 0.6414585460654804,
+          "published": 0.6415,
+          "abs_diff": 4.1453934519597446e-05
+        },
+        {
+          "fold": "microservices_system",
+          "oracle": "i_comp",
+          "ranker": "InDeg",
+          "rho": 0.685020809709236,
+          "published": 0.685,
+          "abs_diff": 2.080970923590275e-05
+        },
+        {
+          "fold": "microservices_system",
+          "oracle": "i_comp",
+          "ranker": "Reach",
+          "rho": 0.36127862305768066,
+          "published": 0.3613,
+          "abs_diff": 2.1376942319351055e-05
+        },
+        {
+          "fold": "microservices_system",
+          "oracle": "i_comp",
+          "ranker": "Topo-QoS",
+          "rho": 0.8314315686940316,
+          "published": 0.8314,
+          "abs_diff": 3.156869403153628e-05
+        },
+        {
+          "fold": "realtime_gaming_system",
+          "oracle": "i_star",
+          "ranker": "Analytic-I*",
+          "rho": 0.8470317890628511,
+          "published": 0.847,
+          "abs_diff": 3.1789062851173e-05
+        },
+        {
+          "fold": "realtime_gaming_system",
+          "oracle": "i_star",
+          "ranker": "InDeg",
+          "rho": 0.8356890626612361,
+          "published": 0.8357,
+          "abs_diff": 1.0937338763894466e-05
+        },
+        {
+          "fold": "realtime_gaming_system",
+          "oracle": "i_star",
+          "ranker": "Reach",
+          "rho": 0.8343146150352746,
+          "published": 0.8343,
+          "abs_diff": 1.4615035274556654e-05
+        },
+        {
+          "fold": "realtime_gaming_system",
+          "oracle": "i_star",
+          "ranker": "Topo-QoS",
+          "rho": 0.8102612338299413,
+          "published": 0.8103,
+          "abs_diff": 3.8766170058712746e-05
+        },
+        {
+          "fold": "realtime_gaming_system",
+          "oracle": "i_comp",
+          "ranker": "Analytic-I*",
+          "rho": 0.4159092098942602,
+          "published": 0.4159,
+          "abs_diff": 9.209894260231444e-06
+        },
+        {
+          "fold": "realtime_gaming_system",
+          "oracle": "i_comp",
+          "ranker": "InDeg",
+          "rho": 0.476281894625943,
+          "published": 0.4763,
+          "abs_diff": 1.810537405699808e-05
+        },
+        {
+          "fold": "realtime_gaming_system",
+          "oracle": "i_comp",
+          "ranker": "Reach",
+          "rho": 0.287019843764689,
+          "published": 0.287,
+          "abs_diff": 1.9843764688998178e-05
+        },
+        {
+          "fold": "realtime_gaming_system",
+          "oracle": "i_comp",
+          "ranker": "Topo-QoS",
+          "rho": 0.549669092604355,
+          "published": 0.5497,
+          "abs_diff": 3.090739564493017e-05
+        },
+        {
+          "fold": "telecom_ran_system",
+          "oracle": "i_star",
+          "ranker": "Analytic-I*",
+          "rho": 0.7945248841341712,
+          "published": 0.7945,
+          "abs_diff": 2.4884134171232475e-05
+        },
+        {
+          "fold": "telecom_ran_system",
+          "oracle": "i_star",
+          "ranker": "InDeg",
+          "rho": 0.6982722427192988,
+          "published": 0.6983,
+          "abs_diff": 2.775728070125716e-05
+        },
+        {
+          "fold": "telecom_ran_system",
+          "oracle": "i_star",
+          "ranker": "Reach",
+          "rho": 0.5347061189911003,
+          "published": 0.5347,
+          "abs_diff": 6.118991100367843e-06
+        },
+        {
+          "fold": "telecom_ran_system",
+          "oracle": "i_star",
+          "ranker": "Topo-QoS",
+          "rho": 0.5761904555663259,
+          "published": 0.5762,
+          "abs_diff": 9.54443367418012e-06
+        },
+        {
+          "fold": "telecom_ran_system",
+          "oracle": "i_comp",
+          "ranker": "Analytic-I*",
+          "rho": 0.6845173430975717,
+          "published": 0.6845,
+          "abs_diff": 1.734309757173147e-05
+        },
+        {
+          "fold": "telecom_ran_system",
+          "oracle": "i_comp",
+          "ranker": "InDeg",
+          "rho": 0.6760241004422723,
+          "published": 0.676,
+          "abs_diff": 2.4100442272301237e-05
+        },
+        {
+          "fold": "telecom_ran_system",
+          "oracle": "i_comp",
+          "ranker": "Reach",
+          "rho": 0.37273022368466113,
+          "published": 0.3727,
+          "abs_diff": 3.022368466115699e-05
+        },
+        {
+          "fold": "telecom_ran_system",
+          "oracle": "i_comp",
+          "ranker": "Topo-QoS",
+          "rho": 0.7601639132211577,
+          "published": 0.7602,
+          "abs_diff": 3.608677884225919e-05
+        }
+      ]
+    }
+  },
+  "loso": {
+    "per_fold": {
+      "atm_system": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.7002584083230161,
+              "rho_active": 0.5216544332110856,
+              "overlap_at_k": 0.4000000000000001,
+              "pr_auc": 0.7440476190476191,
+              "n_apps": 26,
+              "n_active": 21
+            },
+            "i_dyn": {
+              "rho": 0.5326050301645473,
+              "rho_active": 0.5571014189088251,
+              "overlap_at_k": 0.4000000000000001,
+              "pr_auc": 0.6666666666666667,
+              "n_apps": 26,
+              "n_active": 25
+            },
+            "i_comp": {
+              "rho": 0.5989398772281038,
+              "rho_active": 0.5989398772281038,
+              "overlap_at_k": 0.4000000000000001,
+              "pr_auc": 0.7709876044434869,
+              "n_apps": 26,
+              "n_active": 26
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.4947190447577717,
+              "rho_active": 0.140987121214726,
+              "overlap_at_k": 0.4000000000000001,
+              "pr_auc": 0.5358688930117501,
+              "n_apps": 26,
+              "n_active": 21
+            },
+            "i_dyn": {
+              "rho": 0.4158018452018384,
+              "rho_active": 0.4195078070573496,
+              "overlap_at_k": 0.20000000000000004,
+              "pr_auc": 0.2987012987012987,
+              "n_apps": 26,
+              "n_active": 25
+            },
+            "i_comp": {
+              "rho": 0.6456064120558074,
+              "rho_active": 0.6456064120558074,
+              "overlap_at_k": 0.6,
+              "pr_auc": 0.7426504867681338,
+              "n_apps": 26,
+              "n_active": 26
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.6701946185296532,
+              "rho_active": 0.4193215283903299,
+              "overlap_at_k": 0.4000000000000001,
+              "pr_auc": 0.5389610389610389,
+              "n_apps": 26,
+              "n_active": 21
+            },
+            "i_dyn": {
+              "rho": 0.4684248888568243,
+              "rho_active": 0.4847878203598258,
+              "overlap_at_k": 0.20000000000000004,
+              "pr_auc": 0.14646464646464646,
+              "n_apps": 26,
+              "n_active": 25
+            },
+            "i_comp": {
+              "rho": -0.17289598081413354,
+              "rho_active": -0.17289598081413354,
+              "overlap_at_k": 0.0,
+              "pr_auc": 0.4967948717948718,
+              "n_apps": 26,
+              "n_active": 26
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.3109239422098597,
+              "rho_active": 0.03385417384130212,
+              "overlap_at_k": 0.4000000000000001,
+              "pr_auc": 0.47107622953487616,
+              "n_apps": 26,
+              "n_active": 21
+            },
+            "i_dyn": {
+              "rho": 0.3542377592619123,
+              "rho_active": 0.45462640589871073,
+              "overlap_at_k": 0.4000000000000001,
+              "pr_auc": 0.49831649831649827,
+              "n_apps": 26,
+              "n_active": 25
+            },
+            "i_comp": {
+              "rho": 0.7904374984190606,
+              "rho_active": 0.7904374984190606,
+              "overlap_at_k": 0.8000000000000002,
+              "pr_auc": 0.9169968919968922,
+              "n_apps": 26,
+              "n_active": 26
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.7677423802308865,
+              "rho_active": 0.590315522689332,
+              "overlap_at_k": 0.6,
+              "rho_seed_sd": 0.003939854230781217,
+              "n_apps": 26,
+              "n_active": 21
+            },
+            "i_dyn": {
+              "rho": 0.5811282051282051,
+              "rho_active": 0.5652307692307692,
+              "overlap_at_k": 0.4000000000000001,
+              "rho_seed_sd": 0.005811563585880611,
+              "n_apps": 26,
+              "n_active": 25
+            },
+            "i_comp": {
+              "rho": 0.49423833856211574,
+              "rho_active": 0.49423833856211574,
+              "overlap_at_k": 0.4000000000000001,
+              "rho_seed_sd": 0.006314675538206916,
+              "n_apps": 26,
+              "n_active": 26
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.776329318457063,
+              "rho_active": 0.5962804909071331,
+              "overlap_at_k": 0.6,
+              "rho_seed_sd": 0.007855242670717197,
+              "n_apps": 26,
+              "n_active": 21
+            },
+            "i_dyn": {
+              "rho": 0.6236920921362248,
+              "rho_active": 0.6066483784016701,
+              "overlap_at_k": 0.4000000000000001,
+              "rho_seed_sd": 0.0056005917125942824,
+              "n_apps": 26,
+              "n_active": 25
+            },
+            "i_comp": {
+              "rho": 0.4962206158165632,
+              "rho_active": 0.4962206158165632,
+              "overlap_at_k": 0.4000000000000001,
+              "rho_seed_sd": 0.004034456290253481,
+              "n_apps": 26,
+              "n_active": 26
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.827533475830055,
+              "rho_active": 0.7370819232874943,
+              "overlap_at_k": 0.6,
+              "rho_seed_sd": 1.1102230246251565e-16,
+              "n_apps": 26,
+              "n_active": 21
+            },
+            "i_dyn": {
+              "rho": 0.6444444444444445,
+              "rho_active": 0.6607692307692308,
+              "overlap_at_k": 0.6,
+              "rho_seed_sd": 0.0,
+              "n_apps": 26,
+              "n_active": 25
+            },
+            "i_comp": {
+              "rho": 0.4096426799483982,
+              "rho_active": 0.4096426799483982,
+              "overlap_at_k": 0.4000000000000001,
+              "rho_seed_sd": 0.0,
+              "n_apps": 26,
+              "n_active": 26
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.7173558542035733,
+              "rho_active": 0.4816381879682833,
+              "overlap_at_k": 0.4000000000000001,
+              "rho_seed_sd": 0.0,
+              "n_apps": 26,
+              "n_active": 21
+            },
+            "i_dyn": {
+              "rho": 0.7981538461538461,
+              "rho_active": 0.789076923076923,
+              "overlap_at_k": 0.6,
+              "rho_seed_sd": 0.000669945912556037,
+              "n_apps": 26,
+              "n_active": 25
+            },
+            "i_comp": {
+              "rho": 0.4408274983217654,
+              "rho_active": 0.4408274983217654,
+              "overlap_at_k": 0.4000000000000001,
+              "rho_seed_sd": 0.0020101813877925856,
+              "n_apps": 26,
+              "n_active": 26
+            }
+          }
+        },
+        "feature_seconds": 0.0059
+      },
+      "av_system": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.839410386107006,
+              "rho_active": 0.4907599368160107,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.6141589007397831,
+              "n_apps": 80,
+              "n_active": 41
+            },
+            "i_dyn": {
+              "rho": 0.6341336942241423,
+              "rho_active": 0.6353121190663134,
+              "overlap_at_k": 0.4375,
+              "pr_auc": 0.08012820512820512,
+              "n_apps": 80,
+              "n_active": 73
+            },
+            "i_comp": {
+              "rho": 0.7381531495255214,
+              "rho_active": 0.7381531495255214,
+              "overlap_at_k": 0.8125,
+              "pr_auc": 0.9048079896294181,
+              "n_apps": 80,
+              "n_active": 80
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.8681557454814637,
+              "rho_active": 0.5145699090736376,
+              "overlap_at_k": 0.625,
+              "pr_auc": 0.6576569264069264,
+              "n_apps": 80,
+              "n_active": 41
+            },
+            "i_dyn": {
+              "rho": 0.6371702629572182,
+              "rho_active": 0.6245287713015649,
+              "overlap_at_k": 0.5625,
+              "pr_auc": 0.05303030303030303,
+              "n_apps": 80,
+              "n_active": 73
+            },
+            "i_comp": {
+              "rho": 0.7211386361959178,
+              "rho_active": 0.7211386361959178,
+              "overlap_at_k": 0.6875,
+              "pr_auc": 0.7926385122813693,
+              "n_apps": 80,
+              "n_active": 80
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.8347244289000615,
+              "rho_active": null,
+              "overlap_at_k": 0.375,
+              "pr_auc": 0.35555555555555557,
+              "n_apps": 80,
+              "n_active": 41
+            },
+            "i_dyn": {
+              "rho": 0.6399739630361081,
+              "rho_active": 0.624426082904439,
+              "overlap_at_k": 0.25,
+              "pr_auc": 0.044444444444444446,
+              "n_apps": 80,
+              "n_active": 73
+            },
+            "i_comp": {
+              "rho": 0.5177866719646016,
+              "rho_active": 0.5177866719646016,
+              "overlap_at_k": 0.4375,
+              "pr_auc": 0.3111111111111111,
+              "n_apps": 80,
+              "n_active": 80
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.7526918117294357,
+              "rho_active": 0.33012951030283927,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.47451969004794087,
+              "n_apps": 80,
+              "n_active": 41
+            },
+            "i_dyn": {
+              "rho": 0.5818251363910828,
+              "rho_active": 0.5623333426607412,
+              "overlap_at_k": 0.375,
+              "pr_auc": 0.09722222222222221,
+              "n_apps": 80,
+              "n_active": 73
+            },
+            "i_comp": {
+              "rho": 0.73939816179647,
+              "rho_active": 0.73939816179647,
+              "overlap_at_k": 0.875,
+              "pr_auc": 0.9199807253903891,
+              "n_apps": 80,
+              "n_active": 80
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.8411027983049196,
+              "rho_active": 0.49847201138571534,
+              "overlap_at_k": 0.5625,
+              "rho_seed_sd": 0.0009913260286490337,
+              "n_apps": 80,
+              "n_active": 41
+            },
+            "i_dyn": {
+              "rho": 0.6709885371871014,
+              "rho_active": 0.6827629297211525,
+              "overlap_at_k": 0.625,
+              "rho_seed_sd": 0.0007146301214995997,
+              "n_apps": 80,
+              "n_active": 73
+            },
+            "i_comp": {
+              "rho": 0.5319455190527969,
+              "rho_active": 0.5319455190527969,
+              "overlap_at_k": 0.75,
+              "rho_seed_sd": 0.002043987304880647,
+              "n_apps": 80,
+              "n_active": 80
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.8320534522085568,
+              "rho_active": 0.5061403018955654,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 1.1102230246251565e-16,
+              "n_apps": 80,
+              "n_active": 41
+            },
+            "i_dyn": {
+              "rho": 0.6549012899770125,
+              "rho_active": 0.6696124593407966,
+              "overlap_at_k": 0.5625,
+              "rho_seed_sd": 0.00015945691872500944,
+              "n_apps": 80,
+              "n_active": 73
+            },
+            "i_comp": {
+              "rho": 0.5210979843629755,
+              "rho_active": 0.5210979843629755,
+              "overlap_at_k": 0.6875,
+              "rho_seed_sd": 5.6281551163017704e-05,
+              "n_apps": 80,
+              "n_active": 80
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.8258224706943083,
+              "rho_active": 0.4943926729735713,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.00032811751308875725,
+              "n_apps": 80,
+              "n_active": 41
+            },
+            "i_dyn": {
+              "rho": 0.6492340510766037,
+              "rho_active": 0.6601052096492233,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.0008672698273800563,
+              "n_apps": 80,
+              "n_active": 73
+            },
+            "i_comp": {
+              "rho": 0.6116650065318257,
+              "rho_active": 0.6116650065318257,
+              "overlap_at_k": 0.75,
+              "rho_seed_sd": 0.0003943923738205809,
+              "n_apps": 80,
+              "n_active": 80
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.8055240489201363,
+              "rho_active": 0.3882379499292959,
+              "overlap_at_k": 0.625,
+              "rho_seed_sd": 0.001046889203308079,
+              "n_apps": 80,
+              "n_active": 41
+            },
+            "i_dyn": {
+              "rho": 0.7415159037689631,
+              "rho_active": 0.7708119290586579,
+              "overlap_at_k": 0.6875,
+              "rho_seed_sd": 0.0008728131263861477,
+              "n_apps": 80,
+              "n_active": 73
+            },
+            "i_comp": {
+              "rho": 0.47656412090630546,
+              "rho_active": 0.47656412090630546,
+              "overlap_at_k": 0.5625,
+              "rho_seed_sd": 0.00099918818741102,
+              "n_apps": 80,
+              "n_active": 80
+            }
+          }
+        },
+        "feature_seconds": 0.0
+      },
+      "enterprise_system": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.9170007522536799,
+              "rho_active": 0.7492311089976823,
+              "overlap_at_k": 0.6666666666666666,
+              "pr_auc": 0.4449419087125904,
+              "n_apps": 300,
+              "n_active": 183
+            },
+            "i_dyn": {
+              "rho": 0.858747757876295,
+              "rho_active": 0.858747757876295,
+              "overlap_at_k": 0.85,
+              "pr_auc": 0.47533897729650465,
+              "n_apps": 300,
+              "n_active": 300
+            },
+            "i_comp": {
+              "rho": 0.7214311423230648,
+              "rho_active": 0.7214311423230648,
+              "overlap_at_k": 0.7833333333333333,
+              "pr_auc": 0.839801233176602,
+              "n_apps": 300,
+              "n_active": 300
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.8907089690283002,
+              "rho_active": 0.6597850850106933,
+              "overlap_at_k": 0.5833333333333334,
+              "pr_auc": 0.326931249509965,
+              "n_apps": 300,
+              "n_active": 183
+            },
+            "i_dyn": {
+              "rho": 0.8334877865156914,
+              "rho_active": 0.8334877865156914,
+              "overlap_at_k": 0.8000000000000002,
+              "pr_auc": 0.23814934372667795,
+              "n_apps": 300,
+              "n_active": 300
+            },
+            "i_comp": {
+              "rho": 0.7359464547652874,
+              "rho_active": 0.7359464547652874,
+              "overlap_at_k": 0.8000000000000002,
+              "pr_auc": 0.8593136629159196,
+              "n_apps": 300,
+              "n_active": 300
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.8264915765406635,
+              "rho_active": 0.17357016411740947,
+              "overlap_at_k": 0.31666666666666665,
+              "pr_auc": 0.21884920634920635,
+              "n_apps": 300,
+              "n_active": 183
+            },
+            "i_dyn": {
+              "rho": 0.686410811985139,
+              "rho_active": 0.686410811985139,
+              "overlap_at_k": 0.35,
+              "pr_auc": 0.05291005291005291,
+              "n_apps": 300,
+              "n_active": 300
+            },
+            "i_comp": {
+              "rho": 0.4539074277039825,
+              "rho_active": 0.4539074277039825,
+              "overlap_at_k": 0.3,
+              "pr_auc": 0.18518518518518517,
+              "n_apps": 300,
+              "n_active": 300
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.7953082495191883,
+              "rho_active": 0.5334209457055311,
+              "overlap_at_k": 0.5333333333333333,
+              "pr_auc": 0.36044401187648767,
+              "n_apps": 300,
+              "n_active": 183
+            },
+            "i_dyn": {
+              "rho": 0.7272904636238914,
+              "rho_active": 0.7272904636238914,
+              "overlap_at_k": 0.6,
+              "pr_auc": 0.1097620258997968,
+              "n_apps": 300,
+              "n_active": 300
+            },
+            "i_comp": {
+              "rho": 0.7479052128022422,
+              "rho_active": 0.7479052128022422,
+              "overlap_at_k": 0.8333333333333334,
+              "pr_auc": 0.8265853274203393,
+              "n_apps": 300,
+              "n_active": 300
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.8823470175857032,
+              "rho_active": 0.6403792017593675,
+              "overlap_at_k": 0.6333333333333333,
+              "rho_seed_sd": 0.00019304241392274502,
+              "n_apps": 300,
+              "n_active": 183
+            },
+            "i_dyn": {
+              "rho": 0.8046477583105579,
+              "rho_active": 0.8046477583105579,
+              "overlap_at_k": 0.7666666666666667,
+              "rho_seed_sd": 0.0002693761938693635,
+              "n_apps": 300,
+              "n_active": 300
+            },
+            "i_comp": {
+              "rho": 0.5052406880856791,
+              "rho_active": 0.5052406880856791,
+              "overlap_at_k": 0.6,
+              "rho_seed_sd": 0.0008897155890717305,
+              "n_apps": 300,
+              "n_active": 300
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.8903971279718442,
+              "rho_active": 0.6834340928081015,
+              "overlap_at_k": 0.62,
+              "rho_seed_sd": 0.0009978295927445498,
+              "n_apps": 300,
+              "n_active": 183
+            },
+            "i_dyn": {
+              "rho": 0.8131442532308395,
+              "rho_active": 0.8131442532308395,
+              "overlap_at_k": 0.7733333333333333,
+              "rho_seed_sd": 0.000474112125552749,
+              "n_apps": 300,
+              "n_active": 300
+            },
+            "i_comp": {
+              "rho": 0.5059003066629016,
+              "rho_active": 0.5059003066629016,
+              "overlap_at_k": 0.6399999999999999,
+              "rho_seed_sd": 0.0023764597765946072,
+              "n_apps": 300,
+              "n_active": 300
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.8939658202766936,
+              "rho_active": 0.6934657427824102,
+              "overlap_at_k": 0.6133333333333334,
+              "rho_seed_sd": 0.0005598656174564874,
+              "n_apps": 300,
+              "n_active": 183
+            },
+            "i_dyn": {
+              "rho": 0.8311791141675663,
+              "rho_active": 0.8311791141675663,
+              "overlap_at_k": 0.7633333333333334,
+              "rho_seed_sd": 0.00023949162725340356,
+              "n_apps": 300,
+              "n_active": 300
+            },
+            "i_comp": {
+              "rho": 0.5914097459876354,
+              "rho_active": 0.5914097459876354,
+              "overlap_at_k": 0.6466666666666667,
+              "rho_seed_sd": 0.00016048399176537005,
+              "n_apps": 300,
+              "n_active": 300
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.8896771081633537,
+              "rho_active": 0.6857977314844109,
+              "overlap_at_k": 0.6100000000000001,
+              "rho_seed_sd": 0.00016956463238733887,
+              "n_apps": 300,
+              "n_active": 183
+            },
+            "i_dyn": {
+              "rho": 0.8235025673962294,
+              "rho_active": 0.8235025673962294,
+              "overlap_at_k": 0.7833333333333333,
+              "rho_seed_sd": 0.0002776487857789202,
+              "n_apps": 300,
+              "n_active": 300
+            },
+            "i_comp": {
+              "rho": 0.6177320409995701,
+              "rho_active": 0.6177320409995701,
+              "overlap_at_k": 0.65,
+              "rho_seed_sd": 0.0005734024638645248,
+              "n_apps": 300,
+              "n_active": 300
+            }
+          }
+        },
+        "feature_seconds": 0.0
+      },
+      "financial_trading_system": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.8360087093287525,
+              "rho_active": 0.5890522169557002,
+              "overlap_at_k": 0.75,
+              "pr_auc": 0.7308465085638999,
+              "n_apps": 60,
+              "n_active": 33
+            },
+            "i_dyn": {
+              "rho": 0.8328474650985488,
+              "rho_active": 0.8328474650985488,
+              "overlap_at_k": 0.75,
+              "pr_auc": 0.7361111111111112,
+              "n_apps": 60,
+              "n_active": 60
+            },
+            "i_comp": {
+              "rho": 0.7220104776359977,
+              "rho_active": 0.7220104776359977,
+              "overlap_at_k": 0.9166666666666666,
+              "pr_auc": 0.8715213358070499,
+              "n_apps": 60,
+              "n_active": 60
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.8737229810399816,
+              "rho_active": 0.634517646334279,
+              "overlap_at_k": 0.75,
+              "pr_auc": 0.5164314851814852,
+              "n_apps": 60,
+              "n_active": 33
+            },
+            "i_dyn": {
+              "rho": 0.8697378226695077,
+              "rho_active": 0.8697378226695077,
+              "overlap_at_k": 0.8333333333333334,
+              "pr_auc": 0.29986679986679987,
+              "n_apps": 60,
+              "n_active": 60
+            },
+            "i_comp": {
+              "rho": 0.6943887098008651,
+              "rho_active": 0.6943887098008651,
+              "overlap_at_k": 0.75,
+              "pr_auc": 0.6976277690563404,
+              "n_apps": 60,
+              "n_active": 60
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.8028777057593944,
+              "rho_active": 0.2985447485959971,
+              "overlap_at_k": 0.3333333333333333,
+              "pr_auc": 0.3141891891891892,
+              "n_apps": 60,
+              "n_active": 33
+            },
+            "i_dyn": {
+              "rho": 0.7674006611830299,
+              "rho_active": 0.7674006611830299,
+              "overlap_at_k": 0.3333333333333333,
+              "pr_auc": 0.3310810810810811,
+              "n_apps": 60,
+              "n_active": 60
+            },
+            "i_comp": {
+              "rho": 0.46092207366141924,
+              "rho_active": 0.46092207366141924,
+              "overlap_at_k": 0.25,
+              "pr_auc": 0.305019305019305,
+              "n_apps": 60,
+              "n_active": 60
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.5864231295106708,
+              "rho_active": 0.2813819231526818,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.32565359477124184,
+              "n_apps": 60,
+              "n_active": 33
+            },
+            "i_dyn": {
+              "rho": 0.5469891485561801,
+              "rho_active": 0.5469891485561801,
+              "overlap_at_k": 0.4166666666666667,
+              "pr_auc": 0.11899509803921568,
+              "n_apps": 60,
+              "n_active": 60
+            },
+            "i_comp": {
+              "rho": 0.6697503020620915,
+              "rho_active": 0.6697503020620915,
+              "overlap_at_k": 0.6666666666666666,
+              "pr_auc": 0.749659863945578,
+              "n_apps": 60,
+              "n_active": 60
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.8616273687542335,
+              "rho_active": 0.6420303198860532,
+              "overlap_at_k": 0.7166666666666666,
+              "rho_seed_sd": 0.0015199003181288221,
+              "n_apps": 60,
+              "n_active": 33
+            },
+            "i_dyn": {
+              "rho": 0.8660711068000436,
+              "rho_active": 0.8660711068000436,
+              "overlap_at_k": 0.8,
+              "rho_seed_sd": 0.0014291743485987936,
+              "n_apps": 60,
+              "n_active": 60
+            },
+            "i_comp": {
+              "rho": 0.5493122516464279,
+              "rho_active": 0.5493122516464279,
+              "overlap_at_k": 0.6333333333333333,
+              "rho_seed_sd": 0.007610281785316851,
+              "n_apps": 60,
+              "n_active": 60
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.8694231631832763,
+              "rho_active": 0.6893844604905186,
+              "overlap_at_k": 0.6499999999999999,
+              "rho_seed_sd": 0.0011538491571836357,
+              "n_apps": 60,
+              "n_active": 33
+            },
+            "i_dyn": {
+              "rho": 0.8658790783957567,
+              "rho_active": 0.8658790783957567,
+              "overlap_at_k": 0.7333333333333333,
+              "rho_seed_sd": 0.0009641871379497513,
+              "n_apps": 60,
+              "n_active": 60
+            },
+            "i_comp": {
+              "rho": 0.5525199540864196,
+              "rho_active": 0.5525199540864196,
+              "overlap_at_k": 0.7,
+              "rho_seed_sd": 0.002742083576282503,
+              "n_apps": 60,
+              "n_active": 60
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.8472535276746074,
+              "rho_active": 0.6658465442777872,
+              "overlap_at_k": 0.7,
+              "rho_seed_sd": 0.0017532169499377434,
+              "n_apps": 60,
+              "n_active": 33
+            },
+            "i_dyn": {
+              "rho": 0.8358259920395726,
+              "rho_active": 0.8358259920395726,
+              "overlap_at_k": 0.75,
+              "rho_seed_sd": 0.0015102545200717443,
+              "n_apps": 60,
+              "n_active": 60
+            },
+            "i_comp": {
+              "rho": 0.6227139001884909,
+              "rho_active": 0.6227139001884909,
+              "overlap_at_k": 0.8333333333333334,
+              "rho_seed_sd": 0.0008162390535214197,
+              "n_apps": 60,
+              "n_active": 60
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.8718225360391998,
+              "rho_active": 0.7066599612537487,
+              "overlap_at_k": 0.6666666666666666,
+              "rho_seed_sd": 0.001035989662845653,
+              "n_apps": 60,
+              "n_active": 33
+            },
+            "i_dyn": {
+              "rho": 0.8793907968183584,
+              "rho_active": 0.8793907968183584,
+              "overlap_at_k": 0.75,
+              "rho_seed_sd": 0.001058451278055083,
+              "n_apps": 60,
+              "n_active": 60
+            },
+            "i_comp": {
+              "rho": 0.6583031290579042,
+              "rho_active": 0.6583031290579042,
+              "overlap_at_k": 0.8333333333333334,
+              "rho_seed_sd": 0.0013105170389316266,
+              "n_apps": 60,
+              "n_active": 60
+            }
+          }
+        },
+        "feature_seconds": 0.0
+      },
+      "healthcare_system": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.8253061295888491,
+              "rho_active": 0.5747756944215181,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.6449415218436958,
+              "n_apps": 50,
+              "n_active": 32
+            },
+            "i_dyn": {
+              "rho": 0.8977144416301509,
+              "rho_active": 0.8977144416301509,
+              "overlap_at_k": 0.7,
+              "pr_auc": 0.7010204081632653,
+              "n_apps": 50,
+              "n_active": 50
+            },
+            "i_comp": {
+              "rho": 0.6554595232696512,
+              "rho_active": 0.6554595232696512,
+              "overlap_at_k": 0.7,
+              "pr_auc": 0.7839440035273368,
+              "n_apps": 50,
+              "n_active": 50
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.8305711379591135,
+              "rho_active": 0.4967573275526531,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.605235826001955,
+              "n_apps": 50,
+              "n_active": 32
+            },
+            "i_dyn": {
+              "rho": 0.8971049684785503,
+              "rho_active": 0.8971049684785503,
+              "overlap_at_k": 0.7,
+              "pr_auc": 0.726190476190476,
+              "n_apps": 50,
+              "n_active": 50
+            },
+            "i_comp": {
+              "rho": 0.6297938702629641,
+              "rho_active": 0.6297938702629641,
+              "overlap_at_k": 0.7,
+              "pr_auc": 0.7782556935817806,
+              "n_apps": 50,
+              "n_active": 50
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.8186292489808141,
+              "rho_active": 0.5752946601371801,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.5529411764705883,
+              "n_apps": 50,
+              "n_active": 32
+            },
+            "i_dyn": {
+              "rho": 0.7530550245150459,
+              "rho_active": 0.7530550245150459,
+              "overlap_at_k": 0.4000000000000001,
+              "pr_auc": 0.5453781512605042,
+              "n_apps": 50,
+              "n_active": 50
+            },
+            "i_comp": {
+              "rho": 0.42188685964534334,
+              "rho_active": 0.42188685964534334,
+              "overlap_at_k": 0.4000000000000001,
+              "pr_auc": 0.4753921568627451,
+              "n_apps": 50,
+              "n_active": 50
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.36869084150771025,
+              "rho_active": 0.04088287647569003,
+              "overlap_at_k": 0.20000000000000004,
+              "pr_auc": 0.3755386650887812,
+              "n_apps": 50,
+              "n_active": 32
+            },
+            "i_dyn": {
+              "rho": 0.4068469731379107,
+              "rho_active": 0.4068469731379107,
+              "overlap_at_k": 0.20000000000000004,
+              "pr_auc": 0.17465534465534466,
+              "n_apps": 50,
+              "n_active": 50
+            },
+            "i_comp": {
+              "rho": 0.533777902668776,
+              "rho_active": 0.533777902668776,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.6277777777777779,
+              "n_apps": 50,
+              "n_active": 50
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.8671023075519668,
+              "rho_active": 0.6532223252634711,
+              "overlap_at_k": 0.4000000000000001,
+              "rho_seed_sd": 0.0017594138950447341,
+              "n_apps": 50,
+              "n_active": 32
+            },
+            "i_dyn": {
+              "rho": 0.8820670485411837,
+              "rho_active": 0.8820670485411837,
+              "overlap_at_k": 0.8000000000000002,
+              "rho_seed_sd": 0.003094254413152114,
+              "n_apps": 50,
+              "n_active": 50
+            },
+            "i_comp": {
+              "rho": 0.47949654997501917,
+              "rho_active": 0.47949654997501917,
+              "overlap_at_k": 0.3,
+              "rho_seed_sd": 0.01334433810577847,
+              "n_apps": 50,
+              "n_active": 50
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.8707643389953352,
+              "rho_active": 0.6276706390574175,
+              "overlap_at_k": 0.42000000000000004,
+              "rho_seed_sd": 0.001331545356949532,
+              "n_apps": 50,
+              "n_active": 32
+            },
+            "i_dyn": {
+              "rho": 0.9094632018991445,
+              "rho_active": 0.9094632018991445,
+              "overlap_at_k": 0.8200000000000001,
+              "rho_seed_sd": 0.000575293956299678,
+              "n_apps": 50,
+              "n_active": 50
+            },
+            "i_comp": {
+              "rho": 0.5209333803708163,
+              "rho_active": 0.5209333803708163,
+              "overlap_at_k": 0.4000000000000001,
+              "rho_seed_sd": 0.0025040944579712157,
+              "n_apps": 50,
+              "n_active": 50
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.8457718947246577,
+              "rho_active": 0.6093421988687449,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 1.1102230246251565e-16,
+              "n_apps": 50,
+              "n_active": 32
+            },
+            "i_dyn": {
+              "rho": 0.9127284080715997,
+              "rho_active": 0.9127284080715997,
+              "overlap_at_k": 0.8000000000000002,
+              "rho_seed_sd": 0.0033156373769027553,
+              "n_apps": 50,
+              "n_active": 50
+            },
+            "i_comp": {
+              "rho": 0.5642608579303454,
+              "rho_active": 0.5642608579303454,
+              "overlap_at_k": 0.4000000000000001,
+              "rho_seed_sd": 0.014172903265772072,
+              "n_apps": 50,
+              "n_active": 50
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.8435070812577781,
+              "rho_active": 0.6215298537084097,
+              "overlap_at_k": 0.4000000000000001,
+              "rho_seed_sd": 4.84622065113115e-05,
+              "n_apps": 50,
+              "n_active": 32
+            },
+            "i_dyn": {
+              "rho": 0.8928012304393154,
+              "rho_active": 0.8928012304393154,
+              "overlap_at_k": 0.8000000000000002,
+              "rho_seed_sd": 0.00042348187505111297,
+              "n_apps": 50,
+              "n_active": 50
+            },
+            "i_comp": {
+              "rho": 0.546135385883573,
+              "rho_active": 0.546135385883573,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.0012708118357662,
+              "n_apps": 50,
+              "n_active": 50
+            }
+          }
+        },
+        "feature_seconds": 0.0
+      },
+      "hub_and_spoke_system": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.691081201437113,
+              "rho_active": 0.7330042287471566,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.2914068853347791,
+              "n_apps": 70,
+              "n_active": 54
+            },
+            "i_dyn": {
+              "rho": 0.4809715856192722,
+              "rho_active": 0.4809715856192722,
+              "overlap_at_k": 0.35714285714285715,
+              "pr_auc": 0.22412453275624633,
+              "n_apps": 70,
+              "n_active": 70
+            },
+            "i_comp": {
+              "rho": 0.48181691969857626,
+              "rho_active": 0.48181691969857626,
+              "overlap_at_k": 0.7142857142857143,
+              "pr_auc": 0.6511111111111111,
+              "n_apps": 70,
+              "n_active": 70
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.5286900159698147,
+              "rho_active": 0.3879250993083897,
+              "overlap_at_k": 0.35714285714285715,
+              "pr_auc": 0.15532382231889622,
+              "n_apps": 70,
+              "n_active": 54
+            },
+            "i_dyn": {
+              "rho": 0.3411016127098325,
+              "rho_active": 0.3411016127098325,
+              "overlap_at_k": 0.42857142857142855,
+              "pr_auc": 0.1428287230011368,
+              "n_apps": 70,
+              "n_active": 70
+            },
+            "i_comp": {
+              "rho": 0.5010332686290143,
+              "rho_active": 0.5010332686290143,
+              "overlap_at_k": 0.6428571428571429,
+              "pr_auc": 0.5931547619047619,
+              "n_apps": 70,
+              "n_active": 70
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.6120353948036655,
+              "rho_active": null,
+              "overlap_at_k": 0.35714285714285715,
+              "pr_auc": 0.1206896551724138,
+              "n_apps": 70,
+              "n_active": 54
+            },
+            "i_dyn": {
+              "rho": 0.38083084880332846,
+              "rho_active": 0.38083084880332846,
+              "overlap_at_k": 0.6428571428571429,
+              "pr_auc": 0.13793103448275862,
+              "n_apps": 70,
+              "n_active": 70
+            },
+            "i_comp": {
+              "rho": -0.11825200566075776,
+              "rho_active": -0.11825200566075776,
+              "overlap_at_k": 0.35714285714285715,
+              "pr_auc": 0.13793103448275862,
+              "n_apps": 70,
+              "n_active": 70
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.42951365098479605,
+              "rho_active": 0.47322997454601357,
+              "overlap_at_k": 0.35714285714285715,
+              "pr_auc": 0.1354488136718102,
+              "n_apps": 70,
+              "n_active": 54
+            },
+            "i_dyn": {
+              "rho": 0.19991348094821396,
+              "rho_active": 0.19991348094821396,
+              "overlap_at_k": 0.2857142857142857,
+              "pr_auc": 0.16797265234765235,
+              "n_apps": 70,
+              "n_active": 70
+            },
+            "i_comp": {
+              "rho": 0.7157295284696842,
+              "rho_active": 0.7157295284696842,
+              "overlap_at_k": 0.7142857142857143,
+              "pr_auc": 1.0,
+              "n_apps": 70,
+              "n_active": 70
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.781756121836867,
+              "rho_active": 0.8007883341697207,
+              "overlap_at_k": 0.5714285714285714,
+              "rho_seed_sd": 0.001428539991556614,
+              "n_apps": 70,
+              "n_active": 54
+            },
+            "i_dyn": {
+              "rho": 0.5481916960578768,
+              "rho_active": 0.5481916960578768,
+              "overlap_at_k": 0.42857142857142855,
+              "rho_seed_sd": 0.0012145113484666663,
+              "n_apps": 70,
+              "n_active": 70
+            },
+            "i_comp": {
+              "rho": 0.3230776394767765,
+              "rho_active": 0.3230776394767765,
+              "overlap_at_k": 0.42857142857142855,
+              "rho_seed_sd": 0.0019718274053253594,
+              "n_apps": 70,
+              "n_active": 70
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.7440143780935627,
+              "rho_active": 0.7556732692492215,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.0029183650503637414,
+              "n_apps": 70,
+              "n_active": 54
+            },
+            "i_dyn": {
+              "rho": 0.5556609440932527,
+              "rho_active": 0.5556609440932527,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.005506459768459424,
+              "n_apps": 70,
+              "n_active": 70
+            },
+            "i_comp": {
+              "rho": 0.3685269608642356,
+              "rho_active": 0.3685269608642356,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.0047818802642823,
+              "n_apps": 70,
+              "n_active": 70
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.6827370325608535,
+              "rho_active": 0.6466774660091785,
+              "overlap_at_k": 0.42857142857142855,
+              "rho_seed_sd": 0.0015276037197792258,
+              "n_apps": 70,
+              "n_active": 54
+            },
+            "i_dyn": {
+              "rho": 0.5038116650966586,
+              "rho_active": 0.5038116650966586,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.0019492846062928585,
+              "n_apps": 70,
+              "n_active": 70
+            },
+            "i_comp": {
+              "rho": 0.37063534687898353,
+              "rho_active": 0.37063534687898353,
+              "overlap_at_k": 0.6428571428571429,
+              "rho_seed_sd": 0.0017830238412027467,
+              "n_apps": 70,
+              "n_active": 70
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.6318203802744536,
+              "rho_active": 0.573834777593866,
+              "overlap_at_k": 0.21428571428571427,
+              "rho_seed_sd": 0.00026525213773535795,
+              "n_apps": 70,
+              "n_active": 54
+            },
+            "i_dyn": {
+              "rho": 0.5896637734334448,
+              "rho_active": 0.5896637734334448,
+              "overlap_at_k": 0.5714285714285714,
+              "rho_seed_sd": 0.001484348627844279,
+              "n_apps": 70,
+              "n_active": 70
+            },
+            "i_comp": {
+              "rho": 0.3407472576818623,
+              "rho_active": 0.3407472576818623,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.0024444396108296938,
+              "n_apps": 70,
+              "n_active": 70
+            }
+          }
+        },
+        "feature_seconds": 0.0
+      },
+      "industrial_scada_system": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.85090153983651,
+              "rho_active": 0.6712829613887287,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.7275691444801798,
+              "n_apps": 140,
+              "n_active": 87
+            },
+            "i_dyn": {
+              "rho": 0.6021292137246952,
+              "rho_active": 0.6021292137246952,
+              "overlap_at_k": 0.42857142857142855,
+              "pr_auc": 1.0,
+              "n_apps": 140,
+              "n_active": 140
+            },
+            "i_comp": {
+              "rho": 0.7166832004305839,
+              "rho_active": 0.7166832004305839,
+              "overlap_at_k": 0.5714285714285714,
+              "pr_auc": 0.8488957001887466,
+              "n_apps": 140,
+              "n_active": 140
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.8677190263437373,
+              "rho_active": 0.6443834383205463,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.7634643168898585,
+              "n_apps": 140,
+              "n_active": 87
+            },
+            "i_dyn": {
+              "rho": 0.571014107568779,
+              "rho_active": 0.571014107568779,
+              "overlap_at_k": 0.35714285714285715,
+              "pr_auc": 0.0625,
+              "n_apps": 140,
+              "n_active": 140
+            },
+            "i_comp": {
+              "rho": 0.7088143899195072,
+              "rho_active": 0.7088143899195072,
+              "overlap_at_k": 0.6071428571428571,
+              "pr_auc": 0.8577043279231098,
+              "n_apps": 140,
+              "n_active": 140
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.7759987937074462,
+              "rho_active": 0.17518743697154887,
+              "overlap_at_k": 0.2857142857142857,
+              "pr_auc": 0.4798761609907121,
+              "n_apps": 140,
+              "n_active": 87
+            },
+            "i_dyn": {
+              "rho": 0.5150145473734293,
+              "rho_active": 0.5150145473734293,
+              "overlap_at_k": 0.21428571428571427,
+              "pr_auc": 0.011764705882352941,
+              "n_apps": 140,
+              "n_active": 140
+            },
+            "i_comp": {
+              "rho": 0.4884914420442202,
+              "rho_active": 0.4884914420442202,
+              "overlap_at_k": 0.25,
+              "pr_auc": 0.6683083308486238,
+              "n_apps": 140,
+              "n_active": 140
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.6503746663112442,
+              "rho_active": 0.3758420423316387,
+              "overlap_at_k": 0.39285714285714285,
+              "pr_auc": 0.6304861839372801,
+              "n_apps": 140,
+              "n_active": 87
+            },
+            "i_dyn": {
+              "rho": 0.39023578627769917,
+              "rho_active": 0.39023578627769917,
+              "overlap_at_k": 0.42857142857142855,
+              "pr_auc": 0.5,
+              "n_apps": 140,
+              "n_active": 140
+            },
+            "i_comp": {
+              "rho": 0.7133333022407681,
+              "rho_active": 0.7133333022407681,
+              "overlap_at_k": 0.6785714285714286,
+              "pr_auc": 0.8346873666803247,
+              "n_apps": 140,
+              "n_active": 140
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.8662136743087208,
+              "rho_active": 0.627362312431595,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 3.98828532652146e-05,
+              "n_apps": 140,
+              "n_active": 87
+            },
+            "i_dyn": {
+              "rho": 0.6018637326110414,
+              "rho_active": 0.6018637326110414,
+              "overlap_at_k": 0.42857142857142855,
+              "rho_seed_sd": 0.0004035510794991397,
+              "n_apps": 140,
+              "n_active": 140
+            },
+            "i_comp": {
+              "rho": 0.5388457039277345,
+              "rho_active": 0.5388457039277345,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.000631006324153209,
+              "n_apps": 140,
+              "n_active": 140
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.8585635097917039,
+              "rho_active": 0.5860671683852468,
+              "overlap_at_k": 0.5714285714285714,
+              "rho_seed_sd": 0.00031546079187401774,
+              "n_apps": 140,
+              "n_active": 87
+            },
+            "i_dyn": {
+              "rho": 0.6154816370788259,
+              "rho_active": 0.6154816370788259,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.0007943596947636362,
+              "n_apps": 140,
+              "n_active": 140
+            },
+            "i_comp": {
+              "rho": 0.5158105969602936,
+              "rho_active": 0.5158105969602936,
+              "overlap_at_k": 0.42857142857142855,
+              "rho_seed_sd": 0.00028512086422936535,
+              "n_apps": 140,
+              "n_active": 140
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.8674653081938487,
+              "rho_active": 0.6381850957286739,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.00030563988532631217,
+              "n_apps": 140,
+              "n_active": 87
+            },
+            "i_dyn": {
+              "rho": 0.6198238929670172,
+              "rho_active": 0.6198238929670172,
+              "overlap_at_k": 0.39285714285714285,
+              "rho_seed_sd": 0.0006245531017037726,
+              "n_apps": 140,
+              "n_active": 140
+            },
+            "i_comp": {
+              "rho": 0.6428417312872885,
+              "rho_active": 0.6428417312872885,
+              "overlap_at_k": 0.5357142857142857,
+              "rho_seed_sd": 0.0009337126885553636,
+              "n_apps": 140,
+              "n_active": 140
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.8004275586411499,
+              "rho_active": 0.5211116472886659,
+              "overlap_at_k": 0.5714285714285714,
+              "rho_seed_sd": 0.0029249485492950996,
+              "n_apps": 140,
+              "n_active": 87
+            },
+            "i_dyn": {
+              "rho": 0.7323806835367348,
+              "rho_active": 0.7323806835367348,
+              "overlap_at_k": 0.7857142857142857,
+              "rho_seed_sd": 0.0017459861240287924,
+              "n_apps": 140,
+              "n_active": 140
+            },
+            "i_comp": {
+              "rho": 0.5305103074508069,
+              "rho_active": 0.5305103074508069,
+              "overlap_at_k": 0.35714285714285715,
+              "rho_seed_sd": 0.004026758926492199,
+              "n_apps": 140,
+              "n_active": 140
+            }
+          }
+        },
+        "feature_seconds": 0.0
+      },
+      "iot_smart_city_system": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.9284749067125099,
+              "rho_active": 0.9071494640052878,
+              "overlap_at_k": 0.775,
+              "pr_auc": 0.12253808992939427,
+              "n_apps": 200,
+              "n_active": 147
+            },
+            "i_dyn": {
+              "rho": 0.9227141986810445,
+              "rho_active": 0.9227141986810445,
+              "overlap_at_k": 0.8000000000000002,
+              "pr_auc": 0.9124968853726514,
+              "n_apps": 200,
+              "n_active": 200
+            },
+            "i_comp": {
+              "rho": 0.5051857359374852,
+              "rho_active": 0.5051857359374852,
+              "overlap_at_k": 0.375,
+              "pr_auc": 0.6549326601815717,
+              "n_apps": 200,
+              "n_active": 200
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.8983665792334004,
+              "rho_active": 0.8039681919426358,
+              "overlap_at_k": 0.7250000000000001,
+              "pr_auc": 0.14139359698681733,
+              "n_apps": 200,
+              "n_active": 147
+            },
+            "i_dyn": {
+              "rho": 0.8925734563964557,
+              "rho_active": 0.8925734563964557,
+              "overlap_at_k": 0.75,
+              "pr_auc": 0.8389309825312904,
+              "n_apps": 200,
+              "n_active": 200
+            },
+            "i_comp": {
+              "rho": 0.5019866357110685,
+              "rho_active": 0.5019866357110685,
+              "overlap_at_k": 0.3,
+              "pr_auc": 0.6539930864367515,
+              "n_apps": 200,
+              "n_active": 200
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.6547821006201733,
+              "rho_active": 0.17318467575078778,
+              "overlap_at_k": 0.3,
+              "pr_auc": 0.02054794520547945,
+              "n_apps": 200,
+              "n_active": 147
+            },
+            "i_dyn": {
+              "rho": 0.6318948126557695,
+              "rho_active": 0.6318948126557695,
+              "overlap_at_k": 0.325,
+              "pr_auc": 0.3242960426179604,
+              "n_apps": 200,
+              "n_active": 200
+            },
+            "i_comp": {
+              "rho": 0.05072805637235476,
+              "rho_active": 0.05072805637235476,
+              "overlap_at_k": 0.125,
+              "pr_auc": 0.3895843035871188,
+              "n_apps": 200,
+              "n_active": 200
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.3512103555774073,
+              "rho_active": 0.1315998846584168,
+              "overlap_at_k": 0.35,
+              "pr_auc": 0.1466866466866467,
+              "n_apps": 200,
+              "n_active": 147
+            },
+            "i_dyn": {
+              "rho": 0.32757588903678814,
+              "rho_active": 0.32757588903678814,
+              "overlap_at_k": 0.325,
+              "pr_auc": 0.3580124643858983,
+              "n_apps": 200,
+              "n_active": 200
+            },
+            "i_comp": {
+              "rho": 0.582008749435516,
+              "rho_active": 0.582008749435516,
+              "overlap_at_k": 0.6,
+              "pr_auc": 0.7522214575464516,
+              "n_apps": 200,
+              "n_active": 200
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.9110962468137114,
+              "rho_active": 0.8365262993790037,
+              "overlap_at_k": 0.625,
+              "rho_seed_sd": 0.0005734373032862591,
+              "n_apps": 200,
+              "n_active": 147
+            },
+            "i_dyn": {
+              "rho": 0.8882762067871864,
+              "rho_active": 0.8882762067871864,
+              "overlap_at_k": 0.625,
+              "rho_seed_sd": 0.0007758529181762933,
+              "n_apps": 200,
+              "n_active": 200
+            },
+            "i_comp": {
+              "rho": 0.3377687907323491,
+              "rho_active": 0.3377687907323491,
+              "overlap_at_k": 0.20000000000000004,
+              "rho_seed_sd": 0.0012401510667365049,
+              "n_apps": 200,
+              "n_active": 200
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.8961541107572304,
+              "rho_active": 0.7973772899489473,
+              "overlap_at_k": 0.585,
+              "rho_seed_sd": 0.0020837037497152683,
+              "n_apps": 200,
+              "n_active": 147
+            },
+            "i_dyn": {
+              "rho": 0.8790295020791717,
+              "rho_active": 0.8790295020791717,
+              "overlap_at_k": 0.635,
+              "rho_seed_sd": 0.0022435409189422713,
+              "n_apps": 200,
+              "n_active": 200
+            },
+            "i_comp": {
+              "rho": 0.31450326207009277,
+              "rho_active": 0.31450326207009277,
+              "overlap_at_k": 0.25,
+              "rho_seed_sd": 0.003938588144930749,
+              "n_apps": 200,
+              "n_active": 200
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.9018931565817121,
+              "rho_active": 0.8159025419807788,
+              "overlap_at_k": 0.65,
+              "rho_seed_sd": 0.00016834235372005524,
+              "n_apps": 200,
+              "n_active": 147
+            },
+            "i_dyn": {
+              "rho": 0.8913680412776636,
+              "rho_active": 0.8913680412776636,
+              "overlap_at_k": 0.65,
+              "rho_seed_sd": 0.00030257452267526804,
+              "n_apps": 200,
+              "n_active": 200
+            },
+            "i_comp": {
+              "rho": 0.3749172420675904,
+              "rho_active": 0.3749172420675904,
+              "overlap_at_k": 0.295,
+              "rho_seed_sd": 0.00021334278058382386,
+              "n_apps": 200,
+              "n_active": 200
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.8971714127931512,
+              "rho_active": 0.8083502090147116,
+              "overlap_at_k": 0.7,
+              "rho_seed_sd": 0.0006687922963851774,
+              "n_apps": 200,
+              "n_active": 147
+            },
+            "i_dyn": {
+              "rho": 0.8645010518173016,
+              "rho_active": 0.8645010518173016,
+              "overlap_at_k": 0.7,
+              "rho_seed_sd": 0.001422128088159215,
+              "n_apps": 200,
+              "n_active": 200
+            },
+            "i_comp": {
+              "rho": 0.43671883592549127,
+              "rho_active": 0.43671883592549127,
+              "overlap_at_k": 0.35,
+              "rho_seed_sd": 0.0005204200192718789,
+              "n_apps": 200,
+              "n_active": 200
+            }
+          }
+        },
+        "feature_seconds": 0.0
+      },
+      "logistics_fleet_system": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.8505913413244233,
+              "rho_active": 0.6493278979118615,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.7108002094619457,
+              "n_apps": 110,
+              "n_active": 78
+            },
+            "i_dyn": {
+              "rho": 0.757583721441362,
+              "rho_active": 0.6431336704845652,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.05263157894736842,
+              "n_apps": 110,
+              "n_active": 89
+            },
+            "i_comp": {
+              "rho": 0.7533842655055765,
+              "rho_active": 0.7533842655055765,
+              "overlap_at_k": 0.4090909090909091,
+              "pr_auc": 0.6676946748349586,
+              "n_apps": 110,
+              "n_active": 110
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.8362718624730591,
+              "rho_active": 0.6114424692458985,
+              "overlap_at_k": 0.4090909090909091,
+              "pr_auc": 0.7086092332328929,
+              "n_apps": 110,
+              "n_active": 78
+            },
+            "i_dyn": {
+              "rho": 0.7318377421974925,
+              "rho_active": 0.5835917204956828,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.034482758620689655,
+              "n_apps": 110,
+              "n_active": 89
+            },
+            "i_comp": {
+              "rho": 0.8249138045950686,
+              "rho_active": 0.8249138045950686,
+              "overlap_at_k": 0.6363636363636364,
+              "pr_auc": 0.8827051480377202,
+              "n_apps": 110,
+              "n_active": 110
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.7588039701402441,
+              "rho_active": 0.2611130026563813,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.48440545808966856,
+              "n_apps": 110,
+              "n_active": 78
+            },
+            "i_dyn": {
+              "rho": 0.6481510299550471,
+              "rho_active": 0.51325873485361,
+              "overlap_at_k": 0.45454545454545453,
+              "pr_auc": 0.013157894736842105,
+              "n_apps": 110,
+              "n_active": 89
+            },
+            "i_comp": {
+              "rho": 0.5018657541794421,
+              "rho_active": 0.5018657541794421,
+              "overlap_at_k": 0.2727272727272727,
+              "pr_auc": 0.4012401693889897,
+              "n_apps": 110,
+              "n_active": 110
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.7406995865664335,
+              "rho_active": 0.48090314128330247,
+              "overlap_at_k": 0.4090909090909091,
+              "pr_auc": 0.7277450183902204,
+              "n_apps": 110,
+              "n_active": 78
+            },
+            "i_dyn": {
+              "rho": 0.6278609260834322,
+              "rho_active": 0.4823062122730175,
+              "overlap_at_k": 0.2727272727272727,
+              "pr_auc": 0.043478260869565216,
+              "n_apps": 110,
+              "n_active": 89
+            },
+            "i_comp": {
+              "rho": 0.7905902190471972,
+              "rho_active": 0.7905902190471972,
+              "overlap_at_k": 0.6818181818181818,
+              "pr_auc": 0.7299853641910483,
+              "n_apps": 110,
+              "n_active": 110
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.863765002602306,
+              "rho_active": 0.6770227119909173,
+              "overlap_at_k": 0.5454545454545454,
+              "rho_seed_sd": 0.0015331938045013997,
+              "n_apps": 110,
+              "n_active": 78
+            },
+            "i_dyn": {
+              "rho": 0.7712446152285277,
+              "rho_active": 0.6764906433915369,
+              "overlap_at_k": 0.5909090909090909,
+              "rho_seed_sd": 0.0006044929926765479,
+              "n_apps": 110,
+              "n_active": 89
+            },
+            "i_comp": {
+              "rho": 0.6341430913751545,
+              "rho_active": 0.6341430913751545,
+              "overlap_at_k": 0.36363636363636365,
+              "rho_seed_sd": 0.001128202149812017,
+              "n_apps": 110,
+              "n_active": 110
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.8739646150494936,
+              "rho_active": 0.6944868240337254,
+              "overlap_at_k": 0.5454545454545454,
+              "rho_seed_sd": 0.0012590262797263268,
+              "n_apps": 110,
+              "n_active": 78
+            },
+            "i_dyn": {
+              "rho": 0.7868098351835633,
+              "rho_active": 0.6951975640280297,
+              "overlap_at_k": 0.5909090909090909,
+              "rho_seed_sd": 0.0003780586171941211,
+              "n_apps": 110,
+              "n_active": 89
+            },
+            "i_comp": {
+              "rho": 0.6462651095840759,
+              "rho_active": 0.6462651095840759,
+              "overlap_at_k": 0.36363636363636365,
+              "rho_seed_sd": 0.0012869824880304252,
+              "n_apps": 110,
+              "n_active": 110
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.8186698686113818,
+              "rho_active": 0.5598659406608695,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.003980904668899626,
+              "n_apps": 110,
+              "n_active": 78
+            },
+            "i_dyn": {
+              "rho": 0.7224584839827946,
+              "rho_active": 0.5991743205385656,
+              "overlap_at_k": 0.5909090909090909,
+              "rho_seed_sd": 0.003035590689219432,
+              "n_apps": 110,
+              "n_active": 89
+            },
+            "i_comp": {
+              "rho": 0.6244592121296569,
+              "rho_active": 0.6244592121296569,
+              "overlap_at_k": 0.2727272727272727,
+              "rho_seed_sd": 0.004116692475574482,
+              "n_apps": 110,
+              "n_active": 110
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.7834077043790233,
+              "rho_active": 0.45289825439867065,
+              "overlap_at_k": 0.5181818181818182,
+              "rho_seed_sd": 0.000620034027851877,
+              "n_apps": 110,
+              "n_active": 78
+            },
+            "i_dyn": {
+              "rho": 0.8460108610832042,
+              "rho_active": 0.8050834834264113,
+              "overlap_at_k": 0.6818181818181818,
+              "rho_seed_sd": 0.0007833175106156602,
+              "n_apps": 110,
+              "n_active": 89
+            },
+            "i_comp": {
+              "rho": 0.6065436445916751,
+              "rho_active": 0.6065436445916751,
+              "overlap_at_k": 0.2909090909090909,
+              "rho_seed_sd": 0.0004599064353827031,
+              "n_apps": 110,
+              "n_active": 110
+            }
+          }
+        },
+        "feature_seconds": 0.0
+      },
+      "microservices_system": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.6200605302272676,
+              "rho_active": 0.4050380215015472,
+              "overlap_at_k": 0.2777777777777778,
+              "pr_auc": 0.8703444574115269,
+              "n_apps": 90,
+              "n_active": 77
+            },
+            "i_dyn": {
+              "rho": 0.6598725985430611,
+              "rho_active": 0.6598725985430611,
+              "overlap_at_k": 0.3333333333333333,
+              "pr_auc": 0.2292611917725348,
+              "n_apps": 90,
+              "n_active": 90
+            },
+            "i_comp": {
+              "rho": 0.6414585460654804,
+              "rho_active": 0.6414585460654804,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.6424593860234995,
+              "n_apps": 90,
+              "n_active": 90
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.5477629691361394,
+              "rho_active": 0.30392116977902967,
+              "overlap_at_k": 0.3333333333333333,
+              "pr_auc": 0.7833925197212304,
+              "n_apps": 90,
+              "n_active": 77
+            },
+            "i_dyn": {
+              "rho": 0.6071200481465493,
+              "rho_active": 0.6071200481465493,
+              "overlap_at_k": 0.2777777777777778,
+              "pr_auc": 0.21953024453024453,
+              "n_apps": 90,
+              "n_active": 90
+            },
+            "i_comp": {
+              "rho": 0.685020809709236,
+              "rho_active": 0.685020809709236,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.6873568294911194,
+              "n_apps": 90,
+              "n_active": 90
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.6556574309624866,
+              "rho_active": 0.3811294316587141,
+              "overlap_at_k": 0.3888888888888889,
+              "pr_auc": 0.7024291497975709,
+              "n_apps": 90,
+              "n_active": 77
+            },
+            "i_dyn": {
+              "rho": 0.507399675672106,
+              "rho_active": 0.507399675672106,
+              "overlap_at_k": 0.2777777777777778,
+              "pr_auc": 0.1337719298245614,
+              "n_apps": 90,
+              "n_active": 90
+            },
+            "i_comp": {
+              "rho": 0.36127862305768066,
+              "rho_active": 0.36127862305768066,
+              "overlap_at_k": 0.1111111111111111,
+              "pr_auc": 0.3684210526315789,
+              "n_apps": 90,
+              "n_active": 90
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.26538514238447786,
+              "rho_active": -0.09507060775896181,
+              "overlap_at_k": 0.16666666666666666,
+              "pr_auc": 0.681368514871484,
+              "n_apps": 90,
+              "n_active": 77
+            },
+            "i_dyn": {
+              "rho": 0.35906875296681395,
+              "rho_active": 0.35906875296681395,
+              "overlap_at_k": 0.2222222222222222,
+              "pr_auc": 0.24482671843543283,
+              "n_apps": 90,
+              "n_active": 90
+            },
+            "i_comp": {
+              "rho": 0.8314315686940316,
+              "rho_active": 0.8314315686940316,
+              "overlap_at_k": 0.7777777777777778,
+              "pr_auc": 0.8885298934815133,
+              "n_apps": 90,
+              "n_active": 90
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.630100750286658,
+              "rho_active": 0.42572766123946265,
+              "overlap_at_k": 0.34444444444444444,
+              "rho_seed_sd": 0.0016568422242798763,
+              "n_apps": 90,
+              "n_active": 77
+            },
+            "i_dyn": {
+              "rho": 0.6948392593352646,
+              "rho_active": 0.6948392593352646,
+              "overlap_at_k": 0.4,
+              "rho_seed_sd": 0.0011123730152028807,
+              "n_apps": 90,
+              "n_active": 90
+            },
+            "i_comp": {
+              "rho": 0.5717387814954853,
+              "rho_active": 0.5717387814954853,
+              "overlap_at_k": 0.48888888888888893,
+              "rho_seed_sd": 0.0027562119858212573,
+              "n_apps": 90,
+              "n_active": 90
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.6272947416412933,
+              "rho_active": 0.41654353158841023,
+              "overlap_at_k": 0.34444444444444444,
+              "rho_seed_sd": 0.0018368981663819432,
+              "n_apps": 90,
+              "n_active": 77
+            },
+            "i_dyn": {
+              "rho": 0.7142082194420776,
+              "rho_active": 0.7142082194420776,
+              "overlap_at_k": 0.45555555555555555,
+              "rho_seed_sd": 0.0006040564419281545,
+              "n_apps": 90,
+              "n_active": 90
+            },
+            "i_comp": {
+              "rho": 0.5429275822770044,
+              "rho_active": 0.5429275822770044,
+              "overlap_at_k": 0.48888888888888893,
+              "rho_seed_sd": 0.0011775835477690615,
+              "n_apps": 90,
+              "n_active": 90
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.6313979929423085,
+              "rho_active": 0.42781532197319744,
+              "overlap_at_k": 0.3888888888888889,
+              "rho_seed_sd": 0.0012275653352931994,
+              "n_apps": 90,
+              "n_active": 77
+            },
+            "i_dyn": {
+              "rho": 0.6328441017296136,
+              "rho_active": 0.6328441017296136,
+              "overlap_at_k": 0.3333333333333333,
+              "rho_seed_sd": 0.00125196614663006,
+              "n_apps": 90,
+              "n_active": 90
+            },
+            "i_comp": {
+              "rho": 0.564041059319295,
+              "rho_active": 0.564041059319295,
+              "overlap_at_k": 0.4444444444444445,
+              "rho_seed_sd": 0.0020715244270496868,
+              "n_apps": 90,
+              "n_active": 90
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.4539765321322925,
+              "rho_active": 0.1796439949265676,
+              "overlap_at_k": 0.3333333333333333,
+              "rho_seed_sd": 0.0019494664712303154,
+              "n_apps": 90,
+              "n_active": 77
+            },
+            "i_dyn": {
+              "rho": 0.8634673165316583,
+              "rho_active": 0.8634673165316583,
+              "overlap_at_k": 0.6666666666666666,
+              "rho_seed_sd": 0.0020681198019207943,
+              "n_apps": 90,
+              "n_active": 90
+            },
+            "i_comp": {
+              "rho": 0.343302355108549,
+              "rho_active": 0.343302355108549,
+              "overlap_at_k": 0.2777777777777778,
+              "rho_seed_sd": 0.0013990976924698178,
+              "n_apps": 90,
+              "n_active": 90
+            }
+          }
+        },
+        "feature_seconds": 0.0
+      },
+      "realtime_gaming_system": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.8470317890628511,
+              "rho_active": 0.6373705255746024,
+              "overlap_at_k": 0.6,
+              "pr_auc": 0.6283397596994088,
+              "n_apps": 75,
+              "n_active": 48
+            },
+            "i_dyn": {
+              "rho": 0.6897656228312097,
+              "rho_active": 0.6897656228312097,
+              "overlap_at_k": 0.6,
+              "pr_auc": 0.1111111111111111,
+              "n_apps": 75,
+              "n_active": 75
+            },
+            "i_comp": {
+              "rho": 0.4159092098942602,
+              "rho_active": 0.4159092098942602,
+              "overlap_at_k": 0.5333333333333333,
+              "pr_auc": 0.5692982456140351,
+              "n_apps": 75,
+              "n_active": 75
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.8356890626612361,
+              "rho_active": 0.5092350556665466,
+              "overlap_at_k": 0.5333333333333333,
+              "pr_auc": 0.5889440993788819,
+              "n_apps": 75,
+              "n_active": 48
+            },
+            "i_dyn": {
+              "rho": 0.6408924015547549,
+              "rho_active": 0.6408924015547549,
+              "overlap_at_k": 0.6,
+              "pr_auc": 0.05,
+              "n_apps": 75,
+              "n_active": 75
+            },
+            "i_comp": {
+              "rho": 0.476281894625943,
+              "rho_active": 0.476281894625943,
+              "overlap_at_k": 0.6666666666666666,
+              "pr_auc": 0.7247619047619047,
+              "n_apps": 75,
+              "n_active": 75
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.8343146150352746,
+              "rho_active": 0.49015156235321433,
+              "overlap_at_k": 0.20000000000000004,
+              "pr_auc": 0.4090909090909091,
+              "n_apps": 75,
+              "n_active": 48
+            },
+            "i_dyn": {
+              "rho": 0.6275738946332141,
+              "rho_active": 0.6275738946332141,
+              "overlap_at_k": 0.4000000000000001,
+              "pr_auc": 0.022727272727272728,
+              "n_apps": 75,
+              "n_active": 75
+            },
+            "i_comp": {
+              "rho": 0.287019843764689,
+              "rho_active": 0.287019843764689,
+              "overlap_at_k": 0.13333333333333333,
+              "pr_auc": 0.11363636363636363,
+              "n_apps": 75,
+              "n_active": 75
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.8102612338299413,
+              "rho_active": 0.47489161363904453,
+              "overlap_at_k": 0.4666666666666667,
+              "pr_auc": 0.7106211141585177,
+              "n_apps": 75,
+              "n_active": 48
+            },
+            "i_dyn": {
+              "rho": 0.697038126184497,
+              "rho_active": 0.697038126184497,
+              "overlap_at_k": 0.5333333333333333,
+              "pr_auc": 0.06666666666666667,
+              "n_apps": 75,
+              "n_active": 75
+            },
+            "i_comp": {
+              "rho": 0.549669092604355,
+              "rho_active": 0.549669092604355,
+              "overlap_at_k": 0.5333333333333333,
+              "pr_auc": 0.7644444444444445,
+              "n_apps": 75,
+              "n_active": 75
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.8742020437361896,
+              "rho_active": 0.6509487832688112,
+              "overlap_at_k": 0.6,
+              "rho_seed_sd": 0.0006428467819281644,
+              "n_apps": 75,
+              "n_active": 48
+            },
+            "i_dyn": {
+              "rho": 0.6253317613976451,
+              "rho_active": 0.6253317613976451,
+              "overlap_at_k": 0.6,
+              "rho_seed_sd": 0.001350995775189364,
+              "n_apps": 75,
+              "n_active": 75
+            },
+            "i_comp": {
+              "rho": 0.2733282910202949,
+              "rho_active": 0.2733282910202949,
+              "overlap_at_k": 0.4666666666666667,
+              "rho_seed_sd": 0.0015099656039656046,
+              "n_apps": 75,
+              "n_active": 75
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.8611558712398487,
+              "rho_active": 0.6272428132570542,
+              "overlap_at_k": 0.5333333333333333,
+              "rho_seed_sd": 0.00249834127294539,
+              "n_apps": 75,
+              "n_active": 48
+            },
+            "i_dyn": {
+              "rho": 0.6233635611002339,
+              "rho_active": 0.6233635611002339,
+              "overlap_at_k": 0.6,
+              "rho_seed_sd": 0.005930829515773052,
+              "n_apps": 75,
+              "n_active": 75
+            },
+            "i_comp": {
+              "rho": 0.24739798737971846,
+              "rho_active": 0.24739798737971846,
+              "overlap_at_k": 0.5066666666666667,
+              "rho_seed_sd": 0.02217789274679633,
+              "n_apps": 75,
+              "n_active": 75
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.8496987617990616,
+              "rho_active": 0.6411438643245418,
+              "overlap_at_k": 0.4000000000000001,
+              "rho_seed_sd": 0.0011218634763891496,
+              "n_apps": 75,
+              "n_active": 48
+            },
+            "i_dyn": {
+              "rho": 0.6122975597073728,
+              "rho_active": 0.6122975597073728,
+              "overlap_at_k": 0.4666666666666667,
+              "rho_seed_sd": 0.0014588443685388931,
+              "n_apps": 75,
+              "n_active": 75
+            },
+            "i_comp": {
+              "rho": 0.3147856782478393,
+              "rho_active": 0.3147856782478393,
+              "overlap_at_k": 0.4000000000000001,
+              "rho_seed_sd": 0.0021172007890428203,
+              "n_apps": 75,
+              "n_active": 75
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.7867271131712185,
+              "rho_active": 0.3837624801735083,
+              "overlap_at_k": 0.29333333333333333,
+              "rho_seed_sd": 0.0009563379499543451,
+              "n_apps": 75,
+              "n_active": 48
+            },
+            "i_dyn": {
+              "rho": 0.762983299744328,
+              "rho_active": 0.762983299744328,
+              "overlap_at_k": 0.6666666666666666,
+              "rho_seed_sd": 0.0031871257530277407,
+              "n_apps": 75,
+              "n_active": 75
+            },
+            "i_comp": {
+              "rho": 0.3285920586530834,
+              "rho_active": 0.3285920586530834,
+              "overlap_at_k": 0.36,
+              "rho_seed_sd": 0.0017235918976429075,
+              "n_apps": 75,
+              "n_active": 75
+            }
+          }
+        },
+        "feature_seconds": 0.0
+      },
+      "telecom_ran_system": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.7945248841341712,
+              "rho_active": 0.6491869300116113,
+              "overlap_at_k": 0.4583333333333333,
+              "pr_auc": 0.7891321874513387,
+              "n_apps": 120,
+              "n_active": 100
+            },
+            "i_dyn": {
+              "rho": 0.6008363682825424,
+              "rho_active": 0.6008363682825424,
+              "overlap_at_k": 0.375,
+              "pr_auc": 0.39752793313244134,
+              "n_apps": 120,
+              "n_active": 120
+            },
+            "i_comp": {
+              "rho": 0.6845173430975717,
+              "rho_active": 0.6845173430975717,
+              "overlap_at_k": 0.5833333333333334,
+              "pr_auc": 0.6857263354429336,
+              "n_apps": 120,
+              "n_active": 120
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.6982722427192988,
+              "rho_active": 0.4887484917227413,
+              "overlap_at_k": 0.3333333333333333,
+              "pr_auc": 0.5868555181319548,
+              "n_apps": 120,
+              "n_active": 100
+            },
+            "i_dyn": {
+              "rho": 0.5311221835743922,
+              "rho_active": 0.5311221835743922,
+              "overlap_at_k": 0.3333333333333333,
+              "pr_auc": 0.35612440898345155,
+              "n_apps": 120,
+              "n_active": 120
+            },
+            "i_comp": {
+              "rho": 0.6760241004422723,
+              "rho_active": 0.6760241004422723,
+              "overlap_at_k": 0.4583333333333333,
+              "pr_auc": 0.6472142190421023,
+              "n_apps": 120,
+              "n_active": 120
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.5347061189911003,
+              "rho_active": -0.08315294094260654,
+              "overlap_at_k": 0.16666666666666666,
+              "pr_auc": 0.4197175531506639,
+              "n_apps": 120,
+              "n_active": 100
+            },
+            "i_dyn": {
+              "rho": 0.36949869906262217,
+              "rho_active": 0.36949869906262217,
+              "overlap_at_k": 0.25,
+              "pr_auc": 0.07920792079207921,
+              "n_apps": 120,
+              "n_active": 120
+            },
+            "i_comp": {
+              "rho": 0.37273022368466113,
+              "rho_active": 0.37273022368466113,
+              "overlap_at_k": 0.2916666666666667,
+              "pr_auc": 0.43934726806013935,
+              "n_apps": 120,
+              "n_active": 120
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.5761904555663259,
+              "rho_active": 0.300066619890633,
+              "overlap_at_k": 0.375,
+              "pr_auc": 0.5879876819456691,
+              "n_apps": 120,
+              "n_active": 100
+            },
+            "i_dyn": {
+              "rho": 0.43101349297245867,
+              "rho_active": 0.43101349297245867,
+              "overlap_at_k": 0.2916666666666667,
+              "pr_auc": 0.2550150057693161,
+              "n_apps": 120,
+              "n_active": 120
+            },
+            "i_comp": {
+              "rho": 0.7601639132211577,
+              "rho_active": 0.7601639132211577,
+              "overlap_at_k": 0.7083333333333334,
+              "pr_auc": 0.8656078853722133,
+              "n_apps": 120,
+              "n_active": 120
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.7130271399435089,
+              "rho_active": 0.5214389244197222,
+              "overlap_at_k": 0.375,
+              "rho_seed_sd": 0.0020624831598426347,
+              "n_apps": 120,
+              "n_active": 100
+            },
+            "i_dyn": {
+              "rho": 0.584804614812229,
+              "rho_active": 0.584804614812229,
+              "overlap_at_k": 0.3333333333333333,
+              "rho_seed_sd": 0.0008841357653947669,
+              "n_apps": 120,
+              "n_active": 120
+            },
+            "i_comp": {
+              "rho": 0.5264316288556616,
+              "rho_active": 0.5264316288556616,
+              "overlap_at_k": 0.3333333333333333,
+              "rho_seed_sd": 0.003279202125663584,
+              "n_apps": 120,
+              "n_active": 120
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.7202540743600895,
+              "rho_active": 0.5265589897229488,
+              "overlap_at_k": 0.375,
+              "rho_seed_sd": 0.002902693709739074,
+              "n_apps": 120,
+              "n_active": 100
+            },
+            "i_dyn": {
+              "rho": 0.5750434346285784,
+              "rho_active": 0.5750434346285784,
+              "overlap_at_k": 0.275,
+              "rho_seed_sd": 0.0019479485597519205,
+              "n_apps": 120,
+              "n_active": 120
+            },
+            "i_comp": {
+              "rho": 0.5629167971509286,
+              "rho_active": 0.5629167971509286,
+              "overlap_at_k": 0.35,
+              "rho_seed_sd": 0.0028768637016668114,
+              "n_apps": 120,
+              "n_active": 120
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.7595307259964305,
+              "rho_active": 0.5968272459526528,
+              "overlap_at_k": 0.4583333333333333,
+              "rho_seed_sd": 0.0012766436588541178,
+              "n_apps": 120,
+              "n_active": 100
+            },
+            "i_dyn": {
+              "rho": 0.5968684890983312,
+              "rho_active": 0.5968684890983312,
+              "overlap_at_k": 0.375,
+              "rho_seed_sd": 0.002183904921904078,
+              "n_apps": 120,
+              "n_active": 120
+            },
+            "i_comp": {
+              "rho": 0.5879631703723087,
+              "rho_active": 0.5879631703723087,
+              "overlap_at_k": 0.4166666666666667,
+              "rho_seed_sd": 0.001709267298124712,
+              "n_apps": 120,
+              "n_active": 120
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.6877418317012589,
+              "rho_active": 0.47867329692685495,
+              "overlap_at_k": 0.4166666666666667,
+              "rho_seed_sd": 0.002269585465678007,
+              "n_apps": 120,
+              "n_active": 100
+            },
+            "i_dyn": {
+              "rho": 0.7974004734015081,
+              "rho_active": 0.7974004734015081,
+              "overlap_at_k": 0.625,
+              "rho_seed_sd": 0.0026275174929755213,
+              "n_apps": 120,
+              "n_active": 120
+            },
+            "i_comp": {
+              "rho": 0.3981414989069204,
+              "rho_active": 0.3981414989069204,
+              "overlap_at_k": 0.2916666666666667,
+              "rho_seed_sd": 0.001561638499253807,
+              "n_apps": 120,
+              "n_active": 120
+            }
+          }
+        },
+        "feature_seconds": 0.0
+      }
+    },
+    "arm_means": {
+      "gbm_dep": {
+        "i_star": 0.821673570996306,
+        "i_dyn": 0.7099545451830719,
+        "i_comp": 0.48046393951712457
+      },
+      "gbm_dep_qos": {
+        "i_star": 0.8183640584791081,
+        "i_dyn": 0.7180564207703902,
+        "i_comp": 0.4829183781321688
+      },
+      "gbm_dep_dyn": {
+        "i_star": 0.8126450029904931,
+        "i_dyn": 0.7044070203049365,
+        "i_comp": 0.5232779692408047
+      },
+      "gbm_dep_qos_dyn": {
+        "i_star": 0.7640965968063824,
+        "i_dyn": 0.7993143170104076,
+        "i_comp": 0.4770098444572923
+      }
+    },
+    "comparator_means": {
+      "Analytic-I*": {
+        "i_star": 0.8083875481946792,
+        "i_dyn": 0.7058268081764059,
+        "i_comp": 0.6362457825509894
+      },
+      "InDeg": {
+        "i_star": 0.7642208030669431,
+        "i_dyn": 0.6640803531642552,
+        "i_comp": 0.6500790822260794
+      },
+      "Reach": {
+        "i_star": 0.7316013335809148,
+        "i_dyn": 0.5829690714776385,
+        "i_comp": 0.3021224158002919
+      },
+      "Topo-QoS": {
+        "i_star": 0.5531394221414575,
+        "i_dyn": 0.47082466128673994,
+        "i_comp": 0.7020162876217793
+      }
+    },
+    "worst_case": {
+      "gbm_dep": 0.48046393951712457,
+      "gbm_dep_qos": 0.4829183781321688,
+      "gbm_dep_dyn": 0.5213598160474487,
+      "gbm_dep_qos_dyn": 0.4770098444572923,
+      "Analytic-I*": 0.6036763980673752,
+      "InDeg": 0.5678506907093184,
+      "Reach": 0.30185312208178866,
+      "Topo-QoS": 0.44394777854967904
+    }
+  },
+  "zeroshot": {
+    "per_system": {
+      "realworld_autoware_ros2": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.5804006616091645,
+              "rho_active": 0.30374002972347625,
+              "overlap_at_k": 0.3333333333333333,
+              "pr_auc": 0.28170426065162907,
+              "n_apps": 32,
+              "n_active": 19
+            },
+            "i_dyn": {
+              "rho": 0.424457463840097,
+              "rho_active": 0.424457463840097,
+              "overlap_at_k": 0.16666666666666666,
+              "pr_auc": 1.0,
+              "n_apps": 30,
+              "n_active": 30
+            },
+            "i_comp": {
+              "rho": 0.5462468558064589,
+              "rho_active": 0.5462468558064589,
+              "overlap_at_k": 0.3333333333333333,
+              "pr_auc": 0.6502525252525253,
+              "n_apps": 32,
+              "n_active": 32
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.619672161077824,
+              "rho_active": 0.15721409597921956,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.26969696969696966,
+              "n_apps": 32,
+              "n_active": 19
+            },
+            "i_dyn": {
+              "rho": 0.4806181594548032,
+              "rho_active": 0.4806181594548032,
+              "overlap_at_k": 0.5,
+              "pr_auc": 1.0,
+              "n_apps": 30,
+              "n_active": 30
+            },
+            "i_comp": {
+              "rho": 0.7462445248284928,
+              "rho_active": 0.7462445248284928,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.7386363636363636,
+              "n_apps": 32,
+              "n_active": 32
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.8361218901939067,
+              "rho_active": 0.9226757795588744,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.6666666666666667,
+              "n_apps": 32,
+              "n_active": 19
+            },
+            "i_dyn": {
+              "rho": 0.44444763722011643,
+              "rho_active": 0.44444763722011643,
+              "overlap_at_k": 0.3333333333333333,
+              "pr_auc": 0.1,
+              "n_apps": 30,
+              "n_active": 30
+            },
+            "i_comp": {
+              "rho": 0.41220156073437686,
+              "rho_active": 0.41220156073437686,
+              "overlap_at_k": 0.0,
+              "pr_auc": 0.32641859774212717,
+              "n_apps": 32,
+              "n_active": 32
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.46195509028727677,
+              "rho_active": 0.0729682364954637,
+              "overlap_at_k": 0.3333333333333333,
+              "pr_auc": 0.1925,
+              "n_apps": 32,
+              "n_active": 19
+            },
+            "i_dyn": {
+              "rho": 0.39685988147971313,
+              "rho_active": 0.39685988147971313,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.5,
+              "n_apps": 30,
+              "n_active": 30
+            },
+            "i_comp": {
+              "rho": 0.8053769325078185,
+              "rho_active": 0.8053769325078185,
+              "overlap_at_k": 0.6666666666666666,
+              "pr_auc": 0.7920100732600732,
+              "n_apps": 32,
+              "n_active": 32
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.6513552499023808,
+              "rho_active": 0.4222157497901032,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.003442963730964823,
+              "n_apps": 32,
+              "n_active": 19
+            },
+            "i_dyn": {
+              "rho": 0.45920504190401373,
+              "rho_active": 0.45920504190401373,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.003382747306880507,
+              "n_apps": 30,
+              "n_active": 30
+            },
+            "i_comp": {
+              "rho": 0.3778865151977443,
+              "rho_active": 0.3778865151977443,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.002159531392039527,
+              "n_apps": 32,
+              "n_active": 32
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.6737068574951078,
+              "rho_active": 0.43277952979515916,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.0012155288362563964,
+              "n_apps": 32,
+              "n_active": 19
+            },
+            "i_dyn": {
+              "rho": 0.523964690133514,
+              "rho_active": 0.523964690133514,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.005312822740166631,
+              "n_apps": 30,
+              "n_active": 30
+            },
+            "i_comp": {
+              "rho": 0.440404783126624,
+              "rho_active": 0.440404783126624,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.006355631985219252,
+              "n_apps": 32,
+              "n_active": 32
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.5810380582793021,
+              "rho_active": 0.23270346126218627,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.0,
+              "n_apps": 32,
+              "n_active": 19
+            },
+            "i_dyn": {
+              "rho": 0.45439381329267936,
+              "rho_active": 0.45439381329267936,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 5.551115123125783e-17,
+              "n_apps": 30,
+              "n_active": 30
+            },
+            "i_comp": {
+              "rho": 0.44907773386725214,
+              "rho_active": 0.44907773386725214,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 5.551115123125783e-17,
+              "n_apps": 32,
+              "n_active": 32
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.5570540744906269,
+              "rho_active": 0.38590682827825673,
+              "overlap_at_k": 0.6666666666666666,
+              "rho_seed_sd": 0.0,
+              "n_apps": 32,
+              "n_active": 19
+            },
+            "i_dyn": {
+              "rho": 0.6683745792275252,
+              "rho_active": 0.6683745792275252,
+              "overlap_at_k": 0.8333333333333334,
+              "rho_seed_sd": 0.0,
+              "n_apps": 30,
+              "n_active": 30
+            },
+            "i_comp": {
+              "rho": 0.2822777946895834,
+              "rho_active": 0.2822777946895834,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.0,
+              "n_apps": 32,
+              "n_active": 32
+            }
+          }
+        },
+        "feature_seconds": 0.0033
+      },
+      "realworld_edgex": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.8955776452298291,
+              "rho_active": -0.05916489242890611,
+              "overlap_at_k": 0.25,
+              "pr_auc": 0.84375,
+              "n_apps": 22,
+              "n_active": 10
+            },
+            "i_dyn": {
+              "rho": 0.8440273452381162,
+              "rho_active": 0.8440273452381162,
+              "overlap_at_k": 0.5,
+              "pr_auc": 1.0,
+              "n_apps": 21,
+              "n_active": 21
+            },
+            "i_comp": {
+              "rho": 0.8884735484834099,
+              "rho_active": 0.8884735484834099,
+              "overlap_at_k": 0.75,
+              "pr_auc": 0.8999999999999999,
+              "n_apps": 22,
+              "n_active": 22
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.8955776452298291,
+              "rho_active": -0.05916489242890611,
+              "overlap_at_k": 0.25,
+              "pr_auc": 0.84375,
+              "n_apps": 22,
+              "n_active": 10
+            },
+            "i_dyn": {
+              "rho": 0.8440273452381162,
+              "rho_active": 0.8440273452381162,
+              "overlap_at_k": 0.5,
+              "pr_auc": 1.0,
+              "n_apps": 21,
+              "n_active": 21
+            },
+            "i_comp": {
+              "rho": 0.8884735484834099,
+              "rho_active": 0.8884735484834099,
+              "overlap_at_k": 0.75,
+              "pr_auc": 0.8999999999999999,
+              "n_apps": 22,
+              "n_active": 22
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.9969548229076977,
+              "rho_active": 0.9714679613862723,
+              "overlap_at_k": 1.0,
+              "pr_auc": 1.0,
+              "n_apps": 22,
+              "n_active": 10
+            },
+            "i_dyn": {
+              "rho": 0.8100059010274718,
+              "rho_active": 0.8100059010274718,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.125,
+              "n_apps": 21,
+              "n_active": 21
+            },
+            "i_comp": {
+              "rho": 0.7960562723519861,
+              "rho_active": 0.7960562723519861,
+              "overlap_at_k": 0.25,
+              "pr_auc": 0.6111111111111112,
+              "n_apps": 22,
+              "n_active": 22
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.6209798111397814,
+              "rho_active": -0.39375000000000004,
+              "overlap_at_k": 0.0,
+              "pr_auc": 0.7801948051948052,
+              "n_apps": 22,
+              "n_active": 10
+            },
+            "i_dyn": {
+              "rho": 0.686423128811317,
+              "rho_active": 0.686423128811317,
+              "overlap_at_k": 0.5,
+              "pr_auc": 1.0,
+              "n_apps": 21,
+              "n_active": 21
+            },
+            "i_comp": {
+              "rho": 0.760486882980174,
+              "rho_active": 0.760486882980174,
+              "overlap_at_k": 0.75,
+              "pr_auc": 0.8454545454545455,
+              "n_apps": 22,
+              "n_active": 22
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.8367724775105216,
+              "rho_active": 0.20187004520610566,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.0009896776789006356,
+              "n_apps": 22,
+              "n_active": 10
+            },
+            "i_dyn": {
+              "rho": 0.712823134457085,
+              "rho_active": 0.712823134457085,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.002088094132426477,
+              "n_apps": 21,
+              "n_active": 21
+            },
+            "i_comp": {
+              "rho": 0.5879416918211267,
+              "rho_active": 0.5879416918211267,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.0022766377224438194,
+              "n_apps": 22,
+              "n_active": 22
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.8290171746152595,
+              "rho_active": 0.13170789534788602,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.004363090714786702,
+              "n_apps": 22,
+              "n_active": 10
+            },
+            "i_dyn": {
+              "rho": 0.6558040548273709,
+              "rho_active": 0.6558040548273709,
+              "overlap_at_k": 0.25,
+              "rho_seed_sd": 0.00876547246693582,
+              "n_apps": 21,
+              "n_active": 21
+            },
+            "i_comp": {
+              "rho": 0.7098221504226515,
+              "rho_active": 0.7098221504226515,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.04063456058259979,
+              "n_apps": 22,
+              "n_active": 22
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.7775155264863436,
+              "rho_active": -0.3877381965848981,
+              "overlap_at_k": 0.25,
+              "rho_seed_sd": 0.0,
+              "n_apps": 22,
+              "n_active": 10
+            },
+            "i_dyn": {
+              "rho": 0.80000106448589,
+              "rho_active": 0.80000106448589,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.0,
+              "n_apps": 21,
+              "n_active": 21
+            },
+            "i_comp": {
+              "rho": 0.7393381003636432,
+              "rho_active": 0.7393381003636432,
+              "overlap_at_k": 0.75,
+              "rho_seed_sd": 0.0,
+              "n_apps": 22,
+              "n_active": 22
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.6486778190518685,
+              "rho_active": 0.06523849021904635,
+              "overlap_at_k": 0.3,
+              "rho_seed_sd": 0.0014414669047807538,
+              "n_apps": 22,
+              "n_active": 10
+            },
+            "i_dyn": {
+              "rho": 0.8344226542535138,
+              "rho_active": 0.8344226542535138,
+              "overlap_at_k": 0.75,
+              "rho_seed_sd": 0.002856450688924868,
+              "n_apps": 21,
+              "n_active": 21
+            },
+            "i_comp": {
+              "rho": 0.5276181630845506,
+              "rho_active": 0.5276181630845506,
+              "overlap_at_k": 0.2,
+              "rho_seed_sd": 0.004231198598117282,
+              "n_apps": 22,
+              "n_active": 22
+            }
+          }
+        },
+        "feature_seconds": 0.0023
+      },
+      "realworld_homeassistant": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.6668467057384266,
+              "rho_active": 0.054107719751244496,
+              "overlap_at_k": 0.4000000000000001,
+              "pr_auc": 0.9034926470588235,
+              "n_apps": 24,
+              "n_active": 17
+            },
+            "i_dyn": {
+              "rho": 0.7234145045945182,
+              "rho_active": 0.24572612489784,
+              "overlap_at_k": 0.4000000000000001,
+              "pr_auc": 0.6666666666666666,
+              "n_apps": 24,
+              "n_active": 17
+            },
+            "i_comp": {
+              "rho": 0.4415019840131917,
+              "rho_active": 0.4415019840131917,
+              "overlap_at_k": 0.20000000000000004,
+              "pr_auc": 0.8894607843137255,
+              "n_apps": 24,
+              "n_active": 24
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.942743287399356,
+              "rho_active": 0.8327905916707401,
+              "overlap_at_k": 0.6,
+              "pr_auc": 0.9963235294117647,
+              "n_apps": 24,
+              "n_active": 17
+            },
+            "i_dyn": {
+              "rho": 0.9128412623163302,
+              "rho_active": 0.7794333453665433,
+              "overlap_at_k": 1.0,
+              "pr_auc": 1.0,
+              "n_apps": 24,
+              "n_active": 17
+            },
+            "i_comp": {
+              "rho": 0.5197371712267608,
+              "rho_active": 0.5197371712267608,
+              "overlap_at_k": 0.20000000000000004,
+              "pr_auc": 0.9637254901960786,
+              "n_apps": 24,
+              "n_active": 24
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.890939363903525,
+              "rho_active": 0.6736316467931689,
+              "overlap_at_k": 0.8000000000000002,
+              "pr_auc": 1.0,
+              "n_apps": 24,
+              "n_active": 17
+            },
+            "i_dyn": {
+              "rho": 0.7353233984173541,
+              "rho_active": 0.23413840341376055,
+              "overlap_at_k": 0.6,
+              "pr_auc": 0.5694444444444444,
+              "n_apps": 24,
+              "n_active": 17
+            },
+            "i_comp": {
+              "rho": 0.28543459257787,
+              "rho_active": 0.28543459257787,
+              "overlap_at_k": 0.0,
+              "pr_auc": 0.9666666666666666,
+              "n_apps": 24,
+              "n_active": 24
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.38344371975619296,
+              "rho_active": -0.18090466536888017,
+              "overlap_at_k": 0.0,
+              "pr_auc": 0.8958333333333333,
+              "n_apps": 24,
+              "n_active": 17
+            },
+            "i_dyn": {
+              "rho": 0.4123179545623172,
+              "rho_active": -0.09808406299440897,
+              "overlap_at_k": 0.20000000000000004,
+              "pr_auc": 0.3194444444444444,
+              "n_apps": 24,
+              "n_active": 17
+            },
+            "i_comp": {
+              "rho": 0.5745488073492365,
+              "rho_active": 0.5745488073492365,
+              "overlap_at_k": 0.8000000000000002,
+              "pr_auc": 0.9250000000000003,
+              "n_apps": 24,
+              "n_active": 24
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.7172698005497335,
+              "rho_active": 0.2413062640425129,
+              "overlap_at_k": 0.32000000000000006,
+              "rho_seed_sd": 0.02945205504975227,
+              "n_apps": 24,
+              "n_active": 17
+            },
+            "i_dyn": {
+              "rho": 0.7254620741186605,
+              "rho_active": 0.2857843137254902,
+              "overlap_at_k": 0.32000000000000006,
+              "rho_seed_sd": 0.015339270767521307,
+              "n_apps": 24,
+              "n_active": 17
+            },
+            "i_comp": {
+              "rho": 0.3447028709344856,
+              "rho_active": 0.3447028709344856,
+              "overlap_at_k": 0.20000000000000004,
+              "rho_seed_sd": 0.02328788714224471,
+              "n_apps": 24,
+              "n_active": 24
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.7578379060082334,
+              "rho_active": 0.3546433274211649,
+              "overlap_at_k": 0.4000000000000001,
+              "rho_seed_sd": 0.0,
+              "n_apps": 24,
+              "n_active": 17
+            },
+            "i_dyn": {
+              "rho": 0.809482383645063,
+              "rho_active": 0.49264705882352955,
+              "overlap_at_k": 0.6,
+              "rho_seed_sd": 0.0,
+              "n_apps": 24,
+              "n_active": 17
+            },
+            "i_comp": {
+              "rho": 0.2875911232754267,
+              "rho_active": 0.2875911232754267,
+              "overlap_at_k": 0.0,
+              "rho_seed_sd": 0.02179707376642569,
+              "n_apps": 24,
+              "n_active": 24
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.7251382847416387,
+              "rho_active": 0.3298430947343701,
+              "overlap_at_k": 0.6,
+              "rho_seed_sd": 0.0034649476529120572,
+              "n_apps": 24,
+              "n_active": 17
+            },
+            "i_dyn": {
+              "rho": 0.758164836361631,
+              "rho_active": 0.4607843137254902,
+              "overlap_at_k": 0.6,
+              "rho_seed_sd": 0.005539181110493796,
+              "n_apps": 24,
+              "n_active": 17
+            },
+            "i_comp": {
+              "rho": 0.37758571059599894,
+              "rho_active": 0.37758571059599894,
+              "overlap_at_k": 0.0,
+              "rho_seed_sd": 0.0027774544298090247,
+              "n_apps": 24,
+              "n_active": 24
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.6711198146151889,
+              "rho_active": 0.6252138660340956,
+              "overlap_at_k": 0.8000000000000002,
+              "rho_seed_sd": 0.001060919216886136,
+              "n_apps": 24,
+              "n_active": 17
+            },
+            "i_dyn": {
+              "rho": 0.7895629671321425,
+              "rho_active": 0.7715686274509805,
+              "overlap_at_k": 0.8000000000000002,
+              "rho_seed_sd": 0.0031311155339014186,
+              "n_apps": 24,
+              "n_active": 17
+            },
+            "i_comp": {
+              "rho": 0.19223813955961694,
+              "rho_active": 0.19223813955961694,
+              "overlap_at_k": 0.0,
+              "rho_seed_sd": 0.0010466686364407505,
+              "n_apps": 24,
+              "n_active": 24
+            }
+          }
+        },
+        "feature_seconds": 0.0031
+      },
+      "realworld_cloud_microservices": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.9399253520844297,
+              "rho_active": 0.8274127538189437,
+              "overlap_at_k": 0.75,
+              "pr_auc": 1.0,
+              "n_apps": 22,
+              "n_active": 8
+            },
+            "i_dyn": {
+              "rho": 0.7749893504198409,
+              "rho_active": 0.7749893504198409,
+              "overlap_at_k": 0.75,
+              "pr_auc": 0.5,
+              "n_apps": 18,
+              "n_active": 18
+            },
+            "i_comp": {
+              "rho": 0.6727404533401992,
+              "rho_active": 0.6727404533401992,
+              "overlap_at_k": 0.75,
+              "pr_auc": 0.7644444444444445,
+              "n_apps": 22,
+              "n_active": 22
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.9881849905104066,
+              "rho_active": 0.8058127442654065,
+              "overlap_at_k": 0.75,
+              "pr_auc": 1.0,
+              "n_apps": 22,
+              "n_active": 8
+            },
+            "i_dyn": {
+              "rho": 0.8840310289155873,
+              "rho_active": 0.8840310289155873,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.5,
+              "n_apps": 18,
+              "n_active": 18
+            },
+            "i_comp": {
+              "rho": 0.6883928929113968,
+              "rho_active": 0.6883928929113968,
+              "overlap_at_k": 0.75,
+              "pr_auc": 0.8050000000000002,
+              "n_apps": 22,
+              "n_active": 22
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.9984779291025632,
+              "rho_active": 0.9756060828611427,
+              "overlap_at_k": 0.75,
+              "pr_auc": 1.0,
+              "n_apps": 22,
+              "n_active": 8
+            },
+            "i_dyn": {
+              "rho": 0.8619024938679296,
+              "rho_active": 0.8619024938679296,
+              "overlap_at_k": 0.75,
+              "pr_auc": 0.2,
+              "n_apps": 18,
+              "n_active": 18
+            },
+            "i_comp": {
+              "rho": 0.7140130568196387,
+              "rho_active": 0.7140130568196387,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.885,
+              "n_apps": 22,
+              "n_active": 22
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.9085086279012757,
+              "rho_active": 0.22891566265060237,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.2,
+              "n_apps": 22,
+              "n_active": 8
+            },
+            "i_dyn": {
+              "rho": 0.7826827307651881,
+              "rho_active": 0.7826827307651881,
+              "overlap_at_k": 0.25,
+              "pr_auc": 0.25,
+              "n_apps": 18,
+              "n_active": 18
+            },
+            "i_comp": {
+              "rho": 0.69408021407149,
+              "rho_active": 0.69408021407149,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.8766666666666667,
+              "n_apps": 22,
+              "n_active": 22
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.8524783708225663,
+              "rho_active": 0.8167811106248426,
+              "overlap_at_k": 0.75,
+              "rho_seed_sd": 0.0025696194742647355,
+              "n_apps": 22,
+              "n_active": 8
+            },
+            "i_dyn": {
+              "rho": 0.8200310850157797,
+              "rho_active": 0.8200310850157797,
+              "overlap_at_k": 0.75,
+              "rho_seed_sd": 0.006861435184212199,
+              "n_apps": 18,
+              "n_active": 18
+            },
+            "i_comp": {
+              "rho": 0.5187913073448678,
+              "rho_active": 0.5187913073448678,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.007174749121297921,
+              "n_apps": 22,
+              "n_active": 22
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.840545509455876,
+              "rho_active": 0.5988131309566295,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.0,
+              "n_apps": 22,
+              "n_active": 8
+            },
+            "i_dyn": {
+              "rho": 0.7458958144238218,
+              "rho_active": 0.7458958144238218,
+              "overlap_at_k": 0.75,
+              "rho_seed_sd": 0.00544797427615394,
+              "n_apps": 18,
+              "n_active": 18
+            },
+            "i_comp": {
+              "rho": 0.5485729292827195,
+              "rho_active": 0.5485729292827195,
+              "overlap_at_k": 0.75,
+              "rho_seed_sd": 0.0033412111813838526,
+              "n_apps": 22,
+              "n_active": 22
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.846269247028953,
+              "rho_active": 0.6946232319096901,
+              "overlap_at_k": 0.75,
+              "rho_seed_sd": 0.0,
+              "n_apps": 22,
+              "n_active": 8
+            },
+            "i_dyn": {
+              "rho": 0.7364342068698136,
+              "rho_active": 0.7364342068698136,
+              "overlap_at_k": 0.75,
+              "rho_seed_sd": 0.0,
+              "n_apps": 18,
+              "n_active": 18
+            },
+            "i_comp": {
+              "rho": 0.6010874883471,
+              "rho_active": 0.6010874883471,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.0,
+              "n_apps": 22,
+              "n_active": 22
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.8259900411954078,
+              "rho_active": 0.5125840400988749,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.004317355828662041,
+              "n_apps": 22,
+              "n_active": 8
+            },
+            "i_dyn": {
+              "rho": 0.8059887496390299,
+              "rho_active": 0.8059887496390299,
+              "overlap_at_k": 0.75,
+              "rho_seed_sd": 0.0058989607683913705,
+              "n_apps": 18,
+              "n_active": 18
+            },
+            "i_comp": {
+              "rho": 0.478438346322206,
+              "rho_active": 0.478438346322206,
+              "overlap_at_k": 0.25,
+              "rho_seed_sd": 0.018414590663862536,
+              "n_apps": 22,
+              "n_active": 22
+            }
+          }
+        },
+        "feature_seconds": 0.0022
+      },
+      "realworld_trainticket": {
+        "comparators": {
+          "Analytic-I*": {
+            "i_star": {
+              "rho": 0.8577614840448435,
+              "rho_active": -0.3445405707043078,
+              "overlap_at_k": 0.25,
+              "pr_auc": 0.6276223776223776,
+              "n_apps": 41,
+              "n_active": 14
+            },
+            "i_dyn": {
+              "rho": 0.8411323801131825,
+              "rho_active": 0.8411323801131825,
+              "overlap_at_k": 0.6666666666666666,
+              "pr_auc": 1.0,
+              "n_apps": 29,
+              "n_active": 29
+            },
+            "i_comp": {
+              "rho": 0.7934919494451014,
+              "rho_active": 0.7934919494451014,
+              "overlap_at_k": 0.625,
+              "pr_auc": null,
+              "n_apps": 41,
+              "n_active": 41
+            }
+          },
+          "InDeg": {
+            "i_star": {
+              "rho": 0.8672986522383918,
+              "rho_active": -0.12977572659728134,
+              "overlap_at_k": 0.5,
+              "pr_auc": 0.6495238095238095,
+              "n_apps": 41,
+              "n_active": 14
+            },
+            "i_dyn": {
+              "rho": 0.8714790610290963,
+              "rho_active": 0.8714790610290963,
+              "overlap_at_k": 0.5,
+              "pr_auc": 1.0,
+              "n_apps": 29,
+              "n_active": 29
+            },
+            "i_comp": {
+              "rho": 0.8035222642083124,
+              "rho_active": 0.8035222642083124,
+              "overlap_at_k": 0.75,
+              "pr_auc": null,
+              "n_apps": 41,
+              "n_active": 41
+            }
+          },
+          "Reach": {
+            "i_star": {
+              "rho": 0.9656687869276095,
+              "rho_active": 0.8126566489710513,
+              "overlap_at_k": 0.75,
+              "pr_auc": 1.0,
+              "n_apps": 41,
+              "n_active": 14
+            },
+            "i_dyn": {
+              "rho": 0.7491210606319426,
+              "rho_active": 0.7491210606319426,
+              "overlap_at_k": 0.0,
+              "pr_auc": 0.1,
+              "n_apps": 29,
+              "n_active": 29
+            },
+            "i_comp": {
+              "rho": 0.6943868673871838,
+              "rho_active": 0.6943868673871838,
+              "overlap_at_k": 0.125,
+              "pr_auc": null,
+              "n_apps": 41,
+              "n_active": 41
+            }
+          },
+          "Topo-QoS": {
+            "i_star": {
+              "rho": 0.5346794477891885,
+              "rho_active": 0.24297797513466907,
+              "overlap_at_k": 0.625,
+              "pr_auc": 0.5200464576074332,
+              "n_apps": 41,
+              "n_active": 14
+            },
+            "i_dyn": {
+              "rho": 0.5371101507883823,
+              "rho_active": 0.5371101507883823,
+              "overlap_at_k": 0.5,
+              "pr_auc": 1.0,
+              "n_apps": 29,
+              "n_active": 29
+            },
+            "i_comp": {
+              "rho": 0.5984153664086566,
+              "rho_active": 0.5984153664086566,
+              "overlap_at_k": 0.5,
+              "pr_auc": null,
+              "n_apps": 41,
+              "n_active": 41
+            }
+          }
+        },
+        "arms": {
+          "gbm_dep": {
+            "i_star": {
+              "rho": 0.8256149723085843,
+              "rho_active": 0.5193373336207637,
+              "overlap_at_k": 0.675,
+              "rho_seed_sd": 0.002280624655061566,
+              "n_apps": 41,
+              "n_active": 14
+            },
+            "i_dyn": {
+              "rho": 0.6833588993446006,
+              "rho_active": 0.6833588993446006,
+              "overlap_at_k": 0.16666666666666666,
+              "rho_seed_sd": 0.003374943735712279,
+              "n_apps": 29,
+              "n_active": 29
+            },
+            "i_comp": {
+              "rho": 0.5945407617765103,
+              "rho_active": 0.5945407617765103,
+              "overlap_at_k": 0.2,
+              "rho_seed_sd": 0.000982668726286644,
+              "n_apps": 41,
+              "n_active": 41
+            }
+          },
+          "gbm_dep_qos": {
+            "i_star": {
+              "rho": 0.7814299082621042,
+              "rho_active": 0.07284785961616783,
+              "overlap_at_k": 0.5,
+              "rho_seed_sd": 0.004022540831589593,
+              "n_apps": 41,
+              "n_active": 14
+            },
+            "i_dyn": {
+              "rho": 0.7303220780780973,
+              "rho_active": 0.7303220780780973,
+              "overlap_at_k": 0.6666666666666666,
+              "rho_seed_sd": 0.003119060933594294,
+              "n_apps": 29,
+              "n_active": 29
+            },
+            "i_comp": {
+              "rho": 0.5374584435039874,
+              "rho_active": 0.5374584435039874,
+              "overlap_at_k": 0.525,
+              "rho_seed_sd": 0.010732914374127813,
+              "n_apps": 41,
+              "n_active": 41
+            }
+          },
+          "gbm_dep_dyn": {
+            "i_star": {
+              "rho": 0.7353764918495118,
+              "rho_active": -0.34696153778068045,
+              "overlap_at_k": 0.25,
+              "rho_seed_sd": 0.0002536323815643014,
+              "n_apps": 41,
+              "n_active": 14
+            },
+            "i_dyn": {
+              "rho": 0.7588764344051145,
+              "rho_active": 0.7588764344051145,
+              "overlap_at_k": 0.6666666666666666,
+              "rho_seed_sd": 0.0022160064082437847,
+              "n_apps": 29,
+              "n_active": 29
+            },
+            "i_comp": {
+              "rho": 0.713422365628744,
+              "rho_active": 0.713422365628744,
+              "overlap_at_k": 0.625,
+              "rho_seed_sd": 0.0009215666535950629,
+              "n_apps": 41,
+              "n_active": 41
+            }
+          },
+          "gbm_dep_qos_dyn": {
+            "i_star": {
+              "rho": 0.7855888935659456,
+              "rho_active": -0.04370871576970069,
+              "overlap_at_k": 0.625,
+              "rho_seed_sd": 0.001739802631941101,
+              "n_apps": 41,
+              "n_active": 14
+            },
+            "i_dyn": {
+              "rho": 0.89938115470995,
+              "rho_active": 0.89938115470995,
+              "overlap_at_k": 0.5666666666666667,
+              "rho_seed_sd": 0.005408606532027075,
+              "n_apps": 29,
+              "n_active": 29
+            },
+            "i_comp": {
+              "rho": 0.7813142125049153,
+              "rho_active": 0.7813142125049153,
+              "overlap_at_k": 0.375,
+              "rho_seed_sd": 0.0022051071583343144,
+              "n_apps": 41,
+              "n_active": 41
+            }
+          }
+        },
+        "feature_seconds": 0.0032
+      }
+    },
+    "arm_means": {
+      "gbm_dep": {
+        "i_star": 0.7766981742187572,
+        "i_dyn": 0.6801760469680278,
+        "i_comp": 0.4847726294149469
+      },
+      "gbm_dep_qos": {
+        "i_star": 0.7765074711673162,
+        "i_dyn": 0.6930938042215734,
+        "i_comp": 0.5047698859222819
+      },
+      "gbm_dep_dyn": {
+        "i_star": 0.7330675216771498,
+        "i_dyn": 0.7015740710830257,
+        "i_comp": 0.5761022797605477
+      },
+      "gbm_dep_qos_dyn": {
+        "i_star": 0.6976861285838074,
+        "i_dyn": 0.7995460209924323,
+        "i_comp": 0.4523773312321744
+      }
+    },
+    "comparator_means": {
+      "Analytic-I*": {
+        "i_star": 0.7881023697413386,
+        "i_dyn": 0.721604208841151,
+        "i_comp": 0.6684909582176722
+      },
+      "InDeg": {
+        "i_star": 0.8626953472911614,
+        "i_dyn": 0.7985993713907866,
+        "i_comp": 0.7292740803316745
+      },
+      "Reach": {
+        "i_star": 0.9376325586070603,
+        "i_dyn": 0.720160098232963,
+        "i_comp": 0.5804184699742111
+      },
+      "Topo-QoS": {
+        "i_star": 0.5819133393747431,
+        "i_dyn": 0.5630787692813836,
+        "i_comp": 0.686581640663475
+      }
+    },
+    "reach_i_star": 0.9376325586070603
+  },
+  "m1_sensitivity": {
+    "n30_seed42": {
+      "Analytic-I*": {
+        "mean_rho": 0.6363478484549276,
+        "ci95": [
+          0.5262820919203776,
+          0.7310903530226917
+        ],
+        "per_fold": {
+          "atm_system": 0.5205939631183107,
+          "av_system": 0.7336257578180089,
+          "enterprise_system": 0.7322238681605253,
+          "financial_trading_system": 0.8250299397209154,
+          "healthcare_system": 0.765196084015834,
+          "hub_and_spoke_system": 0.22556989128092025,
+          "industrial_scada_system": 0.3771766893663441,
+          "iot_smart_city_system": 0.8799431682378773,
+          "logistics_fleet_system": 0.739024709041273,
+          "microservices_system": 0.6952458674118693,
+          "realtime_gaming_system": 0.6182340126398036,
+          "telecom_ran_system": 0.5243102306474502
+        }
+      },
+      "InDeg": {
+        "mean_rho": 0.6097679615372765,
+        "ci95": [
+          0.47543700139493456,
+          0.7273075603733778
+        ],
+        "per_fold": {
+          "atm_system": 0.3576864458724633,
+          "av_system": 0.7612718124120413,
+          "enterprise_system": 0.7314860823513852,
+          "financial_trading_system": 0.8559375420566455,
+          "healthcare_system": 0.8227107863643967,
+          "hub_and_spoke_system": 0.1792781167557653,
+          "industrial_scada_system": 0.35696869246060636,
+          "iot_smart_city_system": 0.8862884033141929,
+          "logistics_fleet_system": 0.7898212874163669,
+          "microservices_system": 0.5869790941226031,
+          "realtime_gaming_system": 0.5643630572809925,
+          "telecom_ran_system": 0.42442421803985914
+        }
+      },
+      "Reach": {
+        "mean_rho": 0.5045082886979115,
+        "ci95": [
+          0.4154204472661225,
+          0.5925728374909851
+        ],
+        "per_fold": {
+          "atm_system": 0.44686558434876955,
+          "av_system": 0.7468054985079154,
+          "enterprise_system": 0.4944863174406575,
+          "financial_trading_system": 0.7289914755527471,
+          "healthcare_system": 0.533750222905673,
+          "hub_and_spoke_system": 0.26056851837478917,
+          "industrial_scada_system": 0.3803083228119204,
+          "iot_smart_city_system": 0.5895538061000497,
+          "logistics_fleet_system": 0.7082834713392977,
+          "microservices_system": 0.358590740599369,
+          "realtime_gaming_system": 0.5320525059783119,
+          "telecom_ran_system": 0.2738430004154378
+        }
+      },
+      "Topo-QoS": {
+        "mean_rho": 0.3931697322179839,
+        "ci95": [
+          0.27453170329203985,
+          0.5061540146517849
+        ],
+        "per_fold": {
+          "atm_system": 0.29968652537947355,
+          "av_system": 0.693019888746275,
+          "enterprise_system": 0.5760079464686853,
+          "financial_trading_system": 0.4865897219980292,
+          "healthcare_system": 0.24772257504871095,
+          "hub_and_spoke_system": 0.11604004073971051,
+          "industrial_scada_system": 0.04299116197484412,
+          "iot_smart_city_system": 0.39201806889239976,
+          "logistics_fleet_system": 0.6025772208074781,
+          "microservices_system": 0.34409820889920906,
+          "realtime_gaming_system": 0.7055585173700023,
+          "telecom_ran_system": 0.21172691029098975
+        }
+      }
+    },
+    "full_seed42": {
+      "Analytic-I*": {
+        "mean_rho": 0.6315177644195044,
+        "ci95": [
+          0.5448460760285659,
+          0.7153112030916491
+        ],
+        "per_fold": {
+          "atm_system": 0.5205939631183107,
+          "av_system": 0.6095456613587114,
+          "enterprise_system": 0.708008784594954,
+          "financial_trading_system": 0.8458048405730018,
+          "healthcare_system": 0.8383724863110477,
+          "hub_and_spoke_system": 0.34123604865915885,
+          "industrial_scada_system": 0.46486360332216653,
+          "iot_smart_city_system": 0.8504543386770945,
+          "logistics_fleet_system": 0.7310905434561237,
+          "microservices_system": 0.5547789686911571,
+          "realtime_gaming_system": 0.5748184482900371,
+          "telecom_ran_system": 0.5386454859822895
+        }
+      },
+      "InDeg": {
+        "mean_rho": 0.592689943641305,
+        "ci95": [
+          0.4824313327828855,
+          0.6942604835869554
+        ],
+        "per_fold": {
+          "atm_system": 0.3576864458724633,
+          "av_system": 0.5978056506675675,
+          "enterprise_system": 0.6865823839617925,
+          "financial_trading_system": 0.8748875860932086,
+          "healthcare_system": 0.8527481269207349,
+          "hub_and_spoke_system": 0.23959480376697084,
+          "industrial_scada_system": 0.43819285017574,
+          "iot_smart_city_system": 0.8275184006937991,
+          "logistics_fleet_system": 0.6965150024490455,
+          "microservices_system": 0.5350056334741301,
+          "realtime_gaming_system": 0.5376212253132134,
+          "telecom_ran_system": 0.4681212143069949
+        }
+      },
+      "Reach": {
+        "mean_rho": 0.5052912297751578,
+        "ci95": [
+          0.4325398270191638,
+          0.5781966821382061
+        ],
+        "per_fold": {
+          "atm_system": 0.44686558434876955,
+          "av_system": 0.5941446255296859,
+          "enterprise_system": 0.4932573354024423,
+          "financial_trading_system": 0.7789297463614362,
+          "healthcare_system": 0.662918004020455,
+          "hub_and_spoke_system": 0.315184144549811,
+          "industrial_scada_system": 0.4254663143408234,
+          "iot_smart_city_system": 0.5306423741823187,
+          "logistics_fleet_system": 0.6160766907815456,
+          "microservices_system": 0.4117902009544966,
+          "realtime_gaming_system": 0.48656930004933574,
+          "telecom_ran_system": 0.3016504367807744
+        }
+      },
+      "Topo-QoS": {
+        "mean_rho": 0.42763337477098934,
+        "ci95": [
+          0.34656444990910684,
+          0.5067983485115891
+        ],
+        "per_fold": {
+          "atm_system": 0.29968652537947355,
+          "av_system": 0.5419691717990535,
+          "enterprise_system": 0.600677820126627,
+          "financial_trading_system": 0.5612923031028256,
+          "healthcare_system": 0.3621252912052239,
+          "hub_and_spoke_system": 0.24113768812331954,
+          "industrial_scada_system": 0.2980099848024342,
+          "iot_smart_city_system": 0.3182425971376772,
+          "logistics_fleet_system": 0.5981924757251964,
+          "microservices_system": 0.32186019768974045,
+          "realtime_gaming_system": 0.6391176308458733,
+          "telecom_ran_system": 0.34928881131442874
+        }
+      }
+    },
+    "full_5seed": {
+      "Analytic-I*": {
+        "mean_rho": 0.7058268081764059,
+        "ci95": [
+          0.6287585046756643,
+          0.7834364411527366
+        ],
+        "per_fold": {
+          "atm_system": 0.5326050301645473,
+          "av_system": 0.6341336942241423,
+          "enterprise_system": 0.858747757876295,
+          "financial_trading_system": 0.8328474650985488,
+          "healthcare_system": 0.8977144416301509,
+          "hub_and_spoke_system": 0.4809715856192722,
+          "industrial_scada_system": 0.6021292137246952,
+          "iot_smart_city_system": 0.9227141986810445,
+          "logistics_fleet_system": 0.757583721441362,
+          "microservices_system": 0.6598725985430611,
+          "realtime_gaming_system": 0.6897656228312097,
+          "telecom_ran_system": 0.6008363682825424
+        }
+      },
+      "InDeg": {
+        "mean_rho": 0.6640803531642552,
+        "ci95": [
+          0.5616916571531119,
+          0.7575126954893171
+        ],
+        "per_fold": {
+          "atm_system": 0.4158018452018384,
+          "av_system": 0.6371702629572182,
+          "enterprise_system": 0.8334877865156914,
+          "financial_trading_system": 0.8697378226695077,
+          "healthcare_system": 0.8971049684785503,
+          "hub_and_spoke_system": 0.3411016127098325,
+          "industrial_scada_system": 0.571014107568779,
+          "iot_smart_city_system": 0.8925734563964557,
+          "logistics_fleet_system": 0.7318377421974925,
+          "microservices_system": 0.6071200481465493,
+          "realtime_gaming_system": 0.6408924015547549,
+          "telecom_ran_system": 0.5311221835743922
+        }
+      },
+      "Reach": {
+        "mean_rho": 0.5829690714776385,
+        "ci95": [
+          0.509997218402824,
+          0.651027596944324
+        ],
+        "per_fold": {
+          "atm_system": 0.4684248888568243,
+          "av_system": 0.6399739630361081,
+          "enterprise_system": 0.686410811985139,
+          "financial_trading_system": 0.7674006611830299,
+          "healthcare_system": 0.7530550245150459,
+          "hub_and_spoke_system": 0.38083084880332846,
+          "industrial_scada_system": 0.5150145473734293,
+          "iot_smart_city_system": 0.6318948126557695,
+          "logistics_fleet_system": 0.6481510299550471,
+          "microservices_system": 0.507399675672106,
+          "realtime_gaming_system": 0.6275738946332141,
+          "telecom_ran_system": 0.36949869906262217
+        }
+      },
+      "Topo-QoS": {
+        "mean_rho": 0.47082466128673994,
+        "ci95": [
+          0.38124039052237,
+          0.5588421743001185
+        ],
+        "per_fold": {
+          "atm_system": 0.3542377592619123,
+          "av_system": 0.5818251363910828,
+          "enterprise_system": 0.7272904636238914,
+          "financial_trading_system": 0.5469891485561801,
+          "healthcare_system": 0.4068469731379107,
+          "hub_and_spoke_system": 0.19991348094821396,
+          "industrial_scada_system": 0.39023578627769917,
+          "iot_smart_city_system": 0.32757588903678814,
+          "logistics_fleet_system": 0.6278609260834322,
+          "microservices_system": 0.35906875296681395,
+          "realtime_gaming_system": 0.697038126184497,
+          "telecom_ran_system": 0.43101349297245867
+        }
+      }
+    }
+  },
+  "cost": {
+    "idyn_label_seconds_per_seed": {
+      "atm_system": 139.15,
+      "av_system": 993.192,
+      "enterprise_system": 1513.468,
+      "financial_trading_system": 4235.694,
+      "healthcare_system": 8.05,
+      "hub_and_spoke_system": 142.414,
+      "industrial_scada_system": 346.324,
+      "iot_smart_city_system": 119.39200000000001,
+      "logistics_fleet_system": 514.79,
+      "microservices_system": 216.584,
+      "realtime_gaming_system": 247.498,
+      "telecom_ran_system": 690.766,
+      "realworld_autoware_ros2": 36.906000000000006,
+      "realworld_edgex": 42.96,
+      "realworld_homeassistant": 31.223999999999997,
+      "realworld_cloud_microservices": 81.79,
+      "realworld_trainticket": 53.444
+    },
+    "feature_seconds": {
+      "atm_system": 0.0059,
+      "av_system": 0.0,
+      "enterprise_system": 0.0,
+      "financial_trading_system": 0.0,
+      "healthcare_system": 0.0,
+      "hub_and_spoke_system": 0.0,
+      "industrial_scada_system": 0.0,
+      "iot_smart_city_system": 0.0,
+      "logistics_fleet_system": 0.0,
+      "microservices_system": 0.0,
+      "realtime_gaming_system": 0.0,
+      "telecom_ran_system": 0.0,
+      "realworld_autoware_ros2": 0.0033,
+      "realworld_edgex": 0.0023,
+      "realworld_homeassistant": 0.0031,
+      "realworld_cloud_microservices": 0.0022,
+      "realworld_trainticket": 0.0032
+    }
+  },
+  "provenance": {
+    "commit": "39a993736bc3eb37b62bf0e781c553d4ed89f915",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/oracle_robust_ltr.py",
+      "amendment": 11,
+      "seeds": [
+        42,
+        123,
+        456,
+        789,
+        2024
+      ],
+      "idyn": {
+        "duration": 60.0,
+        "qos_mode": "full",
+        "target_utilization": 0.65
+      },
+      "learner": "GradientBoostingRegressor (tab_gbm defaults)",
+      "features": {
+        "S": [
+          "InDeg",
+          "Reach",
+          "Analytic-I*",
+          "OutDeg",
+          "Pubs",
+          "Subs",
+          "Libs",
+          "CoHosted",
+          "Topo"
+        ],
+        "Q": [
+          "Topo-QoS",
+          "Reach-QoS",
+          "QoS-InDeg",
+          "PubRate",
+          "PubBytes",
+          "ReliableShare",
+          "DurableShare",
+          "DeadlineShare",
+          "MaxPriority"
+        ]
+      },
+      "arms": {
+        "gbm_dep": {
+          "features": [
+            "S"
+          ],
+          "train": "i_star"
+        },
+        "gbm_dep_qos": {
+          "features": [
+            "S",
+            "Q"
+          ],
+          "train": "i_star"
+        },
+        "gbm_dep_dyn": {
+          "features": [
+            "S"
+          ],
+          "train": "i_dyn"
+        },
+        "gbm_dep_qos_dyn": {
+          "features": [
+            "S",
+            "Q"
+          ],
+          "train": "i_dyn"
+        }
+      }
+    }
+  }
+}
