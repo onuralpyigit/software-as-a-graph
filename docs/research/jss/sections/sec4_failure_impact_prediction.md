@@ -24,22 +24,13 @@ Models are trained with AdamW ($\eta = 3 \times 10^{-4}$, weight decay $10^{-4}$
 
 ## 4.3 Ground-Truth Simulation Oracles
 
-Ground truth comes from failure simulations over the raw structural multigraph $G_{\text{structural}}$. Table 4 summarizes the four oracles.
-
-**Table 4.** Simulation oracles, operational constructs, and evaluation roles.
-
-| **Oracle**           | **Physical Mechanism**                         | **Nature**          | **Role in Evaluation**                 |
-|:---------------------|:-----------------------------------------------|:--------------------|:---------------------------------------|
-| $I^*(v)$             | BFS cascade reachability + QoS ladder          | Seeded tie-breaking | Primary ranking target (RQ1–RQ3)       |
-| $I_{\text{comp}}(v)$ | Severity mixture: reachability + fragmentation | Deterministic       | Explanation layer / Validate gate      |
-| $I_{\text{dyn}}(v)$  | Discrete-event SimPy message queuing           | Stochastic          | Convergent-validity probe              |
-| $I_M(v)$             | Reverse `DEPENDS_ON` traversal                 | Deterministic       | Unsupervised maintainability reference |
+Ground truth comes from failure simulations over the raw structural multigraph $G_{\text{structural}}$. Two oracles are used: the cascade-reachability oracle $I^*(v)$ is the ranking target of every research question, and a behavioral queue-flow oracle $I_{\text{dyn}}(v)$ checks its convergent validity.
 
 **Primary target, $I^*(v)$.** The oracle crashes component $v$, propagates the outage through dependent topics, brokers and links by breadth-first traversal, and returns the mean fractional feed loss over the intact graph’s subscriber population. A topic’s feed loss is the fraction of its publishers that failed. It is scaled by a declared QoS severity ladder ($\times 1.2$ `RELIABLE`, $\times 1.15$ high priority, $\times 1.05$ medium) and clamped to $[0, 1]$. Five seeds break ties in propagation order, and $I^*(v)$ is their mean. It is reproducible from a fixed seed set, as CI gating requires.
 
 **How much QoS is in this label.** The ladder reads reliability and priority only, but that does not bound the label’s QoS content much: disabling QoS scaling entirely leaves the Application ordering nearly intact — mean Spearman $\rho = 0.965$ against the ladder across the twelve folds (range $0.891$–$0.999$) — and substituting a durability-aware $w(t)$ scaling moves it less still ($\rho = 0.977$). The top-$K$ set is the sensitive construct: ladder and topology-only labels agree at mean Jaccard $0.678$, so QoS changes *which* components are named critical rather than their order. $I^*$ is therefore a near-topological target, which bounds what any QoS-encoding result can be credited with (§7.2).
 
-**Further oracles.** $I_{\text{comp}}(v)$ is a severity-weighted mixture of reachability loss, fragmentation, throughput loss and flow disruption, with unswept AHP coefficients $(0.35, 0.25, 0.25, 0.15)$. It labels the explanation layer’s evaluation and is never used for forecasting. $I_{\text{dyn}}(v)$ is a SimPy [86] message-flow simulation of emission rates, stochastic latencies and broker buffer saturation. It returns the drop in delivered message rate to surviving consumers and serves as an independent convergent-validity probe. It agrees with $I^*$ at $\rho = 0.627$, which is substantial but below $I^*$’s own seed-to-seed test–retest of $0.811$–$1.000$, so the two measure related but distinct constructs (Supplementary §S9). $I_M(v)$ is a reverse-dependency traversal kept as a structural maintainability reference; it is never a training label. Topic criticality is a predictor input, so it is masked out of every oracle’s severity term. Results established against one oracle are never transferred to another.
+**Convergent-validity probe, $I_{\text{dyn}}(v)$.** A SimPy [86] message-flow simulation of emission rates, stochastic latencies and broker buffer saturation returns the drop in delivered message rate to surviving consumers. It agrees with $I^*$ at $\rho = 0.627$, which is substantial but below $I^*$’s own seed-to-seed test–retest of $0.811$–$1.000$, so the two measure related but distinct constructs (Supplementary §S9). Topic criticality is a predictor input, so it is masked out of both oracles’ severity terms. Results established against one oracle are never transferred to the other.
 
 ## 4.4 Input–Label Independence Guarantee
 

@@ -37,15 +37,15 @@ where:
 | `CONNECTS_TO`                          | Host $\to$ Host                               | Network link between hosts                     |
 | `USES`                                 | App $\to$ Library                             | Application links to shared library            |
 
-**Table 2.** Notation used throughout. Entity and edge types: Table 1; simulation oracles: Table 4.
+**Table 2.** Notation used throughout. Entity and edge types: Table 1; simulation oracles: §4.3.
 
-|                         |                                          |                                            |                                                   |
-|:------------------------|:-----------------------------------------|:-------------------------------------------|:--------------------------------------------------|
-| $G_{\text{structural}}$ | Raw multigraph; oracles only             | $Q(v)$                                     | RM composite quality score                        |
-| $G_{\text{analysis}}$   | `DEPENDS_ON` projection; predictor input | $\rho$                                     | Spearman $\rho$, full population                  |
-| $V_{\text{app}}$        | Application nodes; the scored population | $\rho_{>0}$                                | Spearman $\rho$, active stratum ($I^* > 0$)       |
-| $w(t)$, $w(e)$          | QoS topic weight, edge weight            | Overlap@$K$                                | Top-$K$ set overlap, $K = 0.20\,|V_{\text{app}}|$ |
-| $I^*(v)$                | Primary cascade-reachability oracle      | $I_{\text{comp}}$, $I_{\text{dyn}}$, $I_M$ | Further oracles (Table 4)                         |
+|                         |                                          |                     |                                                   |
+|:------------------------|:-----------------------------------------|:--------------------|:--------------------------------------------------|
+| $G_{\text{structural}}$ | Raw multigraph; oracles only             | $Q(v)$              | RM composite quality score                        |
+| $G_{\text{analysis}}$   | `DEPENDS_ON` projection; predictor input | $\rho$              | Spearman $\rho$, full population                  |
+| $V_{\text{app}}$        | Application nodes; the scored population | $\rho_{>0}$         | Spearman $\rho$, active stratum ($I^* > 0$)       |
+| $w(t)$, $w(e)$          | QoS topic weight, edge weight            | Overlap@$K$         | Top-$K$ set overlap, $K = 0.20\,|V_{\text{app}}|$ |
+| $I^*(v)$                | Primary cascade-reachability oracle      | $I_{\text{dyn}}(v)$ | Queue-flow oracle; convergent validity            |
 
 ## 3.2 Logical Dependency Derivation and QoS-Aware Weights
 
