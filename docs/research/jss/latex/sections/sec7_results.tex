@@ -192,7 +192,7 @@ where $|\text{pub}(t)| \ge 1$ holds for all published topics $t \in \text{pub}(v
 \subsection{RQ4: Analysis Cost}
 \label{sec:rq4}
 
-\paragraph{Summary} \emph{Neural inference takes $56\,\text{ms}$ on a 2{,}000-node graph ($0.02\%$ of pipeline time), but cold feature extraction takes median $5.6\times$ longer than in-process direct simulation ($I^*$). Dependency counting executes in milliseconds and requires no feature extraction.}
+\paragraph{Summary} \emph{The counting path (projection plus \texttt{InDeg}) takes $1$--$29$~ms per corpus architecture and $1.1$~s at $10{,}000$ components; one labelling pass of the reachability oracle takes $0.08$--$4.5$~s on the corpus and grows roughly quadratically, to $347$~s at $2{,}000$ components and $36$~minutes at $5{,}000$. The neural pipeline is dominated by feature extraction, which costs median $5.6\times$ a direct run of the oracle; inference itself takes $56$~ms at $2{,}000$ nodes. No energy was measured.}
 
 \begin{table}[htbp]
 \centering
@@ -212,6 +212,25 @@ where $|\text{pub}(t)| \ge 1$ holds for all published topics $t \in \text{pub}(v
 \end{tabular}
 \end{table}
 
-Across the corpus, complete analysis takes $2.0$--$17.7\times$ (median $5.6\times$) the time of running the cascade simulation directly. Direct simulation is faster on raw CPU time wherever simulation parameters are available. SaG's practical advantage lies in enabling sub-millisecond, training-free dependency counting for instantaneous CI/CD quality gates directly from manifests, while providing explainable ISO/IEC 25010 remediation profiles to guide architectural decisions.
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{The counting path against one labelling pass of the reachability oracle $I^*$ on generated graphs of increasing size (Amendment~12, R6; CPU, median of 5 runs; $I^*$ timed once at $4{,}995$ components and not at $9{,}990$, where one pass would take hours). Projection: deriving the Application--Library \texttt{DEPENDS\_ON} graph from the manifest.}
+\label{tab:count-scale}
+\begin{tabular}{rrrrrr}
+\toprule
+\textbf{$|V|$} & \textbf{$|E|$} & \textbf{\shortstack{Projection +\\\texttt{InDeg} (ms)}} & \textbf{\shortstack{\texttt{Reach}\\(ms)}} & \textbf{\shortstack{$I^*$ pass\\(s)}} & \textbf{\shortstack{$I^*$ :\\count}} \\
+\midrule
+249 & 1{,}081 & 8.0 & 11.7 & 4.0 & $500\times$ \\
+499 & 2{,}437 & 11.2 & 24.9 & 15.1 & $1{,}351\times$ \\
+999 & 6{,}372 & 25.3 & 113.1 & 58.5 & $2{,}313\times$ \\
+1{,}998 & 19{,}242 & 109.7 & 490.8 & 346.6 & $3{,}159\times$ \\
+4{,}995 & 94{,}790 & 426.8 & 4{,}369.9 & 2{,}163.5 & $5{,}069\times$ \\
+9{,}990 & 348{,}277 & 1{,}095.3 & 23{,}302.4 & not timed & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:scale} breaks down the neural pipeline. Its analysis stage, which computes the node features including betweenness and a directed articulation score, dominates; across the corpus it takes $2.0$--$17.7\times$ (median $5.6\times$) the time of running $I^*$ directly, so where the $I^*$ ranking itself is wanted, running the oracle is cheaper than approximating it with a learned engine. Table~\ref{tab:count-scale} shows the counting path. On the corpus it takes $1$--$29$~ms per architecture against $0.08$--$4.5$~s for one $I^*$ pass, and on generated graphs the gap widens with size: the count grows roughly with the number of edges, $I^*$ roughly with the square of the number of components. At $5{,}000$ components one $I^*$ pass takes $36$~minutes and the count $0.43$~s. The count's practical advantage is therefore cost at scale and in inner loops, not accuracy over the oracle it approximates. \texttt{Reach} is costlier than \texttt{InDeg} ($23$~s at $10{,}000$ components) because it computes a transitive closure. These are wall-clock measurements on one CPU; no energy was measured, and we make no sustainability claim beyond them.
 
 

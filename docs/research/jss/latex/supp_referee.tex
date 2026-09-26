@@ -217,3 +217,24 @@ Train-Ticket & 41 & 0.66 & 0.77 & 5 & 0.867 & 0.966 \\
 \end{tabular}%
 }
 \end{table}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Counting path against one $I^*$ labelling pass on generated graphs (Amendment~12, R6; median of repeats, count in brackets for $I^*$). Projection, \texttt{InDeg} and \texttt{Reach} in ms; $I^*$ in s. Rendered from \texttt{data/benchmarks/referee\_round7\_latency.json}.}
+\label{tab:ref-latency}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{rrrrrr}
+\toprule
+\textbf{$|V|$} & \textbf{$|E|$} & \textbf{Projection (ms)} & \textbf{InDeg (ms)} & \textbf{Reach (ms)} & \textbf{$I^*$ (s)} \\
+\midrule
+249 & 1{,}081 & 7.9 & 0.04 & 11.7 & 4.0 (5) \\
+499 & 2{,}437 & 11.1 & 0.06 & 24.9 & 15.1 (5) \\
+999 & 6{,}372 & 25.2 & 0.09 & 113.1 & 58.5 (5) \\
+1{,}998 & 19{,}242 & 109.6 & 0.17 & 490.8 & 346.6 (5) \\
+4{,}995 & 94{,}790 & 426.2 & 0.61 & 4369.9 & 2163.5 (1) \\
+9{,}990 & 348{,}277 & 1094.3 & 0.95 & 23302.4 & not timed \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

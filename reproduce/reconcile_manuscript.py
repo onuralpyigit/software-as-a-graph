@@ -1874,6 +1874,32 @@ def check_referee_round7(rep: Report) -> None:
     except FileNotFoundError:
         rep.skipped.append("supp_referee.tex: an artifact is absent")
 
+    lat = _load("referee_round7_latency.json")
+    if lat is not None:
+        by_n = {r["n_actual"]: r for r in lat["sizes"]}
+        k0 = tex.index(r"\midrule", tex.index(r"\label{tab:count-scale}"))
+        body = tex[k0:tex.index(r"\bottomrule", k0)]
+        rows_cs = [ln.strip() for ln in body.split("\n") if ln.strip().endswith(r"\\")]
+        rep.checked += 1
+        if len(rows_cs) != len(by_n):
+            rep.findings.append(Finding("tab:count-scale", "rows", "count", len(rows_cs), len(by_n)))
+        for row in rows_cs:
+            cells = _cells(row)
+            n = _num(cells[0])
+            if n is None or int(n) not in by_n:
+                continue
+            r = by_n[int(n)]
+            truths = [(2, 1000 * r["count_path_s"], 0.051), (3, 1000 * r["reach_s"], 0.051)]
+            if r["istar_s"] is not None:
+                truths += [(4, r["istar_s"], 0.051), (5, r["istar_s"] / r["count_path_s"], 0.51)]
+            for idx, truth, tol in truths:
+                got = _num(cells[idx])
+                rep.checked += 1
+                if got is None or abs(got - truth) > tol:
+                    rep.findings.append(Finding("tab:count-scale", f"n={int(n)}", str(idx), got, round(truth, 2)))
+    else:
+        rep.skipped.append("referee_round7_latency.json absent; tab:count-scale unchecked")
+
     words = len(re.sub(r"\$[^$]*\$", "X", _tex("abstract.tex")).split())
     rep.checked += 1
     if words > 250:

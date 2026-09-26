@@ -211,6 +211,11 @@ def postprocess_markdown(body: str, labels: dict) -> str:
         return f"**Table {tab_num}.** {cap}\n\n" + "\n".join(rows)
 
     body = re.sub(r'<div id="(tab:[^"]+)">\n(.*?)\n</div>', table_block, body, flags=re.S)
+    # A second \label on one element survives pandoc as a bare anchor span, and
+    # \paragraph{Summary} as a level-4 heading; neither is in the PDF (round 7,
+    # minor 7), so drop the anchors and render the summaries as bold lead-ins.
+    body = re.sub(r'^<span id="[^"]+" label="[^"]+">\[[^\]]+\]</span>\n\n?', "", body, flags=re.M)
+    body = re.sub(r"^#### (Summary)\n\n", r"**\1.** ", body, flags=re.M)
     return body.strip()
 
 
