@@ -601,3 +601,124 @@ Applications per node.
 Every model arm Amendment 2 registered has now been run. Its label-side arm (a
 sweep against a cache with the oracle's QoS ladder disabled) was not run as a
 sweep; the manuscript bounds the label's QoS content instead (§4.3).
+
+## Amendment 9 — graph learning on the dependency graph (2026-09-26, before any result)
+
+**Status when written:** none of the four learned arms below has been implemented
+or run. The closed-form comparators (`InDeg`, `Reach`) are *not* unseen: Amendment 7
+published them (`results/tf_baselines.json`; LOSO ρ 0.764 and 0.732; five system
+models 0.863 and 0.938). The native counterparts are not unseen either
+(Amendments 2, 6 and 8). Only the four learned arms' numbers do not exist yet.
+
+**Why it exists.** Two facts, taken together, leave one question open.
+1. Amendment 7: counting a component's dependents on the `DEPENDS_ON` projection
+   (`InDeg`, `Reach`) beats every learned engine under LOSO (`InDeg` vs HGT-QoS
+   +0.143, 10/12).
+2. Amendment 8: every learned engine reads the native multigraph, where no relation
+   targets an Application. The untyped GATs therefore score each Application from its
+   own features, and HGT reaches Applications only through its reverse pass.
+
+No learned model has ever been run under LOSO or zero-shot on the dependency graph
+itself. On the Application–Library projection (Rules 1 and 5, dependent →
+dependency), a directed `GATConv` aggregates each component's *dependents*. Three
+layers therefore see its dependents up to three hops away, which makes it a learned
+relative of `Reach`. The primary oracle is itself a damped reverse reachability over
+the same subscriber → publisher relation (referee M2). This amendment asks two things:
+- Does learning on the dependency graph beat counting dependents?
+- Was the missing receptive field why the native engines lose to the counts?
+
+One input fact is recorded before the run. Every learned arm already reads the
+node feature `in_degree_centrality`, taken from the cached app-layer analysis. It
+ranks Applications like projection `InDeg`:
+- identically on ATM (Spearman 1.000);
+- at 0.548–0.901 on the other eleven folds.
+
+It is a correlate of `InDeg` computed on a different rule set, not `InDeg` itself.
+
+### Arms, fixed before any run
+
+Every arm keeps the native build's node features and labels bit for bit; only the
+edges change. Every arm runs 3 layers, fixed (`--no-auto-layers`), and uses the
+Amendment 2 arms' seeds {42, 123, 456, 789, 2024}, 300 epochs and inner-validation
+protocol, on CPU.
+
+The substrate is the projection built from the committed topology by
+`derive_depends_on_edges`, the same edge set `InDeg` and `Reach` read. It keeps
+Application and Library nodes, in native-graph order. Its relations are
+(App|Lib, `DEPENDS_ON`, App|Lib): four triples on the synthetic corpus, and two on
+the real system models, which have no Library → Application or Library → Library
+Rule-1 edges. The edge scalar `w(e)` is the projection's `qos_weight`.
+
+| id | Label | Edge channel | Width | Params | Native counterpart |
+|:---|:---|:---|---:|---:|:---|
+| `gl_proj_cap` | GAT-P | none (QoS masked everywhere) | 296 | 437,496 | `gl_full_cap` (GAT) |
+| `gl_proj_qos16_cap` | GAT-P-QoS | 16-D QoS | 288 | 429,992 | `gl_full_qos16_cap` (GAT-QoS) |
+| `gl_proj_qos16_indeg_prior` | Hybrid-GAT-P | 16-D QoS, plus the rank-normalised `InDeg` prior | 288 | 431,433 | `gl_qos16_prior` (Hybrid-GAT) |
+| `hgl_proj_qos` | HGT-P-QoS | 16-D QoS, bidirectional | 100 | 430,680 | `hgl_qos` (HGT-QoS) |
+
+Declared differences from the native arms:
+- **HGT-P-QoS matches parameters, not width.** At width 64 it has 180,048
+  parameters, because the projection has four relation triples where the native
+  graph has ten. Width 100 gives 0.991× the native HGT's 434,620.
+- **Hybrid-GAT-P's prior is `InDeg`, not `Topo-QoS`.** It is rank-normalised
+  exactly as the Topo-QoS prior is, and the residual construction is unchanged
+  (Amendment 5).
+- **The training labels shrink.** Broker, Topic and Node labels are not in the
+  projection, so every arm trains on Applications and Libraries only. The scored
+  population is unchanged: Applications, scored with
+  `compute_inductive_metrics(population="application")` against the native graph's
+  labels.
+- **Zero-shot.** Trained on the twelve synthetic folds and scored on the five system
+  models, exactly as for the published arms (`reproduce/realworld_zeroshot.py`,
+  3 layers).
+
+**Comparator provenance.**
+- `InDeg` and `Reach` are recomputed per fold on the same labels and must match
+  `results/tf_baselines.json` within 1e-3. The result of that check is reported
+  either way.
+- Native counterparts are read from their clean artifacts, all on corpus digest
+  `3afa81f0`:
+  - `loso_attribution_cpu.json` (GAT, GAT-QoS);
+  - `loso_hybrid_gat_cpu.json` (Hybrid-GAT);
+  - `loso_directionality_cpu.json` (HGT-QoS).
+- `topo_qos` and `gl_full_qos16_cap` are re-run in the new invocation. They must
+  reproduce their earlier per-fold rows bit for bit; this checks that the routing
+  change did not touch the native path.
+
+A receptive-field probe on the new arms is reported beside the results
+(`reproduce/receptive_field_probe.py --substrate projection`).
+
+### Contrasts
+
+A new exploratory family of twelve contrasts. It is Holm-corrected within itself and
+does **not** join the manuscript's 13-contrast omnibus, which is unchanged. Each of
+the four arms is compared with:
+- `InDeg`;
+- `Reach`;
+- its native counterpart.
+
+Each contrast is a two-sided Wilcoxon test over the twelve LOSO folds, with a
+bootstrap 95% CI (B = 2,000).
+
+Reported descriptively, without tests:
+- Topo-QoS;
+- GBM-Feat;
+- `rho_active`;
+- the zero-shot means over the five system models.
+
+### Decision rules
+
+| Rule | Condition | Conclusion |
+|:---|:---|:---|
+| D1 | Some arm beats `InDeg` at Holm p < 0.05 | Learning on the dependency graph adds value. That arm is recommended over the counts. |
+| D2 | No arm differs from `InDeg` at Holm p < 0.05 | No measurable advantage. `InDeg` / `Reach` is recommended as the simpler predictor. |
+| D3 | Every arm's mean Δρ vs `InDeg` is below 0 | "Learning on the dependency graph does not beat counting dependents" is stated without hedging. |
+| M | A projection arm beats its native counterpart at Holm p < 0.05 | The missing receptive field is reported as a mechanism behind the native engines' deficit. |
+| Z | The best arm's zero-shot mean is below `Reach`'s 0.938 | The deployment recommendation for unseen real systems stays `Reach`. |
+
+**What is unchanged.**
+- The manuscript, all registered contrasts of the plan and Amendments 1–8, and the
+  13-contrast omnibus.
+- No published arm is retrained or replaced.
+- Amendment 7's reporting obligation (R3) is recorded here as still open: the
+  current manuscript (v4) does not report its arms.
