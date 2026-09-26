@@ -1,0 +1,263 @@
+{
+  "per_system": {
+    "realworld_autoware_ros2": {
+      "InDeg": {
+        "rho": 0.619672161077824,
+        "rho_active": 0.15721409597921956,
+        "overlap_at_k": 0.5,
+        "pr_auc": 0.26969696969696966,
+        "n_apps": 32,
+        "n_active": 19
+      },
+      "Reach": {
+        "rho": 0.8361218901939067,
+        "rho_active": 0.9226757795588744,
+        "overlap_at_k": 0.5,
+        "pr_auc": 0.6666666666666667,
+        "n_apps": 32,
+        "n_active": 19
+      },
+      "descriptors": {
+        "n_apps": 32,
+        "zero_impact_share": 0.40625,
+        "indeg_gini": 0.5369318181818182,
+        "max_dependency_depth": 4
+      }
+    },
+    "realworld_edgex": {
+      "InDeg": {
+        "rho": 0.8955776452298291,
+        "rho_active": -0.05916489242890611,
+        "overlap_at_k": 0.25,
+        "pr_auc": 0.84375,
+        "n_apps": 22,
+        "n_active": 10
+      },
+      "Reach": {
+        "rho": 0.9969548229076977,
+        "rho_active": 0.9714679613862723,
+        "overlap_at_k": 1.0,
+        "pr_auc": 1.0,
+        "n_apps": 22,
+        "n_active": 10
+      },
+      "descriptors": {
+        "n_apps": 22,
+        "zero_impact_share": 0.5454545454545454,
+        "indeg_gini": 0.6764705882352942,
+        "max_dependency_depth": 5
+      }
+    },
+    "realworld_homeassistant": {
+      "InDeg": {
+        "rho": 0.942743287399356,
+        "rho_active": 0.8327905916707401,
+        "overlap_at_k": 0.6,
+        "pr_auc": 0.9963235294117647,
+        "n_apps": 24,
+        "n_active": 17
+      },
+      "Reach": {
+        "rho": 0.890939363903525,
+        "rho_active": 0.6736316467931689,
+        "overlap_at_k": 0.8000000000000002,
+        "pr_auc": 1.0,
+        "n_apps": 24,
+        "n_active": 17
+      },
+      "descriptors": {
+        "n_apps": 24,
+        "zero_impact_share": 0.2916666666666667,
+        "indeg_gini": 0.5336021505376344,
+        "max_dependency_depth": 6
+      }
+    },
+    "realworld_cloud_microservices": {
+      "InDeg": {
+        "rho": 0.9881849905104066,
+        "rho_active": 0.8058127442654065,
+        "overlap_at_k": 0.75,
+        "pr_auc": 1.0,
+        "n_apps": 22,
+        "n_active": 8
+      },
+      "Reach": {
+        "rho": 0.9984779291025632,
+        "rho_active": 0.9756060828611427,
+        "overlap_at_k": 0.75,
+        "pr_auc": 1.0,
+        "n_apps": 22,
+        "n_active": 8
+      },
+      "descriptors": {
+        "n_apps": 22,
+        "zero_impact_share": 0.6363636363636364,
+        "indeg_gini": 0.7459893048128342,
+        "max_dependency_depth": 3
+      }
+    },
+    "realworld_trainticket": {
+      "InDeg": {
+        "rho": 0.8672986522383918,
+        "rho_active": -0.12977572659728134,
+        "overlap_at_k": 0.5,
+        "pr_auc": 0.6495238095238095,
+        "n_apps": 41,
+        "n_active": 14
+      },
+      "Reach": {
+        "rho": 0.9656687869276095,
+        "rho_active": 0.8126566489710513,
+        "overlap_at_k": 0.75,
+        "pr_auc": 1.0,
+        "n_apps": 41,
+        "n_active": 14
+      },
+      "descriptors": {
+        "n_apps": 41,
+        "zero_impact_share": 0.6585365853658537,
+        "indeg_gini": 0.7735191637630662,
+        "max_dependency_depth": 5
+      }
+    }
+  },
+  "summary": {
+    "InDeg": {
+      "rho": {
+        "mean": 0.8626953472911614,
+        "ci95": [
+          0.733811684574244,
+          0.9518316280215661
+        ],
+        "n": 5
+      },
+      "rho_active": {
+        "mean": 0.3213753625778357,
+        "ci95": [
+          -0.04413342841463107,
+          0.6868841535703025
+        ],
+        "n": 5
+      },
+      "pr_auc": {
+        "mean": 0.7518588617265087,
+        "ci95": [
+          0.4909876496052966,
+          0.9672794117647058
+        ],
+        "n": 5
+      }
+    },
+    "Reach": {
+      "rho": {
+        "mean": 0.9376325586070603,
+        "ci95": [
+          0.8792519714785885,
+          0.9910098524816274
+        ],
+        "n": 5
+      },
+      "rho_active": {
+        "mean": 0.871207623914102,
+        "ci95": [
+          0.7618315344423401,
+          0.961730215628167
+        ],
+        "n": 5
+      },
+      "pr_auc": {
+        "mean": 0.9333333333333333,
+        "ci95": [
+          0.8,
+          1.0
+        ],
+        "n": 5
+      }
+    }
+  },
+  "fold_descriptors": {
+    "atm_system": {
+      "n_apps": 26,
+      "zero_impact_share": 0.19230769230769232,
+      "indeg_gini": 0.3396349413298566,
+      "max_dependency_depth": 5
+    },
+    "av_system": {
+      "n_apps": 80,
+      "zero_impact_share": 0.4875,
+      "indeg_gini": 0.6014303482587064,
+      "max_dependency_depth": 5
+    },
+    "enterprise_system": {
+      "n_apps": 300,
+      "zero_impact_share": 0.39,
+      "indeg_gini": 0.6128860190903986,
+      "max_dependency_depth": 5
+    },
+    "financial_trading_system": {
+      "n_apps": 60,
+      "zero_impact_share": 0.45,
+      "indeg_gini": 0.5777216610549943,
+      "max_dependency_depth": 5
+    },
+    "healthcare_system": {
+      "n_apps": 50,
+      "zero_impact_share": 0.36,
+      "indeg_gini": 0.5697835497835498,
+      "max_dependency_depth": 6
+    },
+    "hub_and_spoke_system": {
+      "n_apps": 70,
+      "zero_impact_share": 0.22857142857142856,
+      "indeg_gini": 0.3985278080697928,
+      "max_dependency_depth": 4
+    },
+    "industrial_scada_system": {
+      "n_apps": 140,
+      "zero_impact_share": 0.37857142857142856,
+      "indeg_gini": 0.562430426716141,
+      "max_dependency_depth": 10
+    },
+    "iot_smart_city_system": {
+      "n_apps": 200,
+      "zero_impact_share": 0.265,
+      "indeg_gini": 0.47187116564417175,
+      "max_dependency_depth": 7
+    },
+    "logistics_fleet_system": {
+      "n_apps": 110,
+      "zero_impact_share": 0.2909090909090909,
+      "indeg_gini": 0.5228418640183347,
+      "max_dependency_depth": 6
+    },
+    "microservices_system": {
+      "n_apps": 90,
+      "zero_impact_share": 0.14444444444444443,
+      "indeg_gini": 0.3922406569465393,
+      "max_dependency_depth": 6
+    },
+    "realtime_gaming_system": {
+      "n_apps": 75,
+      "zero_impact_share": 0.36,
+      "indeg_gini": 0.5860416666666667,
+      "max_dependency_depth": 7
+    },
+    "telecom_ran_system": {
+      "n_apps": 120,
+      "zero_impact_share": 0.16666666666666666,
+      "indeg_gini": 0.3840925141242938,
+      "max_dependency_depth": 6
+    }
+  },
+  "label_source": "output/realworld_cache/<system>/failure_impact.json (composite)",
+  "provenance": {
+    "commit": "075460bb4fe6fe6ccc5c9c0c1673ad22ce829e92",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/referee_round7.py",
+      "amendment": 12,
+      "experiment": "R5"
+    }
+  }
+}
