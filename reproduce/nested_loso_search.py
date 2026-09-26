@@ -54,6 +54,7 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from cli.loso_evaluate import ScenarioBundle, discover_scenarios, run_one_fold
+from reproduce._provenance import stamp
 
 RESULTS_DIR = Path("results")
 
@@ -365,6 +366,11 @@ def main() -> int:
         device=args.device,
     )
 
+    report["provenance"] = stamp(
+        script="reproduce/nested_loso_search.py", variant=args.variant, grid=args.grid,
+        seeds=outer_seeds, inner_seeds=inner_seeds, inner_mode=args.inner_mode,
+        inner_k=args.inner_k, epochs=args.epochs, eval_population=args.eval_population,
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2))
     print(f"\n  Nested LOSO rho = {report['mean_outer_rho']:.4f} "
