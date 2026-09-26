@@ -1,0 +1,1181 @@
+{
+  "summary": {
+    "i_star": {
+      "Analytic-I*": {
+        "mean_rho": 0.8084,
+        "ci95_rho": [
+          0.7545104166666666,
+          0.8529852083333334
+        ],
+        "mean_rho_active": 0.6315,
+        "ci95_rho_active": [
+          0.5618152083333334,
+          0.7028016666666667
+        ],
+        "delta_vs_topoqos": 0.2552,
+        "wins_vs_topoqos": "12/12",
+        "p_wilcoxon": 0.0005,
+        "n_folds": 12
+      },
+      "InDeg": {
+        "mean_rho": 0.7642,
+        "ci95_rho": [
+          0.6742333333333332,
+          0.8398187499999998
+        ],
+        "mean_rho_active": 0.5163,
+        "ci95_rho_active": [
+          0.4147052083333334,
+          0.6038924999999999
+        ],
+        "delta_vs_topoqos": 0.2111,
+        "wins_vs_topoqos": "12/12",
+        "p_wilcoxon": 0.0005,
+        "n_folds": 12
+      },
+      "Reach": {
+        "mean_rho": 0.7316,
+        "ci95_rho": [
+          0.6742735416666668,
+          0.7823737500000001
+        ],
+        "mean_rho_active": 0.2864,
+        "ci95_rho_active": [
+          0.17032,
+          0.39795200000000003
+        ],
+        "delta_vs_topoqos": 0.1785,
+        "wins_vs_topoqos": "11/12",
+        "p_wilcoxon": 0.0034,
+        "n_folds": 12
+      },
+      "Topo-QoS": {
+        "mean_rho": 0.5531,
+        "ci95_rho": [
+          0.442739375,
+          0.6573439583333333
+        ],
+        "mean_rho_active": 0.2801,
+        "ci95_rho_active": [
+          0.16461083333333332,
+          0.3851518749999998
+        ],
+        "delta_vs_topoqos": 0.0,
+        "wins_vs_topoqos": "0/12",
+        "p_wilcoxon": null,
+        "n_folds": 12
+      }
+    },
+    "i_dyn": {
+      "Analytic-I*": {
+        "mean_rho": 0.6363,
+        "ci95_rho": [
+          0.5262806250000001,
+          0.7310589583333332
+        ],
+        "mean_rho_active": 0.6306,
+        "ci95_rho_active": [
+          0.5192937500000001,
+          0.7314329166666665
+        ],
+        "delta_vs_topoqos": 0.2432,
+        "wins_vs_topoqos": "11/12",
+        "p_wilcoxon": 0.0015,
+        "n_folds": 12
+      },
+      "InDeg": {
+        "mean_rho": 0.6098,
+        "ci95_rho": [
+          0.47545437500000004,
+          0.7273014583333334
+        ],
+        "mean_rho_active": 0.5888,
+        "ci95_rho_active": [
+          0.45528270833333334,
+          0.7125377083333332
+        ],
+        "delta_vs_topoqos": 0.2166,
+        "wins_vs_topoqos": "11/12",
+        "p_wilcoxon": 0.0034,
+        "n_folds": 12
+      },
+      "Reach": {
+        "mean_rho": 0.5045,
+        "ci95_rho": [
+          0.41543083333333336,
+          0.5925910416666667
+        ],
+        "mean_rho_active": 0.4519,
+        "ci95_rho_active": [
+          0.35012583333333336,
+          0.5592472916666665
+        ],
+        "delta_vs_topoqos": 0.1114,
+        "wins_vs_topoqos": "10/12",
+        "p_wilcoxon": 0.0342,
+        "n_folds": 12
+      },
+      "Topo-QoS": {
+        "mean_rho": 0.3932,
+        "ci95_rho": [
+          0.27451416666666667,
+          0.5061577083333332
+        ],
+        "mean_rho_active": 0.343,
+        "ci95_rho_active": [
+          0.19985687500000002,
+          0.48007687499999996
+        ],
+        "delta_vs_topoqos": 0.0,
+        "wins_vs_topoqos": "0/12",
+        "p_wilcoxon": null,
+        "n_folds": 12
+      }
+    },
+    "i_comp": {
+      "Analytic-I*": {
+        "mean_rho": 0.6362,
+        "ci95_rho": [
+          0.5721310416666665,
+          0.693068125
+        ],
+        "mean_rho_active": 0.6362,
+        "ci95_rho_active": [
+          0.5721310416666665,
+          0.693068125
+        ],
+        "delta_vs_topoqos": -0.0658,
+        "wins_vs_topoqos": "3/12",
+        "p_wilcoxon": 0.064,
+        "n_folds": 12
+      },
+      "InDeg": {
+        "mean_rho": 0.6501,
+        "ci95_rho": [
+          0.5911472916666666,
+          0.7063016666666667
+        ],
+        "mean_rho_active": 0.6501,
+        "ci95_rho_active": [
+          0.5911472916666666,
+          0.7063016666666667
+        ],
+        "delta_vs_topoqos": -0.0519,
+        "wins_vs_topoqos": "3/12",
+        "p_wilcoxon": 0.1099,
+        "n_folds": 12
+      },
+      "Reach": {
+        "mean_rho": 0.3021,
+        "ci95_rho": [
+          0.16169791666666664,
+          0.42885874999999996
+        ],
+        "mean_rho_active": 0.3021,
+        "ci95_rho_active": [
+          0.16169791666666664,
+          0.42885874999999996
+        ],
+        "delta_vs_topoqos": -0.3999,
+        "wins_vs_topoqos": "0/12",
+        "p_wilcoxon": 0.0005,
+        "n_folds": 12
+      },
+      "Topo-QoS": {
+        "mean_rho": 0.702,
+        "ci95_rho": [
+          0.648574375,
+          0.7533879166666666
+        ],
+        "mean_rho_active": 0.702,
+        "ci95_rho_active": [
+          0.648574375,
+          0.7533879166666666
+        ],
+        "delta_vs_topoqos": 0.0,
+        "wins_vs_topoqos": "0/12",
+        "p_wilcoxon": null,
+        "n_folds": 12
+      }
+    }
+  },
+  "per_fold": {
+    "atm_system": {
+      "i_star": {
+        "Analytic-I*": {
+          "rho": 0.7003,
+          "rho_active": 0.5217,
+          "n": 26,
+          "n_active": 21
+        },
+        "InDeg": {
+          "rho": 0.4947,
+          "rho_active": 0.141,
+          "n": 26,
+          "n_active": 21
+        },
+        "Reach": {
+          "rho": 0.6702,
+          "rho_active": 0.4193,
+          "n": 26,
+          "n_active": 21
+        },
+        "Topo-QoS": {
+          "rho": 0.3109,
+          "rho_active": 0.0339,
+          "n": 26,
+          "n_active": 21
+        }
+      },
+      "i_dyn": {
+        "Analytic-I*": {
+          "rho": 0.5206,
+          "rho_active": 0.4885,
+          "n": 26,
+          "n_active": 24
+        },
+        "InDeg": {
+          "rho": 0.3577,
+          "rho_active": 0.2788,
+          "n": 26,
+          "n_active": 24
+        },
+        "Reach": {
+          "rho": 0.4469,
+          "rho_active": 0.388,
+          "n": 26,
+          "n_active": 24
+        },
+        "Topo-QoS": {
+          "rho": 0.2997,
+          "rho_active": 0.3392,
+          "n": 26,
+          "n_active": 24
+        }
+      },
+      "i_comp": {
+        "Analytic-I*": {
+          "rho": 0.5989,
+          "rho_active": 0.5989,
+          "n": 26,
+          "n_active": 26
+        },
+        "InDeg": {
+          "rho": 0.6456,
+          "rho_active": 0.6456,
+          "n": 26,
+          "n_active": 26
+        },
+        "Reach": {
+          "rho": -0.1729,
+          "rho_active": -0.1729,
+          "n": 26,
+          "n_active": 26
+        },
+        "Topo-QoS": {
+          "rho": 0.7904,
+          "rho_active": 0.7904,
+          "n": 26,
+          "n_active": 26
+        }
+      }
+    },
+    "av_system": {
+      "i_star": {
+        "Analytic-I*": {
+          "rho": 0.8394,
+          "rho_active": 0.4908,
+          "n": 80,
+          "n_active": 41
+        },
+        "InDeg": {
+          "rho": 0.8682,
+          "rho_active": 0.5146,
+          "n": 80,
+          "n_active": 41
+        },
+        "Reach": {
+          "rho": 0.8347,
+          "rho_active": null,
+          "n": 80,
+          "n_active": 41
+        },
+        "Topo-QoS": {
+          "rho": 0.7527,
+          "rho_active": 0.3301,
+          "n": 80,
+          "n_active": 41
+        }
+      },
+      "i_dyn": {
+        "Analytic-I*": {
+          "rho": 0.7336,
+          "rho_active": 0.7336,
+          "n": 30,
+          "n_active": 30
+        },
+        "InDeg": {
+          "rho": 0.7613,
+          "rho_active": 0.7613,
+          "n": 30,
+          "n_active": 30
+        },
+        "Reach": {
+          "rho": 0.7468,
+          "rho_active": 0.7468,
+          "n": 30,
+          "n_active": 30
+        },
+        "Topo-QoS": {
+          "rho": 0.693,
+          "rho_active": 0.693,
+          "n": 30,
+          "n_active": 30
+        }
+      },
+      "i_comp": {
+        "Analytic-I*": {
+          "rho": 0.7382,
+          "rho_active": 0.7382,
+          "n": 80,
+          "n_active": 80
+        },
+        "InDeg": {
+          "rho": 0.7211,
+          "rho_active": 0.7211,
+          "n": 80,
+          "n_active": 80
+        },
+        "Reach": {
+          "rho": 0.5178,
+          "rho_active": 0.5178,
+          "n": 80,
+          "n_active": 80
+        },
+        "Topo-QoS": {
+          "rho": 0.7394,
+          "rho_active": 0.7394,
+          "n": 80,
+          "n_active": 80
+        }
+      }
+    },
+    "enterprise_system": {
+      "i_star": {
+        "Analytic-I*": {
+          "rho": 0.917,
+          "rho_active": 0.7492,
+          "n": 300,
+          "n_active": 183
+        },
+        "InDeg": {
+          "rho": 0.8907,
+          "rho_active": 0.6598,
+          "n": 300,
+          "n_active": 183
+        },
+        "Reach": {
+          "rho": 0.8265,
+          "rho_active": 0.1736,
+          "n": 300,
+          "n_active": 183
+        },
+        "Topo-QoS": {
+          "rho": 0.7953,
+          "rho_active": 0.5334,
+          "n": 300,
+          "n_active": 183
+        }
+      },
+      "i_dyn": {
+        "Analytic-I*": {
+          "rho": 0.7322,
+          "rho_active": 0.7322,
+          "n": 30,
+          "n_active": 30
+        },
+        "InDeg": {
+          "rho": 0.7315,
+          "rho_active": 0.7315,
+          "n": 30,
+          "n_active": 30
+        },
+        "Reach": {
+          "rho": 0.4945,
+          "rho_active": 0.4945,
+          "n": 30,
+          "n_active": 30
+        },
+        "Topo-QoS": {
+          "rho": 0.576,
+          "rho_active": 0.576,
+          "n": 30,
+          "n_active": 30
+        }
+      },
+      "i_comp": {
+        "Analytic-I*": {
+          "rho": 0.7214,
+          "rho_active": 0.7214,
+          "n": 300,
+          "n_active": 300
+        },
+        "InDeg": {
+          "rho": 0.7359,
+          "rho_active": 0.7359,
+          "n": 300,
+          "n_active": 300
+        },
+        "Reach": {
+          "rho": 0.4539,
+          "rho_active": 0.4539,
+          "n": 300,
+          "n_active": 300
+        },
+        "Topo-QoS": {
+          "rho": 0.7479,
+          "rho_active": 0.7479,
+          "n": 300,
+          "n_active": 300
+        }
+      }
+    },
+    "financial_trading_system": {
+      "i_star": {
+        "Analytic-I*": {
+          "rho": 0.836,
+          "rho_active": 0.5891,
+          "n": 60,
+          "n_active": 33
+        },
+        "InDeg": {
+          "rho": 0.8737,
+          "rho_active": 0.6345,
+          "n": 60,
+          "n_active": 33
+        },
+        "Reach": {
+          "rho": 0.8029,
+          "rho_active": 0.2985,
+          "n": 60,
+          "n_active": 33
+        },
+        "Topo-QoS": {
+          "rho": 0.5864,
+          "rho_active": 0.2814,
+          "n": 60,
+          "n_active": 33
+        }
+      },
+      "i_dyn": {
+        "Analytic-I*": {
+          "rho": 0.825,
+          "rho_active": 0.8984,
+          "n": 30,
+          "n_active": 28
+        },
+        "InDeg": {
+          "rho": 0.8559,
+          "rho_active": 0.8954,
+          "n": 30,
+          "n_active": 28
+        },
+        "Reach": {
+          "rho": 0.729,
+          "rho_active": 0.7883,
+          "n": 30,
+          "n_active": 28
+        },
+        "Topo-QoS": {
+          "rho": 0.4866,
+          "rho_active": 0.5871,
+          "n": 30,
+          "n_active": 28
+        }
+      },
+      "i_comp": {
+        "Analytic-I*": {
+          "rho": 0.722,
+          "rho_active": 0.722,
+          "n": 60,
+          "n_active": 60
+        },
+        "InDeg": {
+          "rho": 0.6944,
+          "rho_active": 0.6944,
+          "n": 60,
+          "n_active": 60
+        },
+        "Reach": {
+          "rho": 0.4609,
+          "rho_active": 0.4609,
+          "n": 60,
+          "n_active": 60
+        },
+        "Topo-QoS": {
+          "rho": 0.6698,
+          "rho_active": 0.6698,
+          "n": 60,
+          "n_active": 60
+        }
+      }
+    },
+    "healthcare_system": {
+      "i_star": {
+        "Analytic-I*": {
+          "rho": 0.8253,
+          "rho_active": 0.5748,
+          "n": 50,
+          "n_active": 32
+        },
+        "InDeg": {
+          "rho": 0.8306,
+          "rho_active": 0.4968,
+          "n": 50,
+          "n_active": 32
+        },
+        "Reach": {
+          "rho": 0.8186,
+          "rho_active": 0.5753,
+          "n": 50,
+          "n_active": 32
+        },
+        "Topo-QoS": {
+          "rho": 0.3687,
+          "rho_active": 0.0409,
+          "n": 50,
+          "n_active": 32
+        }
+      },
+      "i_dyn": {
+        "Analytic-I*": {
+          "rho": 0.7652,
+          "rho_active": 0.7652,
+          "n": 30,
+          "n_active": 30
+        },
+        "InDeg": {
+          "rho": 0.8227,
+          "rho_active": 0.8227,
+          "n": 30,
+          "n_active": 30
+        },
+        "Reach": {
+          "rho": 0.5338,
+          "rho_active": 0.5338,
+          "n": 30,
+          "n_active": 30
+        },
+        "Topo-QoS": {
+          "rho": 0.2477,
+          "rho_active": 0.2477,
+          "n": 30,
+          "n_active": 30
+        }
+      },
+      "i_comp": {
+        "Analytic-I*": {
+          "rho": 0.6555,
+          "rho_active": 0.6555,
+          "n": 50,
+          "n_active": 50
+        },
+        "InDeg": {
+          "rho": 0.6298,
+          "rho_active": 0.6298,
+          "n": 50,
+          "n_active": 50
+        },
+        "Reach": {
+          "rho": 0.4219,
+          "rho_active": 0.4219,
+          "n": 50,
+          "n_active": 50
+        },
+        "Topo-QoS": {
+          "rho": 0.5338,
+          "rho_active": 0.5338,
+          "n": 50,
+          "n_active": 50
+        }
+      }
+    },
+    "hub_and_spoke_system": {
+      "i_star": {
+        "Analytic-I*": {
+          "rho": 0.6911,
+          "rho_active": 0.733,
+          "n": 70,
+          "n_active": 54
+        },
+        "InDeg": {
+          "rho": 0.5287,
+          "rho_active": 0.3879,
+          "n": 70,
+          "n_active": 54
+        },
+        "Reach": {
+          "rho": 0.612,
+          "rho_active": null,
+          "n": 70,
+          "n_active": 54
+        },
+        "Topo-QoS": {
+          "rho": 0.4295,
+          "rho_active": 0.4732,
+          "n": 70,
+          "n_active": 54
+        }
+      },
+      "i_dyn": {
+        "Analytic-I*": {
+          "rho": 0.2256,
+          "rho_active": 0.2256,
+          "n": 30,
+          "n_active": 30
+        },
+        "InDeg": {
+          "rho": 0.1793,
+          "rho_active": 0.1793,
+          "n": 30,
+          "n_active": 30
+        },
+        "Reach": {
+          "rho": 0.2606,
+          "rho_active": 0.2606,
+          "n": 30,
+          "n_active": 30
+        },
+        "Topo-QoS": {
+          "rho": 0.116,
+          "rho_active": 0.116,
+          "n": 30,
+          "n_active": 30
+        }
+      },
+      "i_comp": {
+        "Analytic-I*": {
+          "rho": 0.4818,
+          "rho_active": 0.4818,
+          "n": 70,
+          "n_active": 70
+        },
+        "InDeg": {
+          "rho": 0.501,
+          "rho_active": 0.501,
+          "n": 70,
+          "n_active": 70
+        },
+        "Reach": {
+          "rho": -0.1183,
+          "rho_active": -0.1183,
+          "n": 70,
+          "n_active": 70
+        },
+        "Topo-QoS": {
+          "rho": 0.7157,
+          "rho_active": 0.7157,
+          "n": 70,
+          "n_active": 70
+        }
+      }
+    },
+    "industrial_scada_system": {
+      "i_star": {
+        "Analytic-I*": {
+          "rho": 0.8509,
+          "rho_active": 0.6713,
+          "n": 140,
+          "n_active": 87
+        },
+        "InDeg": {
+          "rho": 0.8677,
+          "rho_active": 0.6444,
+          "n": 140,
+          "n_active": 87
+        },
+        "Reach": {
+          "rho": 0.776,
+          "rho_active": 0.1752,
+          "n": 140,
+          "n_active": 87
+        },
+        "Topo-QoS": {
+          "rho": 0.6504,
+          "rho_active": 0.3758,
+          "n": 140,
+          "n_active": 87
+        }
+      },
+      "i_dyn": {
+        "Analytic-I*": {
+          "rho": 0.3772,
+          "rho_active": 0.3772,
+          "n": 30,
+          "n_active": 30
+        },
+        "InDeg": {
+          "rho": 0.357,
+          "rho_active": 0.357,
+          "n": 30,
+          "n_active": 30
+        },
+        "Reach": {
+          "rho": 0.3803,
+          "rho_active": 0.3803,
+          "n": 30,
+          "n_active": 30
+        },
+        "Topo-QoS": {
+          "rho": 0.043,
+          "rho_active": 0.043,
+          "n": 30,
+          "n_active": 30
+        }
+      },
+      "i_comp": {
+        "Analytic-I*": {
+          "rho": 0.7167,
+          "rho_active": 0.7167,
+          "n": 140,
+          "n_active": 140
+        },
+        "InDeg": {
+          "rho": 0.7088,
+          "rho_active": 0.7088,
+          "n": 140,
+          "n_active": 140
+        },
+        "Reach": {
+          "rho": 0.4885,
+          "rho_active": 0.4885,
+          "n": 140,
+          "n_active": 140
+        },
+        "Topo-QoS": {
+          "rho": 0.7133,
+          "rho_active": 0.7133,
+          "n": 140,
+          "n_active": 140
+        }
+      }
+    },
+    "iot_smart_city_system": {
+      "i_star": {
+        "Analytic-I*": {
+          "rho": 0.9285,
+          "rho_active": 0.9071,
+          "n": 200,
+          "n_active": 147
+        },
+        "InDeg": {
+          "rho": 0.8984,
+          "rho_active": 0.804,
+          "n": 200,
+          "n_active": 147
+        },
+        "Reach": {
+          "rho": 0.6548,
+          "rho_active": 0.1732,
+          "n": 200,
+          "n_active": 147
+        },
+        "Topo-QoS": {
+          "rho": 0.3512,
+          "rho_active": 0.1316,
+          "n": 200,
+          "n_active": 147
+        }
+      },
+      "i_dyn": {
+        "Analytic-I*": {
+          "rho": 0.8799,
+          "rho_active": 0.8799,
+          "n": 30,
+          "n_active": 30
+        },
+        "InDeg": {
+          "rho": 0.8863,
+          "rho_active": 0.8863,
+          "n": 30,
+          "n_active": 30
+        },
+        "Reach": {
+          "rho": 0.5896,
+          "rho_active": 0.5896,
+          "n": 30,
+          "n_active": 30
+        },
+        "Topo-QoS": {
+          "rho": 0.392,
+          "rho_active": 0.392,
+          "n": 30,
+          "n_active": 30
+        }
+      },
+      "i_comp": {
+        "Analytic-I*": {
+          "rho": 0.5052,
+          "rho_active": 0.5052,
+          "n": 200,
+          "n_active": 200
+        },
+        "InDeg": {
+          "rho": 0.502,
+          "rho_active": 0.502,
+          "n": 200,
+          "n_active": 200
+        },
+        "Reach": {
+          "rho": 0.0507,
+          "rho_active": 0.0507,
+          "n": 200,
+          "n_active": 200
+        },
+        "Topo-QoS": {
+          "rho": 0.582,
+          "rho_active": 0.582,
+          "n": 200,
+          "n_active": 200
+        }
+      }
+    },
+    "logistics_fleet_system": {
+      "i_star": {
+        "Analytic-I*": {
+          "rho": 0.8506,
+          "rho_active": 0.6493,
+          "n": 110,
+          "n_active": 78
+        },
+        "InDeg": {
+          "rho": 0.8363,
+          "rho_active": 0.6114,
+          "n": 110,
+          "n_active": 78
+        },
+        "Reach": {
+          "rho": 0.7588,
+          "rho_active": 0.2611,
+          "n": 110,
+          "n_active": 78
+        },
+        "Topo-QoS": {
+          "rho": 0.7407,
+          "rho_active": 0.4809,
+          "n": 110,
+          "n_active": 78
+        }
+      },
+      "i_dyn": {
+        "Analytic-I*": {
+          "rho": 0.739,
+          "rho_active": 0.6595,
+          "n": 30,
+          "n_active": 15
+        },
+        "InDeg": {
+          "rho": 0.7898,
+          "rho_active": 0.6138,
+          "n": 30,
+          "n_active": 15
+        },
+        "Reach": {
+          "rho": 0.7083,
+          "rho_active": 0.1237,
+          "n": 30,
+          "n_active": 15
+        },
+        "Topo-QoS": {
+          "rho": 0.6026,
+          "rho_active": -0.1179,
+          "n": 30,
+          "n_active": 15
+        }
+      },
+      "i_comp": {
+        "Analytic-I*": {
+          "rho": 0.7534,
+          "rho_active": 0.7534,
+          "n": 110,
+          "n_active": 110
+        },
+        "InDeg": {
+          "rho": 0.8249,
+          "rho_active": 0.8249,
+          "n": 110,
+          "n_active": 110
+        },
+        "Reach": {
+          "rho": 0.5019,
+          "rho_active": 0.5019,
+          "n": 110,
+          "n_active": 110
+        },
+        "Topo-QoS": {
+          "rho": 0.7906,
+          "rho_active": 0.7906,
+          "n": 110,
+          "n_active": 110
+        }
+      }
+    },
+    "microservices_system": {
+      "i_star": {
+        "Analytic-I*": {
+          "rho": 0.6201,
+          "rho_active": 0.405,
+          "n": 90,
+          "n_active": 77
+        },
+        "InDeg": {
+          "rho": 0.5478,
+          "rho_active": 0.3039,
+          "n": 90,
+          "n_active": 77
+        },
+        "Reach": {
+          "rho": 0.6557,
+          "rho_active": 0.3811,
+          "n": 90,
+          "n_active": 77
+        },
+        "Topo-QoS": {
+          "rho": 0.2654,
+          "rho_active": -0.0951,
+          "n": 90,
+          "n_active": 77
+        }
+      },
+      "i_dyn": {
+        "Analytic-I*": {
+          "rho": 0.6952,
+          "rho_active": 0.6952,
+          "n": 30,
+          "n_active": 30
+        },
+        "InDeg": {
+          "rho": 0.587,
+          "rho_active": 0.587,
+          "n": 30,
+          "n_active": 30
+        },
+        "Reach": {
+          "rho": 0.3586,
+          "rho_active": 0.3586,
+          "n": 30,
+          "n_active": 30
+        },
+        "Topo-QoS": {
+          "rho": 0.3441,
+          "rho_active": 0.3441,
+          "n": 30,
+          "n_active": 30
+        }
+      },
+      "i_comp": {
+        "Analytic-I*": {
+          "rho": 0.6415,
+          "rho_active": 0.6415,
+          "n": 90,
+          "n_active": 90
+        },
+        "InDeg": {
+          "rho": 0.685,
+          "rho_active": 0.685,
+          "n": 90,
+          "n_active": 90
+        },
+        "Reach": {
+          "rho": 0.3613,
+          "rho_active": 0.3613,
+          "n": 90,
+          "n_active": 90
+        },
+        "Topo-QoS": {
+          "rho": 0.8314,
+          "rho_active": 0.8314,
+          "n": 90,
+          "n_active": 90
+        }
+      }
+    },
+    "realtime_gaming_system": {
+      "i_star": {
+        "Analytic-I*": {
+          "rho": 0.847,
+          "rho_active": 0.6374,
+          "n": 75,
+          "n_active": 48
+        },
+        "InDeg": {
+          "rho": 0.8357,
+          "rho_active": 0.5092,
+          "n": 75,
+          "n_active": 48
+        },
+        "Reach": {
+          "rho": 0.8343,
+          "rho_active": 0.4902,
+          "n": 75,
+          "n_active": 48
+        },
+        "Topo-QoS": {
+          "rho": 0.8103,
+          "rho_active": 0.4749,
+          "n": 75,
+          "n_active": 48
+        }
+      },
+      "i_dyn": {
+        "Analytic-I*": {
+          "rho": 0.6182,
+          "rho_active": 0.5877,
+          "n": 30,
+          "n_active": 29
+        },
+        "InDeg": {
+          "rho": 0.5644,
+          "rho_active": 0.5281,
+          "n": 30,
+          "n_active": 29
+        },
+        "Reach": {
+          "rho": 0.5321,
+          "rho_active": 0.4847,
+          "n": 30,
+          "n_active": 29
+        },
+        "Topo-QoS": {
+          "rho": 0.7056,
+          "rho_active": 0.6842,
+          "n": 30,
+          "n_active": 29
+        }
+      },
+      "i_comp": {
+        "Analytic-I*": {
+          "rho": 0.4159,
+          "rho_active": 0.4159,
+          "n": 75,
+          "n_active": 75
+        },
+        "InDeg": {
+          "rho": 0.4763,
+          "rho_active": 0.4763,
+          "n": 75,
+          "n_active": 75
+        },
+        "Reach": {
+          "rho": 0.287,
+          "rho_active": 0.287,
+          "n": 75,
+          "n_active": 75
+        },
+        "Topo-QoS": {
+          "rho": 0.5497,
+          "rho_active": 0.5497,
+          "n": 75,
+          "n_active": 75
+        }
+      }
+    },
+    "telecom_ran_system": {
+      "i_star": {
+        "Analytic-I*": {
+          "rho": 0.7945,
+          "rho_active": 0.6492,
+          "n": 120,
+          "n_active": 100
+        },
+        "InDeg": {
+          "rho": 0.6983,
+          "rho_active": 0.4887,
+          "n": 120,
+          "n_active": 100
+        },
+        "Reach": {
+          "rho": 0.5347,
+          "rho_active": -0.0832,
+          "n": 120,
+          "n_active": 100
+        },
+        "Topo-QoS": {
+          "rho": 0.5762,
+          "rho_active": 0.3001,
+          "n": 120,
+          "n_active": 100
+        }
+      },
+      "i_dyn": {
+        "Analytic-I*": {
+          "rho": 0.5243,
+          "rho_active": 0.5243,
+          "n": 30,
+          "n_active": 30
+        },
+        "InDeg": {
+          "rho": 0.4244,
+          "rho_active": 0.4244,
+          "n": 30,
+          "n_active": 30
+        },
+        "Reach": {
+          "rho": 0.2738,
+          "rho_active": 0.2738,
+          "n": 30,
+          "n_active": 30
+        },
+        "Topo-QoS": {
+          "rho": 0.2117,
+          "rho_active": 0.2117,
+          "n": 30,
+          "n_active": 30
+        }
+      },
+      "i_comp": {
+        "Analytic-I*": {
+          "rho": 0.6845,
+          "rho_active": 0.6845,
+          "n": 120,
+          "n_active": 120
+        },
+        "InDeg": {
+          "rho": 0.676,
+          "rho_active": 0.676,
+          "n": 120,
+          "n_active": 120
+        },
+        "Reach": {
+          "rho": 0.3727,
+          "rho_active": 0.3727,
+          "n": 120,
+          "n_active": 120
+        },
+        "Topo-QoS": {
+          "rho": 0.7602,
+          "rho_active": 0.7602,
+          "n": 120,
+          "n_active": 120
+        }
+      }
+    }
+  },
+  "provenance": {
+    "folds": [
+      "ATM",
+      "AV System",
+      "Enterprise",
+      "Financial Trading",
+      "Healthcare",
+      "Enterprise Integration (ESB)",
+      "Industrial SCADA",
+      "IoT Smart City",
+      "Logistics Fleet",
+      "Microservices",
+      "Real-Time Gaming",
+      "Telecom RAN"
+    ],
+    "timestamp": "2026-09-26 14:14:32"
+  }
+}

@@ -1,10 +1,10 @@
 # 3. The Software-as-a-Graph (SaG) Architectural Model
 
-Figure 1 presents the end-to-end architecture of the SaG framework. The shared front end processes Architecture-as-Code manifests, constructs a typed multigraph, projects implicit runtime interactions throughout a QoS-weighted logical dependency layer, and extracts typed node properties. These features feed the ranking engines (§4) and, separately and with no shared parameters, the explanation layer (§5).
+Figure 1 presents the end-to-end architecture of the SaG framework. The shared front end processes Architecture-as-Code manifests, constructs a typed multigraph, projects implicit runtime interactions throughout a logical dependency layer, and extracts typed node properties. These features feed the ranking engines (§4) and, separately and with no shared parameters, the explanation layer (§5).
 
 ![Figure 1](../latex/figures/Figure_1.png)
 
-*Figure 1. End-to-end architecture of the SaG framework. The predictive pathway runs down the centre: manifest ingestion, typed multigraph, QoS-weighted DEPENDS_ON projection with typed node properties, the ranking engines (closed-form, learned and hybrid; Figure 3), and the ranked critical set. The dashed edge marks the ground-truth simulation oracle, which operates only on Gstructural, trains the predictor offline and takes no part in inference. The explanation layer re-enters from the analysis multigraph and shares no parameters with the predictor, reaching flagged components through triage rather than data flow.*
+*Figure 1. End-to-end architecture of the SaG framework. The predictive pathway runs down the centre: manifest ingestion, typed multigraph, DEPENDS_ON projection with typed node properties, the ranking engines (closed-form, learned and hybrid; Figure 3), and the ranked critical set. The dashed edge marks the ground-truth simulation oracles, which operate only on Gstructural, train the predictor offline and take no part in inference. The explanation layer re-enters from the analysis multigraph and shares no parameters with the predictor, reaching flagged components through triage rather than data flow.*
 
 ## 3.1 Formal Multigraph Definition
 
@@ -37,63 +37,55 @@ where:
 | `CONNECTS_TO`                          | Host $\to$ Host                               | Network link between hosts                     |
 | `USES`                                 | App $\to$ Library                             | Application links to shared library            |
 
-**Table 2.** Notation used throughout. Entity and edge types: Table 1; simulation oracles: §4.3.
+**Table 2.** Notation used throughout the paper.
 
-|                         |                                          |                     |                                                   |
-|:------------------------|:-----------------------------------------|:--------------------|:--------------------------------------------------|
-| $G_{\text{structural}}$ | Raw multigraph; oracles only             | $Q(v)$              | RM composite quality score                        |
-| $G_{\text{analysis}}$   | `DEPENDS_ON` projection; predictor input | $\rho$              | Spearman $\rho$, full population                  |
-| $V_{\text{app}}$        | Application nodes; the scored population | $\rho_{>0}$         | Spearman $\rho$, active stratum ($I^* > 0$)       |
-| $w(t)$, $w(e)$          | QoS topic weight, edge weight            | Overlap@$K$         | Top-$K$ set overlap, $K = 0.20\,|V_{\text{app}}|$ |
-| $I^*(v)$                | Primary cascade-reachability oracle      | $I_{\text{dyn}}(v)$ | Queue-flow oracle; convergent validity            |
+| **Symbol**              | **Description**                                                   |
+|:------------------------|:------------------------------------------------------------------|
+| $G_{\text{structural}}$ | Raw multigraph (used exclusively by simulation oracles)           |
+| $G_{\text{analysis}}$   | Logical `DEPENDS_ON` projection (input to predictors)             |
+| $V_{\text{app}}$        | Application nodes (the primary scored population)                 |
+| $w(t)$, $w(e)$          | QoS topic weight and derived dependency edge weight               |
+| $I^*(v)$                | Primary cascade-reachability simulation oracle                    |
+| $I_{\text{dyn}}(v)$     | Dynamic queue-flow discrete-event simulation oracle               |
+| $I_{\text{comp}}(v)$    | Multi-criteria composite simulation oracle                        |
+| $Q(v)$                  | Reliability–Maintainability composite quality score               |
+| $\rho$                  | Spearman rank correlation coefficient (full population)           |
+| $\rho_{>0}$             | Spearman rank correlation restricted to active stratum ($I > 0$)  |
+| Overlap@$K$             | Top-$K$ identification set overlap ($K = 0.20\,|V_{\text{app}}|$) |
 
-## 3.2 Logical Dependency Derivation and QoS-Aware Weights
+## 3.2 Quality-of-Service Link Weighting
 
-A link’s strength depends on its QoS contract: a `RELIABLE` topic with `TRANSIENT_LOCAL` durability couples services more strongly than a `BEST_EFFORT` telemetry stream. Each topic $t$ therefore carries a weight $w(t) \in (0, 1]$ combining its declared QoS with payload size and publication frequency:
+A link’s strength depends on its Quality-of-Service (QoS) contract: a `RELIABLE` topic with `TRANSIENT_LOCAL` durability couples services more strongly than a `BEST_EFFORT` telemetry stream. Each topic $t$ carries an aggregate weight $w(t) \in (0, 1]$ combining declared QoS policies (reliability, durability, priority) with payload size and publication frequency. The weighting follows an Analytic Hierarchy Process (AHP) derivation whose pairwise comparison matrices and consistency checks ($CR = 0.016$) are detailed in Supplementary §S4.
 
-$$\tag{2}
-w(t) = \alpha_{\text{top}} \cdot \text{QoS}(t) + \beta_{\text{top}} \cdot \text{SizeNorm}(t) + \gamma_{\text{top}} \cdot \text{FreqNorm}(t),
-\quad (\alpha_{\text{top}},\, \beta_{\text{top}},\, \gamma_{\text{top}}) = (0.75,\, 0.15,\, 0.10)$$ where the QoS term is an AHP-weighted aggregate of the declared contract:
+Crucially, our evaluation uncovers that QoS weighting does not improve closed-form architectural ranking: unweighted betweenness on the Application–Library projection scores $\rho = 0.591$, outperforming QoS-weighted betweenness (`Topo-QoS`, $\rho = 0.553$) by $+0.038$ (§7.1). Unweighted topological structures drive performance across both static and dynamic simulations.
 
-$$\tag{3}
-\text{QoS}(t) = w_{\text{rel}} \cdot q_{\text{rel}} + w_{\text{dur}} \cdot q_{\text{dur}} + w_{\text{prio}} \cdot q_{\text{prio}},
-\quad (w_{\text{rel}}, w_{\text{dur}}, w_{\text{prio}}) = (0.24,\, 0.62,\, 0.14)$$
+## Logical Dependency Projection (`DEPENDS_ON`)
 
-Here $q_{\text{rel}} \in \{0, 1\}$ (best-effort, reliable), $q_{\text{dur}} \in \{0, 0.5, 1\}$ (volatile, transient-local, persistent) and $q_{\text{prio}} \in \{0, 0.5, 1\}$ (low, medium, high). Durability carries the highest weight because it determines whether state and message history survive restarts. The sub-weights come from a Saaty pairwise matrix with genuine second-eigenvalue spread and $CR = 0.016$ (Supplementary §S4). Size and frequency are log-compressed and clamped:
+Structural edges do not directly reflect failure propagation: a subscriber depends on a publisher, yet no direct edge joins them in pub-sub topologies. SaG derives an explicit semantic relation, `DEPENDS_ON`, directed from *dependent* to *dependency* (“if the target fails, the source is impacted”), via the rules of Table 3.
 
-$$\tag{4}
-\text{SizeNorm}(t) = \min\left(1.0, \frac{\log_2(1 + B(t))}{20}\right), \quad
-\text{FreqNorm}(t) = \min\left(1.0, \frac{\log_{10}(1 + F(t))}{3}\right)$$
+**Table 3.** The `DEPENDS_ON` logical dependency projection rules.
 
-where $B(t)$ is the payload in bytes (design envelope 1 MiB, the practical DDS sample limit) and $F(t)$ the publication frequency in Hz. $w(t)$ is clamped to $[0.01, 1]$ so that best-effort edges remain visible, and every `PUBLISHES_TO`, `SUBSCRIBES_TO` and `ROUTES` edge of $t$ carries $w_E(e) = w(t)$ and the topic’s QoS vector. The $(\alpha_{\text{top}}, \beta_{\text{top}}, \gamma_{\text{top}})$ split is a documented choice rather than a sensitive parameter: no point of its simplex changes any reported ordering (Supplementary §S1).
+| **Rule** | **Dependency Category** | **Structural Pattern ($\text{Dependent} \to \text{Dependency}$)**           | **Derived Weight ($w$)**                                                                    |
+|:--------:|:------------------------|:----------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------|
+|  **1**   | `app_to_app`            | Subscriber $\to$ Publisher (via shared Topic, incl. transitive `USES`)      | $1 - \prod_{t \in T}(1 - w(t))$                                                             |
+|  **2**   | `app_to_broker`         | Publisher/Subscriber $\to$ Broker routing its topics                        | $1 - \prod_{t \in T}(1 - w(t))$                                                             |
+|  **3**   | `host_to_host`          | Host $\to$ Host (lifted from inter-host app dependencies)                   | $\max_{u \in \text{hosted}(h_1), v \in \text{hosted}(h_2)} w_{\text{DEPENDS\_ON}}(u \to v)$ |
+|  **4**   | `host_to_broker`        | Host $\to$ Broker (lifted from hosted app dependencies)                     | $\max_{u \in \text{hosted}(h)} w_{\text{DEPENDS\_ON}}(u \to b)$                             |
+|  **5**   | `app_to_lib`            | Application $\to$ Shared Library it `USES`                                  | $H(w_V(\text{app}), w_V(\text{lib}))$                                                       |
+|  **6**   | `broker_to_broker`      | Broker $\leftrightarrow$ Broker (shared fault-domain colocation, symmetric) | $w_V(\text{host})$                                                                          |
 
-### Logical Dependency Projection (`DEPENDS_ON`)
+Rules 1 and 2 combine topics $T$ joining a pair by probabilistic union [88, 89, 90], ensuring parallel failure paths increase coupling. Rule 5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ [91], and Rules 3 and 4 lift dependencies to hosts by maximum.
 
-Structural edges do not capture implicit runtime dependencies: a subscriber depends on a publisher, yet no edge joins them. SaG therefore derives one semantic relation, `DEPENDS_ON`, directed from *dependent* to *dependency* (“if the target fails, the source is impacted”), by the six rules of Table 3. This derivation is what makes a component’s dependents countable, and counting them on the derived graph is the strongest ranker in this study (§7.1). Its weight $w \in (0, 1]$ expresses how likely a disruption of the dependency is to reach the dependent.
-
-**Table 3.** The six `DEPENDS_ON` logical dependency projection rules.
-
-| **Rule** | **Dependency Category** | **Structural Pattern ($\text{Dependent} \to \text{Dependency}$)**                    | **Derived Weight ($w$)**                                                                    |
-|:--------:|:------------------------|:-------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------|
-|  **1**   | `app_to_app`            | Subscriber $\to$ Publisher (via shared Topic, incl. transitive `USES`)               | $1 - \prod_{t \in T}(1 - w(t))$                                                             |
-|  **2**   | `app_to_broker`         | Publisher/Subscriber $\to$ Broker routing its topics                                 | $1 - \prod_{t \in T}(1 - w(t))$                                                             |
-|  **3**   | `host_to_host`          | Host $\to$ Host (lifted from inter-host app dependencies)                            | $\max_{u \in \text{hosted}(h_1), v \in \text{hosted}(h_2)} w_{\text{DEPENDS\_ON}}(u \to v)$ |
-|  **4**   | `host_to_broker`        | Host $\to$ Broker (lifted from hosted app dependencies)                              | $\max_{u \in \text{hosted}(h)} w_{\text{DEPENDS\_ON}}(u \to b)$                             |
-|  **5**   | `app_to_lib`            | Application $\to$ Shared Library it `USES`                                           | $H(w_V(\text{app}), w_V(\text{lib}))$                                                       |
-|  **6**   | `broker_to_broker`      | Broker $\leftrightarrow$ Broker (shared physical fault-domain colocation, symmetric) | $w_V(\text{host})$                                                                          |
-
-Rules 1 and 2 combine the topics $T$ joining a pair by probabilistic union rather than maximum [80, 81, 82], so parallel failure paths always increase coupling. Rule 5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ [83], and Rules 3 and 4 lift dependencies to hosts by maximum.
-
-**Sequential cascades and simultaneous blasts.** Rule 1 captures sequential cascades, in which a failed publisher starves subscribers through queues and topic buffers. Rule 5 captures simultaneous blasts, in which a crashed library or host takes down every consumer at once. Untyped graphs collapse the two into indistinguishable edges. Rule 6, the only symmetric rule, joins brokers colocated on a host, which share its failure domain. Figure 2 shows both mechanisms on a seven-entity example.
+**Sequential cascades and simultaneous blasts.** Rule 1 captures sequential cascades, where a failed publisher starves subscribers through queues and buffers. For Applications, counting incoming edges under Rule 1 is mathematically identical to counting distinct subscribers across published topics (the raw 2-hop subscriber count, or afferent coupling / AIS [57, 58]). Rule 5 captures simultaneous blasts, where a crashed library takes down all dependent applications at once; this rule adds $+0.058$ to transitive reachability on synthetic topologies (§7.1). Rules 2, 3, 4 and 6 represent infrastructural and broker dependencies that remain unexercised in the application-layer evaluation.
 
 ![Figure 2](../latex/figures/Figure_2.png)
 
-*Figure 2. Running example. (a) Three applications share topic t (routed by broker b) and library ℓ, and all run on host n. No structural edge joins two applications. (b) The derived DEPENDS_ON edges make the hidden dependencies explicit: the subscribers a2, a3 depend on the publisher a1 (Rule 1, a sequential cascade through the topic), every application depends on ℓ (Rule 5, a simultaneous blast if ℓ fails), and each application depends on the broker routing its topic (Rule 2). Simulation oracles run on view (a) only; predictors read view (b).*
+*Figure 2. Running example. (a) Three applications share topic t (routed by broker b) and library ℓ, and all run on host n. No structural edge joins two applications. (b) The derived DEPENDS_ON edges make the hidden dependencies explicit: subscribers a2, a3 depend on publisher a1 (Rule 1), all applications depend on ℓ (Rule 5), and each application depends on the broker (Rule 2). Simulation oracles run on view (a); predictors read view (b).*
 
-## 3.3 Dual Graph Views
+## 3.4 Dual Graph Views
 
-The **structural graph** $G_{\text{structural}}$ is the raw deployment topology. The **analysis graph** $G_{\text{analysis}}$ adds the derived, QoS-weighted `DEPENDS_ON` edges and the code metrics (Figure 2). All predictor features are computed on $G_{\text{analysis}}$, while simulation oracles run only on $G_{\text{structural}}$ (§4.4); Rule 6 therefore cannot influence any label.
+The **structural graph** $G_{\text{structural}}$ is the raw deployment topology. The **analysis graph** $G_{\text{analysis}}$ adds the derived `DEPENDS_ON` edges and code metrics (Figure 2). Predictor features are computed on $G_{\text{analysis}}$, while simulation oracles run strictly on $G_{\text{structural}}$ (§4.4).
 
-## 3.4 Typed Node Feature Encoding
+## 3.5 Typed Node Feature Encoding
 
-Both the predictive pathway (§4) and the explanation layer (§5) read the same typed node properties from $G_{\text{analysis}}$: the predictor projects them per entity type before message passing, the explanation layer aggregates them into a quality profile. All five entity types share a deterministic 18-dimensional base block of topological metrics, each normalized to $[0, 1]$ within its graph so that raw graph size does not drive cross-scenario transfer. The block comprises PageRank and Reverse PageRank; betweenness, closeness and eigenvector centrality; in- and out-degree; clustering; articulation and bridge scores; the node QoS weight and QoS-weighted in- and out-degree; multi-path coupling; path complexity; fan-out criticality; and the Connectivity Degradation Index (CDI), which removes each node and measures the resulting connectivity loss (full schema: Supplementary §S11). Type-specific blocks extend the vector to 19–25 dimensions: code metrics and CQP for Applications, reverse-`USES` blast radius for Libraries, queue capacity for Brokers, publisher/subscriber counts and QoS criticality for Topics, and CPU and memory for Hosts. PageRank, Reverse PageRank, betweenness and eigenvector centrality are computed on the QoS-weighted projection. They therefore carry QoS information into every predictor, including the “QoS-off” arms, which lack only the explicit QoS edge channel and QoS node columns. Because these topological summaries are available to any scorer, closed-form engines are genuine competitors rather than strawmen. CDI, at $O(|V|^2 + |V||E|)$, dominates analysis cost (§7.4).
+Both the predictive pathway (§4) and the explanation layer (§5) read typed node properties from $G_{\text{analysis}}$. All five entity types share an 18-dimensional base block of normalized topological metrics ($[0, 1]$): PageRank, Reverse PageRank, betweenness, closeness, eigenvector centrality, in- and out-degree, clustering, articulation, bridge ratio, the node QoS weight, incoming and outgoing dependency weights, multi-path coupling, path complexity, fan-out criticality, and the Connectivity Degradation Index (CDI). Crucially, four centrality features (PageRank, Reverse PageRank, betweenness, and closeness) are computed over weighted edges and therefore carry QoS information into the feature representation, explaining why the nominal QoS-off condition is not completely QoS-free. Type-specific blocks extend the vector to 19–25 dimensions (full schema in Supplementary §S11). CDI evaluates structural connectivity loss via a fixed-size breadth-first sample to control computation time (§7.4); its sensitivity to hash-seeded tie breaking is examined in §8.3.

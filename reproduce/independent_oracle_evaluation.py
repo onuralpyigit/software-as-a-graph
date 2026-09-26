@@ -27,6 +27,7 @@ import sys
 import time
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import networkx as nx
@@ -35,10 +36,12 @@ from scipy.stats import spearmanr, wilcoxon
 
 ROOT = Path(__file__).resolve().parent.parent
 SCENARIOS_DIR = ROOT / "data" / "scenarios"
+DATA_BENCHMARKS = ROOT / "data" / "benchmarks"
 RESULTS_DIR = ROOT / "results"
 IDYN_CACHE = RESULTS_DIR / "idyn_scenario_cache_jss12.json"
-ICOMP_CACHE = RESULTS_DIR / "icomp_scenario_cache_jss12.json"
-OUTPUT_FILE = RESULTS_DIR / "independent_oracle_evaluation.json"
+ICOMP_CACHE = DATA_BENCHMARKS / "icomp_failure_simulator_cache_jss12.json"
+OUTPUT_FILE = DATA_BENCHMARKS / "independent_oracle_evaluation.json"
+OUTPUT_FILE_LEGACY = RESULTS_DIR / "independent_oracle_evaluation.json"
 
 from reproduce.training_free_suite import (
     FOLDS,
@@ -51,8 +54,9 @@ from reproduce.training_free_suite import (
     labels_for,
     mean_ci,
     _mean,
+    paired,
 )
-from reproduce.convergent_validity import _message_flow_labels
+from reproduce.convergent_validity import _message_flow_labels, _failure_simulator_labels
 
 
 def _compute_analytic_first_order(topo: Dict[str, Any]) -> Dict[str, float]:
@@ -112,14 +116,26 @@ def get_all_idyn_labels(scenarios: List[str], max_workers: int = 12) -> Dict[str
     return out
 
 
-def get_all_icomp_labels() -> Dict[str, Dict[str, float]]:
-    if not ICOMP_CACHE.exists():
-        raise FileNotFoundError(f"Missing {ICOMP_CACHE}")
-    cache = json.loads(ICOMP_CACHE.read_text())
+def get_all_icomp_labels(scenarios: List[str]) -> Dict[str, Dict[str, float]]:
+    """Genuine FailureSimulator multi-criteria failure simulation labels.
+    Computes exhaustive component failure impacts across reachability,
+    fragmentation, throughput, and flow disruption with default weights.
+    """
+    if ICOMP_CACHE.exists():
+        print(f"Loading cached genuine I_comp from {ICOMP_CACHE}")
+        return json.loads(ICOMP_CACHE.read_text())
+
+    print(f"Computing genuine FailureSimulator I_comp for {len(scenarios)} scenarios...")
     out: Dict[str, Dict[str, float]] = {}
-    for s in cache:
-        apps = {n["id"]: float(n["q_score"]) for n in s["nodes"] if n["type"] == "Application"}
-        out[s["scenario"]] = apps
+    for s in scenarios:
+        t0 = time.time()
+        labels = _failure_simulator_labels(s, qos=True, layer="Application")
+        out[s] = labels
+        print(f"  [I_comp] {s} finished in {time.time()-t0:.1f}s ({len(labels)} apps)")
+
+    DATA_BENCHMARKS.mkdir(parents=True, exist_ok=True)
+    ICOMP_CACHE.write_text(json.dumps(out, indent=2))
+    print(f"Saved genuine I_comp cache to {ICOMP_CACHE}")
     return out
 
 
@@ -159,15 +175,7 @@ def main():
     print("Evaluating independent oracles across 12 folds...")
 
     idyn_labels = get_all_idyn_labels(scenario_keys, max_workers=min(12, os.cpu_count() or 4))
-    icomp_labels = get_all_icomp_labels()
-
-    # Load GAT-P-QoS predictions from loso_dependency_graph_cpu.json if available
-    gat_p_qos_preds = {}
-    loso_dep_path = RESULTS_DIR / "loso_dependency_graph_cpu.json"
-    if loso_dep_path.exists():
-        loso_dep = json.loads(loso_dep_path.read_text())
-        # We can extract mean metrics or seed metrics
-        pass
+    icomp_labels = get_all_icomp_labels(scenario_keys)
 
     results_by_oracle = {
         "i_star": {},
@@ -175,7 +183,7 @@ def main():
         "i_comp": {},
     }
 
-    rankers = ["InDeg", "Reach", "Topo-QoS", "Analytic-I*"]
+    rankers = ["Analytic-I*", "InDeg", "Reach", "Topo-QoS"]
 
     per_fold_data = {s: {} for s in scenario_keys}
 
@@ -219,27 +227,51 @@ def main():
             rhos_act = [per_fold_data[s][o_name][r_name]["rho_active"] for s in scenario_keys
                         if per_fold_data[s][o_name][r_name]["rho_active"] is not None]
 
+            # Contrasts vs Topo-QoS
+            deltas = []
+            wins = 0
+            for s in scenario_keys:
+                r_val = per_fold_data[s][o_name][r_name]["rho"]
+                t_val = per_fold_data[s][o_name]["Topo-QoS"]["rho"]
+                if r_val is not None and t_val is not None:
+                    deltas.append(r_val - t_val)
+                    if r_val > t_val:
+                        wins += 1
+            mean_delta = _mean(deltas) if deltas else 0.0
+            p_val = None
+            if len(deltas) >= 5 and any(abs(d) > 1e-7 for d in deltas) and r_name != "Topo-QoS":
+                try:
+                    p_val = float(wilcoxon(deltas).pvalue)
+                except Exception:
+                    p_val = None
+
             summary[o_name][r_name] = {
                 "mean_rho": round(_mean(rhos), 4) if rhos else None,
                 "ci95_rho": mean_ci(rhos) if rhos else None,
                 "mean_rho_active": round(_mean(rhos_act), 4) if rhos_act else None,
                 "ci95_rho_active": mean_ci(rhos_act) if rhos_act else None,
+                "delta_vs_topoqos": round(mean_delta, 4),
+                "wins_vs_topoqos": f"{wins}/{len(deltas)}",
+                "p_wilcoxon": round(p_val, 4) if p_val is not None else None,
                 "n_folds": len(rhos),
             }
 
-    print("\n" + "=" * 80)
+    print("\n" + "=" * 90)
     print("INDEPENDENT ORACLE EVALUATION SUMMARY (12 LOSO Folds)")
-    print("=" * 80)
+    print("=" * 90)
     for o_name in ["i_star", "i_dyn", "i_comp"]:
         print(f"\n--- Oracle: {o_name} ---")
-        print(f"{'Ranker':15s} | {'Mean rho':10s} | {'95% CI':20s} | {'Mean rho_active':15s}")
-        print("-" * 65)
+        print(f"{'Ranker':15s} | {'Mean rho':10s} | {'95% CI':20s} | {'Active rho':12s} | {'Delta vs Topo':14s} | {'Wins':8s} | {'p (Wilcoxon)':12s}")
+        print("-" * 105)
         for r_name in rankers:
             st = summary[o_name][r_name]
             m_rho = f"{st['mean_rho']:.3f}" if st['mean_rho'] is not None else "N/A"
             ci = f"[{st['ci95_rho'][0]:.3f}, {st['ci95_rho'][1]:.3f}]" if st['ci95_rho'] else "N/A"
             m_act = f"{st['mean_rho_active']:.3f}" if st['mean_rho_active'] is not None else "N/A"
-            print(f"{r_name:15s} | {m_rho:10s} | {ci:20s} | {m_act:15s}")
+            delta = f"{st['delta_vs_topoqos']:+.3f}"
+            wins = st['wins_vs_topoqos']
+            pval = f"{st['p_wilcoxon']:.4f}" if st['p_wilcoxon'] is not None else "---"
+            print(f"{r_name:15s} | {m_rho:10s} | {ci:20s} | {m_act:12s} | {delta:14s} | {wins:8s} | {pval:12s}")
 
     output_data = {
         "summary": summary,
@@ -251,7 +283,13 @@ def main():
     }
     OUTPUT_FILE.write_text(json.dumps(output_data, indent=2))
     print(f"\nWrote full evaluation to {OUTPUT_FILE}")
+    try:
+        OUTPUT_FILE_LEGACY.write_text(json.dumps(output_data, indent=2))
+        print(f"Also synced legacy output to {OUTPUT_FILE_LEGACY}")
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
     main()
+
