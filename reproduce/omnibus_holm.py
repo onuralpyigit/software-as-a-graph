@@ -14,7 +14,7 @@ a single Holm correction to the pooled set.
 The family (``REGISTERED_FAMILY``) is exactly the registered contrasts:
 
   * plan (2026-09-06)  — HGT-QoS and HGT vs Topo-QoS            (2)
-  * Amendment 2        — matched 2x2 quantities + three controls (6)
+  * Amendment 2        — matched 2x2 quantities + four controls  (7)
   * Amendment 5        — SaG-Hybrid vs Topo-QoS and vs HGT-QoS   (2)
   * Amendment 6        — SaG-Hybrid-GAT vs Topo-QoS and vs GAT-N-QoS16-C (2)
 
@@ -51,9 +51,11 @@ REGISTERED_FAMILY = [
     ("plan", "loso_significance_v5.json", "preregistered"),
     ("amendment_2", "loso_significance_rq2_matched.json", "factorial"),
     ("amendment_2", "loso_significance_rq2_matched.json", "rq2_controls"),
-    # The directionality control was registered with the other controls but run
-    # later, in its own invocation (make rq-directionality).
+    # The directionality and capacity controls were registered with the other
+    # controls but run later, each in its own invocation (make rq-directionality,
+    # make rq-capacity).
     ("amendment_2", "loso_significance_directionality_cpu.json", "rq2_controls"),
+    ("amendment_2", "loso_significance_capacity_cpu.json", "rq2_controls"),
     ("amendment_5", "loso_significance_hybrid_cpu.json", "hybrid"),
     ("amendment_6", "loso_significance_hybrid_gat_cpu.json", "hybrid_gat"),
 ]

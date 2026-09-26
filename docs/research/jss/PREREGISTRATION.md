@@ -499,3 +499,24 @@ scores each Application from its own features.
 Directionality therefore does not confound the typing result, and HGT's message
 passing contributes nothing measurable on this target. The capacity-only control
 `gl_full_qos_cap` (GAT-w) remains unrun.
+
+## Results log — Amendment 2's capacity arm (2026-09-26)
+
+`gl_full_qos_cap` (GAT-w: untyped GAT at HGT's budget, 439,272 parameters,
+QoS-on node features and a scalar edge weight) was the last registered model
+arm left unrun. It was run with `make -f reproduce/Makefile rq-capacity` at a
+clean commit, in one CPU invocation with `topo_qos` and `hgl_qos`. Both
+comparators reproduce bit for bit. Like every untyped arm, GAT-w scores
+Applications per node.
+
+- **Registered contrast** (Amendment 2 control family). HGT-QoS vs GAT-w:
+  Δρ = −0.011 [−0.056, +0.031], 5/12 folds, W = 33, p = 0.677. Holm across all
+  four controls gives 1.000.
+- **Descriptive.** GAT-w scores 0.633. It is level with GAT-QoS (−0.002) and
+  above GAT (+0.070, 10/12). Its zero-shot ρ is 0.794.
+- **Omnibus.** The family grows to 13. Hybrid-GAT p_omni = 0.019 and Hybrid-HGT
+  p_omni = 0.041; both remain significant.
+
+Every model arm Amendment 2 registered has now been run. Its label-side arm (a
+sweep against a cache with the oracle's QoS ladder disabled) was not run as a
+sweep; the manuscript bounds the label's QoS content instead (§4.3).

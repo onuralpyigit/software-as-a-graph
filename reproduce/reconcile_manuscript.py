@@ -890,6 +890,10 @@ FRESHNESS_TARGETS = {
     "loso_significance_directionality_cpu.json": "Section 7.2 directionality contrast / omnibus",
     "realworld_zeroshot_hgl_qos_directionality.json": "tab:supp-directionality zero-shot (HGT-QoS)",
     "realworld_zeroshot_hgl_qos_uni_directionality.json": "tab:supp-directionality zero-shot (HGT-QoS-U)",
+    # Amendment 2's capacity control, the last registered arm.
+    "loso_capacity_cpu.json": "Section 7.2 / tab:supp-directionality (GAT-w LOSO)",
+    "loso_significance_capacity_cpu.json": "Section 7.2 capacity contrast / omnibus",
+    "realworld_zeroshot_gl_full_qos_cap_capacity.json": "tab:supp-directionality zero-shot (GAT-w)",
 }
 
 #: Artifacts that never read the corpus, so the corpus-freshness rule cannot
@@ -1238,6 +1242,22 @@ def check_contrasts_matched(rep: Report) -> None:
                                             round(truth[key], 4)))
 
 
+def _exact_mean(artifact: dict, variant: str) -> float:
+    """Unrounded cross-fold mean. ``comparison_table[v]["mean_rho"]`` is stored at
+    four decimals, and rounding that again to three can print the wrong digit
+    (0.6315 -> 0.631 for a true 0.63152), which a tolerance check cannot see."""
+    return artifact["per_variant_results"][variant]["summary"]["overall_mean_spearman_rho"]
+
+
+def _prints_as(truth: float, cell: str) -> bool:
+    """Whether ``truth`` rounds to exactly the number typeset in ``cell``."""
+    got = _num(cell)
+    m = re.search(r"-?\d+\.(\d+)", cell.replace("$-$", "-"))
+    if got is None or m is None:
+        return False
+    return round(truth, len(m.group(1))) == got
+
+
 def _table_rows(tex: str, label: str) -> List[List[str]]:
     r"""Cells of every data row between a table's first ``\midrule`` and its
     ``\bottomrule``, whether or not the row label is bold (``_rows`` keeps only
@@ -1294,7 +1314,7 @@ def check_attribution(rep: Report) -> None:
     for cells in rows:
         label = _label(cells[0])
         if label == "Mean":
-            truths = [table[v]["mean_rho"] for v in fold_cols]
+            truths = [_exact_mean(loso, v) for v in fold_cols]
         else:
             norm = re.sub(r"system$", "", re.sub(r"[^a-z]", "", label.lower()))
             key = next((s for s, n in names.items() if n == norm), None)
@@ -1305,7 +1325,7 @@ def check_attribution(rep: Report) -> None:
         for idx, truth in enumerate(truths, start=1):
             got = _num(cells[idx])
             rep.checked += 1
-            if got is None or abs(got - truth) > 0.0006:
+            if got is None or not _prints_as(truth, cells[idx]):
                 rep.findings.append(Finding("tab:supp-attribution-folds", label, fold_cols[idx - 1],
                                             got, round(truth, 4)))
     if len(rows) != 13:
@@ -1349,15 +1369,23 @@ def check_attribution(rep: Report) -> None:
 
 
 def check_directionality(rep: Report, supp: str) -> None:
-    """tab:supp-directionality: the HGT-QoS-U control, LOSO per fold and zero-shot per system."""
+    """tab:supp-directionality: Amendment 2's late controls (HGT-QoS-U and GAT-w).
+
+    LOSO per fold and zero-shot per system. HGT-QoS-U and GAT-w ran in separate
+    invocations; each column is read from its own sweep, and the shared
+    Topo-QoS / HGT-QoS columns from the directionality sweep.
+    """
     loso = _load("loso_directionality_cpu.json")
+    cap = _load("loso_capacity_cpu.json")
     zs = {v: _load(f"realworld_zeroshot_{v}_directionality.json") for v in ("hgl_qos", "hgl_qos_uni")}
+    zs["gl_full_qos_cap"] = _load("realworld_zeroshot_gl_full_qos_cap_capacity.json")
     label = r"\label{tab:supp-directionality}"
-    if loso is None or any(z is None for z in zs.values()) or label not in supp:
+    if loso is None or cap is None or any(z is None for z in zs.values()) or label not in supp:
         rep.skipped.append("tab:supp-directionality: artifacts or table absent")
         return
-    cols = ("topo_qos", "hgl_qos", "hgl_qos_uni")
-    table = loso["comparison_table"]
+    cols = ("topo_qos", "hgl_qos", "hgl_qos_uni", "gl_full_qos_cap")
+    table = dict(loso["comparison_table"])
+    table["gl_full_qos_cap"] = cap["comparison_table"]["gl_full_qos_cap"]
     per_fold = {v: {f["holdout"]: f["mean_rho"] for f in table[v]["per_fold"]} for v in cols}
     zs_keys = {"Autoware": "realworld_autoware_ros2", "EdgeX": "realworld_edgex",
                "Home Assistant": "realworld_homeassistant",
@@ -1373,9 +1401,10 @@ def check_directionality(rep: Report, supp: str) -> None:
         name = _label(cells[0])
         zkey = next((v for k, v in zs_keys.items() if name.startswith(k)), None)
         if zkey is not None:
-            truths = [zs[v]["per_system"][zkey]["mean_rho"] for v in ("hgl_qos", "hgl_qos_uni")]
+            truths = [zs[v]["per_system"][zkey]["mean_rho"]
+                      for v in ("hgl_qos", "hgl_qos_uni", "gl_full_qos_cap")]
         elif name == "Mean":
-            truths = [table[v]["mean_rho"] for v in cols]
+            truths = [_exact_mean(cap if v == "gl_full_qos_cap" else loso, v) for v in cols]
         else:
             norm = re.sub(r"system$", "", re.sub(r"[^a-z]", "", name.lower()))
             fold = next((f for f in per_fold["topo_qos"]
@@ -1387,7 +1416,7 @@ def check_directionality(rep: Report, supp: str) -> None:
         for idx, truth in enumerate(truths, start=1):
             got = _num(cells[idx])
             rep.checked += 1
-            if got is None or abs(got - truth) > 0.0006:
+            if got is None or not _prints_as(truth, cells[idx]):
                 rep.findings.append(Finding("tab:supp-directionality", name, str(idx), got, round(truth, 4)))
     if matched < 18:
         rep.skipped.append(f"tab:supp-directionality: matched {matched} rows, expected 18")
@@ -1397,7 +1426,7 @@ def check_directionality(rep: Report, supp: str) -> None:
 #: (file, pattern). Each pattern captures (SaG-Hybrid, SaG-Hybrid-GAT) in that
 #: order; the sites that name one engine first say so in the pattern.
 OMNIBUS_PROSE = [
-    ("sec7_results.tex", r"twelve registered contrasts of the study \(\$p_\{\\text\{omni\}\} = ([\d.]+)\$ and \$([\d.]+)\$"),
+    ("sec7_results.tex", r"thirteen registered contrasts of the study \(\$p_\{\\text\{omni\}\} = ([\d.]+)\$ and \$([\d.]+)\$"),
 ]
 
 
