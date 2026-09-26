@@ -65,6 +65,10 @@ CONTROL_VARIANTS = [
     "hgl_qos_prior", "gl_qos16_prior",
     # Amendment 9: the same learners on the DEPENDS_ON projection.
     "gl_proj_cap", "gl_proj_qos16_cap", "gl_proj_qos16_indeg_prior", "hgl_proj_qos",
+    # Amendment 14: degree-free, sum-aggregation, w_in-held and label-source arms.
+    "gl_proj_qos16_cap_nodeg", "gl_proj_qos16_cap_nodeg_strict", "gl_full_qos16_cap_nodeg",
+    "gin_proj_qos16", "gin_proj_qos16_nodeg", "gin_proj_qos16_nodeg_strict",
+    "gl_full_cap_win", "hgl_win", "gl_proj_qos16_cap_idyn", "gl_proj_qos16_cap_istar_app",
 ]
 #: The comparator every reported Δρ is measured against, re-exported from the
 #: registry that owns it so this harness, the k-fold harness, the significance
@@ -80,7 +84,7 @@ PREREGISTERED_BASELINE = _registry.PREREGISTERED_BASELINE
 #: this was written after lost exactly the headline arm.
 _DISPATCH_COST = {
     "hgl_qos_prior": 0, "gl_qos16_prior": 0, "hgl_qos": 0, "hgl_proj_qos": 0,
-    "hgl": 1, "gl_qos": 2, "gl": 3,
+    "hgl": 1, "hgl_win": 1, "gl_qos": 2, "gl": 3,
     "topology_rm": 4, "topo_qos": 5, "topo_baseline": 6,
     # No epochs and no forward pass: seconds, not hours.
     "tab_gbm": 7, "tab_gbm_qos": 7,

@@ -89,6 +89,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import logging
 import os
@@ -151,9 +152,14 @@ _HOMOGENEOUS_VARIANTS = (
     "gl_qos16_prior", "gl_full_qos16_nfmask",
     # Amendment 9: the same GATs on the DEPENDS_ON projection.
     "gl_proj_cap", "gl_proj_qos16_cap", "gl_proj_qos16_indeg_prior",
+    # Amendment 14: degree-free, sum-aggregation, w_in-held and label-source arms.
+    "gl_proj_qos16_cap_nodeg", "gl_proj_qos16_cap_nodeg_strict", "gl_full_qos16_cap_nodeg",
+    "gin_proj_qos16", "gin_proj_qos16_nodeg", "gin_proj_qos16_nodeg_strict",
+    "gl_full_cap_win", "gl_proj_qos16_cap_idyn", "gl_proj_qos16_cap_istar_app",
 )
 _HGT_VARIANTS = (
     "hgl", "hgl_qos", "hgl_qos_uni", "hgl_qos_prior", "topology_rm", "hgl_proj_qos",
+    "hgl_win",
 )
 #: Learned, but not a graph model: gradient boosting on the same typed node
 #: features the GNNs read. Its own branch because it has no HeteroData forward
@@ -190,6 +196,10 @@ class ScenarioBundle:
     #: Cache directory the bundle was loaded from; the SaG-Hybrid prior is
     #: recomputed from it on demand (see ``_with_prior``).
     cache_dir: Optional[Path] = None
+    #: Amendment 14: node-feature columns zeroed, and QoS node columns kept when
+    #: QoS is off. Set per variant by ``_variant_bundle``; empty for every reported arm.
+    drop_features: Tuple[str, ...] = ()
+    qos_exempt: Tuple[str, ...] = ()
 
 
 @dataclass
@@ -402,7 +412,8 @@ def _prepare_bundle_graph(
     # dependency-graph bundle's native source (see _dependency_graph) must survive.
     if "infra_source" in bundle.graph.graph:
         masked.graph["infra_source"] = bundle.graph.graph["infra_source"]
-    return masked, _mask_qos_in_structural(bundle.structural)
+    return masked, _mask_qos_in_structural(
+        bundle.structural, keep=getattr(bundle, "qos_exempt", ()))
 
 
 _DEPENDENCY_GRAPH_CACHE: Dict[str, nx.DiGraph] = {}
@@ -440,6 +451,68 @@ def _dependency_graph(bundle: ScenarioBundle) -> nx.DiGraph:
                        path_count=e.get("path_count", 1))
         _DEPENDENCY_GRAPH_CACHE[key] = g
     return _DEPENDENCY_GRAPH_CACHE[key]
+
+
+#: Amendment 14 label sources, read from disk: Predict never imports Simulate.
+_LABEL_FILES = {"idyn_full": Path("data/benchmarks/idyn_full_labels_jss12.json")}
+_LABEL_FILE_CACHE: Dict[str, Dict[str, Any]] = {}
+
+
+def _applications(bundle: ScenarioBundle) -> List[str]:
+    return [str(n) for n, a in bundle.graph.nodes(data=True)
+            if (a.get("component_type") or a.get("type")) == "Application"]
+
+
+def _label_file(source: str) -> Dict[str, Any]:
+    if source not in _LABEL_FILE_CACHE:
+        from reproduce._provenance import corpus_digest
+
+        data = json.loads(_LABEL_FILES[source].read_text())
+        recorded = (data.get("provenance") or {}).get("corpus_digest")
+        if recorded != corpus_digest():
+            raise RuntimeError(
+                f"{_LABEL_FILES[source]} was labelled on corpus {recorded}, "
+                f"not the corpus on disk ({corpus_digest()})"
+            )
+        _LABEL_FILE_CACHE[source] = data
+    return _LABEL_FILE_CACHE[source]
+
+
+def _external_labels(source: str, bundle: ScenarioBundle) -> Dict[str, Dict[str, float]]:
+    """Training labels for ``bundle`` under label source ``source`` (Amendment 14).
+
+    ``"istar_app"`` restricts the bundle's own I* labels to Applications;
+    ``"idyn_full"`` reads Amendment 11's queue-flow labels (mean over five seeds),
+    which cover Applications only. Nodes left out get ``label_mask=False``.
+    """
+    apps = _applications(bundle)
+    if source == "istar_app":
+        return {n: bundle.simulation[n] for n in apps if n in bundle.simulation}
+    labels = _label_file(source)["labels"].get(bundle.scenario_id)
+    if labels is None:
+        raise RuntimeError(f"{source}: no labels for {bundle.scenario_id}")
+    mean = labels["mean"]
+    if not set(mean) <= set(apps):
+        raise RuntimeError(f"{source}: {bundle.scenario_id} labels name non-Applications")
+    return {n: {"composite": float(v)} for n, v in mean.items()}
+
+
+def _variant_bundle(
+    bundle: Optional[ScenarioBundle], variant: str, relabel: bool,
+) -> Optional[ScenarioBundle]:
+    """``bundle`` with ``variant``'s feature switches, and its labels if ``relabel``.
+
+    The holdout is passed with ``relabel=False``: the harness scores every arm on
+    I*, and the other oracles are scored from the saved predictions.
+    """
+    if bundle is None:
+        return None
+    b = replace(bundle, drop_features=_registry.drop_features_for(variant),
+                qos_exempt=_registry.qos_exempt_for(variant))
+    source = _registry.label_source_for(variant)
+    if relabel and source != "i_star":
+        b = replace(b, simulation=_external_labels(source, b))
+    return b
 
 
 def _dependency_bundle(bundle: Optional[ScenarioBundle]) -> Optional[ScenarioBundle]:
@@ -495,6 +568,8 @@ def _build_training_hetero(
         rank_normalize_features=rank_normalize_features,
         edge_simulation_results=bundle.edge_simulation or None,
         append_prior=bool(append_prior),
+        drop_feature_keys=getattr(bundle, "drop_features", ()),
+        qos_exempt_keys=getattr(bundle, "qos_exempt", ()),
     ).hetero_data
 
 
@@ -772,9 +847,16 @@ def _seed_fingerprint(
             # interchangeable rows; reproduce/loso_all_variants.py already
             # records the device for exactly this reason.
             "device": target_device.type,
+            # Amendment 14: a relabelled file must invalidate shards trained on it.
+            "label_file_sha256": _label_file_sha256(cfg["variant"]),
         },
         cache_dir=str(cache_dir) if cache_dir is not None else None,
     )
+
+
+def _label_file_sha256(variant: str) -> Optional[str]:
+    path = _LABEL_FILES.get(_registry.label_source_for(variant))
+    return None if path is None else hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _replicate_structural(done: Dict[str, Any], seed: int) -> Dict[str, Any]:
@@ -896,6 +978,11 @@ def _run_seed(
         )
         inductives = [_dependency_bundle(b) for b in inductives]
 
+    # Amendment 14: feature switches on every bundle; labels on the training side only.
+    holdout = _variant_bundle(holdout, variant, relabel=False)
+    primary, val_bundle = (_variant_bundle(b, variant, relabel=True) for b in (primary, val_bundle))
+    inductives = [_variant_bundle(b, variant, relabel=True) for b in inductives]
+
     logger.info("  ── seed %d ──", seed)
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -965,6 +1052,8 @@ def _run_seed(
                 qos_enabled=use_qos,
                 rank_normalize_features=rank_normalize_features,
                 append_prior=bool(use_prior),
+                drop_feature_keys=primary.drop_features,
+                qos_exempt_keys=primary.qos_exempt,
             )
             data = conv.hetero_data
             if graft_edges:
@@ -1016,7 +1105,7 @@ def _run_seed(
             # identity for every reported variant and differ only for the
             # RQ2 capacity / edge-channel controls.
             edge_dim = _registry.edge_dim(variant, "loso")
-            baseline_name = "homo_unweighted" if edge_dim is None else "homo_scalar"
+            baseline_name = _registry.baseline_name_for(variant, "loso")
             model = build_baseline(baseline_name,
                                    hidden_channels=_registry.hidden_for(variant, hidden, "loso"),
                                    num_heads=heads,
@@ -1053,6 +1142,8 @@ def _run_seed(
                 qos_enabled=use_qos,
                 rank_normalize_features=rank_normalize_features,
                 append_prior=bool(use_prior),
+                drop_feature_keys=holdout.drop_features,
+                qos_exempt_keys=holdout.qos_exempt,
             )
             data_h = conv_h.hetero_data
             if graft_edges:
@@ -1086,7 +1177,7 @@ def _run_seed(
         elif variant in _HGT_VARIANTS:
             # hgl_qos (default), hgl, hgl_qos_uni or topology_rm → GNNService
             effective_mode = "rm" if variant == "topology_rm" else mode
-            use_qos = variant in ("hgl_qos", "hgl_qos_uni", "hgl_qos_prior", "hgl_proj_qos")
+            use_qos = _registry.node_qos_for(variant, "loso")
             use_prior = _registry.prior_for(variant)
             train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
             holdout_graph, holdout_sm = _prepare_bundle_graph(holdout, use_qos)
@@ -1117,6 +1208,8 @@ def _run_seed(
                     # is the only arm that turns this off.
                     use_bidirectional=_registry.bidirectional_for(variant),
                     topo_prior=bool(use_prior),
+                    drop_feature_keys=primary.drop_features,
+                    qos_exempt_keys=primary.qos_exempt,
                 )
                 service.train(
                     graph=train_graph,

@@ -50,7 +50,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 # Add project root to sys.path for direct execution
 if __name__ == "__main__" and __package__ is None:
@@ -120,6 +120,10 @@ CONTROL_VARIANTS = [
     "gl_full_qos16_cap",    # GAT-N-QoS16-C: capacity-matched, full 16-D edge channel
     "hgl_qos_uni",          # HGT-QoS-U: HGT-QoS without the reverse pass
     "gl_full_qos16_nfmask", # GAT-QoS-nf: LOSO/zero-shot only; this harness reports it as unknown_variant
+    # Amendment 14 controls, LOSO/zero-shot only (reported as unknown_variant here)
+    "gl_full_qos16_cap_nodeg",  # GAT-QoS-deg: in-degree and w_in zeroed
+    "gl_full_cap_win",          # GAT+w_in: QoS off, w_in kept
+    "hgl_win",                  # HGT+w_in: QoS off, w_in kept
 ]
 
 DEFAULT_SEEDS = [42, 123, 456, 789, 2024]
@@ -840,15 +844,23 @@ _QOS_EDGE_PROFILE_KEYS = (
 )
 
 
-def _mask_qos_in_structural(structural_dict: Dict) -> Dict:
+# Aliases of one quantity: exempting a feature column keeps every key it is read from.
+_QOS_KEY_ALIASES = {"qos_weight_in": ("w_in",), "qos_weight_out": ("w_out",), "qos_weight": ("w",)}
+
+
+def _mask_qos_in_structural(structural_dict: Dict, keep: Sequence[str] = ()) -> Dict:
     """Return a copy of structural_dict with QoS-derived keys zeroed.
 
     Used by the HGT variant.  Mirrors mask_qos_in_structural_metrics in
     reproduce/run_experiment.py but operates on the post-_parse_structural_metrics
-    in-memory dict the harness already holds.
+    in-memory dict the harness already holds. Keys in ``keep`` (and their
+    aliases) are left untouched (Amendment 14's w_in-held 2x2).
     """
     if not structural_dict:
         return structural_dict
+    kept = set(keep)
+    for k in keep:
+        kept.update(_QOS_KEY_ALIASES.get(k, ()))
     masked: Dict[str, Dict] = {}
     for nid, m in structural_dict.items():
         if not isinstance(m, dict):
@@ -856,7 +868,7 @@ def _mask_qos_in_structural(structural_dict: Dict) -> Dict:
             continue
         cleaned = dict(m)
         for k in _QOS_STRUCTURAL_KEYS:
-            if k in cleaned:
+            if k in cleaned and k not in kept:
                 cleaned[k] = 0.0
         masked[nid] = cleaned
     return masked

@@ -122,7 +122,7 @@ import logging
 import math
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import networkx as nx
 import numpy as np
@@ -633,8 +633,15 @@ def networkx_to_hetero_data(
     rank_normalize_features: bool = False,
     edge_simulation_results: Optional[Dict[Tuple[str, str], float]] = None,
     append_prior: bool = False,
+    drop_feature_keys: Sequence[str] = (),
+    qos_exempt_keys: Sequence[str] = (),
 ) -> GraphConversionResult:
     """Convert a NetworkX DiGraph to a PyG HeteroData object.
+
+    ``drop_feature_keys`` zeroes those base columns for every node type after
+    rank normalisation, keeping the input width (Amendment 14's degree-free
+    arms). ``qos_exempt_keys`` names QoS node columns kept when ``qos_enabled``
+    is False (Amendment 14's w_in-held 2x2).
 
     With ``append_prior`` set, every node type gets one extra last column
     holding ``structural_metrics[node]["topo_prior"]`` (0.0 when absent): the
@@ -778,7 +785,8 @@ def networkx_to_hetero_data(
             for col, key in enumerate(keys_to_use):
                 # Base metrics come from structural_metrics; infra keys from infra_source
                 val = base_source.get(key, infra_source.get(key, 0.0))
-                if not qos_enabled and key in ("qos_weight", "qos_weight_in", "qos_weight_out"):
+                if (not qos_enabled and key in ("qos_weight", "qos_weight_in", "qos_weight_out")
+                        and key not in qos_exempt_keys):
                     val = 0.0
                 if decouple_features and key in (
                     "pagerank", "reverse_pagerank", "betweenness_centrality",
@@ -792,6 +800,11 @@ def networkx_to_hetero_data(
 
         if rank_normalize_features:
             _rank_normalize_base_columns(feat_matrix)
+
+        # After normalisation, so a zeroed column stays exactly 0 either way.
+        for col, key in enumerate(keys_to_use):
+            if key in drop_feature_keys:
+                feat_matrix[:, col] = 0.0
 
         if append_prior:
             prior_col = np.array(

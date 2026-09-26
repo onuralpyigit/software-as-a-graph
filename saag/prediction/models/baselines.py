@@ -122,21 +122,11 @@ class _HomoGATBase(nn.Module):
             for nt, dim in node_type_dims.items()
         })
 
-        # GATConv layers (homogeneous)
-        from torch_geometric.nn import GATConv
+        # Message-passing layers (homogeneous); GATConv unless a subclass overrides
         self.convs = nn.ModuleList()
         self.norms = nn.ModuleList()
         for _ in range(num_layers):
-            self.convs.append(
-                GATConv(
-                    in_channels=hidden_channels,
-                    out_channels=hidden_channels // num_heads,
-                    heads=num_heads,
-                    concat=True,
-                    dropout=dropout,
-                    edge_dim=edge_dim,
-                )
-            )
+            self.convs.append(self._make_conv(hidden_channels, num_heads, dropout, edge_dim))
             # After concat: heads × (hidden//heads) = hidden
             self.norms.append(nn.LayerNorm(hidden_channels))
 
@@ -148,6 +138,20 @@ class _HomoGATBase(nn.Module):
         self.composite_head = _ResidualMLP(hidden_channels + 2, hidden_channels // 2, 1, dropout)
         if topo_prior:
             self.prior_alpha = nn.Parameter(torch.tensor(1.0))
+
+    def _make_conv(
+        self, hidden: int, heads: int, dropout: float, edge_dim: Optional[int],
+    ) -> nn.Module:
+        """One message-passing layer: multi-head GATConv, concatenated to ``hidden``."""
+        from torch_geometric.nn import GATConv
+        return GATConv(
+            in_channels=hidden,
+            out_channels=hidden // heads,
+            heads=heads,
+            concat=True,
+            dropout=dropout,
+            edge_dim=edge_dim,
+        )
 
     @staticmethod
     def _require_pyg():
@@ -385,6 +389,24 @@ class HomogeneousGAT_ScalarWeighted(_HomoGATBase):
         return self._scatter_to_types(out_flat, offsets)
 
 
+class HomogeneousGIN(HomogeneousGAT_ScalarWeighted):
+    """GAT-QoS with every GATConv replaced by a GINEConv (sum aggregation).
+
+    Softmax attention normalises over neighbours, so a GAT computes a weighted
+    mean and cannot count them; a sum aggregator can (Xu et al., ICLR 2019).
+    On the DEPENDS_ON projection messages flow dependent -> dependency, so this
+    model can in principle recover the direct-dependent count without being
+    given it. Amendment 14; ``heads`` is ignored.
+    """
+
+    def _make_conv(
+        self, hidden: int, heads: int, dropout: float, edge_dim: Optional[int],
+    ) -> nn.Module:
+        from torch_geometric.nn import GINEConv
+        mlp = nn.Sequential(nn.Linear(hidden, hidden), nn.GELU(), nn.Linear(hidden, hidden))
+        return GINEConv(mlp, train_eps=True, edge_dim=edge_dim)
+
+
 # ── Factory ───────────────────────────────────────────────────────────────────
 
 def build_baseline(
@@ -402,7 +424,7 @@ def build_baseline(
     Parameters
     ----------
     variant:
-        One of ``"homo_unweighted"`` or ``"homo_scalar"``.
+        One of ``"homo_unweighted"``, ``"homo_scalar"`` or ``"homo_gin"``.
     node_type_dims:
         Per-type feature dimensions.  Defaults to ``NODE_TYPE_TO_DIM``.
     edge_dim:
@@ -421,6 +443,10 @@ def build_baseline(
     )
     if variant == "homo_unweighted":
         return HomogeneousGAT_Unweighted(**kwargs)
+    elif variant == "homo_gin":
+        if edge_dim is None:
+            raise ValueError("'homo_gin' needs an edge_dim")
+        return HomogeneousGIN(edge_dim=edge_dim, topo_prior=topo_prior, **kwargs)
     elif variant == "homo_scalar":
         if edge_dim is not None:
             kwargs["edge_dim"] = edge_dim
@@ -428,5 +454,5 @@ def build_baseline(
     else:
         raise ValueError(
             f"Unknown baseline variant '{variant}'. "
-            "Use 'homo_unweighted' or 'homo_scalar'."
+            "Use 'homo_unweighted', 'homo_scalar' or 'homo_gin'."
         )

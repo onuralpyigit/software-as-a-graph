@@ -57,8 +57,11 @@ from cli.loso_evaluate import (  # noqa: E402
     ScenarioBundle,
     _build_training_hetero,
     _build_validation_hetero,
+    _HGT_VARIANTS,
+    _HOMOGENEOUS_VARIANTS,
     _dependency_bundle,
     _graft_qos_edge_attr,
+    _variant_bundle,
     _prepare_bundle_graph,
     _select_val_bundle,
     _with_prior,
@@ -130,6 +133,8 @@ def train_once(
         device=target_device,
         topo_prior=topo_prior,
         use_bidirectional=use_bidirectional,
+        drop_feature_keys=primary.drop_features,
+        qos_exempt_keys=primary.qos_exempt,
     )
     service.train(
         graph=train_graph,
@@ -184,6 +189,7 @@ class HomogeneousScorer:
             graph, sm, bundle.simulation, bundle.rm,
             qos_enabled=use_qos, rank_normalize_features=self.rank_normalize_features,
             append_prior=bool(self.topo_prior),
+            drop_feature_keys=bundle.drop_features, qos_exempt_keys=bundle.qos_exempt,
         )
         if self.graft_edges:
             _graft_qos_edge_attr(conv.hetero_data, bundle, self.rank_normalize_features)
@@ -252,6 +258,7 @@ def train_once_homogeneous(
         train_graph, train_sm, primary.simulation, primary.rm,
         qos_enabled=use_qos, rank_normalize_features=rank_normalize_features,
         append_prior=bool(topo_prior),
+        drop_feature_keys=primary.drop_features, qos_exempt_keys=primary.qos_exempt,
     )
     data = conv.hetero_data
     if graft_edges:
@@ -279,7 +286,7 @@ def train_once_homogeneous(
         normalize_labels_robust(val_data, rank_normalize=rank_normalize_labels)
 
     model = build_baseline(
-        "homo_unweighted" if edge_dim is None else "homo_scalar",
+        _registry.baseline_name_for(variant, "loso"),
         hidden_channels=_registry.hidden_for(variant, 64, "loso"),
         num_heads=4, num_layers=layers, dropout=0.2, edge_dim=edge_dim,
         topo_prior=bool(topo_prior),
@@ -417,6 +424,7 @@ def score(service: GNNService, bundle: ScenarioBundle, *, use_qos: bool,
         m["n_positive"] = len(pos_impact)
 
     m["eval_points"] = _eval_points(pred, true_impact, graph, population)
+    m["_pred"] = pred
     return m
 
 
@@ -624,11 +632,11 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--synthetic-cache", type=Path, default=Path("output/loso_cache"))
     p.add_argument("--realworld-cache", type=Path, default=Path("output/realworld_cache"))
-    p.add_argument("--variant", default="hgl_qos", choices=["hgl_qos", "hgl", "hgl_qos_prior",
-                            "gl_full_cap", "gl_full_qos16_cap", "gl_qos16_prior",
-                            "gl_full_qos16_nfmask", "tab_gbm", "tab_gbm_qos", "hgl_qos_uni",
-                            "gl_full_qos_cap", "gl_proj_cap", "gl_proj_qos16_cap",
-                            "gl_proj_qos16_indeg_prior", "hgl_proj_qos"])
+    p.add_argument("--variant", default="hgl_qos", choices=sorted(
+        {"tab_gbm", "tab_gbm_qos", *_HOMOGENEOUS_VARIANTS, *_HGT_VARIANTS} - {"topology_rm", "gl", "gl_qos"}
+    ))
+    p.add_argument("--save-predictions", action="store_true",
+                   help="Store every seed's per-node predictions (Amendment 14 rescoring)")
     p.add_argument("--seeds", default="42,123,456,789,2024")
     p.add_argument("--epochs", type=int, default=150)
     p.add_argument("--layers", type=int, default=2)
@@ -658,14 +666,9 @@ def main() -> int:
         return 2
 
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()]
-    homogeneous = args.variant in ("gl_full_cap", "gl_full_qos16_cap", "gl_qos16_prior",
-                                   "gl_full_qos16_nfmask", "gl_full_qos_cap", "gl_proj_cap",
-                                   "gl_proj_qos16_cap", "gl_proj_qos16_indeg_prior")
+    homogeneous = args.variant in _HOMOGENEOUS_VARIANTS
     tabular = args.variant in ("tab_gbm", "tab_gbm_qos")
-    use_qos = (
-        _registry.node_qos_for(args.variant, "loso") if homogeneous or tabular
-        else args.variant in ("hgl_qos", "hgl_qos_prior", "hgl_qos_uni", "hgl_proj_qos")
-    )
+    use_qos = _registry.node_qos_for(args.variant, "loso")
     topo_prior = args.variant == "hgl_qos_prior"
     # Amendment 9: learn and predict on the DEPENDS_ON projection of every graph.
     on_projection = _registry.learns_on_projection(args.variant, "loso")
@@ -674,6 +677,9 @@ def main() -> int:
     real = discover_scenarios(args.realworld_cache, [], min_scenarios=1)
     if on_projection:
         synthetic = [_dependency_bundle(b) for b in synthetic]
+    # Amendment 14: feature switches everywhere, label source on the training corpus only.
+    synthetic = [_variant_bundle(b, args.variant, relabel=True) for b in synthetic]
+    real = [_variant_bundle(b, args.variant, relabel=False) for b in real]
     logger.info("Synthetic training corpus: %d scenarios", len(synthetic))
     logger.info("Real-world evaluation corpus: %d systems", len(real))
 
@@ -686,6 +692,7 @@ def main() -> int:
         return 2
 
     per_system: Dict[str, List[Dict[str, Any]]] = {b.scenario_id: [] for b in real}
+    predictions: Dict[str, Dict[str, Dict[str, float]]] = {b.scenario_id: {} for b in real}
     t0 = time.time()
     for seed in seeds:
         ckpt = args.workdir / args.variant / f"seed_{seed}"
@@ -726,6 +733,9 @@ def main() -> int:
                              exc_info=True)
                 continue
             m["seed"] = seed
+            pred = m.pop("_pred")
+            if args.save_predictions:
+                predictions[b.scenario_id][str(seed)] = {k: round(v, 6) for k, v in pred.items()}
             per_system[b.scenario_id].append(m)
             logger.info("    %-32s rho=%.4f  hybrid_rho=%.4f  F1@K=%.4f  n=%d",
                         b.scenario_id, m["spearman_rho"], m.get("hybrid_spearman_rho", 0.0),
@@ -796,6 +806,7 @@ def main() -> int:
     mean_hybrid_rho_all = float(np.mean([s["mean_hybrid_rho"] for s in scored])) if scored else None
 
     payload = {
+        **({"per_seed_predictions": predictions} if args.save_predictions else {}),
         "variant": args.variant,
         "label": _registry.label(args.variant, harness="loso"),
         "oracle": "I*(v) / FaultInjector",

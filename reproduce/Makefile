@@ -54,7 +54,7 @@ RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 ORACLE_ROBUST_WORKERS ?= 8
 
-.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution rq-directionality rq-capacity rq-dependency-graph rq-oracle-robust jss-regimes nested-search kfold convergent-validity \
+.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution rq-directionality rq-capacity rq-dependency-graph rq-oracle-robust rq-amendment14 rq-referee-round8 rq-cost-reconcile jss-regimes nested-search kfold convergent-validity \
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency rq-referee-round7 \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 jss-fig6 jss-graphical-abstract \
@@ -295,6 +295,45 @@ rq-dependency-graph:
 	$(PYTHON) reproduce/dependency_graph_contrasts.py \
 	    --input $(RESULTS_DIR)/loso_dependency_graph_cpu.json \
 	    --output $(RESULTS_DIR)/dependency_graph_contrasts.json
+
+# Round-8 referee arms (PREREGISTRATION.md Amendment 14, registered secondary, not
+# in the omnibus): degree-free, sum-aggregation, w_in-held 2x2 and I_dyn-surrogate
+# arms, run beside every comparator in ONE CPU invocation (contrasts pair by fold;
+# referee_round8.py's gate G0 checks the comparators reproduce their published
+# per-seed rho). Zero-shot runs save per-seed predictions for rescoring.
+A14_PROJ_ARMS   = gl_proj_qos16_cap_nodeg gl_proj_qos16_cap_nodeg_strict \
+                  gin_proj_qos16 gin_proj_qos16_nodeg gin_proj_qos16_nodeg_strict \
+                  gl_proj_qos16_cap_idyn gl_proj_qos16_cap_istar_app
+A14_NATIVE_ARMS = gl_full_qos16_cap_nodeg gl_full_cap_win hgl_win
+A14_COMPARATORS = topo_baseline topo_qos gl_proj_qos16_cap gl_full_cap gl_full_qos16_cap hgl hgl_qos
+
+rq-amendment14:
+	$(PYTHON) reproduce/loso_all_variants.py \
+	    --variants $(A14_COMPARATORS) $(A14_PROJ_ARMS) $(A14_NATIVE_ARMS) \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --epochs $(EPOCHS) --seeds $(SEEDS) --device cpu \
+	    --jobs $(HYBRID_JOBS) --torch-threads 1 \
+	    --output-base $(OUTPUT_DIR)/loso_cpu_amendment14 \
+	    --output $(RESULTS_DIR)/loso_amendment14_cpu.json
+	$(PYTHON) reproduce/loso_significance.py \
+	    --input $(RESULTS_DIR)/loso_amendment14_cpu.json \
+	    --output $(RESULTS_DIR)/loso_significance_amendment14_cpu.json \
+	    --factorial-cells gl_full_cap_win,hgl_win,gl_full_qos16_cap,hgl_qos
+	for v in gl_proj_qos16_cap $(A14_PROJ_ARMS) $(A14_NATIVE_ARMS); do \
+	    OMP_NUM_THREADS=4 $(PYTHON) reproduce/realworld_zeroshot.py --variant $$v --layers 3 --epochs $(EPOCHS) \
+	        --device cpu --workdir $(OUTPUT_DIR)/realworld_zeroshot_amendment14 --save-predictions \
+	        --output $(RESULTS_DIR)/realworld_zeroshot_$${v}_amendment14.json || exit 1; \
+	done
+	OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 $(PYTHON) reproduce/referee_round8.py amendment14
+
+# Round-8 re-analysis of existing artifacts, no training (Amendment 14, F3/F7 and
+# descriptive analyses). Minutes.
+rq-referee-round8:
+	OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 $(PYTHON) reproduce/referee_round8.py hybrid tost table7 hierarchical
+
+# Like-for-like cost reconciliation (Amendment 14). Wall-clock: run ALONE on an idle machine.
+rq-cost-reconcile:
+	OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 $(PYTHON) reproduce/referee_round8.py cost
 
 # Learned combination of dependency-graph signals across the three oracles
 # (PREREGISTRATION.md Amendment 11). CPU only; the I_dyn-full labels (~3 CPU-h)
