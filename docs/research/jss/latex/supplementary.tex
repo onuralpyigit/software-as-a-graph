@@ -817,6 +817,18 @@ Microservices & 0.265 & 0.475 & 0.366 & \textbf{0.479} & 0.429 \\
 }
 \end{table}
 
+\section{Explanation-Layer Formulas (Proposed, Not Evaluated)}
+\label{supp:rm-formulas}
+
+This section holds the formulas of the explanation layer that Section~\ref{M-sec:5} of the main manuscript describes as a proposal. Nothing in the main manuscript evaluates them. All metrics are rank-normalized to $[0, 1]$ within the graph and combined with AHP-derived weights (Section~\ref{supp:ahp}):
+\begin{itemize}
+    \item $FT(v) = 0.45 \cdot \text{RPR}(v) + 0.30 \cdot \text{Deg}_{\text{in}}(v) + 0.25 \cdot \text{CDPot}_{\text{enh}}(v)$, over Reverse PageRank, normalized in-degree and normalized cascade depth on $G_{\text{analysis}}^\top$;
+    \item $A(v) = 0.25 \cdot \text{AP}_c^{\text{dir}}(v) + 0.20 \cdot \text{QSPOF}(v) + 0.20 \cdot \text{BR}(v) + 0.25 \cdot \text{CDI}(v) + 0.10 \cdot w(v)$, over directed articulation severity, QoS-weighted SPOF severity, bridge ratio, the Connectivity Degradation Index and the node QoS weight;
+    \item $R(v) = r_{\text{FT}} \cdot FT(v) + (1 - r_{\text{FT}}) \cdot A(v)$ with $r_{\text{FT}} = 0.36$;
+    \item $M(v) = 0.35 \cdot \text{BT}(v) + 0.30 \cdot w_{\text{out}}(v) + 0.15 \cdot \text{CQP}(v) + 0.12 \cdot \text{CouplingRisk}_{\text{enh}}(v) + 0.08 \cdot (1 - \text{CC}(v))$, over betweenness, QoS-weighted efferent coupling, code-quality penalty, coupling risk and clustering.
+\end{itemize}
+The composite is $Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)$, and an ISO/IEC 25019 context-of-use vector can reweight $R$ and $M$. Intra-dimension weights are shrunk towards a uniform prior ($\lambda = 0.70$); a fully uniform prior ranks better against $I^*$ ($0.319$ vs.\ $0.200$; Section~\ref{supp:params}). Components above the Tukey upper fence of $Q$ are flagged CRITICAL (mean $4.2\%$ of components). High $A$ with low $FT$ is read as a single point of failure needing replication; high $FT$ as a cascade hub needing circuit breakers (example card: Section~\ref{supp:card}). Generating candidate repairs and verifying them counterfactually is companion work and is not evaluated here.
+
 \section{Analysis-Plan Amendment Log}
 \label{supp:amendments}
 

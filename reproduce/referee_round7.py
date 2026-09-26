@@ -558,10 +558,69 @@ def cmd_latency(args: argparse.Namespace) -> int:
     return 0
 
 
+# ── summary-statistic sensitivity (descriptive; logged beside Amendment 12) ─────
+
+def cmd_averaging(_: argparse.Namespace) -> int:
+    """Table 6 means under arithmetic, Fisher-z and |V_app|-weighted averaging."""
+    from reproduce.training_free_suite import (
+        PUBLISHED_GAT_QOS_CPU, PUBLISHED_HGT_QOS_CPU, PUBLISHED_HYBRID_GAT_CPU,
+        PUBLISHED_HYBRID_HGT_CPU, PUBLISHED_TOPO)
+    folds = list(FOLDS)
+    ioe = json.loads((RESULTS / "independent_oracle_evaluation.json").read_text())["per_fold"]
+    dg = json.loads((RESULTS / "dependency_graph_contrasts.json").read_text())["per_fold"]
+    n = {f: ioe[f]["i_star"]["InDeg"]["n"] for f in folds}
+    by_name = {FOLDS[f]: f for f in folds}
+    per: Dict[str, Dict[str, float]] = {
+        "Analytic-I*": {f: ioe[f]["i_star"]["Analytic-I*"]["rho"] for f in folds},
+        "InDeg": {f: ioe[f]["i_star"]["InDeg"]["rho"] for f in folds},
+        "Reach": {f: ioe[f]["i_star"]["Reach"]["rho"] for f in folds},
+        "Topo-QoS": {f: ioe[f]["i_star"]["Topo-QoS"]["rho"] for f in folds},
+        "GAT-P-QoS": {f: dg["gl_proj_qos16_cap"][f]["rho"] for f in folds},
+        "GAT-P+InDeg": {f: dg["gl_proj_qos16_indeg_prior"][f]["rho"] for f in folds},
+        "HGT-P-QoS": {f: dg["hgl_proj_qos"][f]["rho"] for f in folds},
+    }
+    for lab, table in (("Topo", PUBLISHED_TOPO), ("HGT-QoS", PUBLISHED_HGT_QOS_CPU),
+                       ("GAT-QoS", PUBLISHED_GAT_QOS_CPU), ("Hybrid-HGT", PUBLISHED_HYBRID_HGT_CPU),
+                       ("Hybrid-GAT", PUBLISHED_HYBRID_GAT_CPU)):
+        per[lab] = {by_name[k]: v for k, v in table.items()}
+    w = np.array([n[f] for f in folds], dtype=float)
+    out: Dict[str, Any] = {}
+    for lab, vals in per.items():
+        x = np.array([vals[f] for f in folds])
+        z = np.arctanh(np.clip(x, -0.999999, 0.999999))
+        out[lab] = {"arithmetic": float(x.mean()), "fisher_z": float(np.tanh(z.mean())),
+                    "size_weighted": float((w * x).sum() / w.sum())}
+    # Seed spread of each learned engine: per fold, max - min of the five seeds'
+    # logged rho, then the mean and max over folds (M11).
+    spread: Dict[str, Any] = {}
+    for lab, (path, _) in LEARNED.items():
+        rng, sds = [], []
+        for fold in sorted((ROOT / path / "workspace").glob("fold_*")):
+            rs = [json.loads(q.read_text())["metrics"]["spearman_rho"]
+                  for q in fold.glob("seed_*/seed_result.json")]
+            if len(rs) > 1:
+                rng.append(max(rs) - min(rs))
+                sds.append(float(np.std(rs, ddof=1)))
+        spread[lab] = {"mean_range": _mean(rng), "max_range": float(max(rng)) if rng else None,
+                       "mean_sd": _mean(sds), "n_folds": len(rng)}
+        print(f"seed spread {lab:13s} range mean {spread[lab]['mean_range']:.3f} "
+              f"max {spread[lab]['max_range']:.3f} sd {spread[lab]['mean_sd']:.3f}")
+    orders = {k: [lab for lab, _ in sorted(out.items(), key=lambda kv: -kv[1][k])]
+              for k in ("arithmetic", "fisher_z", "size_weighted")}
+    for lab, v in sorted(out.items(), key=lambda kv: -kv[1]["arithmetic"]):
+        print(f"{lab:13s} " + " ".join(f"{k}={v[k]:.3f}" for k in v))
+    print("orders equal:", orders["arithmetic"] == orders["fisher_z"] == orders["size_weighted"])
+    _write("referee_round7_averaging.json",
+           {"per_ranker": out, "orders": orders, "n_apps": n, "seed_spread": spread,
+            "orders_identical": orders["arithmetic"] == orders["fisher_z"] == orders["size_weighted"]},
+           experiment="averaging (descriptive, not registered)")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("stage", choices=["raw", "partial", "learned", "recall", "zeroshot",
-                                      "latency", "all"])
+                                      "latency", "averaging", "all"])
     ap.add_argument("--sizes", type=int, nargs="+", default=[250, 500, 1000, 2000, 5000, 10000])
     ap.add_argument("--repeats", type=int, default=5)
     ap.add_argument("--istar-max", type=int, default=10000,
@@ -570,7 +629,8 @@ def main() -> int:
                     help="above this size I* is timed once rather than --repeats times")
     args = ap.parse_args()
     stages = {"raw": cmd_raw, "partial": cmd_partial, "learned": cmd_learned,
-              "recall": cmd_recall, "zeroshot": cmd_zeroshot, "latency": cmd_latency}
+              "recall": cmd_recall, "zeroshot": cmd_zeroshot, "latency": cmd_latency,
+              "averaging": cmd_averaging}
     if args.stage == "all":
         return max(fn(args) for fn in stages.values())
     return stages[args.stage](args)
