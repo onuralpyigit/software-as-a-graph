@@ -63,6 +63,8 @@ CONTROL_VARIANTS = [
     "gl_full_qos16_nfmask",
     # SaG-Hybrid (PREREGISTRATION.md Amendments 5 and 6): opt-in for the same reason.
     "hgl_qos_prior", "gl_qos16_prior",
+    # Amendment 9: the same learners on the DEPENDS_ON projection.
+    "gl_proj_cap", "gl_proj_qos16_cap", "gl_proj_qos16_indeg_prior", "hgl_proj_qos",
 ]
 #: The comparator every reported Δρ is measured against, re-exported from the
 #: registry that owns it so this harness, the k-fold harness, the significance
@@ -77,7 +79,8 @@ PREREGISTERED_BASELINE = _registry.PREREGISTERED_BASELINE
 #: which cost minutes to redo, not the headline arm that costs hours. The run
 #: this was written after lost exactly the headline arm.
 _DISPATCH_COST = {
-    "hgl_qos_prior": 0, "gl_qos16_prior": 0, "hgl_qos": 0, "hgl": 1, "gl_qos": 2, "gl": 3,
+    "hgl_qos_prior": 0, "gl_qos16_prior": 0, "hgl_qos": 0, "hgl_proj_qos": 0,
+    "hgl": 1, "gl_qos": 2, "gl": 3,
     "topology_rm": 4, "topo_qos": 5, "topo_baseline": 6,
     # No epochs and no forward pass: seconds, not hours.
     "tab_gbm": 7, "tab_gbm_qos": 7,

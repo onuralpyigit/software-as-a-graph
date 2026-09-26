@@ -148,7 +148,7 @@ def contrasts_table(tf: Dict[str, Any]) -> str:
         r"Holm-corrected in parentheses; the unweighted projection betweenness is descriptive. "
         r"The last five columns pair each ranker with the published CPU per-fold values of the "
         r"learned and hybrid engines (Section~\ref{supp:hybrid-folds}) and of the feature-only "
-        r"regressor (Amendment~8, Section~\ref{supp:attribution}): $\Delta\rho$ "
+        r"regressor (Amendment~8, Section~\ref{supp:regimes}): $\Delta\rho$ "
         r"(folds won, $p$).}",
         r"\label{tab:a7-contrasts}",
         r"\resizebox{\linewidth}{!}{%",

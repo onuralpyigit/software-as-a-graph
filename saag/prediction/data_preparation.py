@@ -752,8 +752,13 @@ def networkx_to_hetero_data(
         for local_idx, name in enumerate(nodes):
             result.node_name_to_idx[name] = (node_type, local_idx)
 
-    # Pre-compute infrastructure/runtime features (Topic counts, Node/Broker infra)
-    infra_features = _normalize_infra_features(graph, structural_metrics, qos_enabled=qos_enabled)
+    # Pre-compute infrastructure/runtime features (Topic counts, Node/Broker infra).
+    # A DEPENDS_ON projection carries its native graph as graph["infra_source"]
+    # (Amendment 9): the Library reach features need the USES / pub-sub edges the
+    # projection no longer has.
+    infra_features = _normalize_infra_features(
+        graph.graph.get("infra_source", graph), structural_metrics, qos_enabled=qos_enabled
+    )
 
     # ── 2. Build node feature tensors per type ────────────────────────────────
     for node_type in result.present_node_types:

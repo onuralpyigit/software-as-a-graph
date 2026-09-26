@@ -19,6 +19,7 @@
 #   make rq-attribution  — GBM-Feat / GAT-QoS-nf attribution controls + receptive-field probe (Amendment 8)
 #   make rq-directionality — HGT-QoS vs HGT-QoS-U (Amendment 2's directionality arm), LOSO + zero-shot
 #   make rq-capacity     — HGT-QoS vs GAT-w (Amendment 2's capacity arm), LOSO + zero-shot
+#   make rq-dependency-graph — learners on the DEPENDS_ON projection vs InDeg/Reach (Amendment 9)
 #   make omnibus         — one Holm correction over every registered contrast (no training)
 #   make nested-search   — nested-CV config search (opt-in, expensive; GRID=stage1|stage2|full)
 #   make convergent-validity — JSS Table 13: Three-oracle rank agreement (opt-in; expensive)
@@ -51,7 +52,7 @@ SCENARIOS_DIR ?= data/scenarios
 RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
-.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution rq-directionality rq-capacity jss-regimes nested-search kfold convergent-validity \
+.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution rq-directionality rq-capacity rq-dependency-graph jss-regimes nested-search kfold convergent-validity \
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 \
@@ -263,6 +264,35 @@ rq-capacity:
 	OMP_NUM_THREADS=4 $(PYTHON) reproduce/realworld_zeroshot.py --variant gl_full_qos_cap --layers 3 \
 	    --epochs $(EPOCHS) --device cpu --workdir $(OUTPUT_DIR)/realworld_zeroshot_capacity \
 	    --output $(RESULTS_DIR)/realworld_zeroshot_gl_full_qos_cap_capacity.json
+
+# Graph learning on the dependency graph (PREREGISTRATION.md Amendment 9,
+# exploratory, not in the manuscript omnibus): the four arms on the DEPENDS_ON
+# projection, LOSO + zero-shot, the receptive-field probe on their checkpoints,
+# then the registered 12-contrast family against InDeg, Reach and each native
+# counterpart. topo_qos and gl_full_qos16_cap re-run in the same invocation only
+# to show the native path is untouched; the counterparts are read from their own
+# artifacts, so loso_significance is deliberately not run on this one.
+DEPENDENCY_GRAPH_ARMS = gl_proj_cap gl_proj_qos16_cap gl_proj_qos16_indeg_prior hgl_proj_qos
+
+rq-dependency-graph:
+	$(PYTHON) reproduce/loso_all_variants.py \
+	    --variants topo_qos gl_full_qos16_cap $(DEPENDENCY_GRAPH_ARMS) \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --epochs $(EPOCHS) --seeds $(SEEDS) --device cpu \
+	    --jobs $(HYBRID_JOBS) --torch-threads 1 \
+	    --output-base $(OUTPUT_DIR)/loso_cpu_dependency_graph \
+	    --output $(RESULTS_DIR)/loso_dependency_graph_cpu.json
+	for v in $(DEPENDENCY_GRAPH_ARMS); do \
+	    OMP_NUM_THREADS=4 $(PYTHON) reproduce/realworld_zeroshot.py --variant $$v --layers 3 --epochs $(EPOCHS) \
+	        --device cpu --workdir $(OUTPUT_DIR)/realworld_zeroshot_dependency_graph \
+	        --output $(RESULTS_DIR)/realworld_zeroshot_$${v}_dependency_graph.json || exit 1; \
+	done
+	$(PYTHON) reproduce/receptive_field_probe.py --substrate projection \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --output $(RESULTS_DIR)/receptive_field_probe_dependency_graph.json
+	$(PYTHON) reproduce/dependency_graph_contrasts.py \
+	    --input $(RESULTS_DIR)/loso_dependency_graph_cpu.json \
+	    --output $(RESULTS_DIR)/dependency_graph_contrasts.json
 
 # Where graph learning helps and where it does not (manuscript Section 8.2,
 # post hoc, exploratory). Trains nothing: joins the per-fold and zero-shot

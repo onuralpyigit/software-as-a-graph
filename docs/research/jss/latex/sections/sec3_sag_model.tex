@@ -78,7 +78,7 @@ $I^*(v)$ & Primary cascade-reachability oracle & $I_{\text{comp}}$, $I_{\text{dy
 \end{table}
 
 
-\subsection{QoS-Aware Weights and Logical Dependency Derivation}
+\subsection{Logical Dependency Derivation and QoS-Aware Weights}
 \label{sec:3.2}
 
 A link's strength depends on its QoS contract: a \texttt{RELIABLE} topic with \texttt{TRANSIENT\_LOCAL} durability couples services more strongly than a \texttt{BEST\_EFFORT} telemetry stream. Each topic $t$ therefore carries a weight $w(t) \in (0, 1]$ combining its declared QoS with payload size and publication frequency:
@@ -108,7 +108,7 @@ where $B(t)$ is the payload in bytes (design envelope 1~MiB, the practical DDS s
 
 \subsubsection{Logical Dependency Projection (\texttt{DEPENDS\_ON})}
 
-Structural edges do not capture implicit runtime dependencies: a subscriber depends on a publisher, yet no edge joins them. SaG therefore derives one semantic relation, \texttt{DEPENDS\_ON}, directed from \emph{dependent} to \emph{dependency} (``if the target fails, the source is impacted''), by the six rules of Table~\ref{tab:2}. Its weight $w \in (0, 1]$ expresses how likely a disruption of the dependency is to reach the dependent.
+Structural edges do not capture implicit runtime dependencies: a subscriber depends on a publisher, yet no edge joins them. SaG therefore derives one semantic relation, \texttt{DEPENDS\_ON}, directed from \emph{dependent} to \emph{dependency} (``if the target fails, the source is impacted''), by the six rules of Table~\ref{tab:2}. This derivation is what makes a component's dependents countable, and counting them on the derived graph is the strongest ranker in this study (Section~\ref{sec:rq1}). Its weight $w \in (0, 1]$ expresses how likely a disruption of the dependency is to reach the dependent.
 
 \begin{table}[htbp]
 \centering

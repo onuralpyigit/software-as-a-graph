@@ -33,12 +33,12 @@ Synthetic case study — ATM (1)    &    74 &    26 &  27 &  5 &   8 &   8 &   2
 \subsection{Predictors}
 \label{sec:6.2}
 
-SaG's closed-form engine (\texttt{Topo-QoS}), learned engines (\texttt{HGT-QoS}, \texttt{GAT-QoS}) and hybrid engines are compared against unweighted centrality (Topo) and untyped GNNs (Table~\ref{tab:predictor_taxonomy}). On a GNN, \texttt{-QoS} means the 16-D QoS edge vector (Section~\ref{sec:4.1.1}) together with three QoS node columns ($w$, $w_{\text{in}}$, $w_{\text{out}}$), and \texttt{Hybrid-X} is engine X corrected by the closed-form prior. \texttt{GAT} and \texttt{GAT-QoS} are untyped GATs matched to HGT in parameter budget, and \texttt{GAT-QoS} reads the same 16-D edge vector as \texttt{HGT-QoS}, so the four learned models form a $2\times2$ over typing (GAT vs.\ HGT) and the QoS channel. Smaller and projection-based variants that the study also ran are listed in Supplementary Section~\ref{S-supp:taxonomy}. All learned predictors ingest the native typed multigraph under LOSO. In QoS-off arms every edge weight is 1 and the QoS node columns are zeroed, though four centralities still carry QoS (Section~\ref{sec:3.4}).
+SaG's training-free engines on the dependency graph (\texttt{Topo-QoS}, \texttt{InDeg}, \texttt{Reach}), learned engines (\texttt{HGT-QoS}, \texttt{GAT-QoS}), hybrid engines and the learners on the dependency graph are compared against unweighted centrality (Topo) and untyped GNNs (Table~\ref{tab:predictor_taxonomy}). On a GNN, \texttt{-QoS} means the 16-D QoS edge vector (Section~\ref{sec:4.1.1}) together with three QoS node columns ($w$, $w_{\text{in}}$, $w_{\text{out}}$), and \texttt{Hybrid-X} is engine X corrected by the closed-form prior. \texttt{GAT} and \texttt{GAT-QoS} are untyped GATs matched to HGT in parameter budget, and \texttt{GAT-QoS} reads the same 16-D edge vector as \texttt{HGT-QoS}, so the four learned models form a $2\times2$ over typing (GAT vs.\ HGT) and the QoS channel. Smaller and projection-based variants that the study also ran are listed in Supplementary Section~\ref{S-supp:taxonomy}. The learned and hybrid engines ingest the native typed multigraph under LOSO, and the \texttt{-P} learners the Application--Library \texttt{DEPENDS\_ON} graph, with bit-identical node features and labels. In QoS-off arms every edge weight is 1 and the QoS node columns are zeroed, though four centralities still carry QoS (Section~\ref{sec:3.4}).
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Predictors reported in this paper. \texttt{-QoS}: QoS-weighted distances (Topo) or the 16-D QoS edge vector (GNNs); \texttt{Hybrid-X}: engine X corrected by the \texttt{Topo-QoS} prior. Every predictor run in the study, with the earlier names used by the registered plan and the artifacts: Supplementary Section~\ref{S-supp:taxonomy}.}
+\caption{Predictors reported in this paper. \texttt{-QoS}: QoS-weighted distances (Topo) or the 16-D QoS edge vector (GNNs); \texttt{-P}: trained on the dependency graph; \texttt{Hybrid-X}: engine X corrected by the \texttt{Topo-QoS} prior (Hybrid-GAT-P: by the \texttt{InDeg} prior). Every predictor run in the study, with the earlier names used by the registered plan and the artifacts: Supplementary Section~\ref{S-supp:taxonomy}.}
 \label{tab:predictor_taxonomy}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{llccccl}
@@ -46,8 +46,10 @@ SaG's closed-form engine (\texttt{Topo-QoS}), learned engines (\texttt{HGT-QoS},
 \textbf{Predictor} & \textbf{Evaluation Substrate} & \textbf{Typing} & \textbf{Edge Features} & \textbf{Parameters} & \textbf{Trained?} & \textbf{Empirical Role} \\
 \midrule
 \multicolumn{7}{l}{\textit{Training-free}} \\
-\textbf{Topo} & $G_{\text{analysis}}$ (Flow Projection) & No & None & 0 & No & Standard centrality baseline \\
-\textbf{Topo-QoS} & $G_{\text{analysis}}$ (Flow Projection) & No & Scalar $w(e)$ & 0 & No & SaG closed-form engine \\
+\textbf{Topo} & $G_{\text{analysis}}$ (Application layer) & No & None & 0 & No & Standard centrality baseline \\
+\textbf{Topo-QoS} & $G_{\text{analysis}}$ (App--Lib \texttt{DEPENDS\_ON}) & No & Scalar $w(e)$ & 0 & No & SaG closed-form engine \\
+\textbf{Reach} & $G_{\text{analysis}}$ (App--Lib \texttt{DEPENDS\_ON}) & No & None & 0 & No & Transitive dependents \\
+\textbf{InDeg} & $G_{\text{analysis}}$ (App--Lib \texttt{DEPENDS\_ON}) & No & None & 0 & No & Direct dependents \\
 \midrule
 \multicolumn{7}{l}{\textit{Learned: typing $\times$ QoS channel at matched parameter budget}} \\
 \textbf{GAT} & Native Multigraph & Homogeneous & None & 437{,}496 & Yes & Untyped, no QoS channel \\
@@ -58,18 +60,24 @@ SaG's closed-form engine (\texttt{Topo-QoS}), learned engines (\texttt{HGT-QoS},
 \multicolumn{7}{l}{\textit{Hybrid engines: a learned engine corrected by the \texttt{Topo-QoS} prior}} \\
 \textbf{Hybrid-HGT} & Native Multigraph & Heterogeneous & 16-D QoS Vector & 434{,}941 & Yes & \texttt{HGT-QoS} + prior \\
 \textbf{Hybrid-GAT} & Native Multigraph & Homogeneous & 16-D QoS Vector & 431{,}433 & Yes & \texttt{GAT-QoS} + prior \\
+\midrule
+\multicolumn{7}{l}{\textit{Learned on the dependency graph (Amendment~9)}} \\
+\textbf{GAT-P-QoS} & App--Lib \texttt{DEPENDS\_ON} & Homogeneous & 16-D QoS Vector & 429{,}992 & Yes & \texttt{GAT-QoS} on the dependency graph \\
+\textbf{Hybrid-GAT-P} & App--Lib \texttt{DEPENDS\_ON} & Homogeneous & 16-D QoS Vector & 431{,}433 & Yes & \texttt{GAT-P-QoS} + \texttt{InDeg} prior \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-\noindent\textbf{Closed-form scores.} Topo and \texttt{Topo-QoS} are computed on the Application--Library \texttt{DEPENDS\_ON} projection (Rules 1 and 5), because on the raw multigraph messages route through topics and brokers and Application betweenness vanishes:
+\noindent\textbf{Closed-form scores.} \texttt{Topo-QoS} is computed on the Application--Library \texttt{DEPENDS\_ON} graph (Rules 1 and 5), because on the raw multigraph messages route through topics and brokers and Application betweenness vanishes; the registered comparator Topo reads betweenness from the analysis stage's application-layer graph:
 \begin{equation}
 \text{Topo}(v) = 0.6 \cdot \text{BT}(v) + 0.4 \cdot \text{AP}(v),
 \qquad
 \text{Topo-QoS}(v) = 0.6 \cdot \text{BT}_{w}(v) + 0.4 \cdot \text{AP}(v),
 \end{equation}
-where BT is normalized betweenness, $\text{BT}_{w}$ is betweenness over edge distances $d(e) = 1/(w(e) + 10^{-6})$, so strongly coupled edges attract shortest paths, and AP flags articulation points. In the evaluated implementation the articulation term reads zero for every node, so the reported scores rank exactly as betweenness and QoS-weighted betweenness. Restoring it lowers both (Supplementary Section~\ref{S-supp:ap-sensitivity}), so the evaluated form is the stronger reference and is kept as registered. The whole \texttt{Topo-QoS} gain over Topo therefore comes from QoS weighting of shortest paths. No predictor reads $G_{\text{structural}}$ (Section~\ref{sec:4.4}).
+where BT is normalized betweenness, $\text{BT}_{w}$ is betweenness over edge distances $d(e) = 1/(w(e) + 10^{-6})$, so strongly coupled edges attract shortest paths, and AP flags articulation points. In the evaluated implementation the articulation term reads zero for every node, so the reported scores rank exactly as betweenness and QoS-weighted betweenness. Restoring it lowers both (Supplementary Section~\ref{S-supp:ap-sensitivity}), so the evaluated form is the stronger reference and is kept as registered. The two therefore differ in substrate as well as in weighting, and the registered controls of Section~\ref{sec:rq1} separate the two.
+
+\noindent\textbf{Dependency counts.} \texttt{InDeg}$(v)$ is the number of direct dependents of $v$ on the Application--Library \texttt{DEPENDS\_ON} graph, and \texttt{Reach}$(v)$ the number of its transitive dependents, normalized by $|V| - 1$. Both were registered in Amendment~7 before their results existed. No predictor reads $G_{\text{structural}}$ (Section~\ref{sec:4.4}).
 
 \subsection{Metrics, Protocols and Statistics}
 \label{sec:6.3}
@@ -82,4 +90,4 @@ where BT is normalized betweenness, $\text{BT}_{w}$ is betweenness over edge dis
 
 \noindent\textbf{Statistics.} We use paired Wilcoxon signed-rank tests \cite{wilcoxon1945individual} and bootstrap 95\% CIs ($B = 2{,}000$) over folds \cite{efron1993introduction,spearman1904proof}; with 12 folds, the smallest attainable two-sided $p$ is $0.00049$. Folds share ten of eleven training scenarios, so the tests are anti-conservative \cite{nadeau2003inference}, and we read all $p$-values as nominal.
 
-\noindent\textbf{Registered analysis plan.} Before the twelve-fold harness produced any result, we registered the primary contrast, \texttt{HGT-QoS} vs.\ \texttt{Topo-QoS}, together with \texttt{HGT} vs.\ \texttt{Topo-QoS} and Holm correction across the two. We call it \emph{registered} rather than pre-registered, because the plan is a file in our repository with no third-party timestamp. Three amendments registered further contrasts, each before its run and each Holm-corrected within its own family: the matched $2\times2$ with its capacity and directionality controls (Amendment~2), Hybrid-HGT (Amendment~5) and Hybrid-GAT (Amendment~6). Every other contrast is exploratory. Because the sequence was adaptive (Amendment~6 followed Amendment~2's result), we also pool all thirteen registered contrasts under one Holm correction (\path{reproduce/omnibus_holm.py}). Both hybrid primaries remain significant (Hybrid-GAT $p_{\text{omni}} = 0.019$, Hybrid-HGT $p_{\text{omni}} = 0.041$), and no other registered contrast reaches $\alpha = 0.05$ ($p_{\text{omni}} \ge 0.46$). Supplementary Section~\ref{S-supp:amendments} lists all six amendments with dates and outcomes.
+\noindent\textbf{Registered analysis plan.} Before the twelve-fold harness produced any result, we registered the primary contrast, \texttt{HGT-QoS} vs.\ \texttt{Topo-QoS}, together with \texttt{HGT} vs.\ \texttt{Topo-QoS} and Holm correction across the two. We call it \emph{registered} rather than pre-registered, because the plan is a file in our repository with no third-party timestamp. Three amendments registered further confirmatory contrasts, each before its run and each Holm-corrected within its own family: the matched $2\times2$ with its capacity and directionality controls (Amendment~2), Hybrid-HGT (Amendment~5) and Hybrid-GAT (Amendment~6). Three more registered exploratory families before their runs, each with its own Holm correction and decision rules: the dependency counts and QoS controls (Amendment~7), the learners on the dependency graph (Amendment~9) and the value of the derivation (Amendment~10). Every other contrast is exploratory. Because the sequence was adaptive (Amendment~6 followed Amendment~2's result), we also pool all thirteen registered contrasts under one Holm correction (\path{reproduce/omnibus_holm.py}). Both hybrid primaries remain significant (Hybrid-GAT $p_{\text{omni}} = 0.019$, Hybrid-HGT $p_{\text{omni}} = 0.041$), and no other registered contrast reaches $\alpha = 0.05$ ($p_{\text{omni}} \ge 0.46$). Supplementary Section~\ref{S-supp:amendments} lists all ten amendments with dates and outcomes.

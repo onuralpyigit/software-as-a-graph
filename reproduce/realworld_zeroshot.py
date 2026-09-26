@@ -57,6 +57,7 @@ from cli.loso_evaluate import (  # noqa: E402
     ScenarioBundle,
     _build_training_hetero,
     _build_validation_hetero,
+    _dependency_bundle,
     _graft_qos_edge_attr,
     _prepare_bundle_graph,
     _select_val_bundle,
@@ -89,6 +90,7 @@ def train_once(
     device: Optional[str] = "auto",
     topo_prior: bool = False,
     use_bidirectional: bool = True,
+    hidden_channels: int = 64,
 ) -> GNNService:
     """Train one HGT on the whole synthetic corpus.
 
@@ -120,7 +122,7 @@ def train_once(
         train_sm = _with_prior(primary, train_sm)
     service = GNNService(
         checkpoint_dir=str(ckpt_dir),
-        hidden_channels=64,
+        hidden_channels=hidden_channels,
         num_heads=4,
         num_layers=layers,
         dropout=0.2,
@@ -165,7 +167,8 @@ class HomogeneousScorer:
         self.model = model
         self.device = device
         self.rank_normalize_features = rank_normalize_features
-        #: SaG-Hybrid-GAT (Amendment 6) reads the Topo-QoS prior column.
+        #: Prior column: falsy, True / "topo_qos" (Hybrid-GAT, Amendment 6) or
+        #: "indeg" (Hybrid-GAT-P, Amendment 9).
         self.topo_prior = topo_prior
         #: QoS node features masked, QoS edge channel kept (GAT-QoS-nf).
         self.graft_edges = graft_edges
@@ -176,11 +179,11 @@ class HomogeneousScorer:
 
         graph, sm = _prepare_bundle_graph(bundle, use_qos)
         if self.topo_prior:
-            sm = _with_prior(bundle, sm)
+            sm = _with_prior(bundle, sm, self.topo_prior)
         conv = networkx_to_hetero_data(
             graph, sm, bundle.simulation, bundle.rm,
             qos_enabled=use_qos, rank_normalize_features=self.rank_normalize_features,
-            append_prior=self.topo_prior,
+            append_prior=bool(self.topo_prior),
         )
         if self.graft_edges:
             _graft_qos_edge_attr(conv.hetero_data, bundle, self.rank_normalize_features)
@@ -241,14 +244,14 @@ def train_once_homogeneous(
     edge_dim = _registry.edge_dim(variant, "loso")
     use_qos = _registry.node_qos_for(variant, "loso")
     graft_edges = edge_dim is not None and not use_qos
-    topo_prior = _registry.VARIANTS[variant].family == "hybrid"
+    topo_prior = _registry.prior_for(variant)
     train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
     if topo_prior:
-        train_sm = _with_prior(primary, train_sm)
+        train_sm = _with_prior(primary, train_sm, topo_prior)
     conv = networkx_to_hetero_data(
         train_graph, train_sm, primary.simulation, primary.rm,
         qos_enabled=use_qos, rank_normalize_features=rank_normalize_features,
-        append_prior=topo_prior,
+        append_prior=bool(topo_prior),
     )
     data = conv.hetero_data
     if graft_edges:
@@ -279,7 +282,7 @@ def train_once_homogeneous(
         "homo_unweighted" if edge_dim is None else "homo_scalar",
         hidden_channels=_registry.hidden_for(variant, 64, "loso"),
         num_heads=4, num_layers=layers, dropout=0.2, edge_dim=edge_dim,
-        topo_prior=topo_prior,
+        topo_prior=bool(topo_prior),
     )
     model.to(target_device)
     trainer = GNNTrainer(
@@ -372,8 +375,11 @@ def score(service: GNNService, bundle: ScenarioBundle, *, use_qos: bool,
     true_impact = {
         nid: float(d.get("composite", 0.0)) for nid, d in bundle.simulation.items()
     }
+    # A dependency-graph bundle (Amendment 9) is scored on its native graph, so
+    # every arm is scored on the same population.
+    graph = bundle.graph.graph.get("infra_source", bundle.graph)
     m = compute_inductive_metrics(
-        pred, true_impact, bundle.graph, population=population
+        pred, true_impact, graph, population=population
     )
 
     # Topology prior for hybrid evaluation
@@ -388,7 +394,7 @@ def score(service: GNNService, bundle: ScenarioBundle, *, use_qos: bool,
     norm_g = {k: v / max_g for k, v in pred.items()}
     pred_hybrid = {k: 0.5 * norm_t.get(k, 0.0) + 0.5 * norm_g.get(k, 0.0) for k in pred}
     m_hybrid = compute_inductive_metrics(
-        pred_hybrid, true_impact, bundle.graph, population=population
+        pred_hybrid, true_impact, graph, population=population
     )
     m["hybrid_spearman_rho"] = float(m_hybrid.get("spearman_rho", 0.0))
     m["hybrid_f1_at_k"] = float(m_hybrid.get("f1_at_k", 0.0))
@@ -397,7 +403,7 @@ def score(service: GNNService, bundle: ScenarioBundle, *, use_qos: bool,
     pos_impact = {nid: val for nid, val in true_impact.items() if val > 0}
     if len(pos_impact) >= 3:
         m_pos = compute_inductive_metrics(
-            pred, pos_impact, bundle.graph, population=population
+            pred, pos_impact, graph, population=population
         )
         m["spearman_rho_positive"] = (
             float(m_pos.get("spearman_rho")) if m_pos.get("spearman_rho") is not None else None
@@ -410,7 +416,7 @@ def score(service: GNNService, bundle: ScenarioBundle, *, use_qos: bool,
         m["spearman_rho_positive"] = None
         m["n_positive"] = len(pos_impact)
 
-    m["eval_points"] = _eval_points(pred, true_impact, bundle.graph, population)
+    m["eval_points"] = _eval_points(pred, true_impact, graph, population)
     return m
 
 
@@ -621,7 +627,8 @@ def main() -> int:
     p.add_argument("--variant", default="hgl_qos", choices=["hgl_qos", "hgl", "hgl_qos_prior",
                             "gl_full_cap", "gl_full_qos16_cap", "gl_qos16_prior",
                             "gl_full_qos16_nfmask", "tab_gbm", "tab_gbm_qos", "hgl_qos_uni",
-                            "gl_full_qos_cap"])
+                            "gl_full_qos_cap", "gl_proj_cap", "gl_proj_qos16_cap",
+                            "gl_proj_qos16_indeg_prior", "hgl_proj_qos"])
     p.add_argument("--seeds", default="42,123,456,789,2024")
     p.add_argument("--epochs", type=int, default=150)
     p.add_argument("--layers", type=int, default=2)
@@ -652,16 +659,21 @@ def main() -> int:
 
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()]
     homogeneous = args.variant in ("gl_full_cap", "gl_full_qos16_cap", "gl_qos16_prior",
-                                   "gl_full_qos16_nfmask", "gl_full_qos_cap")
+                                   "gl_full_qos16_nfmask", "gl_full_qos_cap", "gl_proj_cap",
+                                   "gl_proj_qos16_cap", "gl_proj_qos16_indeg_prior")
     tabular = args.variant in ("tab_gbm", "tab_gbm_qos")
     use_qos = (
         _registry.node_qos_for(args.variant, "loso") if homogeneous or tabular
-        else args.variant in ("hgl_qos", "hgl_qos_prior", "hgl_qos_uni")
+        else args.variant in ("hgl_qos", "hgl_qos_prior", "hgl_qos_uni", "hgl_proj_qos")
     )
     topo_prior = args.variant == "hgl_qos_prior"
+    # Amendment 9: learn and predict on the DEPENDS_ON projection of every graph.
+    on_projection = _registry.learns_on_projection(args.variant, "loso")
 
     synthetic = discover_scenarios(args.synthetic_cache, [])
     real = discover_scenarios(args.realworld_cache, [], min_scenarios=1)
+    if on_projection:
+        synthetic = [_dependency_bundle(b) for b in synthetic]
     logger.info("Synthetic training corpus: %d scenarios", len(synthetic))
     logger.info("Real-world evaluation corpus: %d systems", len(real))
 
@@ -701,10 +713,12 @@ def main() -> int:
                 device=args.device,
                 topo_prior=topo_prior,
                 use_bidirectional=_registry.bidirectional_for(args.variant),
+                hidden_channels=_registry.hidden_for(args.variant, 64, "loso"),
             )
         for b in real:
             try:
-                m = score(service, b, use_qos=use_qos,
+                m = score(service, _dependency_bundle(b) if on_projection else b,
+                          use_qos=use_qos,
                           population=args.eval_population,
                           rank_normalize_features=args.rank_normalize_features)
             except Exception as exc:                      # noqa: BLE001

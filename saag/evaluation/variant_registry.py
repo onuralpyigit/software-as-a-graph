@@ -21,12 +21,14 @@ A label is the architecture followed by what distinguishes it:
     Heterogeneous graph learning (HGT)     HGT  | HGT-QoS
     Hybrid engines                         Hybrid-HGT | Hybrid-GAT
     RQ2 confound controls                  GAT | GAT-w | GAT-QoS | HGT-QoS-U
+    Dependency-graph learning (Amdt. 9)    GAT-P | GAT-P-QoS | Hybrid-GAT-P | HGT-P-QoS
 
     -S     small GAT (28,168 parameters)
     -w     scalar QoS edge weight w(e)
     -QoS   on a GNN, the 16-D QoS edge vector; on Topo, QoS-weighted distances
     -P     the Application--Library DEPENDS_ON projection (default: native graph)
-    Hybrid-X   engine X reading the Topo-QoS prior and correcting its logit
+    Hybrid-X   engine X reading the Topo-QoS prior and correcting its logit;
+               Hybrid-X-P reads the InDeg prior instead (:attr:`Variant.prior`)
 
 Unsuffixed GAT and GAT-QoS are the capacity-matched controls, at HGT's
 parameter budget, so the matched 2x2 reads {GAT, HGT} x {-, -QoS}. ``SaG`` is
@@ -75,6 +77,8 @@ __all__ = [
     "hidden_for",
     "bidirectional_for",
     "node_qos_for",
+    "prior_for",
+    "learns_on_projection",
 ]
 
 
@@ -109,9 +113,14 @@ class Variant:
     #: follow the edge channel (QoS on iff ``qos != "none"``), which is true of
     #: every arm except the two that decouple them.
     node_qos: Optional[bool] = None
+    #: Closed-form score a hybrid reads as its prior column: ``"topo_qos"``
+    #: (Amendments 5 and 6) or ``"indeg"`` (Amendment 9). ``None`` = no prior.
+    prior: Optional[str] = None
 
 
-FAMILY_ORDER = ["structural", "tabular", "homogeneous", "heterogeneous", "hybrid", "control"]
+FAMILY_ORDER = [
+    "structural", "tabular", "homogeneous", "heterogeneous", "hybrid", "control", "dependency",
+]
 
 FAMILY_LABELS = {
     "structural": "Structural baselines (training-free)",
@@ -120,6 +129,7 @@ FAMILY_LABELS = {
     "heterogeneous": "Heterogeneous graph learning (typed HGT)",
     "hybrid": "Hybrid engines (a learned engine correcting the closed-form score)",
     "control": "RQ2 confound controls (not manuscript columns)",
+    "dependency": "Graph learning on the DEPENDS_ON projection (Amendment 9, not manuscript columns)",
 }
 
 #: Harnesses that report variants. They differ in the substrate they give
@@ -284,6 +294,7 @@ _VARIANT_LIST = [
         qos="full16",
         label="Hybrid-HGT",
         blurb="HGT-QoS learning a residual correction on the closed-form Topo-QoS score",
+        prior="topo_qos",
     ),
     Variant(
         # PREREGISTRATION.md Amendment 6. gl_full_qos16_cap with the same
@@ -296,6 +307,7 @@ _VARIANT_LIST = [
         blurb="capacity-matched untyped GAT (16-D QoS) learning a residual "
               "correction on the closed-form Topo-QoS score",
         hidden_channels=288,
+        prior="topo_qos",
     ),
     Variant(
         # qos stays "full16": this *is* a full-QoS HGT. The arm varies
@@ -309,6 +321,51 @@ _VARIANT_LIST = [
               "103,725 fewer); directionality control for RQ2",
         use_bidirectional=False,
         control_for="directionality",
+    ),
+    # PREREGISTRATION.md Amendment 9: the same learners on the Application--
+    # Library DEPENDS_ON projection (Rules 1 and 5, dependent -> dependency),
+    # where every component receives messages from its dependents. Widths match
+    # the native counterparts' parameter budgets; HGT-P-QoS needs width 100
+    # because the projection has 4 relation triples to the native graph's 10.
+    Variant(
+        variant_id="gl_proj_cap",
+        family="dependency",
+        substrate="projection",
+        qos="none",
+        label="GAT-P",
+        blurb="GAT (296 channels) on the DEPENDS_ON projection; the "
+              "dependency-graph counterpart of GAT",
+        hidden_channels=296,
+    ),
+    Variant(
+        variant_id="gl_proj_qos16_cap",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-P-QoS",
+        blurb="GAT-QoS (288 channels, 16-D QoS) on the DEPENDS_ON projection",
+        hidden_channels=288,
+    ),
+    Variant(
+        variant_id="gl_proj_qos16_indeg_prior",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="Hybrid-GAT-P",
+        blurb="GAT-P-QoS learning a residual correction on the rank-normalised "
+              "InDeg (direct-dependent count) prior",
+        hidden_channels=288,
+        prior="indeg",
+    ),
+    Variant(
+        variant_id="hgl_proj_qos",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="HGT-P-QoS",
+        blurb="bidirectional HGT-QoS on the DEPENDS_ON projection, width 100 "
+              "(430,680 params, 0.99x HGT-QoS)",
+        hidden_channels=100,
     ),
 ]
 
@@ -470,6 +527,24 @@ def bidirectional_for(variant_id: str, default: bool = True) -> bool:
     if variant is None or variant.use_bidirectional is None:
         return default
     return variant.use_bidirectional
+
+
+def prior_for(variant_id: str) -> Optional[str]:
+    """Closed-form prior ``variant_id`` reads (``"topo_qos"``/``"indeg"``), or ``None``."""
+    variant = VARIANTS.get(resolve(variant_id, "loso"), None)
+    return None if variant is None else variant.prior
+
+
+def learns_on_projection(variant_id: str, harness: str = "loso") -> bool:
+    """Whether a *learned* ``variant_id`` trains on the DEPENDS_ON projection.
+
+    False for the training-free scores (``substrate`` ``"none"``, and the Topo
+    pair, which the harnesses route through the projection themselves) and for
+    ``gl``/``gl_qos`` under LOSO/k-fold, which :func:`resolve` maps to native.
+    """
+    variant = VARIANTS.get(resolve(variant_id, harness), None)
+    return (variant is not None and variant.family != "structural"
+            and variant.substrate == "projection")
 
 
 def order(

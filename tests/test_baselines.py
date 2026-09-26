@@ -326,6 +326,13 @@ _NATIVE_RELATIONS = [
 ]
 _NODE_TYPES = ["Application", "Library", "Broker", "Topic", "Node"]
 
+#: The DEPENDS_ON projection's metadata (Amendment 9): App/Lib, one edge type.
+_PROJECTION_NODE_TYPES = ["Application", "Library"]
+_PROJECTION_RELATIONS = [
+    (s, "DEPENDS_ON", d)
+    for s in _PROJECTION_NODE_TYPES for d in _PROJECTION_NODE_TYPES
+]
+
 #: HGT's parameter count on that metadata at the shipped hyperparameters
 #: (D=64, H=4, 3 layers, bidirectional). A declared constant of the experiment.
 _HGT_PARAMS = 434_620
@@ -367,6 +374,9 @@ class TestControlArmCapacityParity:
 
     @pytest.mark.parametrize("variant_id", [
         "gl_full_cap", "gl_full_qos_cap", "gl_full_qos16_cap",
+        # Amendment 9: GATConv's size does not depend on the relation set, so
+        # the projection arms keep their native counterparts' widths.
+        "gl_proj_cap", "gl_proj_qos16_cap", "gl_proj_qos16_indeg_prior",
     ])
     def test_control_arms_match_hgt_within_five_percent(self, variant_id):
         from saag.prediction.models.baselines import build_baseline
@@ -378,12 +388,23 @@ class TestControlArmCapacityParity:
             name,
             hidden_channels=registry.hidden_for(variant_id, 64),
             edge_dim=edge_dim,
+            topo_prior=registry.prior_for(variant_id) is not None,
         )
         ratio = _n_params(model) / _HGT_PARAMS
         assert 0.95 <= ratio <= 1.05, (
             f"{variant_id} is {ratio:.3f}x HGT ({_n_params(model):,} params); "
             "it is supposed to be a capacity-matched control."
         )
+
+    def test_projection_hgt_matches_native_hgt_by_width(self):
+        """HGT-P-QoS (Amendment 9): 4 relation triples, so width 100 not 64."""
+        from saag.evaluation import variant_registry as registry
+        from saag.prediction.models.core import NodeCriticalityGNN
+        hidden = registry.hidden_for("hgl_proj_qos", 64)
+        model = NodeCriticalityGNN((_PROJECTION_NODE_TYPES, _PROJECTION_RELATIONS),
+                                   hidden_channels=hidden)
+        assert _n_params(model) == 430_680
+        assert 0.95 <= _n_params(model) / _HGT_PARAMS <= 1.05
 
     def test_directionality_control_drops_only_the_reverse_pass(self):
         uni = _build_hgt(use_bidirectional=False)
@@ -409,9 +430,10 @@ class TestControlArmCapacityParity:
         # accessors below are vacuous for it rather than meaningful.
         # "hybrid" (Amendment 5) is opt-in and not a manuscript column by
         # default; it keeps the default width and direction, checked below.
+        # "dependency" (Amendment 9) is capacity-matched on purpose, like "control".
         reported = [
             v for v, spec in registry.VARIANTS.items()
-            if spec.family not in ("control", "tabular", "hybrid")
+            if spec.family not in ("control", "tabular", "hybrid", "dependency")
         ]
         assert len(reported) == 9
         assert registry.hidden_for("hgl_qos_prior", 64) == 64

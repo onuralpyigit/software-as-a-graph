@@ -873,6 +873,11 @@ FRESHNESS_TARGETS = {
     "omnibus_registered_holm.json": "Section 6.3 / Supplementary S24 omnibus correction",
     # Where graph learning helps (post hoc): Section 8.2 and Supplementary Engine Regimes.
     "engine_regimes.json": "Section 8.2 / Supplementary Engine Regimes",
+    # Amendments 7, 9 and 10: dependency counts, dependency-graph learners, derivation.
+    "tf_baselines.json": "Table 7 InDeg / Reach rows; Supplementary Amendment 7",
+    "loso_dependency_graph_cpu.json": "Table 7 / tab:dg-learners (Amendment 9 LOSO)",
+    "dependency_graph_contrasts.json": "tab:dg-learners, Section 8.2, Supplementary Amendment 9",
+    "derivation_ablation.json": "Section 7.1 / Supplementary Amendment 10",
 }
 
 #: Artifacts that never read the corpus, so the corpus-freshness rule cannot
@@ -1222,7 +1227,7 @@ def check_contrasts_matched(rep: Report) -> None:
 #: (file, pattern). Each pattern captures (SaG-Hybrid, SaG-Hybrid-GAT) in that
 #: order; the sites that name one engine first say so in the pattern.
 OMNIBUS_PROSE = [
-    ("sec7_results.tex", r"thirteen registered contrasts of the study \(\$p_\{\\text\{omni\}\} = ([\d.]+)\$ and \$([\d.]+)\$"),
+    ("sec7_results.tex", r"thirteen (?:registered|confirmatory) contrasts of the study \(\$p_\{\\text\{omni\}\} = ([\d.]+)\$ and \$([\d.]+)\$"),
 ]
 
 
@@ -1423,7 +1428,8 @@ def check_engine_regimes(rep: Report) -> None:
     hq_gq_wins = sum(pf["HGT-QoS"][f]["rho"] > pf["GAT-QoS"][f]["rho"] for f in folds)
     apps = sorted(d["n_apps"] for d in L["descriptors"].values())
     for pattern, truths in (
-        (r"the untyped \\texttt\{GAT\} without them reaches " + num + " zero-shot", [(1, Z["mean_rho"]["GAT"])]),
+        (r"the untyped \\texttt\{GAT\} without (?:them|QoS inputs) (?:reaches|transfers at) " + num + " zero-shot",
+         [(1, Z["mean_rho"]["GAT"])]),
         (r"\\texttt\{HGT-QoS\} scores " + num + ", " + num + " and " + num + r", whereas \\texttt\{Topo-QoS\} scores "
          + num + ", " + num + " and " + num,
          [(1, m("weak", "HGT-QoS")), (2, m("middle", "HGT-QoS")), (3, m("strong", "HGT-QoS")),
@@ -1574,6 +1580,170 @@ def check_engine_regimes(rep: Report) -> None:
                     Z["mean_rho" if key == "rho" else "mean_rho_pos"][col])
 
 
+def check_dependency_graph(rep: Report) -> None:
+    """The dependency-graph results (PREREGISTRATION.md Amendments 7, 9 and 10).
+
+    Table tab:hybrid's InDeg / Reach rows (``tf_baselines.json``) and its
+    dependency-graph learner rows (``dependency_graph_contrasts.json`` and the
+    Amendment 9 LOSO / zero-shot artifacts); Table tab:dg-learners; the
+    Amendment 10 and regime figures quoted in prose; and both supplementary
+    table files, re-rendered from their artifacts and compared byte for byte.
+    """
+    import numpy as np
+    from scipy.stats import wilcoxon
+
+    tf, dg = _load("tf_baselines.json"), _load("dependency_graph_contrasts.json")
+    dv, dl = _load("derivation_ablation.json"), _load("loso_dependency_graph_cpu.json")
+    if None in (tf, dg, dv, dl):
+        rep.skipped.append("dependency-graph results: an Amendment 7/9/10 artifact is absent")
+        return
+    tex = _tex("sec7_results.tex")
+    folds = list(dg["per_fold"]["topo_qos"])
+    topo = np.array([dg["per_fold"]["topo_qos"][f]["rho"] for f in folds])
+
+    def _cmp(where: str, row: str, name: str, got, truth, tol: float = 0.0006) -> None:
+        rep.checked += 1
+        if got is None or abs(got - truth) > tol:
+            rep.findings.append(Finding(where, row, name, got, round(truth, 4)))
+
+    # Table tab:hybrid.
+    counts = {"InDeg": "InDeg", "Reach": "Reach"}
+    learners = {_registry.label(v, "loso"): v for v in ("gl_proj_qos16_cap", "gl_proj_qos16_indeg_prior")}
+    seen = 0
+    for row in _rows(tex, r"\midrule", after_label=r"\label{tab:hybrid}"):
+        cells = _cells(row)
+        name = _label(cells[0])
+        if name in counts:
+            s_, c = tf["summary"][counts[name]], tf["contrasts_vs_topo_qos"][counts[name]]
+            truths = ((1, s_["loso_mean_rho"], "mean_rho"), (2, c["delta"], "delta"),
+                      (3, c["won"], "won"), (5, s_["loso_mean_overlap"], "overlap_at_k"),
+                      (6, s_["systems_mean_rho"], "systems_rho"),
+                      (7, s_["systems_mean_pr_auc"], "systems_pr_auc"))
+        elif name in learners:
+            v = learners[name]
+            f = np.array([dg["per_fold"][v][k]["rho"] for k in folds])
+            z = _load(f"realworld_zeroshot_{v}_dependency_graph.json")
+            truths = ((1, f.mean(), "mean_rho"), (2, (f - topo).mean(), "delta"),
+                      (3, int(((f - topo) > 0).sum()), "won"),
+                      (4, float(wilcoxon(f, topo).pvalue), "p"),
+                      (5, dl["comparison_table"][v]["mean_f1"], "overlap_at_k"),
+                      (6, z["mean_rho_across_systems"], "systems_rho"),
+                      (7, float(np.mean([x["mean_pr_auc"] for x in z["per_system"].values()])), "systems_pr_auc"))
+        else:
+            continue
+        seen += 1
+        for idx, truth, nm in truths:
+            _cmp("tab:hybrid", name, nm, _num(cells[idx]) if idx < len(cells) else None, truth,
+                 0.00006 if nm == "p" else 0.0006)
+    if seen != 4:
+        rep.findings.append(Finding("tab:hybrid", "dependency-graph rows", "rows", seen, 4))
+
+    # Table tab:dg-learners.
+    means, con, zs = dg["means"], dg["contrasts"], dg["zeroshot"]
+    arms = {_registry.label(v, "loso"): v for v in
+            ("gl_proj_cap", "gl_proj_qos16_cap", "gl_proj_qos16_indeg_prior", "hgl_proj_qos")}
+    triple = re.compile(r"([-+]?\d\.\d+)\$?(?: vs [^(]*)? \((\d+)/12, ([\d.]+)\)")
+    seen = 0
+    for row in _rows(tex, r"\midrule", after_label=r"\label{tab:dg-learners}"):
+        cells = _cells(row)
+        v = arms.get(_label(cells[0]))
+        if v is None:
+            continue
+        seen += 1
+        lab = _registry.label(v, "loso")
+        _cmp("tab:dg-learners", lab, "loso_rho", _num(cells[1]), means[v]["loso_mean_rho"])
+        _cmp("tab:dg-learners", lab, "zero_shot", _num(cells[5]), zs[v]["mean_rho"])
+        refs = [f"{lab} vs InDeg", f"{lab} vs Reach"] + [k for k in con if k.startswith(f"{lab} vs ")
+                                                          and k.split(" vs ")[1] not in ("InDeg", "Reach")]
+        for idx, key in zip((2, 3, 4), refs):
+            m = triple.search(cells[idx].replace("$", "").replace(r"\mathbf{", "").replace("}", ""))
+            if m is None:
+                rep.findings.append(Finding("tab:dg-learners", lab, key, "unparsed", None))
+                continue
+            for got, truth, nm in ((float(m.group(1)), con[key]["delta"], "delta"),
+                                   (float(m.group(2)), con[key]["won"], "won"),
+                                   (float(m.group(3)), con[key]["p_holm"], "p_holm")):
+                _cmp("tab:dg-learners", key, nm, got, truth, 0.0006)
+    if seen != 4:
+        rep.findings.append(Finding("tab:dg-learners", "rows", "rows", seen, 4))
+
+    # Amendment 10 and regime figures quoted in prose.
+    c10, s10 = dv["contrasts"], dv["summary"]
+    num = r"\$([-+]?[\d.]+)\$"
+    _quote(rep, "sec:rq1", tex,
+           r"raw connections in the multigraph scores " + num + r", and counting the topics it publishes "
+           + num + r"; \\texttt\{InDeg\} beats both on all twelve folds \(" + num + " and " + num
+           + r", Holm \$p = ([\d.]+)\$\).*?\\texttt\{Reach\} falls by " + num + r" \((\d+)/12, Holm \$p = ([\d.]+)\$\)",
+           [(1, s10["Degree-raw"]["loso_mean_rho"]), (2, s10["Pubs-raw"]["loso_mean_rho"]),
+            (3, c10["InDeg vs Degree-raw"]["delta"]), (4, c10["InDeg vs Pubs-raw"]["delta"]),
+            (5, max(c10["InDeg vs Degree-raw"]["p_holm"], c10["InDeg vs Pubs-raw"]["p_holm"])),
+            (6, c10["Reach vs Reach-R1"]["delta"]), (7, c10["Reach vs Reach-R1"]["won"]),
+            (8, c10["Reach vs Reach-R1"]["p_holm"])])
+    _quote(rep, "abstract", _tex("abstract.tex"),
+           r"Spearman \$\\rho = ([\d.]+)\$.*?counting raw connections \(\$\+([\d.]+)\$\).*?reaches \$\\rho = ([\d.]+)\$ "
+           r"without any training.*?reaching \$\\rho = ([\d.]+)\$",
+           [(1, tf["summary"]["InDeg"]["loso_mean_rho"]), (2, c10["InDeg vs Degree-raw"]["delta"]),
+            (3, tf["summary"]["Reach"]["systems_mean_rho"]),
+            (4, means["gl_proj_qos16_indeg_prior"]["loso_mean_rho"])])
+    regimes = _load("engine_regimes.json")
+    if regimes is not None:
+        by = regimes["loso"]["regimes_by_topo_qos_tercile"]
+        sec8 = _tex("sec8_discussion.tex")
+        table = sec8[sec8.index(r"\label{tab:regimes}"):sec8.index(r"\end{table}", sec8.index(r"\label{tab:regimes}"))]
+
+        def tm(t: str, arm: str) -> float:
+            ids = by[t]["folds"]
+            if arm in ("InDeg", "Reach"):
+                return float(np.mean([tf["per_fold"][FOLD_NAMES_A7[i]][arm]["rho"] for i in ids]))
+            return float(np.mean([dg["per_fold"][arm][i]["rho"] for i in ids]))
+        for label_, t, pairs in (
+            ("Closed-form ranks poorly", "weak", (("InDeg", r"\\texttt\{InDeg\}"), ("Reach", r"\\texttt\{Reach\}"),
+                                                  ("gl_proj_qos16_cap", r"\\texttt\{GAT-P-QoS\}"))),
+            ("Intermediate", "middle", (("InDeg", r"\\texttt\{InDeg\}"), ("gl_proj_qos16_cap", r"\\texttt\{GAT-P-QoS\}"))),
+            ("Closed-form ranks well", "strong", (("InDeg", r"\\texttt\{InDeg\}"),
+                                                  ("gl_proj_qos16_indeg_prior", r"Hybrid-GAT-P"))),
+        ):
+            pat = label_ + r".*?" + r".*?".join(tex_ + " " + num for _, tex_ in pairs)
+            _quote(rep, "tab:regimes", table, pat, [(i + 1, tm(t, a)) for i, (a, _) in enumerate(pairs)])
+
+    # Both supplementary table files, re-rendered and compared byte for byte.
+    try:
+        from reproduce import render_amendment7_tables as r7
+        from reproduce import render_amendment9_tables as r9
+        tf_all = r7._load("tf_baselines.json")
+        a7 = "\n\n".join([
+            "% Generated by reproduce/render_amendment7_tables.py -- do not edit by hand.",
+            r7.per_fold_table(tf_all), r7.contrasts_table(tf_all), r7.systems_table(tf_all),
+            r7.controls_table(r7._load("qos_attribution_controls.json"), r7._load("qos_indep_corpus.json"),
+                              r7._load("topo_substrate_check.json")),
+            r7.oracle_table(r7._load("oracle_param_sensitivity.json")),
+            r7.descriptives_table(r7._load("system_model_descriptives.json"), tf_all),
+        ]) + "\n"
+        a9 = "\n\n".join(["% Generated by reproduce/render_amendment9_tables.py -- do not edit by hand.",
+                          r9.a9_folds(dg), r9.a9_contrasts(dg), r9.a9_zeroshot(dg), r9.a9_probe(dg),
+                          r9.a10_derivation(dv)]) + "\n"
+    except FileNotFoundError:
+        rep.skipped.append("supp_amendment7/9.tex: an artifact is absent")
+        return
+    for fname, expected, script in (("supp_amendment7.tex", a7, "render_amendment7_tables.py"),
+                                     ("supp_amendment9.tex", a9, "render_amendment9_tables.py")):
+        rep.checked += 1
+        if (ROOT / "docs/research/jss/latex" / fname).read_text() != expected:
+            rep.findings.append(Finding(fname, "rendered tables", "content", "stale", "re-render",
+                                        f"run reproduce/{script}"))
+
+
+#: Amendment 7's artifacts key folds by display name.
+FOLD_NAMES_A7 = {
+    "atm_system": "ATM", "av_system": "AV System", "enterprise_system": "Enterprise",
+    "financial_trading_system": "Financial Trading", "healthcare_system": "Healthcare",
+    "hub_and_spoke_system": "Enterprise Integration (ESB)",
+    "industrial_scada_system": "Industrial SCADA", "iot_smart_city_system": "IoT Smart City",
+    "logistics_fleet_system": "Logistics Fleet", "microservices_system": "Microservices",
+    "realtime_gaming_system": "Real-Time Gaming", "telecom_ran_system": "Telecom RAN",
+}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1610,6 +1780,7 @@ def main() -> int:
     check_contrasts_matched(rep)
     check_omnibus_holm(rep)
     check_engine_regimes(rep)
+    check_dependency_graph(rep)
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts "
           f"({len(rep.skipped)} check(s) skipped).\n")

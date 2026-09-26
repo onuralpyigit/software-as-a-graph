@@ -8,7 +8,8 @@ carry the paper's three findings at a glance:
 
     A. Accuracy on unseen synthetic architectures (LOSO) against zero-shot
        transfer to the five system models, per engine, with 95% CIs.
-       -> hybrids lead in distribution, pure learned engines transfer best.
+       -> dependency counts on the derived graph rank best and transfer best;
+          learners that read the dependency graph reach their level.
     B. Per-fold Delta-rho against Topo-QoS for HGT-QoS and Hybrid-HGT, folds
        ordered by the closed-form engine's own score.
        -> the engines are complementary; the prior removes the learned
@@ -22,11 +23,15 @@ reconciled against them by ``reconcile_manuscript.py``:
 
     results/loso_hybrid_cpu.json, results/loso_hybrid_gat_cpu.json   (A, B)
     results/realworld_zeroshot_<variant>_cpu.json                     (A)
+    results/tf_baselines.json                         (A: InDeg, Reach; Amdt. 7)
+    results/dependency_graph_contrasts.json,
+    results/realworld_zeroshot_<variant>_dependency_graph.json (A; Amdt. 9)
     results/loso_rq2_matched.json                                     (C)
 
 LOSO intervals use the same fold bootstrap as the tables
 (``loso_significance._bootstrap_delta_ci`` applied to fold means, B=2000,
-seed 42); zero-shot intervals are the artifacts' own bootstrap over systems.
+seed 42); zero-shot intervals are the artifacts' own bootstrap over systems,
+and for InDeg / Reach the interval Table 7 prints (``tf_baselines.json``).
 
 Usage
 -----
@@ -59,16 +64,24 @@ OUT = Path("docs/research/jss/latex/figures/Figure_5")
 INK, INK2, GRID = "#1F2937", "#475569", "#E5E7EB"
 # Engine identity, fixed across the paper's figures (Okabe-Ito; validated with
 # the dataviz palette checker: CVD and normal-vision separation pass).
-ENGINES = [  # (variant, printed label from the registry, colour)
-    (v, label(v, "loso"), c) for v, c in (
+#: Training-free dependency counts (Amendment 7) are not registry variants.
+COUNTS = {"InDeg": "#000000", "Reach": "#56B4E9"}
+ENGINES = [  # (variant, printed label, colour), top to bottom
+    (v, v if v in COUNTS else label(v, "loso"), c) for v, c in (
         ("topo_baseline", "#999999"),
         ("topo_qos", "#0072B2"),
+        ("Reach", COUNTS["Reach"]),
+        ("InDeg", COUNTS["InDeg"]),
         ("hgl_qos", "#E69F00"),
         ("gl_full_qos16_cap", "#CC79A7"),
         ("hgl_qos_prior", "#D55E00"),
         ("gl_qos16_prior", "#009E73"),
+        ("gl_proj_qos16_cap", "#7B3F8C"),
+        ("gl_proj_qos16_indeg_prior", "#005F46"),
     )
 ]
+#: Learners on the dependency graph (Amendment 9), read from their own artifacts.
+DEPENDENCY_GRAPH = ("gl_proj_qos16_cap", "gl_proj_qos16_indeg_prior")
 COLOUR = {v: c for v, _, c in ENGINES}
 FOLD = {  # two-line tick labels for panel B
     "atm_system": "ATM\n", "av_system": "AV\nSystem", "enterprise_system": "Enter-\nprise",
@@ -98,11 +111,22 @@ def _folds(table: dict, variant: str) -> dict:
 def load():
     loso = {**_load("loso_hybrid_gat_cpu.json")["comparison_table"],
             **_load("loso_hybrid_cpu.json")["comparison_table"]}
+    tf = _load("tf_baselines.json")
+    dg = _load("dependency_graph_contrasts.json")["per_fold"]
     loso_ci = {}
     for v, _, _ in ENGINES:
-        f = np.array(list(_folds(loso, v).values()))
+        if v in COUNTS:
+            f = np.array([row[v]["rho"] for row in tf["per_fold"].values()])
+        elif v in DEPENDENCY_GRAPH:
+            f = np.array([row["rho"] for row in dg[v].values()])
+        else:
+            f = np.array(list(_folds(loso, v).values()))
         loso_ci[v] = (float(f.mean()), *_bootstrap_delta_ci(f))
-    rw = {}
+    rw = {c: (tf["summary"][c]["systems_mean_rho"], *tf["summary"][c]["systems_rho_ci95"])
+          for c in COUNTS}
+    for v in DEPENDENCY_GRAPH:
+        b = _load(f"realworld_zeroshot_{v}_dependency_graph.json")["bootstrap_ci"]
+        rw[v] = tuple(b["learned"]["rho"][k] for k in ("mean", "lo", "hi"))
     for v in ("hgl_qos", "gl_full_qos16_cap", "hgl_qos_prior", "gl_qos16_prior"):
         b = _load(f"realworld_zeroshot_{v}_cpu.json")["bootstrap_ci"]
         rw[v] = tuple(b["learned"]["rho"][k] for k in ("mean", "lo", "hi"))
@@ -132,7 +156,7 @@ def panel_a(ax, loso_ci, rw):
                label="zero-shot (5 systems)"),
     ], loc="upper right", ncol=2, frameon=False, fontsize=6.2, handletextpad=0.2,
        columnspacing=1.0, borderaxespad=0.0)
-    ax.set_title("A. In-distribution accuracy vs. transfer", loc="left", fontsize=7.6,
+    ax.set_title("A. Dependency counts and dependency-graph learners lead", loc="left", fontsize=7.6,
                  fontweight="bold", color=INK)
 
 
@@ -190,8 +214,8 @@ def panel_c(ax, matched):
 
 def main() -> None:
     loso, loso_ci, rw, matched = load()
-    fig = plt.figure(figsize=(6.5, 4.9))
-    gs = fig.add_gridspec(2, 2, width_ratios=[1.55, 1.0], height_ratios=[1.0, 0.95],
+    fig = plt.figure(figsize=(6.5, 5.6))
+    gs = fig.add_gridspec(2, 2, width_ratios=[1.55, 1.0], height_ratios=[1.45, 0.95],
                           wspace=0.42, hspace=0.62, left=0.15, right=0.99, bottom=0.14, top=0.95)
     ax_a, ax_c = fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])
     ax_b = fig.add_subplot(gs[1, :])

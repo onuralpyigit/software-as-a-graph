@@ -1,7 +1,7 @@
 # Amendment 7: dependency counts and QoS-attribution controls
 
-**Paper:** §7.1 (Finding 1), §7.1.2 (Finding 2), §7.3, §7.4; Table 7 training-free rows;
-Figure 5; Supplementary S31 (Tables S30–S35).
+**Paper:** §7.1 (Table 7 `InDeg` / `Reach` rows; "Where the closed-form gain comes from"), §7.3,
+§7.4, §8.1; Figure 5; Supplementary S32 (Tables S34–S39).
 **Registered:** [`PREREGISTRATION.md`](../PREREGISTRATION.md), Amendment 7 (2026-09-25), before any
 of these numbers existed. Decision rules R1, R2 and R2′ all applied.
 
@@ -71,4 +71,4 @@ These files are committed in `results/`, unlike the rest of the bundle:
   - On the QoS-independent corpus, QoS weighting changes the score by −0.035.
 - **Inert-vs-active rule:** 94% balanced accuracy.
 
-The full per-fold results are in Supplementary Tables S30–S35.
+The full per-fold results are in Supplementary Tables S34–S39.
