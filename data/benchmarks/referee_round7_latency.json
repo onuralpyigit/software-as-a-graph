@@ -1,0 +1,84 @@
+{
+  "sizes": [
+    {
+      "n_target": 250,
+      "n_actual": 249,
+      "n_edges": 1081,
+      "projection_s": 0.007933789000162506,
+      "indeg_s": 4.1973999941546936e-05,
+      "reach_s": 0.011741371999960393,
+      "istar_s": 3.9870239589999983,
+      "istar_repeats": 5,
+      "count_path_s": 0.007975763000104052
+    },
+    {
+      "n_target": 500,
+      "n_actual": 499,
+      "n_edges": 2437,
+      "projection_s": 0.01111368500005483,
+      "indeg_s": 5.6397999287582934e-05,
+      "reach_s": 0.024892597999496502,
+      "istar_s": 15.094468583999515,
+      "istar_repeats": 5,
+      "count_path_s": 0.011170082999342412
+    },
+    {
+      "n_target": 1000,
+      "n_actual": 999,
+      "n_edges": 6372,
+      "projection_s": 0.025182929000038712,
+      "indeg_s": 9.067300015885849e-05,
+      "reach_s": 0.11305476500001532,
+      "istar_s": 58.46381217599992,
+      "istar_repeats": 5,
+      "count_path_s": 0.02527360200019757
+    },
+    {
+      "n_target": 2000,
+      "n_actual": 1998,
+      "n_edges": 19242,
+      "projection_s": 0.10955934800040268,
+      "indeg_s": 0.00017498499983048532,
+      "reach_s": 0.4908297460005997,
+      "istar_s": 346.6392719530004,
+      "istar_repeats": 5,
+      "count_path_s": 0.10973433300023316
+    },
+    {
+      "n_target": 5000,
+      "n_actual": 4995,
+      "n_edges": 94790,
+      "projection_s": 0.4261726340000678,
+      "indeg_s": 0.0006058870003471384,
+      "reach_s": 4.3699429899997995,
+      "istar_s": 2163.5152932600004,
+      "istar_repeats": 1,
+      "count_path_s": 0.4267785210004149
+    },
+    {
+      "n_target": 10000,
+      "n_actual": 9990,
+      "n_edges": 348277,
+      "projection_s": 1.0943012990010175,
+      "indeg_s": 0.0009546660003252327,
+      "reach_s": 23.302421443999265,
+      "istar_s": null,
+      "istar_repeats": 0,
+      "count_path_s": 1.0952559650013427
+    }
+  ],
+  "provenance": {
+    "commit": "4f4253e911c699034a57f69ad07a6709c0459042",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/referee_round7.py",
+      "amendment": 12,
+      "experiment": "R6",
+      "repeats": 5,
+      "statistic": "median",
+      "istar_max": 5000,
+      "istar_full_repeats_max": 2000
+    }
+  }
+}
