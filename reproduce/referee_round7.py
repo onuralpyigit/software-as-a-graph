@@ -128,7 +128,17 @@ def pagerank_raw(topology: Dict[str, Any], reverse: bool = False) -> Dict[str, f
 
 
 def raw_rankers(topology: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
+    """Every ranker scores every Application. subscriber_count_raw and pubs_raw only
+    emit components that publish, and the shared metric code scores only the nodes a
+    ranker emits, so without the zero fill a non-publisher (count 0) would silently
+    drop out of that ranker's population."""
     flow = _flow(topology)
+    apps = [str(a["id"]) for a in topology.get("applications", [])]
+    return {name: {**{a: 0.0 for a in apps}, **scores}
+            for name, scores in _raw_rankers(topology, flow).items()}
+
+
+def _raw_rankers(topology: Dict[str, Any], flow: nx.DiGraph) -> Dict[str, Dict[str, float]]:
     return {
         "InDeg": indeg(flow),
         "Raw2Hop": subscriber_count_raw(topology),
@@ -259,7 +269,7 @@ def cmd_partial(_: argparse.Namespace) -> int:
             }
         per[sid] = row
         print(f"{sid:28s} n={row['n']:3d} " + " ".join(
-            f"{r}={row[r]['rho']:.3f}|{row[r]['partial_given_istar'] if row[r]['partial_given_istar'] is None else round(row[r]['partial_given_istar'], 3)}"
+            f"{r}={row[r]['rho']}|{row[r]['partial_given_istar']}"
             for r in rankers))
     summary: Dict[str, Any] = {}
     for r in rankers:
