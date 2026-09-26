@@ -1,0 +1,103 @@
+{
+  "per_fold": {
+    "ATM": {
+      "published Topo": 0.256,
+      "app-layer BT (memory rebuild)": 0.2555007881220655,
+      "projection BT, unweighted": 0.29126443727458634,
+      "projection BT, QoS-weighted (Topo-QoS)": 0.3109239422098597
+    },
+    "AV System": {
+      "published Topo": 0.468,
+      "app-layer BT (memory rebuild)": 0.5052695478922051,
+      "projection BT, unweighted": 0.79088186414737,
+      "projection BT, QoS-weighted (Topo-QoS)": 0.7526918117294357
+    },
+    "Enterprise": {
+      "published Topo": 0.431,
+      "app-layer BT (memory rebuild)": 0.4476819875136393,
+      "projection BT, unweighted": 0.8436800718985596,
+      "projection BT, QoS-weighted (Topo-QoS)": 0.7953082495191883
+    },
+    "Financial Trading": {
+      "published Topo": 0.237,
+      "app-layer BT (memory rebuild)": 0.2404209529128652,
+      "projection BT, unweighted": 0.6938624880282648,
+      "projection BT, QoS-weighted (Topo-QoS)": 0.5864231295106708
+    },
+    "Healthcare": {
+      "published Topo": 0.077,
+      "app-layer BT (memory rebuild)": 0.1010536741635763,
+      "projection BT, unweighted": 0.4018557436520509,
+      "projection BT, QoS-weighted (Topo-QoS)": 0.36869084150771025
+    },
+    "Enterprise Integration (ESB)": {
+      "published Topo": 0.112,
+      "app-layer BT (memory rebuild)": 0.12454470212337,
+      "projection BT, unweighted": 0.5444771832002182,
+      "projection BT, QoS-weighted (Topo-QoS)": 0.42951365098479605
+    },
+    "Industrial SCADA": {
+      "published Topo": 0.608,
+      "app-layer BT (memory rebuild)": 0.6066729779129889,
+      "projection BT, unweighted": 0.6678944743156646,
+      "projection BT, QoS-weighted (Topo-QoS)": 0.6503746663112442
+    },
+    "IoT Smart City": {
+      "published Topo": 0.251,
+      "app-layer BT (memory rebuild)": 0.25129121241407104,
+      "projection BT, unweighted": 0.3665630339997603,
+      "projection BT, QoS-weighted (Topo-QoS)": 0.3512103555774073
+    },
+    "Logistics Fleet": {
+      "published Topo": 0.576,
+      "app-layer BT (memory rebuild)": 0.5796743943247706,
+      "projection BT, unweighted": 0.7359209677901185,
+      "projection BT, QoS-weighted (Topo-QoS)": 0.7406995865664335
+    },
+    "Microservices": {
+      "published Topo": 0.229,
+      "app-layer BT (memory rebuild)": 0.23100635998976754,
+      "projection BT, unweighted": 0.3479841763074413,
+      "projection BT, QoS-weighted (Topo-QoS)": 0.26538514238447786
+    },
+    "Real-Time Gaming": {
+      "published Topo": 0.377,
+      "app-layer BT (memory rebuild)": 0.4065492701236188,
+      "projection BT, unweighted": 0.8553349129774572,
+      "projection BT, QoS-weighted (Topo-QoS)": 0.8102612338299413
+    },
+    "Telecom RAN": {
+      "published Topo": 0.562,
+      "app-layer BT (memory rebuild)": 0.5690546355349493,
+      "projection BT, unweighted": 0.5559698476597057,
+      "projection BT, QoS-weighted (Topo-QoS)": 0.5761904555663259
+    }
+  },
+  "summary": {
+    "published Topo": 0.3486666666666667,
+    "app-layer BT (memory rebuild)": 0.35989337525232395,
+    "projection BT, unweighted": 0.5913074334375997,
+    "projection BT, QoS-weighted (Topo-QoS)": 0.5531394221414575
+  },
+  "contrasts": {
+    "projection unweighted vs QoS-weighted": {
+      "delta": 0.03816801129614223,
+      "ci95": [
+        0.013943191052198057,
+        0.06277859658204249
+      ],
+      "won": 9,
+      "n": 12,
+      "p": 0.02099609375
+    }
+  },
+  "provenance": {
+    "commit": "45d0785e68359d34f31f800fd0b6dd4e520dbaaf",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/training_free_suite.py",
+      "experiment": "substrate"
+    }
+  }
+}

@@ -1,0 +1,362 @@
+{
+  "grid": [
+    [
+      0.75,
+      0.15,
+      0.1
+    ],
+    [
+      0.9,
+      0.05,
+      0.05
+    ],
+    [
+      0.85,
+      0.15,
+      0.0
+    ],
+    [
+      1.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.6,
+      0.2,
+      0.2
+    ],
+    [
+      0.5,
+      0.25,
+      0.25
+    ],
+    [
+      0.3333333333333333,
+      0.3333333333333333,
+      0.3333333333333333
+    ]
+  ],
+  "shipped": [
+    0.75,
+    0.15,
+    0.1
+  ],
+  "scenarios": [
+    "av_system",
+    "enterprise_system",
+    "financial_trading_system",
+    "healthcare_system",
+    "hub_and_spoke_system",
+    "iot_smart_city_system",
+    "microservices_system"
+  ],
+  "rows": [
+    {
+      "beta": 0.75,
+      "alpha": 0.15,
+      "psi": 0.1,
+      "is_shipped": true,
+      "w_rank_rho_vs_shipped": 1.0,
+      "n_topics": 375,
+      "eval_population": "application",
+      "per_scenario": {
+        "av_system": {
+          "topo_qos_rho": 0.7527,
+          "rm_rho": 0.4208
+        },
+        "enterprise_system": {
+          "topo_qos_rho": 0.7953,
+          "rm_rho": 0.3943
+        },
+        "financial_trading_system": {
+          "topo_qos_rho": 0.5864,
+          "rm_rho": 0.1816
+        },
+        "healthcare_system": {
+          "topo_qos_rho": 0.3687,
+          "rm_rho": -0.0493
+        },
+        "hub_and_spoke_system": {
+          "topo_qos_rho": 0.4295,
+          "rm_rho": 0.0648
+        },
+        "iot_smart_city_system": {
+          "topo_qos_rho": 0.3512,
+          "rm_rho": 0.4184
+        },
+        "microservices_system": {
+          "topo_qos_rho": 0.2654,
+          "rm_rho": 0.205
+        }
+      },
+      "topo_qos_mean_rho": 0.507,
+      "rm_mean_rho": 0.2337
+    },
+    {
+      "beta": 0.9,
+      "alpha": 0.05,
+      "psi": 0.05,
+      "is_shipped": false,
+      "w_rank_rho_vs_shipped": 0.9956,
+      "n_topics": 375,
+      "eval_population": "application",
+      "per_scenario": {
+        "av_system": {
+          "topo_qos_rho": 0.7455,
+          "rm_rho": 0.4122
+        },
+        "enterprise_system": {
+          "topo_qos_rho": 0.7951,
+          "rm_rho": 0.3947
+        },
+        "financial_trading_system": {
+          "topo_qos_rho": 0.5832,
+          "rm_rho": 0.1925
+        },
+        "healthcare_system": {
+          "topo_qos_rho": 0.3732,
+          "rm_rho": -0.0485
+        },
+        "hub_and_spoke_system": {
+          "topo_qos_rho": 0.4322,
+          "rm_rho": 0.076
+        },
+        "iot_smart_city_system": {
+          "topo_qos_rho": 0.3567,
+          "rm_rho": 0.4176
+        },
+        "microservices_system": {
+          "topo_qos_rho": 0.2587,
+          "rm_rho": 0.2189
+        }
+      },
+      "topo_qos_mean_rho": 0.5064,
+      "rm_mean_rho": 0.2376
+    },
+    {
+      "beta": 0.85,
+      "alpha": 0.15,
+      "psi": 0.0,
+      "is_shipped": false,
+      "w_rank_rho_vs_shipped": 0.9942,
+      "n_topics": 375,
+      "eval_population": "application",
+      "per_scenario": {
+        "av_system": {
+          "topo_qos_rho": 0.7578,
+          "rm_rho": 0.4204
+        },
+        "enterprise_system": {
+          "topo_qos_rho": 0.793,
+          "rm_rho": 0.3926
+        },
+        "financial_trading_system": {
+          "topo_qos_rho": 0.583,
+          "rm_rho": 0.1717
+        },
+        "healthcare_system": {
+          "topo_qos_rho": 0.3738,
+          "rm_rho": -0.045
+        },
+        "hub_and_spoke_system": {
+          "topo_qos_rho": 0.4218,
+          "rm_rho": 0.0684
+        },
+        "iot_smart_city_system": {
+          "topo_qos_rho": 0.3538,
+          "rm_rho": 0.417
+        },
+        "microservices_system": {
+          "topo_qos_rho": 0.2682,
+          "rm_rho": 0.2008
+        }
+      },
+      "topo_qos_mean_rho": 0.5073,
+      "rm_mean_rho": 0.2323
+    },
+    {
+      "beta": 1.0,
+      "alpha": 0.0,
+      "psi": 0.0,
+      "is_shipped": false,
+      "w_rank_rho_vs_shipped": 0.9873,
+      "n_topics": 375,
+      "eval_population": "application",
+      "per_scenario": {
+        "av_system": {
+          "topo_qos_rho": 0.7492,
+          "rm_rho": 0.4127
+        },
+        "enterprise_system": {
+          "topo_qos_rho": 0.7933,
+          "rm_rho": 0.3973
+        },
+        "financial_trading_system": {
+          "topo_qos_rho": 0.5814,
+          "rm_rho": 0.1949
+        },
+        "healthcare_system": {
+          "topo_qos_rho": 0.3738,
+          "rm_rho": -0.0581
+        },
+        "hub_and_spoke_system": {
+          "topo_qos_rho": 0.4449,
+          "rm_rho": 0.0945
+        },
+        "iot_smart_city_system": {
+          "topo_qos_rho": 0.3556,
+          "rm_rho": 0.4199
+        },
+        "microservices_system": {
+          "topo_qos_rho": 0.2654,
+          "rm_rho": 0.2168
+        }
+      },
+      "topo_qos_mean_rho": 0.5091,
+      "rm_mean_rho": 0.2397
+    },
+    {
+      "beta": 0.6,
+      "alpha": 0.2,
+      "psi": 0.2,
+      "is_shipped": false,
+      "w_rank_rho_vs_shipped": 0.9918,
+      "n_topics": 375,
+      "eval_population": "application",
+      "per_scenario": {
+        "av_system": {
+          "topo_qos_rho": 0.7561,
+          "rm_rho": 0.4264
+        },
+        "enterprise_system": {
+          "topo_qos_rho": 0.7969,
+          "rm_rho": 0.395
+        },
+        "financial_trading_system": {
+          "topo_qos_rho": 0.6121,
+          "rm_rho": 0.1674
+        },
+        "healthcare_system": {
+          "topo_qos_rho": 0.3723,
+          "rm_rho": -0.0408
+        },
+        "hub_and_spoke_system": {
+          "topo_qos_rho": 0.4171,
+          "rm_rho": 0.0736
+        },
+        "iot_smart_city_system": {
+          "topo_qos_rho": 0.3511,
+          "rm_rho": 0.4191
+        },
+        "microservices_system": {
+          "topo_qos_rho": 0.277,
+          "rm_rho": 0.1983
+        }
+      },
+      "topo_qos_mean_rho": 0.5118,
+      "rm_mean_rho": 0.2341
+    },
+    {
+      "beta": 0.5,
+      "alpha": 0.25,
+      "psi": 0.25,
+      "is_shipped": false,
+      "w_rank_rho_vs_shipped": 0.9765,
+      "n_topics": 375,
+      "eval_population": "application",
+      "per_scenario": {
+        "av_system": {
+          "topo_qos_rho": 0.7998,
+          "rm_rho": 0.4246
+        },
+        "enterprise_system": {
+          "topo_qos_rho": 0.7982,
+          "rm_rho": 0.3958
+        },
+        "financial_trading_system": {
+          "topo_qos_rho": 0.6279,
+          "rm_rho": 0.155
+        },
+        "healthcare_system": {
+          "topo_qos_rho": 0.3745,
+          "rm_rho": -0.0334
+        },
+        "hub_and_spoke_system": {
+          "topo_qos_rho": 0.4069,
+          "rm_rho": 0.0825
+        },
+        "iot_smart_city_system": {
+          "topo_qos_rho": 0.3529,
+          "rm_rho": 0.4168
+        },
+        "microservices_system": {
+          "topo_qos_rho": 0.2822,
+          "rm_rho": 0.1865
+        }
+      },
+      "topo_qos_mean_rho": 0.5203,
+      "rm_mean_rho": 0.2325
+    },
+    {
+      "beta": 0.3333,
+      "alpha": 0.3333,
+      "psi": 0.3333,
+      "is_shipped": false,
+      "w_rank_rho_vs_shipped": 0.9186,
+      "n_topics": 375,
+      "eval_population": "application",
+      "per_scenario": {
+        "av_system": {
+          "topo_qos_rho": 0.7917,
+          "rm_rho": 0.4282
+        },
+        "enterprise_system": {
+          "topo_qos_rho": 0.7992,
+          "rm_rho": 0.3888
+        },
+        "financial_trading_system": {
+          "topo_qos_rho": 0.6609,
+          "rm_rho": 0.1567
+        },
+        "healthcare_system": {
+          "topo_qos_rho": 0.3722,
+          "rm_rho": -0.0569
+        },
+        "hub_and_spoke_system": {
+          "topo_qos_rho": 0.4896,
+          "rm_rho": 0.0817
+        },
+        "iot_smart_city_system": {
+          "topo_qos_rho": 0.3573,
+          "rm_rho": 0.4237
+        },
+        "microservices_system": {
+          "topo_qos_rho": 0.2925,
+          "rm_rho": 0.2153
+        }
+      },
+      "topo_qos_mean_rho": 0.5376,
+      "rm_mean_rho": 0.2339
+    }
+  ],
+  "interpretation": {
+    "min_w_rank_rho_vs_shipped": 0.9186,
+    "topo_qos_rho_spread": 0.0312,
+    "rm_rho_spread": 0.0074,
+    "term_contributions_at_shipped": {
+      "qos": {
+        "sd_raw": 0.2951,
+        "sd_weighted": 0.2213
+      },
+      "size_norm": {
+        "sd_raw": 0.1346,
+        "sd_weighted": 0.02019
+      },
+      "freq_norm": {
+        "sd_raw": 0.2104,
+        "sd_weighted": 0.02104
+      }
+    },
+    "note": "A small spread means the declared (beta, alpha, psi) is not load-bearing: every triple in the grid, including a uniform prior, induces essentially the same ordering and the same downstream rho. That is the structural justification for the constant \u2014 it is an argument that the choice does not matter, not a claim that the shipped value is optimal. Read `term_contributions_at_shipped` alongside it: SizeNorm is log-compressed into a narrow band, so its weighted spread is far below the QoS term's and it cannot reorder topics whatever alpha is set to. rho is scored on the Application population against I*(v), the primary oracle. The GNN variants are not retrained across the grid; this bounds the constant's effect on the closed-form scorers only."
+  }
+}

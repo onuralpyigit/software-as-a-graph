@@ -42,6 +42,10 @@ from reproduce._provenance import stamp
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results"
+if not (RESULTS / "loso_all_variants_v5.json").exists():
+    alt = ROOT / "data" / "benchmarks"
+    if (alt / "loso_all_variants_v5.json").exists():
+        RESULTS = alt
 CORPUS = ROOT / "data/scenarios"
 
 #: arm -> (artifact, variant id). Each arm is read from the sweep the

@@ -1,0 +1,300 @@
+{
+  "provenance": {
+    "commit": "6e82774eb5137e12c7131e603d138171c74d5a88",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "cache_dir": "output/loso_cache",
+      "probe_hidden": 32,
+      "seed": 0
+    }
+  },
+  "gradient_probe": {
+    "atm_system": {
+      "n_nodes": 74,
+      "n_app": 26,
+      "hgl_qos": {
+        "mean_rf_nodes": 35.80769230769231,
+        "mean_rf_share": 0.4838877338877339,
+        "share_of_apps_seeing_other_apps": 1.0,
+        "mean_edges_with_gradient": 65.1923076923077
+      },
+      "hgl_qos_uni": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.013513513513513514,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      },
+      "gl_full_qos16_cap": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.013513513513513514,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      }
+    },
+    "av_system": {
+      "n_nodes": 152,
+      "n_app": 80,
+      "hgl_qos": {
+        "mean_rf_nodes": 87.625,
+        "mean_rf_share": 0.5764802631578947,
+        "share_of_apps_seeing_other_apps": 1.0,
+        "mean_edges_with_gradient": 174.45
+      },
+      "hgl_qos_uni": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.006578947368421052,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      },
+      "gl_full_qos16_cap": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.006578947368421052,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      }
+    },
+    "enterprise_system": {
+      "n_nodes": 520,
+      "n_app": 300,
+      "hgl_qos": {
+        "mean_rf_nodes": 247.95,
+        "mean_rf_share": 0.47682692307692304,
+        "share_of_apps_seeing_other_apps": 1.0,
+        "mean_edges_with_gradient": 473.88666666666666
+      },
+      "hgl_qos_uni": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.0019230769230769232,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      },
+      "gl_full_qos16_cap": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.0019230769230769232,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      }
+    },
+    "financial_trading_system": {
+      "n_nodes": 124,
+      "n_app": 60,
+      "hgl_qos": {
+        "mean_rf_nodes": 72.65,
+        "mean_rf_share": 0.5858870967741936,
+        "share_of_apps_seeing_other_apps": 1.0,
+        "mean_edges_with_gradient": 144.9
+      },
+      "hgl_qos_uni": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.008064516129032258,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      },
+      "gl_full_qos16_cap": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.008064516129032258,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      }
+    },
+    "healthcare_system": {
+      "n_nodes": 98,
+      "n_app": 50,
+      "hgl_qos": {
+        "mean_rf_nodes": 54.88,
+        "mean_rf_share": 0.56,
+        "share_of_apps_seeing_other_apps": 1.0,
+        "mean_edges_with_gradient": 98.36
+      },
+      "hgl_qos_uni": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.01020408163265306,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      },
+      "gl_full_qos16_cap": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.01020408163265306,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      }
+    },
+    "hub_and_spoke_system": {
+      "n_nodes": 139,
+      "n_app": 70,
+      "hgl_qos": {
+        "mean_rf_nodes": 82.42857142857143,
+        "mean_rf_share": 0.5930113052415211,
+        "share_of_apps_seeing_other_apps": 1.0,
+        "mean_edges_with_gradient": 186.18571428571428
+      },
+      "hgl_qos_uni": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.007194244604316547,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      },
+      "gl_full_qos16_cap": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.007194244604316547,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      }
+    },
+    "industrial_scada_system": {
+      "n_nodes": 254,
+      "n_app": 140,
+      "hgl_qos": {
+        "mean_rf_nodes": 99.80714285714286,
+        "mean_rf_share": 0.39294150731158606,
+        "share_of_apps_seeing_other_apps": 1.0,
+        "mean_edges_with_gradient": 141.75714285714287
+      },
+      "hgl_qos_uni": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.003937007874015748,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      },
+      "gl_full_qos16_cap": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.003937007874015748,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      }
+    },
+    "iot_smart_city_system": {
+      "n_nodes": 326,
+      "n_app": 200,
+      "hgl_qos": {
+        "mean_rf_nodes": 114.21,
+        "mean_rf_share": 0.3503374233128834,
+        "share_of_apps_seeing_other_apps": 1.0,
+        "mean_edges_with_gradient": 174.77
+      },
+      "hgl_qos_uni": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.003067484662576687,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      },
+      "gl_full_qos16_cap": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.003067484662576687,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      }
+    },
+    "logistics_fleet_system": {
+      "n_nodes": 205,
+      "n_app": 110,
+      "hgl_qos": {
+        "mean_rf_nodes": 81.63636363636364,
+        "mean_rf_share": 0.39822616407982264,
+        "share_of_apps_seeing_other_apps": 1.0,
+        "mean_edges_with_gradient": 121.7
+      },
+      "hgl_qos_uni": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.004878048780487805,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      },
+      "gl_full_qos16_cap": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.004878048780487805,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      }
+    },
+    "microservices_system": {
+      "n_nodes": 186,
+      "n_app": 90,
+      "hgl_qos": {
+        "mean_rf_nodes": 72.2,
+        "mean_rf_share": 0.3881720430107527,
+        "share_of_apps_seeing_other_apps": 1.0,
+        "mean_edges_with_gradient": 105.11111111111111
+      },
+      "hgl_qos_uni": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.005376344086021506,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      },
+      "gl_full_qos16_cap": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.005376344086021506,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      }
+    },
+    "realtime_gaming_system": {
+      "n_nodes": 158,
+      "n_app": 75,
+      "hgl_qos": {
+        "mean_rf_nodes": 70.25333333333333,
+        "mean_rf_share": 0.44464135021097045,
+        "share_of_apps_seeing_other_apps": 1.0,
+        "mean_edges_with_gradient": 114.8
+      },
+      "hgl_qos_uni": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.006329113924050633,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      },
+      "gl_full_qos16_cap": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.006329113924050633,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      }
+    },
+    "telecom_ran_system": {
+      "n_nodes": 225,
+      "n_app": 120,
+      "hgl_qos": {
+        "mean_rf_nodes": 90.0,
+        "mean_rf_share": 0.4,
+        "share_of_apps_seeing_other_apps": 1.0,
+        "mean_edges_with_gradient": 131.56666666666666
+      },
+      "hgl_qos_uni": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.0044444444444444444,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      },
+      "gl_full_qos16_cap": {
+        "mean_rf_nodes": 1.0,
+        "mean_rf_share": 0.0044444444444444444,
+        "share_of_apps_seeing_other_apps": 0.0,
+        "mean_edges_with_gradient": 0.0
+      }
+    }
+  },
+  "edge_deletion_max_abs_delta": {
+    "gl_full_cap": {
+      "enterprise_system": 0.0,
+      "healthcare_system": 0.0
+    },
+    "gl_full_qos16_nfmask": {
+      "enterprise_system": 0.0,
+      "healthcare_system": 0.0
+    },
+    "gl_full_qos16_cap": {
+      "enterprise_system": 0.0,
+      "healthcare_system": 0.0
+    },
+    "gl_qos16_prior": {
+      "enterprise_system": 0.0,
+      "healthcare_system": 0.0
+    },
+    "gl_full_qos_cap": {
+      "enterprise_system": 0.0,
+      "healthcare_system": 0.0
+    }
+  }
+}

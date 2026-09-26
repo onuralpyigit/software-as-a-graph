@@ -1,0 +1,182 @@
+{
+  "measurement": "FaultInjector ground-truth labelling sweep, per scenario",
+  "timed_region": "graph load + FaultInjector.run (as cli/simulate_graph.py fault-inject)",
+  "settings": {
+    "seeds": [
+      42,
+      123,
+      456,
+      789,
+      2024
+    ],
+    "node_types": [
+      "Application",
+      "Broker",
+      "Library"
+    ],
+    "cascade_depth_limit": 0,
+    "propagation_threshold": 0.2,
+    "qos_factor_mode": "ladder",
+    "repeats": 3,
+    "statistic": "median of repeats"
+  },
+  "platform": {
+    "python": "3.11.5",
+    "machine": "x86_64",
+    "system": "Linux",
+    "processor": ""
+  },
+  "per_scenario": {
+    "atm_system": {
+      "median_s": 0.0802,
+      "min_s": 0.0798,
+      "max_s": 0.0837,
+      "runs_s": [
+        0.0837,
+        0.0802,
+        0.0798
+      ],
+      "nodes_injected": 39
+    },
+    "av_system": {
+      "median_s": 0.3551,
+      "min_s": 0.3469,
+      "max_s": 0.3613,
+      "runs_s": [
+        0.3551,
+        0.3469,
+        0.3613
+      ],
+      "nodes_injected": 104
+    },
+    "enterprise_system": {
+      "median_s": 4.4873,
+      "min_s": 4.4761,
+      "max_s": 4.55,
+      "runs_s": [
+        4.4761,
+        4.4873,
+        4.55
+      ],
+      "nodes_injected": 360
+    },
+    "financial_trading_system": {
+      "median_s": 0.2393,
+      "min_s": 0.2373,
+      "max_s": 0.2411,
+      "runs_s": [
+        0.2373,
+        0.2393,
+        0.2411
+      ],
+      "nodes_injected": 83
+    },
+    "healthcare_system": {
+      "median_s": 0.1488,
+      "min_s": 0.1481,
+      "max_s": 0.1493,
+      "runs_s": [
+        0.1493,
+        0.1488,
+        0.1481
+      ],
+      "nodes_injected": 65
+    },
+    "hub_and_spoke_system": {
+      "median_s": 0.2448,
+      "min_s": 0.2436,
+      "max_s": 0.2477,
+      "runs_s": [
+        0.2436,
+        0.2448,
+        0.2477
+      ],
+      "nodes_injected": 97
+    },
+    "industrial_scada_system": {
+      "median_s": 1.191,
+      "min_s": 1.1832,
+      "max_s": 1.1917,
+      "runs_s": [
+        1.191,
+        1.1917,
+        1.1832
+      ],
+      "nodes_injected": 159
+    },
+    "iot_smart_city_system": {
+      "median_s": 1.104,
+      "min_s": 1.0976,
+      "max_s": 1.1481,
+      "runs_s": [
+        1.104,
+        1.0976,
+        1.1481
+      ],
+      "nodes_injected": 216
+    },
+    "logistics_fleet_system": {
+      "median_s": 0.9388,
+      "min_s": 0.9271,
+      "max_s": 0.9619,
+      "runs_s": [
+        0.9619,
+        0.9271,
+        0.9388
+      ],
+      "nodes_injected": 137
+    },
+    "microservices_system": {
+      "median_s": 0.8281,
+      "min_s": 0.8141,
+      "max_s": 0.8482,
+      "runs_s": [
+        0.8482,
+        0.8281,
+        0.8141
+      ],
+      "nodes_injected": 126
+    },
+    "realtime_gaming_system": {
+      "median_s": 0.3788,
+      "min_s": 0.3777,
+      "max_s": 0.3795,
+      "runs_s": [
+        0.3777,
+        0.3795,
+        0.3788
+      ],
+      "nodes_injected": 108
+    },
+    "telecom_ran_system": {
+      "median_s": 1.0651,
+      "min_s": 1.0459,
+      "max_s": 1.068,
+      "runs_s": [
+        1.0651,
+        1.0459,
+        1.068
+      ],
+      "nodes_injected": 150
+    }
+  },
+  "summary": {
+    "n_scenarios": 12,
+    "oracle_seconds": {
+      "min": 0.0802,
+      "max": 4.4873
+    },
+    "gate_seconds": {
+      "min": 0.16,
+      "max": 79.27
+    },
+    "gate_over_oracle_at_max": 17.67,
+    "gate_source": "results/detection_validation_timed_jss12.json"
+  },
+  "provenance": {
+    "commit": "53b8f878d505c81564a6efbf1bc5b0ba314b186b",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {}
+  }
+}

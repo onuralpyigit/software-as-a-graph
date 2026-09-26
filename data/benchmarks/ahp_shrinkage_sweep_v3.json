@@ -1,0 +1,466 @@
+{
+  "lambdas": [
+    0.0,
+    0.5,
+    0.6,
+    0.65,
+    0.7,
+    0.75,
+    0.8,
+    0.9,
+    1.0
+  ],
+  "scenarios": [
+    "av_system",
+    "iot_smart_city_system",
+    "financial_trading_system",
+    "healthcare_system",
+    "hub_and_spoke_system",
+    "microservices_system",
+    "enterprise_system"
+  ],
+  "rows": [
+    {
+      "lambda": 0.0,
+      "eval_population": "application",
+      "mean_rho": 0.319194586792945,
+      "std_rho": 0.15421143083120153,
+      "per_scenario_rho": {
+        "av_system": 0.5055,
+        "enterprise_system": 0.4174,
+        "financial_trading_system": 0.2802,
+        "healthcare_system": 0.0625,
+        "hub_and_spoke_system": 0.1857,
+        "iot_smart_city_system": 0.5065,
+        "microservices_system": 0.2766
+      },
+      "n_scenarios": 7,
+      "pooled_mean_rho": 0.14168514077405056,
+      "pooled_per_scenario_rho": {
+        "av_system": 0.2397,
+        "enterprise_system": 0.1918,
+        "financial_trading_system": 0.0638,
+        "healthcare_system": -0.0295,
+        "hub_and_spoke_system": 0.1435,
+        "iot_smart_city_system": 0.4508,
+        "microservices_system": -0.0682
+      },
+      "projection_substrate_mean_rho": -0.22600539801187886,
+      "projection_substrate_per_scenario_rho": {
+        "av_system": -0.0757,
+        "enterprise_system": 0.1039,
+        "financial_trading_system": -0.3249,
+        "healthcare_system": -0.5723,
+        "hub_and_spoke_system": -0.3287,
+        "iot_smart_city_system": -0.2499,
+        "microservices_system": -0.1344
+      },
+      "weights": {
+        "composite": {
+          "reliability": 0.8,
+          "maintainability": 0.2
+        },
+        "fault_tolerance_terms": {
+          "reverse_pagerank": 0.3333,
+          "in_degree": 0.3333,
+          "cdpot": 0.3333
+        }
+      }
+    },
+    {
+      "lambda": 0.5,
+      "eval_population": "application",
+      "mean_rho": 0.2585279440450669,
+      "std_rho": 0.16423271901437309,
+      "per_scenario_rho": {
+        "av_system": 0.4435,
+        "enterprise_system": 0.4041,
+        "financial_trading_system": 0.2073,
+        "healthcare_system": -0.0048,
+        "hub_and_spoke_system": 0.096,
+        "iot_smart_city_system": 0.442,
+        "microservices_system": 0.2216
+      },
+      "n_scenarios": 7,
+      "pooled_mean_rho": 0.027092447012852357,
+      "pooled_per_scenario_rho": {
+        "av_system": 0.1039,
+        "enterprise_system": 0.1091,
+        "financial_trading_system": -0.0812,
+        "healthcare_system": -0.1418,
+        "hub_and_spoke_system": 0.0153,
+        "iot_smart_city_system": 0.3581,
+        "microservices_system": -0.1739
+      },
+      "projection_substrate_mean_rho": -0.20149432667932876,
+      "projection_substrate_per_scenario_rho": {
+        "av_system": -0.0523,
+        "enterprise_system": 0.1341,
+        "financial_trading_system": -0.3058,
+        "healthcare_system": -0.5293,
+        "hub_and_spoke_system": -0.3137,
+        "iot_smart_city_system": -0.2267,
+        "microservices_system": -0.1167
+      },
+      "weights": {
+        "composite": {
+          "reliability": 0.8,
+          "maintainability": 0.2
+        },
+        "fault_tolerance_terms": {
+          "reverse_pagerank": 0.3965,
+          "in_degree": 0.3263,
+          "cdpot": 0.2772
+        }
+      }
+    },
+    {
+      "lambda": 0.6,
+      "eval_population": "application",
+      "mean_rho": 0.24641333868506896,
+      "std_rho": 0.16873821626726346,
+      "per_scenario_rho": {
+        "av_system": 0.434,
+        "enterprise_system": 0.3986,
+        "financial_trading_system": 0.1953,
+        "healthcare_system": -0.0266,
+        "hub_and_spoke_system": 0.0783,
+        "iot_smart_city_system": 0.4321,
+        "microservices_system": 0.2133
+      },
+      "n_scenarios": 7,
+      "pooled_mean_rho": 0.007950528581594854,
+      "pooled_per_scenario_rho": {
+        "av_system": 0.0869,
+        "enterprise_system": 0.0924,
+        "financial_trading_system": -0.1078,
+        "healthcare_system": -0.1646,
+        "hub_and_spoke_system": -0.005,
+        "iot_smart_city_system": 0.3414,
+        "microservices_system": -0.1875
+      },
+      "projection_substrate_mean_rho": -0.19690027189534967,
+      "projection_substrate_per_scenario_rho": {
+        "av_system": -0.0455,
+        "enterprise_system": 0.1377,
+        "financial_trading_system": -0.2992,
+        "healthcare_system": -0.5245,
+        "hub_and_spoke_system": -0.3133,
+        "iot_smart_city_system": -0.2213,
+        "microservices_system": -0.1122
+      },
+      "weights": {
+        "composite": {
+          "reliability": 0.8,
+          "maintainability": 0.2
+        },
+        "fault_tolerance_terms": {
+          "reverse_pagerank": 0.4092,
+          "in_degree": 0.3249,
+          "cdpot": 0.266
+        }
+      }
+    },
+    {
+      "lambda": 0.65,
+      "eval_population": "application",
+      "mean_rho": 0.23899962708284692,
+      "std_rho": 0.17109063209562897,
+      "per_scenario_rho": {
+        "av_system": 0.4261,
+        "enterprise_system": 0.3967,
+        "financial_trading_system": 0.1901,
+        "healthcare_system": -0.0403,
+        "hub_and_spoke_system": 0.0683,
+        "iot_smart_city_system": 0.4248,
+        "microservices_system": 0.2072
+      },
+      "n_scenarios": 7,
+      "pooled_mean_rho": -0.004759081513319106,
+      "pooled_per_scenario_rho": {
+        "av_system": 0.0714,
+        "enterprise_system": 0.0847,
+        "financial_trading_system": -0.1291,
+        "healthcare_system": -0.1789,
+        "hub_and_spoke_system": -0.0156,
+        "iot_smart_city_system": 0.3304,
+        "microservices_system": -0.1962
+      },
+      "projection_substrate_mean_rho": -0.19475392576152178,
+      "projection_substrate_per_scenario_rho": {
+        "av_system": -0.0431,
+        "enterprise_system": 0.1401,
+        "financial_trading_system": -0.2949,
+        "healthcare_system": -0.5245,
+        "hub_and_spoke_system": -0.3137,
+        "iot_smart_city_system": -0.2184,
+        "microservices_system": -0.1088
+      },
+      "weights": {
+        "composite": {
+          "reliability": 0.8,
+          "maintainability": 0.2
+        },
+        "fault_tolerance_terms": {
+          "reverse_pagerank": 0.4155,
+          "in_degree": 0.3242,
+          "cdpot": 0.2603
+        }
+      }
+    },
+    {
+      "lambda": 0.7,
+      "eval_population": "application",
+      "mean_rho": 0.2337662871231068,
+      "std_rho": 0.1720737026958827,
+      "per_scenario_rho": {
+        "av_system": 0.4214,
+        "enterprise_system": 0.3943,
+        "financial_trading_system": 0.1816,
+        "healthcare_system": -0.0493,
+        "hub_and_spoke_system": 0.0648,
+        "iot_smart_city_system": 0.4184,
+        "microservices_system": 0.205
+      },
+      "n_scenarios": 7,
+      "pooled_mean_rho": -0.013589688362963388,
+      "pooled_per_scenario_rho": {
+        "av_system": 0.064,
+        "enterprise_system": 0.0777,
+        "financial_trading_system": -0.1473,
+        "healthcare_system": -0.186,
+        "hub_and_spoke_system": -0.0219,
+        "iot_smart_city_system": 0.3213,
+        "microservices_system": -0.2028
+      },
+      "projection_substrate_mean_rho": -0.19341926847745275,
+      "projection_substrate_per_scenario_rho": {
+        "av_system": -0.0431,
+        "enterprise_system": 0.1425,
+        "financial_trading_system": -0.2927,
+        "healthcare_system": -0.5215,
+        "hub_and_spoke_system": -0.3144,
+        "iot_smart_city_system": -0.2171,
+        "microservices_system": -0.1075
+      },
+      "weights": {
+        "composite": {
+          "reliability": 0.8,
+          "maintainability": 0.2
+        },
+        "fault_tolerance_terms": {
+          "reverse_pagerank": 0.4218,
+          "in_degree": 0.3235,
+          "cdpot": 0.2547
+        }
+      }
+    },
+    {
+      "lambda": 0.75,
+      "eval_population": "application",
+      "mean_rho": 0.22560604953728416,
+      "std_rho": 0.17270064838986107,
+      "per_scenario_rho": {
+        "av_system": 0.4119,
+        "enterprise_system": 0.3915,
+        "financial_trading_system": 0.1654,
+        "healthcare_system": -0.054,
+        "hub_and_spoke_system": 0.0566,
+        "iot_smart_city_system": 0.4133,
+        "microservices_system": 0.1945
+      },
+      "n_scenarios": 7,
+      "pooled_mean_rho": -0.02599292176465178,
+      "pooled_per_scenario_rho": {
+        "av_system": 0.0455,
+        "enterprise_system": 0.0703,
+        "financial_trading_system": -0.1666,
+        "healthcare_system": -0.1971,
+        "hub_and_spoke_system": -0.0325,
+        "iot_smart_city_system": 0.3125,
+        "microservices_system": -0.2141
+      },
+      "projection_substrate_mean_rho": -0.19063982079528066,
+      "projection_substrate_per_scenario_rho": {
+        "av_system": -0.039,
+        "enterprise_system": 0.1448,
+        "financial_trading_system": -0.289,
+        "healthcare_system": -0.5199,
+        "hub_and_spoke_system": -0.3104,
+        "iot_smart_city_system": -0.2152,
+        "microservices_system": -0.1058
+      },
+      "weights": {
+        "composite": {
+          "reliability": 0.8,
+          "maintainability": 0.2
+        },
+        "fault_tolerance_terms": {
+          "reverse_pagerank": 0.4281,
+          "in_degree": 0.3228,
+          "cdpot": 0.2491
+        }
+      }
+    },
+    {
+      "lambda": 0.8,
+      "eval_population": "application",
+      "mean_rho": 0.22257776233223633,
+      "std_rho": 0.17152367997909518,
+      "per_scenario_rho": {
+        "av_system": 0.4099,
+        "enterprise_system": 0.3901,
+        "financial_trading_system": 0.1629,
+        "healthcare_system": -0.0468,
+        "hub_and_spoke_system": 0.0465,
+        "iot_smart_city_system": 0.4081,
+        "microservices_system": 0.1873
+      },
+      "n_scenarios": 7,
+      "pooled_mean_rho": -0.03420099327978288,
+      "pooled_per_scenario_rho": {
+        "av_system": 0.0311,
+        "enterprise_system": 0.0648,
+        "financial_trading_system": -0.172,
+        "healthcare_system": -0.1967,
+        "hub_and_spoke_system": -0.0471,
+        "iot_smart_city_system": 0.3044,
+        "microservices_system": -0.2239
+      },
+      "projection_substrate_mean_rho": -0.18944658308686835,
+      "projection_substrate_per_scenario_rho": {
+        "av_system": -0.0372,
+        "enterprise_system": 0.1471,
+        "financial_trading_system": -0.289,
+        "healthcare_system": -0.518,
+        "hub_and_spoke_system": -0.3097,
+        "iot_smart_city_system": -0.214,
+        "microservices_system": -0.1054
+      },
+      "weights": {
+        "composite": {
+          "reliability": 0.8,
+          "maintainability": 0.2
+        },
+        "fault_tolerance_terms": {
+          "reverse_pagerank": 0.4344,
+          "in_degree": 0.3221,
+          "cdpot": 0.2435
+        }
+      }
+    },
+    {
+      "lambda": 0.9,
+      "eval_population": "application",
+      "mean_rho": 0.21104950304772124,
+      "std_rho": 0.17168913034459693,
+      "per_scenario_rho": {
+        "av_system": 0.3956,
+        "enterprise_system": 0.3852,
+        "financial_trading_system": 0.1473,
+        "healthcare_system": -0.0567,
+        "hub_and_spoke_system": 0.0352,
+        "iot_smart_city_system": 0.3954,
+        "microservices_system": 0.1752
+      },
+      "n_scenarios": 7,
+      "pooled_mean_rho": -0.05172909414159272,
+      "pooled_per_scenario_rho": {
+        "av_system": 0.0084,
+        "enterprise_system": 0.0514,
+        "financial_trading_system": -0.1881,
+        "healthcare_system": -0.2157,
+        "hub_and_spoke_system": -0.0668,
+        "iot_smart_city_system": 0.2855,
+        "microservices_system": -0.2368
+      },
+      "projection_substrate_mean_rho": -0.18477426928219148,
+      "projection_substrate_per_scenario_rho": {
+        "av_system": -0.0279,
+        "enterprise_system": 0.1516,
+        "financial_trading_system": -0.2851,
+        "healthcare_system": -0.5149,
+        "hub_and_spoke_system": -0.3056,
+        "iot_smart_city_system": -0.2098,
+        "microservices_system": -0.1017
+      },
+      "weights": {
+        "composite": {
+          "reliability": 0.8,
+          "maintainability": 0.2
+        },
+        "fault_tolerance_terms": {
+          "reverse_pagerank": 0.4471,
+          "in_degree": 0.3207,
+          "cdpot": 0.2323
+        }
+      }
+    },
+    {
+      "lambda": 1.0,
+      "eval_population": "application",
+      "mean_rho": 0.20002971006646136,
+      "std_rho": 0.17220995842675574,
+      "per_scenario_rho": {
+        "av_system": 0.3856,
+        "enterprise_system": 0.3822,
+        "financial_trading_system": 0.1275,
+        "healthcare_system": -0.0686,
+        "hub_and_spoke_system": 0.029,
+        "iot_smart_city_system": 0.3792,
+        "microservices_system": 0.1654
+      },
+      "n_scenarios": 7,
+      "pooled_mean_rho": -0.06927155376677155,
+      "pooled_per_scenario_rho": {
+        "av_system": -0.0107,
+        "enterprise_system": 0.0391,
+        "financial_trading_system": -0.2147,
+        "healthcare_system": -0.224,
+        "hub_and_spoke_system": -0.0903,
+        "iot_smart_city_system": 0.2651,
+        "microservices_system": -0.2494
+      },
+      "projection_substrate_mean_rho": -0.18088723453889702,
+      "projection_substrate_per_scenario_rho": {
+        "av_system": -0.0226,
+        "enterprise_system": 0.1557,
+        "financial_trading_system": -0.2799,
+        "healthcare_system": -0.5074,
+        "hub_and_spoke_system": -0.3034,
+        "iot_smart_city_system": -0.2053,
+        "microservices_system": -0.1033
+      },
+      "weights": {
+        "composite": {
+          "reliability": 0.8,
+          "maintainability": 0.2
+        },
+        "fault_tolerance_terms": {
+          "reverse_pagerank": 0.4597,
+          "in_degree": 0.3193,
+          "cdpot": 0.221
+        }
+      }
+    }
+  ],
+  "interpretation": {
+    "best_lambda": 0.0,
+    "best_mean_rho": 0.3192,
+    "default_lambda_mean_rho": 0.2338,
+    "uniform_intra_dim_mean_rho": 0.3192,
+    "ahp_lift_over_uniform_intra_dim": -0.0854,
+    "rho_spread_across_lambda": 0.1192,
+    "monotone_decreasing_in_lambda": true,
+    "monotone_increasing_in_lambda": false,
+    "plateau_in_065_075": false,
+    "composite_weights_lambda_invariant": true,
+    "note": "Spearman rho is rank-based, so this measures only how the weighting reorders components. Read `monotone_decreasing_in_lambda` before quoting any plateau: if the curve is monotone there is no plateau to appeal to, and a negative `ahp_lift_over_uniform_intra_dim` means the stated AHP judgement ranks components *worse* than uniform intra-dimension weights on this cohort. Unlike the pre-RM-migration sweep, lambda=0 no longer means 'equal weights over four composite dimensions' \u2014 the composite (q_reliability=0.80, q_maintainability=0.20) is a DECLARED constant, not AHP-derived, so it is identical at every lambda (`composite_weights_lambda_invariant`). Lambda now only shrinks the intra-dimension vectors (fault-tolerance, maintainability, availability, impact) toward their own uniform priors. `mean_rho` is scored on the Application population via the full analysis pipeline \u2014 the RM baseline the manuscript defines. `pooled_mean_rho` pools every node type and is subject to the same Simpson's-paradox hazard the detection artifact records. `projection_substrate_mean_rho` recomputes RM from features restricted to the Application+Library DEPENDS_ON projection, where no Application is an articulation point and no incident edge is a bridge, so four of Availability's five terms vanish and A(v) \u2014 ~0.51 of the composite \u2014 is constant across Applications in six of eight scenarios. That series characterises a degenerate score, not Q(v), and must not be quoted as the RM baseline's sensitivity."
+  },
+  "provenance": {
+    "commit": "1eb51a532a69488452d73ab0b87e1a25fac5e46a",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {}
+  }
+}

@@ -1,0 +1,228 @@
+{
+  "seeds": [
+    42,
+    123,
+    456
+  ],
+  "scenarios": [
+    "av_system",
+    "iot_smart_city_system",
+    "financial_trading_system",
+    "healthcare_system",
+    "hub_and_spoke_system",
+    "microservices_system",
+    "enterprise_system"
+  ],
+  "threshold_sweep": [
+    {
+      "propagation_threshold": 0.0,
+      "mean_rho": 0.18900288239888302,
+      "per_scenario_rho": {
+        "av_system": 0.3964,
+        "enterprise_system": 0.3121,
+        "financial_trading_system": 0.207,
+        "healthcare_system": 0.0112,
+        "hub_and_spoke_system": 0.0715,
+        "iot_smart_city_system": 0.1464,
+        "microservices_system": 0.1784
+      },
+      "label_scale_max": {
+        "av_system": 0.9674,
+        "iot_smart_city_system": 0.6035,
+        "financial_trading_system": 0.9853,
+        "healthcare_system": 0.846,
+        "hub_and_spoke_system": 0.9959,
+        "microservices_system": 0.9355,
+        "enterprise_system": 1.0
+      },
+      "n_scenarios": 7
+    },
+    {
+      "propagation_threshold": 0.1,
+      "mean_rho": 0.22024533507850588,
+      "per_scenario_rho": {
+        "av_system": 0.3743,
+        "enterprise_system": 0.3772,
+        "financial_trading_system": 0.1639,
+        "healthcare_system": -0.0712,
+        "hub_and_spoke_system": 0.1442,
+        "iot_smart_city_system": 0.3343,
+        "microservices_system": 0.2191
+      },
+      "label_scale_max": {
+        "av_system": 0.9674,
+        "iot_smart_city_system": 0.6022,
+        "financial_trading_system": 0.9853,
+        "healthcare_system": 0.846,
+        "hub_and_spoke_system": 0.9959,
+        "microservices_system": 0.9355,
+        "enterprise_system": 1.0
+      },
+      "n_scenarios": 7
+    },
+    {
+      "propagation_threshold": 0.2,
+      "mean_rho": 0.237715655477553,
+      "per_scenario_rho": {
+        "av_system": 0.4245,
+        "enterprise_system": 0.395,
+        "financial_trading_system": 0.1816,
+        "healthcare_system": -0.0493,
+        "hub_and_spoke_system": 0.0648,
+        "iot_smart_city_system": 0.4185,
+        "microservices_system": 0.2288
+      },
+      "label_scale_max": {
+        "av_system": 0.9674,
+        "iot_smart_city_system": 0.5981,
+        "financial_trading_system": 0.9853,
+        "healthcare_system": 0.846,
+        "hub_and_spoke_system": 0.9959,
+        "microservices_system": 0.9357,
+        "enterprise_system": 1.0
+      },
+      "n_scenarios": 7
+    },
+    {
+      "propagation_threshold": 0.35,
+      "mean_rho": 0.26122940459972327,
+      "per_scenario_rho": {
+        "av_system": 0.4338,
+        "enterprise_system": 0.4071,
+        "financial_trading_system": 0.1859,
+        "healthcare_system": -0.1049,
+        "hub_and_spoke_system": 0.0782,
+        "iot_smart_city_system": 0.4211,
+        "microservices_system": 0.4074
+      },
+      "label_scale_max": {
+        "av_system": 0.9674,
+        "iot_smart_city_system": 0.4829,
+        "financial_trading_system": 0.9853,
+        "healthcare_system": 0.846,
+        "hub_and_spoke_system": 0.9959,
+        "microservices_system": 0.9363,
+        "enterprise_system": 1.0
+      },
+      "n_scenarios": 7
+    },
+    {
+      "propagation_threshold": 0.5,
+      "mean_rho": 0.27098337620750795,
+      "per_scenario_rho": {
+        "av_system": 0.4411,
+        "enterprise_system": 0.4061,
+        "financial_trading_system": 0.1866,
+        "healthcare_system": -0.0771,
+        "hub_and_spoke_system": 0.1066,
+        "iot_smart_city_system": 0.4215,
+        "microservices_system": 0.4121
+      },
+      "label_scale_max": {
+        "av_system": 0.9674,
+        "iot_smart_city_system": 0.3756,
+        "financial_trading_system": 0.9853,
+        "healthcare_system": 0.846,
+        "hub_and_spoke_system": 0.9959,
+        "microservices_system": 0.9314,
+        "enterprise_system": 0.9957
+      },
+      "n_scenarios": 7
+    },
+    {
+      "propagation_threshold": 0.75,
+      "mean_rho": 0.27249417428497524,
+      "per_scenario_rho": {
+        "av_system": 0.4409,
+        "enterprise_system": 0.4061,
+        "financial_trading_system": 0.1852,
+        "healthcare_system": -0.0771,
+        "hub_and_spoke_system": 0.1066,
+        "iot_smart_city_system": 0.4183,
+        "microservices_system": 0.4275
+      },
+      "label_scale_max": {
+        "av_system": 0.9674,
+        "iot_smart_city_system": 0.258,
+        "financial_trading_system": 0.978,
+        "healthcare_system": 0.8345,
+        "hub_and_spoke_system": 0.9959,
+        "microservices_system": 0.8998,
+        "enterprise_system": 0.994
+      },
+      "n_scenarios": 7
+    },
+    {
+      "propagation_threshold": 1.0,
+      "mean_rho": 0.27249417428497524,
+      "per_scenario_rho": {
+        "av_system": 0.4409,
+        "enterprise_system": 0.4061,
+        "financial_trading_system": 0.1852,
+        "healthcare_system": -0.0771,
+        "hub_and_spoke_system": 0.1066,
+        "iot_smart_city_system": 0.4183,
+        "microservices_system": 0.4275
+      },
+      "label_scale_max": {
+        "av_system": 0.9674,
+        "iot_smart_city_system": 0.258,
+        "financial_trading_system": 0.9617,
+        "healthcare_system": 0.7883,
+        "hub_and_spoke_system": 0.9931,
+        "microservices_system": 0.6484,
+        "enterprise_system": 0.9938
+      },
+      "n_scenarios": 7
+    }
+  ],
+  "normalization_sweep": [
+    {
+      "normalization": "robust",
+      "mean_rho": 0.23367475503791552,
+      "per_scenario_rho": {
+        "av_system": 0.4208,
+        "enterprise_system": 0.3943,
+        "financial_trading_system": 0.1816,
+        "healthcare_system": -0.0493,
+        "hub_and_spoke_system": 0.0648,
+        "iot_smart_city_system": 0.4184,
+        "microservices_system": 0.205
+      },
+      "n_scenarios": 7
+    },
+    {
+      "normalization": "minmax",
+      "mean_rho": 0.19676205075674044,
+      "per_scenario_rho": {
+        "av_system": 0.3825,
+        "enterprise_system": 0.3894,
+        "financial_trading_system": 0.0954,
+        "healthcare_system": -0.1078,
+        "hub_and_spoke_system": 0.1262,
+        "iot_smart_city_system": 0.3605,
+        "microservices_system": 0.1312
+      },
+      "n_scenarios": 7
+    },
+    {
+      "normalization": "zscore",
+      "mean_rho": 0.19676205075674044,
+      "per_scenario_rho": {
+        "av_system": 0.3825,
+        "enterprise_system": 0.3894,
+        "financial_trading_system": 0.0954,
+        "healthcare_system": -0.1078,
+        "hub_and_spoke_system": 0.1262,
+        "iot_smart_city_system": 0.3605,
+        "microservices_system": 0.1312
+      },
+      "n_scenarios": 7
+    }
+  ],
+  "interpretation": {
+    "threshold_rho_spread": 0.0835,
+    "normalization_rho_spread": 0.0369,
+    "note": "A small threshold spread means the reported ordering does not depend on the cascade-eligibility cutoff. A small normalisation spread means it does not depend on rank- vs magnitude-scaling. Neither spread says the ordering is *correct* \u2014 only that it is stable under the free parameters of the ground truth and the scorer."
+  }
+}

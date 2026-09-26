@@ -49,7 +49,10 @@ A10_ARMS = ["InDeg", "Degree-raw", "Pubs-raw", "Reach", "Reach-R1"]
 
 
 def _load(name: str) -> Dict[str, Any]:
-    return json.loads((RESULTS / name).read_text())
+    p = RESULTS / name
+    if not p.exists():
+        p = ROOT / "data" / "benchmarks" / name
+    return json.loads(p.read_text())
 
 
 def _table(caption: str, label: str, cols: str, head: List[str], rows: List[str]) -> str:

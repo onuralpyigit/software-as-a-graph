@@ -1,0 +1,995 @@
+{
+  "description": "Sensitivity analysis of Multi-Metric Composite Oracle I_comp(v) severity weights",
+  "shipped_weights": {
+    "reachability": 0.35,
+    "fragmentation": 0.25,
+    "throughput": 0.25,
+    "flow_disruption": 0.15
+  },
+  "baseline": {
+    "mean_app": 0.5967,
+    "mean_broker": 0.3169,
+    "mean_node": 0.1396,
+    "mean_pooled": 0.2175,
+    "min_stratified": 0.1396,
+    "simpson_gap": -0.0779,
+    "simpson_holds": false
+  },
+  "ofat": {
+    "reachability": [
+      {
+        "weight_value": 0.05,
+        "weights": {
+          "reachability": 0.05,
+          "fragmentation": 0.3654,
+          "throughput": 0.3654,
+          "flow_disruption": 0.2192
+        },
+        "mean_app": 0.5792,
+        "mean_broker": 0.2953,
+        "mean_node": 0.1815,
+        "mean_pooled": 0.1865,
+        "min_stratified": 0.1815,
+        "simpson_gap": -0.005,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.1,
+        "weights": {
+          "reachability": 0.1,
+          "fragmentation": 0.3462,
+          "throughput": 0.3462,
+          "flow_disruption": 0.2077
+        },
+        "mean_app": 0.5836,
+        "mean_broker": 0.2953,
+        "mean_node": 0.1625,
+        "mean_pooled": 0.1928,
+        "min_stratified": 0.1625,
+        "simpson_gap": -0.0304,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.15,
+        "weights": {
+          "reachability": 0.15,
+          "fragmentation": 0.3269,
+          "throughput": 0.3269,
+          "flow_disruption": 0.1962
+        },
+        "mean_app": 0.5889,
+        "mean_broker": 0.2953,
+        "mean_node": 0.1561,
+        "mean_pooled": 0.2006,
+        "min_stratified": 0.1561,
+        "simpson_gap": -0.0445,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.2,
+        "weights": {
+          "reachability": 0.2,
+          "fragmentation": 0.3077,
+          "throughput": 0.3077,
+          "flow_disruption": 0.1846
+        },
+        "mean_app": 0.5909,
+        "mean_broker": 0.3234,
+        "mean_node": 0.153,
+        "mean_pooled": 0.206,
+        "min_stratified": 0.153,
+        "simpson_gap": -0.0529,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.25,
+        "weights": {
+          "reachability": 0.25,
+          "fragmentation": 0.2885,
+          "throughput": 0.2885,
+          "flow_disruption": 0.1731
+        },
+        "mean_app": 0.5937,
+        "mean_broker": 0.3168,
+        "mean_node": 0.1543,
+        "mean_pooled": 0.2113,
+        "min_stratified": 0.1543,
+        "simpson_gap": -0.0571,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.3,
+        "weights": {
+          "reachability": 0.3,
+          "fragmentation": 0.2692,
+          "throughput": 0.2692,
+          "flow_disruption": 0.1615
+        },
+        "mean_app": 0.5968,
+        "mean_broker": 0.3147,
+        "mean_node": 0.1528,
+        "mean_pooled": 0.2151,
+        "min_stratified": 0.1528,
+        "simpson_gap": -0.0623,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.35,
+        "weights": {
+          "reachability": 0.35,
+          "fragmentation": 0.25,
+          "throughput": 0.25,
+          "flow_disruption": 0.15
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.4,
+        "weights": {
+          "reachability": 0.4,
+          "fragmentation": 0.2308,
+          "throughput": 0.2308,
+          "flow_disruption": 0.1385
+        },
+        "mean_app": 0.5946,
+        "mean_broker": 0.3212,
+        "mean_node": 0.144,
+        "mean_pooled": 0.2197,
+        "min_stratified": 0.144,
+        "simpson_gap": -0.0757,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.45,
+        "weights": {
+          "reachability": 0.45,
+          "fragmentation": 0.2115,
+          "throughput": 0.2115,
+          "flow_disruption": 0.1269
+        },
+        "mean_app": 0.5955,
+        "mean_broker": 0.3212,
+        "mean_node": 0.1411,
+        "mean_pooled": 0.224,
+        "min_stratified": 0.1411,
+        "simpson_gap": -0.0828,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.5,
+        "weights": {
+          "reachability": 0.5,
+          "fragmentation": 0.1923,
+          "throughput": 0.1923,
+          "flow_disruption": 0.1154
+        },
+        "mean_app": 0.5965,
+        "mean_broker": 0.3212,
+        "mean_node": 0.1283,
+        "mean_pooled": 0.2295,
+        "min_stratified": 0.1283,
+        "simpson_gap": -0.1012,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.55,
+        "weights": {
+          "reachability": 0.55,
+          "fragmentation": 0.1731,
+          "throughput": 0.1731,
+          "flow_disruption": 0.1038
+        },
+        "mean_app": 0.5991,
+        "mean_broker": 0.3212,
+        "mean_node": 0.1248,
+        "mean_pooled": 0.2384,
+        "min_stratified": 0.1248,
+        "simpson_gap": -0.1136,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.6,
+        "weights": {
+          "reachability": 0.6,
+          "fragmentation": 0.1538,
+          "throughput": 0.1538,
+          "flow_disruption": 0.0923
+        },
+        "mean_app": 0.5979,
+        "mean_broker": 0.3201,
+        "mean_node": 0.1259,
+        "mean_pooled": 0.2461,
+        "min_stratified": 0.1259,
+        "simpson_gap": -0.1202,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.65,
+        "weights": {
+          "reachability": 0.65,
+          "fragmentation": 0.1346,
+          "throughput": 0.1346,
+          "flow_disruption": 0.0808
+        },
+        "mean_app": 0.5989,
+        "mean_broker": 0.3201,
+        "mean_node": 0.1321,
+        "mean_pooled": 0.2536,
+        "min_stratified": 0.1321,
+        "simpson_gap": -0.1215,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.7,
+        "weights": {
+          "reachability": 0.7,
+          "fragmentation": 0.1154,
+          "throughput": 0.1154,
+          "flow_disruption": 0.0692
+        },
+        "mean_app": 0.5982,
+        "mean_broker": 0.3201,
+        "mean_node": 0.1208,
+        "mean_pooled": 0.2638,
+        "min_stratified": 0.1208,
+        "simpson_gap": -0.143,
+        "simpson_holds": false
+      }
+    ],
+    "fragmentation": [
+      {
+        "weight_value": 0.05,
+        "weights": {
+          "fragmentation": 0.05,
+          "reachability": 0.4433,
+          "throughput": 0.3167,
+          "flow_disruption": 0.19
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.1,
+        "weights": {
+          "fragmentation": 0.1,
+          "reachability": 0.42,
+          "throughput": 0.3,
+          "flow_disruption": 0.18
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.15,
+        "weights": {
+          "fragmentation": 0.15,
+          "reachability": 0.3967,
+          "throughput": 0.2833,
+          "flow_disruption": 0.17
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.2,
+        "weights": {
+          "fragmentation": 0.2,
+          "reachability": 0.3733,
+          "throughput": 0.2667,
+          "flow_disruption": 0.16
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.25,
+        "weights": {
+          "fragmentation": 0.25,
+          "reachability": 0.35,
+          "throughput": 0.25,
+          "flow_disruption": 0.15
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.3,
+        "weights": {
+          "fragmentation": 0.3,
+          "reachability": 0.3267,
+          "throughput": 0.2333,
+          "flow_disruption": 0.14
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.35,
+        "weights": {
+          "fragmentation": 0.35,
+          "reachability": 0.3033,
+          "throughput": 0.2167,
+          "flow_disruption": 0.13
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.4,
+        "weights": {
+          "fragmentation": 0.4,
+          "reachability": 0.28,
+          "throughput": 0.2,
+          "flow_disruption": 0.12
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.45,
+        "weights": {
+          "fragmentation": 0.45,
+          "reachability": 0.2567,
+          "throughput": 0.1833,
+          "flow_disruption": 0.11
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.5,
+        "weights": {
+          "fragmentation": 0.5,
+          "reachability": 0.2333,
+          "throughput": 0.1667,
+          "flow_disruption": 0.1
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.55,
+        "weights": {
+          "fragmentation": 0.55,
+          "reachability": 0.21,
+          "throughput": 0.15,
+          "flow_disruption": 0.09
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.6,
+        "weights": {
+          "fragmentation": 0.6,
+          "reachability": 0.1867,
+          "throughput": 0.1333,
+          "flow_disruption": 0.08
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.65,
+        "weights": {
+          "fragmentation": 0.65,
+          "reachability": 0.1633,
+          "throughput": 0.1167,
+          "flow_disruption": 0.07
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.7,
+        "weights": {
+          "fragmentation": 0.7,
+          "reachability": 0.14,
+          "throughput": 0.1,
+          "flow_disruption": 0.06
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      }
+    ],
+    "throughput": [
+      {
+        "weight_value": 0.05,
+        "weights": {
+          "throughput": 0.05,
+          "reachability": 0.4433,
+          "fragmentation": 0.3167,
+          "flow_disruption": 0.19
+        },
+        "mean_app": 0.5951,
+        "mean_broker": 0.3396,
+        "mean_node": 0.1182,
+        "mean_pooled": 0.2533,
+        "min_stratified": 0.1182,
+        "simpson_gap": -0.135,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.1,
+        "weights": {
+          "throughput": 0.1,
+          "reachability": 0.42,
+          "fragmentation": 0.3,
+          "flow_disruption": 0.18
+        },
+        "mean_app": 0.5989,
+        "mean_broker": 0.3286,
+        "mean_node": 0.1247,
+        "mean_pooled": 0.2414,
+        "min_stratified": 0.1247,
+        "simpson_gap": -0.1166,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.15,
+        "weights": {
+          "throughput": 0.15,
+          "reachability": 0.3967,
+          "fragmentation": 0.2833,
+          "flow_disruption": 0.17
+        },
+        "mean_app": 0.5992,
+        "mean_broker": 0.3275,
+        "mean_node": 0.1326,
+        "mean_pooled": 0.2307,
+        "min_stratified": 0.1326,
+        "simpson_gap": -0.0981,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.2,
+        "weights": {
+          "throughput": 0.2,
+          "reachability": 0.3733,
+          "fragmentation": 0.2667,
+          "flow_disruption": 0.16
+        },
+        "mean_app": 0.5949,
+        "mean_broker": 0.3204,
+        "mean_node": 0.144,
+        "mean_pooled": 0.2206,
+        "min_stratified": 0.144,
+        "simpson_gap": -0.0767,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.25,
+        "weights": {
+          "throughput": 0.25,
+          "reachability": 0.35,
+          "fragmentation": 0.25,
+          "flow_disruption": 0.15
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.3,
+        "weights": {
+          "throughput": 0.3,
+          "reachability": 0.3267,
+          "fragmentation": 0.2333,
+          "flow_disruption": 0.14
+        },
+        "mean_app": 0.596,
+        "mean_broker": 0.2896,
+        "mean_node": 0.157,
+        "mean_pooled": 0.2139,
+        "min_stratified": 0.157,
+        "simpson_gap": -0.0569,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.35,
+        "weights": {
+          "throughput": 0.35,
+          "reachability": 0.3033,
+          "fragmentation": 0.2167,
+          "flow_disruption": 0.13
+        },
+        "mean_app": 0.5908,
+        "mean_broker": 0.3027,
+        "mean_node": 0.1475,
+        "mean_pooled": 0.2073,
+        "min_stratified": 0.1475,
+        "simpson_gap": -0.0599,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.4,
+        "weights": {
+          "throughput": 0.4,
+          "reachability": 0.28,
+          "fragmentation": 0.2,
+          "flow_disruption": 0.12
+        },
+        "mean_app": 0.5867,
+        "mean_broker": 0.2994,
+        "mean_node": 0.1532,
+        "mean_pooled": 0.2008,
+        "min_stratified": 0.1532,
+        "simpson_gap": -0.0476,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.45,
+        "weights": {
+          "throughput": 0.45,
+          "reachability": 0.2567,
+          "fragmentation": 0.1833,
+          "flow_disruption": 0.11
+        },
+        "mean_app": 0.5833,
+        "mean_broker": 0.3038,
+        "mean_node": 0.1598,
+        "mean_pooled": 0.1954,
+        "min_stratified": 0.1598,
+        "simpson_gap": -0.0355,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.5,
+        "weights": {
+          "throughput": 0.5,
+          "reachability": 0.2333,
+          "fragmentation": 0.1667,
+          "flow_disruption": 0.1
+        },
+        "mean_app": 0.5747,
+        "mean_broker": 0.294,
+        "mean_node": 0.1629,
+        "mean_pooled": 0.1877,
+        "min_stratified": 0.1629,
+        "simpson_gap": -0.0248,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.55,
+        "weights": {
+          "throughput": 0.55,
+          "reachability": 0.21,
+          "fragmentation": 0.15,
+          "flow_disruption": 0.09
+        },
+        "mean_app": 0.5634,
+        "mean_broker": 0.2897,
+        "mean_node": 0.1641,
+        "mean_pooled": 0.1787,
+        "min_stratified": 0.1641,
+        "simpson_gap": -0.0145,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.6,
+        "weights": {
+          "throughput": 0.6,
+          "reachability": 0.1867,
+          "fragmentation": 0.1333,
+          "flow_disruption": 0.08
+        },
+        "mean_app": 0.5506,
+        "mean_broker": 0.3001,
+        "mean_node": 0.1722,
+        "mean_pooled": 0.1692,
+        "min_stratified": 0.1722,
+        "simpson_gap": 0.003,
+        "simpson_holds": true
+      },
+      {
+        "weight_value": 0.65,
+        "weights": {
+          "throughput": 0.65,
+          "reachability": 0.1633,
+          "fragmentation": 0.1167,
+          "flow_disruption": 0.07
+        },
+        "mean_app": 0.5399,
+        "mean_broker": 0.2793,
+        "mean_node": 0.1925,
+        "mean_pooled": 0.1616,
+        "min_stratified": 0.1925,
+        "simpson_gap": 0.0309,
+        "simpson_holds": true
+      },
+      {
+        "weight_value": 0.7,
+        "weights": {
+          "throughput": 0.7,
+          "reachability": 0.14,
+          "fragmentation": 0.1,
+          "flow_disruption": 0.06
+        },
+        "mean_app": 0.5278,
+        "mean_broker": 0.2826,
+        "mean_node": 0.1948,
+        "mean_pooled": 0.1535,
+        "min_stratified": 0.1948,
+        "simpson_gap": 0.0414,
+        "simpson_holds": true
+      }
+    ],
+    "flow_disruption": [
+      {
+        "weight_value": 0.05,
+        "weights": {
+          "flow_disruption": 0.05,
+          "reachability": 0.3912,
+          "fragmentation": 0.2794,
+          "throughput": 0.2794
+        },
+        "mean_app": 0.5971,
+        "mean_broker": 0.2799,
+        "mean_node": 0.151,
+        "mean_pooled": 0.2171,
+        "min_stratified": 0.151,
+        "simpson_gap": -0.0661,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.1,
+        "weights": {
+          "flow_disruption": 0.1,
+          "reachability": 0.3706,
+          "fragmentation": 0.2647,
+          "throughput": 0.2647
+        },
+        "mean_app": 0.5973,
+        "mean_broker": 0.2939,
+        "mean_node": 0.134,
+        "mean_pooled": 0.2164,
+        "min_stratified": 0.134,
+        "simpson_gap": -0.0824,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.15,
+        "weights": {
+          "flow_disruption": 0.15,
+          "reachability": 0.35,
+          "fragmentation": 0.25,
+          "throughput": 0.25
+        },
+        "mean_app": 0.5967,
+        "mean_broker": 0.3169,
+        "mean_node": 0.1396,
+        "mean_pooled": 0.2175,
+        "min_stratified": 0.1396,
+        "simpson_gap": -0.0779,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.2,
+        "weights": {
+          "flow_disruption": 0.2,
+          "reachability": 0.3294,
+          "fragmentation": 0.2353,
+          "throughput": 0.2353
+        },
+        "mean_app": 0.5944,
+        "mean_broker": 0.3106,
+        "mean_node": 0.1409,
+        "mean_pooled": 0.2172,
+        "min_stratified": 0.1409,
+        "simpson_gap": -0.0762,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.25,
+        "weights": {
+          "flow_disruption": 0.25,
+          "reachability": 0.3088,
+          "fragmentation": 0.2206,
+          "throughput": 0.2206
+        },
+        "mean_app": 0.595,
+        "mean_broker": 0.281,
+        "mean_node": 0.1347,
+        "mean_pooled": 0.2177,
+        "min_stratified": 0.1347,
+        "simpson_gap": -0.083,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.3,
+        "weights": {
+          "flow_disruption": 0.3,
+          "reachability": 0.2882,
+          "fragmentation": 0.2059,
+          "throughput": 0.2059
+        },
+        "mean_app": 0.596,
+        "mean_broker": 0.2928,
+        "mean_node": 0.1294,
+        "mean_pooled": 0.2181,
+        "min_stratified": 0.1294,
+        "simpson_gap": -0.0887,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.35,
+        "weights": {
+          "flow_disruption": 0.35,
+          "reachability": 0.2676,
+          "fragmentation": 0.1912,
+          "throughput": 0.1912
+        },
+        "mean_app": 0.5965,
+        "mean_broker": 0.3112,
+        "mean_node": 0.1308,
+        "mean_pooled": 0.2188,
+        "min_stratified": 0.1308,
+        "simpson_gap": -0.088,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.4,
+        "weights": {
+          "flow_disruption": 0.4,
+          "reachability": 0.2471,
+          "fragmentation": 0.1765,
+          "throughput": 0.1765
+        },
+        "mean_app": 0.5992,
+        "mean_broker": 0.308,
+        "mean_node": 0.1284,
+        "mean_pooled": 0.2202,
+        "min_stratified": 0.1284,
+        "simpson_gap": -0.0918,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.45,
+        "weights": {
+          "flow_disruption": 0.45,
+          "reachability": 0.2265,
+          "fragmentation": 0.1618,
+          "throughput": 0.1618
+        },
+        "mean_app": 0.5985,
+        "mean_broker": 0.2854,
+        "mean_node": 0.1312,
+        "mean_pooled": 0.2213,
+        "min_stratified": 0.1312,
+        "simpson_gap": -0.0901,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.5,
+        "weights": {
+          "flow_disruption": 0.5,
+          "reachability": 0.2059,
+          "fragmentation": 0.1471,
+          "throughput": 0.1471
+        },
+        "mean_app": 0.5988,
+        "mean_broker": 0.2984,
+        "mean_node": 0.1311,
+        "mean_pooled": 0.2218,
+        "min_stratified": 0.1311,
+        "simpson_gap": -0.0907,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.55,
+        "weights": {
+          "flow_disruption": 0.55,
+          "reachability": 0.1853,
+          "fragmentation": 0.1324,
+          "throughput": 0.1324
+        },
+        "mean_app": 0.5991,
+        "mean_broker": 0.2984,
+        "mean_node": 0.1331,
+        "mean_pooled": 0.2227,
+        "min_stratified": 0.1331,
+        "simpson_gap": -0.0897,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.6,
+        "weights": {
+          "flow_disruption": 0.6,
+          "reachability": 0.1647,
+          "fragmentation": 0.1176,
+          "throughput": 0.1176
+        },
+        "mean_app": 0.5986,
+        "mean_broker": 0.2984,
+        "mean_node": 0.1346,
+        "mean_pooled": 0.2228,
+        "min_stratified": 0.1346,
+        "simpson_gap": -0.0882,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.65,
+        "weights": {
+          "flow_disruption": 0.65,
+          "reachability": 0.1441,
+          "fragmentation": 0.1029,
+          "throughput": 0.1029
+        },
+        "mean_app": 0.5984,
+        "mean_broker": 0.2832,
+        "mean_node": 0.1353,
+        "mean_pooled": 0.2247,
+        "min_stratified": 0.1353,
+        "simpson_gap": -0.0894,
+        "simpson_holds": false
+      },
+      {
+        "weight_value": 0.7,
+        "weights": {
+          "flow_disruption": 0.7,
+          "reachability": 0.1235,
+          "fragmentation": 0.0882,
+          "throughput": 0.0882
+        },
+        "mean_app": 0.5974,
+        "mean_broker": 0.281,
+        "mean_node": 0.1355,
+        "mean_pooled": 0.2254,
+        "min_stratified": 0.1355,
+        "simpson_gap": -0.0898,
+        "simpson_holds": false
+      }
+    ]
+  },
+  "dirichlet_simplex_sweep": {
+    "n_samples": 1000,
+    "simpson_holds_fraction": 0.139,
+    "pooled_range": [
+      0.0962,
+      0.351
+    ],
+    "app_range": [
+      0.4411,
+      0.5994
+    ],
+    "broker_range": [
+      0.2312,
+      0.4272
+    ],
+    "node_range": [
+      0.1065,
+      0.2068
+    ],
+    "gap_range": [
+      -0.2352,
+      0.1055
+    ],
+    "mean_gap": -0.0627
+  },
+  "morris_screening": {
+    "reachability": {
+      "mu_star_pooled": 0.0986,
+      "sigma_pooled": 0.0498,
+      "mu_star_gap": 0.1737,
+      "sigma_gap": 0.0938
+    },
+    "fragmentation": {
+      "mu_star_pooled": 0.0011,
+      "sigma_pooled": 0.0032,
+      "mu_star_gap": 0.0021,
+      "sigma_gap": 0.006
+    },
+    "throughput": {
+      "mu_star_pooled": 0.1166,
+      "sigma_pooled": 0.0552,
+      "mu_star_gap": 0.2305,
+      "sigma_gap": 0.0745
+    },
+    "flow_disruption": {
+      "mu_star_pooled": 0.0866,
+      "sigma_pooled": 0.0662,
+      "mu_star_gap": 0.1434,
+      "sigma_gap": 0.1127
+    }
+  },
+  "provenance": {
+    "commit": "79a4f065cd6110e44c3fa5865208afc751e86ae4",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {}
+  },
+  "scenarios": [
+    "atm_system",
+    "av_system",
+    "enterprise_system",
+    "financial_trading_system",
+    "healthcare_system",
+    "hub_and_spoke_system",
+    "industrial_scada_system",
+    "iot_smart_city_system",
+    "logistics_fleet_system",
+    "microservices_system",
+    "realtime_gaming_system",
+    "telecom_ran_system"
+  ]
+}

@@ -1,0 +1,462 @@
+{
+  "input": "results/loso_all_variants_v5.json",
+  "alpha": 0.05,
+  "n_folds": 12,
+  "attainable_floor_p": 0.00048828125,
+  "loss_budget_at_alpha": 4,
+  "preregistered": [
+    {
+      "variant": "hgl_qos",
+      "baseline": "topo_qos",
+      "label": "HGT-QoS",
+      "baseline_label": "Topo-QoS",
+      "n_folds": 12,
+      "mean_delta": 0.08508087104892625,
+      "wins": 9,
+      "losses": 3,
+      "W": 20.0,
+      "p": 0.1513671875,
+      "attainable_floor_p": 0.00048828125,
+      "loss_budget_at_005": 4,
+      "delta_ci95": [
+        -0.029010513783714574,
+        0.19445524621926305
+      ],
+      "per_fold_delta": {
+        "atm_system": 0.21003429487635256,
+        "av_system": -0.030382096376170287,
+        "enterprise_system": -0.3344855210857788,
+        "financial_trading_system": 0.12193674611950245,
+        "healthcare_system": 0.40072679182626647,
+        "hub_and_spoke_system": 0.15482810244180772,
+        "industrial_scada_system": 0.035746278859849046,
+        "iot_smart_city_system": 0.3595685356741335,
+        "logistics_fleet_system": 0.02343440592328705,
+        "microservices_system": 0.22893254386163153,
+        "realtime_gaming_system": 0.019553513336712847,
+        "telecom_ran_system": -0.16892314287047894
+      },
+      "p_holm": 0.302734375,
+      "role": "primary"
+    },
+    {
+      "variant": "hgl",
+      "baseline": "topo_qos",
+      "label": "HGT",
+      "baseline_label": "Topo-QoS",
+      "n_folds": 12,
+      "mean_delta": -0.002268943507475483,
+      "wins": 3,
+      "losses": 9,
+      "W": 29.0,
+      "p": 0.4697265625,
+      "attainable_floor_p": 0.00048828125,
+      "loss_budget_at_005": 4,
+      "delta_ci95": [
+        -0.06580732958975734,
+        0.0722699053978599
+      ],
+      "per_fold_delta": {
+        "atm_system": -0.015400788875277571,
+        "av_system": -0.1686469508376952,
+        "enterprise_system": -0.08554132128125436,
+        "financial_trading_system": -0.005082404354233905,
+        "healthcare_system": 0.23379625277446725,
+        "hub_and_spoke_system": -0.005984709989317216,
+        "industrial_scada_system": -0.08932388618859721,
+        "iot_smart_city_system": 0.22427854980740392,
+        "logistics_fleet_system": -0.10397756159647598,
+        "microservices_system": 0.08912545486669804,
+        "realtime_gaming_system": -0.09869873870501955,
+        "telecom_ran_system": -0.001771217710404005
+      },
+      "p_holm": 0.4697265625,
+      "role": "secondary"
+    }
+  ],
+  "exploratory": [
+    {
+      "variant": "topo_baseline",
+      "baseline": "topo_qos",
+      "label": "Topo",
+      "baseline_label": "Topo-QoS",
+      "n_folds": 12,
+      "mean_delta": -0.20442542036093814,
+      "wins": 0,
+      "losses": 12,
+      "W": 0.0,
+      "p": 0.00048828125,
+      "attainable_floor_p": 0.00048828125,
+      "loss_budget_at_005": 4,
+      "delta_ci95": [
+        -0.28572396489903845,
+        -0.12222460420720829
+      ],
+      "per_fold_delta": {
+        "atm_system": -0.05542315408779419,
+        "av_system": -0.284310333599763,
+        "enterprise_system": -0.36426176334450916,
+        "financial_trading_system": -0.3495622392577606,
+        "healthcare_system": -0.2914837499224306,
+        "hub_and_spoke_system": -0.31705693010714414,
+        "industrial_scada_system": -0.04193056853765176,
+        "iot_smart_city_system": -0.10032803850984318,
+        "logistics_fleet_system": -0.1647635555968584,
+        "microservices_system": -0.036479048396395014,
+        "realtime_gaming_system": -0.4330839727428064,
+        "telecom_ran_system": -0.01442169022830142
+      },
+      "role": "exploratory"
+    },
+    {
+      "variant": "topology_rm",
+      "baseline": "topo_qos",
+      "label": "RM",
+      "baseline_label": "Topo-QoS",
+      "n_folds": 12,
+      "mean_delta": -0.34789077137012087,
+      "wins": 0,
+      "losses": 12,
+      "W": 0.0,
+      "p": 0.00048828125,
+      "attainable_floor_p": 0.00048828125,
+      "loss_budget_at_005": 4,
+      "delta_ci95": [
+        -0.43206759497744124,
+        -0.26532044643238806
+      ],
+      "per_fold_delta": {
+        "atm_system": -0.3675572991206681,
+        "av_system": -0.4627687337725425,
+        "enterprise_system": -0.4534100774616898,
+        "financial_trading_system": -0.5356668090476215,
+        "healthcare_system": -0.4808615165994027,
+        "hub_and_spoke_system": -0.389909443891767,
+        "industrial_scada_system": -0.1834589723519534,
+        "iot_smart_city_system": -0.18128871717705256,
+        "logistics_fleet_system": -0.2668945494162602,
+        "microservices_system": -0.17043313007408908,
+        "realtime_gaming_system": -0.5415326121635772,
+        "telecom_ran_system": -0.1409073953648266
+      },
+      "role": "exploratory"
+    },
+    {
+      "variant": "gl",
+      "baseline": "topo_qos",
+      "label": "GAT-N",
+      "baseline_label": "Topo-QoS",
+      "n_folds": 12,
+      "mean_delta": -0.23600486260219009,
+      "wins": 2,
+      "losses": 10,
+      "W": 3.0,
+      "p": 0.00244140625,
+      "attainable_floor_p": 0.00048828125,
+      "loss_budget_at_005": 4,
+      "delta_ci95": [
+        -0.3419753873525044,
+        -0.12506187515704076
+      ],
+      "per_fold_delta": {
+        "atm_system": -0.14960468313058722,
+        "av_system": -0.3718267833333768,
+        "enterprise_system": -0.3100737356964773,
+        "financial_trading_system": -0.14029257481993834,
+        "healthcare_system": 0.05921951161985717,
+        "hub_and_spoke_system": -0.1099316595846419,
+        "industrial_scada_system": -0.4631438183718116,
+        "iot_smart_city_system": 0.047059478268489996,
+        "logistics_fleet_system": -0.5125838483700601,
+        "microservices_system": -0.1142467999624889,
+        "realtime_gaming_system": -0.4550704955736445,
+        "telecom_ran_system": -0.3115629422716016
+      },
+      "role": "exploratory"
+    },
+    {
+      "variant": "gl_qos",
+      "baseline": "topo_qos",
+      "label": "GAT-N-QoS",
+      "baseline_label": "Topo-QoS",
+      "n_folds": 12,
+      "mean_delta": 0.050505305256275466,
+      "wins": 6,
+      "losses": 6,
+      "W": 27.0,
+      "p": 0.38037109375,
+      "attainable_floor_p": 0.00048828125,
+      "loss_budget_at_005": 4,
+      "delta_ci95": [
+        -0.06748270494216142,
+        0.16893455396263946
+      ],
+      "per_fold_delta": {
+        "atm_system": 0.1345917988218332,
+        "av_system": -0.03206657682565894,
+        "enterprise_system": -0.3885966981173404,
+        "financial_trading_system": 0.11871051103719599,
+        "healthcare_system": 0.4238434468253215,
+        "hub_and_spoke_system": 0.19234991750708058,
+        "industrial_scada_system": -0.025232965188478174,
+        "iot_smart_city_system": 0.25165758982390907,
+        "logistics_fleet_system": -0.10743511950318707,
+        "microservices_system": 0.22492406349475552,
+        "realtime_gaming_system": -0.1324909256854948,
+        "telecom_ran_system": -0.05419137911463079
+      },
+      "role": "exploratory"
+    }
+  ],
+  "factorial": [
+    {
+      "quantity": "main_typing",
+      "label": "Typing (main effect)",
+      "role": "factorial",
+      "not_preregistered": true,
+      "n_folds": 12,
+      "mean_delta": 0.1341557424436827,
+      "wins": 12,
+      "losses": 0,
+      "W": 0.0,
+      "p": 0.00048828125,
+      "attainable_floor_p": 0.00048828125,
+      "delta_ci95": [
+        0.09541224672876591,
+        0.1762792583226755
+      ],
+      "per_fold_delta": {
+        "atm_system": 0.1048231951549145,
+        "av_system": 0.10243215647258513,
+        "enterprise_system": 0.13932179572339226,
+        "financial_trading_system": 0.06921820277400545,
+        "healthcare_system": 0.07573004307777753,
+        "hub_and_spoke_system": 0.033212567265025916,
+        "industrial_scada_system": 0.21739958811577081,
+        "iot_smart_city_system": 0.14256500869456917,
+        "logistics_fleet_system": 0.2697379061000291,
+        "microservices_system": 0.10369036759803148,
+        "realtime_gaming_system": 0.2542080979454163,
+        "telecom_ran_system": 0.09752998040267472
+      },
+      "p_holm": 0.00146484375
+    },
+    {
+      "quantity": "main_qos",
+      "label": "QoS edge channel (main effect)",
+      "role": "factorial",
+      "not_preregistered": true,
+      "n_folds": 12,
+      "mean_delta": 0.18692999120743367,
+      "wins": 11,
+      "losses": 1,
+      "W": 2.0,
+      "p": 0.00146484375,
+      "attainable_floor_p": 0.00048828125,
+      "delta_ci95": [
+        0.10842273535582647,
+        0.24410634112997362
+      ],
+      "per_fold_delta": {
+        "atm_system": 0.2548157828520253,
+        "av_system": 0.2390125304846214,
+        "enterprise_system": -0.16373358111269376,
+        "financial_trading_system": 0.19301111816543534,
+        "healthcare_system": 0.26577723712863177,
+        "hub_and_spoke_system": 0.2315471947614237,
+        "industrial_scada_system": 0.28149050911588985,
+        "iot_smart_city_system": 0.16994404871107432,
+        "logistics_fleet_system": 0.26628034819331803,
+        "microservices_system": 0.23948897622608897,
+        "realtime_gaming_system": 0.22041591096494104,
+        "telecom_ran_system": 0.04510981899844793
+      },
+      "p_holm": 0.00146484375
+    },
+    {
+      "quantity": "interaction",
+      "label": "Typing x QoS interaction",
+      "role": "factorial",
+      "not_preregistered": true,
+      "n_folds": 12,
+      "mean_delta": -0.19916035330206383,
+      "wins": 0,
+      "losses": 12,
+      "W": 0.0,
+      "p": 0.00048828125,
+      "attainable_floor_p": 0.00048828125,
+      "delta_ci95": [
+        -0.257563499945758,
+        -0.14679155882372663
+      ],
+      "per_fold_delta": {
+        "atm_system": -0.058761398200790294,
+        "av_system": -0.20149535204619295,
+        "enterprise_system": -0.17042123738366133,
+        "financial_trading_system": -0.13198393538339798,
+        "healthcare_system": -0.1976933961536651,
+        "hub_and_spoke_system": -0.14146876466059755,
+        "industrial_scada_system": -0.3128406881348872,
+        "iot_smart_city_system": -0.06930812568868949,
+        "logistics_fleet_system": -0.27773676134711,
+        "microservices_system": -0.19936377446231093,
+        "realtime_gaming_system": -0.20432731784641728,
+        "telecom_ran_system": -0.4245234883170457
+      },
+      "p_holm": 0.00146484375
+    }
+  ],
+  "architecture": [
+    {
+      "variant": "hgl_qos",
+      "baseline": "gl_qos",
+      "label": "HGT-QoS",
+      "baseline_label": "GAT-N-QoS",
+      "n_folds": 12,
+      "mean_delta": 0.03457556579265079,
+      "wins": 9,
+      "losses": 3,
+      "W": 19.0,
+      "p": 0.12939453125,
+      "attainable_floor_p": 0.00048828125,
+      "loss_budget_at_005": 4,
+      "delta_ci95": [
+        -0.009597907004469716,
+        0.0744751386608298
+      ],
+      "per_fold_delta": {
+        "atm_system": 0.07544249605451936,
+        "av_system": 0.0016844804494886567,
+        "enterprise_system": 0.0541111770315616,
+        "financial_trading_system": 0.003226235082306461,
+        "healthcare_system": -0.02311665499905502,
+        "hub_and_spoke_system": -0.03752181506527286,
+        "industrial_scada_system": 0.06097924404832722,
+        "iot_smart_city_system": 0.10791094585022443,
+        "logistics_fleet_system": 0.13086952542647412,
+        "microservices_system": 0.0040084803668760105,
+        "realtime_gaming_system": 0.15204443902220766,
+        "telecom_ran_system": -0.11473176375584815
+      },
+      "role": "architecture",
+      "controls_for": "typing_qos",
+      "not_preregistered": true
+    },
+    {
+      "variant": "hgl",
+      "baseline": "gl",
+      "label": "HGT",
+      "baseline_label": "GAT-N",
+      "n_folds": 12,
+      "mean_delta": 0.23373591909471458,
+      "wins": 12,
+      "losses": 0,
+      "W": 0.0,
+      "p": 0.00048828125,
+      "attainable_floor_p": 0.00048828125,
+      "loss_budget_at_005": 4,
+      "delta_ci95": [
+        0.1809812908165765,
+        0.2934563484854305
+      ],
+      "per_fold_delta": {
+        "atm_system": 0.13420389425530965,
+        "av_system": 0.2031798324956816,
+        "enterprise_system": 0.22453241441522293,
+        "financial_trading_system": 0.13521017046570444,
+        "healthcare_system": 0.17457674115461008,
+        "hub_and_spoke_system": 0.10394694959532469,
+        "industrial_scada_system": 0.3738199321832144,
+        "iot_smart_city_system": 0.17721907153891392,
+        "logistics_fleet_system": 0.4086062867735841,
+        "microservices_system": 0.20337225482918694,
+        "realtime_gaming_system": 0.35637175686862493,
+        "telecom_ran_system": 0.3097917245611976
+      },
+      "role": "architecture",
+      "controls_for": "typing_unweighted",
+      "not_preregistered": true
+    },
+    {
+      "variant": "hgl_qos",
+      "baseline": "hgl",
+      "label": "HGT-QoS",
+      "baseline_label": "HGT",
+      "n_folds": 12,
+      "mean_delta": 0.08734981455640174,
+      "wins": 10,
+      "losses": 2,
+      "W": 22.0,
+      "p": 0.20361328125,
+      "attainable_floor_p": 0.00048828125,
+      "loss_budget_at_005": 4,
+      "delta_ci95": [
+        0.0007856779282500338,
+        0.15344312646833316
+      ],
+      "per_fold_delta": {
+        "atm_system": 0.22543508375163013,
+        "av_system": 0.13826485446152492,
+        "enterprise_system": -0.24894419980452442,
+        "financial_trading_system": 0.12701915047373635,
+        "healthcare_system": 0.16693053905179922,
+        "hub_and_spoke_system": 0.16081281243112494,
+        "industrial_scada_system": 0.12507016504844626,
+        "iot_smart_city_system": 0.13528998586672958,
+        "logistics_fleet_system": 0.12741196751976303,
+        "microservices_system": 0.1398070889949335,
+        "realtime_gaming_system": 0.1182522520417324,
+        "telecom_ran_system": -0.16715192516007493
+      },
+      "role": "architecture",
+      "controls_for": "qos_edge_typed",
+      "not_preregistered": true
+    },
+    {
+      "variant": "gl_qos",
+      "baseline": "gl",
+      "label": "GAT-N-QoS",
+      "baseline_label": "GAT-N",
+      "n_folds": 12,
+      "mean_delta": 0.28651016785846556,
+      "wins": 11,
+      "losses": 1,
+      "W": 1.0,
+      "p": 0.0009765625,
+      "attainable_floor_p": 0.00048828125,
+      "loss_budget_at_005": 4,
+      "delta_ci95": [
+        0.20858479048040462,
+        0.3476094613567
+      ],
+      "per_fold_delta": {
+        "atm_system": 0.2841964819524204,
+        "av_system": 0.3397602065077179,
+        "enterprise_system": -0.0785229624208631,
+        "financial_trading_system": 0.25900308585713433,
+        "healthcare_system": 0.3646239352054643,
+        "hub_and_spoke_system": 0.3022815770917225,
+        "industrial_scada_system": 0.43791085318333345,
+        "iot_smart_city_system": 0.20459811155541907,
+        "logistics_fleet_system": 0.40514872886687303,
+        "microservices_system": 0.33917086345724445,
+        "realtime_gaming_system": 0.3225795698881497,
+        "telecom_ran_system": 0.2573715631569708
+      },
+      "role": "architecture",
+      "controls_for": "qos_edge_untyped",
+      "not_preregistered": true
+    }
+  ],
+  "rq2_controls": [],
+  "qos_stratified_ablation": null,
+  "provenance": {
+    "commit": "dc42baf39b0e9954b8de10ef7bcb3fe1e063c674",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "input": "results/loso_all_variants_v5.json",
+      "alpha": 0.05
+    }
+  }
+}

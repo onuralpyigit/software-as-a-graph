@@ -1,0 +1,172 @@
+{
+  "summary": {
+    "test_retest_spearman_range": [
+      0.8105,
+      1.0
+    ],
+    "topk_jaccard_range": [
+      0.3704,
+      1.0
+    ],
+    "n_scenarios": 12,
+    "scenarios_requested": [
+      "atm_system",
+      "av_system",
+      "iot_smart_city_system",
+      "financial_trading_system",
+      "healthcare_system",
+      "hub_and_spoke_system",
+      "microservices_system",
+      "enterprise_system",
+      "telecom_ran_system",
+      "industrial_scada_system",
+      "realtime_gaming_system",
+      "logistics_fleet_system"
+    ],
+    "seeds": [
+      42,
+      123,
+      456,
+      789,
+      2024
+    ],
+    "node_types": [
+      "Application",
+      "Broker",
+      "Library"
+    ],
+    "note": "Measured post-determinism-fix (sorted subscriber iteration in fault_injector.py); reproducible across PYTHONHASHSEED values, unlike the labels retained in output/loso_cache/."
+  },
+  "scenarios": {
+    "atm_system": {
+      "n_seeds": 5,
+      "k_frac": 0.2,
+      "n_nodes": 39,
+      "mean_std": 0.020109,
+      "max_std": 0.129898,
+      "test_retest_spearman": 0.97169,
+      "topk_jaccard": 0.875
+    },
+    "av_system": {
+      "n_seeds": 5,
+      "k_frac": 0.2,
+      "n_nodes": 104,
+      "mean_std": 7.6e-05,
+      "max_std": 0.001853,
+      "test_retest_spearman": 0.99219,
+      "topk_jaccard": 0.952381
+    },
+    "iot_smart_city_system": {
+      "n_seeds": 5,
+      "k_frac": 0.2,
+      "n_nodes": 216,
+      "mean_std": 0.002175,
+      "max_std": 0.133584,
+      "test_retest_spearman": 0.999745,
+      "topk_jaccard": 1.0
+    },
+    "financial_trading_system": {
+      "n_seeds": 5,
+      "k_frac": 0.2,
+      "n_nodes": 83,
+      "mean_std": 0.0,
+      "max_std": 0.0,
+      "test_retest_spearman": 1.0,
+      "topk_jaccard": 1.0
+    },
+    "healthcare_system": {
+      "n_seeds": 5,
+      "k_frac": 0.2,
+      "n_nodes": 65,
+      "mean_std": 0.000294,
+      "max_std": 0.019112,
+      "test_retest_spearman": 0.997055,
+      "topk_jaccard": 0.923077
+    },
+    "hub_and_spoke_system": {
+      "n_seeds": 5,
+      "k_frac": 0.2,
+      "n_nodes": 97,
+      "mean_std": 6.2e-05,
+      "max_std": 0.005966,
+      "test_retest_spearman": 0.998416,
+      "topk_jaccard": 0.947368
+    },
+    "microservices_system": {
+      "n_seeds": 5,
+      "k_frac": 0.2,
+      "n_nodes": 126,
+      "mean_std": 0.025861,
+      "max_std": 0.373616,
+      "test_retest_spearman": 0.810524,
+      "topk_jaccard": 0.72
+    },
+    "enterprise_system": {
+      "n_seeds": 5,
+      "k_frac": 0.2,
+      "n_nodes": 360,
+      "mean_std": 0.004909,
+      "max_std": 0.439587,
+      "test_retest_spearman": 0.991719,
+      "topk_jaccard": 0.819444
+    },
+    "telecom_ran_system": {
+      "n_seeds": 5,
+      "k_frac": 0.2,
+      "n_nodes": 150,
+      "mean_std": 0.01872,
+      "max_std": 0.4267,
+      "test_retest_spearman": 0.924291,
+      "topk_jaccard": 0.5
+    },
+    "industrial_scada_system": {
+      "n_seeds": 5,
+      "k_frac": 0.2,
+      "n_nodes": 159,
+      "mean_std": 0.018381,
+      "max_std": 0.326303,
+      "test_retest_spearman": 0.962475,
+      "topk_jaccard": 0.5
+    },
+    "realtime_gaming_system": {
+      "n_seeds": 5,
+      "k_frac": 0.2,
+      "n_nodes": 108,
+      "mean_std": 0.002182,
+      "max_std": 0.017591,
+      "test_retest_spearman": 0.957536,
+      "topk_jaccard": 0.727273
+    },
+    "logistics_fleet_system": {
+      "n_seeds": 5,
+      "k_frac": 0.2,
+      "n_nodes": 137,
+      "mean_std": 0.008914,
+      "max_std": 0.371439,
+      "test_retest_spearman": 0.920081,
+      "topk_jaccard": 0.37037
+    }
+  },
+  "provenance": {
+    "commit": "2056a22601c878d3cbd9485622cbc685aba8c288",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "scenarios": [
+        "atm_system",
+        "av_system",
+        "enterprise_system",
+        "financial_trading_system",
+        "healthcare_system",
+        "hub_and_spoke_system",
+        "industrial_scada_system",
+        "iot_smart_city_system",
+        "logistics_fleet_system",
+        "microservices_system",
+        "realtime_gaming_system",
+        "telecom_ran_system"
+      ],
+      "n_seeds": 5
+    }
+  }
+}

@@ -1,0 +1,247 @@
+{
+  "variant": "hgl_qos",
+  "label": "HGT-QoS",
+  "oracle": "I*(v) / FaultInjector",
+  "oracle_note": "Scored against I*(v), the oracle the model was trained on. Table 9's Q(v) and Topo columns are scored against I_comp(v) (FailureSimulator) and are NOT directly comparable to these numbers.",
+  "training_corpus": [
+    "atm_system",
+    "av_system",
+    "enterprise_system",
+    "financial_trading_system",
+    "healthcare_system",
+    "hub_and_spoke_system",
+    "industrial_scada_system",
+    "iot_smart_city_system",
+    "logistics_fleet_system",
+    "microservices_system",
+    "realtime_gaming_system",
+    "telecom_ran_system"
+  ],
+  "eval_population": "application",
+  "seeds": [
+    42,
+    123,
+    456,
+    789,
+    2024
+  ],
+  "epochs": 150,
+  "layers": 2,
+  "rank_normalize_features": true,
+  "rank_normalize_labels": true,
+  "elapsed_s": 719.9489407539368,
+  "per_system": {
+    "realworld_autoware_ros2": {
+      "n_seeds": 5,
+      "n_nodes": 75,
+      "n_evaluated": 32,
+      "mean_rho": 0.7336563506385575,
+      "std_rho": 0.053669687413948106,
+      "mean_hybrid_rho": 0.5576866947828711,
+      "std_hybrid_rho": 0.03143107702283356,
+      "mean_f1_at_k": 0.6333333333333333,
+      "std_f1_at_k": 0.16329931618554522,
+      "mean_hybrid_f1_at_k": 0.3,
+      "std_hybrid_f1_at_k": 0.06666666666666667,
+      "mean_rho_positive": 0.5594767944216736,
+      "std_rho_positive": 0.05733295060945397,
+      "n_positive": 28,
+      "label_stability": {
+        "n_seeds": 5,
+        "k_frac": 0.2,
+        "n_nodes": 45,
+        "mean_std": 0.007285,
+        "max_std": 0.060597,
+        "test_retest_spearman": 0.982565,
+        "topk_jaccard": 1.0
+      },
+      "labeler": "FaultInjector"
+    },
+    "realworld_cloud_microservices": {
+      "n_seeds": 5,
+      "n_nodes": 60,
+      "n_evaluated": 22,
+      "mean_rho": 0.648859645570101,
+      "std_rho": 0.13065686776829866,
+      "mean_hybrid_rho": 0.7606506529769473,
+      "std_hybrid_rho": 0.05186650619275074,
+      "mean_f1_at_k": 0.4,
+      "std_f1_at_k": 0.25495097567963926,
+      "mean_hybrid_f1_at_k": 0.25,
+      "std_hybrid_f1_at_k": 0.0,
+      "mean_rho_positive": -0.02874303028591821,
+      "std_rho_positive": 0.3076384612401282,
+      "n_positive": 18,
+      "label_stability": {
+        "n_seeds": 5,
+        "k_frac": 0.2,
+        "n_nodes": 34,
+        "mean_std": 0.0,
+        "max_std": 0.0,
+        "test_retest_spearman": 1.0,
+        "topk_jaccard": 1.0
+      },
+      "labeler": "FaultInjector"
+    },
+    "realworld_edgex": {
+      "n_seeds": 5,
+      "n_nodes": 63,
+      "n_evaluated": 22,
+      "mean_rho": 0.8042125496525745,
+      "std_rho": 0.03991154166589598,
+      "mean_hybrid_rho": 0.7811115132800659,
+      "std_hybrid_rho": 0.021093751633833115,
+      "mean_f1_at_k": 0.5,
+      "std_f1_at_k": 0.0,
+      "mean_hybrid_f1_at_k": 0.05,
+      "std_hybrid_f1_at_k": 0.10000000000000002,
+      "mean_rho_positive": 0.3040359827189518,
+      "std_rho_positive": 0.09813410737507643,
+      "n_positive": 19,
+      "label_stability": {
+        "n_seeds": 5,
+        "k_frac": 0.2,
+        "n_nodes": 33,
+        "mean_std": 0.034249,
+        "max_std": 0.223607,
+        "test_retest_spearman": 0.86888,
+        "topk_jaccard": 0.571429
+      },
+      "labeler": "FaultInjector"
+    },
+    "realworld_homeassistant": {
+      "n_seeds": 5,
+      "n_nodes": 63,
+      "n_evaluated": 24,
+      "mean_rho": 0.872340826084583,
+      "std_rho": 0.035160709963804306,
+      "mean_hybrid_rho": 0.6682906967034925,
+      "std_hybrid_rho": 0.02763061533447273,
+      "mean_f1_at_k": 0.6,
+      "std_f1_at_k": 0.0,
+      "mean_hybrid_f1_at_k": 0.20000000000000004,
+      "std_hybrid_f1_at_k": 0.0,
+      "mean_rho_positive": 0.7043266083049707,
+      "std_rho_positive": 0.08861703041494377,
+      "n_positive": 23,
+      "label_stability": {
+        "n_seeds": 5,
+        "k_frac": 0.2,
+        "n_nodes": 35,
+        "mean_std": 0.037257,
+        "max_std": 0.274932,
+        "test_retest_spearman": 0.915302,
+        "topk_jaccard": 0.857143
+      },
+      "labeler": "FaultInjector"
+    },
+    "realworld_trainticket": {
+      "n_seeds": 5,
+      "n_nodes": 90,
+      "n_evaluated": 41,
+      "mean_rho": 0.776237159636169,
+      "std_rho": 0.004454061252410713,
+      "mean_hybrid_rho": 0.7402275386190313,
+      "std_hybrid_rho": 0.006827794154368114,
+      "mean_f1_at_k": 0.45,
+      "std_f1_at_k": 0.1,
+      "mean_hybrid_f1_at_k": 0.525,
+      "std_hybrid_f1_at_k": 0.1224744871391589,
+      "mean_rho_positive": -0.21257007127941208,
+      "std_rho_positive": 0.1472269525320746,
+      "n_positive": 22,
+      "label_stability": {
+        "n_seeds": 5,
+        "k_frac": 0.2,
+        "n_nodes": 52,
+        "mean_std": 0.01293,
+        "max_std": 0.171308,
+        "test_retest_spearman": 0.963815,
+        "topk_jaccard": 0.6
+      },
+      "labeler": "FaultInjector"
+    }
+  },
+  "references": {
+    "RM": {
+      "realworld_autoware_ros2": {
+        "rho": 0.3568389632558111,
+        "f1_at_k": 0.16666666666666666
+      },
+      "realworld_cloud_microservices": {
+        "rho": 0.7765084629373558,
+        "f1_at_k": 0.25
+      },
+      "realworld_edgex": {
+        "rho": 0.4700504994513127,
+        "f1_at_k": 0.0
+      },
+      "realworld_homeassistant": {
+        "rho": 0.26478775454781855,
+        "f1_at_k": 0.20000000000000004
+      },
+      "realworld_trainticket": {
+        "rho": 0.7127720061663539,
+        "f1_at_k": 0.625
+      }
+    },
+    "Topo": {
+      "realworld_autoware_ros2": {
+        "rho": 0.3065993573348426,
+        "f1_at_k": 0.16666666666666666
+      },
+      "realworld_cloud_microservices": {
+        "rho": 0.8914922548911319,
+        "f1_at_k": 0.25
+      },
+      "realworld_edgex": {
+        "rho": 0.5341815026780086,
+        "f1_at_k": 0.0
+      },
+      "realworld_homeassistant": {
+        "rho": 0.29656780551346096,
+        "f1_at_k": 0.20000000000000004
+      },
+      "realworld_trainticket": {
+        "rho": 0.5282346859607726,
+        "f1_at_k": 0.625
+      }
+    },
+    "Topo-QoS": {
+      "realworld_autoware_ros2": {
+        "rho": 0.37839791355511293,
+        "f1_at_k": 0.16666666666666666
+      },
+      "realworld_cloud_microservices": {
+        "rho": 0.8883225046515192,
+        "f1_at_k": 0.25
+      },
+      "realworld_edgex": {
+        "rho": 0.5341815026780086,
+        "f1_at_k": 0.0
+      },
+      "realworld_homeassistant": {
+        "rho": 0.2891303683845967,
+        "f1_at_k": 0.20000000000000004
+      },
+      "realworld_trainticket": {
+        "rho": 0.5411242096176045,
+        "f1_at_k": 0.625
+      }
+    }
+  },
+  "reference_mean_rho": {
+    "RM": 0.5161915372717304,
+    "Topo": 0.5114151212756434,
+    "Topo-QoS": 0.5262312997773684
+  },
+  "reference_note": "Training-free references scored against the same I*(v) labels, population and node set as the learned model. Topo-QoS is absent: it needs QoS-weighted betweenness on the projection graph, which this cache does not carry.",
+  "mean_rho_across_systems": 0.7670613063163969,
+  "mean_hybrid_rho_across_systems": 0.7015934192724818,
+  "provenance": {
+    "commit": "a8c736d9eae7cef62fe87fe472c51c41e89bd766",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {}
+  }
+}

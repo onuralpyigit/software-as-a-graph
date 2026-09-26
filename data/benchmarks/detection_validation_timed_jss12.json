@@ -1,0 +1,3124 @@
+{
+  "oracle": "I_comp(v) \u2014 FailureSimulator composite, exhaustive removal",
+  "oracle_config": {
+    "layer": "system",
+    "seed": 42,
+    "propagation_threshold": 0.2
+  },
+  "catalog": {
+    "n_total": 19,
+    "n_active": 18,
+    "excluded_patterns": [
+      "DEEP_PIPELINE"
+    ],
+    "exclusion_reason": "DEEP_PIPELINE enumerates every simple source-to-sink path (nx.all_simple_paths) and emits one finding per path: 247,761 findings on the 29-component tiny_system fixture, and no termination within ten minutes on the 50-application healthcare topology. Excluding it is the only way to measure the remaining detectors; the blowup is itself a reportable result."
+  },
+  "critical_set_rule": "Box-plot top tier (>= Q3) when n >= 20, else top-20% percentile; applied identically to prediction and truth, per saag/validation/validator.py. For the Q(v)/betweenness/degree predictors this pins the two sets to near-equal size, so precision and recall converge by construction. The catalog block is not thresholded this way \u2014 its flagged set is whatever the detectors produced \u2014 so its precision and recall are independent.",
+  "per_scenario": [
+    {
+      "scenario": "atm_system",
+      "layer": "system",
+      "n_components": 74,
+      "n_scored": 39,
+      "n_unscored": 35,
+      "timing": {
+        "analyze_seconds": 0.16,
+        "detect_seconds": 0.0,
+        "per_detector": {
+          "CYCLE": {
+            "seconds": 0.001,
+            "n_findings": 3
+          },
+          "SPOF": {
+            "seconds": 0.0,
+            "n_findings": 3
+          },
+          "BRIDGE_EDGE": {
+            "seconds": 0.0,
+            "n_findings": 1
+          },
+          "BOTTLENECK_EDGE": {
+            "seconds": 0.0,
+            "n_findings": 48
+          },
+          "BROKER_OVERLOAD": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "FAILURE_HUB": {
+            "seconds": 0.0,
+            "n_findings": 1
+          },
+          "CONCENTRATION_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "TOPIC_FANOUT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "QOS_MISMATCH": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "GOD_COMPONENT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "HUB_AND_SPOKE": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "CHATTY_PAIR": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "ORPHANED_TOPIC": {
+            "seconds": 0.0,
+            "n_findings": 3
+          },
+          "UNSTABLE_INTERFACE": {
+            "seconds": 0.0,
+            "n_findings": 2
+          },
+          "CHAIN": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "ISOLATED": {
+            "seconds": 0.0,
+            "n_findings": 27
+          },
+          "SYSTEMIC_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "COMPOUND_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          }
+        },
+        "gate_seconds": 0.16
+      },
+      "gate_seconds": 0.16,
+      "findings": {
+        "n_findings": 88,
+        "n_component_findings": 36,
+        "n_non_component_findings": 52,
+        "n_distinct_patterns": 8,
+        "by_severity": {
+          "CRITICAL": 4,
+          "HIGH": 52,
+          "MEDIUM": 32
+        },
+        "by_pattern": {
+          "Bottleneck Dependency": 48,
+          "Isolated Component": 27,
+          "Single Point of Failure (SPOF)": 3,
+          "Orphaned Topic": 3,
+          "Dependency Cycle": 3,
+          "Unstable Interface": 2,
+          "Bridge Edge (Critical Link)": 1,
+          "Critical Failure Propagation Hub": 1
+        },
+        "n_components_flagged": 3,
+        "pct_components_flagged": 4.05,
+        "pct_scored_implicated": 89.74
+      },
+      "predictors": {
+        "q_composite": {
+          "spearman_rho": 0.3989,
+          "spearman_p": 0.011886,
+          "spearman_ci": [
+            0.0939,
+            0.6631
+          ],
+          "precision": 0.4,
+          "recall": 0.4,
+          "f1": 0.4,
+          "f1_ci": [
+            0.1111,
+            0.64
+          ],
+          "cohens_kappa": 0.1931,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.4,
+          "ndcg_10": 0.3183
+        },
+        "betweenness": {
+          "spearman_rho": 0.3141,
+          "spearman_p": 0.051504,
+          "spearman_ci": [
+            0.0039,
+            0.5765
+          ],
+          "precision": 0.2,
+          "recall": 0.2,
+          "f1": 0.2,
+          "f1_ci": [
+            0.0,
+            0.4286
+          ],
+          "cohens_kappa": -0.0759,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.2,
+          "ndcg_10": 0.17
+        },
+        "degree": {
+          "spearman_rho": 0.5934,
+          "spearman_p": 6.9e-05,
+          "spearman_ci": [
+            0.2805,
+            0.7744
+          ],
+          "precision": 0.3,
+          "recall": 0.3,
+          "f1": 0.3,
+          "f1_ci": [
+            0.0,
+            0.5714
+          ],
+          "cohens_kappa": 0.0586,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.3,
+          "ndcg_10": 0.1768
+        }
+      },
+      "catalog": {
+        "n_flagged": 35,
+        "n_flagged_directly": 2,
+        "n_actual_critical": 10,
+        "precision": 0.2857,
+        "recall": 1.0,
+        "f1": 0.4444,
+        "cohens_kappa": 0.0758,
+        "true_positives": 10,
+        "false_positives": 25,
+        "false_negatives": 0
+      },
+      "q_by_type": {
+        "Application": {
+          "n": 26,
+          "spearman_rho": 0.7632,
+          "spearman_p": 6e-06,
+          "spearman_ci": [
+            0.4827,
+            0.9357
+          ],
+          "precision": 0.8571,
+          "recall": 0.8571,
+          "f1": 0.8571,
+          "f1_ci": [
+            0.5714,
+            1.0
+          ],
+          "cohens_kappa": 0.8045,
+          "top_5_overlap": 0.6,
+          "top_10_overlap": 0.9,
+          "ndcg_10": 0.8503
+        },
+        "Broker": {
+          "n": 5,
+          "spearman_rho": 1.0,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            1.0,
+            1.0
+          ],
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "f1_ci": [
+            0.0,
+            1.0
+          ],
+          "cohens_kappa": 1.0,
+          "top_5_overlap": 1.0,
+          "top_10_overlap": 0.5,
+          "ndcg_10": 1.0
+        },
+        "Node": {
+          "n": 8,
+          "spearman_rho": 0.2381,
+          "spearman_p": 0.570156,
+          "spearman_ci": [
+            -0.6438,
+            0.8537
+          ],
+          "precision": 0.5,
+          "recall": 0.5,
+          "f1": 0.5,
+          "f1_ci": [
+            0.0,
+            1.0
+          ],
+          "cohens_kappa": 0.3333,
+          "top_5_overlap": 0.6,
+          "top_10_overlap": 0.8,
+          "ndcg_10": 0.9583
+        }
+      },
+      "spof": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "ia_threshold": 0.0771,
+        "ia_max": 0.5708,
+        "n_predicted_ap": 1
+      }
+    },
+    {
+      "scenario": "av_system",
+      "layer": "system",
+      "n_components": 152,
+      "n_scored": 92,
+      "n_unscored": 60,
+      "timing": {
+        "analyze_seconds": 2.6,
+        "detect_seconds": 0.01,
+        "per_detector": {
+          "CYCLE": {
+            "seconds": 0.002,
+            "n_findings": 3
+          },
+          "CHAIN": {
+            "seconds": 0.002,
+            "n_findings": 0
+          },
+          "SPOF": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "BRIDGE_EDGE": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "BOTTLENECK_EDGE": {
+            "seconds": 0.001,
+            "n_findings": 414
+          },
+          "QOS_MISMATCH": {
+            "seconds": 0.001,
+            "n_findings": 306
+          },
+          "CHATTY_PAIR": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "BROKER_OVERLOAD": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "FAILURE_HUB": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "CONCENTRATION_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "TOPIC_FANOUT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "GOD_COMPONENT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "HUB_AND_SPOKE": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "ORPHANED_TOPIC": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "UNSTABLE_INTERFACE": {
+            "seconds": 0.0,
+            "n_findings": 9
+          },
+          "ISOLATED": {
+            "seconds": 0.0,
+            "n_findings": 40
+          },
+          "SYSTEMIC_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "COMPOUND_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          }
+        },
+        "gate_seconds": 2.61
+      },
+      "gate_seconds": 2.61,
+      "findings": {
+        "n_findings": 772,
+        "n_component_findings": 49,
+        "n_non_component_findings": 723,
+        "n_distinct_patterns": 5,
+        "by_severity": {
+          "HIGH": 417,
+          "MEDIUM": 355
+        },
+        "by_pattern": {
+          "Bottleneck Dependency": 414,
+          "QoS Policy Mismatch": 306,
+          "Isolated Component": 40,
+          "Unstable Interface": 9,
+          "Dependency Cycle": 3
+        },
+        "n_components_flagged": 0,
+        "pct_components_flagged": 0.0,
+        "pct_scored_implicated": 94.57
+      },
+      "predictors": {
+        "q_composite": {
+          "spearman_rho": 0.2001,
+          "spearman_p": 0.055872,
+          "spearman_ci": [
+            -0.0422,
+            0.4156
+          ],
+          "precision": 0.4348,
+          "recall": 0.4348,
+          "f1": 0.4348,
+          "f1_ci": [
+            0.2381,
+            0.6071
+          ],
+          "cohens_kappa": 0.2464,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.106
+        },
+        "betweenness": {
+          "spearman_rho": 0.1579,
+          "spearman_p": 0.132843,
+          "spearman_ci": [
+            -0.0811,
+            0.3856
+          ],
+          "precision": 0.4783,
+          "recall": 0.4783,
+          "f1": 0.4783,
+          "f1_ci": [
+            0.2778,
+            0.6383
+          ],
+          "cohens_kappa": 0.3043,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.1076
+        },
+        "degree": {
+          "spearman_rho": 0.2922,
+          "spearman_p": 0.004708,
+          "spearman_ci": [
+            0.033,
+            0.5359
+          ],
+          "precision": 0.5652,
+          "recall": 0.5652,
+          "f1": 0.5652,
+          "f1_ci": [
+            0.375,
+            0.7234
+          ],
+          "cohens_kappa": 0.4203,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.1,
+          "ndcg_10": 0.1474
+        }
+      },
+      "catalog": {
+        "n_flagged": 87,
+        "n_flagged_directly": 0,
+        "n_actual_critical": 23,
+        "precision": 0.2529,
+        "recall": 0.9565,
+        "f1": 0.4,
+        "cohens_kappa": 0.0075,
+        "true_positives": 22,
+        "false_positives": 65,
+        "false_negatives": 1
+      },
+      "q_by_type": {
+        "Application": {
+          "n": 80,
+          "spearman_rho": 0.6533,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            0.481,
+            0.7737
+          ],
+          "precision": 0.8,
+          "recall": 0.8,
+          "f1": 0.8,
+          "f1_ci": [
+            0.6471,
+            0.9167
+          ],
+          "cohens_kappa": 0.7333,
+          "top_5_overlap": 0.4,
+          "top_10_overlap": 0.7,
+          "ndcg_10": 0.8346
+        },
+        "Broker": {
+          "n": 4,
+          "spearman_rho": 0.0,
+          "spearman_p": 1.0,
+          "spearman_ci": [
+            0.0,
+            0.0
+          ],
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "f1_ci": [
+            0.0,
+            0.0
+          ],
+          "cohens_kappa": -0.3333,
+          "top_5_overlap": 0.8,
+          "top_10_overlap": 0.4,
+          "ndcg_10": 0.8951
+        },
+        "Node": {
+          "n": 8,
+          "spearman_rho": -0.3571,
+          "spearman_p": 0.385121,
+          "spearman_ci": [
+            -0.9726,
+            0.6
+          ],
+          "precision": 0.5,
+          "recall": 0.5,
+          "f1": 0.5,
+          "f1_ci": [
+            0.0,
+            1.0
+          ],
+          "cohens_kappa": 0.3333,
+          "top_5_overlap": 0.4,
+          "top_10_overlap": 0.8,
+          "ndcg_10": 0.8873
+        }
+      },
+      "spof": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "ia_threshold": 0.0235,
+        "ia_max": 0.4293,
+        "n_predicted_ap": 0
+      }
+    },
+    {
+      "scenario": "enterprise_system",
+      "layer": "system",
+      "n_components": 520,
+      "n_scored": 350,
+      "n_unscored": 170,
+      "timing": {
+        "analyze_seconds": 79.11,
+        "detect_seconds": 0.16,
+        "per_detector": {
+          "CYCLE": {
+            "seconds": 0.024,
+            "n_findings": 5
+          },
+          "CHAIN": {
+            "seconds": 0.02,
+            "n_findings": 0
+          },
+          "CHATTY_PAIR": {
+            "seconds": 0.017,
+            "n_findings": 0
+          },
+          "BOTTLENECK_EDGE": {
+            "seconds": 0.013,
+            "n_findings": 3766
+          },
+          "QOS_MISMATCH": {
+            "seconds": 0.013,
+            "n_findings": 2379
+          },
+          "BRIDGE_EDGE": {
+            "seconds": 0.008,
+            "n_findings": 0
+          },
+          "SPOF": {
+            "seconds": 0.007,
+            "n_findings": 1
+          },
+          "ORPHANED_TOPIC": {
+            "seconds": 0.007,
+            "n_findings": 0
+          },
+          "GOD_COMPONENT": {
+            "seconds": 0.006,
+            "n_findings": 0
+          },
+          "HUB_AND_SPOKE": {
+            "seconds": 0.006,
+            "n_findings": 0
+          },
+          "ISOLATED": {
+            "seconds": 0.006,
+            "n_findings": 120
+          },
+          "SYSTEMIC_RISK": {
+            "seconds": 0.006,
+            "n_findings": 0
+          },
+          "BROKER_OVERLOAD": {
+            "seconds": 0.005,
+            "n_findings": 0
+          },
+          "FAILURE_HUB": {
+            "seconds": 0.005,
+            "n_findings": 0
+          },
+          "CONCENTRATION_RISK": {
+            "seconds": 0.005,
+            "n_findings": 0
+          },
+          "UNSTABLE_INTERFACE": {
+            "seconds": 0.005,
+            "n_findings": 34
+          },
+          "COMPOUND_RISK": {
+            "seconds": 0.005,
+            "n_findings": 0
+          },
+          "TOPIC_FANOUT": {
+            "seconds": 0.004,
+            "n_findings": 5
+          }
+        },
+        "gate_seconds": 79.27
+      },
+      "gate_seconds": 79.27,
+      "findings": {
+        "n_findings": 6310,
+        "n_component_findings": 160,
+        "n_non_component_findings": 6150,
+        "n_distinct_patterns": 7,
+        "by_severity": {
+          "CRITICAL": 1,
+          "HIGH": 3771,
+          "MEDIUM": 2538
+        },
+        "by_pattern": {
+          "Bottleneck Dependency": 3766,
+          "QoS Policy Mismatch": 2379,
+          "Isolated Component": 120,
+          "Unstable Interface": 34,
+          "Topic Fan-Out Explosion": 5,
+          "Dependency Cycle": 5,
+          "Single Point of Failure (SPOF)": 1
+        },
+        "n_components_flagged": 1,
+        "pct_components_flagged": 0.19,
+        "pct_scored_implicated": 98.57
+      },
+      "predictors": {
+        "q_composite": {
+          "spearman_rho": 0.0897,
+          "spearman_p": 0.093958,
+          "spearman_ci": [
+            -0.0291,
+            0.1987
+          ],
+          "precision": 0.3409,
+          "recall": 0.3409,
+          "f1": 0.3409,
+          "f1_ci": [
+            0.2515,
+            0.4286
+          ],
+          "cohens_kappa": 0.1195,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.0576
+        },
+        "betweenness": {
+          "spearman_rho": -0.0035,
+          "spearman_p": 0.947539,
+          "spearman_ci": [
+            -0.133,
+            0.1207
+          ],
+          "precision": 0.3636,
+          "recall": 0.3636,
+          "f1": 0.3636,
+          "f1_ci": [
+            0.2667,
+            0.4536
+          ],
+          "cohens_kappa": 0.1499,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.0638
+        },
+        "degree": {
+          "spearman_rho": 0.1117,
+          "spearman_p": 0.036679,
+          "spearman_ci": [
+            -0.0132,
+            0.2419
+          ],
+          "precision": 0.4545,
+          "recall": 0.4545,
+          "f1": 0.4545,
+          "f1_ci": [
+            0.3571,
+            0.5473
+          ],
+          "cohens_kappa": 0.2713,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.207
+        }
+      },
+      "catalog": {
+        "n_flagged": 345,
+        "n_flagged_directly": 1,
+        "n_actual_critical": 88,
+        "precision": 0.2435,
+        "recall": 0.9545,
+        "f1": 0.388,
+        "cohens_kappa": -0.0211,
+        "true_positives": 84,
+        "false_positives": 261,
+        "false_negatives": 4
+      },
+      "q_by_type": {
+        "Application": {
+          "n": 300,
+          "spearman_rho": 0.507,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            0.4129,
+            0.5905
+          ],
+          "precision": 0.6267,
+          "recall": 0.6267,
+          "f1": 0.6267,
+          "f1_ci": [
+            0.5205,
+            0.7125
+          ],
+          "cohens_kappa": 0.5022,
+          "top_5_overlap": 0.4,
+          "top_10_overlap": 0.3,
+          "ndcg_10": 0.7301
+        },
+        "Broker": {
+          "n": 10,
+          "spearman_rho": 0.0545,
+          "spearman_p": 0.881036,
+          "spearman_ci": [
+            -0.7197,
+            0.8726
+          ],
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "f1_ci": [
+            0.0,
+            0.0
+          ],
+          "cohens_kappa": -0.25,
+          "top_5_overlap": 0.6,
+          "top_10_overlap": 1.0,
+          "ndcg_10": 0.8533
+        },
+        "Node": {
+          "n": 40,
+          "spearman_rho": 0.175,
+          "spearman_p": 0.279984,
+          "spearman_ci": [
+            -0.1393,
+            0.4698
+          ],
+          "precision": 0.3,
+          "recall": 0.3,
+          "f1": 0.3,
+          "f1_ci": [
+            0.0,
+            0.56
+          ],
+          "cohens_kappa": 0.0667,
+          "top_5_overlap": 0.4,
+          "top_10_overlap": 0.3,
+          "ndcg_10": 0.6674
+        }
+      },
+      "spof": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "ia_threshold": 0.0078,
+        "ia_max": 0.1844,
+        "n_predicted_ap": 0
+      }
+    },
+    {
+      "scenario": "financial_trading_system",
+      "layer": "system",
+      "n_components": 124,
+      "n_scored": 71,
+      "n_unscored": 53,
+      "timing": {
+        "analyze_seconds": 1.7,
+        "detect_seconds": 0.01,
+        "per_detector": {
+          "CYCLE": {
+            "seconds": 0.002,
+            "n_findings": 2
+          },
+          "SPOF": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "BRIDGE_EDGE": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "BOTTLENECK_EDGE": {
+            "seconds": 0.001,
+            "n_findings": 386
+          },
+          "QOS_MISMATCH": {
+            "seconds": 0.001,
+            "n_findings": 88
+          },
+          "CHATTY_PAIR": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "CHAIN": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "BROKER_OVERLOAD": {
+            "seconds": 0.0,
+            "n_findings": 1
+          },
+          "FAILURE_HUB": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "CONCENTRATION_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "TOPIC_FANOUT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "GOD_COMPONENT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "HUB_AND_SPOKE": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "ORPHANED_TOPIC": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "UNSTABLE_INTERFACE": {
+            "seconds": 0.0,
+            "n_findings": 6
+          },
+          "ISOLATED": {
+            "seconds": 0.0,
+            "n_findings": 35
+          },
+          "SYSTEMIC_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "COMPOUND_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          }
+        },
+        "gate_seconds": 1.71
+      },
+      "gate_seconds": 1.71,
+      "findings": {
+        "n_findings": 518,
+        "n_component_findings": 42,
+        "n_non_component_findings": 476,
+        "n_distinct_patterns": 6,
+        "by_severity": {
+          "HIGH": 389,
+          "MEDIUM": 129
+        },
+        "by_pattern": {
+          "Bottleneck Dependency": 386,
+          "QoS Policy Mismatch": 88,
+          "Isolated Component": 35,
+          "Unstable Interface": 6,
+          "Dependency Cycle": 2,
+          "Broker Saturation": 1
+        },
+        "n_components_flagged": 1,
+        "pct_components_flagged": 0.81,
+        "pct_scored_implicated": 90.14
+      },
+      "predictors": {
+        "q_composite": {
+          "spearman_rho": -0.0576,
+          "spearman_p": 0.633289,
+          "spearman_ci": [
+            -0.3035,
+            0.2301
+          ],
+          "precision": 0.3333,
+          "recall": 0.3333,
+          "f1": 0.3333,
+          "f1_ci": [
+            0.125,
+            0.5294
+          ],
+          "cohens_kappa": 0.1069,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.1,
+          "ndcg_10": 0.1126
+        },
+        "betweenness": {
+          "spearman_rho": -0.1004,
+          "spearman_p": 0.404676,
+          "spearman_ci": [
+            -0.3484,
+            0.2014
+          ],
+          "precision": 0.2778,
+          "recall": 0.2778,
+          "f1": 0.2778,
+          "f1_ci": [
+            0.069,
+            0.4737
+          ],
+          "cohens_kappa": 0.0325,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.1,
+          "ndcg_10": 0.0998
+        },
+        "degree": {
+          "spearman_rho": 0.1063,
+          "spearman_p": 0.377423,
+          "spearman_ci": [
+            -0.1764,
+            0.3718
+          ],
+          "precision": 0.3333,
+          "recall": 0.3333,
+          "f1": 0.3333,
+          "f1_ci": [
+            0.125,
+            0.5263
+          ],
+          "cohens_kappa": 0.1069,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.1,
+          "ndcg_10": 0.1085
+        }
+      },
+      "catalog": {
+        "n_flagged": 64,
+        "n_flagged_directly": 1,
+        "n_actual_critical": 18,
+        "precision": 0.2188,
+        "recall": 0.7778,
+        "f1": 0.3415,
+        "cohens_kappa": -0.0898,
+        "true_positives": 14,
+        "false_positives": 50,
+        "false_negatives": 4
+      },
+      "q_by_type": {
+        "Application": {
+          "n": 60,
+          "spearman_rho": 0.477,
+          "spearman_p": 0.000116,
+          "spearman_ci": [
+            0.2417,
+            0.6848
+          ],
+          "precision": 0.6667,
+          "recall": 0.6667,
+          "f1": 0.6667,
+          "f1_ci": [
+            0.4444,
+            0.8421
+          ],
+          "cohens_kappa": 0.5556,
+          "top_5_overlap": 0.6,
+          "top_10_overlap": 0.5,
+          "ndcg_10": 0.8842
+        },
+        "Broker": {
+          "n": 5,
+          "spearman_rho": 0.7,
+          "spearman_p": 0.18812,
+          "spearman_ci": [
+            -0.6667,
+            1.0
+          ],
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "f1_ci": [
+            0.0,
+            1.0
+          ],
+          "cohens_kappa": 1.0,
+          "top_5_overlap": 1.0,
+          "top_10_overlap": 0.5,
+          "ndcg_10": 0.9837
+        },
+        "Node": {
+          "n": 6,
+          "spearman_rho": -0.5429,
+          "spearman_p": 0.265703,
+          "spearman_ci": [
+            -1.0,
+            0.8
+          ],
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "f1_ci": [
+            0.0,
+            0.0
+          ],
+          "cohens_kappa": -0.5,
+          "top_5_overlap": 0.8,
+          "top_10_overlap": 0.6,
+          "ndcg_10": 0.8662
+        }
+      },
+      "spof": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "ia_threshold": 0.025,
+        "ia_max": 0.4301,
+        "n_predicted_ap": 0
+      }
+    },
+    {
+      "scenario": "healthcare_system",
+      "layer": "system",
+      "n_components": 98,
+      "n_scored": 61,
+      "n_unscored": 37,
+      "timing": {
+        "analyze_seconds": 0.92,
+        "detect_seconds": 0.0,
+        "per_detector": {
+          "QOS_MISMATCH": {
+            "seconds": 0.001,
+            "n_findings": 138
+          },
+          "CHATTY_PAIR": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "CYCLE": {
+            "seconds": 0.001,
+            "n_findings": 3
+          },
+          "CHAIN": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "SPOF": {
+            "seconds": 0.0,
+            "n_findings": 1
+          },
+          "BRIDGE_EDGE": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "BOTTLENECK_EDGE": {
+            "seconds": 0.0,
+            "n_findings": 245
+          },
+          "BROKER_OVERLOAD": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "FAILURE_HUB": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "CONCENTRATION_RISK": {
+            "seconds": 0.0,
+            "n_findings": 1
+          },
+          "TOPIC_FANOUT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "GOD_COMPONENT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "HUB_AND_SPOKE": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "ORPHANED_TOPIC": {
+            "seconds": 0.0,
+            "n_findings": 3
+          },
+          "UNSTABLE_INTERFACE": {
+            "seconds": 0.0,
+            "n_findings": 4
+          },
+          "ISOLATED": {
+            "seconds": 0.0,
+            "n_findings": 25
+          },
+          "SYSTEMIC_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "COMPOUND_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          }
+        },
+        "gate_seconds": 0.92
+      },
+      "gate_seconds": 0.92,
+      "findings": {
+        "n_findings": 420,
+        "n_component_findings": 33,
+        "n_non_component_findings": 387,
+        "n_distinct_patterns": 8,
+        "by_severity": {
+          "CRITICAL": 1,
+          "HIGH": 248,
+          "MEDIUM": 171
+        },
+        "by_pattern": {
+          "Bottleneck Dependency": 245,
+          "QoS Policy Mismatch": 138,
+          "Isolated Component": 25,
+          "Unstable Interface": 4,
+          "Orphaned Topic": 3,
+          "Dependency Cycle": 3,
+          "Single Point of Failure (SPOF)": 1,
+          "Concentration Risk": 1
+        },
+        "n_components_flagged": 1,
+        "pct_components_flagged": 1.02,
+        "pct_scored_implicated": 95.08
+      },
+      "predictors": {
+        "q_composite": {
+          "spearman_rho": -0.2709,
+          "spearman_p": 0.034707,
+          "spearman_ci": [
+            -0.5096,
+            0.0116
+          ],
+          "precision": 0.25,
+          "recall": 0.25,
+          "f1": 0.25,
+          "f1_ci": [
+            0.0645,
+            0.4571
+          ],
+          "cohens_kappa": -0.0167,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.1451
+        },
+        "betweenness": {
+          "spearman_rho": -0.2986,
+          "spearman_p": 0.019416,
+          "spearman_ci": [
+            -0.5377,
+            -0.0111
+          ],
+          "precision": 0.25,
+          "recall": 0.25,
+          "f1": 0.25,
+          "f1_ci": [
+            0.0667,
+            0.45
+          ],
+          "cohens_kappa": -0.0167,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.144
+        },
+        "degree": {
+          "spearman_rho": -0.1978,
+          "spearman_p": 0.126482,
+          "spearman_ci": [
+            -0.4608,
+            0.0922
+          ],
+          "precision": 0.4118,
+          "recall": 0.4375,
+          "f1": 0.4242,
+          "f1_ci": [
+            0.2,
+            0.6207
+          ],
+          "cohens_kappa": 0.211,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.1,
+          "ndcg_10": 0.1464
+        }
+      },
+      "catalog": {
+        "n_flagged": 58,
+        "n_flagged_directly": 1,
+        "n_actual_critical": 16,
+        "precision": 0.2586,
+        "recall": 0.9375,
+        "f1": 0.4054,
+        "cohens_kappa": -0.0098,
+        "true_positives": 15,
+        "false_positives": 43,
+        "false_negatives": 1
+      },
+      "q_by_type": {
+        "Application": {
+          "n": 50,
+          "spearman_rho": 0.2265,
+          "spearman_p": 0.113744,
+          "spearman_ci": [
+            -0.0909,
+            0.5284
+          ],
+          "precision": 0.4615,
+          "recall": 0.4615,
+          "f1": 0.4615,
+          "f1_ci": [
+            0.2105,
+            0.6857
+          ],
+          "cohens_kappa": 0.2723,
+          "top_5_overlap": 0.6,
+          "top_10_overlap": 0.6,
+          "ndcg_10": 0.8261
+        },
+        "Broker": {
+          "n": 3,
+          "spearman_rho": -0.5,
+          "spearman_p": 0.666667,
+          "spearman_ci": [
+            -0.5,
+            -0.5
+          ],
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "f1_ci": [
+            0.0,
+            0.0
+          ],
+          "cohens_kappa": -0.5,
+          "top_5_overlap": 0.6,
+          "top_10_overlap": 0.3,
+          "ndcg_10": 0.9414
+        },
+        "Node": {
+          "n": 8,
+          "spearman_rho": 0.619,
+          "spearman_p": 0.101733,
+          "spearman_ci": [
+            -0.2703,
+            1.0
+          ],
+          "precision": 0.5,
+          "recall": 0.5,
+          "f1": 0.5,
+          "f1_ci": [
+            0.0,
+            1.0
+          ],
+          "cohens_kappa": 0.3333,
+          "top_5_overlap": 0.8,
+          "top_10_overlap": 0.8,
+          "ndcg_10": 0.9038
+        }
+      },
+      "spof": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "ia_threshold": 0.0568,
+        "ia_max": 0.6139,
+        "n_predicted_ap": 0
+      }
+    },
+    {
+      "scenario": "hub_and_spoke_system",
+      "layer": "system",
+      "n_components": 139,
+      "n_scored": 84,
+      "n_unscored": 55,
+      "timing": {
+        "analyze_seconds": 3.15,
+        "detect_seconds": 0.02,
+        "per_detector": {
+          "CYCLE": {
+            "seconds": 0.003,
+            "n_findings": 2
+          },
+          "CHAIN": {
+            "seconds": 0.003,
+            "n_findings": 0
+          },
+          "QOS_MISMATCH": {
+            "seconds": 0.002,
+            "n_findings": 1038
+          },
+          "CHATTY_PAIR": {
+            "seconds": 0.002,
+            "n_findings": 0
+          },
+          "SPOF": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "BRIDGE_EDGE": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "BOTTLENECK_EDGE": {
+            "seconds": 0.001,
+            "n_findings": 915
+          },
+          "ISOLATED": {
+            "seconds": 0.001,
+            "n_findings": 30
+          },
+          "SYSTEMIC_RISK": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "BROKER_OVERLOAD": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "FAILURE_HUB": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "CONCENTRATION_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "TOPIC_FANOUT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "GOD_COMPONENT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "HUB_AND_SPOKE": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "ORPHANED_TOPIC": {
+            "seconds": 0.0,
+            "n_findings": 1
+          },
+          "UNSTABLE_INTERFACE": {
+            "seconds": 0.0,
+            "n_findings": 7
+          },
+          "COMPOUND_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          }
+        },
+        "gate_seconds": 3.17
+      },
+      "gate_seconds": 3.17,
+      "findings": {
+        "n_findings": 1993,
+        "n_component_findings": 38,
+        "n_non_component_findings": 1955,
+        "n_distinct_patterns": 6,
+        "by_severity": {
+          "HIGH": 917,
+          "MEDIUM": 1076
+        },
+        "by_pattern": {
+          "QoS Policy Mismatch": 1038,
+          "Bottleneck Dependency": 915,
+          "Isolated Component": 30,
+          "Unstable Interface": 7,
+          "Dependency Cycle": 2,
+          "Orphaned Topic": 1
+        },
+        "n_components_flagged": 0,
+        "pct_components_flagged": 0.0,
+        "pct_scored_implicated": 97.62
+      },
+      "predictors": {
+        "q_composite": {
+          "spearman_rho": -0.0139,
+          "spearman_p": 0.899806,
+          "spearman_ci": [
+            -0.2803,
+            0.286
+          ],
+          "precision": 0.3333,
+          "recall": 0.3333,
+          "f1": 0.3333,
+          "f1_ci": [
+            0.129,
+            0.5085
+          ],
+          "cohens_kappa": 0.1111,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.1555
+        },
+        "betweenness": {
+          "spearman_rho": 0.0599,
+          "spearman_p": 0.588596,
+          "spearman_ci": [
+            -0.1973,
+            0.3179
+          ],
+          "precision": 0.3333,
+          "recall": 0.3333,
+          "f1": 0.3333,
+          "f1_ci": [
+            0.125,
+            0.5085
+          ],
+          "cohens_kappa": 0.1111,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.1507
+        },
+        "degree": {
+          "spearman_rho": -0.1293,
+          "spearman_p": 0.241011,
+          "spearman_ci": [
+            -0.3563,
+            0.1301
+          ],
+          "precision": 0.3182,
+          "recall": 0.3333,
+          "f1": 0.3256,
+          "f1_ci": [
+            0.125,
+            0.4918
+          ],
+          "cohens_kappa": 0.0937,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.1385
+        }
+      },
+      "catalog": {
+        "n_flagged": 82,
+        "n_flagged_directly": 0,
+        "n_actual_critical": 21,
+        "precision": 0.2317,
+        "recall": 0.9048,
+        "f1": 0.3689,
+        "cohens_kappa": -0.0484,
+        "true_positives": 19,
+        "false_positives": 63,
+        "false_negatives": 2
+      },
+      "q_by_type": {
+        "Application": {
+          "n": 70,
+          "spearman_rho": 0.6037,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            0.3965,
+            0.7519
+          ],
+          "precision": 0.7222,
+          "recall": 0.7222,
+          "f1": 0.7222,
+          "f1_ci": [
+            0.5333,
+            0.8571
+          ],
+          "cohens_kappa": 0.6261,
+          "top_5_overlap": 0.6,
+          "top_10_overlap": 0.7,
+          "ndcg_10": 0.8495
+        },
+        "Node": {
+          "n": 12,
+          "spearman_rho": 0.3916,
+          "spearman_p": 0.208063,
+          "spearman_ci": [
+            -0.2263,
+            0.7857
+          ],
+          "precision": 0.6667,
+          "recall": 0.6667,
+          "f1": 0.6667,
+          "f1_ci": [
+            0.0,
+            1.0
+          ],
+          "cohens_kappa": 0.5556,
+          "top_5_overlap": 0.6,
+          "top_10_overlap": 0.8,
+          "ndcg_10": 0.8912
+        }
+      },
+      "spof": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "ia_threshold": 0.0309,
+        "ia_max": 0.2287,
+        "n_predicted_ap": 0
+      }
+    },
+    {
+      "scenario": "industrial_scada_system",
+      "layer": "system",
+      "n_components": 254,
+      "n_scored": 169,
+      "n_unscored": 85,
+      "timing": {
+        "analyze_seconds": 2.42,
+        "detect_seconds": 0.01,
+        "per_detector": {
+          "CYCLE": {
+            "seconds": 0.002,
+            "n_findings": 2
+          },
+          "BOTTLENECK_EDGE": {
+            "seconds": 0.001,
+            "n_findings": 250
+          },
+          "CHATTY_PAIR": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "CHAIN": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "SPOF": {
+            "seconds": 0.0,
+            "n_findings": 12
+          },
+          "BRIDGE_EDGE": {
+            "seconds": 0.0,
+            "n_findings": 3
+          },
+          "BROKER_OVERLOAD": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "FAILURE_HUB": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "CONCENTRATION_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "TOPIC_FANOUT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "QOS_MISMATCH": {
+            "seconds": 0.0,
+            "n_findings": 13
+          },
+          "GOD_COMPONENT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "HUB_AND_SPOKE": {
+            "seconds": 0.0,
+            "n_findings": 2
+          },
+          "ORPHANED_TOPIC": {
+            "seconds": 0.0,
+            "n_findings": 16
+          },
+          "UNSTABLE_INTERFACE": {
+            "seconds": 0.0,
+            "n_findings": 4
+          },
+          "ISOLATED": {
+            "seconds": 0.0,
+            "n_findings": 70
+          },
+          "SYSTEMIC_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "COMPOUND_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          }
+        },
+        "gate_seconds": 2.43
+      },
+      "gate_seconds": 2.43,
+      "findings": {
+        "n_findings": 372,
+        "n_component_findings": 104,
+        "n_non_component_findings": 268,
+        "n_distinct_patterns": 9,
+        "by_severity": {
+          "CRITICAL": 12,
+          "HIGH": 255,
+          "MEDIUM": 105
+        },
+        "by_pattern": {
+          "Bottleneck Dependency": 250,
+          "Isolated Component": 70,
+          "Orphaned Topic": 16,
+          "QoS Policy Mismatch": 13,
+          "Single Point of Failure (SPOF)": 12,
+          "Unstable Interface": 4,
+          "Bridge Edge (Critical Link)": 3,
+          "Hub-and-Spoke Anti-Pattern": 2,
+          "Dependency Cycle": 2
+        },
+        "n_components_flagged": 12,
+        "pct_components_flagged": 4.72,
+        "pct_scored_implicated": 86.98
+      },
+      "predictors": {
+        "q_composite": {
+          "spearman_rho": 0.6723,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            0.5789,
+            0.7501
+          ],
+          "precision": 0.5581,
+          "recall": 0.5581,
+          "f1": 0.5581,
+          "f1_ci": [
+            0.4156,
+            0.675
+          ],
+          "cohens_kappa": 0.4073,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.1,
+          "ndcg_10": 0.224
+        },
+        "betweenness": {
+          "spearman_rho": 0.3804,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            0.2573,
+            0.5008
+          ],
+          "precision": 0.3256,
+          "recall": 0.3256,
+          "f1": 0.3256,
+          "f1_ci": [
+            0.1972,
+            0.4471
+          ],
+          "cohens_kappa": 0.0954,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.1441
+        },
+        "degree": {
+          "spearman_rho": 0.6954,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            0.5997,
+            0.7793
+          ],
+          "precision": 0.6977,
+          "recall": 0.6977,
+          "f1": 0.6977,
+          "f1_ci": [
+            0.5797,
+            0.7957
+          ],
+          "cohens_kappa": 0.5945,
+          "top_5_overlap": 0.2,
+          "top_10_overlap": 0.2,
+          "ndcg_10": 0.5318
+        }
+      },
+      "catalog": {
+        "n_flagged": 147,
+        "n_flagged_directly": 12,
+        "n_actual_critical": 43,
+        "precision": 0.2789,
+        "recall": 0.9535,
+        "f1": 0.4316,
+        "cohens_kappa": 0.0625,
+        "true_positives": 41,
+        "false_positives": 106,
+        "false_negatives": 2
+      },
+      "q_by_type": {
+        "Application": {
+          "n": 140,
+          "spearman_rho": 0.7314,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            0.6359,
+            0.8042
+          ],
+          "precision": 0.6857,
+          "recall": 0.6857,
+          "f1": 0.6857,
+          "f1_ci": [
+            0.549,
+            0.7949
+          ],
+          "cohens_kappa": 0.581,
+          "top_5_overlap": 0.4,
+          "top_10_overlap": 0.5,
+          "ndcg_10": 0.8728
+        },
+        "Broker": {
+          "n": 4,
+          "spearman_rho": 1.0,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            1.0,
+            1.0
+          ],
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "f1_ci": [
+            1.0,
+            1.0
+          ],
+          "cohens_kappa": 1.0,
+          "top_5_overlap": 0.8,
+          "top_10_overlap": 0.4,
+          "ndcg_10": 1.0
+        },
+        "Node": {
+          "n": 25,
+          "spearman_rho": 0.4262,
+          "spearman_p": 0.033656,
+          "spearman_ci": [
+            -0.0074,
+            0.75
+          ],
+          "precision": 0.4286,
+          "recall": 0.4286,
+          "f1": 0.4286,
+          "f1_ci": [
+            0.0,
+            0.7368
+          ],
+          "cohens_kappa": 0.2063,
+          "top_5_overlap": 0.4,
+          "top_10_overlap": 0.5,
+          "ndcg_10": 0.8104
+        }
+      },
+      "spof": {
+        "precision": 1.0,
+        "recall": 0.0476,
+        "f1": 0.0909,
+        "ia_threshold": 0.031,
+        "ia_max": 0.3004,
+        "n_predicted_ap": 2
+      }
+    },
+    {
+      "scenario": "iot_smart_city_system",
+      "layer": "system",
+      "n_components": 326,
+      "n_scored": 236,
+      "n_unscored": 90,
+      "timing": {
+        "analyze_seconds": 5.47,
+        "detect_seconds": 0.01,
+        "per_detector": {
+          "CYCLE": {
+            "seconds": 0.002,
+            "n_findings": 4
+          },
+          "CHAIN": {
+            "seconds": 0.002,
+            "n_findings": 0
+          },
+          "SPOF": {
+            "seconds": 0.001,
+            "n_findings": 6
+          },
+          "BRIDGE_EDGE": {
+            "seconds": 0.001,
+            "n_findings": 1
+          },
+          "BOTTLENECK_EDGE": {
+            "seconds": 0.001,
+            "n_findings": 556
+          },
+          "QOS_MISMATCH": {
+            "seconds": 0.001,
+            "n_findings": 49
+          },
+          "CHATTY_PAIR": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "ISOLATED": {
+            "seconds": 0.001,
+            "n_findings": 80
+          },
+          "BROKER_OVERLOAD": {
+            "seconds": 0.0,
+            "n_findings": 1
+          },
+          "FAILURE_HUB": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "CONCENTRATION_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "TOPIC_FANOUT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "GOD_COMPONENT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "HUB_AND_SPOKE": {
+            "seconds": 0.0,
+            "n_findings": 2
+          },
+          "ORPHANED_TOPIC": {
+            "seconds": 0.0,
+            "n_findings": 7
+          },
+          "UNSTABLE_INTERFACE": {
+            "seconds": 0.0,
+            "n_findings": 10
+          },
+          "SYSTEMIC_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "COMPOUND_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          }
+        },
+        "gate_seconds": 5.48
+      },
+      "gate_seconds": 5.48,
+      "findings": {
+        "n_findings": 716,
+        "n_component_findings": 106,
+        "n_non_component_findings": 610,
+        "n_distinct_patterns": 10,
+        "by_severity": {
+          "CRITICAL": 6,
+          "HIGH": 562,
+          "MEDIUM": 148
+        },
+        "by_pattern": {
+          "Bottleneck Dependency": 556,
+          "Isolated Component": 80,
+          "QoS Policy Mismatch": 49,
+          "Unstable Interface": 10,
+          "Orphaned Topic": 7,
+          "Single Point of Failure (SPOF)": 6,
+          "Dependency Cycle": 4,
+          "Hub-and-Spoke Anti-Pattern": 2,
+          "Bridge Edge (Critical Link)": 1,
+          "Broker Saturation": 1
+        },
+        "n_components_flagged": 6,
+        "pct_components_flagged": 1.84,
+        "pct_scored_implicated": 94.49
+      },
+      "predictors": {
+        "q_composite": {
+          "spearman_rho": 0.7047,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            0.6128,
+            0.7718
+          ],
+          "precision": 0.5932,
+          "recall": 0.5932,
+          "f1": 0.5932,
+          "f1_ci": [
+            0.4819,
+            0.6935
+          ],
+          "cohens_kappa": 0.4576,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.1,
+          "ndcg_10": 0.2603
+        },
+        "betweenness": {
+          "spearman_rho": 0.441,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            0.3261,
+            0.5328
+          ],
+          "precision": 0.3898,
+          "recall": 0.3898,
+          "f1": 0.3898,
+          "f1_ci": [
+            0.2692,
+            0.5
+          ],
+          "cohens_kappa": 0.1864,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.1389
+        },
+        "degree": {
+          "spearman_rho": 0.8039,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            0.7407,
+            0.8501
+          ],
+          "precision": 0.8305,
+          "recall": 0.8305,
+          "f1": 0.8305,
+          "f1_ci": [
+            0.7455,
+            0.8966
+          ],
+          "cohens_kappa": 0.774,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.2,
+          "ndcg_10": 0.3788
+        }
+      },
+      "catalog": {
+        "n_flagged": 223,
+        "n_flagged_directly": 6,
+        "n_actual_critical": 59,
+        "precision": 0.2466,
+        "recall": 0.9322,
+        "f1": 0.3901,
+        "cohens_kappa": -0.0088,
+        "true_positives": 55,
+        "false_positives": 168,
+        "false_negatives": 4
+      },
+      "q_by_type": {
+        "Application": {
+          "n": 200,
+          "spearman_rho": 0.7993,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            0.7335,
+            0.8491
+          ],
+          "precision": 0.7,
+          "recall": 0.7,
+          "f1": 0.7,
+          "f1_ci": [
+            0.5941,
+            0.7959
+          ],
+          "cohens_kappa": 0.6,
+          "top_5_overlap": 0.4,
+          "top_10_overlap": 0.4,
+          "ndcg_10": 0.8995
+        },
+        "Broker": {
+          "n": 6,
+          "spearman_rho": 0.7714,
+          "spearman_p": 0.072397,
+          "spearman_ci": [
+            0.0,
+            1.0
+          ],
+          "precision": 0.5,
+          "recall": 0.5,
+          "f1": 0.5,
+          "f1_ci": [
+            0.0,
+            1.0
+          ],
+          "cohens_kappa": 0.25,
+          "top_5_overlap": 1.0,
+          "top_10_overlap": 0.6,
+          "ndcg_10": 0.9674
+        },
+        "Node": {
+          "n": 30,
+          "spearman_rho": 0.6009,
+          "spearman_p": 0.000446,
+          "spearman_ci": [
+            0.2173,
+            0.8482
+          ],
+          "precision": 0.5,
+          "recall": 0.5,
+          "f1": 0.5,
+          "f1_ci": [
+            0.1538,
+            0.7619
+          ],
+          "cohens_kappa": 0.3182,
+          "top_5_overlap": 0.6,
+          "top_10_overlap": 0.5,
+          "ndcg_10": 0.85
+        }
+      },
+      "spof": {
+        "precision": 1.0,
+        "recall": 0.0169,
+        "f1": 0.0333,
+        "ia_threshold": 0.0188,
+        "ia_max": 0.1688,
+        "n_predicted_ap": 1
+      }
+    },
+    {
+      "scenario": "logistics_fleet_system",
+      "layer": "system",
+      "n_components": 205,
+      "n_scored": 135,
+      "n_unscored": 70,
+      "timing": {
+        "analyze_seconds": 2.73,
+        "detect_seconds": 0.01,
+        "per_detector": {
+          "CYCLE": {
+            "seconds": 0.002,
+            "n_findings": 3
+          },
+          "SPOF": {
+            "seconds": 0.001,
+            "n_findings": 3
+          },
+          "BOTTLENECK_EDGE": {
+            "seconds": 0.001,
+            "n_findings": 296
+          },
+          "QOS_MISMATCH": {
+            "seconds": 0.001,
+            "n_findings": 123
+          },
+          "CHATTY_PAIR": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "CHAIN": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "BRIDGE_EDGE": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "BROKER_OVERLOAD": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "FAILURE_HUB": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "CONCENTRATION_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "TOPIC_FANOUT": {
+            "seconds": 0.0,
+            "n_findings": 2
+          },
+          "GOD_COMPONENT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "HUB_AND_SPOKE": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "ORPHANED_TOPIC": {
+            "seconds": 0.0,
+            "n_findings": 1
+          },
+          "UNSTABLE_INTERFACE": {
+            "seconds": 0.0,
+            "n_findings": 8
+          },
+          "ISOLATED": {
+            "seconds": 0.0,
+            "n_findings": 50
+          },
+          "SYSTEMIC_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "COMPOUND_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          }
+        },
+        "gate_seconds": 2.74
+      },
+      "gate_seconds": 2.74,
+      "findings": {
+        "n_findings": 486,
+        "n_component_findings": 64,
+        "n_non_component_findings": 422,
+        "n_distinct_patterns": 8,
+        "by_severity": {
+          "CRITICAL": 3,
+          "HIGH": 299,
+          "MEDIUM": 184
+        },
+        "by_pattern": {
+          "Bottleneck Dependency": 296,
+          "QoS Policy Mismatch": 123,
+          "Isolated Component": 50,
+          "Unstable Interface": 8,
+          "Single Point of Failure (SPOF)": 3,
+          "Dependency Cycle": 3,
+          "Topic Fan-Out Explosion": 2,
+          "Orphaned Topic": 1
+        },
+        "n_components_flagged": 3,
+        "pct_components_flagged": 1.46,
+        "pct_scored_implicated": 94.07
+      },
+      "predictors": {
+        "q_composite": {
+          "spearman_rho": 0.3469,
+          "spearman_p": 3.8e-05,
+          "spearman_ci": [
+            0.1814,
+            0.4944
+          ],
+          "precision": 0.2647,
+          "recall": 0.2647,
+          "f1": 0.2647,
+          "f1_ci": [
+            0.1212,
+            0.3881
+          ],
+          "cohens_kappa": 0.0172,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.0729
+        },
+        "betweenness": {
+          "spearman_rho": 0.1063,
+          "spearman_p": 0.219762,
+          "spearman_ci": [
+            -0.0801,
+            0.2966
+          ],
+          "precision": 0.2353,
+          "recall": 0.2353,
+          "f1": 0.2353,
+          "f1_ci": [
+            0.0984,
+            0.3662
+          ],
+          "cohens_kappa": -0.0221,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.0704
+        },
+        "degree": {
+          "spearman_rho": 0.6087,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            0.4865,
+            0.6984
+          ],
+          "precision": 0.4118,
+          "recall": 0.4118,
+          "f1": 0.4118,
+          "f1_ci": [
+            0.2593,
+            0.55
+          ],
+          "cohens_kappa": 0.2137,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.1781
+        }
+      },
+      "catalog": {
+        "n_flagged": 127,
+        "n_flagged_directly": 3,
+        "n_actual_critical": 34,
+        "precision": 0.2283,
+        "recall": 0.8529,
+        "f1": 0.3602,
+        "cohens_kappa": -0.0615,
+        "true_positives": 29,
+        "false_positives": 98,
+        "false_negatives": 5
+      },
+      "q_by_type": {
+        "Application": {
+          "n": 110,
+          "spearman_rho": 0.7041,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            0.5841,
+            0.7845
+          ],
+          "precision": 0.6429,
+          "recall": 0.6429,
+          "f1": 0.6429,
+          "f1_ci": [
+            0.48,
+            0.7671
+          ],
+          "cohens_kappa": 0.5209,
+          "top_5_overlap": 0.2,
+          "top_10_overlap": 0.3,
+          "ndcg_10": 0.7691
+        },
+        "Broker": {
+          "n": 7,
+          "spearman_rho": -0.0357,
+          "spearman_p": 0.939408,
+          "spearman_ci": [
+            -0.7647,
+            0.9565
+          ],
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "f1_ci": [
+            0.0,
+            0.0
+          ],
+          "cohens_kappa": -0.4,
+          "top_5_overlap": 0.8,
+          "top_10_overlap": 0.7,
+          "ndcg_10": 0.869
+        },
+        "Node": {
+          "n": 18,
+          "spearman_rho": -0.1744,
+          "spearman_p": 0.488839,
+          "spearman_ci": [
+            -0.6004,
+            0.3431
+          ],
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "f1_ci": [
+            0.0,
+            0.0
+          ],
+          "cohens_kappa": -0.2857,
+          "top_5_overlap": 0.2,
+          "top_10_overlap": 0.5,
+          "ndcg_10": 0.6877
+        }
+      },
+      "spof": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "ia_threshold": 0.022,
+        "ia_max": 0.3476,
+        "n_predicted_ap": 0
+      }
+    },
+    {
+      "scenario": "microservices_system",
+      "layer": "system",
+      "n_components": 186,
+      "n_scored": 111,
+      "n_unscored": 75,
+      "timing": {
+        "analyze_seconds": 2.28,
+        "detect_seconds": 0.01,
+        "per_detector": {
+          "CYCLE": {
+            "seconds": 0.002,
+            "n_findings": 3
+          },
+          "BOTTLENECK_EDGE": {
+            "seconds": 0.001,
+            "n_findings": 240
+          },
+          "QOS_MISMATCH": {
+            "seconds": 0.001,
+            "n_findings": 107
+          },
+          "CHATTY_PAIR": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "CHAIN": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "SPOF": {
+            "seconds": 0.0,
+            "n_findings": 1
+          },
+          "BRIDGE_EDGE": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "BROKER_OVERLOAD": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "FAILURE_HUB": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "CONCENTRATION_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "TOPIC_FANOUT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "GOD_COMPONENT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "HUB_AND_SPOKE": {
+            "seconds": 0.0,
+            "n_findings": 1
+          },
+          "ORPHANED_TOPIC": {
+            "seconds": 0.0,
+            "n_findings": 2
+          },
+          "UNSTABLE_INTERFACE": {
+            "seconds": 0.0,
+            "n_findings": 9
+          },
+          "ISOLATED": {
+            "seconds": 0.0,
+            "n_findings": 45
+          },
+          "SYSTEMIC_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "COMPOUND_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          }
+        },
+        "gate_seconds": 2.29
+      },
+      "gate_seconds": 2.29,
+      "findings": {
+        "n_findings": 408,
+        "n_component_findings": 58,
+        "n_non_component_findings": 350,
+        "n_distinct_patterns": 8,
+        "by_severity": {
+          "CRITICAL": 1,
+          "HIGH": 243,
+          "MEDIUM": 164
+        },
+        "by_pattern": {
+          "Bottleneck Dependency": 240,
+          "QoS Policy Mismatch": 107,
+          "Isolated Component": 45,
+          "Unstable Interface": 9,
+          "Dependency Cycle": 3,
+          "Orphaned Topic": 2,
+          "Single Point of Failure (SPOF)": 1,
+          "Hub-and-Spoke Anti-Pattern": 1
+        },
+        "n_components_flagged": 1,
+        "pct_components_flagged": 0.54,
+        "pct_scored_implicated": 91.89
+      },
+      "predictors": {
+        "q_composite": {
+          "spearman_rho": 0.1426,
+          "spearman_p": 0.135474,
+          "spearman_ci": [
+            -0.0553,
+            0.3413
+          ],
+          "precision": 0.2143,
+          "recall": 0.2143,
+          "f1": 0.2143,
+          "f1_ci": [
+            0.0769,
+            0.36
+          ],
+          "cohens_kappa": -0.0508,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.0697
+        },
+        "betweenness": {
+          "spearman_rho": -0.0937,
+          "spearman_p": 0.327922,
+          "spearman_ci": [
+            -0.304,
+            0.1331
+          ],
+          "precision": 0.2143,
+          "recall": 0.2143,
+          "f1": 0.2143,
+          "f1_ci": [
+            0.0741,
+            0.3636
+          ],
+          "cohens_kappa": -0.0508,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.0466
+        },
+        "degree": {
+          "spearman_rho": 0.3568,
+          "spearman_p": 0.000121,
+          "spearman_ci": [
+            0.1725,
+            0.5192
+          ],
+          "precision": 0.3448,
+          "recall": 0.3571,
+          "f1": 0.3509,
+          "f1_ci": [
+            0.1786,
+            0.5
+          ],
+          "cohens_kappa": 0.1267,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.1,
+          "ndcg_10": 0.1751
+        }
+      },
+      "catalog": {
+        "n_flagged": 102,
+        "n_flagged_directly": 1,
+        "n_actual_critical": 28,
+        "precision": 0.2353,
+        "recall": 0.8571,
+        "f1": 0.3692,
+        "cohens_kappa": -0.044,
+        "true_positives": 24,
+        "false_positives": 78,
+        "false_negatives": 4
+      },
+      "q_by_type": {
+        "Application": {
+          "n": 90,
+          "spearman_rho": 0.5695,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            0.3921,
+            0.7103
+          ],
+          "precision": 0.5652,
+          "recall": 0.5652,
+          "f1": 0.5652,
+          "f1_ci": [
+            0.3784,
+            0.7273
+          ],
+          "cohens_kappa": 0.416,
+          "top_5_overlap": 0.2,
+          "top_10_overlap": 0.4,
+          "ndcg_10": 0.7997
+        },
+        "Broker": {
+          "n": 6,
+          "spearman_rho": -0.3143,
+          "spearman_p": 0.544093,
+          "spearman_ci": [
+            -1.0,
+            0.92
+          ],
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "f1_ci": [
+            0.0,
+            0.0
+          ],
+          "cohens_kappa": -0.5,
+          "top_5_overlap": 0.8,
+          "top_10_overlap": 0.6,
+          "ndcg_10": 0.8521
+        },
+        "Node": {
+          "n": 15,
+          "spearman_rho": 0.2857,
+          "spearman_p": 0.301936,
+          "spearman_ci": [
+            -0.2839,
+            0.7404
+          ],
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "f1_ci": [
+            0.0,
+            0.0
+          ],
+          "cohens_kappa": -0.25,
+          "top_5_overlap": 0.2,
+          "top_10_overlap": 0.8,
+          "ndcg_10": 0.5736
+        }
+      },
+      "spof": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "ia_threshold": 0.0205,
+        "ia_max": 0.3825,
+        "n_predicted_ap": 0
+      }
+    },
+    {
+      "scenario": "realtime_gaming_system",
+      "layer": "system",
+      "n_components": 158,
+      "n_scored": 92,
+      "n_unscored": 66,
+      "timing": {
+        "analyze_seconds": 2.42,
+        "detect_seconds": 0.01,
+        "per_detector": {
+          "CYCLE": {
+            "seconds": 0.002,
+            "n_findings": 2
+          },
+          "SPOF": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "BOTTLENECK_EDGE": {
+            "seconds": 0.001,
+            "n_findings": 395
+          },
+          "QOS_MISMATCH": {
+            "seconds": 0.001,
+            "n_findings": 377
+          },
+          "CHATTY_PAIR": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "CHAIN": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "BRIDGE_EDGE": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "BROKER_OVERLOAD": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "FAILURE_HUB": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "CONCENTRATION_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "TOPIC_FANOUT": {
+            "seconds": 0.0,
+            "n_findings": 1
+          },
+          "GOD_COMPONENT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "HUB_AND_SPOKE": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "ORPHANED_TOPIC": {
+            "seconds": 0.0,
+            "n_findings": 4
+          },
+          "UNSTABLE_INTERFACE": {
+            "seconds": 0.0,
+            "n_findings": 4
+          },
+          "ISOLATED": {
+            "seconds": 0.0,
+            "n_findings": 38
+          },
+          "SYSTEMIC_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "COMPOUND_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          }
+        },
+        "gate_seconds": 2.43
+      },
+      "gate_seconds": 2.43,
+      "findings": {
+        "n_findings": 821,
+        "n_component_findings": 47,
+        "n_non_component_findings": 774,
+        "n_distinct_patterns": 7,
+        "by_severity": {
+          "HIGH": 397,
+          "MEDIUM": 424
+        },
+        "by_pattern": {
+          "Bottleneck Dependency": 395,
+          "QoS Policy Mismatch": 377,
+          "Isolated Component": 38,
+          "Orphaned Topic": 4,
+          "Unstable Interface": 4,
+          "Dependency Cycle": 2,
+          "Topic Fan-Out Explosion": 1
+        },
+        "n_components_flagged": 0,
+        "pct_components_flagged": 0.0,
+        "pct_scored_implicated": 94.57
+      },
+      "predictors": {
+        "q_composite": {
+          "spearman_rho": 0.0175,
+          "spearman_p": 0.868825,
+          "spearman_ci": [
+            -0.2075,
+            0.2473
+          ],
+          "precision": 0.2609,
+          "recall": 0.2609,
+          "f1": 0.2609,
+          "f1_ci": [
+            0.0952,
+            0.4186
+          ],
+          "cohens_kappa": 0.0145,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.1464
+        },
+        "betweenness": {
+          "spearman_rho": -0.1476,
+          "spearman_p": 0.160313,
+          "spearman_ci": [
+            -0.3729,
+            0.081
+          ],
+          "precision": 0.2174,
+          "recall": 0.2174,
+          "f1": 0.2174,
+          "f1_ci": [
+            0.0513,
+            0.3607
+          ],
+          "cohens_kappa": -0.0435,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.1487
+        },
+        "degree": {
+          "spearman_rho": -0.0376,
+          "spearman_p": 0.722233,
+          "spearman_ci": [
+            -0.2743,
+            0.188
+          ],
+          "precision": 0.4348,
+          "recall": 0.4348,
+          "f1": 0.4348,
+          "f1_ci": [
+            0.2439,
+            0.5957
+          ],
+          "cohens_kappa": 0.2464,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.1,
+          "ndcg_10": 0.2304
+        }
+      },
+      "catalog": {
+        "n_flagged": 87,
+        "n_flagged_directly": 0,
+        "n_actual_critical": 23,
+        "precision": 0.2069,
+        "recall": 0.7826,
+        "f1": 0.3273,
+        "cohens_kappa": -0.1128,
+        "true_positives": 18,
+        "false_positives": 69,
+        "false_negatives": 5
+      },
+      "q_by_type": {
+        "Application": {
+          "n": 75,
+          "spearman_rho": 0.5057,
+          "spearman_p": 4e-06,
+          "spearman_ci": [
+            0.2858,
+            0.6768
+          ],
+          "precision": 0.5789,
+          "recall": 0.5789,
+          "f1": 0.5789,
+          "f1_ci": [
+            0.3571,
+            0.75
+          ],
+          "cohens_kappa": 0.4361,
+          "top_5_overlap": 0.6,
+          "top_10_overlap": 0.6,
+          "ndcg_10": 0.7873
+        },
+        "Broker": {
+          "n": 5,
+          "spearman_rho": 1.0,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            1.0,
+            1.0
+          ],
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "f1_ci": [
+            0.0,
+            1.0
+          ],
+          "cohens_kappa": 1.0,
+          "top_5_overlap": 1.0,
+          "top_10_overlap": 0.5,
+          "ndcg_10": 1.0
+        },
+        "Node": {
+          "n": 12,
+          "spearman_rho": -0.0909,
+          "spearman_p": 0.778725,
+          "spearman_ci": [
+            -0.7299,
+            0.6129
+          ],
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "f1_ci": [
+            0.0,
+            0.0
+          ],
+          "cohens_kappa": -0.3333,
+          "top_5_overlap": 0.4,
+          "top_10_overlap": 0.9,
+          "ndcg_10": 0.7772
+        }
+      },
+      "spof": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "ia_threshold": 0.0274,
+        "ia_max": 0.29,
+        "n_predicted_ap": 0
+      }
+    },
+    {
+      "scenario": "telecom_ran_system",
+      "layer": "system",
+      "n_components": 225,
+      "n_scored": 148,
+      "n_unscored": 77,
+      "timing": {
+        "analyze_seconds": 3.69,
+        "detect_seconds": 0.01,
+        "per_detector": {
+          "CYCLE": {
+            "seconds": 0.002,
+            "n_findings": 4
+          },
+          "CHAIN": {
+            "seconds": 0.002,
+            "n_findings": 0
+          },
+          "SPOF": {
+            "seconds": 0.001,
+            "n_findings": 2
+          },
+          "BRIDGE_EDGE": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "BOTTLENECK_EDGE": {
+            "seconds": 0.001,
+            "n_findings": 296
+          },
+          "QOS_MISMATCH": {
+            "seconds": 0.001,
+            "n_findings": 98
+          },
+          "CHATTY_PAIR": {
+            "seconds": 0.001,
+            "n_findings": 0
+          },
+          "BROKER_OVERLOAD": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "FAILURE_HUB": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "CONCENTRATION_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "TOPIC_FANOUT": {
+            "seconds": 0.0,
+            "n_findings": 2
+          },
+          "GOD_COMPONENT": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "HUB_AND_SPOKE": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "ORPHANED_TOPIC": {
+            "seconds": 0.0,
+            "n_findings": 1
+          },
+          "UNSTABLE_INTERFACE": {
+            "seconds": 0.0,
+            "n_findings": 11
+          },
+          "ISOLATED": {
+            "seconds": 0.0,
+            "n_findings": 55
+          },
+          "SYSTEMIC_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          },
+          "COMPOUND_RISK": {
+            "seconds": 0.0,
+            "n_findings": 0
+          }
+        },
+        "gate_seconds": 3.7
+      },
+      "gate_seconds": 3.7,
+      "findings": {
+        "n_findings": 469,
+        "n_component_findings": 71,
+        "n_non_component_findings": 398,
+        "n_distinct_patterns": 8,
+        "by_severity": {
+          "CRITICAL": 2,
+          "HIGH": 300,
+          "MEDIUM": 167
+        },
+        "by_pattern": {
+          "Bottleneck Dependency": 296,
+          "QoS Policy Mismatch": 98,
+          "Isolated Component": 55,
+          "Unstable Interface": 11,
+          "Dependency Cycle": 4,
+          "Single Point of Failure (SPOF)": 2,
+          "Topic Fan-Out Explosion": 2,
+          "Orphaned Topic": 1
+        },
+        "n_components_flagged": 2,
+        "pct_components_flagged": 0.89,
+        "pct_scored_implicated": 92.57
+      },
+      "predictors": {
+        "q_composite": {
+          "spearman_rho": 0.3741,
+          "spearman_p": 3e-06,
+          "spearman_ci": [
+            0.2159,
+            0.5125
+          ],
+          "precision": 0.2162,
+          "recall": 0.2162,
+          "f1": 0.2162,
+          "f1_ci": [
+            0.0923,
+            0.3467
+          ],
+          "cohens_kappa": -0.045,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.0694
+        },
+        "betweenness": {
+          "spearman_rho": 0.0812,
+          "spearman_p": 0.326587,
+          "spearman_ci": [
+            -0.0951,
+            0.2669
+          ],
+          "precision": 0.2432,
+          "recall": 0.2432,
+          "f1": 0.2432,
+          "f1_ci": [
+            0.1176,
+            0.3736
+          ],
+          "cohens_kappa": -0.009,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.0596
+        },
+        "degree": {
+          "spearman_rho": 0.5628,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            0.4372,
+            0.6676
+          ],
+          "precision": 0.3784,
+          "recall": 0.3784,
+          "f1": 0.3784,
+          "f1_ci": [
+            0.2353,
+            0.5143
+          ],
+          "cohens_kappa": 0.1712,
+          "top_5_overlap": 0.0,
+          "top_10_overlap": 0.0,
+          "ndcg_10": 0.1912
+        }
+      },
+      "catalog": {
+        "n_flagged": 137,
+        "n_flagged_directly": 2,
+        "n_actual_critical": 37,
+        "precision": 0.2409,
+        "recall": 0.8919,
+        "f1": 0.3793,
+        "cohens_kappa": -0.0237,
+        "true_positives": 33,
+        "false_positives": 104,
+        "false_negatives": 4
+      },
+      "q_by_type": {
+        "Application": {
+          "n": 120,
+          "spearman_rho": 0.62,
+          "spearman_p": 0.0,
+          "spearman_ci": [
+            0.482,
+            0.726
+          ],
+          "precision": 0.5333,
+          "recall": 0.5333,
+          "f1": 0.5333,
+          "f1_ci": [
+            0.375,
+            0.6667
+          ],
+          "cohens_kappa": 0.3778,
+          "top_5_overlap": 0.2,
+          "top_10_overlap": 0.3,
+          "ndcg_10": 0.7758
+        },
+        "Broker": {
+          "n": 8,
+          "spearman_rho": -0.1905,
+          "spearman_p": 0.651401,
+          "spearman_ci": [
+            -0.9178,
+            0.6154
+          ],
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "f1_ci": [
+            0.0,
+            0.0
+          ],
+          "cohens_kappa": -0.3333,
+          "top_5_overlap": 0.6,
+          "top_10_overlap": 0.8,
+          "ndcg_10": 0.9053
+        },
+        "Node": {
+          "n": 20,
+          "spearman_rho": 0.0797,
+          "spearman_p": 0.738374,
+          "spearman_ci": [
+            -0.4619,
+            0.5836
+          ],
+          "precision": 0.2,
+          "recall": 0.2,
+          "f1": 0.2,
+          "f1_ci": [
+            0.0,
+            0.5
+          ],
+          "cohens_kappa": -0.0667,
+          "top_5_overlap": 0.2,
+          "top_10_overlap": 0.5,
+          "ndcg_10": 0.616
+        }
+      },
+      "spof": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "ia_threshold": 0.0195,
+        "ia_max": 0.3047,
+        "n_predicted_ap": 0
+      }
+    }
+  ],
+  "summary": {
+    "n_scenarios_measured": 12,
+    "q_composite": {
+      "mean_spearman_rho": 0.217,
+      "mean_f1": 0.35,
+      "mean_precision": 0.35,
+      "mean_recall": 0.35,
+      "mean_top_5_overlap": 0.0
+    },
+    "betweenness": {
+      "mean_spearman_rho": 0.0747,
+      "mean_f1": 0.2941,
+      "mean_precision": 0.2941,
+      "mean_recall": 0.2941,
+      "mean_top_5_overlap": 0.0
+    },
+    "degree": {
+      "mean_spearman_rho": 0.3139,
+      "mean_f1": 0.4589,
+      "mean_precision": 0.4568,
+      "mean_recall": 0.4612,
+      "mean_top_5_overlap": 0.0167
+    },
+    "catalog": {
+      "mean_precision": 0.244,
+      "mean_recall": 0.9001,
+      "mean_f1": 0.3838,
+      "mean_pct_scored_implicated": 93.3575
+    },
+    "spof": {
+      "mean_f1": 0.0103
+    },
+    "q_by_type": {
+      "Application": {
+        "mean_spearman_rho": 0.5967,
+        "n_scenarios": 12
+      },
+      "Broker": {
+        "mean_spearman_rho": 0.3169,
+        "n_scenarios": 11
+      },
+      "Node": {
+        "mean_spearman_rho": 0.1376,
+        "n_scenarios": 12
+      }
+    },
+    "pooling_check": {
+      "pooled_mean_rho": 0.217,
+      "per_type_mean_range": [
+        0.1376,
+        0.5967
+      ],
+      "pooled_inside_per_type_range": true,
+      "note": "False means the pooled figure is not a summary of the per-type figures \u2014 a Simpson's-paradox effect \u2014 and only the stratified numbers should be quoted."
+    },
+    "by_scale": {
+      "large_ge_150_components": {
+        "scenarios": [
+          "av_system",
+          "enterprise_system",
+          "industrial_scada_system",
+          "iot_smart_city_system",
+          "logistics_fleet_system",
+          "microservices_system",
+          "realtime_gaming_system",
+          "telecom_ran_system"
+        ],
+        "mean_spearman_rho": 0.3185
+      },
+      "small_lt_150_components": {
+        "scenarios": [
+          "atm_system",
+          "financial_trading_system",
+          "healthcare_system",
+          "hub_and_spoke_system"
+        ],
+        "mean_spearman_rho": 0.0141
+      }
+    },
+    "gate_seconds": {
+      "min": 0.16,
+      "max": 79.27
+    },
+    "detector_seconds_total": {
+      "CYCLE": 0.05,
+      "CHAIN": 0.04,
+      "CHATTY_PAIR": 0.03,
+      "BOTTLENECK_EDGE": 0.02,
+      "QOS_MISMATCH": 0.02,
+      "SPOF": 0.01,
+      "BRIDGE_EDGE": 0.01,
+      "BROKER_OVERLOAD": 0.01,
+      "FAILURE_HUB": 0.01,
+      "CONCENTRATION_RISK": 0.01,
+      "GOD_COMPONENT": 0.01,
+      "HUB_AND_SPOKE": 0.01,
+      "ORPHANED_TOPIC": 0.01,
+      "UNSTABLE_INTERFACE": 0.01,
+      "ISOLATED": 0.01,
+      "SYSTEMIC_RISK": 0.01,
+      "COMPOUND_RISK": 0.01,
+      "TOPIC_FANOUT": 0.0
+    }
+  },
+  "note": "All metrics are rank-based and therefore invariant to the monotone robust_sigmoid rescaling ValidationService applies internally. Scored against I_comp only; I_comp and I* agree at mean rho 0.3950 over 12 scenarios (results/convergent_validity.json), so these figures do not transfer to claims measured against I*.",
+  "provenance": {
+    "commit": "53b8f878d505c81564a6efbf1bc5b0ba314b186b",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {}
+  }
+}

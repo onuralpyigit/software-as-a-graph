@@ -1,0 +1,142 @@
+{
+  "device": "cpu",
+  "hyperparameters": {
+    "hidden": 64,
+    "heads": 4,
+    "layers": 3,
+    "dropout": 0.0
+  },
+  "sizes": [
+    {
+      "n_target": 250,
+      "n_actual": 249,
+      "n_edges": 1127,
+      "counts": {
+        "applications": 130,
+        "topics": 78,
+        "libraries": 26,
+        "nodes": 13,
+        "brokers": 2
+      },
+      "generation_s": 0.004088179000063974,
+      "analyze_s": {
+        "median": 0.2706606339997961,
+        "p10": 0.268072740000207,
+        "p90": 0.2706606339997961,
+        "n_repeats": 3
+      },
+      "convert_s": {
+        "median": 0.0109304150000753,
+        "p10": 0.01090939999994589,
+        "p90": 0.0109304150000753,
+        "n_repeats": 3
+      },
+      "forward_ms": {
+        "median": 22.45759099969291,
+        "p10": 13.50727499993809,
+        "p90": 53.89894000018103,
+        "n_repeats": 5
+      },
+      "device": "cpu"
+    },
+    {
+      "n_target": 500,
+      "n_actual": 499,
+      "n_edges": 2402,
+      "counts": {
+        "applications": 260,
+        "topics": 156,
+        "libraries": 52,
+        "nodes": 26,
+        "brokers": 5
+      },
+      "generation_s": 0.011629888999777904,
+      "analyze_s": {
+        "median": 0.9526165150000452,
+        "p10": 0.9481330409998918,
+        "p90": 0.9526165150000452,
+        "n_repeats": 3
+      },
+      "convert_s": {
+        "median": 0.02176047499960987,
+        "p10": 0.02160891800031095,
+        "p90": 0.02176047499960987,
+        "n_repeats": 3
+      },
+      "forward_ms": {
+        "median": 15.741834999971616,
+        "p10": 14.945127000828506,
+        "p90": 28.59518500008562,
+        "n_repeats": 5
+      },
+      "device": "cpu"
+    },
+    {
+      "n_target": 1000,
+      "n_actual": 999,
+      "n_edges": 6422,
+      "counts": {
+        "applications": 521,
+        "topics": 312,
+        "libraries": 104,
+        "nodes": 52,
+        "brokers": 10
+      },
+      "generation_s": 0.029155170999729307,
+      "analyze_s": {
+        "median": 4.743010289999802,
+        "p10": 4.728139148000082,
+        "p90": 4.743010289999802,
+        "n_repeats": 3
+      },
+      "convert_s": {
+        "median": 0.054658403999383154,
+        "p10": 0.05419833199994173,
+        "p90": 0.054658403999383154,
+        "n_repeats": 3
+      },
+      "forward_ms": {
+        "median": 36.71960500014393,
+        "p10": 21.233215000393102,
+        "p90": 36.737827000251855,
+        "n_repeats": 5
+      },
+      "device": "cpu"
+    },
+    {
+      "n_target": 2000,
+      "n_actual": 1998,
+      "n_edges": 19301,
+      "counts": {
+        "applications": 1042,
+        "topics": 624,
+        "libraries": 208,
+        "nodes": 104,
+        "brokers": 20
+      },
+      "generation_s": 0.08272584400037886,
+      "analyze_s": {
+        "median": 23.829379400999642,
+        "p10": 23.552097466000305,
+        "p90": 23.829379400999642,
+        "n_repeats": 3
+      },
+      "convert_s": {
+        "median": 0.15323256099964055,
+        "p10": 0.15265645100043912,
+        "p90": 0.15323256099964055,
+        "n_repeats": 3
+      },
+      "forward_ms": {
+        "median": 43.73322100036603,
+        "p10": 43.03541599983873,
+        "p90": 59.14035299974785,
+        "n_repeats": 5
+      },
+      "device": "cpu"
+    }
+  ],
+  "bottleneck_at_largest_size": "Analyze (structural feature extraction)",
+  "analyze_to_forward_ratio_at_largest_size": 544.8805017311713,
+  "note": "Inference-path timings only; training is a one-off corpus cost and is not measured here. The learned stage is the cheapest of the three: the cost is the deterministic structural analysis, which is O(|V|^2 + |V||E|). Report cost against |E| as well as |V| \u2014 a denser graph at equal |V| is substantially slower. Nothing above the largest size run here has been measured and nothing should be extrapolated from it."
+}

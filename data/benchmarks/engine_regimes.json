@@ -1,0 +1,2042 @@
+{
+  "provenance": {
+    "commit": "b9df9cc9db26bbc1f7fdb355069e32751d7e59c9",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "loso_arms": {
+        "Topo": "loso_hybrid_cpu.json:topo_baseline",
+        "Topo-QoS": "loso_rq2_matched.json:topo_qos",
+        "GAT": "loso_rq2_matched.json:gl_full_cap",
+        "GAT-QoS": "loso_rq2_matched.json:gl_full_qos16_cap",
+        "HGT": "loso_rq2_matched.json:hgl",
+        "HGT-QoS": "loso_rq2_matched.json:hgl_qos",
+        "Hybrid-HGT": "loso_hybrid_cpu.json:hgl_qos_prior",
+        "Hybrid-GAT": "loso_hybrid_gat_cpu.json:gl_qos16_prior",
+        "HGT-QoS-U": "loso_directionality_cpu.json:hgl_qos_uni",
+        "GAT-w": "loso_capacity_cpu.json:gl_full_qos_cap",
+        "GAT-QoS-nf": "loso_attribution_cpu.json:gl_full_qos16_nfmask",
+        "GBM-Feat": "loso_attribution_cpu.json:tab_gbm",
+        "GBM-Feat-QoS": "loso_attribution_cpu.json:tab_gbm_qos"
+      },
+      "zero_shot_arms": {
+        "GAT": "realworld_zeroshot_gl_full_cap_attribution.json",
+        "GAT-QoS": "realworld_zeroshot_gl_full_qos16_cap_cpu.json",
+        "GAT-w": "realworld_zeroshot_gl_full_qos_cap_capacity.json",
+        "HGT-QoS": "realworld_zeroshot_hgl_qos_cpu.json",
+        "HGT-QoS-U": "realworld_zeroshot_hgl_qos_uni_directionality.json",
+        "Hybrid-HGT": "realworld_zeroshot_hgl_qos_prior_cpu.json",
+        "Hybrid-GAT": "realworld_zeroshot_gl_qos16_prior_cpu.json",
+        "GBM-Feat": "realworld_zeroshot_tab_gbm_attribution.json",
+        "GBM-Feat-QoS": "realworld_zeroshot_tab_gbm_qos_attribution.json"
+      }
+    }
+  },
+  "note": "Post hoc and exploratory; trains nothing. BH q-values span the whole descriptor x gain matrix.",
+  "loso": {
+    "folds": [
+      "atm_system",
+      "av_system",
+      "enterprise_system",
+      "financial_trading_system",
+      "healthcare_system",
+      "hub_and_spoke_system",
+      "industrial_scada_system",
+      "iot_smart_city_system",
+      "logistics_fleet_system",
+      "microservices_system",
+      "realtime_gaming_system",
+      "telecom_ran_system"
+    ],
+    "mean_rho": {
+      "Topo": 0.3487140017805194,
+      "Topo-QoS": 0.5531394221414575,
+      "GAT": 0.5630129635759745,
+      "GAT-QoS": 0.6350046539119647,
+      "HGT": 0.5484151257032637,
+      "HGT-QoS": 0.6216350455265719,
+      "Hybrid-HGT": 0.6565380833683582,
+      "Hybrid-GAT": 0.6831122088160347,
+      "HGT-QoS-U": 0.6315200591120481,
+      "GAT-w": 0.6326811487796394,
+      "GAT-QoS-nf": 0.539529271070543,
+      "GBM-Feat": 0.6421825639253033,
+      "GBM-Feat-QoS": 0.6319801221231597
+    },
+    "mean_rho_pos": {
+      "Topo": 0.1805341459117058,
+      "Topo-QoS": 0.2800943415056776,
+      "GAT": 0.2559745887919578,
+      "GAT-QoS": 0.3381086313024814,
+      "HGT": 0.26531642512542714,
+      "HGT-QoS": 0.3350075017789184,
+      "Hybrid-HGT": 0.3398340611148993,
+      "Hybrid-GAT": 0.3980206379203284,
+      "HGT-QoS-U": 0.3552704671072078,
+      "GAT-w": 0.33753680303501704,
+      "GAT-QoS-nf": 0.2649271716696555,
+      "GBM-Feat": 0.39119978895776913,
+      "GBM-Feat-QoS": 0.3837615100547323
+    },
+    "per_fold": {
+      "Topo": {
+        "atm_system": {
+          "rho": 0.2555007881220655,
+          "rho_pos": -0.0153294716225563
+        },
+        "av_system": {
+          "rho": 0.4683814781296727,
+          "rho_pos": 0.300481288723233
+        },
+        "enterprise_system": {
+          "rho": 0.43104648617467917,
+          "rho_pos": 0.40694012158875975
+        },
+        "financial_trading_system": {
+          "rho": 0.23686089025291018,
+          "rho_pos": -0.07575468829034254
+        },
+        "healthcare_system": {
+          "rho": 0.07720709158527966,
+          "rho_pos": -0.3591400028626773
+        },
+        "hub_and_spoke_system": {
+          "rho": 0.1124567208776519,
+          "rho_pos": 0.23283390759227682
+        },
+        "industrial_scada_system": {
+          "rho": 0.6084440977735924,
+          "rho_pos": 0.3914187082741716
+        },
+        "iot_smart_city_system": {
+          "rho": 0.25088231706756414,
+          "rho_pos": 0.1418437811222405
+        },
+        "logistics_fleet_system": {
+          "rho": 0.5759360309695751,
+          "rho_pos": 0.4824458771037888
+        },
+        "microservices_system": {
+          "rho": 0.22890609398808284,
+          "rho_pos": 0.005462684815396319
+        },
+        "realtime_gaming_system": {
+          "rho": 0.3771772610871348,
+          "rho_pos": 0.325028093958729
+        },
+        "telecom_ran_system": {
+          "rho": 0.5617687653380244,
+          "rho_pos": 0.3301794505374503
+        }
+      },
+      "Topo-QoS": {
+        "atm_system": {
+          "rho": 0.3109239422098597,
+          "rho_pos": 0.03385417384130212
+        },
+        "av_system": {
+          "rho": 0.7526918117294357,
+          "rho_pos": 0.33012951030283927
+        },
+        "enterprise_system": {
+          "rho": 0.7953082495191883,
+          "rho_pos": 0.5334209457055311
+        },
+        "financial_trading_system": {
+          "rho": 0.5864231295106708,
+          "rho_pos": 0.2813819231526818
+        },
+        "healthcare_system": {
+          "rho": 0.36869084150771025,
+          "rho_pos": 0.04088287647569003
+        },
+        "hub_and_spoke_system": {
+          "rho": 0.42951365098479605,
+          "rho_pos": 0.47322997454601357
+        },
+        "industrial_scada_system": {
+          "rho": 0.6503746663112442,
+          "rho_pos": 0.3758420423316387
+        },
+        "iot_smart_city_system": {
+          "rho": 0.3512103555774073,
+          "rho_pos": 0.1315998846584168
+        },
+        "logistics_fleet_system": {
+          "rho": 0.7406995865664335,
+          "rho_pos": 0.48090314128330247
+        },
+        "microservices_system": {
+          "rho": 0.26538514238447786,
+          "rho_pos": -0.09507060775896181
+        },
+        "realtime_gaming_system": {
+          "rho": 0.8102612338299412,
+          "rho_pos": 0.47489161363904453
+        },
+        "telecom_ran_system": {
+          "rho": 0.5761904555663259,
+          "rho_pos": 0.300066619890633
+        }
+      },
+      "GAT": {
+        "atm_system": {
+          "rho": 0.3982869536927399,
+          "rho_pos": -0.056808606786002656
+        },
+        "av_system": {
+          "rho": 0.6380432059832162,
+          "rho_pos": 0.17208593075476036
+        },
+        "enterprise_system": {
+          "rho": 0.5112851138975774,
+          "rho_pos": 0.13569882862187682
+        },
+        "financial_trading_system": {
+          "rho": 0.7213873312156891,
+          "rho_pos": 0.35677308782031975
+        },
+        "healthcare_system": {
+          "rho": 0.7163294487469296,
+          "rho_pos": 0.44958032781474433
+        },
+        "hub_and_spoke_system": {
+          "rho": 0.500260330485238,
+          "rho_pos": 0.1783909105718098
+        },
+        "industrial_scada_system": {
+          "rho": 0.5572703557178543,
+          "rho_pos": 0.2575872667838624
+        },
+        "iot_smart_city_system": {
+          "rho": 0.6090812040483085,
+          "rho_pos": 0.37100025147767807
+        },
+        "logistics_fleet_system": {
+          "rho": 0.5746110646225461,
+          "rho_pos": 0.293941103752896
+        },
+        "microservices_system": {
+          "rho": 0.3263094291250218,
+          "rho_pos": 0.14932032837472484
+        },
+        "realtime_gaming_system": {
+          "rho": 0.6832090023747004,
+          "rho_pos": 0.49062341379003477
+        },
+        "telecom_ran_system": {
+          "rho": 0.5200821230018728,
+          "rho_pos": 0.2735022225267891
+        }
+      },
+      "GAT-QoS": {
+        "atm_system": {
+          "rho": 0.5055127761105372,
+          "rho_pos": 0.07981804248651174
+        },
+        "av_system": {
+          "rho": 0.731611846262757,
+          "rho_pos": 0.19326001305005885
+        },
+        "enterprise_system": {
+          "rho": 0.40749947480478194,
+          "rho_pos": 0.006819503165167076
+        },
+        "financial_trading_system": {
+          "rho": 0.7134646779755948,
+          "rho_pos": 0.28243556373159295
+        },
+        "healthcare_system": {
+          "rho": 0.7983703287478553,
+          "rho_pos": 0.6123936216498949
+        },
+        "hub_and_spoke_system": {
+          "rho": 0.6303834059252347,
+          "rho_pos": 0.33291896233457907
+        },
+        "industrial_scada_system": {
+          "rho": 0.7208818711191824,
+          "rho_pos": 0.39461142804145305
+        },
+        "iot_smart_city_system": {
+          "rho": 0.7202664779998796,
+          "rho_pos": 0.5182336976799153
+        },
+        "logistics_fleet_system": {
+          "rho": 0.6541422005337407,
+          "rho_pos": 0.39887941592374265
+        },
+        "microservices_system": {
+          "rho": 0.4785937583240486,
+          "rho_pos": 0.3537585811339359
+        },
+        "realtime_gaming_system": {
+          "rho": 0.6849432055188599,
+          "rho_pos": 0.5589113761489277
+        },
+        "telecom_ran_system": {
+          "rho": 0.5743858236211034,
+          "rho_pos": 0.3252633702839983
+        }
+      },
+      "HGT": {
+        "atm_system": {
+          "rho": 0.3290226420284906,
+          "rho_pos": -0.10958731240411954
+        },
+        "av_system": {
+          "rho": 0.6189291014169103,
+          "rho_pos": 0.2727292675223715
+        },
+        "enterprise_system": {
+          "rho": 0.6329160975685311,
+          "rho_pos": 0.11840522986117483
+        },
+        "financial_trading_system": {
+          "rho": 0.6255628986173463,
+          "rho_pos": 0.37286331558285934
+        },
+        "healthcare_system": {
+          "rho": 0.5849295150680899,
+          "rho_pos": 0.42700584720251256
+        },
+        "hub_and_spoke_system": {
+          "rho": 0.3349057188599035,
+          "rho_pos": 0.1936374746508255
+        },
+        "industrial_scada_system": {
+          "rho": 0.5307579146624967,
+          "rho_pos": 0.31084051385795075
+        },
+        "iot_smart_city_system": {
+          "rho": 0.579533512206633,
+          "rho_pos": 0.3009628300863437
+        },
+        "logistics_fleet_system": {
+          "rho": 0.673151008460259,
+          "rho_pos": 0.31960337148757706
+        },
+        "microservices_system": {
+          "rho": 0.3446287285392516,
+          "rho_pos": 0.14799253407933938
+        },
+        "realtime_gaming_system": {
+          "rho": 0.750851668878312,
+          "rho_pos": 0.49286236337557215
+        },
+        "telecom_ran_system": {
+          "rho": 0.5757927021329414,
+          "rho_pos": 0.33648166620271824
+        }
+      },
+      "HGT-QoS": {
+        "atm_system": {
+          "rho": 0.5226057529236176,
+          "rho_pos": 0.14377647392521495
+        },
+        "av_system": {
+          "rho": 0.7035779928474517,
+          "rho_pos": 0.19216144141632788
+        },
+        "enterprise_system": {
+          "rho": 0.425903785342667,
+          "rho_pos": 0.015032052817887814
+        },
+        "financial_trading_system": {
+          "rho": 0.695104891711547,
+          "rho_pos": 0.24894504790851987
+        },
+        "healthcare_system": {
+          "rho": 0.7303062709607357,
+          "rho_pos": 0.5727853289670736
+        },
+        "hub_and_spoke_system": {
+          "rho": 0.5481518236176625,
+          "rho_pos": 0.31595372244505304
+        },
+        "industrial_scada_system": {
+          "rho": 0.683709946451834,
+          "rho_pos": 0.47355887008042946
+        },
+        "iot_smart_city_system": {
+          "rho": 0.6882456266650809,
+          "rho_pos": 0.4744675347848088
+        },
+        "logistics_fleet_system": {
+          "rho": 0.7707277298021755,
+          "rho_pos": 0.46917050471736654
+        },
+        "microservices_system": {
+          "rho": 0.4751393089745607,
+          "rho_pos": 0.29534089072824427
+        },
+        "realtime_gaming_system": {
+          "rho": 0.7888496628117652,
+          "rho_pos": 0.5651608713512775
+        },
+        "telecom_ran_system": {
+          "rho": 0.42729775420976523,
+          "rho_pos": 0.25373728220481634
+        }
+      },
+      "Hybrid-HGT": {
+        "atm_system": {
+          "rho": 0.42904058265763945,
+          "rho_pos": 0.07487816363555497
+        },
+        "av_system": {
+          "rho": 0.7816639085207863,
+          "rho_pos": 0.3427011930321068
+        },
+        "enterprise_system": {
+          "rho": 0.7345135340996276,
+          "rho_pos": 0.24056573070932644
+        },
+        "financial_trading_system": {
+          "rho": 0.7537313588762805,
+          "rho_pos": 0.3042363107417979
+        },
+        "healthcare_system": {
+          "rho": 0.6249805788640567,
+          "rho_pos": 0.2622832689374718
+        },
+        "hub_and_spoke_system": {
+          "rho": 0.5642401518727131,
+          "rho_pos": 0.4956890194286398
+        },
+        "industrial_scada_system": {
+          "rho": 0.7584243727208101,
+          "rho_pos": 0.47889093962794965
+        },
+        "iot_smart_city_system": {
+          "rho": 0.5902797104597071,
+          "rho_pos": 0.2919239031909894
+        },
+        "logistics_fleet_system": {
+          "rho": 0.7918200199423495,
+          "rho_pos": 0.5625993720195293
+        },
+        "microservices_system": {
+          "rho": 0.36560935551914886,
+          "rho_pos": 0.03408618860470731
+        },
+        "realtime_gaming_system": {
+          "rho": 0.836588340623841,
+          "rho_pos": 0.5935716199755248
+        },
+        "telecom_ran_system": {
+          "rho": 0.6475650862633369,
+          "rho_pos": 0.39658302347519275
+        }
+      },
+      "Hybrid-GAT": {
+        "atm_system": {
+          "rho": 0.4471632568690982,
+          "rho_pos": 0.10503742398876463
+        },
+        "av_system": {
+          "rho": 0.7929629235239594,
+          "rho_pos": 0.3877249111177581
+        },
+        "enterprise_system": {
+          "rho": 0.7683043714213581,
+          "rho_pos": 0.42624813285199814
+        },
+        "financial_trading_system": {
+          "rho": 0.7965825282787053,
+          "rho_pos": 0.387845030785558
+        },
+        "healthcare_system": {
+          "rho": 0.6863084611893205,
+          "rho_pos": 0.3683421471703946
+        },
+        "hub_and_spoke_system": {
+          "rho": 0.5682745662073678,
+          "rho_pos": 0.5209497345635621
+        },
+        "industrial_scada_system": {
+          "rho": 0.7681960907159724,
+          "rho_pos": 0.5053416504431696
+        },
+        "iot_smart_city_system": {
+          "rho": 0.653580661507413,
+          "rho_pos": 0.3473547209615009
+        },
+        "logistics_fleet_system": {
+          "rho": 0.8057808115852116,
+          "rho_pos": 0.6018554324408711
+        },
+        "microservices_system": {
+          "rho": 0.4287144777407499,
+          "rho_pos": 0.11381694942306156
+        },
+        "realtime_gaming_system": {
+          "rho": 0.8251455144995227,
+          "rho_pos": 0.5993646303109204
+        },
+        "telecom_ran_system": {
+          "rho": 0.656332842253738,
+          "rho_pos": 0.412366890986382
+        }
+      },
+      "HGT-QoS-U": {
+        "atm_system": {
+          "rho": 0.4932250538232224,
+          "rho_pos": 0.17016582673427338
+        },
+        "av_system": {
+          "rho": 0.7337786779388796,
+          "rho_pos": 0.18937957453736398
+        },
+        "enterprise_system": {
+          "rho": 0.41093878589321253,
+          "rho_pos": 0.007992192889714849
+        },
+        "financial_trading_system": {
+          "rho": 0.7199871568580878,
+          "rho_pos": 0.29902966083951477
+        },
+        "healthcare_system": {
+          "rho": 0.8157795340530916,
+          "rho_pos": 0.6090991700845942
+        },
+        "hub_and_spoke_system": {
+          "rho": 0.6329555652826999,
+          "rho_pos": 0.3483641289516981
+        },
+        "industrial_scada_system": {
+          "rho": 0.6472764772773084,
+          "rho_pos": 0.3778951621437572
+        },
+        "iot_smart_city_system": {
+          "rho": 0.6161969319648174,
+          "rho_pos": 0.4265848349011221
+        },
+        "logistics_fleet_system": {
+          "rho": 0.6677670055619555,
+          "rho_pos": 0.42995744661751206
+        },
+        "microservices_system": {
+          "rho": 0.5276353967739155,
+          "rho_pos": 0.36351589723329325
+        },
+        "realtime_gaming_system": {
+          "rho": 0.6737510373279831,
+          "rho_pos": 0.6150372774096826
+        },
+        "telecom_ran_system": {
+          "rho": 0.6389490865894031,
+          "rho_pos": 0.4262244329439663
+        }
+      },
+      "GAT-w": {
+        "atm_system": {
+          "rho": 0.4818297359478355,
+          "rho_pos": 0.05511864823172798
+        },
+        "av_system": {
+          "rho": 0.7306296492054141,
+          "rho_pos": 0.18486125572121243
+        },
+        "enterprise_system": {
+          "rho": 0.41106375926143224,
+          "rho_pos": 0.015227142005402358
+        },
+        "financial_trading_system": {
+          "rho": 0.7183886244664929,
+          "rho_pos": 0.29335273288154146
+        },
+        "healthcare_system": {
+          "rho": 0.8025445813835427,
+          "rho_pos": 0.6104469002703989
+        },
+        "hub_and_spoke_system": {
+          "rho": 0.6306829039326107,
+          "rho_pos": 0.3320481665905871
+        },
+        "industrial_scada_system": {
+          "rho": 0.7295549004608939,
+          "rho_pos": 0.4277686974431097
+        },
+        "iot_smart_city_system": {
+          "rho": 0.7164037278211266,
+          "rho_pos": 0.5217706854999491
+        },
+        "logistics_fleet_system": {
+          "rho": 0.650654513392564,
+          "rho_pos": 0.3824019381491038
+        },
+        "microservices_system": {
+          "rho": 0.44225361072817015,
+          "rho_pos": 0.3092761575907056
+        },
+        "realtime_gaming_system": {
+          "rho": 0.6874089800734124,
+          "rho_pos": 0.5758882657247021
+        },
+        "telecom_ran_system": {
+          "rho": 0.5907587986821777,
+          "rho_pos": 0.3422810463117644
+        }
+      },
+      "GAT-QoS-nf": {
+        "atm_system": {
+          "rho": 0.38757810074960525,
+          "rho_pos": -0.037829072253379344
+        },
+        "av_system": {
+          "rho": 0.6539458010872178,
+          "rho_pos": 0.2033066278295017
+        },
+        "enterprise_system": {
+          "rho": 0.5038625115664194,
+          "rho_pos": 0.12590441121979118
+        },
+        "financial_trading_system": {
+          "rho": 0.6564075729033394,
+          "rho_pos": 0.320427312373414
+        },
+        "healthcare_system": {
+          "rho": 0.6855863748329102,
+          "rho_pos": 0.4518265447910858
+        },
+        "hub_and_spoke_system": {
+          "rho": 0.4955317854746646,
+          "rho_pos": 0.1876564828302497
+        },
+        "industrial_scada_system": {
+          "rho": 0.5332503143830964,
+          "rho_pos": 0.2665980085867317
+        },
+        "iot_smart_city_system": {
+          "rho": 0.5773672831177563,
+          "rho_pos": 0.3308885730071802
+        },
+        "logistics_fleet_system": {
+          "rho": 0.45721569805195844,
+          "rho_pos": 0.2511765598078476
+        },
+        "microservices_system": {
+          "rho": 0.3484475851948193,
+          "rho_pos": 0.20731470218327389
+        },
+        "realtime_gaming_system": {
+          "rho": 0.6368576870779522,
+          "rho_pos": 0.530044142657726
+        },
+        "telecom_ran_system": {
+          "rho": 0.5383005384067785,
+          "rho_pos": 0.3418117670024438
+        }
+      },
+      "GBM-Feat": {
+        "atm_system": {
+          "rho": 0.30362343953515836,
+          "rho_pos": -0.018459547285154178
+        },
+        "av_system": {
+          "rho": 0.7480792671554595,
+          "rho_pos": 0.07589003721402789
+        },
+        "enterprise_system": {
+          "rho": 0.5328186164249776,
+          "rho_pos": 0.2907880730248806
+        },
+        "financial_trading_system": {
+          "rho": 0.7618523701503684,
+          "rho_pos": 0.3003733124272008
+        },
+        "healthcare_system": {
+          "rho": 0.7805753512796053,
+          "rho_pos": 0.6628211927687608
+        },
+        "hub_and_spoke_system": {
+          "rho": 0.5394100053082491,
+          "rho_pos": 0.3969148109588242
+        },
+        "industrial_scada_system": {
+          "rho": 0.856042162499526,
+          "rho_pos": 0.7274036620673485
+        },
+        "iot_smart_city_system": {
+          "rho": 0.7214446849438577,
+          "rho_pos": 0.5785283459562071
+        },
+        "logistics_fleet_system": {
+          "rho": 0.6222508623553892,
+          "rho_pos": 0.37870120895286535
+        },
+        "microservices_system": {
+          "rho": 0.4266253191126824,
+          "rho_pos": 0.26544842866044743
+        },
+        "realtime_gaming_system": {
+          "rho": 0.7104199612887697,
+          "rho_pos": 0.5159148491567614
+        },
+        "telecom_ran_system": {
+          "rho": 0.7030487270495961,
+          "rho_pos": 0.52007309359106
+        }
+      },
+      "GBM-Feat-QoS": {
+        "atm_system": {
+          "rho": 0.31893160752438293,
+          "rho_pos": -0.16184603077476728
+        },
+        "av_system": {
+          "rho": 0.7643267558826503,
+          "rho_pos": 0.14921083431691073
+        },
+        "enterprise_system": {
+          "rho": 0.475104460024932,
+          "rho_pos": 0.25369823655082296
+        },
+        "financial_trading_system": {
+          "rho": 0.7530196035778332,
+          "rho_pos": 0.3467628834920592
+        },
+        "healthcare_system": {
+          "rho": 0.7088415121468934,
+          "rho_pos": 0.5844656572440494
+        },
+        "hub_and_spoke_system": {
+          "rho": 0.5531939606594884,
+          "rho_pos": 0.3986716795651236
+        },
+        "industrial_scada_system": {
+          "rho": 0.8551710368663968,
+          "rho_pos": 0.7294252911710066
+        },
+        "iot_smart_city_system": {
+          "rho": 0.6908020677183104,
+          "rho_pos": 0.5517406313234714
+        },
+        "logistics_fleet_system": {
+          "rho": 0.6335310651379124,
+          "rho_pos": 0.39257325195503306
+        },
+        "microservices_system": {
+          "rho": 0.4531841810087219,
+          "rho_pos": 0.3004732758066451
+        },
+        "realtime_gaming_system": {
+          "rho": 0.6780530269763514,
+          "rho_pos": 0.5483687494597463
+        },
+        "telecom_ran_system": {
+          "rho": 0.6996021879540444,
+          "rho_pos": 0.5115936605466869
+        }
+      }
+    },
+    "regimes_by_topo_qos_tercile": {
+      "weak": {
+        "folds": [
+          "microservices_system",
+          "atm_system",
+          "iot_smart_city_system",
+          "healthcare_system"
+        ],
+        "mean_rho": {
+          "Topo": 0.20312407269074806,
+          "Topo-QoS": 0.3240525704198638,
+          "GAT": 0.5125017589032499,
+          "GAT-QoS": 0.6256858352955802,
+          "HGT": 0.4595285994606162,
+          "HGT-QoS": 0.6040742398809987,
+          "Hybrid-HGT": 0.502477556875138,
+          "Hybrid-GAT": 0.5539417143266454,
+          "HGT-QoS-U": 0.6132092291537617,
+          "GAT-w": 0.6107579139701688,
+          "GAT-QoS-nf": 0.4997448359737727,
+          "GBM-Feat": 0.558067198717826,
+          "GBM-Feat-QoS": 0.5429398420995771
+        },
+        "gain_vs_topo_qos": {
+          "Topo": -0.12092849772911574,
+          "GAT": 0.18844918848338615,
+          "GAT-QoS": 0.3016332648757164,
+          "HGT": 0.13547602904075245,
+          "HGT-QoS": 0.28002166946113494,
+          "Hybrid-HGT": 0.17842498645527421,
+          "Hybrid-GAT": 0.2298891439067816,
+          "HGT-QoS-U": 0.28915665873389795,
+          "GAT-w": 0.28670534355030497,
+          "GAT-QoS-nf": 0.175692265553909,
+          "GBM-Feat": 0.23401462829796216,
+          "GBM-Feat-QoS": 0.21888727167971336
+        },
+        "wins_vs_topo_qos": {
+          "Topo": 0,
+          "GAT": 4,
+          "GAT-QoS": 4,
+          "HGT": 4,
+          "HGT-QoS": 4,
+          "Hybrid-HGT": 4,
+          "Hybrid-GAT": 4,
+          "HGT-QoS-U": 4,
+          "GAT-w": 4,
+          "GAT-QoS-nf": 4,
+          "GBM-Feat": 3,
+          "GBM-Feat-QoS": 4
+        }
+      },
+      "middle": {
+        "folds": [
+          "hub_and_spoke_system",
+          "telecom_ran_system",
+          "financial_trading_system",
+          "industrial_scada_system"
+        ],
+        "mean_rho": {
+          "Topo": 0.3798826185605447,
+          "Topo-QoS": 0.5606254755932591,
+          "GAT": 0.5747500351051635,
+          "GAT-QoS": 0.6597789446602789,
+          "HGT": 0.516754808568172,
+          "HGT-QoS": 0.5885661039977022,
+          "Hybrid-HGT": 0.6809902424332851,
+          "Hybrid-GAT": 0.697346506863946,
+          "HGT-QoS-U": 0.6597920715018748,
+          "GAT-w": 0.6673463068855439,
+          "GAT-QoS-nf": 0.5558725527919697,
+          "GBM-Feat": 0.7150883162519348,
+          "GBM-Feat-QoS": 0.7152466972644408
+        },
+        "gain_vs_topo_qos": {
+          "Topo": -0.18074285703271448,
+          "GAT": 0.014124559511904347,
+          "GAT-QoS": 0.09915346906701959,
+          "HGT": -0.043870667025087254,
+          "HGT-QoS": 0.02794062840444296,
+          "Hybrid-HGT": 0.12036476684002594,
+          "Hybrid-GAT": 0.1367210312706867,
+          "HGT-QoS-U": 0.09916659590861558,
+          "GAT-w": 0.10672083129228459,
+          "GAT-QoS-nf": -0.004752922801289486,
+          "GBM-Feat": 0.15446284065867572,
+          "GBM-Feat-QoS": 0.15462122167118147
+        },
+        "wins_vs_topo_qos": {
+          "Topo": 0,
+          "GAT": 2,
+          "GAT-QoS": 3,
+          "HGT": 1,
+          "HGT-QoS": 3,
+          "Hybrid-HGT": 4,
+          "Hybrid-GAT": 4,
+          "HGT-QoS-U": 3,
+          "GAT-w": 4,
+          "GAT-QoS-nf": 2,
+          "GBM-Feat": 4,
+          "GBM-Feat-QoS": 4
+        }
+      },
+      "strong": {
+        "folds": [
+          "logistics_fleet_system",
+          "av_system",
+          "enterprise_system",
+          "realtime_gaming_system"
+        ],
+        "mean_rho": {
+          "Topo": 0.4631353140902654,
+          "Topo-QoS": 0.7747402204112497,
+          "GAT": 0.60178709671951,
+          "GAT-QoS": 0.6195491817800349,
+          "HGT": 0.6689619690810031,
+          "HGT-QoS": 0.6722647927010148,
+          "Hybrid-HGT": 0.7861464507966511,
+          "Hybrid-GAT": 0.798048405257513,
+          "HGT-QoS-U": 0.6215588766805077,
+          "GAT-w": 0.6199392254832057,
+          "GAT-QoS-nf": 0.562970424445887,
+          "GBM-Feat": 0.653392176806149,
+          "GBM-Feat-QoS": 0.6377538270054615
+        },
+        "gain_vs_topo_qos": {
+          "Topo": -0.31160490632098425,
+          "GAT": -0.17295312369173968,
+          "GAT-QoS": -0.1551910386312148,
+          "HGT": -0.1057782513302466,
+          "HGT-QoS": -0.10247542771023484,
+          "Hybrid-HGT": 0.011406230385401422,
+          "Hybrid-GAT": 0.023308184846263263,
+          "HGT-QoS-U": -0.153181343730742,
+          "GAT-w": -0.154800994928044,
+          "GAT-QoS-nf": -0.21176979596536272,
+          "GBM-Feat": -0.12134804360510068,
+          "GBM-Feat-QoS": -0.13698639340578816
+        },
+        "wins_vs_topo_qos": {
+          "Topo": 0,
+          "GAT": 0,
+          "GAT-QoS": 0,
+          "HGT": 0,
+          "HGT-QoS": 1,
+          "Hybrid-HGT": 3,
+          "Hybrid-GAT": 3,
+          "HGT-QoS-U": 0,
+          "GAT-w": 0,
+          "GAT-QoS-nf": 0,
+          "GBM-Feat": 0,
+          "GBM-Feat-QoS": 1
+        }
+      }
+    },
+    "descriptors": {
+      "atm_system": {
+        "n_apps": 26,
+        "n_topics": 27,
+        "n_brokers": 5,
+        "n_hosts": 8,
+        "n_libraries": 8,
+        "edges_per_node": 3.527027027027027,
+        "uses_per_app": 1.4230769230769231,
+        "qos_profiles": 25,
+        "subscriber_gini": 0.2466230936819172,
+        "zero_share": 0.19230769230769232,
+        "tie_fraction": 0.2692307692307693,
+        "projection_density": 0.18153846153846154
+      },
+      "av_system": {
+        "n_apps": 80,
+        "n_topics": 40,
+        "n_brokers": 4,
+        "n_hosts": 8,
+        "n_libraries": 20,
+        "edges_per_node": 5.092105263157895,
+        "uses_per_app": 1.5875,
+        "qos_profiles": 40,
+        "subscriber_gini": 0.21707317073170732,
+        "zero_share": 0.4875,
+        "tie_fraction": 0.7375,
+        "projection_density": 0.10537974683544304
+      },
+      "enterprise_system": {
+        "n_apps": 300,
+        "n_topics": 120,
+        "n_brokers": 10,
+        "n_hosts": 40,
+        "n_libraries": 50,
+        "edges_per_node": 6.184615384615385,
+        "uses_per_app": 1.61,
+        "qos_profiles": 117,
+        "subscriber_gini": 0.195767306088407,
+        "zero_share": 0.39,
+        "tie_fraction": 0.51,
+        "projection_density": 0.05374581939799331
+      },
+      "financial_trading_system": {
+        "n_apps": 60,
+        "n_topics": 35,
+        "n_brokers": 5,
+        "n_hosts": 6,
+        "n_libraries": 18,
+        "edges_per_node": 5.088709677419355,
+        "uses_per_app": 1.4166666666666667,
+        "qos_profiles": 35,
+        "subscriber_gini": 0.23275261324041813,
+        "zero_share": 0.45,
+        "tie_fraction": 0.6,
+        "projection_density": 0.12655367231638417
+      },
+      "healthcare_system": {
+        "n_apps": 50,
+        "n_topics": 25,
+        "n_brokers": 3,
+        "n_hosts": 8,
+        "n_libraries": 12,
+        "edges_per_node": 3.9693877551020407,
+        "uses_per_app": 1.6,
+        "qos_profiles": 25,
+        "subscriber_gini": 0.31827956989247314,
+        "zero_share": 0.36,
+        "tie_fraction": 0.6,
+        "projection_density": 0.07020408163265306
+      },
+      "hub_and_spoke_system": {
+        "n_apps": 70,
+        "n_topics": 30,
+        "n_brokers": 2,
+        "n_hosts": 12,
+        "n_libraries": 25,
+        "edges_per_node": 4.971223021582734,
+        "uses_per_app": 2.9,
+        "qos_profiles": 30,
+        "subscriber_gini": 0.2018867924528302,
+        "zero_share": 0.22857142857142856,
+        "tie_fraction": 0.6285714285714286,
+        "projection_density": 0.06687370600414079
+      },
+      "industrial_scada_system": {
+        "n_apps": 140,
+        "n_topics": 70,
+        "n_brokers": 4,
+        "n_hosts": 25,
+        "n_libraries": 15,
+        "edges_per_node": 3.2440944881889764,
+        "uses_per_app": 0.7785714285714286,
+        "qos_profiles": 70,
+        "subscriber_gini": 0.3668308702791461,
+        "zero_share": 0.37857142857142856,
+        "tie_fraction": 0.5,
+        "projection_density": 0.01803699897225077
+      },
+      "iot_smart_city_system": {
+        "n_apps": 200,
+        "n_topics": 80,
+        "n_brokers": 6,
+        "n_hosts": 30,
+        "n_libraries": 10,
+        "edges_per_node": 3.644171779141104,
+        "uses_per_app": 0.37,
+        "qos_profiles": 67,
+        "subscriber_gini": 0.30644736842105263,
+        "zero_share": 0.265,
+        "tie_fraction": 0.37,
+        "projection_density": 0.03185929648241206
+      },
+      "logistics_fleet_system": {
+        "n_apps": 110,
+        "n_topics": 50,
+        "n_brokers": 7,
+        "n_hosts": 18,
+        "n_libraries": 20,
+        "edges_per_node": 3.682926829268293,
+        "uses_per_app": 0.9727272727272728,
+        "qos_profiles": 50,
+        "subscriber_gini": 0.2784313725490196,
+        "zero_share": 0.2909090909090909,
+        "tie_fraction": 0.40909090909090906,
+        "projection_density": 0.05587989991659716
+      },
+      "microservices_system": {
+        "n_apps": 90,
+        "n_topics": 45,
+        "n_brokers": 6,
+        "n_hosts": 15,
+        "n_libraries": 30,
+        "edges_per_node": 3.6451612903225805,
+        "uses_per_app": 0.9444444444444444,
+        "qos_profiles": 44,
+        "subscriber_gini": 0.21944444444444444,
+        "zero_share": 0.14444444444444443,
+        "tie_fraction": 0.28888888888888886,
+        "projection_density": 0.07191011235955057
+      },
+      "realtime_gaming_system": {
+        "n_apps": 75,
+        "n_topics": 38,
+        "n_brokers": 5,
+        "n_hosts": 12,
+        "n_libraries": 28,
+        "edges_per_node": 3.9873417721518987,
+        "uses_per_app": 3.2266666666666666,
+        "qos_profiles": 37,
+        "subscriber_gini": 0.32334096109839816,
+        "zero_share": 0.36,
+        "tie_fraction": 0.6266666666666667,
+        "projection_density": 0.03189189189189189
+      },
+      "telecom_ran_system": {
+        "n_apps": 120,
+        "n_topics": 55,
+        "n_brokers": 8,
+        "n_hosts": 20,
+        "n_libraries": 22,
+        "edges_per_node": 3.9155555555555557,
+        "uses_per_app": 0.9583333333333334,
+        "qos_profiles": 53,
+        "subscriber_gini": 0.29524258125294395,
+        "zero_share": 0.16666666666666666,
+        "tie_fraction": 0.275,
+        "projection_density": 0.05714285714285714
+      }
+    },
+    "correlations": [
+      {
+        "quantity": "HGT-QoS - Topo-QoS",
+        "descriptor": "n_apps",
+        "rho": -0.4755244755244756,
+        "p": 0.11817595701303213,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "HGT-QoS - Topo-QoS",
+        "descriptor": "n_topics",
+        "rho": -0.49650349650349657,
+        "p": 0.10060263183225483,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "HGT-QoS - Topo-QoS",
+        "descriptor": "n_brokers",
+        "rho": -0.4487884678900394,
+        "p": 0.14334572105139948,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "HGT-QoS - Topo-QoS",
+        "descriptor": "n_hosts",
+        "rho": -0.317472661538719,
+        "p": 0.3146363988319904,
+        "q_bh": 0.6426615805930016
+      },
+      {
+        "quantity": "HGT-QoS - Topo-QoS",
+        "descriptor": "n_libraries",
+        "rho": -0.6234685568211282,
+        "p": 0.03029935469272749,
+        "q_bh": 0.3635922563127299
+      },
+      {
+        "quantity": "HGT-QoS - Topo-QoS",
+        "descriptor": "edges_per_node",
+        "rho": -0.5034965034965035,
+        "p": 0.09515736659412469,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "HGT-QoS - Topo-QoS",
+        "descriptor": "uses_per_app",
+        "rho": -0.2377622377622378,
+        "p": 0.4568008526399232,
+        "q_bh": 0.797325124607866
+      },
+      {
+        "quantity": "HGT-QoS - Topo-QoS",
+        "descriptor": "qos_profiles",
+        "rho": -0.5253948512537597,
+        "p": 0.07939623293714611,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "HGT-QoS - Topo-QoS",
+        "descriptor": "subscriber_gini",
+        "rho": 0.2517482517482518,
+        "p": 0.42991878503288405,
+        "q_bh": 0.7831784007472459
+      },
+      {
+        "quantity": "HGT-QoS - Topo-QoS",
+        "descriptor": "zero_share",
+        "rho": -0.3502632341691732,
+        "p": 0.26434439552630806,
+        "q_bh": 0.5780890729037694
+      },
+      {
+        "quantity": "HGT-QoS - Topo-QoS",
+        "descriptor": "tie_fraction",
+        "rho": -0.19965004347642867,
+        "p": 0.5338670484331347,
+        "q_bh": 0.8129038285969762
+      },
+      {
+        "quantity": "HGT-QoS - Topo-QoS",
+        "descriptor": "projection_density",
+        "rho": 0.2377622377622378,
+        "p": 0.4568008526399232,
+        "q_bh": 0.797325124607866
+      },
+      {
+        "quantity": "GAT-QoS - Topo-QoS",
+        "descriptor": "n_apps",
+        "rho": -0.3636363636363637,
+        "p": 0.2452650007307772,
+        "q_bh": 0.5606057159560622
+      },
+      {
+        "quantity": "GAT-QoS - Topo-QoS",
+        "descriptor": "n_topics",
+        "rho": -0.4055944055944056,
+        "p": 0.19083587400450033,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "GAT-QoS - Topo-QoS",
+        "descriptor": "n_brokers",
+        "rho": -0.434653398035235,
+        "p": 0.15794545922349235,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "GAT-QoS - Topo-QoS",
+        "descriptor": "n_hosts",
+        "rho": -0.2504506552138783,
+        "p": 0.4323797420792087,
+        "q_bh": 0.7831784007472459
+      },
+      {
+        "quantity": "GAT-QoS - Topo-QoS",
+        "descriptor": "n_libraries",
+        "rho": -0.5148869542286845,
+        "p": 0.08671829744392613,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "GAT-QoS - Topo-QoS",
+        "descriptor": "edges_per_node",
+        "rho": -0.41958041958041964,
+        "p": 0.1745190081300594,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "GAT-QoS - Topo-QoS",
+        "descriptor": "uses_per_app",
+        "rho": -0.3356643356643357,
+        "p": 0.2861229029149875,
+        "q_bh": 0.61039552621864
+      },
+      {
+        "quantity": "GAT-QoS - Topo-QoS",
+        "descriptor": "qos_profiles",
+        "rho": -0.42732114568639123,
+        "p": 0.16587727319738638,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "GAT-QoS - Topo-QoS",
+        "descriptor": "subscriber_gini",
+        "rho": 0.14685314685314685,
+        "p": 0.6487957097846664,
+        "q_bh": 0.889776973418971
+      },
+      {
+        "quantity": "GAT-QoS - Topo-QoS",
+        "descriptor": "zero_share",
+        "rho": -0.42031588100300776,
+        "p": 0.17368606045926624,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "GAT-QoS - Topo-QoS",
+        "descriptor": "tie_fraction",
+        "rho": -0.19965004347642867,
+        "p": 0.5338670484331347,
+        "q_bh": 0.8129038285969762
+      },
+      {
+        "quantity": "GAT-QoS - Topo-QoS",
+        "descriptor": "projection_density",
+        "rho": 0.2657342657342658,
+        "p": 0.40383308831471165,
+        "q_bh": 0.7753595295642464
+      },
+      {
+        "quantity": "GBM-Feat - Topo-QoS",
+        "descriptor": "n_apps",
+        "rho": -0.10489510489510491,
+        "p": 0.7456094809807079,
+        "q_bh": 0.9295910412227009
+      },
+      {
+        "quantity": "GBM-Feat - Topo-QoS",
+        "descriptor": "n_topics",
+        "rho": -0.1398601398601399,
+        "p": 0.6646331617926677,
+        "q_bh": 0.898658922987269
+      },
+      {
+        "quantity": "GBM-Feat - Topo-QoS",
+        "descriptor": "n_brokers",
+        "rho": -0.4099170257893273,
+        "p": 0.1856958989715153,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "GBM-Feat - Topo-QoS",
+        "descriptor": "n_hosts",
+        "rho": -0.12346159059839072,
+        "p": 0.7022596146995632,
+        "q_bh": 0.9124918005949081
+      },
+      {
+        "quantity": "GBM-Feat - Topo-QoS",
+        "descriptor": "n_libraries",
+        "rho": -0.5218922189120679,
+        "p": 0.08178822638152843,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "GBM-Feat - Topo-QoS",
+        "descriptor": "edges_per_node",
+        "rho": -0.3706293706293707,
+        "p": 0.2356210035126457,
+        "q_bh": 0.5606057159560622
+      },
+      {
+        "quantity": "GBM-Feat - Topo-QoS",
+        "descriptor": "uses_per_app",
+        "rho": -0.5034965034965035,
+        "p": 0.09515736659412469,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "GBM-Feat - Topo-QoS",
+        "descriptor": "qos_profiles",
+        "rho": -0.11908949961751887,
+        "p": 0.7123998368899922,
+        "q_bh": 0.9124918005949081
+      },
+      {
+        "quantity": "GBM-Feat - Topo-QoS",
+        "descriptor": "subscriber_gini",
+        "rho": 0.44755244755244755,
+        "p": 0.14458630130334754,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "GBM-Feat - Topo-QoS",
+        "descriptor": "zero_share",
+        "rho": -0.07355527917552636,
+        "p": 0.8202845257024424,
+        "q_bh": 0.9439967062893679
+      },
+      {
+        "quantity": "GBM-Feat - Topo-QoS",
+        "descriptor": "tie_fraction",
+        "rho": -0.0665500144921429,
+        "p": 0.8371878544641639,
+        "q_bh": 0.9439967062893679
+      },
+      {
+        "quantity": "GBM-Feat - Topo-QoS",
+        "descriptor": "projection_density",
+        "rho": -0.02097902097902098,
+        "p": 0.9484022252365223,
+        "q_bh": 0.9789958454054423
+      },
+      {
+        "quantity": "HGT - GAT",
+        "descriptor": "n_apps",
+        "rho": 0.6293706293706295,
+        "p": 0.02831967129576002,
+        "q_bh": 0.3635922563127299
+      },
+      {
+        "quantity": "HGT - GAT",
+        "descriptor": "n_topics",
+        "rho": 0.6573426573426573,
+        "p": 0.020185498509854096,
+        "q_bh": 0.3635922563127299
+      },
+      {
+        "quantity": "HGT - GAT",
+        "descriptor": "n_brokers",
+        "rho": 0.7703613070868394,
+        "p": 0.003369796539112632,
+        "q_bh": 0.32350046775481267
+      },
+      {
+        "quantity": "HGT - GAT",
+        "descriptor": "n_hosts",
+        "rho": 0.5608683687184035,
+        "p": 0.05781028662644202,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "HGT - GAT",
+        "descriptor": "n_libraries",
+        "rho": 0.574431704037444,
+        "p": 0.050765334660570885,
+        "q_bh": 0.4873472127414805
+      },
+      {
+        "quantity": "HGT - GAT",
+        "descriptor": "edges_per_node",
+        "rho": 0.1188811188811189,
+        "p": 0.712884219214772,
+        "q_bh": 0.9124918005949081
+      },
+      {
+        "quantity": "HGT - GAT",
+        "descriptor": "uses_per_app",
+        "rho": -0.027972027972027972,
+        "p": 0.9312343512018808,
+        "q_bh": 0.9717228012541365
+      },
+      {
+        "quantity": "HGT - GAT",
+        "descriptor": "qos_profiles",
+        "rho": 0.6584948802380455,
+        "p": 0.019892133524913664,
+        "q_bh": 0.3635922563127299
+      },
+      {
+        "quantity": "HGT - GAT",
+        "descriptor": "subscriber_gini",
+        "rho": -0.034965034965034975,
+        "p": 0.9140933424107598,
+        "q_bh": 0.9717228012541365
+      },
+      {
+        "quantity": "HGT - GAT",
+        "descriptor": "zero_share",
+        "rho": 0.049036852783684234,
+        "p": 0.8797094411808868,
+        "q_bh": 0.9707138661306338
+      },
+      {
+        "quantity": "HGT - GAT",
+        "descriptor": "tie_fraction",
+        "rho": -0.19965004347642867,
+        "p": 0.5338670484331347,
+        "q_bh": 0.8129038285969762
+      },
+      {
+        "quantity": "HGT - GAT",
+        "descriptor": "projection_density",
+        "rho": -0.4055944055944056,
+        "p": 0.19083587400450033,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "HGT-QoS - GAT-QoS",
+        "descriptor": "n_apps",
+        "rho": 0.027972027972027972,
+        "p": 0.9312343512018808,
+        "q_bh": 0.9717228012541365
+      },
+      {
+        "quantity": "HGT-QoS - GAT-QoS",
+        "descriptor": "n_topics",
+        "rho": 0.10489510489510491,
+        "p": 0.7456094809807079,
+        "q_bh": 0.9295910412227009
+      },
+      {
+        "quantity": "HGT-QoS - GAT-QoS",
+        "descriptor": "n_brokers",
+        "rho": 0.4205183281804306,
+        "p": 0.17345721719895588,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "HGT-QoS - GAT-QoS",
+        "descriptor": "n_hosts",
+        "rho": 0.010582422051290633,
+        "p": 0.9739612089527365,
+        "q_bh": 0.9931369454176143
+      },
+      {
+        "quantity": "HGT-QoS - GAT-QoS",
+        "descriptor": "n_libraries",
+        "rho": 0.23117373455165427,
+        "p": 0.4697325571728438,
+        "q_bh": 0.8052558122963036
+      },
+      {
+        "quantity": "HGT-QoS - GAT-QoS",
+        "descriptor": "edges_per_node",
+        "rho": 0.07692307692307693,
+        "p": 0.8121826980280591,
+        "q_bh": 0.9439967062893679
+      },
+      {
+        "quantity": "HGT-QoS - GAT-QoS",
+        "descriptor": "uses_per_app",
+        "rho": 0.1958041958041958,
+        "p": 0.5419358857313175,
+        "q_bh": 0.8129038285969762
+      },
+      {
+        "quantity": "HGT-QoS - GAT-QoS",
+        "descriptor": "qos_profiles",
+        "rho": 0.0770579115172181,
+        "p": 0.8118586763333357,
+        "q_bh": 0.9439967062893679
+      },
+      {
+        "quantity": "HGT-QoS - GAT-QoS",
+        "descriptor": "subscriber_gini",
+        "rho": -0.1258741258741259,
+        "p": 0.6966831093957659,
+        "q_bh": 0.9124918005949081
+      },
+      {
+        "quantity": "HGT-QoS - GAT-QoS",
+        "descriptor": "zero_share",
+        "rho": 0.1751316170845866,
+        "p": 0.5861577321261826,
+        "q_bh": 0.8408219668480539
+      },
+      {
+        "quantity": "HGT-QoS - GAT-QoS",
+        "descriptor": "tie_fraction",
+        "rho": -0.06304738215045118,
+        "p": 0.8456637160508921,
+        "q_bh": 0.9439967062893679
+      },
+      {
+        "quantity": "HGT-QoS - GAT-QoS",
+        "descriptor": "projection_density",
+        "rho": 0.006993006993006993,
+        "p": 0.9827917689028476,
+        "q_bh": 0.9931369454176143
+      },
+      {
+        "quantity": "Hybrid-HGT - HGT-QoS",
+        "descriptor": "n_apps",
+        "rho": 0.4265734265734266,
+        "p": 0.16669998762494495,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "Hybrid-HGT - HGT-QoS",
+        "descriptor": "n_topics",
+        "rho": 0.46153846153846156,
+        "p": 0.13094806950717278,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "Hybrid-HGT - HGT-QoS",
+        "descriptor": "n_brokers",
+        "rho": 0.2933026994871911,
+        "p": 0.3548403567072649,
+        "q_bh": 0.6951974335489272
+      },
+      {
+        "quantity": "Hybrid-HGT - HGT-QoS",
+        "descriptor": "n_hosts",
+        "rho": 0.25397812923097524,
+        "p": 0.4257057384092434,
+        "q_bh": 0.7831784007472459
+      },
+      {
+        "quantity": "Hybrid-HGT - HGT-QoS",
+        "descriptor": "n_libraries",
+        "rho": 0.32924744011902274,
+        "p": 0.29600741162831595,
+        "q_bh": 0.6177545981808332
+      },
+      {
+        "quantity": "Hybrid-HGT - HGT-QoS",
+        "descriptor": "edges_per_node",
+        "rho": 0.4755244755244756,
+        "p": 0.11817595701303213,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "Hybrid-HGT - HGT-QoS",
+        "descriptor": "uses_per_app",
+        "rho": 0.16783216783216784,
+        "p": 0.602099427786538,
+        "q_bh": 0.8500227215809948
+      },
+      {
+        "quantity": "Hybrid-HGT - HGT-QoS",
+        "descriptor": "qos_profiles",
+        "rho": 0.4973737925202259,
+        "p": 0.09991387241786216,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "Hybrid-HGT - HGT-QoS",
+        "descriptor": "subscriber_gini",
+        "rho": -0.17482517482517487,
+        "p": 0.5868236643627043,
+        "q_bh": 0.8408219668480539
+      },
+      {
+        "quantity": "Hybrid-HGT - HGT-QoS",
+        "descriptor": "zero_share",
+        "rho": 0.5288974835954515,
+        "p": 0.07705239037267651,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "Hybrid-HGT - HGT-QoS",
+        "descriptor": "tie_fraction",
+        "rho": 0.2241684698682708,
+        "p": 0.48366596570100795,
+        "q_bh": 0.8129038285969762
+      },
+      {
+        "quantity": "Hybrid-HGT - HGT-QoS",
+        "descriptor": "projection_density",
+        "rho": -0.21678321678321683,
+        "p": 0.49855598552418856,
+        "q_bh": 0.8129038285969762
+      },
+      {
+        "quantity": "GAT-QoS - GAT",
+        "descriptor": "n_apps",
+        "rho": 0.0,
+        "p": 1.0,
+        "q_bh": 1.0
+      },
+      {
+        "quantity": "GAT-QoS - GAT",
+        "descriptor": "n_topics",
+        "rho": -0.04195804195804196,
+        "p": 0.8969858708195542,
+        "q_bh": 0.9717228012541365
+      },
+      {
+        "quantity": "GAT-QoS - GAT",
+        "descriptor": "n_brokers",
+        "rho": -0.4558560028174416,
+        "p": 0.13638385168403647,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "GAT-QoS - GAT",
+        "descriptor": "n_hosts",
+        "rho": 0.0952417984616157,
+        "p": 0.7684276411607844,
+        "q_bh": 0.9439967062893679
+      },
+      {
+        "quantity": "GAT-QoS - GAT",
+        "descriptor": "n_libraries",
+        "rho": -0.29422111670210543,
+        "p": 0.35326505938428154,
+        "q_bh": 0.6951974335489272
+      },
+      {
+        "quantity": "GAT-QoS - GAT",
+        "descriptor": "edges_per_node",
+        "rho": -0.6573426573426573,
+        "p": 0.020185498509854096,
+        "q_bh": 0.3635922563127299
+      },
+      {
+        "quantity": "GAT-QoS - GAT",
+        "descriptor": "uses_per_app",
+        "rho": -0.46153846153846156,
+        "p": 0.13094806950717278,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "GAT-QoS - GAT",
+        "descriptor": "qos_profiles",
+        "rho": -0.02802105873353385,
+        "p": 0.9311140674192737,
+        "q_bh": 0.9717228012541365
+      },
+      {
+        "quantity": "GAT-QoS - GAT",
+        "descriptor": "subscriber_gini",
+        "rho": 0.15384615384615385,
+        "p": 0.6330906812462618,
+        "q_bh": 0.8808218173861033
+      },
+      {
+        "quantity": "GAT-QoS - GAT",
+        "descriptor": "zero_share",
+        "rho": -0.40280271929454914,
+        "p": 0.19420166941805767,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "GAT-QoS - GAT",
+        "descriptor": "tie_fraction",
+        "rho": -0.18213688176797005,
+        "p": 0.5710157812668486,
+        "q_bh": 0.8408219668480539
+      },
+      {
+        "quantity": "GAT-QoS - GAT",
+        "descriptor": "projection_density",
+        "rho": -0.06993006993006995,
+        "p": 0.8290236405313092,
+        "q_bh": 0.9439967062893679
+      },
+      {
+        "quantity": "GAT-QoS - GBM-Feat-QoS",
+        "descriptor": "n_apps",
+        "rho": -0.6013986013986015,
+        "p": 0.03858845292201944,
+        "q_bh": 0.4116101645015407
+      },
+      {
+        "quantity": "GAT-QoS - GBM-Feat-QoS",
+        "descriptor": "n_topics",
+        "rho": -0.6363636363636365,
+        "p": 0.026096891052703127,
+        "q_bh": 0.3635922563127299
+      },
+      {
+        "quantity": "GAT-QoS - GBM-Feat-QoS",
+        "descriptor": "n_brokers",
+        "rho": -0.3498429789064087,
+        "p": 0.264957491747561,
+        "q_bh": 0.5780890729037694
+      },
+      {
+        "quantity": "GAT-QoS - GBM-Feat-QoS",
+        "descriptor": "n_hosts",
+        "rho": -0.39507708991485024,
+        "p": 0.20370560898537035,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "GAT-QoS - GBM-Feat-QoS",
+        "descriptor": "n_libraries",
+        "rho": -0.3642737635359401,
+        "p": 0.2443764872590352,
+        "q_bh": 0.5606057159560622
+      },
+      {
+        "quantity": "GAT-QoS - GBM-Feat-QoS",
+        "descriptor": "edges_per_node",
+        "rho": -0.20979020979020982,
+        "p": 0.5128409431818263,
+        "q_bh": 0.8129038285969762
+      },
+      {
+        "quantity": "GAT-QoS - GBM-Feat-QoS",
+        "descriptor": "uses_per_app",
+        "rho": 0.20979020979020982,
+        "p": 0.5128409431818263,
+        "q_bh": 0.8129038285969762
+      },
+      {
+        "quantity": "GAT-QoS - GBM-Feat-QoS",
+        "descriptor": "qos_profiles",
+        "rho": -0.6970238359966545,
+        "p": 0.01176097088359803,
+        "q_bh": 0.3635922563127299
+      },
+      {
+        "quantity": "GAT-QoS - GBM-Feat-QoS",
+        "descriptor": "subscriber_gini",
+        "rho": -0.07692307692307693,
+        "p": 0.8121826980280591,
+        "q_bh": 0.9439967062893679
+      },
+      {
+        "quantity": "GAT-QoS - GBM-Feat-QoS",
+        "descriptor": "zero_share",
+        "rho": -0.43082377802808297,
+        "p": 0.16205750617523712,
+        "q_bh": 0.5014291913486039
+      },
+      {
+        "quantity": "GAT-QoS - GBM-Feat-QoS",
+        "descriptor": "tie_fraction",
+        "rho": -0.08056054385890983,
+        "p": 0.8034511092063399,
+        "q_bh": 0.9439967062893679
+      },
+      {
+        "quantity": "GAT-QoS - GBM-Feat-QoS",
+        "descriptor": "projection_density",
+        "rho": 0.39860139860139865,
+        "p": 0.19933549461780897,
+        "q_bh": 0.5014291913486039
+      }
+    ],
+    "n_tests": 96,
+    "min_q_bh": 0.32350046775481267,
+    "receptive_field_coverage": {
+      "hgl_qos_rf_share": {
+        "atm_system": 0.4838877338877339,
+        "av_system": 0.5764802631578947,
+        "enterprise_system": 0.47682692307692304,
+        "financial_trading_system": 0.5858870967741936,
+        "healthcare_system": 0.56,
+        "hub_and_spoke_system": 0.5930113052415211,
+        "industrial_scada_system": 0.39294150731158606,
+        "iot_smart_city_system": 0.3503374233128834,
+        "logistics_fleet_system": 0.39822616407982264,
+        "microservices_system": 0.3881720430107527,
+        "realtime_gaming_system": 0.44464135021097045,
+        "telecom_ran_system": 0.4
+      },
+      "HGT-QoS rho": {
+        "rho": 0.1188811188811189,
+        "p": 0.712884219214772
+      },
+      "HGT-QoS - Topo-QoS": {
+        "rho": -0.055944055944055944,
+        "p": 0.8628980736949712
+      },
+      "Hybrid-HGT - HGT-QoS": {
+        "rho": 0.1958041958041958,
+        "p": 0.5419358857313175
+      }
+    }
+  },
+  "zero_shot": {
+    "systems": [
+      "realworld_autoware_ros2",
+      "realworld_cloud_microservices",
+      "realworld_edgex",
+      "realworld_homeassistant",
+      "realworld_trainticket"
+    ],
+    "mean_rho": {
+      "GAT": 0.8307411279257527,
+      "GAT-QoS": 0.8052193094516145,
+      "GAT-w": 0.7941489755737059,
+      "HGT-QoS": 0.7602086873458699,
+      "HGT-QoS-U": 0.8040806255837625,
+      "Hybrid-HGT": 0.695233634405421,
+      "Hybrid-GAT": 0.6621285321165216,
+      "GBM-Feat": 0.7567467633764394,
+      "GBM-Feat-QoS": 0.758783250081571,
+      "Topo": 0.5114151212756434,
+      "Topo-QoS": 0.5262312997773684
+    },
+    "mean_rho_pos": {
+      "GAT": 0.37718637113109427,
+      "GAT-QoS": 0.3185206944720239,
+      "GAT-w": 0.293445383217095,
+      "HGT-QoS": 0.23583863422326345,
+      "HGT-QoS-U": 0.3512252803252452,
+      "Hybrid-HGT": 0.10461392634468229,
+      "Hybrid-GAT": 0.11835623677574561,
+      "GBM-Feat": 0.15561779468218057,
+      "GBM-Feat-QoS": 0.16882932501334633,
+      "Topo": -0.08344063260334278,
+      "Topo-QoS": -0.09158683032609476
+    },
+    "per_system": {
+      "GAT": {
+        "realworld_autoware_ros2": {
+          "rho": 0.7778671599232583,
+          "rho_pos": 0.67595369555954
+        },
+        "realworld_cloud_microservices": {
+          "rho": 0.8103209833488052,
+          "rho_pos": 0.05509080804800992
+        },
+        "realworld_edgex": {
+          "rho": 0.8526382515671381,
+          "rho_pos": 0.37173630275758485
+        },
+        "realworld_homeassistant": {
+          "rho": 0.9266245260152541,
+          "rho_pos": 0.8285757740658125
+        },
+        "realworld_trainticket": {
+          "rho": 0.7862547187743081,
+          "rho_pos": -0.04542472477547602
+        }
+      },
+      "GAT-QoS": {
+        "realworld_autoware_ros2": {
+          "rho": 0.7578887357963231,
+          "rho_pos": 0.6285523545518454
+        },
+        "realworld_cloud_microservices": {
+          "rho": 0.7504282630851138,
+          "rho_pos": 0.02395252523826517
+        },
+        "realworld_edgex": {
+          "rho": 0.814960090638715,
+          "rho_pos": 0.25479938632721877
+        },
+        "realworld_homeassistant": {
+          "rho": 0.9253867869288872,
+          "rho_pos": 0.8330398159494354
+        },
+        "realworld_trainticket": {
+          "rho": 0.7774326708090334,
+          "rho_pos": -0.14774060970664532
+        }
+      },
+      "GAT-w": {
+        "realworld_autoware_ros2": {
+          "rho": 0.744481162190224,
+          "rho_pos": 0.605468430120589
+        },
+        "realworld_cloud_microservices": {
+          "rho": 0.7443996741745453,
+          "rho_pos": -0.04311454542887733
+        },
+        "realworld_edgex": {
+          "rho": 0.8269429811634922,
+          "rho_pos": 0.23264291795093883
+        },
+        "realworld_homeassistant": {
+          "rho": 0.8982449369635515,
+          "rho_pos": 0.7489670271412013
+        },
+        "realworld_trainticket": {
+          "rho": 0.7566761233767165,
+          "rho_pos": -0.07673691369837696
+        }
+      },
+      "HGT-QoS": {
+        "realworld_autoware_ros2": {
+          "rho": 0.7164885793355638,
+          "rho_pos": 0.5173618483219002
+        },
+        "realworld_cloud_microservices": {
+          "rho": 0.7101939849211023,
+          "rho_pos": -0.03113828280974474
+        },
+        "realworld_edgex": {
+          "rho": 0.7930944038048431,
+          "rho_pos": 0.18340632155920578
+        },
+        "realworld_homeassistant": {
+          "rho": 0.864207112088456,
+          "rho_pos": 0.7018465850362914
+        },
+        "realworld_trainticket": {
+          "rho": 0.7170593565793847,
+          "rho_pos": -0.19228330099133537
+        }
+      },
+      "HGT-QoS-U": {
+        "realworld_autoware_ros2": {
+          "rho": 0.7545083560486097,
+          "rho_pos": 0.599829608885473
+        },
+        "realworld_cloud_microservices": {
+          "rho": 0.7651065665195415,
+          "rho_pos": 0.15569141404872366
+        },
+        "realworld_edgex": {
+          "rho": 0.8073009234991666,
+          "rho_pos": 0.32619245109523176
+        },
+        "realworld_homeassistant": {
+          "rho": 0.9208778802571211,
+          "rho_pos": 0.8283277717389446
+        },
+        "realworld_trainticket": {
+          "rho": 0.7726094015943739,
+          "rho_pos": -0.1539148441421469
+        }
+      },
+      "Hybrid-HGT": {
+        "realworld_autoware_ros2": {
+          "rho": 0.5958583986755897,
+          "rho_pos": 0.33709578196178314
+        },
+        "realworld_cloud_microservices": {
+          "rho": 0.7474139686298297,
+          "rho_pos": 0.06946232319096901
+        },
+        "realworld_edgex": {
+          "rho": 0.7016785379457178,
+          "rho_pos": -0.3705053878477915
+        },
+        "realworld_homeassistant": {
+          "rho": 0.725226694676379,
+          "rho_pos": 0.40498779977535826
+        },
+        "realworld_trainticket": {
+          "rho": 0.7059905720995892,
+          "rho_pos": 0.08202911464309262
+        }
+      },
+      "Hybrid-GAT": {
+        "realworld_autoware_ros2": {
+          "rho": 0.5764876832673445,
+          "rho_pos": 0.3592986405750527
+        },
+        "realworld_cloud_microservices": {
+          "rho": 0.5951265704976427,
+          "rho_pos": -0.26108252509709046
+        },
+        "realworld_edgex": {
+          "rho": 0.7482512155523262,
+          "rho_pos": 0.032003787654626505
+        },
+        "realworld_homeassistant": {
+          "rho": 0.7484785075131324,
+          "rho_pos": 0.3583633623241841
+        },
+        "realworld_trainticket": {
+          "rho": 0.6422986837521619,
+          "rho_pos": 0.10319791842195522
+        }
+      },
+      "GBM-Feat": {
+        "realworld_autoware_ros2": {
+          "rho": 0.6982495334541882,
+          "rho_pos": 0.4794760181484642
+        },
+        "realworld_cloud_microservices": {
+          "rho": 0.7474526629580758,
+          "rho_pos": 0.12215787871515241
+        },
+        "realworld_edgex": {
+          "rho": 0.7922231125596564,
+          "rho_pos": -0.25479938632721877
+        },
+        "realworld_homeassistant": {
+          "rho": 0.7360771901168359,
+          "rho_pos": 0.31173892487300997
+        },
+        "realworld_trainticket": {
+          "rho": 0.8097313177934407,
+          "rho_pos": 0.11951553800149514
+        }
+      },
+      "GBM-Feat-QoS": {
+        "realworld_autoware_ros2": {
+          "rho": 0.6940289802262696,
+          "rho_pos": 0.5268773591561586
+        },
+        "realworld_cloud_microservices": {
+          "rho": 0.8220812733811161,
+          "rho_pos": 0.22754898976351917
+        },
+        "realworld_edgex": {
+          "rho": 0.7808113153488287,
+          "rho_pos": -0.3483489194715116
+        },
+        "realworld_homeassistant": {
+          "rho": 0.684911764434708,
+          "rho_pos": 0.19021778470771572
+        },
+        "realworld_trainticket": {
+          "rho": 0.8120829170169328,
+          "rho_pos": 0.24785141091084975
+        }
+      },
+      "Topo": {
+        "realworld_autoware_ros2": {
+          "rho": 0.3065993573348426,
+          "rho_pos": -0.09978252891826057
+        },
+        "realworld_cloud_microservices": {
+          "rho": 0.8914922548911319,
+          "rho_pos": -0.023952525238265177
+        },
+        "realworld_edgex": {
+          "rho": 0.5341815026780086,
+          "rho_pos": -0.39875582902338147
+        },
+        "realworld_homeassistant": {
+          "rho": 0.29656780551346096,
+          "rho_pos": -0.12303831677240014
+        },
+        "realworld_trainticket": {
+          "rho": 0.5282346859607726,
+          "rho_pos": 0.2283260369355935
+        }
+      },
+      "Topo-QoS": {
+        "realworld_autoware_ros2": {
+          "rho": 0.37839791355511293,
+          "rho_pos": -0.07252057860285349
+        },
+        "realworld_cloud_microservices": {
+          "rho": 0.8883225046515192,
+          "rho_pos": -0.07185757571479554
+        },
+        "realworld_edgex": {
+          "rho": 0.5341815026780086,
+          "rho_pos": -0.39875582902338147
+        },
+        "realworld_homeassistant": {
+          "rho": 0.2891303683845967,
+          "rho_pos": -0.14312620522503688
+        },
+        "realworld_trainticket": {
+          "rho": 0.5411242096176045,
+          "rho_pos": 0.2283260369355935
+        }
+      }
+    }
+  }
+}

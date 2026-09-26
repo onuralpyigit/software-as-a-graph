@@ -1,0 +1,1631 @@
+{
+  "seeds": [
+    42,
+    123,
+    456,
+    789,
+    2024
+  ],
+  "duration": 60.0,
+  "eval_population": "application",
+  "provenance": {
+    "commit": "6507ea0d36af9a1ef0228a210c722e91c54689a1",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "seeds": [
+        42,
+        123,
+        456,
+        789,
+        2024
+      ],
+      "qos_weighting": true,
+      "qos_mode": "full",
+      "target_utilization": 0.65,
+      "calibration_active": true,
+      "duration": 60.0,
+      "eval_population": "application",
+      "i_comp_baseline_flows_primed": true,
+      "max_candidates": 30,
+      "skip_message_flow": false,
+      "seeded_oracles": [
+        "i_star"
+      ],
+      "single_seed_oracles": [
+        "i_comp",
+        "i_dyn"
+      ],
+      "stability_seeds": null
+    }
+  },
+  "per_scenario": [
+    {
+      "scenario": "atm_system",
+      "eval_population": "application",
+      "n_per_oracle": {
+        "i_star": 26,
+        "i_comp": 26,
+        "i_dyn": 26
+      },
+      "n_per_oracle_unrestricted": {
+        "i_star": 39,
+        "i_comp": 39,
+        "i_dyn": 26
+      },
+      "oracle_seeding": {
+        "i_star": {
+          "seeds": [
+            42,
+            123,
+            456,
+            789,
+            2024
+          ],
+          "combination": "mean across seeds"
+        },
+        "i_comp": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        },
+        "i_dyn": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        }
+      },
+      "pairs": {
+        "i_comp__i_dyn": {
+          "n_common": 26,
+          "spearman_rho": 0.1334,
+          "spearman_p": 0.516045,
+          "n_zero_a": 0,
+          "n_zero_b": 0,
+          "n_both_positive": 24,
+          "spearman_rho_positive": 0.1674,
+          "kendall_tau": 0.0986,
+          "topk_jaccard": 0.1111,
+          "topk_jaccard_tie_robust": 0.1111,
+          "topk_jaccard_random_baseline": 0.1064,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 5,
+          "scale_max_a": 0.0914,
+          "scale_max_b": 0.2727
+        },
+        "i_comp__i_star": {
+          "n_common": 26,
+          "spearman_rho": 0.0886,
+          "spearman_p": 0.667012,
+          "n_zero_a": 0,
+          "n_zero_b": 5,
+          "n_both_positive": 21,
+          "spearman_rho_positive": -0.0579,
+          "kendall_tau": 0.0503,
+          "topk_jaccard": 0.25,
+          "topk_jaccard_tie_robust": 0.25,
+          "topk_jaccard_random_baseline": 0.1064,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 5,
+          "scale_max_a": 0.0914,
+          "scale_max_b": 0.4195
+        },
+        "i_dyn__i_star": {
+          "n_common": 26,
+          "spearman_rho": 0.6913,
+          "spearman_p": 9.2e-05,
+          "n_zero_a": 0,
+          "n_zero_b": 5,
+          "n_both_positive": 21,
+          "spearman_rho_positive": 0.5622,
+          "kendall_tau": 0.5464,
+          "topk_jaccard": 0.25,
+          "topk_jaccard_tie_robust": 0.25,
+          "topk_jaccard_random_baseline": 0.1064,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 5,
+          "scale_max_a": 0.2727,
+          "scale_max_b": 0.4195
+        }
+      },
+      "golden_signals": {
+        "latency": {
+          "p50_ms": 3.598,
+          "p95_ms": 26.06,
+          "p99_ms": 65.177,
+          "mean_e2e_ms": 7.733,
+          "mean_queue_wait_ms": 0.942,
+          "mean_service_time_ms": 6.792
+        },
+        "traffic": {
+          "published_rate_hz": 735.55,
+          "delivered_rate_hz": 2167.6667,
+          "throughput_bytes_per_s": 138730.67,
+          "throughput_kbps": 1109.85,
+          "total_messages_published": 44133,
+          "total_messages_delivered": 130060,
+          "total_bytes_delivered": 8323840
+        },
+        "errors": {
+          "total_errors": 2405,
+          "error_rate": 0.0182,
+          "deadline_violations": 2146,
+          "queue_overflows": 236,
+          "best_effort_drops": 0,
+          "unserved_demand": 23
+        },
+        "saturation": {
+          "cpu_utilization": 0.4094,
+          "peak_cpu_utilization": 0.6564,
+          "mean_queue_depth": 0.02,
+          "mean_queue_occupancy": 0.0031,
+          "peak_queue_occupancy": 1.0,
+          "saturated_subscribers_fraction": 0.0
+        }
+      }
+    },
+    {
+      "scenario": "av_system",
+      "eval_population": "application",
+      "n_per_oracle": {
+        "i_star": 80,
+        "i_comp": 80,
+        "i_dyn": 30
+      },
+      "n_per_oracle_unrestricted": {
+        "i_star": 104,
+        "i_comp": 92,
+        "i_dyn": 30
+      },
+      "oracle_seeding": {
+        "i_star": {
+          "seeds": [
+            42,
+            123,
+            456,
+            789,
+            2024
+          ],
+          "combination": "mean across seeds"
+        },
+        "i_comp": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        },
+        "i_dyn": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        }
+      },
+      "pairs": {
+        "i_comp__i_dyn": {
+          "n_common": 30,
+          "spearman_rho": 0.3761,
+          "spearman_p": 0.040551,
+          "n_zero_a": 0,
+          "n_zero_b": 0,
+          "n_both_positive": 30,
+          "spearman_rho_positive": 0.3761,
+          "kendall_tau": 0.2465,
+          "topk_jaccard": 0.3333,
+          "topk_jaccard_tie_robust": 0.3333,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.047,
+          "scale_max_b": 0.0965
+        },
+        "i_comp__i_star": {
+          "n_common": 80,
+          "spearman_rho": 0.5089,
+          "spearman_p": 1e-06,
+          "n_zero_a": 0,
+          "n_zero_b": 39,
+          "n_both_positive": 41,
+          "spearman_rho_positive": 0.3799,
+          "kendall_tau": 0.3791,
+          "topk_jaccard": 0.3333,
+          "topk_jaccard_tie_robust": 0.3333,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 16,
+          "scale_max_a": 0.047,
+          "scale_max_b": 0.9467
+        },
+        "i_dyn__i_star": {
+          "n_common": 30,
+          "spearman_rho": 0.787,
+          "spearman_p": 0.0,
+          "n_zero_a": 0,
+          "n_zero_b": 20,
+          "n_both_positive": 10,
+          "spearman_rho_positive": 0.1487,
+          "kendall_tau": 0.6224,
+          "topk_jaccard": 0.3333,
+          "topk_jaccard_tie_robust": 0.3333,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0965,
+          "scale_max_b": 0.9467
+        }
+      },
+      "golden_signals": {
+        "latency": {
+          "p50_ms": 10.21,
+          "p95_ms": 85.835,
+          "p99_ms": 211.596,
+          "mean_e2e_ms": 25.477,
+          "mean_queue_wait_ms": 4.17,
+          "mean_service_time_ms": 21.307
+        },
+        "traffic": {
+          "published_rate_hz": 680.5333,
+          "delivered_rate_hz": 4982.5167,
+          "throughput_bytes_per_s": 318881.07,
+          "throughput_kbps": 2551.05,
+          "total_messages_published": 40832,
+          "total_messages_delivered": 298951,
+          "total_bytes_delivered": 19132864
+        },
+        "errors": {
+          "total_errors": 18051,
+          "error_rate": 0.0569,
+          "deadline_violations": 17897,
+          "queue_overflows": 39,
+          "best_effort_drops": 26,
+          "unserved_demand": 89
+        },
+        "saturation": {
+          "cpu_utilization": 0.6228,
+          "peak_cpu_utilization": 0.7331,
+          "mean_queue_depth": 0.04,
+          "mean_queue_occupancy": 0.0032,
+          "peak_queue_occupancy": 1.0,
+          "saturated_subscribers_fraction": 0.0
+        }
+      }
+    },
+    {
+      "scenario": "iot_smart_city_system",
+      "eval_population": "application",
+      "n_per_oracle": {
+        "i_star": 200,
+        "i_comp": 200,
+        "i_dyn": 30
+      },
+      "n_per_oracle_unrestricted": {
+        "i_star": 216,
+        "i_comp": 236,
+        "i_dyn": 30
+      },
+      "oracle_seeding": {
+        "i_star": {
+          "seeds": [
+            42,
+            123,
+            456,
+            789,
+            2024
+          ],
+          "combination": "mean across seeds"
+        },
+        "i_comp": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        },
+        "i_dyn": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        }
+      },
+      "pairs": {
+        "i_comp__i_dyn": {
+          "n_common": 30,
+          "spearman_rho": 0.562,
+          "spearman_p": 0.001229,
+          "n_zero_a": 0,
+          "n_zero_b": 0,
+          "n_both_positive": 30,
+          "spearman_rho_positive": 0.562,
+          "kendall_tau": 0.3959,
+          "topk_jaccard": 0.2,
+          "topk_jaccard_tie_robust": 0.2,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0278,
+          "scale_max_b": 0.025
+        },
+        "i_comp__i_star": {
+          "n_common": 200,
+          "spearman_rho": 0.4164,
+          "spearman_p": 0.0,
+          "n_zero_a": 0,
+          "n_zero_b": 53,
+          "n_both_positive": 147,
+          "spearman_rho_positive": 0.4872,
+          "kendall_tau": 0.3026,
+          "topk_jaccard": 0.2121,
+          "topk_jaccard_tie_robust": 0.2121,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 40,
+          "scale_max_a": 0.0357,
+          "scale_max_b": 0.4622
+        },
+        "i_dyn__i_star": {
+          "n_common": 30,
+          "spearman_rho": 0.8455,
+          "spearman_p": 0.0,
+          "n_zero_a": 0,
+          "n_zero_b": 8,
+          "n_both_positive": 22,
+          "spearman_rho_positive": 0.8017,
+          "kendall_tau": 0.6789,
+          "topk_jaccard": 0.7143,
+          "topk_jaccard_tie_robust": 0.7143,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.025,
+          "scale_max_b": 0.4232
+        }
+      },
+      "golden_signals": {
+        "latency": {
+          "p50_ms": 391.757,
+          "p95_ms": 1407.278,
+          "p99_ms": 2302.711,
+          "mean_e2e_ms": 512.602,
+          "mean_queue_wait_ms": 60.966,
+          "mean_service_time_ms": 451.637
+        },
+        "traffic": {
+          "published_rate_hz": 73.25,
+          "delivered_rate_hz": 258.85,
+          "throughput_bytes_per_s": 16566.4,
+          "throughput_kbps": 132.53,
+          "total_messages_published": 4395,
+          "total_messages_delivered": 15531,
+          "total_bytes_delivered": 993984
+        },
+        "errors": {
+          "total_errors": 196,
+          "error_rate": 0.0125,
+          "deadline_violations": 117,
+          "queue_overflows": 35,
+          "best_effort_drops": 35,
+          "unserved_demand": 9
+        },
+        "saturation": {
+          "cpu_utilization": 0.5964,
+          "peak_cpu_utilization": 0.7106,
+          "mean_queue_depth": 0.03,
+          "mean_queue_occupancy": 0.0051,
+          "peak_queue_occupancy": 1.0,
+          "saturated_subscribers_fraction": 0.0
+        }
+      }
+    },
+    {
+      "scenario": "financial_trading_system",
+      "eval_population": "application",
+      "n_per_oracle": {
+        "i_star": 60,
+        "i_comp": 60,
+        "i_dyn": 30
+      },
+      "n_per_oracle_unrestricted": {
+        "i_star": 83,
+        "i_comp": 71,
+        "i_dyn": 30
+      },
+      "oracle_seeding": {
+        "i_star": {
+          "seeds": [
+            42,
+            123,
+            456,
+            789,
+            2024
+          ],
+          "combination": "mean across seeds"
+        },
+        "i_comp": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        },
+        "i_dyn": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        }
+      },
+      "pairs": {
+        "i_comp__i_dyn": {
+          "n_common": 30,
+          "spearman_rho": 0.5716,
+          "spearman_p": 0.000969,
+          "n_zero_a": 0,
+          "n_zero_b": 0,
+          "n_both_positive": 28,
+          "spearman_rho_positive": 0.6859,
+          "kendall_tau": 0.4189,
+          "topk_jaccard": 0.7143,
+          "topk_jaccard_tie_robust": 0.7143,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0611,
+          "scale_max_b": 0.0592
+        },
+        "i_comp__i_star": {
+          "n_common": 60,
+          "spearman_rho": 0.4483,
+          "spearman_p": 0.000328,
+          "n_zero_a": 0,
+          "n_zero_b": 27,
+          "n_both_positive": 33,
+          "spearman_rho_positive": 0.4315,
+          "kendall_tau": 0.3479,
+          "topk_jaccard": 0.5,
+          "topk_jaccard_tie_robust": 0.5,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 12,
+          "scale_max_a": 0.0611,
+          "scale_max_b": 0.9853
+        },
+        "i_dyn__i_star": {
+          "n_common": 30,
+          "spearman_rho": 0.9534,
+          "spearman_p": 0.0,
+          "n_zero_a": 0,
+          "n_zero_b": 11,
+          "n_both_positive": 19,
+          "spearman_rho_positive": 0.9155,
+          "kendall_tau": 0.8511,
+          "topk_jaccard": 0.7143,
+          "topk_jaccard_tie_robust": 0.7143,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0592,
+          "scale_max_b": 0.9853
+        }
+      },
+      "golden_signals": {
+        "latency": {
+          "p50_ms": 1.839,
+          "p95_ms": 5.775,
+          "p99_ms": 9.832,
+          "mean_e2e_ms": 2.285,
+          "mean_queue_wait_ms": 0.156,
+          "mean_service_time_ms": 2.129
+        },
+        "traffic": {
+          "published_rate_hz": 6598.2333,
+          "delivered_rate_hz": 45963.5667,
+          "throughput_bytes_per_s": 2941668.27,
+          "throughput_kbps": 23533.35,
+          "total_messages_published": 395894,
+          "total_messages_delivered": 2757814,
+          "total_bytes_delivered": 176500096
+        },
+        "errors": {
+          "total_errors": 25431,
+          "error_rate": 0.0091,
+          "deadline_violations": 24343,
+          "queue_overflows": 995,
+          "best_effort_drops": 29,
+          "unserved_demand": 64
+        },
+        "saturation": {
+          "cpu_utilization": 0.6492,
+          "peak_cpu_utilization": 0.6607,
+          "mean_queue_depth": 0.02,
+          "mean_queue_occupancy": 0.0019,
+          "peak_queue_occupancy": 1.0,
+          "saturated_subscribers_fraction": 0.0
+        }
+      }
+    },
+    {
+      "scenario": "healthcare_system",
+      "eval_population": "application",
+      "n_per_oracle": {
+        "i_star": 50,
+        "i_comp": 50,
+        "i_dyn": 30
+      },
+      "n_per_oracle_unrestricted": {
+        "i_star": 65,
+        "i_comp": 61,
+        "i_dyn": 30
+      },
+      "oracle_seeding": {
+        "i_star": {
+          "seeds": [
+            42,
+            123,
+            456,
+            789,
+            2024
+          ],
+          "combination": "mean across seeds"
+        },
+        "i_comp": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        },
+        "i_dyn": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        }
+      },
+      "pairs": {
+        "i_comp__i_dyn": {
+          "n_common": 30,
+          "spearman_rho": 0.4813,
+          "spearman_p": 0.007088,
+          "n_zero_a": 0,
+          "n_zero_b": 0,
+          "n_both_positive": 30,
+          "spearman_rho_positive": 0.4813,
+          "kendall_tau": 0.387,
+          "topk_jaccard": 0.5,
+          "topk_jaccard_tie_robust": 0.5,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.1041,
+          "scale_max_b": 0.077
+        },
+        "i_comp__i_star": {
+          "n_common": 50,
+          "spearman_rho": 0.3381,
+          "spearman_p": 0.016346,
+          "n_zero_a": 0,
+          "n_zero_b": 18,
+          "n_both_positive": 32,
+          "spearman_rho_positive": 0.421,
+          "kendall_tau": 0.2606,
+          "topk_jaccard": 0.25,
+          "topk_jaccard_tie_robust": 0.1905,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 5,
+          "k": 10,
+          "scale_max_a": 0.1041,
+          "scale_max_b": 0.8432
+        },
+        "i_dyn__i_star": {
+          "n_common": 30,
+          "spearman_rho": 0.8426,
+          "spearman_p": 0.0,
+          "n_zero_a": 0,
+          "n_zero_b": 10,
+          "n_both_positive": 20,
+          "spearman_rho_positive": 0.7475,
+          "kendall_tau": 0.6834,
+          "topk_jaccard": 0.3333,
+          "topk_jaccard_tie_robust": 0.3636,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 3,
+          "k": 6,
+          "scale_max_a": 0.077,
+          "scale_max_b": 0.8432
+        }
+      },
+      "golden_signals": {
+        "latency": {
+          "p50_ms": 371.819,
+          "p95_ms": 1264.432,
+          "p99_ms": 2110.08,
+          "mean_e2e_ms": 475.427,
+          "mean_queue_wait_ms": 49.054,
+          "mean_service_time_ms": 426.373
+        },
+        "traffic": {
+          "published_rate_hz": 22.55,
+          "delivered_rate_hz": 82.8833,
+          "throughput_bytes_per_s": 5304.53,
+          "throughput_kbps": 42.44,
+          "total_messages_published": 1353,
+          "total_messages_delivered": 4973,
+          "total_bytes_delivered": 318272
+        },
+        "errors": {
+          "total_errors": 41,
+          "error_rate": 0.0082,
+          "deadline_violations": 28,
+          "queue_overflows": 0,
+          "best_effort_drops": 0,
+          "unserved_demand": 13
+        },
+        "saturation": {
+          "cpu_utilization": 0.561,
+          "peak_cpu_utilization": 0.7376,
+          "mean_queue_depth": 0.03,
+          "mean_queue_occupancy": 0.0026,
+          "peak_queue_occupancy": 1.0,
+          "saturated_subscribers_fraction": 0.0
+        }
+      }
+    },
+    {
+      "scenario": "hub_and_spoke_system",
+      "eval_population": "application",
+      "n_per_oracle": {
+        "i_star": 70,
+        "i_comp": 70,
+        "i_dyn": 30
+      },
+      "n_per_oracle_unrestricted": {
+        "i_star": 97,
+        "i_comp": 84,
+        "i_dyn": 30
+      },
+      "oracle_seeding": {
+        "i_star": {
+          "seeds": [
+            42,
+            123,
+            456,
+            789,
+            2024
+          ],
+          "combination": "mean across seeds"
+        },
+        "i_comp": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        },
+        "i_dyn": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        }
+      },
+      "pairs": {
+        "i_comp__i_dyn": {
+          "n_common": 30,
+          "spearman_rho": -0.0728,
+          "spearman_p": 0.702249,
+          "n_zero_a": 0,
+          "n_zero_b": 0,
+          "n_both_positive": 30,
+          "spearman_rho_positive": -0.0728,
+          "kendall_tau": -0.0579,
+          "topk_jaccard": 0.0909,
+          "topk_jaccard_tie_robust": 0.0909,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0514,
+          "scale_max_b": 0.0577
+        },
+        "i_comp__i_star": {
+          "n_common": 70,
+          "spearman_rho": 0.0826,
+          "spearman_p": 0.496674,
+          "n_zero_a": 0,
+          "n_zero_b": 16,
+          "n_both_positive": 54,
+          "spearman_rho_positive": 0.4758,
+          "kendall_tau": 0.0924,
+          "topk_jaccard": 0.2174,
+          "topk_jaccard_tie_robust": 0.2174,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 14,
+          "scale_max_a": 0.0514,
+          "scale_max_b": 0.9464
+        },
+        "i_dyn__i_star": {
+          "n_common": 30,
+          "spearman_rho": 0.2637,
+          "spearman_p": 0.159167,
+          "n_zero_a": 0,
+          "n_zero_b": 7,
+          "n_both_positive": 23,
+          "spearman_rho_positive": 0.0084,
+          "kendall_tau": 0.1946,
+          "topk_jaccard": 0.0909,
+          "topk_jaccard_tie_robust": 0.0909,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0577,
+          "scale_max_b": 0.9464
+        }
+      },
+      "golden_signals": {
+        "latency": {
+          "p50_ms": 24.483,
+          "p95_ms": 176.224,
+          "p99_ms": 683.684,
+          "mean_e2e_ms": 56.331,
+          "mean_queue_wait_ms": 8.972,
+          "mean_service_time_ms": 47.359
+        },
+        "traffic": {
+          "published_rate_hz": 164.3667,
+          "delivered_rate_hz": 1023.8,
+          "throughput_bytes_per_s": 65523.2,
+          "throughput_kbps": 524.19,
+          "total_messages_published": 9862,
+          "total_messages_delivered": 61428,
+          "total_bytes_delivered": 3931392
+        },
+        "errors": {
+          "total_errors": 4187,
+          "error_rate": 0.064,
+          "deadline_violations": 3783,
+          "queue_overflows": 202,
+          "best_effort_drops": 202,
+          "unserved_demand": 0
+        },
+        "saturation": {
+          "cpu_utilization": 0.6208,
+          "peak_cpu_utilization": 0.756,
+          "mean_queue_depth": 0.04,
+          "mean_queue_occupancy": 0.0044,
+          "peak_queue_occupancy": 1.0,
+          "saturated_subscribers_fraction": 0.0
+        }
+      }
+    },
+    {
+      "scenario": "microservices_system",
+      "eval_population": "application",
+      "n_per_oracle": {
+        "i_star": 90,
+        "i_comp": 90,
+        "i_dyn": 30
+      },
+      "n_per_oracle_unrestricted": {
+        "i_star": 126,
+        "i_comp": 111,
+        "i_dyn": 30
+      },
+      "oracle_seeding": {
+        "i_star": {
+          "seeds": [
+            42,
+            123,
+            456,
+            789,
+            2024
+          ],
+          "combination": "mean across seeds"
+        },
+        "i_comp": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        },
+        "i_dyn": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        }
+      },
+      "pairs": {
+        "i_comp__i_dyn": {
+          "n_common": 30,
+          "spearman_rho": 0.3459,
+          "spearman_p": 0.061128,
+          "n_zero_a": 0,
+          "n_zero_b": 0,
+          "n_both_positive": 30,
+          "spearman_rho_positive": 0.3459,
+          "kendall_tau": 0.2322,
+          "topk_jaccard": 0.2,
+          "topk_jaccard_tie_robust": 0.2,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0279,
+          "scale_max_b": 0.0692
+        },
+        "i_comp__i_star": {
+          "n_common": 90,
+          "spearman_rho": 0.2654,
+          "spearman_p": 0.011473,
+          "n_zero_a": 0,
+          "n_zero_b": 13,
+          "n_both_positive": 77,
+          "spearman_rho_positive": 0.0274,
+          "kendall_tau": 0.1739,
+          "topk_jaccard": 0.0588,
+          "topk_jaccard_tie_robust": 0.0588,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 18,
+          "scale_max_a": 0.0316,
+          "scale_max_b": 0.868
+        },
+        "i_dyn__i_star": {
+          "n_common": 30,
+          "spearman_rho": 0.3371,
+          "spearman_p": 0.068491,
+          "n_zero_a": 0,
+          "n_zero_b": 3,
+          "n_both_positive": 27,
+          "spearman_rho_positive": 0.1936,
+          "kendall_tau": 0.2642,
+          "topk_jaccard": 0.2,
+          "topk_jaccard_tie_robust": 0.2,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0692,
+          "scale_max_b": 0.868
+        }
+      },
+      "golden_signals": {
+        "latency": {
+          "p50_ms": 28.918,
+          "p95_ms": 253.484,
+          "p99_ms": 1048.711,
+          "mean_e2e_ms": 76.853,
+          "mean_queue_wait_ms": 17.195,
+          "mean_service_time_ms": 59.658
+        },
+        "traffic": {
+          "published_rate_hz": 252.4833,
+          "delivered_rate_hz": 1109.0333,
+          "throughput_bytes_per_s": 70978.13,
+          "throughput_kbps": 567.83,
+          "total_messages_published": 15149,
+          "total_messages_delivered": 66542,
+          "total_bytes_delivered": 4258688
+        },
+        "errors": {
+          "total_errors": 3354,
+          "error_rate": 0.0482,
+          "deadline_violations": 2600,
+          "queue_overflows": 387,
+          "best_effort_drops": 367,
+          "unserved_demand": 0
+        },
+        "saturation": {
+          "cpu_utilization": 0.5776,
+          "peak_cpu_utilization": 0.7331,
+          "mean_queue_depth": 0.07,
+          "mean_queue_occupancy": 0.0076,
+          "peak_queue_occupancy": 1.0,
+          "saturated_subscribers_fraction": 0.0
+        }
+      }
+    },
+    {
+      "scenario": "enterprise_system",
+      "eval_population": "application",
+      "n_per_oracle": {
+        "i_star": 300,
+        "i_comp": 300,
+        "i_dyn": 30
+      },
+      "n_per_oracle_unrestricted": {
+        "i_star": 360,
+        "i_comp": 350,
+        "i_dyn": 30
+      },
+      "oracle_seeding": {
+        "i_star": {
+          "seeds": [
+            42,
+            123,
+            456,
+            789,
+            2024
+          ],
+          "combination": "mean across seeds"
+        },
+        "i_comp": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        },
+        "i_dyn": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        }
+      },
+      "pairs": {
+        "i_comp__i_dyn": {
+          "n_common": 30,
+          "spearman_rho": 0.7046,
+          "spearman_p": 1.4e-05,
+          "n_zero_a": 0,
+          "n_zero_b": 0,
+          "n_both_positive": 30,
+          "spearman_rho_positive": 0.7046,
+          "kendall_tau": 0.508,
+          "topk_jaccard": 0.5,
+          "topk_jaccard_tie_robust": 0.5,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0116,
+          "scale_max_b": 0.0359
+        },
+        "i_comp__i_star": {
+          "n_common": 300,
+          "spearman_rho": 0.5857,
+          "spearman_p": 0.0,
+          "n_zero_a": 0,
+          "n_zero_b": 117,
+          "n_both_positive": 183,
+          "spearman_rho_positive": 0.6081,
+          "kendall_tau": 0.4394,
+          "topk_jaccard": 0.3636,
+          "topk_jaccard_tie_robust": 0.3636,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 60,
+          "scale_max_a": 0.0171,
+          "scale_max_b": 1.0
+        },
+        "i_dyn__i_star": {
+          "n_common": 30,
+          "spearman_rho": 0.7092,
+          "spearman_p": 1.1e-05,
+          "n_zero_a": 0,
+          "n_zero_b": 11,
+          "n_both_positive": 19,
+          "spearman_rho_positive": 0.8684,
+          "kendall_tau": 0.5559,
+          "topk_jaccard": 0.7143,
+          "topk_jaccard_tie_robust": 0.7143,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0359,
+          "scale_max_b": 0.9925
+        }
+      },
+      "golden_signals": {
+        "latency": {
+          "p50_ms": 141.756,
+          "p95_ms": 843.449,
+          "p99_ms": 1637.687,
+          "mean_e2e_ms": 257.202,
+          "mean_queue_wait_ms": 24.819,
+          "mean_service_time_ms": 232.383
+        },
+        "traffic": {
+          "published_rate_hz": 163.5667,
+          "delivered_rate_hz": 1665.6667,
+          "throughput_bytes_per_s": 106602.67,
+          "throughput_kbps": 852.82,
+          "total_messages_published": 9814,
+          "total_messages_delivered": 99940,
+          "total_bytes_delivered": 6396160
+        },
+        "errors": {
+          "total_errors": 3036,
+          "error_rate": 0.0295,
+          "deadline_violations": 2428,
+          "queue_overflows": 312,
+          "best_effort_drops": 296,
+          "unserved_demand": 0
+        },
+        "saturation": {
+          "cpu_utilization": 0.6035,
+          "peak_cpu_utilization": 0.7929,
+          "mean_queue_depth": 0.03,
+          "mean_queue_occupancy": 0.0022,
+          "peak_queue_occupancy": 1.0,
+          "saturated_subscribers_fraction": 0.0
+        }
+      }
+    },
+    {
+      "scenario": "industrial_scada_system",
+      "eval_population": "application",
+      "n_per_oracle": {
+        "i_star": 140,
+        "i_comp": 140,
+        "i_dyn": 30
+      },
+      "n_per_oracle_unrestricted": {
+        "i_star": 159,
+        "i_comp": 169,
+        "i_dyn": 30
+      },
+      "oracle_seeding": {
+        "i_star": {
+          "seeds": [
+            42,
+            123,
+            456,
+            789,
+            2024
+          ],
+          "combination": "mean across seeds"
+        },
+        "i_comp": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        },
+        "i_dyn": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        }
+      },
+      "pairs": {
+        "i_comp__i_dyn": {
+          "n_common": 30,
+          "spearman_rho": 0.3623,
+          "spearman_p": 0.049113,
+          "n_zero_a": 0,
+          "n_zero_b": 0,
+          "n_both_positive": 30,
+          "spearman_rho_positive": 0.3623,
+          "kendall_tau": 0.2308,
+          "topk_jaccard": 0.2,
+          "topk_jaccard_tie_robust": 0.2,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0495,
+          "scale_max_b": 0.0351
+        },
+        "i_comp__i_star": {
+          "n_common": 140,
+          "spearman_rho": 0.5571,
+          "spearman_p": 0.0,
+          "n_zero_a": 0,
+          "n_zero_b": 53,
+          "n_both_positive": 87,
+          "spearman_rho_positive": 0.5056,
+          "kendall_tau": 0.4272,
+          "topk_jaccard": 0.2727,
+          "topk_jaccard_tie_robust": 0.2727,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 28,
+          "scale_max_a": 0.0495,
+          "scale_max_b": 0.737
+        },
+        "i_dyn__i_star": {
+          "n_common": 30,
+          "spearman_rho": 0.1857,
+          "spearman_p": 0.325759,
+          "n_zero_a": 0,
+          "n_zero_b": 12,
+          "n_both_positive": 18,
+          "spearman_rho_positive": -0.0691,
+          "kendall_tau": 0.1433,
+          "topk_jaccard": 0.0909,
+          "topk_jaccard_tie_robust": 0.0909,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0351,
+          "scale_max_b": 0.7196
+        }
+      },
+      "golden_signals": {
+        "latency": {
+          "p50_ms": 15.831,
+          "p95_ms": 206.974,
+          "p99_ms": 1139.304,
+          "mean_e2e_ms": 61.484,
+          "mean_queue_wait_ms": 14.127,
+          "mean_service_time_ms": 47.357
+        },
+        "traffic": {
+          "published_rate_hz": 488.6833,
+          "delivered_rate_hz": 1189.8167,
+          "throughput_bytes_per_s": 76148.27,
+          "throughput_kbps": 609.19,
+          "total_messages_published": 29321,
+          "total_messages_delivered": 71389,
+          "total_bytes_delivered": 4568896
+        },
+        "errors": {
+          "total_errors": 5896,
+          "error_rate": 0.0763,
+          "deadline_violations": 5812,
+          "queue_overflows": 22,
+          "best_effort_drops": 0,
+          "unserved_demand": 62
+        },
+        "saturation": {
+          "cpu_utilization": 0.5047,
+          "peak_cpu_utilization": 0.7641,
+          "mean_queue_depth": 0.1,
+          "mean_queue_occupancy": 0.0076,
+          "peak_queue_occupancy": 1.0,
+          "saturated_subscribers_fraction": 0.0
+        }
+      }
+    },
+    {
+      "scenario": "logistics_fleet_system",
+      "eval_population": "application",
+      "n_per_oracle": {
+        "i_star": 110,
+        "i_comp": 110,
+        "i_dyn": 30
+      },
+      "n_per_oracle_unrestricted": {
+        "i_star": 137,
+        "i_comp": 135,
+        "i_dyn": 30
+      },
+      "oracle_seeding": {
+        "i_star": {
+          "seeds": [
+            42,
+            123,
+            456,
+            789,
+            2024
+          ],
+          "combination": "mean across seeds"
+        },
+        "i_comp": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        },
+        "i_dyn": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        }
+      },
+      "pairs": {
+        "i_comp__i_dyn": {
+          "n_common": 30,
+          "spearman_rho": 0.6512,
+          "spearman_p": 9.7e-05,
+          "n_zero_a": 0,
+          "n_zero_b": 0,
+          "n_both_positive": 15,
+          "spearman_rho_positive": 0.1714,
+          "kendall_tau": 0.4437,
+          "topk_jaccard": 0.2,
+          "topk_jaccard_tie_robust": 0.2,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0284,
+          "scale_max_b": 0.0255
+        },
+        "i_comp__i_star": {
+          "n_common": 110,
+          "spearman_rho": 0.653,
+          "spearman_p": 0.0,
+          "n_zero_a": 0,
+          "n_zero_b": 32,
+          "n_both_positive": 78,
+          "spearman_rho_positive": 0.5321,
+          "kendall_tau": 0.4566,
+          "topk_jaccard": 0.2571,
+          "topk_jaccard_tie_robust": 0.2571,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 22,
+          "scale_max_a": 0.033,
+          "scale_max_b": 0.9295
+        },
+        "i_dyn__i_star": {
+          "n_common": 30,
+          "spearman_rho": 0.692,
+          "spearman_p": 2.3e-05,
+          "n_zero_a": 0,
+          "n_zero_b": 10,
+          "n_both_positive": 15,
+          "spearman_rho_positive": 0.1607,
+          "kendall_tau": 0.5098,
+          "topk_jaccard": 0.3333,
+          "topk_jaccard_tie_robust": 0.3333,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0255,
+          "scale_max_b": 0.9295
+        }
+      },
+      "golden_signals": {
+        "latency": {
+          "p50_ms": 13.66,
+          "p95_ms": 96.774,
+          "p99_ms": 479.239,
+          "mean_e2e_ms": 35.787,
+          "mean_queue_wait_ms": 8.082,
+          "mean_service_time_ms": 27.705
+        },
+        "traffic": {
+          "published_rate_hz": 764.5167,
+          "delivered_rate_hz": 2602.7667,
+          "throughput_bytes_per_s": 166577.07,
+          "throughput_kbps": 1332.62,
+          "total_messages_published": 45871,
+          "total_messages_delivered": 156166,
+          "total_bytes_delivered": 9994624
+        },
+        "errors": {
+          "total_errors": 7038,
+          "error_rate": 0.0432,
+          "deadline_violations": 4471,
+          "queue_overflows": 2380,
+          "best_effort_drops": 187,
+          "unserved_demand": 0
+        },
+        "saturation": {
+          "cpu_utilization": 0.6158,
+          "peak_cpu_utilization": 0.7677,
+          "mean_queue_depth": 0.08,
+          "mean_queue_occupancy": 0.0095,
+          "peak_queue_occupancy": 1.0,
+          "saturated_subscribers_fraction": 0.0
+        }
+      }
+    },
+    {
+      "scenario": "realtime_gaming_system",
+      "eval_population": "application",
+      "n_per_oracle": {
+        "i_star": 75,
+        "i_comp": 75,
+        "i_dyn": 30
+      },
+      "n_per_oracle_unrestricted": {
+        "i_star": 108,
+        "i_comp": 92,
+        "i_dyn": 30
+      },
+      "oracle_seeding": {
+        "i_star": {
+          "seeds": [
+            42,
+            123,
+            456,
+            789,
+            2024
+          ],
+          "combination": "mean across seeds"
+        },
+        "i_comp": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        },
+        "i_dyn": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        }
+      },
+      "pairs": {
+        "i_comp__i_dyn": {
+          "n_common": 30,
+          "spearman_rho": 0.4098,
+          "spearman_p": 0.024499,
+          "n_zero_a": 0,
+          "n_zero_b": 0,
+          "n_both_positive": 29,
+          "spearman_rho_positive": 0.4727,
+          "kendall_tau": 0.29,
+          "topk_jaccard": 0.3333,
+          "topk_jaccard_tie_robust": 0.3333,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0699,
+          "scale_max_b": 0.234
+        },
+        "i_comp__i_star": {
+          "n_common": 75,
+          "spearman_rho": 0.2857,
+          "spearman_p": 0.012982,
+          "n_zero_a": 0,
+          "n_zero_b": 27,
+          "n_both_positive": 48,
+          "spearman_rho_positive": 0.1073,
+          "kendall_tau": 0.1895,
+          "topk_jaccard": 0.25,
+          "topk_jaccard_tie_robust": 0.24,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 1,
+          "k": 15,
+          "scale_max_a": 0.0699,
+          "scale_max_b": 0.8711
+        },
+        "i_dyn__i_star": {
+          "n_common": 30,
+          "spearman_rho": 0.6108,
+          "spearman_p": 0.000337,
+          "n_zero_a": 0,
+          "n_zero_b": 10,
+          "n_both_positive": 20,
+          "spearman_rho_positive": 0.2152,
+          "kendall_tau": 0.4479,
+          "topk_jaccard": 0.3333,
+          "topk_jaccard_tie_robust": 0.3333,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.234,
+          "scale_max_b": 0.8686
+        }
+      },
+      "golden_signals": {
+        "latency": {
+          "p50_ms": 13.658,
+          "p95_ms": 105.051,
+          "p99_ms": 344.576,
+          "mean_e2e_ms": 34.288,
+          "mean_queue_wait_ms": 9.009,
+          "mean_service_time_ms": 25.279
+        },
+        "traffic": {
+          "published_rate_hz": 624.5833,
+          "delivered_rate_hz": 1714.2167,
+          "throughput_bytes_per_s": 109709.87,
+          "throughput_kbps": 877.68,
+          "total_messages_published": 37475,
+          "total_messages_delivered": 102853,
+          "total_bytes_delivered": 6582592
+        },
+        "errors": {
+          "total_errors": 7521,
+          "error_rate": 0.0682,
+          "deadline_violations": 6800,
+          "queue_overflows": 551,
+          "best_effort_drops": 170,
+          "unserved_demand": 0
+        },
+        "saturation": {
+          "cpu_utilization": 0.5693,
+          "peak_cpu_utilization": 0.7789,
+          "mean_queue_depth": 0.1,
+          "mean_queue_occupancy": 0.012,
+          "peak_queue_occupancy": 1.0,
+          "saturated_subscribers_fraction": 0.0
+        }
+      }
+    },
+    {
+      "scenario": "telecom_ran_system",
+      "eval_population": "application",
+      "n_per_oracle": {
+        "i_star": 120,
+        "i_comp": 120,
+        "i_dyn": 30
+      },
+      "n_per_oracle_unrestricted": {
+        "i_star": 150,
+        "i_comp": 148,
+        "i_dyn": 30
+      },
+      "oracle_seeding": {
+        "i_star": {
+          "seeds": [
+            42,
+            123,
+            456,
+            789,
+            2024
+          ],
+          "combination": "mean across seeds"
+        },
+        "i_comp": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        },
+        "i_dyn": {
+          "seeds": [
+            42
+          ],
+          "combination": "single run"
+        }
+      },
+      "pairs": {
+        "i_comp__i_dyn": {
+          "n_common": 30,
+          "spearman_rho": 0.4078,
+          "spearman_p": 0.025294,
+          "n_zero_a": 0,
+          "n_zero_b": 0,
+          "n_both_positive": 30,
+          "spearman_rho_positive": 0.4078,
+          "kendall_tau": 0.2874,
+          "topk_jaccard": 0.5,
+          "topk_jaccard_tie_robust": 0.5,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0295,
+          "scale_max_b": 0.0556
+        },
+        "i_comp__i_star": {
+          "n_common": 120,
+          "spearman_rho": 0.5097,
+          "spearman_p": 0.0,
+          "n_zero_a": 0,
+          "n_zero_b": 20,
+          "n_both_positive": 100,
+          "spearman_rho_positive": 0.32,
+          "kendall_tau": 0.3617,
+          "topk_jaccard": 0.2308,
+          "topk_jaccard_tie_robust": 0.2308,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 24,
+          "scale_max_a": 0.0295,
+          "scale_max_b": 0.9867
+        },
+        "i_dyn__i_star": {
+          "n_common": 30,
+          "spearman_rho": 0.6035,
+          "spearman_p": 0.000415,
+          "n_zero_a": 0,
+          "n_zero_b": 5,
+          "n_both_positive": 25,
+          "spearman_rho_positive": 0.5995,
+          "kendall_tau": 0.4173,
+          "topk_jaccard": 0.3333,
+          "topk_jaccard_tie_robust": 0.3333,
+          "topk_jaccard_random_baseline": 0.1111,
+          "n_ties_at_cut_a": 0,
+          "n_ties_at_cut_b": 0,
+          "k": 6,
+          "scale_max_a": 0.0556,
+          "scale_max_b": 0.9866
+        }
+      },
+      "golden_signals": {
+        "latency": {
+          "p50_ms": 12.63,
+          "p95_ms": 106.743,
+          "p99_ms": 309.841,
+          "mean_e2e_ms": 34.761,
+          "mean_queue_wait_ms": 9.734,
+          "mean_service_time_ms": 25.026
+        },
+        "traffic": {
+          "published_rate_hz": 923.05,
+          "delivered_rate_hz": 3168.25,
+          "throughput_bytes_per_s": 202768.0,
+          "throughput_kbps": 1622.14,
+          "total_messages_published": 55383,
+          "total_messages_delivered": 190095,
+          "total_bytes_delivered": 12166080
+        },
+        "errors": {
+          "total_errors": 14159,
+          "error_rate": 0.0694,
+          "deadline_violations": 13632,
+          "queue_overflows": 318,
+          "best_effort_drops": 209,
+          "unserved_demand": 0
+        },
+        "saturation": {
+          "cpu_utilization": 0.6322,
+          "peak_cpu_utilization": 0.7901,
+          "mean_queue_depth": 0.12,
+          "mean_queue_occupancy": 0.0115,
+          "peak_queue_occupancy": 1.0,
+          "saturated_subscribers_fraction": 0.0
+        }
+      }
+    }
+  ],
+  "summary": {
+    "i_comp__i_dyn": {
+      "mean_spearman_rho": 0.4111,
+      "min_spearman_rho": -0.0728,
+      "mean_topk_jaccard": 0.3236,
+      "mean_topk_jaccard_tie_robust": 0.3236,
+      "mean_topk_jaccard_random_baseline": 0.1107,
+      "n_scenarios_measured": 12
+    },
+    "i_comp__i_star": {
+      "mean_spearman_rho": 0.395,
+      "min_spearman_rho": 0.0826,
+      "mean_topk_jaccard": 0.2663,
+      "mean_topk_jaccard_tie_robust": 0.2605,
+      "mean_topk_jaccard_random_baseline": 0.1107,
+      "n_scenarios_measured": 12
+    },
+    "i_dyn__i_star": {
+      "mean_spearman_rho": 0.6268,
+      "min_spearman_rho": 0.1857,
+      "mean_topk_jaccard": 0.3701,
+      "mean_topk_jaccard_tie_robust": 0.3726,
+      "mean_topk_jaccard_random_baseline": 0.1107,
+      "n_scenarios_measured": 12
+    }
+  },
+  "self_agreement_ceiling": {
+    "source": "results/label_stability.json",
+    "test_retest_spearman_range": [
+      0.8105,
+      1.0
+    ],
+    "topk_jaccard_range": [
+      0.3704,
+      1.0
+    ],
+    "note": "I*(v)'s own seed-to-seed agreement, from reproduce/label_stability_check.py. Cross-oracle agreement below this range is construct divergence, not label noise."
+  },
+  "note": "These are different quantities on different scales; only their rank agreement is meaningful. Read this before attributing a result measured against one oracle to evidence gathered against another \u2014 they are used in different sections of the paper. i_star and i_comp are both topological cascade engines over the same substrate, so their agreement cannot rule out a shared construction artifact; i_dyn is behavioural and carries independent evidence, but is delivery-based and QoS-agnostic."
+}

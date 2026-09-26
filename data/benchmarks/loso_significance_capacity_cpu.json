@@ -1,0 +1,129 @@
+{
+  "input": "results/loso_capacity_cpu.json",
+  "alpha": 0.05,
+  "n_folds": 12,
+  "attainable_floor_p": 0.00048828125,
+  "loss_budget_at_alpha": 4,
+  "preregistered": [
+    {
+      "variant": "hgl_qos",
+      "baseline": "topo_qos",
+      "label": "HGT-QoS",
+      "baseline_label": "Topo-QoS",
+      "n_folds": 12,
+      "mean_delta": 0.06849562338511436,
+      "wins": 8,
+      "losses": 4,
+      "W": 24.0,
+      "p": 0.26611328125,
+      "attainable_floor_p": 0.00048828125,
+      "loss_budget_at_005": 4,
+      "delta_ci95": [
+        -0.04645023585913275,
+        0.17402978574164255
+      ],
+      "per_fold_delta": {
+        "atm_system": 0.21168181071375786,
+        "av_system": -0.04911381888198396,
+        "enterprise_system": -0.36940446417652134,
+        "financial_trading_system": 0.10868176220087622,
+        "healthcare_system": 0.3616154294530255,
+        "hub_and_spoke_system": 0.11863817263286641,
+        "industrial_scada_system": 0.03333528014058984,
+        "iot_smart_city_system": 0.3370352710876736,
+        "logistics_fleet_system": 0.03002814323574199,
+        "microservices_system": 0.20975416659008284,
+        "realtime_gaming_system": -0.021411571018176034,
+        "telecom_ran_system": -0.14889270135656063
+      },
+      "p_holm": 0.26611328125,
+      "role": "primary"
+    }
+  ],
+  "exploratory": [
+    {
+      "variant": "gl_full_qos_cap",
+      "baseline": "topo_qos",
+      "label": "GAT-w",
+      "baseline_label": "Topo-QoS",
+      "n_folds": 12,
+      "mean_delta": 0.07954172663818185,
+      "wins": 8,
+      "losses": 4,
+      "W": 22.0,
+      "p": 0.20361328125,
+      "attainable_floor_p": 0.00048828125,
+      "loss_budget_at_005": 4,
+      "delta_ci95": [
+        -0.04620757468090343,
+        0.19592488170723607
+      ],
+      "per_fold_delta": {
+        "atm_system": 0.17090579373797582,
+        "av_system": -0.0220621625240216,
+        "enterprise_system": -0.3842444902577561,
+        "financial_trading_system": 0.1319654949558221,
+        "healthcare_system": 0.4338537398758324,
+        "hub_and_spoke_system": 0.20116925294781468,
+        "industrial_scada_system": 0.0791802341496497,
+        "iot_smart_city_system": 0.3651933722437193,
+        "logistics_fleet_system": -0.09004507317386956,
+        "microservices_system": 0.1768684683436923,
+        "realtime_gaming_system": -0.12285225375652875,
+        "telecom_ran_system": 0.014568343115851867
+      },
+      "role": "exploratory"
+    }
+  ],
+  "factorial": [],
+  "factorial_fisher_z": [],
+  "architecture": [],
+  "rq2_controls": [
+    {
+      "variant": "hgl_qos",
+      "baseline": "gl_full_qos_cap",
+      "label": "HGT-QoS",
+      "baseline_label": "GAT-w",
+      "n_folds": 12,
+      "mean_delta": -0.01104610325306749,
+      "wins": 5,
+      "losses": 7,
+      "W": 33.0,
+      "p": 0.67724609375,
+      "attainable_floor_p": 0.00048828125,
+      "loss_budget_at_005": 4,
+      "delta_ci95": [
+        -0.055959847723492044,
+        0.030730309591252884
+      ],
+      "per_fold_delta": {
+        "atm_system": 0.04077601697578204,
+        "av_system": -0.02705165635796236,
+        "enterprise_system": 0.014840026081234747,
+        "financial_trading_system": -0.023283732754945885,
+        "healthcare_system": -0.07223831042280693,
+        "hub_and_spoke_system": -0.08253108031494827,
+        "industrial_scada_system": -0.04584495400905986,
+        "iot_smart_city_system": -0.028158101156045667,
+        "logistics_fleet_system": 0.12007321640961155,
+        "microservices_system": 0.03288569824639054,
+        "realtime_gaming_system": 0.10144068273835272,
+        "telecom_ran_system": -0.1634610444724125
+      },
+      "role": "control",
+      "controls_for": "capacity",
+      "not_preregistered": true,
+      "p_holm": 0.67724609375
+    }
+  ],
+  "qos_stratified_ablation": null,
+  "provenance": {
+    "commit": "1fe476e6d3f7409ef3adec479647be7e3d8e1e5f",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "input": "results/loso_capacity_cpu.json",
+      "alpha": 0.05
+    }
+  }
+}

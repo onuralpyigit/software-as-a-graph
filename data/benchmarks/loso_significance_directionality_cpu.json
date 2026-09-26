@@ -1,0 +1,129 @@
+{
+  "input": "results/loso_directionality_cpu.json",
+  "alpha": 0.05,
+  "n_folds": 12,
+  "attainable_floor_p": 0.00048828125,
+  "loss_budget_at_alpha": 4,
+  "preregistered": [
+    {
+      "variant": "hgl_qos",
+      "baseline": "topo_qos",
+      "label": "HGT-QoS",
+      "baseline_label": "Topo-QoS",
+      "n_folds": 12,
+      "mean_delta": 0.06849562338511436,
+      "wins": 8,
+      "losses": 4,
+      "W": 24.0,
+      "p": 0.26611328125,
+      "attainable_floor_p": 0.00048828125,
+      "loss_budget_at_005": 4,
+      "delta_ci95": [
+        -0.04645023585913275,
+        0.17402978574164255
+      ],
+      "per_fold_delta": {
+        "atm_system": 0.21168181071375786,
+        "av_system": -0.04911381888198396,
+        "enterprise_system": -0.36940446417652134,
+        "financial_trading_system": 0.10868176220087622,
+        "healthcare_system": 0.3616154294530255,
+        "hub_and_spoke_system": 0.11863817263286641,
+        "industrial_scada_system": 0.03333528014058984,
+        "iot_smart_city_system": 0.3370352710876736,
+        "logistics_fleet_system": 0.03002814323574199,
+        "microservices_system": 0.20975416659008284,
+        "realtime_gaming_system": -0.021411571018176034,
+        "telecom_ran_system": -0.14889270135656063
+      },
+      "p_holm": 0.26611328125,
+      "role": "primary"
+    }
+  ],
+  "exploratory": [
+    {
+      "variant": "hgl_qos_uni",
+      "baseline": "topo_qos",
+      "label": "HGT-QoS-U",
+      "baseline_label": "Topo-QoS",
+      "n_folds": 12,
+      "mean_delta": 0.07838063697059051,
+      "wins": 7,
+      "losses": 5,
+      "W": 24.0,
+      "p": 0.26611328125,
+      "attainable_floor_p": 0.00048828125,
+      "loss_budget_at_005": 4,
+      "delta_ci95": [
+        -0.04212096601494216,
+        0.19589448365272796
+      ],
+      "per_fold_delta": {
+        "atm_system": 0.1823011116133627,
+        "av_system": -0.018913133790556036,
+        "enterprise_system": -0.3843694636259758,
+        "financial_trading_system": 0.133564027347417,
+        "healthcare_system": 0.4470886925453813,
+        "hub_and_spoke_system": 0.20344191429790387,
+        "industrial_scada_system": -0.003098189033935772,
+        "iot_smart_city_system": 0.2649865763874101,
+        "logistics_fleet_system": -0.07293258100447808,
+        "microservices_system": 0.2622502543894376,
+        "realtime_gaming_system": -0.13651019650195806,
+        "telecom_ran_system": 0.06275863102307722
+      },
+      "role": "exploratory"
+    }
+  ],
+  "factorial": [],
+  "factorial_fisher_z": [],
+  "architecture": [],
+  "rq2_controls": [
+    {
+      "variant": "hgl_qos",
+      "baseline": "hgl_qos_uni",
+      "label": "HGT-QoS",
+      "baseline_label": "HGT-QoS-U",
+      "n_folds": 12,
+      "mean_delta": -0.009885013585476147,
+      "wins": 6,
+      "losses": 6,
+      "W": 37.0,
+      "p": 0.90966796875,
+      "attainable_floor_p": 0.00048828125,
+      "loss_budget_at_005": 4,
+      "delta_ci95": [
+        -0.06394748286026444,
+        0.03574267226782687
+      ],
+      "per_fold_delta": {
+        "atm_system": 0.029380699100395147,
+        "av_system": -0.030200685091427926,
+        "enterprise_system": 0.014964999449454452,
+        "financial_trading_system": -0.024882265146540794,
+        "healthcare_system": -0.08547326309235581,
+        "hub_and_spoke_system": -0.08480374166503746,
+        "industrial_scada_system": 0.03643346917452561,
+        "iot_smart_city_system": 0.07204869470026354,
+        "logistics_fleet_system": 0.10296072424022007,
+        "microservices_system": -0.052496087799354774,
+        "realtime_gaming_system": 0.11509862548378202,
+        "telecom_ran_system": -0.21165133237963785
+      },
+      "role": "control",
+      "controls_for": "directionality",
+      "not_preregistered": true,
+      "p_holm": 0.90966796875
+    }
+  ],
+  "qos_stratified_ablation": null,
+  "provenance": {
+    "commit": "1aeef1a5284d6ad52d65eca8cc60db6323da5af3",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "input": "results/loso_directionality_cpu.json",
+      "alpha": 0.05
+    }
+  }
+}

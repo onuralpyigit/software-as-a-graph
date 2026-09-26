@@ -1316,8 +1316,9 @@ def check_omnibus_holm(rep: Report) -> None:
     if art is None:
         rep.skipped.append("omnibus_registered_holm.json absent; omnibus figures unchecked")
         return
+    res_dir = RESULTS if (RESULTS / "loso_significance_v5.json").exists() else (ROOT / "data" / "benchmarks")
     try:
-        fresh = {r["contrast"]: r for r in omnibus(collect(RESULTS))}
+        fresh = {r["contrast"]: r for r in omnibus(collect(res_dir))}
     except (FileNotFoundError, KeyError) as exc:
         rep.skipped.append(f"omnibus: source significance artifact unreadable ({exc})")
         fresh = {}

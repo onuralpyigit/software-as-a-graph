@@ -1,0 +1,170 @@
+{
+  "factors": [
+    {
+      "name": "beta",
+      "lo": 0.0,
+      "hi": 1.0,
+      "shipped": 0.75
+    },
+    {
+      "name": "alpha",
+      "lo": 0.0,
+      "hi": 1.0,
+      "shipped": 0.15
+    },
+    {
+      "name": "psi",
+      "lo": 0.0,
+      "hi": 1.0,
+      "shipped": 0.1
+    },
+    {
+      "name": "w_reliability",
+      "lo": 0.0,
+      "hi": 1.0,
+      "shipped": 0.24
+    },
+    {
+      "name": "w_durability",
+      "lo": 0.0,
+      "hi": 1.0,
+      "shipped": 0.62
+    },
+    {
+      "name": "w_priority",
+      "lo": 0.0,
+      "hi": 1.0,
+      "shipped": 0.14
+    },
+    {
+      "name": "power_mean_p",
+      "lo": 1.0,
+      "hi": 10.0,
+      "shipped": 3.0
+    },
+    {
+      "name": "lib_fanout_gamma",
+      "lo": 0.0,
+      "hi": 0.5,
+      "shipped": 0.15
+    },
+    {
+      "name": "ahp_shrinkage_lambda",
+      "lo": 0.0,
+      "hi": 1.0,
+      "shipped": 0.7
+    },
+    {
+      "name": "r_alpha",
+      "lo": 0.1,
+      "hi": 0.9,
+      "shipped": 0.36
+    }
+  ],
+  "scenarios": [
+    "av_system",
+    "financial_trading_system",
+    "healthcare_system",
+    "hub_and_spoke_system",
+    "iot_smart_city_system",
+    "microservices_system"
+  ],
+  "morris": {
+    "design": {
+      "r_trajectories": 10,
+      "levels": 4,
+      "n_evaluations": 110,
+      "seed": 42
+    },
+    "per_factor": {
+      "beta": {
+        "n": 10,
+        "mu_star": 0.02511,
+        "sigma": 0.02766
+      },
+      "alpha": {
+        "n": 10,
+        "mu_star": 0.01914,
+        "sigma": 0.02646
+      },
+      "psi": {
+        "n": 10,
+        "mu_star": 0.01077,
+        "sigma": 0.01066
+      },
+      "w_reliability": {
+        "n": 10,
+        "mu_star": 0.01235,
+        "sigma": 0.018
+      },
+      "w_durability": {
+        "n": 10,
+        "mu_star": 0.0127,
+        "sigma": 0.01559
+      },
+      "w_priority": {
+        "n": 10,
+        "mu_star": 0.02178,
+        "sigma": 0.02382
+      },
+      "power_mean_p": {
+        "n": 10,
+        "mu_star": 0.00498,
+        "sigma": 0.007
+      },
+      "lib_fanout_gamma": {
+        "n": 10,
+        "mu_star": 0.00075,
+        "sigma": 0.00144
+      },
+      "ahp_shrinkage_lambda": {
+        "n": 10,
+        "mu_star": 0.13392,
+        "sigma": 0.08952
+      },
+      "r_alpha": {
+        "n": 10,
+        "mu_star": 0.13154,
+        "sigma": 0.04032
+      }
+    },
+    "ranked_by_influence": [
+      "ahp_shrinkage_lambda",
+      "r_alpha",
+      "beta",
+      "w_priority",
+      "alpha",
+      "w_durability",
+      "w_reliability",
+      "psi",
+      "power_mean_p",
+      "lib_fanout_gamma"
+    ],
+    "note": "mu_star ranks influence on mean rho; a large sigma relative to mu_star for a factor means its effect depends on where the other eight factors sit (interaction or non-linearity) rather than being a fixed marginal slope -- the specific limitation an on-simplex, one-at-a-time sweep cannot diagnose."
+  },
+  "dirichlet": {
+    "n_draws": 100,
+    "shipped_rho": 0.207,
+    "mean_rho": 0.1996,
+    "sd_rho": 0.0101,
+    "min_rho": 0.1735,
+    "max_rho": 0.2263,
+    "ci_90": [
+      0.1853,
+      0.2184
+    ],
+    "rank_stability_vs_shipped": {
+      "mean_kendall_tau": 0.8257,
+      "min_kendall_tau": 0.7082,
+      "mean_jaccard_top20pct": 0.7388,
+      "min_jaccard_top20pct": 0.6171
+    },
+    "note": "Draws respect the unit-sum constraint on both (beta,alpha,psi) and (w_reliability,w_durability,w_priority) simultaneously, holding the other six factors at shipped values -- the realistic 'declared budget' space, as opposed to Morris's unconstrained hyper-rectangle above."
+  },
+  "provenance": {
+    "commit": "baad2f0ebe79bf51cd99c3ca9478d86a17660a17",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {}
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "loso": {
+    "ATM": {
+      "n_apps": 26,
+      "zero_share": 0.19230769230769232,
+      "tie_fraction": 0.2692307692307693,
+      "projection_density": 0.18153846153846154
+    },
+    "AV System": {
+      "n_apps": 80,
+      "zero_share": 0.4875,
+      "tie_fraction": 0.7375,
+      "projection_density": 0.10537974683544304
+    },
+    "Enterprise": {
+      "n_apps": 300,
+      "zero_share": 0.39,
+      "tie_fraction": 0.51,
+      "projection_density": 0.05374581939799331
+    },
+    "Financial Trading": {
+      "n_apps": 60,
+      "zero_share": 0.45,
+      "tie_fraction": 0.6,
+      "projection_density": 0.12655367231638417
+    },
+    "Healthcare": {
+      "n_apps": 50,
+      "zero_share": 0.36,
+      "tie_fraction": 0.6,
+      "projection_density": 0.07020408163265306
+    },
+    "Enterprise Integration (ESB)": {
+      "n_apps": 70,
+      "zero_share": 0.22857142857142856,
+      "tie_fraction": 0.6285714285714286,
+      "projection_density": 0.06687370600414079
+    },
+    "Industrial SCADA": {
+      "n_apps": 140,
+      "zero_share": 0.37857142857142856,
+      "tie_fraction": 0.5,
+      "projection_density": 0.01803699897225077
+    },
+    "IoT Smart City": {
+      "n_apps": 200,
+      "zero_share": 0.265,
+      "tie_fraction": 0.37,
+      "projection_density": 0.03185929648241206
+    },
+    "Logistics Fleet": {
+      "n_apps": 110,
+      "zero_share": 0.2909090909090909,
+      "tie_fraction": 0.40909090909090906,
+      "projection_density": 0.05587989991659716
+    },
+    "Microservices": {
+      "n_apps": 90,
+      "zero_share": 0.14444444444444443,
+      "tie_fraction": 0.28888888888888886,
+      "projection_density": 0.07191011235955057
+    },
+    "Real-Time Gaming": {
+      "n_apps": 75,
+      "zero_share": 0.36,
+      "tie_fraction": 0.6266666666666667,
+      "projection_density": 0.03189189189189189
+    },
+    "Telecom RAN": {
+      "n_apps": 120,
+      "zero_share": 0.16666666666666666,
+      "tie_fraction": 0.275,
+      "projection_density": 0.05714285714285714
+    }
+  },
+  "loso_mean": {
+    "n_apps": 110.08333333333333,
+    "zero_share": 0.3094975626225626,
+    "tie_fraction": 0.48457905520405525,
+    "projection_density": 0.0725847120408863
+  },
+  "systems": {
+    "Autoware.universe (ROS 2)": {
+      "n_apps": 32,
+      "zero_share": 0.40625,
+      "tie_fraction": 0.5625,
+      "projection_density": 0.04435483870967742
+    },
+    "EdgeX Foundry": {
+      "n_apps": 22,
+      "zero_share": 0.5454545454545454,
+      "tie_fraction": 0.6363636363636364,
+      "projection_density": 0.0367965367965368
+    },
+    "Home Assistant": {
+      "n_apps": 24,
+      "zero_share": 0.2916666666666667,
+      "tie_fraction": 0.5833333333333333,
+      "projection_density": 0.11231884057971014
+    },
+    "Online Boutique (pub-sub model)": {
+      "n_apps": 22,
+      "zero_share": 0.6363636363636364,
+      "tie_fraction": 0.6363636363636364,
+      "projection_density": 0.0367965367965368
+    },
+    "Train-Ticket": {
+      "n_apps": 41,
+      "zero_share": 0.6585365853658537,
+      "tie_fraction": 0.7073170731707317,
+      "projection_density": 0.021341463414634148
+    }
+  },
+  "systems_mean": {
+    "n_apps": 28.2,
+    "zero_share": 0.5076542867701405,
+    "tie_fraction": 0.6251755358462676,
+    "projection_density": 0.050321643259419055
+  },
+  "provenance": {
+    "commit": "45d0785e68359d34f31f800fd0b6dd4e520dbaaf",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/training_free_suite.py",
+      "experiment": "descriptives"
+    }
+  }
+}

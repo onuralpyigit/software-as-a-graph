@@ -1,0 +1,180 @@
+{
+  "alpha": 0.05,
+  "m": 13,
+  "contrasts": [
+    {
+      "registration": "amendment_6",
+      "artifact": "loso_significance_hybrid_gat_cpu.json",
+      "block": "hybrid_gat",
+      "contrast": "SaG-Hybrid-GAT vs Topo-QoS",
+      "mean_delta": 0.1299727866745772,
+      "p": 0.00146484375,
+      "p_holm_family": 0.0029296875,
+      "p_holm_omnibus": 0.01904296875
+    },
+    {
+      "registration": "amendment_5",
+      "artifact": "loso_significance_hybrid_cpu.json",
+      "block": "hybrid",
+      "contrast": "SaG-Hybrid vs Topo-QoS",
+      "mean_delta": 0.10339866122690056,
+      "p": 0.00341796875,
+      "p_holm_family": 0.0068359375,
+      "p_holm_omnibus": 0.041015625
+    },
+    {
+      "registration": "amendment_2",
+      "artifact": "loso_significance_rq2_matched.json",
+      "block": "factorial",
+      "contrast": "QoS edge channel (main effect)",
+      "mean_delta": 0.07260580507964914,
+      "p": 0.04248046875,
+      "p_holm_family": 0.12744140625,
+      "p_holm_omnibus": 0.46728515625
+    },
+    {
+      "registration": "plan",
+      "artifact": "loso_significance_v5.json",
+      "block": "preregistered",
+      "contrast": "HGT-QoS vs Topo-QoS",
+      "mean_delta": 0.08508087104892625,
+      "p": 0.1513671875,
+      "p_holm_family": 0.302734375,
+      "p_holm_omnibus": 1.0
+    },
+    {
+      "registration": "amendment_6",
+      "artifact": "loso_significance_hybrid_gat_cpu.json",
+      "block": "hybrid_gat",
+      "contrast": "SaG-Hybrid-GAT vs GAT-N-QoS16-C",
+      "mean_delta": 0.048107554904070114,
+      "p": 0.30126953125,
+      "p_holm_family": 0.30126953125,
+      "p_holm_omnibus": 1.0
+    },
+    {
+      "registration": "amendment_2",
+      "artifact": "loso_significance_rq2_matched.json",
+      "block": "rq2_controls",
+      "contrast": "HGT-QoS vs GAT-N-QoS16-C",
+      "mean_delta": -0.013369608385392714,
+      "p": 0.38037109375,
+      "p_holm_family": 1.0,
+      "p_holm_omnibus": 1.0
+    },
+    {
+      "registration": "plan",
+      "artifact": "loso_significance_v5.json",
+      "block": "preregistered",
+      "contrast": "HGT vs Topo-QoS",
+      "mean_delta": -0.002268943507475483,
+      "p": 0.4697265625,
+      "p_holm_family": 0.4697265625,
+      "p_holm_omnibus": 1.0
+    },
+    {
+      "registration": "amendment_2",
+      "artifact": "loso_significance_rq2_matched.json",
+      "block": "factorial",
+      "contrast": "Typing (main effect)",
+      "mean_delta": -0.01398372312905173,
+      "p": 0.4697265625,
+      "p_holm_family": 0.939453125,
+      "p_holm_omnibus": 1.0
+    },
+    {
+      "registration": "amendment_2",
+      "artifact": "loso_significance_rq2_matched.json",
+      "block": "rq2_controls",
+      "contrast": "HGT vs GAT-N-C",
+      "mean_delta": -0.01459783787271074,
+      "p": 0.5693359375,
+      "p_holm_family": 1.0,
+      "p_holm_omnibus": 1.0
+    },
+    {
+      "registration": "amendment_2",
+      "artifact": "loso_significance_capacity_cpu.json",
+      "block": "rq2_controls",
+      "contrast": "HGT-QoS vs GAT-w",
+      "mean_delta": -0.01104610325306749,
+      "p": 0.67724609375,
+      "p_holm_family": 1.0,
+      "p_holm_omnibus": 1.0
+    },
+    {
+      "registration": "amendment_2",
+      "artifact": "loso_significance_rq2_matched.json",
+      "block": "factorial",
+      "contrast": "Typing x QoS interaction",
+      "mean_delta": 0.001228229487318026,
+      "p": 0.7333984375,
+      "p_holm_family": 0.939453125,
+      "p_holm_omnibus": 1.0
+    },
+    {
+      "registration": "amendment_5",
+      "artifact": "loso_significance_hybrid_cpu.json",
+      "block": "hybrid",
+      "contrast": "SaG-Hybrid vs HGT-QoS",
+      "mean_delta": 0.03490303784178617,
+      "p": 0.7333984375,
+      "p_holm_family": 0.7333984375,
+      "p_holm_omnibus": 1.0
+    },
+    {
+      "registration": "amendment_2",
+      "artifact": "loso_significance_directionality_cpu.json",
+      "block": "rq2_controls",
+      "contrast": "HGT-QoS vs HGT-QoS-U",
+      "mean_delta": -0.009885013585476147,
+      "p": 0.90966796875,
+      "p_holm_family": 1.0,
+      "p_holm_omnibus": 1.0
+    }
+  ],
+  "provenance": {
+    "commit": "6e82774eb5137e12c7131e603d138171c74d5a88",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "family": [
+        [
+          "plan",
+          "loso_significance_v5.json",
+          "preregistered"
+        ],
+        [
+          "amendment_2",
+          "loso_significance_rq2_matched.json",
+          "factorial"
+        ],
+        [
+          "amendment_2",
+          "loso_significance_rq2_matched.json",
+          "rq2_controls"
+        ],
+        [
+          "amendment_2",
+          "loso_significance_directionality_cpu.json",
+          "rq2_controls"
+        ],
+        [
+          "amendment_2",
+          "loso_significance_capacity_cpu.json",
+          "rq2_controls"
+        ],
+        [
+          "amendment_5",
+          "loso_significance_hybrid_cpu.json",
+          "hybrid"
+        ],
+        [
+          "amendment_6",
+          "loso_significance_hybrid_gat_cpu.json",
+          "hybrid_gat"
+        ]
+      ]
+    }
+  }
+}

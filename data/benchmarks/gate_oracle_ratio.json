@@ -1,0 +1,132 @@
+{
+  "measurement": "static analysis gate vs FaultInjector oracle, per scenario",
+  "note": "Derived from two existing artifacts; nothing is re-timed. The projection columns describe the app-layer DEPENDS_ON projection held in the committed cache, while the gate itself analyses the system layer -- the column is reported as the density diagnostic that orders the scenarios, not as the gate's own edge count.",
+  "oracle_source": "results/oracle_timing_jss12.json",
+  "gate_source": "results/detection_validation_timed_jss12.json",
+  "n_scenarios": 12,
+  "ratio": {
+    "min": 2.0,
+    "max": 17.7,
+    "median": 5.6,
+    "mean": 6.3
+  },
+  "per_scenario": [
+    {
+      "scenario": "enterprise_system",
+      "oracle_s": 4.487,
+      "gate_s": 79.27,
+      "ratio": 17.7,
+      "projection_nodes": 350,
+      "projection_edges": 26276,
+      "projection_density": 0.215
+    },
+    {
+      "scenario": "hub_and_spoke_system",
+      "oracle_s": 0.245,
+      "gate_s": 3.17,
+      "ratio": 12.9,
+      "projection_nodes": 95,
+      "projection_edges": 4641,
+      "projection_density": 0.52
+    },
+    {
+      "scenario": "av_system",
+      "oracle_s": 0.355,
+      "gate_s": 2.61,
+      "ratio": 7.4,
+      "projection_nodes": 100,
+      "projection_edges": 3073,
+      "projection_density": 0.31
+    },
+    {
+      "scenario": "financial_trading_system",
+      "oracle_s": 0.239,
+      "gate_s": 1.71,
+      "ratio": 7.1,
+      "projection_nodes": 78,
+      "projection_edges": 2657,
+      "projection_density": 0.442
+    },
+    {
+      "scenario": "realtime_gaming_system",
+      "oracle_s": 0.379,
+      "gate_s": 2.43,
+      "ratio": 6.4,
+      "projection_nodes": 103,
+      "projection_edges": 2318,
+      "projection_density": 0.221
+    },
+    {
+      "scenario": "healthcare_system",
+      "oracle_s": 0.149,
+      "gate_s": 0.92,
+      "ratio": 6.2,
+      "projection_nodes": 62,
+      "projection_edges": 1590,
+      "projection_density": 0.42
+    },
+    {
+      "scenario": "iot_smart_city_system",
+      "oracle_s": 1.104,
+      "gate_s": 5.48,
+      "ratio": 5.0,
+      "projection_nodes": 210,
+      "projection_edges": 1835,
+      "projection_density": 0.042
+    },
+    {
+      "scenario": "telecom_ran_system",
+      "oracle_s": 1.065,
+      "gate_s": 3.7,
+      "ratio": 3.5,
+      "projection_nodes": 142,
+      "projection_edges": 2116,
+      "projection_density": 0.106
+    },
+    {
+      "scenario": "logistics_fleet_system",
+      "oracle_s": 0.939,
+      "gate_s": 2.74,
+      "ratio": 2.9,
+      "projection_nodes": 130,
+      "projection_edges": 1660,
+      "projection_density": 0.099
+    },
+    {
+      "scenario": "microservices_system",
+      "oracle_s": 0.828,
+      "gate_s": 2.29,
+      "ratio": 2.8,
+      "projection_nodes": 120,
+      "projection_edges": 1524,
+      "projection_density": 0.107
+    },
+    {
+      "scenario": "atm_system",
+      "oracle_s": 0.08,
+      "gate_s": 0.16,
+      "ratio": 2.0,
+      "projection_nodes": 34,
+      "projection_edges": 155,
+      "projection_density": 0.138
+    },
+    {
+      "scenario": "industrial_scada_system",
+      "oracle_s": 1.191,
+      "gate_s": 2.43,
+      "ratio": 2.0,
+      "projection_nodes": 155,
+      "projection_edges": 897,
+      "projection_density": 0.038
+    }
+  ],
+  "provenance": {
+    "commit": "c75fe944b6347a918667c8ba83557e8f4ab663b3",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "oracle_source": "results/oracle_timing_jss12.json",
+      "gate_source": "results/detection_validation_timed_jss12.json"
+    }
+  }
+}

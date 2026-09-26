@@ -1,0 +1,765 @@
+{
+  "label_arms": [
+    "none",
+    "ladder",
+    "wt"
+  ],
+  "seeds": [
+    42,
+    123,
+    456,
+    789,
+    2024
+  ],
+  "node_types": [
+    "Application",
+    "Broker",
+    "Library"
+  ],
+  "scenarios": [
+    {
+      "scenario": "atm_system",
+      "n_labeled": 39,
+      "label_rank_agreement_application": {
+        "ladder": {
+          "n": 26,
+          "spearman_rho_vs_none": 0.9414,
+          "topk_jaccard_vs_none": 0.6667
+        },
+        "wt": {
+          "n": 26,
+          "spearman_rho_vs_none": 0.9683,
+          "topk_jaccard_vs_none": 1.0
+        }
+      },
+      "spearman_by_predictor_and_label_arm": {
+        "topo_bl": {
+          "none": 0.08172626738030465,
+          "ladder": 0.07735682626078098,
+          "wt": 0.06497161260748009
+        },
+        "topo_qos": {
+          "none": 0.07736076489912068,
+          "ladder": 0.09085873950577295,
+          "wt": 0.07075814685533378
+        },
+        "degree": {
+          "none": 0.09198600660840625,
+          "ladder": 0.1001994105201828,
+          "wt": 0.07825048208224157
+        }
+      },
+      "delta_vs_topology_only_label": {
+        "topo_bl": {
+          "ladder": -0.00436944111952367,
+          "wt": -0.016754654772824562
+        },
+        "topo_qos": {
+          "ladder": 0.013497974606652266,
+          "wt": -0.006602618043786895
+        },
+        "degree": {
+          "ladder": 0.008213403911776551,
+          "wt": -0.01373552452616468
+        }
+      },
+      "delta_spread_across_predictors": {
+        "ladder": {
+          "max_minus_min": 0.017867415726175936,
+          "topo_qos_minus_topo_bl": 0.017867415726175936
+        },
+        "wt": {
+          "max_minus_min": 0.010152036729037667,
+          "topo_qos_minus_topo_bl": 0.010152036729037667
+        }
+      },
+      "mean_absolute_label_shift": {
+        "none": 0.0,
+        "ladder": 0.04041851282051283,
+        "wt": 0.008700512820512814
+      }
+    },
+    {
+      "scenario": "av_system",
+      "n_labeled": 104,
+      "label_rank_agreement_application": {
+        "ladder": {
+          "n": 80,
+          "spearman_rho_vs_none": 0.9891,
+          "topk_jaccard_vs_none": 0.7778
+        },
+        "wt": {
+          "n": 80,
+          "spearman_rho_vs_none": 0.9958,
+          "topk_jaccard_vs_none": 0.8824
+        }
+      },
+      "spearman_by_predictor_and_label_arm": {
+        "topo_bl": {
+          "none": 0.43549760341237737,
+          "ladder": 0.4292215032788103,
+          "wt": 0.42393585703021963
+        },
+        "topo_qos": {
+          "none": 0.3212461600547531,
+          "ladder": 0.32655241005662283,
+          "wt": 0.3138533708035403
+        },
+        "degree": {
+          "none": 0.38231681571321485,
+          "ladder": 0.3782919356816334,
+          "wt": 0.3719677989747675
+        }
+      },
+      "delta_vs_topology_only_label": {
+        "topo_bl": {
+          "ladder": -0.006276100133567053,
+          "wt": -0.011561746382157734
+        },
+        "topo_qos": {
+          "ladder": 0.005306250001869739,
+          "wt": -0.0073927892512127835
+        },
+        "degree": {
+          "ladder": -0.004024880031581468,
+          "wt": -0.010349016738447347
+        }
+      },
+      "delta_spread_across_predictors": {
+        "ladder": {
+          "max_minus_min": 0.011582350135436792,
+          "topo_qos_minus_topo_bl": 0.011582350135436792
+        },
+        "wt": {
+          "max_minus_min": 0.00416895713094495,
+          "topo_qos_minus_topo_bl": 0.00416895713094495
+        }
+      },
+      "mean_absolute_label_shift": {
+        "none": 0.0,
+        "ladder": 0.02758701923076923,
+        "wt": 0.018943173076923073
+      }
+    },
+    {
+      "scenario": "enterprise_system",
+      "n_labeled": 360,
+      "label_rank_agreement_application": {
+        "ladder": {
+          "n": 300,
+          "spearman_rho_vs_none": 0.9896,
+          "topk_jaccard_vs_none": 0.7391
+        },
+        "wt": {
+          "n": 300,
+          "spearman_rho_vs_none": 0.9935,
+          "topk_jaccard_vs_none": 0.9048
+        }
+      },
+      "spearman_by_predictor_and_label_arm": {
+        "topo_bl": {
+          "none": 0.5420193589354418,
+          "ladder": 0.5178369046645966,
+          "wt": 0.5464779517868256
+        },
+        "topo_qos": {
+          "none": 0.42530630936683755,
+          "ladder": 0.41014784334777477,
+          "wt": 0.4318398813379881
+        },
+        "degree": {
+          "none": 0.5287748854413737,
+          "ladder": 0.5027672398804103,
+          "wt": 0.5319743921443663
+        }
+      },
+      "delta_vs_topology_only_label": {
+        "topo_bl": {
+          "ladder": -0.0241824542708452,
+          "wt": 0.004458592851383725
+        },
+        "topo_qos": {
+          "ladder": -0.015158466019062788,
+          "wt": 0.006533571971150565
+        },
+        "degree": {
+          "ladder": -0.026007645560963466,
+          "wt": 0.003199506702992516
+        }
+      },
+      "delta_spread_across_predictors": {
+        "ladder": {
+          "max_minus_min": 0.010849179541900678,
+          "topo_qos_minus_topo_bl": 0.009023988251782411
+        },
+        "wt": {
+          "max_minus_min": 0.0033340652681580485,
+          "topo_qos_minus_topo_bl": 0.00207497911976684
+        }
+      },
+      "mean_absolute_label_shift": {
+        "none": 0.0,
+        "ladder": 0.042828808333333336,
+        "wt": 0.019099069444444446
+      }
+    },
+    {
+      "scenario": "financial_trading_system",
+      "n_labeled": 83,
+      "label_rank_agreement_application": {
+        "ladder": {
+          "n": 60,
+          "spearman_rho_vs_none": 0.9994,
+          "topk_jaccard_vs_none": 1.0
+        },
+        "wt": {
+          "n": 60,
+          "spearman_rho_vs_none": 0.9827,
+          "topk_jaccard_vs_none": 0.8462
+        }
+      },
+      "spearman_by_predictor_and_label_arm": {
+        "topo_bl": {
+          "none": 0.42445497262949755,
+          "ladder": 0.41998593517013527,
+          "wt": 0.4506338062435546
+        },
+        "topo_qos": {
+          "none": 0.2337882734173805,
+          "ladder": 0.23134882852754407,
+          "wt": 0.24876333923726301
+        },
+        "degree": {
+          "none": 0.397520856292398,
+          "ladder": 0.393300385215061,
+          "wt": 0.4199674885848165
+        }
+      },
+      "delta_vs_topology_only_label": {
+        "topo_bl": {
+          "ladder": -0.0044690374593622795,
+          "wt": 0.02617883361405704
+        },
+        "topo_qos": {
+          "ladder": -0.0024394448898364396,
+          "wt": 0.014975065819882505
+        },
+        "degree": {
+          "ladder": -0.004220471077336974,
+          "wt": 0.0224466322924185
+        }
+      },
+      "delta_spread_across_predictors": {
+        "ladder": {
+          "max_minus_min": 0.00202959256952584,
+          "topo_qos_minus_topo_bl": 0.00202959256952584
+        },
+        "wt": {
+          "max_minus_min": 0.011203767794174535,
+          "topo_qos_minus_topo_bl": -0.011203767794174535
+        }
+      },
+      "mean_absolute_label_shift": {
+        "none": 0.0,
+        "ladder": 0.011387012048192764,
+        "wt": 0.02815107228915664
+      }
+    },
+    {
+      "scenario": "healthcare_system",
+      "n_labeled": 65,
+      "label_rank_agreement_application": {
+        "ladder": {
+          "n": 50,
+          "spearman_rho_vs_none": 0.9944,
+          "topk_jaccard_vs_none": 0.6667
+        },
+        "wt": {
+          "n": 50,
+          "spearman_rho_vs_none": 0.9999,
+          "topk_jaccard_vs_none": 1.0
+        }
+      },
+      "spearman_by_predictor_and_label_arm": {
+        "topo_bl": {
+          "none": 0.31879722308491093,
+          "ladder": 0.2918432944800414,
+          "wt": 0.319559681271805
+        },
+        "topo_qos": {
+          "none": 0.1655655527599815,
+          "ladder": 0.1449975218867861,
+          "wt": 0.16691106720744175
+        },
+        "degree": {
+          "none": 0.34641453302436837,
+          "ladder": 0.31412285237050397,
+          "wt": 0.34682225274807055
+        }
+      },
+      "delta_vs_topology_only_label": {
+        "topo_bl": {
+          "ladder": -0.026953928604869504,
+          "wt": 0.0007624581868940772
+        },
+        "topo_qos": {
+          "ladder": -0.020568030873195392,
+          "wt": 0.0013455144474602554
+        },
+        "degree": {
+          "ladder": -0.032291680653864396,
+          "wt": 0.00040771972370218235
+        }
+      },
+      "delta_spread_across_predictors": {
+        "ladder": {
+          "max_minus_min": 0.011723649780669004,
+          "topo_qos_minus_topo_bl": 0.006385897731674112
+        },
+        "wt": {
+          "max_minus_min": 0.000937794723758073,
+          "topo_qos_minus_topo_bl": 0.0005830562605661782
+        }
+      },
+      "mean_absolute_label_shift": {
+        "none": 0.0,
+        "ladder": 0.07372226153846154,
+        "wt": 0.0013443384615384553
+      }
+    },
+    {
+      "scenario": "hub_and_spoke_system",
+      "n_labeled": 97,
+      "label_rank_agreement_application": {
+        "ladder": {
+          "n": 70,
+          "spearman_rho_vs_none": 0.9924,
+          "topk_jaccard_vs_none": 0.8667
+        },
+        "wt": {
+          "n": 70,
+          "spearman_rho_vs_none": 0.9933,
+          "topk_jaccard_vs_none": 0.8667
+        }
+      },
+      "spearman_by_predictor_and_label_arm": {
+        "topo_bl": {
+          "none": 0.420819667806167,
+          "ladder": 0.4171735181048406,
+          "wt": 0.4324862824149151
+        },
+        "topo_qos": {
+          "none": 0.3907873679444741,
+          "ladder": 0.38434001443440813,
+          "wt": 0.39557671708979586
+        },
+        "degree": {
+          "none": 0.39428853253350826,
+          "ladder": 0.39259773775582163,
+          "wt": 0.40443188605369673
+        }
+      },
+      "delta_vs_topology_only_label": {
+        "topo_bl": {
+          "ladder": -0.0036461497013263733,
+          "wt": 0.011666614608748127
+        },
+        "topo_qos": {
+          "ladder": -0.0064473535100659785,
+          "wt": 0.004789349145321753
+        },
+        "degree": {
+          "ladder": -0.0016907947776866328,
+          "wt": 0.01014335352018847
+        }
+      },
+      "delta_spread_across_predictors": {
+        "ladder": {
+          "max_minus_min": 0.004756558732379346,
+          "topo_qos_minus_topo_bl": -0.002801203808739605
+        },
+        "wt": {
+          "max_minus_min": 0.006877265463426374,
+          "topo_qos_minus_topo_bl": -0.006877265463426374
+        }
+      },
+      "mean_absolute_label_shift": {
+        "none": 0.0,
+        "ladder": 0.024297587628865972,
+        "wt": 0.009759556701030944
+      }
+    },
+    {
+      "scenario": "industrial_scada_system",
+      "n_labeled": 159,
+      "label_rank_agreement_application": {
+        "ladder": {
+          "n": 140,
+          "spearman_rho_vs_none": 0.9636,
+          "topk_jaccard_vs_none": 0.6
+        },
+        "wt": {
+          "n": 140,
+          "spearman_rho_vs_none": 0.972,
+          "topk_jaccard_vs_none": 0.75
+        }
+      },
+      "spearman_by_predictor_and_label_arm": {
+        "topo_bl": {
+          "none": 0.36006925844019555,
+          "ladder": 0.3736068258981184,
+          "wt": 0.38779571832776705
+        },
+        "topo_qos": {
+          "none": 0.2726273441450569,
+          "ladder": 0.29315661989466607,
+          "wt": 0.31147786170632563
+        },
+        "degree": {
+          "none": 0.4654242733323773,
+          "ladder": 0.4768415269999406,
+          "wt": 0.49560741698940636
+        }
+      },
+      "delta_vs_topology_only_label": {
+        "topo_bl": {
+          "ladder": 0.013537567457922839,
+          "wt": 0.027726459887571497
+        },
+        "topo_qos": {
+          "ladder": 0.020529275749609166,
+          "wt": 0.03885051756126873
+        },
+        "degree": {
+          "ladder": 0.011417253667563299,
+          "wt": 0.030183143657029066
+        }
+      },
+      "delta_spread_across_predictors": {
+        "ladder": {
+          "max_minus_min": 0.009112022082045867,
+          "topo_qos_minus_topo_bl": 0.006991708291686327
+        },
+        "wt": {
+          "max_minus_min": 0.01112405767369723,
+          "topo_qos_minus_topo_bl": 0.01112405767369723
+        }
+      },
+      "mean_absolute_label_shift": {
+        "none": 0.0,
+        "ladder": 0.060344691823899385,
+        "wt": 0.04180513836477988
+      }
+    },
+    {
+      "scenario": "iot_smart_city_system",
+      "n_labeled": 216,
+      "label_rank_agreement_application": {
+        "ladder": {
+          "n": 200,
+          "spearman_rho_vs_none": 0.997,
+          "topk_jaccard_vs_none": 0.9512
+        },
+        "wt": {
+          "n": 200,
+          "spearman_rho_vs_none": 0.9982,
+          "topk_jaccard_vs_none": 0.9512
+        }
+      },
+      "spearman_by_predictor_and_label_arm": {
+        "topo_bl": {
+          "none": 0.4668162393360109,
+          "ladder": 0.4756133081895439,
+          "wt": 0.46984799915039466
+        },
+        "topo_qos": {
+          "none": 0.36155530651979345,
+          "ladder": 0.37309474596970194,
+          "wt": 0.37031081950832484
+        },
+        "degree": {
+          "none": 0.4939816673547144,
+          "ladder": 0.5036856884814931,
+          "wt": 0.4973408311460954
+        }
+      },
+      "delta_vs_topology_only_label": {
+        "topo_bl": {
+          "ladder": 0.008797068853532986,
+          "wt": 0.00303175981438375
+        },
+        "topo_qos": {
+          "ladder": 0.011539439449908484,
+          "wt": 0.008755512988531389
+        },
+        "degree": {
+          "ladder": 0.009704021126778706,
+          "wt": 0.0033591637913810146
+        }
+      },
+      "delta_spread_across_predictors": {
+        "ladder": {
+          "max_minus_min": 0.0027423705963754985,
+          "topo_qos_minus_topo_bl": 0.0027423705963754985
+        },
+        "wt": {
+          "max_minus_min": 0.005723753174147639,
+          "topo_qos_minus_topo_bl": 0.005723753174147639
+        }
+      },
+      "mean_absolute_label_shift": {
+        "none": 0.0,
+        "ladder": 0.009648481481481482,
+        "wt": 0.0008136527777777775
+      }
+    },
+    {
+      "scenario": "logistics_fleet_system",
+      "n_labeled": 137,
+      "label_rank_agreement_application": {
+        "ladder": {
+          "n": 110,
+          "spearman_rho_vs_none": 0.961,
+          "topk_jaccard_vs_none": 0.5172
+        },
+        "wt": {
+          "n": 110,
+          "spearman_rho_vs_none": 0.9961,
+          "topk_jaccard_vs_none": 0.8333
+        }
+      },
+      "spearman_by_predictor_and_label_arm": {
+        "topo_bl": {
+          "none": 0.548319849822601,
+          "ladder": 0.49219321324332527,
+          "wt": 0.5449763501954769
+        },
+        "topo_qos": {
+          "none": 0.3959626930135309,
+          "ladder": 0.3455866689917014,
+          "wt": 0.40411555167903135
+        },
+        "degree": {
+          "none": 0.579067020812676,
+          "ladder": 0.532895887599845,
+          "wt": 0.5769296011425966
+        }
+      },
+      "delta_vs_topology_only_label": {
+        "topo_bl": {
+          "ladder": -0.05612663657927569,
+          "wt": -0.0033434996271241024
+        },
+        "topo_qos": {
+          "ladder": -0.0503760240218295,
+          "wt": 0.008152858665500473
+        },
+        "degree": {
+          "ladder": -0.04617113321283106,
+          "wt": -0.00213741967007941
+        }
+      },
+      "delta_spread_across_predictors": {
+        "ladder": {
+          "max_minus_min": 0.009955503366444629,
+          "topo_qos_minus_topo_bl": 0.005750612557446189
+        },
+        "wt": {
+          "max_minus_min": 0.011496358292624576,
+          "topo_qos_minus_topo_bl": 0.011496358292624576
+        }
+      },
+      "mean_absolute_label_shift": {
+        "none": 0.0,
+        "ladder": 0.08466072262773722,
+        "wt": 0.018700613138686137
+      }
+    },
+    {
+      "scenario": "microservices_system",
+      "n_labeled": 126,
+      "label_rank_agreement_application": {
+        "ladder": {
+          "n": 90,
+          "spearman_rho_vs_none": 0.8907,
+          "topk_jaccard_vs_none": 0.3846
+        },
+        "wt": {
+          "n": 90,
+          "spearman_rho_vs_none": 0.8438,
+          "topk_jaccard_vs_none": 0.2857
+        }
+      },
+      "spearman_by_predictor_and_label_arm": {
+        "topo_bl": {
+          "none": 0.16531742891455123,
+          "ladder": 0.13071567032622963,
+          "wt": 0.1935892878632831
+        },
+        "topo_qos": {
+          "none": -0.0669386400986762,
+          "ladder": -0.09117108078211064,
+          "wt": -0.03249800328230846
+        },
+        "degree": {
+          "none": 0.14946896732458884,
+          "ladder": 0.12072573272956173,
+          "wt": 0.17627247903885446
+        }
+      },
+      "delta_vs_topology_only_label": {
+        "topo_bl": {
+          "ladder": -0.034601758588321596,
+          "wt": 0.02827185894873188
+        },
+        "topo_qos": {
+          "ladder": -0.024232440683434442,
+          "wt": 0.03444063681636774
+        },
+        "degree": {
+          "ladder": -0.028743234595027103,
+          "wt": 0.02680351171426562
+        }
+      },
+      "delta_spread_across_predictors": {
+        "ladder": {
+          "max_minus_min": 0.010369317904887154,
+          "topo_qos_minus_topo_bl": 0.010369317904887154
+        },
+        "wt": {
+          "max_minus_min": 0.00763712510210212,
+          "topo_qos_minus_topo_bl": 0.006168777867635859
+        }
+      },
+      "mean_absolute_label_shift": {
+        "none": 0.0,
+        "ladder": 0.0615535873015873,
+        "wt": 0.07494578571428573
+      }
+    },
+    {
+      "scenario": "realtime_gaming_system",
+      "n_labeled": 108,
+      "label_rank_agreement_application": {
+        "ladder": {
+          "n": 75,
+          "spearman_rho_vs_none": 0.96,
+          "topk_jaccard_vs_none": 0.6667
+        },
+        "wt": {
+          "n": 75,
+          "spearman_rho_vs_none": 0.9901,
+          "topk_jaccard_vs_none": 0.875
+        }
+      },
+      "spearman_by_predictor_and_label_arm": {
+        "topo_bl": {
+          "none": 0.4943246224751291,
+          "ladder": 0.5213008614966772,
+          "wt": 0.5242185142963773
+        },
+        "topo_qos": {
+          "none": 0.3201322993720984,
+          "ladder": 0.34679660864345924,
+          "wt": 0.3414935372021364
+        },
+        "degree": {
+          "none": 0.5530151588752698,
+          "ladder": 0.5753657063736825,
+          "wt": 0.5839056266909298
+        }
+      },
+      "delta_vs_topology_only_label": {
+        "topo_bl": {
+          "ladder": 0.02697623902154811,
+          "wt": 0.029893891821248242
+        },
+        "topo_qos": {
+          "ladder": 0.02666430927136082,
+          "wt": 0.02136123783003796
+        },
+        "degree": {
+          "ladder": 0.0223505474984127,
+          "wt": 0.030890467815660072
+        }
+      },
+      "delta_spread_across_predictors": {
+        "ladder": {
+          "max_minus_min": 0.004625691523135411,
+          "topo_qos_minus_topo_bl": -0.00031192975018728974
+        },
+        "wt": {
+          "max_minus_min": 0.009529229985622112,
+          "topo_qos_minus_topo_bl": -0.008532653991210282
+        }
+      },
+      "mean_absolute_label_shift": {
+        "none": 0.0,
+        "ladder": 0.02864599999999998,
+        "wt": 0.020925046296296306
+      }
+    },
+    {
+      "scenario": "telecom_ran_system",
+      "n_labeled": 150,
+      "label_rank_agreement_application": {
+        "ladder": {
+          "n": 120,
+          "spearman_rho_vs_none": 0.9041,
+          "topk_jaccard_vs_none": 0.2973
+        },
+        "wt": {
+          "n": 120,
+          "spearman_rho_vs_none": 0.9937,
+          "topk_jaccard_vs_none": 0.92
+        }
+      },
+      "spearman_by_predictor_and_label_arm": {
+        "topo_bl": {
+          "none": 0.598682878215466,
+          "ladder": 0.5851811737047256,
+          "wt": 0.6007969872331558
+        },
+        "topo_qos": {
+          "none": 0.45753214628291594,
+          "ladder": 0.45388459225392924,
+          "wt": 0.46524092766221625
+        },
+        "degree": {
+          "none": 0.6031801352206766,
+          "ladder": 0.5919536797357602,
+          "wt": 0.6003347030522381
+        }
+      },
+      "delta_vs_topology_only_label": {
+        "topo_bl": {
+          "ladder": -0.013501704510740398,
+          "wt": 0.0021141090176898247
+        },
+        "topo_qos": {
+          "ladder": -0.0036475540289866992,
+          "wt": 0.007708781379300311
+        },
+        "degree": {
+          "ladder": -0.011226455484916409,
+          "wt": -0.0028454321684384665
+        }
+      },
+      "delta_spread_across_predictors": {
+        "ladder": {
+          "max_minus_min": 0.009854150481753698,
+          "topo_qos_minus_topo_bl": 0.009854150481753698
+        },
+        "wt": {
+          "max_minus_min": 0.010554213547738778,
+          "topo_qos_minus_topo_bl": 0.0055946723616104865
+        }
+      },
+      "mean_absolute_label_shift": {
+        "none": 0.0,
+        "ladder": 0.11603783333333335,
+        "wt": 0.020080840000000003
+      }
+    }
+  ]
+}

@@ -1,0 +1,130 @@
+{
+  "note": "The closed-form baselines are specified as ``0.6 * BT + 0.4 * AP``. In the\nevaluated LOSO path the AP term is always zero: the cached\n``structural_metrics.json`` carries no ``ap_c_score``, so\n``reproduce.main_table._parse_structural_metrics`` writes\n``articulation_point = 0.0`` for every node, and that key takes precedence over\nthe ``ap_c_score`` that ``_saag_structural_features`` does compute. The\npublished scores are therefore rank-equivalent to betweenness and QoS-weighted\nbetweenness.",
+  "population": "application",
+  "per_scenario": {
+    "atm_system": {
+      "n_ap_nonzero": 1,
+      "topo_baseline_as_run": 0.2555007881220655,
+      "topo_baseline_ap_restored": 0.083017039196501,
+      "topo_baseline_published": 0.2555007881220655,
+      "topo_qos_as_run": 0.3109239422098597,
+      "topo_qos_ap_restored": 0.13158382317767953,
+      "topo_qos_published": 0.3109239422098597
+    },
+    "av_system": {
+      "n_ap_nonzero": 0,
+      "topo_baseline_as_run": 0.4683814781296727,
+      "topo_baseline_ap_restored": 0.4683814781296727,
+      "topo_baseline_published": 0.4683814781296727,
+      "topo_qos_as_run": 0.7526918117294357,
+      "topo_qos_ap_restored": 0.7526918117294357,
+      "topo_qos_published": 0.7526918117294357
+    },
+    "enterprise_system": {
+      "n_ap_nonzero": 0,
+      "topo_baseline_as_run": 0.43104648617467917,
+      "topo_baseline_ap_restored": 0.43104648617467917,
+      "topo_baseline_published": 0.43104648617467917,
+      "topo_qos_as_run": 0.7953082495191883,
+      "topo_qos_ap_restored": 0.7953082495191883,
+      "topo_qos_published": 0.7953082495191883
+    },
+    "financial_trading_system": {
+      "n_ap_nonzero": 0,
+      "topo_baseline_as_run": 0.23686089025291016,
+      "topo_baseline_ap_restored": 0.23686089025291016,
+      "topo_baseline_published": 0.23686089025291018,
+      "topo_qos_as_run": 0.5864231295106708,
+      "topo_qos_ap_restored": 0.5864231295106708,
+      "topo_qos_published": 0.5864231295106708
+    },
+    "healthcare_system": {
+      "n_ap_nonzero": 0,
+      "topo_baseline_as_run": 0.07720709158527966,
+      "topo_baseline_ap_restored": 0.07720709158527966,
+      "topo_baseline_published": 0.07720709158527966,
+      "topo_qos_as_run": 0.36869084150771025,
+      "topo_qos_ap_restored": 0.36869084150771025,
+      "topo_qos_published": 0.36869084150771025
+    },
+    "hub_and_spoke_system": {
+      "n_ap_nonzero": 0,
+      "topo_baseline_as_run": 0.1124567208776519,
+      "topo_baseline_ap_restored": 0.1124567208776519,
+      "topo_baseline_published": 0.1124567208776519,
+      "topo_qos_as_run": 0.42951365098479605,
+      "topo_qos_ap_restored": 0.42951365098479605,
+      "topo_qos_published": 0.42951365098479605
+    },
+    "industrial_scada_system": {
+      "n_ap_nonzero": 10,
+      "topo_baseline_as_run": 0.6084440977735924,
+      "topo_baseline_ap_restored": 0.5626761416603673,
+      "topo_baseline_published": 0.6084440977735924,
+      "topo_qos_as_run": 0.6503746663112442,
+      "topo_qos_ap_restored": 0.6089602463074906,
+      "topo_qos_published": 0.6503746663112442
+    },
+    "iot_smart_city_system": {
+      "n_ap_nonzero": 6,
+      "topo_baseline_as_run": 0.25088231706756414,
+      "topo_baseline_ap_restored": 0.23361983983154738,
+      "topo_baseline_published": 0.25088231706756414,
+      "topo_qos_as_run": 0.3512103555774073,
+      "topo_qos_ap_restored": 0.3313061124108045,
+      "topo_qos_published": 0.3512103555774073
+    },
+    "logistics_fleet_system": {
+      "n_ap_nonzero": 2,
+      "topo_baseline_as_run": 0.5759360309695751,
+      "topo_baseline_ap_restored": 0.5776150780706494,
+      "topo_baseline_published": 0.5759360309695751,
+      "topo_qos_as_run": 0.7406995865664335,
+      "topo_qos_ap_restored": 0.7418905187662295,
+      "topo_qos_published": 0.7406995865664335
+    },
+    "microservices_system": {
+      "n_ap_nonzero": 0,
+      "topo_baseline_as_run": 0.22890609398808281,
+      "topo_baseline_ap_restored": 0.22890609398808281,
+      "topo_baseline_published": 0.22890609398808284,
+      "topo_qos_as_run": 0.26538514238447786,
+      "topo_qos_ap_restored": 0.26538514238447786,
+      "topo_qos_published": 0.26538514238447786
+    },
+    "realtime_gaming_system": {
+      "n_ap_nonzero": 0,
+      "topo_baseline_as_run": 0.3771772610871348,
+      "topo_baseline_ap_restored": 0.3771772610871348,
+      "topo_baseline_published": 0.3771772610871348,
+      "topo_qos_as_run": 0.8102612338299413,
+      "topo_qos_ap_restored": 0.8102612338299413,
+      "topo_qos_published": 0.8102612338299412
+    },
+    "telecom_ran_system": {
+      "n_ap_nonzero": 0,
+      "topo_baseline_as_run": 0.5617687653380244,
+      "topo_baseline_ap_restored": 0.5617687653380244,
+      "topo_baseline_published": 0.5617687653380244,
+      "topo_qos_as_run": 0.5761904555663259,
+      "topo_qos_ap_restored": 0.5761904555663259,
+      "topo_qos_published": 0.5761904555663259
+    }
+  },
+  "summary": {
+    "topo_baseline_as_run": 0.3487140017805194,
+    "topo_baseline_ap_restored": 0.3292277405160417,
+    "topo_qos_as_run": 0.5531394221414575,
+    "topo_qos_ap_restored": 0.5331837679745625,
+    "topo_baseline_max_abs_diff_vs_published": 2.7755575615628914e-17,
+    "topo_qos_max_abs_diff_vs_published": 1.1102230246251565e-16
+  },
+  "provenance": {
+    "commit": "83855003ecc085785448db72e2bfe39fcdce9187",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "cache_dir": "output/loso_cache"
+    }
+  }
+}
