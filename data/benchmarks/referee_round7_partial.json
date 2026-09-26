@@ -1,0 +1,651 @@
+{
+  "per_fold": {
+    "atm_system": {
+      "n": 26,
+      "rho_istar_idyn": 0.6912701867779888,
+      "InDeg": {
+        "rho": 0.3576864458724633,
+        "partial_given_istar": 0.02500407041573378,
+        "partial_given_analytic": -0.11106641149420707
+      },
+      "Reach": {
+        "rho": 0.44686558434876955,
+        "partial_given_istar": -0.030617117088935542,
+        "partial_given_analytic": 0.3147787669192376
+      },
+      "Topo-QoS": {
+        "rho": 0.29968652537947355,
+        "partial_given_istar": 0.12340776086633232,
+        "partial_given_analytic": -0.06402895198704411
+      },
+      "Analytic-I*": {
+        "rho": 0.5205939631183107,
+        "partial_given_istar": 0.07080725680682927,
+        "partial_given_analytic": null
+      },
+      "RevPR-raw": {
+        "rho": -0.11794871794871793,
+        "partial_given_istar": -0.037798037239703465,
+        "partial_given_analytic": -0.24460497980759183
+      },
+      "PR-raw": {
+        "rho": null,
+        "partial_given_istar": null,
+        "partial_given_analytic": null
+      }
+    },
+    "av_system": {
+      "n": 30,
+      "rho_istar_idyn": 0.786991047882483,
+      "InDeg": {
+        "rho": 0.7612718124120413,
+        "partial_given_istar": 0.21067222329238944,
+        "partial_given_analytic": 0.34377145719341506
+      },
+      "Reach": {
+        "rho": 0.7468054985079154,
+        "partial_given_istar": 0.24655700724551305,
+        "partial_given_analytic": 0.22446696699705534
+      },
+      "Topo-QoS": {
+        "rho": 0.693019888746275,
+        "partial_given_istar": 0.18224528137929846,
+        "partial_given_analytic": -0.22516616737840892
+      },
+      "Analytic-I*": {
+        "rho": 0.7336257578180089,
+        "partial_given_istar": 0.1489062267694337,
+        "partial_given_analytic": null
+      },
+      "RevPR-raw": {
+        "rho": 0.17152391546162402,
+        "partial_given_istar": 0.21281575617589255,
+        "partial_given_analytic": -0.020673484052419155
+      },
+      "PR-raw": {
+        "rho": null,
+        "partial_given_istar": null,
+        "partial_given_analytic": null
+      }
+    },
+    "enterprise_system": {
+      "n": 30,
+      "rho_istar_idyn": 0.7092311705232247,
+      "InDeg": {
+        "rho": 0.7314860823513852,
+        "partial_given_istar": 0.2599461273573206,
+        "partial_given_analytic": 0.09466758422395592
+      },
+      "Reach": {
+        "rho": 0.4944863174406575,
+        "partial_given_istar": -0.15612971469916878,
+        "partial_given_analytic": -0.2817239083464636
+      },
+      "Topo-QoS": {
+        "rho": 0.5760079464686853,
+        "partial_given_istar": 0.027567982824288483,
+        "partial_given_analytic": -0.15902867146351335
+      },
+      "Analytic-I*": {
+        "rho": 0.7322238681605253,
+        "partial_given_istar": 0.26288884944051144,
+        "partial_given_analytic": null
+      },
+      "RevPR-raw": {
+        "rho": 0.27430478309232476,
+        "partial_given_istar": 0.10549264953350515,
+        "partial_given_analytic": 0.08119600442984197
+      },
+      "PR-raw": {
+        "rho": null,
+        "partial_given_istar": null,
+        "partial_given_analytic": null
+      }
+    },
+    "financial_trading_system": {
+      "n": 30,
+      "rho_istar_idyn": 0.9533849771650352,
+      "InDeg": {
+        "rho": 0.8559375420566455,
+        "partial_given_istar": 0.1707121224084499,
+        "partial_given_analytic": 0.4053258491906442
+      },
+      "Reach": {
+        "rho": 0.7289914755527471,
+        "partial_given_istar": -0.044341121000604465,
+        "partial_given_analytic": 0.12974489635174266
+      },
+      "Topo-QoS": {
+        "rho": 0.4865897219980292,
+        "partial_given_istar": -0.14099774862775827,
+        "partial_given_analytic": -0.2957227733659055
+      },
+      "Analytic-I*": {
+        "rho": 0.8250299397209154,
+        "partial_given_istar": 0.15666034311526866,
+        "partial_given_analytic": null
+      },
+      "RevPR-raw": {
+        "rho": -0.06607341490545049,
+        "partial_given_istar": 0.32330365846183107,
+        "partial_given_analytic": -0.11659629770741672
+      },
+      "PR-raw": {
+        "rho": null,
+        "partial_given_istar": null,
+        "partial_given_analytic": null
+      }
+    },
+    "healthcare_system": {
+      "n": 30,
+      "rho_istar_idyn": 0.8426348500857339,
+      "InDeg": {
+        "rho": 0.8227107863643967,
+        "partial_given_istar": 0.3809706093132463,
+        "partial_given_analytic": 0.4943759033115386
+      },
+      "Reach": {
+        "rho": 0.533750222905673,
+        "partial_given_istar": -0.3390554582534683,
+        "partial_given_analytic": -0.1516174345599736
+      },
+      "Topo-QoS": {
+        "rho": 0.24772257504871095,
+        "partial_given_istar": 0.08341153542295729,
+        "partial_given_analytic": -0.45523814529959067
+      },
+      "Analytic-I*": {
+        "rho": 0.765196084015834,
+        "partial_given_istar": 0.3092720449965152,
+        "partial_given_analytic": null
+      },
+      "RevPR-raw": {
+        "rho": -0.14859752140716065,
+        "partial_given_istar": 0.06677131024429885,
+        "partial_given_analytic": -0.10265395596383593
+      },
+      "PR-raw": {
+        "rho": null,
+        "partial_given_istar": null,
+        "partial_given_analytic": null
+      }
+    },
+    "hub_and_spoke_system": {
+      "n": 30,
+      "rho_istar_idyn": 0.2636712324419073,
+      "InDeg": {
+        "rho": 0.1792781167557653,
+        "partial_given_istar": 0.029485167568071704,
+        "partial_given_analytic": -0.04199946771039051
+      },
+      "Reach": {
+        "rho": 0.26056851837478917,
+        "partial_given_istar": 0.14882341460587348,
+        "partial_given_analytic": 0.16195351578292075
+      },
+      "Topo-QoS": {
+        "rho": 0.11604004073971051,
+        "partial_given_istar": 0.03683971012238442,
+        "partial_given_analytic": -0.10807413314059798
+      },
+      "Analytic-I*": {
+        "rho": 0.22556989128092025,
+        "partial_given_istar": 0.06827891146604628,
+        "partial_given_analytic": null
+      },
+      "RevPR-raw": {
+        "rho": 0.22358175750834258,
+        "partial_given_istar": 0.2735903077535692,
+        "partial_given_analytic": 0.21829609343597026
+      },
+      "PR-raw": {
+        "rho": null,
+        "partial_given_istar": null,
+        "partial_given_analytic": null
+      }
+    },
+    "industrial_scada_system": {
+      "n": 30,
+      "rho_istar_idyn": 0.18573889100038307,
+      "InDeg": {
+        "rho": 0.35696869246060636,
+        "partial_given_istar": 0.3498986652073231,
+        "partial_given_analytic": 0.017377995632964858
+      },
+      "Reach": {
+        "rho": 0.3803083228119204,
+        "partial_given_istar": 0.35211137187699626,
+        "partial_given_analytic": 0.19204460960962483
+      },
+      "Topo-QoS": {
+        "rho": 0.04299116197484412,
+        "partial_given_istar": -0.03336360683005087,
+        "partial_given_analytic": -0.3225634930561462
+      },
+      "Analytic-I*": {
+        "rho": 0.3771766893663441,
+        "partial_given_istar": 0.3576415141275451,
+        "partial_given_analytic": null
+      },
+      "RevPR-raw": {
+        "rho": -0.06859692449252841,
+        "partial_given_istar": -0.048148744759029125,
+        "partial_given_analytic": -0.13437382339885912
+      },
+      "PR-raw": {
+        "rho": null,
+        "partial_given_istar": null,
+        "partial_given_analytic": null
+      }
+    },
+    "iot_smart_city_system": {
+      "n": 30,
+      "rho_istar_idyn": 0.8455003388390033,
+      "InDeg": {
+        "rho": 0.8862884033141929,
+        "partial_given_istar": 0.5605444895333487,
+        "partial_given_analytic": 0.3074075218744919
+      },
+      "Reach": {
+        "rho": 0.5895538061000497,
+        "partial_given_istar": 0.04158132455611166,
+        "partial_given_analytic": 0.007615695006829772
+      },
+      "Topo-QoS": {
+        "rho": 0.39201806889239976,
+        "partial_given_istar": 0.05666888005601002,
+        "partial_given_analytic": -0.16106430368533353
+      },
+      "Analytic-I*": {
+        "rho": 0.8799431682378773,
+        "partial_given_istar": 0.49524572733341127,
+        "partial_given_analytic": null
+      },
+      "RevPR-raw": {
+        "rho": 0.5798197833186817,
+        "partial_given_istar": 0.18251778497535398,
+        "partial_given_analytic": -0.04248848420327943
+      },
+      "PR-raw": {
+        "rho": null,
+        "partial_given_istar": null,
+        "partial_given_analytic": null
+      }
+    },
+    "logistics_fleet_system": {
+      "n": 30,
+      "rho_istar_idyn": 0.6920189833069416,
+      "InDeg": {
+        "rho": 0.7898212874163669,
+        "partial_given_istar": 0.5278054670927059,
+        "partial_given_analytic": 0.433053507236465
+      },
+      "Reach": {
+        "rho": 0.7082834713392977,
+        "partial_given_istar": 0.28871563357911034,
+        "partial_given_analytic": 0.1792605194683573
+      },
+      "Topo-QoS": {
+        "rho": 0.6025772208074781,
+        "partial_given_istar": 0.17360773780338362,
+        "partial_given_analytic": 0.19453115482903946
+      },
+      "Analytic-I*": {
+        "rho": 0.739024709041273,
+        "partial_given_istar": 0.387691542171164,
+        "partial_given_analytic": null
+      },
+      "RevPR-raw": {
+        "rho": -0.01757508342602892,
+        "partial_given_istar": 0.06458581009592457,
+        "partial_given_analytic": 0.2347143164594471
+      },
+      "PR-raw": {
+        "rho": null,
+        "partial_given_istar": null,
+        "partial_given_analytic": null
+      }
+    },
+    "microservices_system": {
+      "n": 30,
+      "rho_istar_idyn": 0.3371188155251625,
+      "InDeg": {
+        "rho": 0.5869790941226031,
+        "partial_given_istar": 0.5177254149197121,
+        "partial_given_analytic": 0.05380741258252142
+      },
+      "Reach": {
+        "rho": 0.358590740599369,
+        "partial_given_istar": 0.2259212085888112,
+        "partial_given_analytic": 0.1573979718573057
+      },
+      "Topo-QoS": {
+        "rho": 0.34409820889920906,
+        "partial_given_istar": 0.33866208067121967,
+        "partial_given_analytic": -0.06687882073391538
+      },
+      "Analytic-I*": {
+        "rho": 0.6952458674118693,
+        "partial_given_istar": 0.6510134579951804,
+        "partial_given_analytic": null
+      },
+      "RevPR-raw": {
+        "rho": -0.11234705228031144,
+        "partial_given_istar": 0.0068418575881004084,
+        "partial_given_analytic": 0.05123186011148054
+      },
+      "PR-raw": {
+        "rho": null,
+        "partial_given_istar": null,
+        "partial_given_analytic": null
+      }
+    },
+    "realtime_gaming_system": {
+      "n": 30,
+      "rho_istar_idyn": 0.610786061026255,
+      "InDeg": {
+        "rho": 0.5643630572809925,
+        "partial_given_istar": 0.16037185709679536,
+        "partial_given_analytic": 0.09001822496756774
+      },
+      "Reach": {
+        "rho": 0.5320525059783119,
+        "partial_given_istar": 0.14978655937093813,
+        "partial_given_analytic": 0.03661039812915701
+      },
+      "Topo-QoS": {
+        "rho": 0.7055585173700023,
+        "partial_given_istar": 0.4695658367299601,
+        "partial_given_analytic": 0.4673000604650979
+      },
+      "Analytic-I*": {
+        "rho": 0.6182340126398036,
+        "partial_given_istar": 0.3178736754159981,
+        "partial_given_analytic": null
+      },
+      "RevPR-raw": {
+        "rho": 0.31568409343715237,
+        "partial_given_istar": 0.20347008448608542,
+        "partial_given_analytic": 0.26581011352749284
+      },
+      "PR-raw": {
+        "rho": null,
+        "partial_given_istar": null,
+        "partial_given_analytic": null
+      }
+    },
+    "telecom_ran_system": {
+      "n": 30,
+      "rho_istar_idyn": 0.603480852459379,
+      "InDeg": {
+        "rho": 0.42442421803985914,
+        "partial_given_istar": -0.08124128383766542,
+        "partial_given_analytic": -0.1336513187872095
+      },
+      "Reach": {
+        "rho": 0.2738430004154378,
+        "partial_given_istar": -0.19232766050161734,
+        "partial_given_analytic": -0.10111192394829142
+      },
+      "Topo-QoS": {
+        "rho": 0.21172691029098975,
+        "partial_given_istar": -0.06604526568175809,
+        "partial_given_analytic": -0.23187263211557096
+      },
+      "Analytic-I*": {
+        "rho": 0.5243102306474502,
+        "partial_given_istar": 0.08413184819726131,
+        "partial_given_analytic": null
+      },
+      "RevPR-raw": {
+        "rho": 0.10211345939933258,
+        "partial_given_istar": -0.28222753849493215,
+        "partial_given_analytic": -0.26186357032052665
+      },
+      "PR-raw": {
+        "rho": null,
+        "partial_given_istar": null,
+        "partial_given_analytic": null
+      }
+    }
+  },
+  "summary": {
+    "InDeg": {
+      "rho": {
+        "mean": 0.6097679615372765,
+        "ci95": [
+          0.47543700139493456,
+          0.7273075603733778
+        ],
+        "n_folds": 12
+      },
+      "partial_given_istar": {
+        "mean": 0.25932457753061927,
+        "ci95": [
+          0.14332654399601008,
+          0.3666920127500431
+        ],
+        "n_folds": 12
+      },
+      "partial_given_analytic": {
+        "mean": 0.1627573548518131,
+        "ci95": [
+          0.04266031560386332,
+          0.2746876014596358
+        ],
+        "n_folds": 12
+      },
+      "vs_topo_qos": {
+        "delta": 0.2165982293192926,
+        "ci95": [
+          0.11614778559037092,
+          0.32476826224542016
+        ],
+        "won": 11,
+        "n": 12,
+        "p": 0.00341796875
+      },
+      "D3": "D3'"
+    },
+    "Reach": {
+      "rho": {
+        "mean": 0.5045082886979115,
+        "ci95": [
+          0.4154204472661225,
+          0.5925728374909851
+        ],
+        "n_folds": 12
+      },
+      "partial_given_istar": {
+        "mean": 0.05758545402329663,
+        "ci95": [
+          -0.05892263863488062,
+          0.1657887022756585
+        ],
+        "n_folds": 12
+      },
+      "partial_given_analytic": {
+        "mean": 0.07245167277229186,
+        "ci95": [
+          -0.024062920802775792,
+          0.1638800312559783
+        ],
+        "n_folds": 12
+      },
+      "vs_topo_qos": {
+        "delta": 0.11133855647992756,
+        "ci95": [
+          0.031814059561874324,
+          0.18925414979211147
+        ],
+        "won": 10,
+        "n": 12,
+        "p": 0.0341796875
+      },
+      "D3": "D3"
+    },
+    "Topo-QoS": {
+      "rho": {
+        "mean": 0.3931697322179839,
+        "ci95": [
+          0.27453170329203985,
+          0.5061540146517849
+        ],
+        "n_folds": 12
+      },
+      "partial_given_istar": {
+        "mean": 0.10429751539468891,
+        "ci95": [
+          0.015840453286822286,
+          0.2007290929175287
+        ],
+        "n_folds": 12
+      },
+      "partial_given_analytic": {
+        "mean": -0.11898390641099077,
+        "ci95": [
+          -0.23831279877238898,
+          0.015217228032813902
+        ],
+        "n_folds": 12
+      },
+      "vs_topo_qos": null,
+      "D3": "D3'"
+    },
+    "Analytic-I*": {
+      "rho": {
+        "mean": 0.6363478484549276,
+        "ci95": [
+          0.5262820919203776,
+          0.7310903530226917
+        ],
+        "n_folds": 12
+      },
+      "partial_given_istar": {
+        "mean": 0.27586761648626373,
+        "ci95": [
+          0.17973161222271347,
+          0.3752972558780808
+        ],
+        "n_folds": 12
+      },
+      "partial_given_analytic": {
+        "mean": null,
+        "ci95": null,
+        "n_folds": 0
+      },
+      "vs_topo_qos": {
+        "delta": 0.24317811623694374,
+        "ci95": [
+          0.14967223451059586,
+          0.3383610933309903
+        ],
+        "won": 11,
+        "n": 12,
+        "p": 0.00146484375
+      },
+      "D3": "D3'"
+    },
+    "RevPR-raw": {
+      "rho": {
+        "mean": 0.09465742314643837,
+        "ci95": [
+          -0.015950086614023466,
+          0.21456148076835527
+        ],
+        "n_folds": 12
+      },
+      "partial_given_istar": {
+        "mean": 0.08926790823507469,
+        "ci95": [
+          -0.004656669098655197,
+          0.17332722431674144
+        ],
+        "n_folds": 12
+      },
+      "partial_given_analytic": {
+        "mean": -0.0060005172908080134,
+        "ci95": [
+          -0.10095350653080745,
+          0.08464026817040599
+        ],
+        "n_folds": 12
+      },
+      "vs_topo_qos": {
+        "delta": -0.29851230907154563,
+        "ci95": [
+          -0.4328793291332626,
+          -0.14880057564550486
+        ],
+        "won": 2,
+        "n": 12,
+        "p": 0.0048828125
+      },
+      "D3": "D3"
+    },
+    "PR-raw": {
+      "rho": {
+        "mean": null,
+        "ci95": null,
+        "n_folds": 0
+      },
+      "partial_given_istar": {
+        "mean": null,
+        "ci95": null,
+        "n_folds": 0
+      },
+      "partial_given_analytic": {
+        "mean": null,
+        "ci95": null,
+        "n_folds": 0
+      },
+      "vs_topo_qos": {
+        "delta": NaN,
+        "ci95": [
+          NaN,
+          NaN
+        ],
+        "won": 0,
+        "n": 0,
+        "p": NaN
+      },
+      "D3": null
+    },
+    "_oracle": {
+      "idyn_source": "published n=30 lexical sample, seed 42 (results/idyn_scenario_cache_jss12.json)",
+      "rho_istar_idyn": {
+        "mean": 0.6268189505861248,
+        "ci95": [
+          0.4951696607138663,
+          0.7494503309573439
+        ],
+        "n": 12
+      },
+      "n_per_fold": {
+        "atm_system": 26,
+        "av_system": 30,
+        "enterprise_system": 30,
+        "financial_trading_system": 30,
+        "healthcare_system": 30,
+        "hub_and_spoke_system": 30,
+        "industrial_scada_system": 30,
+        "iot_smart_city_system": 30,
+        "logistics_fleet_system": 30,
+        "microservices_system": 30,
+        "realtime_gaming_system": 30,
+        "telecom_ran_system": 30
+      }
+    }
+  },
+  "idyn_source": "published n=30 lexical sample, seed 42 (results/idyn_scenario_cache_jss12.json)",
+  "provenance": {
+    "commit": "9c95b9b9e08117867ddda1b1d335713b238fa92d",
+    "dirty": true,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/referee_round7.py",
+      "amendment": 12,
+      "experiment": "R2"
+    }
+  }
+}
