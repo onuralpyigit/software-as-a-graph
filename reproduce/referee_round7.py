@@ -293,7 +293,7 @@ def cmd_partial(_: argparse.Namespace) -> int:
         "n_per_fold": {f: per[f]["n"] for f in folds},
     }
     for r in rankers:
-        print(f"{r:12s} rho={summary[r]['rho']['mean']:.3f} "
+        print(f"{r:12s} rho={summary[r]['rho']['mean']} "
               f"partial|I*={summary[r]['partial_given_istar']['mean']} "
               f"CI={summary[r]['partial_given_istar']['ci95']} {summary[r]['D3']}")
     print("oracle:", summary["_oracle"]["rho_istar_idyn"])
