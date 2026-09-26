@@ -7,18 +7,18 @@ justified."*
 
 ---
 
-The manuscript runs to **22 single-column pages** in the `elsarticle` preprint class, including all
-declarations and the reference list (90 entries), well within the recommended limit. No explanation
-is required.
+The manuscript runs to **26 single-column pages** in the `elsarticle` preprint class, including all
+declarations and the reference list (96+ entries), well within the recommended limit of 36 pages. No special
+length justification is required.
 
-The body keeps each headline result with the evidence needed to check it (11 tables, 5 figures).
-Detail was moved out in two directions:
-- **Supplementary Material (S1–S29):** sensitivity sweeps, AHP matrices, corpus parameters and
-  composition, the feature schema, anti-pattern and attention analyses, convergent validity,
-  in-distribution results, the unmatched 2×2, active-stratum and bootstrap tables, the registered GPU LOSO sweep with the small GATs, the gate-vs-oracle
-  cost table, the full predictor taxonomy, per-fold hybrid results, and the amendment log with the
-  omnibus Holm correction.
+The body maintains each headline result with the empirical evidence needed to inspect it (11 tables, 5 figures).
+Secondary analyses, derivations, and protocol details are organized into:
+- **Supplementary Material (S1–S33):** sensitivity sweeps, AHP pairwise comparison matrices and consistency proofs,
+  corpus parameters and composition, the feature schema, anti-pattern and attention analyses, convergent validity,
+  in-distribution results, active-stratum and bootstrap tables, the registered GPU LOSO sweep, gate-vs-oracle
+  cost breakdowns, the full predictor taxonomy, per-fold hybrid results, independent oracle evaluations,
+  and the pre-registration amendment log with the omnibus Holm correction.
 - **Public experiment pages** (`docs/research/jss/experiments/` at the submission tag): protocols,
-  hyperparameters, reproduction commands and artifact names for every experiment.
+  hyperparameters, reproduction commands, and artifact names for every experiment.
 
-Every table value in both documents is mechanically reconciled against the artifact that produced it.
+Every table value across both documents is mechanically reconciled against the artifact that produced it.
