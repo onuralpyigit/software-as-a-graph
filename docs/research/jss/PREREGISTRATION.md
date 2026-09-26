@@ -722,3 +722,67 @@ Reported descriptively, without tests:
 - No published arm is retrained or replaced.
 - Amendment 7's reporting obligation (R3) is recorded here as still open: the
   current manuscript (v4) does not report its arms.
+
+## Amendment 10 — value of the dependency derivation (2026-09-26, before any result)
+
+**Status when written:** none of the arms below has been implemented or run. `InDeg`
+and `Reach` are already published (Amendment 7).
+
+**Why it exists.** The referee report of 2026-09-26 (`reviews/review_2026-09-26.md`, M2)
+asks what SaG's `DEPENDS_ON` derivation contributes beyond a subscriber count. It
+proposes two comparisons: `InDeg` computed on the raw multigraph (2-hop subscriber counts
+through topics), and `InDeg` without Rule 5.
+
+**Two identities, recorded rather than tested.** Both of the referee's comparisons are
+identities by construction, so this amendment does not run them as experiments.
+- For an Application, projection `InDeg` equals its raw 2-hop subscriber count.
+  `derive_depends_on_edges` adds one Rule-1 edge per distinct subscriber of the topics
+  v publishes, and it contains no other edges into an Application: Rule-5 edges point
+  into Libraries. So removing Rule 5 does not change any Application's `InDeg`.
+- On the raw multigraph, the transitive publisher → topic → subscriber closure is the
+  same node set as `Reach` without Rule-5 edges.
+
+A test pins both identities on every committed scenario
+(`tests/test_dependency_graph_substrate.py`). The approved plan named `Reach-raw` and
+`Reach-noR5` as two arms; because they are identical, they are one arm here, `Reach-R1`.
+
+The manuscript will therefore say plainly that `InDeg` is publish–subscribe afferent
+coupling (AIS; Martin's Ca), made computable by the derivation. The measurable
+questions are two:
+- Does deriving topic-mediated dependencies beat counting raw connections?
+- Does the derived library rule (Rule 5) add to transitive reach?
+
+### Arms, fixed before any run
+
+All arms are training-free. They are scored with `training_free_suite.score` against
+`labels_for` I*(v) (published settings) on the Application population of the twelve
+LOSO folds and the five system models.
+
+| Arm | Score for Application v |
+|:---|:---|
+| `Degree-raw` | Total degree of v in the raw multigraph (`build_graph_from_json`): every PUBLISHES_TO, SUBSCRIBES_TO, RUNS_ON and USES edge. This is the count available without deriving dependencies. |
+| `Pubs-raw` | Number of topics v publishes to. This is the raw proxy for "has consumers". |
+| `Reach-R1` | Transitive dependents of v over Rule-1 edges only (`nx.ancestors` on the projection with Rule-5 edges removed), normalised as `Reach`. |
+| `InDeg`, `Reach` | Comparators, recomputed and checked against `tf_baselines.json` (max \|Δ\| ≤ 1e-3). |
+
+### Contrasts
+
+An exploratory family of three: two-sided Wilcoxon over the twelve folds, bootstrap
+95% CI (B = 2,000), Holm across the three.
+- `InDeg` vs `Degree-raw`
+- `InDeg` vs `Pubs-raw`
+- `Reach` vs `Reach-R1`
+
+The five system models are reported descriptively.
+
+### Decision rules
+
+| Rule | Condition | What changes in the text |
+|:---|:---|:---|
+| E1 | `InDeg` beats both raw counts at Holm p < 0.05 | §3, §8 and the abstract may say that deriving topic-mediated dependencies is what makes the count predictive. |
+| E1′ | Otherwise | Those sections say the derivation makes afferent coupling computable, and make no claim that it outperforms raw counts. |
+| E2 | `Reach` beats `Reach-R1` at Holm p < 0.05 | §3 and §8 say the library rule adds to transitive reach. |
+| E2′ | Otherwise | No Rule-level contribution is claimed. |
+| E3 | Always | Every arm is reported in the supplement. |
+
+**What is unchanged.** All earlier registered contrasts and the 13-contrast omnibus.
