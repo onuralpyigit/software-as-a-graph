@@ -1608,7 +1608,7 @@ def check_dependency_graph(rep: Report) -> None:
 
     # Table tab:hybrid.
     counts = {"InDeg": "InDeg", "Reach": "Reach"}
-    learners = {_registry.label(v, "loso"): v for v in ("gl_proj_qos16_cap", "gl_proj_qos16_indeg_prior")}
+    learners = {_registry.label(v, "loso"): v for v in ("gl_proj_qos16_cap",)}
     seen = 0
     for row in _rows(tex, r"\midrule", after_label=r"\label{tab:hybrid}"):
         cells = _cells(row)
@@ -1635,8 +1635,8 @@ def check_dependency_graph(rep: Report) -> None:
         for idx, truth, nm in truths:
             _cmp("tab:hybrid", name, nm, _num(cells[idx]) if idx < len(cells) else None, truth,
                  0.00006 if nm == "p" else 0.0006)
-    if seen != 4:
-        rep.findings.append(Finding("tab:hybrid", "dependency-graph rows", "rows", seen, 4))
+    if seen != 3:
+        rep.findings.append(Finding("tab:hybrid", "dependency-graph rows", "rows", seen, 3))
 
     # Table tab:dg-learners.
     means, con, zs = dg["means"], dg["contrasts"], dg["zeroshot"]
@@ -1684,7 +1684,7 @@ def check_dependency_graph(rep: Report) -> None:
            r"without any training.*?reaching \$\\rho = ([\d.]+)\$",
            [(1, tf["summary"]["InDeg"]["loso_mean_rho"]), (2, c10["InDeg vs Degree-raw"]["delta"]),
             (3, tf["summary"]["Reach"]["systems_mean_rho"]),
-            (4, means["gl_proj_qos16_indeg_prior"]["loso_mean_rho"])])
+            (4, means["gl_proj_qos16_cap"]["loso_mean_rho"])])
     regimes = _load("engine_regimes.json")
     if regimes is not None:
         by = regimes["loso"]["regimes_by_topo_qos_tercile"]
@@ -1701,7 +1701,7 @@ def check_dependency_graph(rep: Report) -> None:
                                                   ("gl_proj_qos16_cap", r"\\texttt\{GAT-P-QoS\}"))),
             ("Intermediate", "middle", (("InDeg", r"\\texttt\{InDeg\}"), ("gl_proj_qos16_cap", r"\\texttt\{GAT-P-QoS\}"))),
             ("Closed-form ranks well", "strong", (("InDeg", r"\\texttt\{InDeg\}"),
-                                                  ("gl_proj_qos16_indeg_prior", r"Hybrid-GAT-P"))),
+                                                  ("gl_proj_qos16_cap", r"\\texttt\{GAT-P-QoS\}"))),
         ):
             pat = label_ + r".*?" + r".*?".join(tex_ + " " + num for _, tex_ in pairs)
             _quote(rep, "tab:regimes", table, pat, [(i + 1, tm(t, a)) for i, (a, _) in enumerate(pairs)])
