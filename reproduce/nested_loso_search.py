@@ -53,7 +53,9 @@ import numpy as np
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from cli.loso_evaluate import ScenarioBundle, discover_scenarios, run_one_fold
+from cli.loso_evaluate import (
+    _HGT_VARIANTS, _HOMOGENEOUS_VARIANTS, ScenarioBundle, discover_scenarios, run_one_fold,
+)
 from reproduce._provenance import stamp
 
 RESULTS_DIR = Path("results")
@@ -293,7 +295,7 @@ def parse_args():
     p = argparse.ArgumentParser(description="Nested-CV configuration search for LOSO.")
     p.add_argument("--cache-dir", type=Path, default=Path("output/loso_cache"))
     p.add_argument("--variant", default="hgl_qos",
-                   choices=["hgl_qos", "hgl", "gl_qos", "gl"])
+                   choices=sorted({"gl_qos", "gl", *_HGT_VARIANTS, *_HOMOGENEOUS_VARIANTS}))
     p.add_argument("--grid", default="stage1", choices=sorted(_AXES))
     p.add_argument("--epochs", type=int, default=300)
     p.add_argument("--seeds", default="42,123,456,789,2024",
