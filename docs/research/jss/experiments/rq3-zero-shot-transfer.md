@@ -1,5 +1,7 @@
 # RQ3 — Zero-shot transfer to five open-source system models
 
+> **Amendment 7 update.** Scored on the same models and oracle settings, the training-free dependency counts reach Reach 0.938 and InDeg 0.863, with no training. Part of why every ranker scores higher here than under LOSO is label structure: 51% of system-model Applications are inert, against 31% in the folds. See [amendment7-training-free.md](amendment7-training-free.md).
+
 **Paper:** §7.3, Table 10 (and the transfer columns of Table 7). **Extended results:** Supplement
 S27 (bootstrap intervals and active stratum), S15 (PR-AUC, F1@τ, nDCG), S7 (explanation layer on
 the same models), S29 (2-layer configuration).

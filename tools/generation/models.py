@@ -231,6 +231,11 @@ class GraphConfig:
     scenario: Optional[str] = None
     intra_cluster_coupling: float = 0.65
     connection_density: float = 0.3
+    # When False, QoS stops steering topic selection (_APP_TYPE_QOS_AFFINITY) and
+    # criticality/hot-standby assignment, so topology is sampled independently of
+    # the declared QoS. Only the Amendment 7 control corpus sets it; the committed
+    # corpus is generated with the default and stays byte-identical.
+    qos_affinity: bool = True
     
     @classmethod
     def from_scale(cls, scale: str, seed: int = 42) -> "GraphConfig":

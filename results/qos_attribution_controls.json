@@ -17,15 +17,15 @@
     "Enterprise": {
       "Topo-QoS": 0.7953082495191883,
       "Topo-Mult": 0.840261213101314,
-      "Topo-QoS-Perm_mean": 0.8010100731764009,
-      "Topo-QoS-Perm_sd": 0.014141347474539177,
+      "Topo-QoS-Perm_mean": 0.8010270431557276,
+      "Topo-QoS-Perm_sd": 0.014157965767179818,
       "Topo (published)": 0.431
     },
     "Financial Trading": {
       "Topo-QoS": 0.5864231295106708,
       "Topo-Mult": 0.7015668112629251,
-      "Topo-QoS-Perm_mean": 0.6408099152122329,
-      "Topo-QoS-Perm_sd": 0.02455039412572506,
+      "Topo-QoS-Perm_mean": 0.6407938012968208,
+      "Topo-QoS-Perm_sd": 0.02454110123675322,
       "Topo (published)": 0.237
     },
     "Healthcare": {
@@ -59,8 +59,8 @@
     "Logistics Fleet": {
       "Topo-QoS": 0.7406995865664335,
       "Topo-Mult": 0.7334464583273581,
-      "Topo-QoS-Perm_mean": 0.7198376937435342,
-      "Topo-QoS-Perm_sd": 0.011789275051883184,
+      "Topo-QoS-Perm_mean": 0.7198791965017739,
+      "Topo-QoS-Perm_sd": 0.01186038301437779,
       "Topo (published)": 0.576
     },
     "Microservices": {
@@ -80,8 +80,8 @@
     "Telecom RAN": {
       "Topo-QoS": 0.5761904555663259,
       "Topo-Mult": 0.552485698890174,
-      "Topo-QoS-Perm_mean": 0.523123938585798,
-      "Topo-QoS-Perm_sd": 0.023749880264301134,
+      "Topo-QoS-Perm_mean": 0.523127132425235,
+      "Topo-QoS-Perm_sd": 0.023748818641337044,
       "Topo (published)": 0.562
     }
   },
@@ -95,8 +95,8 @@
       "retained_gain": 1.2077643399154077
     },
     "Topo-QoS-Perm_mean": {
-      "mean_rho": 0.5587859694645775,
-      "retained_gain": 1.0283625954145952
+      "mean_rho": 0.5587897655197102,
+      "retained_gain": 1.0283812035279907
     }
   },
   "contrasts": {
@@ -111,10 +111,10 @@
       "p": 0.00927734375
     },
     "Topo-QoS vs Topo-QoS-Perm": {
-      "delta": -0.005646547323119959,
+      "delta": -0.00565034337825257,
       "ci95": [
-        -0.024642238502753048,
-        0.014840491255530375
+        -0.024648310149897396,
+        0.014836147768404813
       ],
       "won": 5,
       "n": 12,
@@ -135,8 +135,8 @@
     "triggered": true
   },
   "provenance": {
-    "commit": "91c051e2c05206057a9f0ce7b4cc8714318843cb",
-    "dirty": true,
+    "commit": "45d0785e68359d34f31f800fd0b6dd4e520dbaaf",
+    "dirty": false,
     "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
     "config": {
       "script": "reproduce/training_free_suite.py",

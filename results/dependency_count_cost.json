@@ -1,0 +1,129 @@
+{
+  "per_fold": {
+    "ATM": {
+      "n_projection_nodes": 34,
+      "n_projection_edges": 155,
+      "projection": 0.0007442330002049857,
+      "InDeg": 1.7715000012685778e-05,
+      "Reach": 0.00046055299981162534,
+      "Reach-QoS": 0.0021581239998340607,
+      "Topo-QoS": 0.002530175999709172
+    },
+    "AV System": {
+      "n_projection_nodes": 100,
+      "n_projection_edges": 1147,
+      "projection": 0.00489790899973741,
+      "InDeg": 4.066299970872933e-05,
+      "Reach": 0.004603385999871534,
+      "Reach-QoS": 0.05439655500003937,
+      "Topo-QoS": 0.03778658800001722
+    },
+    "Enterprise": {
+      "n_projection_nodes": 350,
+      "n_projection_edges": 6870,
+      "projection": 0.028577350999967166,
+      "InDeg": 0.00011353899981259019,
+      "Reach": 0.08912577699993562,
+      "Reach-QoS": 1.3285222829999839,
+      "Topo-QoS": 0.7187133070001437
+    },
+    "Financial Trading": {
+      "n_projection_nodes": 78,
+      "n_projection_edges": 961,
+      "projection": 0.004282001999854401,
+      "InDeg": 3.3461999919381924e-05,
+      "Reach": 0.0035280910001347365,
+      "Reach-QoS": 0.03562216000000262,
+      "Topo-QoS": 0.0243980250002096
+    },
+    "Healthcare": {
+      "n_projection_nodes": 62,
+      "n_projection_edges": 379,
+      "projection": 0.0017009309999593825,
+      "InDeg": 2.5720999929035315e-05,
+      "Reach": 0.0015925329998935922,
+      "Reach-QoS": 0.010609382999973604,
+      "Topo-QoS": 0.010460950000378944
+    },
+    "Enterprise Integration (ESB)": {
+      "n_projection_nodes": 95,
+      "n_projection_edges": 1029,
+      "projection": 0.004406370000197057,
+      "InDeg": 3.759599985642126e-05,
+      "Reach": 0.0058359419999760576,
+      "Reach-QoS": 0.0592576460003329,
+      "Topo-QoS": 0.040396111000063684
+    },
+    "Industrial SCADA": {
+      "n_projection_nodes": 155,
+      "n_projection_edges": 503,
+      "projection": 0.002714901000217651,
+      "InDeg": 5.0768999699357664e-05,
+      "Reach": 0.0068153000001984765,
+      "Reach-QoS": 0.03519671100002597,
+      "Topo-QoS": 0.04301804799979436
+    },
+    "IoT Smart City": {
+      "n_projection_nodes": 210,
+      "n_projection_edges": 1409,
+      "projection": 0.006508915000267734,
+      "InDeg": 6.153599997560377e-05,
+      "Reach": 0.011796862999744917,
+      "Reach-QoS": 0.08848120599986942,
+      "Topo-QoS": 0.08029098399993018
+    },
+    "Logistics Fleet": {
+      "n_projection_nodes": 130,
+      "n_projection_edges": 865,
+      "projection": 0.004190293999727146,
+      "InDeg": 4.3321999783074716e-05,
+      "Reach": 0.007542931999978464,
+      "Reach-QoS": 0.056476556999768945,
+      "Topo-QoS": 0.04974093700002413
+    },
+    "Microservices": {
+      "n_projection_nodes": 120,
+      "n_projection_edges": 872,
+      "projection": 0.003993345000253612,
+      "InDeg": 4.569200018522679e-05,
+      "Reach": 0.007743544999812002,
+      "Reach-QoS": 0.06237695299978441,
+      "Topo-QoS": 0.05259489699983533
+    },
+    "Real-Time Gaming": {
+      "n_projection_nodes": 103,
+      "n_projection_edges": 576,
+      "projection": 0.0024652600000081293,
+      "InDeg": 3.972900003645918e-05,
+      "Reach": 0.00462018000007447,
+      "Reach-QoS": 0.029618650999964302,
+      "Topo-QoS": 0.027378489000057016
+    },
+    "Telecom RAN": {
+      "n_projection_nodes": 142,
+      "n_projection_edges": 1100,
+      "projection": 0.004818517000330758,
+      "InDeg": 4.7498000185441924e-05,
+      "Reach": 0.011280190999968909,
+      "Reach-QoS": 0.0950369980000687,
+      "Topo-QoS": 0.07827913199980685
+    }
+  },
+  "max_seconds": {
+    "projection": 0.028577350999967166,
+    "InDeg": 0.00011353899981259019,
+    "Reach": 0.08912577699993562,
+    "Reach-QoS": 1.3285222829999839,
+    "Topo-QoS": 0.7187133070001437
+  },
+  "provenance": {
+    "commit": "45d0785e68359d34f31f800fd0b6dd4e520dbaaf",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/training_free_suite.py",
+      "experiment": "cost",
+      "repeats": 5
+    }
+  }
+}

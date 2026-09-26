@@ -74,7 +74,9 @@ def stamp(**config: Any) -> Dict[str, Any]:
     script takes flags.
     """
     commit = _git("rev-parse", "HEAD")
-    status = _git("status", "--porcelain")
+    # results/ holds the artifacts themselves (normally gitignored); rewriting one
+    # must not mark the next artifact of the same run as built from a dirty tree.
+    status = _git("status", "--porcelain", "--", ".", ":(exclude)results")
     return {
         "commit": commit,
         "dirty": bool(status) if status is not None else None,

@@ -1,8 +1,8 @@
 # RQ2 — Where learned accuracy comes from: attribution controls
 
 **Paper:** §6.2 (what each engine can see), §7.2, Table 9; §7.3, Table 10 (the `GAT` and `GBM-Feat` columns).
-**Registration:** [`../PREREGISTRATION.md`](../PREREGISTRATION.md), Amendment 7. The amendment is post hoc, written after these results existed, and every contrast here is exploratory. `GBM-Feat` itself was declared post hoc in Amendment 3 and first run here.
-**Extended results:** Supplement S31.
+**Registration:** [`../PREREGISTRATION.md`](../PREREGISTRATION.md), Amendment 8. The amendment is post hoc, written after these results existed, and every contrast here is exploratory. `GBM-Feat` itself was declared post hoc in Amendment 3 and first run here.
+**Extended results:** Supplement S32.
 
 ## Why these controls
 
@@ -59,14 +59,14 @@ What the contrasts show:
 
 - **Seed stability follows the node columns.** Median within-fold seed SD is 0.083 for `GAT`, 0.136 for `GAT-QoS-nf` and 0.010 for `GAT-QoS`. The stabilisation previously credited to the QoS channel is the node columns'.
 - **Receptive field does not explain the per-fold pattern.** HGT's share of the graph in reach does not correlate with its per-fold ρ (Spearman 0.12), its gain over `Topo-QoS` (−0.06) or the hybrid gain (0.20). `GAT-QoS` and `HGT-QoS` per-fold ρ correlate at 0.71, and every learned model falls short on Enterprise (0.407–0.533 against 0.795).
-- **Directionality control (Amendment 2, run after Amendment 7).** `HGT-QoS-U` drops HGT's reverse pass, its only route into Applications, so it is per-node too. Run it with `make -f reproduce/Makefile rq-directionality`. Results:
+- **Directionality control (Amendment 2, run after Amendment 8).** `HGT-QoS-U` drops HGT's reverse pass, its only route into Applications, so it is per-node too. Run it with `make -f reproduce/Makefile rq-directionality`. Results:
   - LOSO: 0.632 against 0.622 for `HGT-QoS`. The registered contrast is −0.010 (6/12 folds, p = 0.91).
   - Median seed SD: 0.020 against 0.056.
   - Zero-shot: 0.804 against 0.760, higher on all five systems.
   - With the capacity control below, the omnibus family grows to 13. Both hybrids stay significant (p_omni 0.019 and 0.041).
 
-  Supplement S31 has the per-fold and per-system tables.
-- **Capacity control (Amendment 2, run after Amendment 7).** `GAT-w` is an untyped GAT at HGT's budget. It reads the QoS-on node features and a scalar edge weight, and it is per-node at Applications. Run it with `make -f reproduce/Makefile rq-capacity`. Results:
+  Supplement S32 has the per-fold and per-system tables.
+- **Capacity control (Amendment 2, run after Amendment 8).** `GAT-w` is an untyped GAT at HGT's budget. It reads the QoS-on node features and a scalar edge weight, and it is per-node at Applications. Run it with `make -f reproduce/Makefile rq-capacity`. Results:
   - LOSO: 0.633. The registered contrast against `HGT-QoS` is −0.011 (5/12 folds, p = 0.68).
   - It is level with `GAT-QoS` (−0.002) and above `GAT` (+0.070, 10/12).
   - Zero-shot: 0.794.

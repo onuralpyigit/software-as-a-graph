@@ -1,5 +1,7 @@
 # RQ1 — Hybrid engines (Hybrid-HGT, Hybrid-GAT)
 
+> **Amendment 7 update.** The hybrids remain the only learned engines that significantly beat Topo-QoS. They do not beat their own learned engines (+0.035, p = 0.73; +0.048, p = 0.30), and InDeg beats both (+0.108 and +0.081, p = 0.0024). See [amendment7-training-free.md](amendment7-training-free.md).
+
 **Paper:** §7.1, Table 7. **Registration:** [`../PREREGISTRATION.md`](../PREREGISTRATION.md),
 Amendments 5 and 6. **Extended results:** Supplement S23 (per-fold), S24 (amendment log and omnibus
 Holm).

@@ -1,5 +1,7 @@
 # RQ1 — Single engines under leave-one-scenario-out (LOSO)
 
+> **Amendment 7 update.** Training-free dependency counts on the same projection outrank every engine on this page: InDeg reaches 0.764 and Reach 0.732. The Topo → Topo-QoS gain (0.349 → 0.553) is attributed to the projection substrate, not to QoS content: the registered Topo read the analysis stage's app-layer betweenness, and unweighted betweenness on the projection scores 0.591. See [amendment7-training-free.md](amendment7-training-free.md).
+
 **Paper:** §7.1, Table 7 (CPU runs of the six engines); the registered GPU sweep described here is Supplement Table S29 (Section S30). **Extended results:** Supplement S25 (active stratum), S23 (per-fold,
 CPU re-runs), S22 (articulation term), S17 (in-distribution per-scenario).
 

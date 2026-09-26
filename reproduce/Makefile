@@ -16,7 +16,7 @@
 #   make seed-robustness — 2x2 under median / trimmed seed aggregation (no training)
 #   make rq-hybrid       — SaG-Hybrid vs Topo-QoS vs HGT-QoS, one CPU sweep (Amendment 5)
 #   make rq-hybrid-gat   — SaG-Hybrid-GAT vs Topo-QoS vs GAT-N-QoS16-C, one CPU sweep (Amendment 6)
-#   make rq-attribution  — GBM-Feat / GAT-QoS-nf attribution controls + receptive-field probe (Amendment 7)
+#   make rq-attribution  — GBM-Feat / GAT-QoS-nf attribution controls + receptive-field probe (Amendment 8)
 #   make rq-directionality — HGT-QoS vs HGT-QoS-U (Amendment 2's directionality arm), LOSO + zero-shot
 #   make rq-capacity     — HGT-QoS vs GAT-w (Amendment 2's capacity arm), LOSO + zero-shot
 #   make omnibus         — one Holm correction over every registered contrast (no training)
@@ -197,7 +197,7 @@ rq-hybrid-gat:
 	    --input $(RESULTS_DIR)/loso_hybrid_gat_cpu.json \
 	    --output $(RESULTS_DIR)/loso_significance_hybrid_gat_cpu.json
 
-# Attribution controls (PREREGISTRATION.md Amendment 7, post hoc, exploratory):
+# Attribution controls (PREREGISTRATION.md Amendment 8, post hoc, exploratory):
 # GAT and GAT-QoS re-run in the SAME invocation as the three new arms, because
 # the contrasts pair them by fold. Then zero-shot for the five learned arms and
 # the receptive-field probe (which reads the zero-shot checkpoints).
@@ -223,7 +223,7 @@ rq-attribution:
 	    --cache-dir $(OUTPUT_DIR)/loso_cache \
 	    --output $(RESULTS_DIR)/receptive_field_probe.json
 
-# Amendment 2's directionality control, first run after Amendment 7: HGT-QoS-U
+# Amendment 2's directionality control, first run after Amendment 8: HGT-QoS-U
 # drops HGT's reverse pass, which is the only route by which any message reaches
 # an Application, so the contrast tests HGT's message passing directly. HGT-QoS
 # is re-run in the SAME invocation because the contrast pairs them by fold.
@@ -420,7 +420,7 @@ jss-fig4:
 	$(PYTHON) reproduce/render_jss_diagrams.py --only 4
 
 jss-fig5:
-	PYTHONPATH=. $(PYTHON) reproduce/render_headline_figure.py
+	PYTHONPATH=. $(PYTHON) reproduce/render_amendment7_figure.py
 
 jss-figS1:
 	$(PYTHON) reproduce/render_shrinkage_figure.py

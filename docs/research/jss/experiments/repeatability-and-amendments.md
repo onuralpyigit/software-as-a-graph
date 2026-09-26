@@ -32,7 +32,7 @@ Dates, outcomes and the completeness statement are in Supplement S24. The sequen
 Amendment 6 followed Amendment 2's result. Correcting within each family therefore does not bound the
 error accumulated across the sequence. `make -f reproduce/Makefile omnibus` pools all thirteen
 registered contrasts under one Holm correction (`omnibus_registered_holm.json`). The last two are
-Amendment 2's directionality and capacity controls, both run after Amendment 7. Both hybrid
+Amendment 2's directionality and capacity controls, both run after Amendment 8. Both hybrid
 primaries survive it; no other registered contrast reaches α = 0.05.
 
 ## Repeatability

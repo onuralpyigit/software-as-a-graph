@@ -1,7 +1,7 @@
 """
 test_attribution_controls.py
 ────────────────────────────
-Pins the attribution controls of PREREGISTRATION.md Amendment 7 and the
+Pins the attribution controls of PREREGISTRATION.md Amendment 8 and the
 architectural fact the manuscript now discloses (Section 6.2):
 
   * ``node_qos_for`` leaves every pre-existing arm's QoS inputs exactly as they

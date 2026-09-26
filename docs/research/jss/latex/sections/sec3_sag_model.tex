@@ -1,7 +1,7 @@
 \section{The Software-as-a-Graph (SaG) Architectural Model}
 \label{sec:3}
 
-Figure~\ref{fig:1} presents the end-to-end architecture of the SaG framework. The shared front end processes Architecture-as-Code manifests, constructs a typed multigraph, projects implicit runtime interactions throughout a QoS-weighted logical dependency layer, and extracts typed node properties. These features feed the ranking engines (Section~\ref{sec:4}) and, separately and with no shared parameters, the explanation layer (Section~\ref{sec:5}).
+Figure~\ref{fig:1} presents the end-to-end architecture of the SaG framework. The shared front end processes Architecture-as-Code manifests, constructs a typed multigraph, projects implicit runtime interactions onto a logical dependency layer, and extracts typed node properties. These features feed the ranking engines (Section~\ref{sec:4}) and, separately and with no shared parameters, the explanation layer (Section~\ref{sec:5}).
 
 \begin{figure}[htbp]
 
@@ -9,7 +9,7 @@ Figure~\ref{fig:1} presents the end-to-end architecture of the SaG framework. Th
 
 \includegraphics[width=0.70\linewidth]{figures/Figure_1}
 
-\caption{End-to-end architecture of the SaG framework. The predictive pathway runs down the centre: manifest ingestion, typed multigraph, QoS-weighted \texttt{DEPENDS\_ON} projection with typed node properties, the ranking engines (closed-form, learned and hybrid; Figure~\ref{fig:engines}), and the ranked critical set. The dashed edge marks the ground-truth simulation oracle, which operates only on $G_{\text{structural}}$, trains the predictor offline and takes no part in inference. The explanation layer re-enters from the analysis multigraph and shares no parameters with the predictor, reaching flagged components through triage rather than data flow.}
+\caption{End-to-end architecture of the SaG framework. The predictive pathway runs down the centre: manifest ingestion, typed multigraph, QoS-weighted \texttt{DEPENDS\_ON} projection with typed node properties, the ranking engines (closed-form, learned and hybrid; Figure~\ref{fig:engines}), and the ranked critical set. The dashed edge marks the ground-truth simulation oracle, which operates only on $G_{\text{structural}}$, trains the predictor offline and takes no part in inference. The explanation layer re-enters from the analysis multigraph and shares no parameters with the predictor; it profiles only the components the ranking flags (triage), rather than receiving the predictor's outputs.}
 
 \label{fig:1}
 
@@ -66,13 +66,19 @@ where:
 \small
 \caption{Notation used throughout. Entity and edge types: Table~\ref{tab:1}; simulation oracles: Table~\ref{tab:oracle_roles}.}
 \label{tab:notation}
-\begin{tabular}{@{}l@{\hspace{5pt}}l@{\hspace{10pt}}l@{\hspace{5pt}}l@{}}
+\begin{tabular}{@{}ll@{}}
 \toprule
-$G_{\text{structural}}$ & Raw multigraph; oracles only & $Q(v)$ & RM composite quality score \\
-$G_{\text{analysis}}$ & \texttt{DEPENDS\_ON} projection; predictor input & $\rho$ & Spearman $\rho$, full population \\
-$V_{\text{app}}$ & Application nodes; the scored population & $\rho_{>0}$ & Spearman $\rho$, active stratum ($I^* > 0$) \\
-$w(t)$, $w(e)$ & QoS topic weight, edge weight & Overlap@$K$ & Top-$K$ set overlap, $K = 0.20\,|V_{\text{app}}|$ \\
-$I^*(v)$ & Primary cascade-reachability oracle & $I_{\text{comp}}$, $I_{\text{dyn}}$, $I_M$ & Further oracles (Table~\ref{tab:oracle_roles}) \\
+\textbf{Symbol} & \textbf{Meaning} \\
+\midrule
+$G_{\text{structural}}$ & Raw multigraph; read only by the simulation oracles \\
+$G_{\text{analysis}}$ & Multigraph plus the derived \texttt{DEPENDS\_ON} projection; predictor input \\
+$V_{\text{app}}$ & Application nodes; the scored population \\
+$w(t)$, $w(e)$ & QoS topic weight; edge weight \\
+$I^*(v)$ & Primary cascade oracle (Section~\ref{sec:4.3}) \\
+$I_{\text{comp}}$, $I_{\text{dyn}}$ & Further oracles (Table~\ref{tab:oracle_roles}) \\
+$Q(v)$ & RM composite quality score of the explanation layer \\
+$\rho$, $\rho_{>0}$ & Spearman $\rho$ on the full population; on the active stratum ($I^* > 0$) \\
+Overlap@$K$ & Top-$K$ set overlap, $K = \text{round}(0.20\,|V_{\text{app}}|)$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -104,7 +110,7 @@ Here $q_{\text{rel}} \in \{0, 1\}$ (best-effort, reliable), $q_{\text{dur}} \in 
 \text{FreqNorm}(t) = \min\left(1.0, \frac{\log_{10}(1 + F(t))}{3}\right)
 \end{equation}
 
-where $B(t)$ is the payload in bytes (design envelope 1~MiB, the practical DDS sample limit) and $F(t)$ the publication frequency in Hz. $w(t)$ is clamped to $[0.01, 1]$ so that best-effort edges remain visible, and every \texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO} and \texttt{ROUTES} edge of $t$ carries $w_E(e) = w(t)$ and the topic's QoS vector. The $(\alpha_{\text{top}}, \beta_{\text{top}}, \gamma_{\text{top}})$ split is a documented choice rather than a sensitive parameter: no point of its simplex changes any reported ordering (Supplementary Section~\ref{S-supp:params}).
+where $B(t)$ is the payload in bytes and $F(t)$ the publication frequency in Hz; the normalizers make the terms saturate at a 1~MiB payload and a 1~kHz stream, the upper ends of the corpus envelopes. $w(t)$ is clamped to $[0.01, 1]$ so that best-effort edges remain visible, and every \texttt{PUBLISHES\_TO}, \texttt{SUBSCRIBES\_TO} and \texttt{ROUTES} edge of $t$ carries $w_E(e) = w(t)$ and the topic's QoS vector. The $(\alpha_{\text{top}}, \beta_{\text{top}}, \gamma_{\text{top}})$ split is a documented choice rather than a sensitive parameter: no point of its simplex changes any reported ordering (Supplementary Section~\ref{S-supp:params}). On the reachability oracle used in this study, the QoS \emph{content} of $w(t)$ does not improve ranking either: fixing every topic weight to a constant, or permuting QoS profiles across topics, ranks as well as the declared contracts do (Section~\ref{sec:rq1-qos}). The weights are kept because they are what the explanation layer and the learned engines' edge channel read.
 
 \subsubsection{Logical Dependency Projection (\texttt{DEPENDS\_ON})}
 
@@ -145,9 +151,9 @@ Rules 1 and 2 combine the topics $T$ joining a pair by probabilistic union rathe
 \subsection{Dual Graph Views}
 \label{sec:3.3}
 
-The \textbf{structural graph} $G_{\text{structural}}$ is the raw deployment topology. The \textbf{analysis graph} $G_{\text{analysis}}$ adds the derived, QoS-weighted \texttt{DEPENDS\_ON} edges and the code metrics (Figure~\ref{fig:2}). All predictor features are computed on $G_{\text{analysis}}$, while simulation oracles run only on $G_{\text{structural}}$ (Section~\ref{sec:4.4}); Rule~6 therefore cannot influence any label.
+The \textbf{structural graph} $G_{\text{structural}}$ is the raw deployment topology. The \textbf{analysis graph} $G_{\text{analysis}}$ adds the derived, QoS-weighted \texttt{DEPENDS\_ON} edges and the code metrics (Figure~\ref{fig:2}). All predictor features are computed on $G_{\text{analysis}}$, while simulation oracles run only on $G_{\text{structural}}$ (Section~\ref{sec:4.4}); Rule~6 therefore cannot influence any label. The primary oracle re-derives Rules~1 and~5 from the raw edges for its own propagation step, so the two views share the dependency semantics even though no derived edge crosses between them (Section~\ref{sec:4.4}).
 
 \subsection{Typed Node Feature Encoding}
 \label{sec:3.4}
 
-Both the predictive pathway (Section~\ref{sec:4}) and the explanation layer (Section~\ref{sec:5}) read the same typed node properties from $G_{\text{analysis}}$: the predictor projects them per entity type before message passing, the explanation layer aggregates them into a quality profile. All five entity types share a deterministic 18-dimensional base block of topological metrics, each normalized to $[0, 1]$ within its graph so that raw graph size does not drive cross-scenario transfer. The block comprises PageRank and Reverse PageRank; betweenness, closeness and eigenvector centrality; in- and out-degree; clustering; articulation and bridge scores; the node QoS weight and QoS-weighted in- and out-degree; multi-path coupling; path complexity; fan-out criticality; and the Connectivity Degradation Index (CDI), which removes each node and measures the resulting connectivity loss (full schema: Supplementary Section~\ref{S-supp:features}). Type-specific blocks extend the vector to 19--25 dimensions: code metrics and CQP for Applications, reverse-\texttt{USES} blast radius for Libraries, queue capacity for Brokers, publisher/subscriber counts and QoS criticality for Topics, and CPU and memory for Hosts. PageRank, Reverse PageRank, betweenness and eigenvector centrality are computed on the QoS-weighted projection. They therefore carry QoS information into every predictor, including the ``QoS-off'' arms, which lack only the explicit QoS edge channel and QoS node columns. Because these topological summaries are available to any scorer, closed-form engines are genuine competitors rather than strawmen. CDI, at $O(|V|^2 + |V||E|)$, dominates analysis cost (Section~\ref{sec:rq4}).
+Both the predictive pathway (Section~\ref{sec:4}) and the explanation layer (Section~\ref{sec:5}) read the same typed node properties from $G_{\text{analysis}}$: the predictor projects them per entity type before message passing, the explanation layer aggregates them into a quality profile. All five entity types share a deterministic 18-dimensional base block of topological metrics, each normalized to $[0, 1]$ within its graph so that raw graph size does not drive cross-scenario transfer. The block comprises PageRank and Reverse PageRank; betweenness, closeness and eigenvector centrality; in- and out-degree; clustering; undirected and directed articulation scores; the bridge ratio; the node QoS weight and QoS-weighted in- and out-degree; multi-path coupling; path complexity; fan-out criticality; and the Connectivity Degradation Index (CDI), which removes each node and measures the resulting connectivity loss (full schema: Supplementary Section~\ref{S-supp:features}). Normalized in-degree on the dependency graph (index~5), which as a stand-alone ranker is the strongest training-free score in this study (Section~\ref{sec:rq1}), is therefore among every learned engine's inputs. Type-specific blocks extend the vector to 19--25 dimensions: code metrics and CQP for Applications, reverse-\texttt{USES} blast radius for Libraries, queue capacity for Brokers, publisher/subscriber counts and QoS criticality for Topics, and CPU and memory for Hosts. PageRank, Reverse PageRank, betweenness and eigenvector centrality are computed on the QoS-weighted projection. They therefore carry QoS information into every predictor, including the ``QoS-off'' arms, which lack only the explicit QoS edge channel and QoS node columns. Because these topological summaries are available to any scorer, closed-form engines are genuine competitors rather than strawmen. CDI, at $O(|V|^2 + |V||E|)$, dominates analysis cost (Section~\ref{sec:rq4}).

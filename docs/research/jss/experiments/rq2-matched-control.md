@@ -36,7 +36,7 @@ because the tests pair them by fold.
 
 ## Headline result
 
-> **Interpretation revised (Amendment 7).** The untyped arms score Applications per node, so this
+> **Interpretation revised (Amendment 8).** The untyped arms score Applications per node, so this
 > 2×2 compares typed message passing with per-component learning, and its Q factor switches the edge
 > channel and three QoS node columns together. The +0.073 is carried by the node columns, not the
 > edge channel, and the seed stabilisation below follows them too. See
@@ -59,7 +59,7 @@ well as the typed `HGT-QoS` (0.622).
 - **Late controls.** Every registered model arm has now been run. The capacity-only control
   `GAT-w` (`make -f reproduce/Makefile rq-capacity`) matches `HGT-QoS` (−0.011, 5/12, p = 0.68).
   The directionality control `HGT-QoS-U` (HGT without its 103,725 reverse-direction parameters)
-  was run after Amendment 7 (`make -f reproduce/Makefile rq-directionality`). It matches
+  was run after Amendment 8 (`make -f reproduce/Makefile rq-directionality`). It matches
   `HGT-QoS` (−0.010, 6/12, p = 0.91) and transfers better (0.804 vs 0.760); see
   [rq2-attribution-controls.md](rq2-attribution-controls.md).
   

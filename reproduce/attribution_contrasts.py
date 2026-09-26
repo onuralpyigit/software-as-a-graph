@@ -3,7 +3,7 @@
 reproduce/attribution_contrasts.py — where the learned engines' accuracy comes from
 ===================================================================================
 
-PREREGISTRATION.md Amendment 7 (post hoc, exploratory). Reads the one-sweep
+PREREGISTRATION.md Amendment 8 (post hoc, exploratory). Reads the one-sweep
 artifact of ``make rq-attribution`` and reports the five contrasts of the
 manuscript's attribution table, Holm-corrected across the five:
 
@@ -73,7 +73,7 @@ def main() -> int:
     out = {
         "provenance": stamp(input=str(args.input)),
         "input_provenance": artifact.get("provenance"),
-        "note": "Amendment 7: post hoc and exploratory; Holm across these five contrasts only.",
+        "note": "Amendment 8: post hoc and exploratory; Holm across these five contrasts only.",
         "mean_rho": {v: float(t["mean_rho"]) for v, t in table.items()},
         "median_seed_sd": seed_spread,
         "contrasts": results,

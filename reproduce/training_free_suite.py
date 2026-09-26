@@ -15,10 +15,15 @@ and without Neo4j:
                     permuted across topics; labels untouched).
 * ``oracle``      — I*(v) relabelled over propagation threshold x depth-damping step.
 * ``descriptives``— size, zero share, projection density and tie fraction per graph.
-* ``qos-indep``   — Topo / Topo-QoS on the corpus regenerated with
-                    ``qos_affinity: false`` (see tools/generation/generator.py).
+* ``make-variant``— regenerate the twelve folds with ``qos_affinity=False``.
+* ``qos-indep``   — Topo / Topo-QoS on that QoS-independent corpus.
+* ``cost``        — wall-clock cost of the projection and each ranker.
+* ``substrate``   — what the published ``Topo`` column measured, beside unweighted
+                    and QoS-weighted betweenness on the projection.
 
 Labels are cached under output/tf_labels/ keyed by scenario and oracle setting.
+The script re-executes itself with PYTHONHASHSEED=0: the CDI sample breaks
+degree ties in set-iteration order, which otherwise varies between processes.
 Every artifact is written to results/ with a provenance stamp.
 
 Usage:
@@ -33,6 +38,7 @@ import copy
 import heapq
 import json
 import math
+import os
 import random
 import sys
 from pathlib import Path
@@ -107,11 +113,31 @@ PUBLISHED_HGT_QOS_CPU = {
     "IoT Smart City": 0.688, "Logistics Fleet": 0.771, "Microservices": 0.475,
     "Real-Time Gaming": 0.789, "Telecom RAN": 0.427,
 }
+PUBLISHED_HYBRID_HGT_CPU = {
+    "ATM": 0.429, "AV System": 0.782, "Enterprise": 0.735, "Financial Trading": 0.754,
+    "Healthcare": 0.625, "Enterprise Integration (ESB)": 0.564, "Industrial SCADA": 0.758,
+    "IoT Smart City": 0.590, "Logistics Fleet": 0.792, "Microservices": 0.366,
+    "Real-Time Gaming": 0.837, "Telecom RAN": 0.648,
+}
+PUBLISHED_HYBRID_GAT_CPU = {
+    "ATM": 0.447, "AV System": 0.793, "Enterprise": 0.768, "Financial Trading": 0.797,
+    "Healthcare": 0.686, "Enterprise Integration (ESB)": 0.568, "Industrial SCADA": 0.768,
+    "IoT Smart City": 0.654, "Logistics Fleet": 0.806, "Microservices": 0.429,
+    "Real-Time Gaming": 0.825, "Telecom RAN": 0.656,
+}
 PUBLISHED_GAT_QOS_CPU = {
     "ATM": 0.506, "AV System": 0.732, "Enterprise": 0.407, "Financial Trading": 0.713,
     "Healthcare": 0.798, "Enterprise Integration (ESB)": 0.630, "Industrial SCADA": 0.721,
     "IoT Smart City": 0.720, "Logistics Fleet": 0.654, "Microservices": 0.479,
     "Real-Time Gaming": 0.685, "Telecom RAN": 0.574,
+}
+# Feature-only gradient-boosting control (Amendment 8), Supplementary per-fold
+# attribution table; the "Hub-and-Spoke" row there is the ESB fold.
+PUBLISHED_GBM_FEAT = {
+    "ATM": 0.304, "AV System": 0.748, "Enterprise": 0.533, "Financial Trading": 0.762,
+    "Healthcare": 0.781, "Enterprise Integration (ESB)": 0.539, "Industrial SCADA": 0.856,
+    "IoT Smart City": 0.721, "Logistics Fleet": 0.622, "Microservices": 0.427,
+    "Real-Time Gaming": 0.710, "Telecom RAN": 0.703,
 }
 
 
@@ -263,6 +289,13 @@ def paired(a: List[float], b: List[float], seed: int = 0, B: int = 2000) -> Dict
     }
 
 
+def mean_ci(xs: List[Optional[float]], seed: int = 0, B: int = 2000) -> List[float]:
+    x = np.asarray([v for v in xs if v is not None])
+    rng = np.random.default_rng(seed)
+    boots = [float(np.mean(rng.choice(x, size=len(x), replace=True))) for _ in range(B)]
+    return [float(np.percentile(boots, 2.5)), float(np.percentile(boots, 97.5))]
+
+
 def holm(ps: Dict[str, float]) -> Dict[str, float]:
     items = sorted(ps.items(), key=lambda kv: kv[1])
     m = len(items)
@@ -383,6 +416,8 @@ def cmd_baselines(_: argparse.Namespace) -> int:
             "systems_mean_rho_active": _mean(col(p, "rho_active", systems)),
             "systems_mean_overlap": _mean(col(p, "overlap_at_k", systems)),
             "systems_mean_pr_auc": _mean(col(p, "pr_auc", systems)),
+            "loso_rho_ci95": mean_ci(col(p)),
+            "systems_rho_ci95": mean_ci(col(p, src=systems)),
         }
         for p in PREDICTORS
     }
@@ -391,14 +426,24 @@ def cmd_baselines(_: argparse.Namespace) -> int:
     ph = holm({p: c["p"] for p, c in contrasts.items()})
     for p in contrasts:
         contrasts[p]["p_holm"] = ph[p]
+    # Descriptive: the unweighted projection betweenness is outside the registered
+    # family (Amendment 7 names four rankers), so it carries no Holm value.
+    contrasts["Topo (projection)"] = paired(
+        [loso[n]["Topo (projection)"]["rho"] for n in names], tq)
     vs_learned = {
         p: {
             "vs_HGT-QoS_cpu": paired([loso[n][p]["rho"] for n in names],
                                      [PUBLISHED_HGT_QOS_CPU[n] for n in names]),
             "vs_GAT-QoS_cpu": paired([loso[n][p]["rho"] for n in names],
                                      [PUBLISHED_GAT_QOS_CPU[n] for n in names]),
+            "vs_Hybrid-HGT_cpu": paired([loso[n][p]["rho"] for n in names],
+                                        [PUBLISHED_HYBRID_HGT_CPU[n] for n in names]),
+            "vs_Hybrid-GAT_cpu": paired([loso[n][p]["rho"] for n in names],
+                                        [PUBLISHED_HYBRID_GAT_CPU[n] for n in names]),
+            "vs_GBM-Feat": paired([loso[n][p]["rho"] for n in names],
+                                  [PUBLISHED_GBM_FEAT[n] for n in names]),
         }
-        for p in NEW_RANKERS
+        for p in NEW_RANKERS + ["Topo (projection)"]
     }
     best = max(NEW_RANKERS, key=lambda p: summary[p]["loso_mean_rho"] or -1)
     r1 = (summary[best]["loso_mean_rho"] or -1) >= 0.622
@@ -415,7 +460,7 @@ def cmd_baselines(_: argparse.Namespace) -> int:
               f"| systems {s['systems_mean_rho']:.3f}")
     for p, c in contrasts.items():
         print(f"{p:10s} vs Topo-QoS {c['delta']:+.3f} {c['ci95']} {c['won']}/12 "
-              f"p={c['p']:.4f} holm={c['p_holm']:.4f}")
+              f"p={c['p']:.4f} holm={c.get('p_holm', float('nan')):.4f}")
     print(f"best new ranker {best}; R1 {'TRIGGERED' if r1 else 'not triggered'}")
     print("inert rule:", inert)
     _write("tf_baselines.json", {
@@ -562,14 +607,108 @@ def cmd_qos_indep(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_make_variant(args: argparse.Namespace) -> int:
+    """Regenerate the twelve fold scenarios with ``qos_affinity=False``."""
+    from tools.generation import GenerationService, load_config
+
+    manifest = json.loads((SCENARIOS_DIR / "MANIFEST.json").read_text())["datasets"]
+    vdir = Path(args.variant_dir)
+    vdir.mkdir(parents=True, exist_ok=True)
+    for sid in FOLDS:
+        config = load_config(SCENARIOS_DIR / manifest[sid]["config"])
+        config.qos_affinity = False
+        data = GenerationService(config=config).generate()
+        (vdir / f"{sid}.json").write_text(json.dumps(data, indent=2))
+        print(f"wrote {vdir / (sid + '.json')}")
+    return 0
+
+
+def cmd_substrate(_: argparse.Namespace) -> int:
+    """What the published ``Topo`` column measured.
+
+    The LOSO ``topo_baseline`` read betweenness from the analysis stage's cached
+    app-layer metrics, not from the projection ``Topo-QoS`` uses. Rebuild that
+    betweenness in memory (``MemoryRepository``; Neo4j is not available here, and
+    the two repositories differ slightly on Rule-1 weights, see CLAUDE.md) and set
+    it beside unweighted and QoS-weighted betweenness on the projection.
+    """
+    from reproduce.ahp_sensitivity import full_pipeline_structural
+
+    rows: Dict[str, Any] = {}
+    for sid, name in FOLDS.items():
+        path = SCENARIOS_DIR / f"{sid}.json"
+        topo = _topology(path)
+        lab = labels_for(path)["impact"]
+        graph = build_graph_from_json(topo)
+        st = full_pipeline_structural(topo, layer="app")
+        comps = st.components if hasattr(st, "components") else st
+        app_layer = {str(n): float(getattr(m, "betweenness", 0.0) or 0.0)
+                     for n, m in comps.items()}
+        flow = _flow(topo)
+        rows[name] = {
+            "published Topo": PUBLISHED_TOPO[name],
+            "app-layer BT (memory rebuild)": score(app_layer, lab, graph)["rho"],
+            "projection BT, unweighted": score(topo_unweighted(flow), lab, graph)["rho"],
+            "projection BT, QoS-weighted (Topo-QoS)": score(topo_qos(flow), lab, graph)["rho"],
+        }
+        print(name, {k: round(v, 3) for k, v in rows[name].items()})
+    names = list(FOLDS.values())
+    summ = {k: _mean([rows[n][k] for n in names]) for k in rows[names[0]]}
+    contr = {"projection unweighted vs QoS-weighted": paired(
+        [rows[n]["projection BT, unweighted"] for n in names],
+        [rows[n]["projection BT, QoS-weighted (Topo-QoS)"] for n in names])}
+    print(json.dumps(summ, indent=1), contr)
+    _write("topo_substrate_check.json", {"per_fold": rows, "summary": summ,
+                                         "contrasts": contr}, experiment="substrate")
+    return 0
+
+
+def cmd_cost(_: argparse.Namespace) -> int:
+    """Wall-clock cost of the projection and each ranker, median of 5, per fold."""
+    import time
+
+    rows: Dict[str, Any] = {}
+    for sid, name in FOLDS.items():
+        topo = _topology(SCENARIOS_DIR / f"{sid}.json")
+        t: Dict[str, List[float]] = {k: [] for k in ("projection", "InDeg", "Reach",
+                                                     "Reach-QoS", "Topo-QoS")}
+        for _ in range(5):
+            t0 = time.perf_counter(); flow = _flow(topo); t1 = time.perf_counter()
+            indeg(flow); t2 = time.perf_counter()
+            reach(flow); t3 = time.perf_counter()
+            reach_qos(flow); t4 = time.perf_counter()
+            topo_qos(flow); t5 = time.perf_counter()
+            for k, v in (("projection", t1 - t0), ("InDeg", t2 - t1), ("Reach", t3 - t2),
+                         ("Reach-QoS", t4 - t3), ("Topo-QoS", t5 - t4)):
+                t[k].append(v)
+        rows[name] = {"n_projection_nodes": flow.number_of_nodes(),
+                      "n_projection_edges": flow.number_of_edges(),
+                      **{k: float(np.median(v)) for k, v in t.items()}}
+        print(name, {k: round(v, 4) if isinstance(v, float) else v for k, v in rows[name].items()})
+    worst = {k: max(r[k] for r in rows.values())
+             for k in ("projection", "InDeg", "Reach", "Reach-QoS", "Topo-QoS")}
+    print("max over folds:", worst)
+    _write("dependency_count_cost.json", {"per_fold": rows, "max_seconds": worst},
+           experiment="cost", repeats=5)
+    return 0
+
+
 def main() -> int:
+    # CDI's BFS sample is the top-degree nodes of a set, so equal-degree ties are
+    # ordered by string hashing, which Python salts per process. Pin the salt so
+    # the CDI arm (and anything else iterating a set of node ids) is deterministic.
+    if os.environ.get("PYTHONHASHSEED") != "0":
+        env = {**os.environ, "PYTHONHASHSEED": "0"}
+        os.execve(sys.executable, [sys.executable, *sys.argv], env)
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("command", choices=["gate", "baselines", "controls", "oracle",
-                                        "descriptives", "qos-indep", "all"])
+                                        "descriptives", "qos-indep", "make-variant", "substrate",
+                                        "cost", "all"])
     ap.add_argument("--variant-dir", default="output/variants/qos_indep")
     args = ap.parse_args()
     cmds = {"gate": cmd_gate, "baselines": cmd_baselines, "controls": cmd_controls,
-            "oracle": cmd_oracle, "descriptives": cmd_descriptives, "qos-indep": cmd_qos_indep}
+            "oracle": cmd_oracle, "descriptives": cmd_descriptives, "qos-indep": cmd_qos_indep,
+            "make-variant": cmd_make_variant, "substrate": cmd_substrate, "cost": cmd_cost}
     if args.command == "all":
         rc = cmd_gate(args)
         if rc:

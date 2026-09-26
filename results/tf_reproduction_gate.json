@@ -89,8 +89,8 @@
   "max_abs_diff": 0.00048634901520394624,
   "passed": true,
   "provenance": {
-    "commit": "91c051e2c05206057a9f0ce7b4cc8714318843cb",
-    "dirty": true,
+    "commit": "45d0785e68359d34f31f800fd0b6dd4e520dbaaf",
+    "dirty": false,
     "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
     "config": {
       "script": "reproduce/training_free_suite.py",

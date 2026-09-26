@@ -406,7 +406,88 @@ Topo-QoS and HGT-QoS comparators are bit-identical across CPU sweeps.
 **Reporting commitment.** Reported whichever way it comes out, in the manuscript
 and supplement. It may be dropped only for a stated technical failure.
 
-## Amendment 7 — attribution controls (2026-09-26, after their results existed)
+---
+
+## Amendment 7 — training-free baselines and QoS-attribution controls (2026-09-25, before any result)
+
+**Status when written:** none of the arms below has been implemented or run. The
+per-fold values they will be compared against are already published (Supplementary
+S22 for `Topo`/`Topo-QoS`, S23 for the CPU learned and hybrid engines), so this
+amendment fixes the arms, the comparisons and what each outcome changes in the text
+before any of the new numbers exist.
+
+**Why it exists.** The referee report of 2026-09-25
+(`docs/research/jss/reviews/review_2026-09-25.md`, M2, M3, M6, M7) raised three
+questions that need no GNN to answer:
+1. Does a trivial reachability or connectivity score, computed on the same
+   projection, already match the learned engines? `I*(v)` is a cascade over the same
+   dependency rules the projection encodes.
+2. Is the `Topo` → `Topo-QoS` gain (+0.204) produced by the *content* of the declared
+   QoS contracts, or by the *multiplicity* of shared topics that the probabilistic
+   union rewards regardless of content? The generator also samples topology
+   conditioned on QoS (`_APP_TYPE_QOS_AFFINITY`), which could couple the two.
+3. How much of every full-population correlation is only the separation of inert
+   components (`I* = 0`) from active ones?
+
+**Labels.** `I*(v)` regenerated with the published settings: `FaultInjector`, seeds
+{42, 123, 456, 789, 2024}, propagation threshold 0.2, unlimited cascade depth, QoS
+ladder, node types Application/Broker/Library. Twelve LOSO scenarios and the five
+system models. Scored on the Application population with the shared
+`saag.evaluation.metrics.compute_inductive_metrics`.
+
+**Reproduction gate.** Before anything else is reported, the rebuilt `Topo-QoS` must
+reproduce the published per-fold values (Supplementary S22, "as run") to three
+decimals. If it does not, nothing from this amendment is reported except the failure.
+
+### Arms, fixed before any run
+
+All arms are training-free and run on the Application–Library `DEPENDS_ON`
+projection `Topo-QoS` uses (Rules 1 and 5), edges directed dependent → dependency.
+
+| Arm | Score for component v |
+|:---|:---|
+| `Reach` | Number of transitive dependents of v (`nx.ancestors`), normalised by n − 1 |
+| `Reach-QoS` | Sum over transitive dependents u of the best-path product of edge `qos_weight` from u to v |
+| `CDI` | Connectivity Degradation Index alone, from `StructuralAnalyzer._compute_continuous_ap_scores` on the projection |
+| `InDeg` | Number of direct dependents (in-degree on the projection) |
+| `Topo-Mult` | `Topo-QoS` with every topic weight set to the constant 0.5, so that a Rule-1 edge weight depends only on how many topics join the pair |
+| `Topo-QoS-Perm` | `Topo-QoS` with topic QoS profiles permuted uniformly across the topics of each scenario (20 permutations, seeds 0–19, mean ρ). Labels are **not** permuted. |
+| `Topo` / `Topo-QoS` on a QoS-independent corpus | The twelve scenario configurations regenerated with a new opt-in generator switch `qos_affinity: false`, which removes QoS from topic selection and from criticality/hot-standby assignment; relabelled with the same oracle settings. The committed corpus is untouched. |
+
+**Oracle sensitivity.** `I*` relabelled over propagation threshold θ ∈ {0.1, 0.2,
+0.3} × depth-damping step ∈ {0.10, 0.15, 0.20} (floor 0.25). Reported: each
+label's rank agreement with the shipped setting, and `Topo-QoS` ρ under each.
+
+**Inert-vs-active rule.** Predict "active" (`I* > 0`) iff `Reach > 0`. Reported:
+accuracy, balanced accuracy and F1 per fold.
+
+### Contrasts
+
+Exploratory family, Holm-corrected across the four new rankers: each of `Reach`,
+`Reach-QoS`, `CDI`, `InDeg` against `Topo-QoS` (two-sided Wilcoxon over the twelve
+folds, bootstrap 95% CI, B = 2,000). Each is also compared descriptively, per fold,
+with the published CPU `HGT-QoS` values (S23).
+
+### Decision rules
+
+| Rule | Condition | What changes in the text |
+|:---|:---|:---|
+| R1 | The best of the four new rankers has LOSO mean ρ ≥ 0.622 (`HGT-QoS`, CPU) | Abstract, §1 and §9 say that learned engines do not beat a training-free reachability score on this oracle; the learned contribution is narrowed to transfer and identification. |
+| R2 | `Topo-Mult` or `Topo-QoS-Perm` retains ≥ 50% of the published `Topo` → `Topo-QoS` gain (fold-mean ρ − 0.349) / 0.204 | The claim that *declared QoS contracts* produce the gain is replaced throughout by *QoS-weighted dependency multiplicity*; the QoS-content share is reported as what the controls leave. |
+| R2′ | On the QoS-independent corpus, `Topo-QoS` − `Topo` < 50% of the published +0.204 | The generator coupling is reported as part of the mechanism of the gain. |
+| R3 | Always | Every arm is reported in the manuscript or supplement, whichever way it comes out. |
+
+**What is unchanged.** All registered contrasts of the plan and Amendments 1–6, their
+families and their outcomes. No learned model is retrained.
+
+---
+
+## Amendment 8 — attribution controls (2026-09-26, after their results existed)
+
+*Numbering note.* This amendment was first committed as "Amendment 7" on a parallel
+branch. When the branches were merged, the record was put in date order: the
+training-free amendment above (2026-09-25) keeps 7, and this one becomes 8. Its
+text is otherwise unchanged.
 
 **Status when written:** every run below is complete. This amendment is post hoc,
 and everything it adds is exploratory. It registers no contrast and changes no
@@ -483,7 +564,7 @@ This is not an amendment: it records a registered arm being run, under Amendment
 was run in one CPU invocation with `topo_qos` and `hgl_qos`, using
 `make -f reproduce/Makefile rq-directionality` at a clean commit. Both
 comparators reproduce their published rows bit for bit. On this substrate the
-reverse pass is HGT's only route into Applications (Amendment 7), so HGT-QoS-U
+reverse pass is HGT's only route into Applications (Amendment 8), so HGT-QoS-U
 scores each Application from its own features.
 
 - **Registered contrast** (Amendment 2 control family). HGT-QoS vs HGT-QoS-U:

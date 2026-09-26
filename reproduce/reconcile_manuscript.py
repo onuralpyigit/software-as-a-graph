@@ -720,7 +720,7 @@ def check_realworld(rep: Report) -> None:
     GAT-QoS rho | GAT rho | GBM-Feat rho | HGT-QoS rho_>0. The table previously had
     eight columns while this check skipped any row shorter than nine, so none of its
     rows was ever checked; a check that matches nothing now reports a skip instead.
-    GAT and GBM-Feat come from the Amendment 7 attribution runs.
+    GAT and GBM-Feat come from the Amendment 8 attribution runs.
     """
     d = (_load("realworld_zeroshot_v7.json") or _load("realworld_zeroshot_v6.json")
          or _load("realworld_zeroshot_v5.json") or _load("realworld_zeroshot.json"))
@@ -876,7 +876,15 @@ FRESHNESS_TARGETS = {
     "realworld_zeroshot_gl_qos16_prior_cpu.json": "Table 14 Hybrid-GAT system models",
     # Holm over every registered contrast of the plan and its amendments.
     "omnibus_registered_holm.json": "Section 6.3 / Supplementary S24 omnibus correction",
-    # Amendment 7: attribution controls (post hoc, exploratory).
+    # Amendment 7: training-free dependency counts and QoS-attribution controls.
+    "tf_baselines.json": "Table 7 training-free rows / Supplementary Amendment 7 section",
+    "qos_attribution_controls.json": "Section 7.1.2 / Supplementary Amendment 7 section",
+    "qos_indep_corpus.json": "Section 7.1.2 / Supplementary Amendment 7 section",
+    "topo_substrate_check.json": "Section 7.1.2 / Supplementary Amendment 7 section",
+    "oracle_param_sensitivity.json": "Section 4.3 / Supplementary Amendment 7 section",
+    "system_model_descriptives.json": "Section 7.3 / Supplementary Amendment 7 section",
+    "dependency_count_cost.json": "Section 7.4",
+    # Amendment 8: attribution controls (post hoc, exploratory).
     "loso_attribution_cpu.json": "tab:attribution / Supplementary attribution folds",
     "attribution_contrasts.json": "tab:attribution contrasts",
     "receptive_field_probe.json": "Section 6.2 / Supplementary receptive field",
@@ -885,7 +893,7 @@ FRESHNESS_TARGETS = {
     "realworld_zeroshot_gl_full_qos16_cap_attribution.json": "Supplementary attribution zero-shot",
     "realworld_zeroshot_tab_gbm_attribution.json": "tab:9b GBM-Feat / Supplementary attribution zero-shot",
     "realworld_zeroshot_tab_gbm_qos_attribution.json": "Supplementary attribution zero-shot",
-    # Amendment 2's directionality control, run after Amendment 7.
+    # Amendment 2's directionality control, run after Amendment 8.
     "loso_directionality_cpu.json": "Section 7.2 / tab:supp-directionality (HGT-QoS-U LOSO)",
     "loso_significance_directionality_cpu.json": "Section 7.2 directionality contrast / omnibus",
     "realworld_zeroshot_hgl_qos_directionality.json": "tab:supp-directionality zero-shot (HGT-QoS)",
@@ -1136,7 +1144,7 @@ def check_qos_label_ablation(rep: Report) -> None:
 
 PROSE_NOTES = [
     "QoS-node-column seed spreads in sec:rq2 <- results/attribution_contrasts.json median_seed_sd",
-    "GBM-Feat / receptive-field / zero-shot prose in sec:6.2, sec:rq2, sec:rq3, sec:8 <- the Amendment 7 artifacts",
+    "GBM-Feat / receptive-field / zero-shot prose in sec:6.2, sec:rq2, sec:rq3, sec:8 <- the Amendment 8 artifacts",
     "label-noise ceiling in sec:rq1 <- output/loso_cache/*/failure_impact.json label_stability",
     "gate range in sec:rq4 <- results/detection_validation_timed_jss12.json gate_seconds",
 ]
@@ -1196,6 +1204,59 @@ def check_hybrid_table(rep: Report) -> None:
                 rep.findings.append(Finding("tab:hybrid", _label(cells[0]), nm, got, round(truth, 4)))
 
 
+def check_amendment7_rows(rep: Report) -> None:
+    """Table tab:hybrid, training-free rows added by Amendment 7.
+
+    LOSO mean rho, delta against Topo-QoS, Overlap@K and the system-model rho and
+    PR-AUC all come from ``tf_baselines.json``; the supplementary tables are
+    rendered from the same artifacts, so they are checked by re-rendering.
+    """
+    tf = _load("tf_baselines.json")
+    tex = _tex("sec7_results.tex")
+    if tf is None or r"\label{tab:hybrid}" not in tex:
+        rep.skipped.append("tab:hybrid (Amendment 7 rows): tf_baselines.json or table absent")
+        return
+    names = {"Betweenness (proj.)": "Topo (projection)", "InDeg": "InDeg", "Reach": "Reach",
+             "Reach-QoS": "Reach-QoS", "CDI": "CDI"}
+    seen = 0
+    for row in _rows(tex, r"\midrule", after_label=r"\label{tab:hybrid}"):
+        cells = _cells(row)
+        key = names.get(_label(cells[0]))
+        if key is None:
+            continue
+        seen += 1
+        s, c = tf["summary"][key], tf["contrasts_vs_topo_qos"][key]
+        for idx, truth, nm in ((1, s["loso_mean_rho"], "mean_rho"), (2, c["delta"], "delta"),
+                               (5, s["loso_mean_overlap"], "overlap_at_k"),
+                               (6, s["systems_mean_rho"], "systems_rho"),
+                               (7, s["systems_mean_pr_auc"], "systems_pr_auc")):
+            got = _num(cells[idx]) if idx < len(cells) else None
+            rep.checked += 1
+            if got is None or abs(got - truth) > 0.0006:
+                rep.findings.append(Finding("tab:hybrid", _label(cells[0]), nm, got, round(truth, 4)))
+    if seen == 0:
+        rep.skipped.append("tab:hybrid (Amendment 7 rows): no rows matched")
+    try:
+        from reproduce import render_amendment7_tables as r7
+        tf_all = r7._load("tf_baselines.json")
+        expected = "\n\n".join([
+            "% Generated by reproduce/render_amendment7_tables.py -- do not edit by hand.",
+            r7.per_fold_table(tf_all), r7.contrasts_table(tf_all), r7.systems_table(tf_all),
+            r7.controls_table(r7._load("qos_attribution_controls.json"),
+                              r7._load("qos_indep_corpus.json"),
+                              r7._load("topo_substrate_check.json")),
+            r7.oracle_table(r7._load("oracle_param_sensitivity.json")),
+            r7.descriptives_table(r7._load("system_model_descriptives.json"), tf_all),
+        ]) + "\n"
+    except FileNotFoundError:
+        rep.skipped.append("supp_amendment7.tex: an Amendment 7 artifact is absent")
+        return
+    rep.checked += 1
+    if (ROOT / "docs/research/jss/latex/supp_amendment7.tex").read_text() != expected:
+        rep.findings.append(Finding("supp_amendment7.tex", "rendered tables", "content",
+                                    "stale", "re-render", "run reproduce/render_amendment7_tables.py"))
+
+
 def check_contrasts_matched(rep: Report) -> None:
     """Table tab:contrasts_matched: the capacity- and channel-matched 2x2.
 
@@ -1221,7 +1282,7 @@ def check_contrasts_matched(rep: Report) -> None:
         "QoS inputs, typing present": ("hgl_qos", "hgl"),
     }
     # "QoS inputs": the Q factor switches the edge channel and the three QoS
-    # node columns together (Amendment 7); the rows were "QoS channel" before.
+    # node columns together (Amendment 8); the rows were "QoS channel" before.
     rowmap = {"Typing (main effect)": "main_typing",
               "QoS inputs (main effect)": "main_qos",
               "Typing $times$ QoS interaction": "interaction"}
@@ -1271,7 +1332,7 @@ def _table_rows(tex: str, label: str) -> List[List[str]]:
 
 
 def check_attribution(rep: Report) -> None:
-    """Amendment 7 attribution controls: body table and the supplement's three tables.
+    """Amendment 8 attribution controls: body table and the supplement's three tables.
 
     * tab:attribution -- each contrast against ``attribution_contrasts.json``,
       matched by its contrast cell (``GAT-QoS vs. GAT-QoS-nf``);
@@ -1542,6 +1603,7 @@ def main() -> int:
     check_gate_ratio_table(rep)
     check_qos_label_ablation(rep)
     check_hybrid_table(rep)
+    check_amendment7_rows(rep)
     check_contrasts_matched(rep)
     check_omnibus_holm(rep)
     check_attribution(rep)
