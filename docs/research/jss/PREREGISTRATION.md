@@ -815,3 +815,195 @@ All twelve contrasts are in Table 8 and Supplementary S33.
 - **E3:** every arm is in Supplementary S33.
 
 **Unchanged.** The 13-contrast confirmatory omnibus, and every registered decision.
+
+---
+
+## Amendment 11 — learned combination of dependency-graph signals across independent oracles (2026-09-26, before any result)
+
+**Status when written:** no arm below has been implemented, fitted or run. The
+training-free comparators are *not* unseen. `data/benchmarks/independent_oracle_evaluation.json`
+publishes `Analytic-I*`, `InDeg`, `Reach` and `Topo-QoS` against `I*`, `I_dyn` (30
+Applications per fold) and `I_comp`, and those numbers motivated this design. What
+was seen before writing, in full:
+- those published comparator values;
+- a timing probe of three `MessageFlowSimulator` fault runs on ATM, Microservices
+  and Enterprise. The resulting labels were discarded without being inspected.
+
+No learned arm's number exists. The amendment is confirmatory only with respect to
+the learned arms. It is not confirmatory for the choice of comparators, which was
+made after seeing them.
+
+**Why it exists.** Three facts, taken together:
+1. **No training-free score wins every oracle.** On the published values:
+
+   | Oracle | Analytic-I* | InDeg | Reach | Topo-QoS |
+   |:---|---:|---:|---:|---:|
+   | `I*` | **0.808** | 0.764 | 0.732 | 0.553 |
+   | `I_dyn` (n = 30/fold) | **0.636** | 0.610 | 0.504 | 0.393 |
+   | `I_comp` | 0.636 | 0.650 | 0.302 | **0.702** |
+
+   The question is whether a learned combination of these signals is more *robust*,
+   meaning better in the worst case over oracles, than any one of them.
+2. **The `I_dyn` sample is lexical** (Round 5 review, M1). `_message_flow_labels`
+   takes the first 30 of `labeled_node_ids`, sorted as strings. At about 1–2 s per
+   fault run, labelling every Application is affordable. So this amendment replaces
+   the sample rather than defending it.
+3. **QoS is inert on `I*`** (Amendment 7: `Topo-QoS-Perm`, Δ = −0.006, p = 0.733).
+   `I_dyn` under `qos_mode="full"` is the one oracle whose mechanics read the
+   declared contracts: reliability, durability replay, deadlines, priority-ordered
+   service, history depth, rate and payload size. It is therefore the only place a
+   QoS-aware learner has a mechanism by which to beat the counts.
+
+**Why no GNN arm.** Amendments 8 and 9 already answer the GNN question here. On the
+native graph the GATs are per-node models, and GBM-Feat matches them (0.642 vs
+0.635). On the projection, GAT-P-QoS matches `InDeg` (0.748 vs 0.764) and does not
+beat it. A tabular learner over training-free signals is the cheapest adequate test
+of whether *learning* adds anything. A GNN trained on `I_dyn` labels is deferred to
+a later amendment, and only if Family B below succeeds.
+
+### Labels
+
+All labels are scored on the Application population of the twelve LOSO folds and
+the five system models.
+
+- **`I*`.** Unchanged: `labels_for`, published settings, mean over seeds {42, 123,
+  456, 789, 2024}.
+- **`I_dyn-full` (new).** `_message_flow_labels` with its published settings
+  (`duration=60.0`, `qos_mode="full"`, `target_utilization=0.65`), with two changes:
+  - `max_candidates=None`, restricted to Applications;
+  - seeds {42, 123, 456, 789, 2024}, with the label being the mean over seeds.
+
+  As before, components that carry no pub/sub traffic are omitted, not scored 0.0.
+- **`I_comp`.** Read as-is from the committed
+  `data/benchmarks/icomp_failure_simulator_cache_jss12.json` (exhaustive over
+  Applications). `I_comp` is **never a training label**: `FailureSimulator` is the
+  Validate-stage oracle, and training on it would violate the
+  `FaultInjector`/`FailureSimulator` separation (CLAUDE.md invariants;
+  `tests/test_groundtruth_contract.py`).
+
+**Reproduction gates.** Nothing else is reported if either gate fails; only the
+failure is reported.
+- **G1.** The seed-42 `I_dyn-full` labels, restricted to each fold's 30 lexical
+  candidates, must equal the values behind the published n = 30 column
+  (`results/idyn_scenario_cache_jss12.json`) within 1e-9. Each fault run is an
+  independent simulator instance, so they should agree exactly.
+- **G2.** `InDeg`, `Reach`, `Topo-QoS` and `Analytic-I*` are recomputed per fold. They
+  must match `independent_oracle_evaluation.json` on `I*` and `I_comp` within 1e-3.
+
+### Features, fixed before any run
+
+Every feature is training-free and computed per Application from the committed
+topology or its Application–Library `DEPENDS_ON` projection (Rules 1 and 5). Every
+feature, and every training label, is converted to a within-scenario percentile rank
+(average ties) before fitting. The target is a ranking, and cross-scenario pooling
+of raw values is what distorted pooled ρ before (`reproduce/stratification_check.py`).
+
+| Set | Features |
+|:---|:---|
+| **S** (structural, 9) | `InDeg`; `Reach`; `Analytic-I*` (Σ_{t∈pub(v)} \|sub(t)\|/\|pub(t)\|); out-degree on the projection; topics published; topics subscribed; libraries used; other Applications on v's host (`RUNS_ON`); `Topo` |
+| **Q** (QoS and rate, 9) | `Topo-QoS`; `Reach-QoS`; QoS-weighted in-degree (Σ `qos_weight` over v's incoming projection edges); Σ `frequency` over pub(v); Σ `frequency`·`size` over pub(v); share of pub(v) declared `RELIABLE`; share of pub(v) with durability ≠ `VOLATILE`; share of pub(v) declaring `deadline_ms`; max `transport_priority` ordinal over pub(v) |
+
+The following are excluded because the generator couples them to topology
+(Amendment 7, R2′), or because nothing in the manifest-linting use case would have
+them: Application `criticality`, `hotstandby`, `app_type` and `code_metrics`.
+
+### Arms, fixed before any run
+
+The design is a 2 × 2: feature set × training oracle. The learner in every arm is
+`GradientBoostingRegressor` at scikit-learn defaults, the same estimator and settings
+as `tab_gbm` (`saag/prediction/models/tabular.py`). There is no hyperparameter
+search, so no inner selection. Seeds {42, 123, 456, 789, 2024} set `random_state`;
+per-fold ρ is the mean over seeds. At default settings the seed spread is expected
+to be near zero, and it is reported whatever it is.
+
+| id | Label | Features | Trained on |
+|:---|:---|:---|:---|
+| `gbm_dep` | GBM-Dep | S | `I*` |
+| `gbm_dep_qos` | GBM-Dep-QoS | S + Q | `I*` |
+| `gbm_dep_dyn` | GBM-Dep→dyn | S | `I_dyn-full` |
+| `gbm_dep_qos_dyn` | GBM-Dep-QoS→dyn | S + Q | `I_dyn-full` |
+
+**LOSO.** Each arm is trained on the Applications of the eleven training scenarios
+and scored on the held-out scenario, against all three oracles. Training rows are
+the labelled Applications only.
+
+**Zero-shot.** Each arm is trained on all twelve folds and scored on the five system
+models:
+- `I*` always;
+- `I_dyn-full` and `I_comp` only if their label functions run on the system models
+  unchanged. If they do not, that is reported and those cells are omitted.
+
+**What the `→dyn` arms are.** They are *surrogates* for the queue-flow simulator.
+For them, `I_dyn` is the training target, not an independent check. Every mention of
+them in the manuscript carries that caveat, together with the measured labelling
+cost per scenario beside their inference cost. They live in `reproduce/` only and
+never enter `saag/`'s Predict stage.
+
+**Metrics.** The shared metric code, on the Application population:
+- Spearman ρ;
+- ρ>0 (active stratum);
+- Overlap@K, with K = round(0.20 |V_app|).
+
+These are reported for every arm × oracle. **Worst-case ρ** for a ranker on fold f is
+min over {`I*`, `I_dyn-full`, `I_comp`} of its ρ on f.
+
+**Harness.** `reproduce/oracle_robust_ltr.py`, run by
+`make -f reproduce/Makefile rq-oracle-robust`. Every artifact carries
+`_provenance.stamp` and must be `dirty: false`. Artifacts are written to
+`data/benchmarks/`:
+- `idyn_full_labels_jss12.json`;
+- `oracle_robust_ltr.json`;
+- `oracle_robust_significance.json`.
+
+### Contrasts
+
+There are three families. Each is Holm-corrected within itself, and none joins the
+13-contrast omnibus. Every contrast is a two-sided Wilcoxon test over the twelve LOSO
+folds, with a bootstrap 95% CI (B = 2,000). The attainable floor is p = 0.0005, or
+0.001 after Holm across two contrasts.
+
+- **Family A: cross-oracle robustness** (primary). The arm is `gbm_dep_qos`, trained
+  on `I*` only, so both `I_dyn` and `I_comp` stay independent of it.
+  - A1: worst-case ρ vs `Analytic-I*` worst-case ρ.
+  - A2: worst-case ρ vs `InDeg` worst-case ρ.
+- **Family B: queue-flow surrogate.** Both contrasts are on `I_dyn-full`.
+  - B1: `gbm_dep_qos_dyn` vs `Analytic-I*`.
+  - B2: `gbm_dep_qos_dyn` vs `InDeg`.
+- **Family C: QoS attribution.**
+  - C1: `gbm_dep_qos` vs `gbm_dep`, on `I*`.
+  - C2: `gbm_dep_qos_dyn` vs `gbm_dep_dyn`, on `I_dyn-full`.
+
+Reported descriptively, without tests:
+- every other arm × oracle cell;
+- ρ>0 and Overlap@K for every cell;
+- the zero-shot means;
+- the seed spread;
+- for the four comparators on `I_dyn`, the published n = 30 sample beside the
+  seed-42 full population and the 5-seed full population. This is the M1
+  sensitivity check.
+
+### Decision rules
+
+| Rule | Condition | What changes in the text |
+|:---|:---|:---|
+| A | A1 Holm p < 0.05, mean Δ > 0 | Abstract, §1.4, §8.1 and §9 may say that a learned combination of dependency-graph signals, trained on the reachability oracle alone, ranks cascade impact more robustly across three independent simulators than any single training-free score. GBM-Dep-QoS enters Table 11 for when the failure mode is unknown. The negative result for GNNs is unchanged: this arm is not a GNN. |
+| A′ | A1 fails, A2 Holm p < 0.05, Δ > 0 | The robustness claim is limited to "more robust than the dependency count". `Analytic-I*` is named as the simpler instrument that the learner does not beat. |
+| A″ | Neither A1 nor A2 holds | "Learning a combination of dependency-graph signals adds no measurable robustness across oracles." If the mean Δ vs `Analytic-I*` is below 0, it is stated without hedging. |
+| B | B1 Holm p < 0.05, Δ > 0 | §7 and §8.1 may say that a learned surrogate ranks held-out architectures' queue-flow impact better than the analytic approximation, with the caveat and cost ledger above. |
+| B′ | Otherwise | No surrogate claim. |
+| C | C2 Holm p < 0.05, Δ > 0, and C1 not | "Declared QoS contracts carry signal for dynamic queue-flow impact that they do not carry for topological reachability." This is the only QoS-content claim this amendment can license. |
+| C′ | C1 Holm p < 0.05, Δ > 0 | It is reported against Amendment 7's R2, which attributed the `I*` QoS gain to multiplicity; the conflict is discussed rather than resolved in either direction. |
+| C″ | Neither C1 nor C2 holds | "The QoS features add nothing measurable on either oracle." |
+| Z | On `I*` zero-shot, the best arm's mean is below `Reach`'s 0.938 | The recommendation for unseen real systems stays `Reach`. |
+| R | Always | Every arm × oracle cell is reported in the manuscript or supplement. The `I_dyn-full` comparator values replace the n = 30 sample in Table 7, whatever the learned arms do. The n = 30 values stay beside them as the M1 sensitivity check. |
+
+**Stopping rule.** If the outcome is negative, it is not re-run with other features,
+another learner, tuned hyperparameters or a ranking loss. Any such follow-up, for
+example a top-K-weighted loss for Overlap@K (Round 5, M2) or a GNN trained on
+`I_dyn-full`, needs its own amendment, written before its results exist.
+
+**What is unchanged.**
+- All registered contrasts of the plan and Amendments 1–10, and the 13-contrast
+  omnibus.
+- No published arm is retrained or replaced.
+- `I*` and `I_comp` labels.
