@@ -6,7 +6,7 @@ All results are reported on the Application population ($V_{\text{app}}$) agains
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figures/Figure_5}
-\caption{Main results at a glance, Application population. (A)~Mean Spearman $\rho$ with 95\% bootstrap intervals under LOSO (filled circles; Table~\ref{tab:hybrid}) and zero-shot on five system models (open diamonds). Counting dependents on the derived dependency graph (\texttt{InDeg}, \texttt{Reach}) achieves top performance on both unseen synthetic architectures and system models; neural models reading the dependency graph reach parity with \texttt{InDeg}. (B)~Per held-out fold, the gain of \texttt{HGT-QoS} and of Hybrid-HGT over \texttt{Topo-QoS}. (C)~Cell means of the capacity- and channel-matched $2\times2$ (Table~\ref{tab:contrasts_matched}): QoS inputs raise both models by about $0.07$, while typed and untyped configurations remain virtually indistinguishable.}
+\caption{Main results at a glance, Application population. (A)~Mean Spearman $\rho$ with 95\% bootstrap intervals under LOSO (filled circles; Table~\ref{tab:hybrid}) and zero-shot on five system models (open diamonds). Counting dependents on the derived dependency graph (\texttt{InDeg}, \texttt{Reach}) achieves top performance on both unseen synthetic architectures and system models; neural models reading the dependency graph reach parity with \texttt{InDeg}. (B)~Per held-out fold, the gain of \texttt{HGT-QoS} and of Hybrid-HGT over \texttt{Topo-QoS}. (C)~Cell means of the capacity- and channel-matched $2\times2$ (Table~\ref{tab:contrasts_matched}): the ``QoS'' inputs, which include a QoS-weighted in-degree column, raise both models by about $0.07$ (not significant after Holm), while typed and untyped configurations are indistinguishable.}
 \label{fig:results}
 \end{figure}
 
@@ -95,7 +95,7 @@ where $|\text{pub}(t)| \ge 1$ holds for all published topics $t \in \text{pub}(v
 \subsection{RQ2: What Learned Engines Need}
 \label{sec:rq2}
 
-\paragraph{Summary} \emph{Learned engines need two things: (1)~they need to read the dependency graph, where directed messages reach scored applications ($+0.08$ to $+0.11$ gain, 11--12 of 12 folds); and (2)~they need node-level degree features. When capacity is matched, relation typing adds nothing (typing main effect $-0.014$). In the QoS ablation, node-level coupling features ($w_{\text{in}}$) act as a weighted in-degree, confounding QoS contract content with structural dependent counting.}
+\paragraph{Summary} \emph{Learned engines gain most from reading the dependency graph, where messages reach the scored Applications ($+0.08$ to $+0.11$, 11--12 of 12 folds). At matched capacity, relation typing adds nothing (main effect $-0.014$). The ``QoS channel'' factor is confounded: its QoS-off level also removes a weighted in-degree column, so its $+0.073$ (not significant after Holm) cannot be attributed to QoS contract content.}
 
 \begin{table}[htbp]
 \centering
@@ -109,22 +109,22 @@ where $|\text{pub}(t)| \ge 1$ holds for all published topics $t \in \text{pub}(v
 \midrule
 \multicolumn{8}{l}{\textit{Three orthogonal quantities, Holm-corrected across these three}} \\
 \textbf{Typing (main effect)} & averaged over Q & $-0.014$ & $[-0.052, +0.023]$ & 4/12 & 29.0 & 0.470 & 0.940 \\
-\textbf{QoS channel (main effect)} & averaged over T & $\mathbf{+0.073}$ & $[+0.013, +0.120]$ & 10/12 & 13.0 & 0.043 & 0.127 \\
-\textbf{Typing $\times$ QoS interaction} & difference of differences & $+0.001$ & $[-0.050, +0.042]$ & 6/12 & 34.0 & 0.733 & 0.940 \\
+\textbf{``QoS'' inputs (main effect)} & averaged over T & $\mathbf{+0.073}$ & $[+0.013, +0.120]$ & 10/12 & 13.0 & 0.043 & 0.127 \\
+\textbf{Typing $\times$ ``QoS'' interaction} & difference of differences & $+0.001$ & $[-0.050, +0.042]$ & 6/12 & 34.0 & 0.733 & 0.940 \\
 \midrule
 \multicolumn{8}{l}{\textit{Simple effects --- descriptive, not separately corrected}} \\
 \textbf{Typing, QoS absent} & HGT vs.\ GAT & $-0.015$ & $[-0.064, +0.033]$ & 5/12 & 31.0 & 0.569 & --- \\
 \textbf{Typing, QoS present} & HGT-QoS vs.\ GAT-QoS & $-0.013$ & $[-0.054, +0.026]$ & 4/12 & 27.0 & 0.380 & --- \\
-\textbf{QoS channel, typing absent} & GAT-QoS vs.\ GAT & $\mathbf{+0.072}$ & $[+0.028, +0.109]$ & 10/12 & 9.0 & 0.016 & --- \\
-\textbf{QoS channel, typing present} & HGT-QoS vs.\ HGT & $+0.073$ & $[-0.002, +0.136]$ & 10/12 & 19.0 & 0.129 & --- \\
+\textbf{``QoS'' inputs, typing absent} & GAT-QoS vs.\ GAT & $\mathbf{+0.072}$ & $[+0.028, +0.109]$ & 10/12 & 9.0 & 0.016 & --- \\
+\textbf{``QoS'' inputs, typing present} & HGT-QoS vs.\ HGT & $+0.073$ & $[-0.002, +0.136]$ & 10/12 & 19.0 & 0.129 & --- \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-\noindent\textbf{QoS feature attribution and confounding.} Table~\ref{tab:contrasts_matched} shows that the QoS main effect ($+0.073$) is not statistically significant after Holm correction ($p_{\text{Holm}} = 0.127$). In the node feature encoding, $w_{\text{in}}$ (\texttt{qos\_weight\_in}) is the sum of incoming edge weights on the analysis graph---a weighted in-degree. The QoS ablation zeroed this column, thereby removing the dependent count itself. As demonstrated by the registered closed-form controls in Amendment~7 (\path{results/qos_attribution_controls.json}), unweighted betweenness ($0.591$) and constant topic weights ($0.595$) match or exceed QoS-weighted betweenness ($0.553$), and permuting QoS profiles across topics yields no significant difference ($\Delta = -0.006$ $[-0.025, +0.015]$, $p = 0.733$), confirming that the observed gain is driven by dependency graph structure rather than QoS contract parameters.
+\noindent\textbf{The ``QoS'' factor is confounded.} Its main effect ($+0.073$) is not significant after Holm correction ($p_{\text{Holm}} = 0.127$), and it does not measure QoS content alone. In the node encoding, $w_{\text{in}}$ is the sum of incoming edge weights on the analysis graph, a weighted in-degree, and the QoS-off level zeroes it, removing a close relative of the dependent count together with the QoS inputs; Figure~\ref{fig:results}(C) and Table~\ref{tab:contrasts_matched} should be read with that label. A rerun of the $2\times2$ with the in-degree column kept at both levels was not performed. The closed-form controls of Amendment~7 point the same way: unweighted betweenness ($0.591$) and constant topic weights ($0.595$) match or exceed QoS-weighted betweenness ($0.553$), and permuting QoS profiles across topics changes nothing ($\Delta = -0.006$ $[-0.025, +0.015]$, $p = 0.733$).
 
-\noindent\textbf{Relation typing under matched capacity.} \texttt{HGT-QoS} remains within $0.013$ of \texttt{GAT-QoS} (Table~\ref{tab:contrasts_matched}). In the single untuned configuration evaluated (width 100, default hyperparameters), \texttt{HGT-P-QoS} failed to train stably on the dependency projection (mean $\rho = 0.514$, seed spread $0.208$), whereas \texttt{GAT-P-QoS} converged smoothly ($\rho = 0.748$; Table~\ref{tab:hybrid}). Relational typing remains untested in tuned hyperparameter configurations or architectures where message passing reaches scored nodes.
+\noindent\textbf{Relation typing under matched capacity.} \texttt{HGT-QoS} remains within $0.013$ of \texttt{GAT-QoS} (Table~\ref{tab:contrasts_matched}). On the raw multigraph, the learners act as per-node models: a gradient-boosted regressor over the same per-node features (\texttt{GBM-Feat}, Amendment~8) reaches $0.642$, level with \texttt{GAT-QoS}, and removing HGT's reverse pass, the only route by which messages reach an Application, changes nothing (\texttt{HGT-QoS-U}, $-0.010$). On the dependency graph, in the single untuned configuration evaluated (width 100), \texttt{HGT-P-QoS} was unstable across seeds (mean $\rho = 0.514$; mean within-fold seed standard deviation $0.254$), whereas \texttt{GAT-P-QoS} was not ($0.748$; $0.030$). Relation typing was not tested under tuning (Section~\ref{sec:8.2}).
 
 \subsection{RQ3: Zero-Shot Transfer to Models of Open-Source Systems}
 \label{sec:rq3}
