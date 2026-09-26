@@ -71,15 +71,25 @@ single-engine mean (0.638), but the registered contrast against `Topo-QoS` is no
   (Microservices, ATM) and loses on its strongest (Enterprise, Telecom RAN). Neither graph size,
   density nor prediction dispersion predicts the winner in advance.
 
-## Where learned engines help: working hypotheses
+## Where learned engines help: engine regimes
 
-Each row rests on one to three folds or systems, so each is a hypothesis for future work, not a
-finding.
+Manuscript §8.2 (Table 12) and the supplement's Engine Regimes section. The analysis is post hoc and
+exploratory and trains nothing.
+
+- **Command:** `make -f reproduce/Makefile jss-regimes`, which runs `reproduce/engine_regimes.py`.
+- **Artifact:** `engine_regimes.json`, checked by `reconcile_manuscript.py::check_engine_regimes`.
+
+Each row below is a hypothesis for future work, not a finding. Across 96 descriptor–gain correlations
+over the twelve folds, none survives Benjamini–Hochberg correction (smallest q = 0.32).
 
 | Factor | Candidate mechanism | Evidence on this corpus |
 |---|---|---|
-| QoS edge channel | Edge-level QoS contracts tell the model how strongly each dependency couples components | +0.073 at matched capacity on 10/12 folds, typed or untyped ([rq2-matched-control.md](rq2-matched-control.md)) |
-| Topology and symmetry | Dense irregular meshes give distinct neighbourhoods; symmetric stars create betweenness ties | Microservices and ATM gains over `Topo-QoS`; EdgeX closed-form Overlap@K = 0 |
-| Scale and diameter | Fixed 3-layer message passing covers less of a large graph | 520-node Enterprise is the main loss (one scenario) |
-| Original system's paradigm | Unknown; all five system models are encoded as pub-sub graphs | $\rho_{>0} > 0$ on the 3 pub-sub-derived models, non-positive on the 2 RPC-derived ones |
+| Closed-form fit | Learned engines are steady across architectures; `Topo-QoS` is not, so the winner is set by how well centrality fits | By `Topo-QoS` tercile: `HGT-QoS` 0.604 / 0.589 / 0.672 vs `Topo-QoS` 0.324 / 0.561 / 0.775 |
+| QoS inputs | Declared coupling weights tell the model how strongly components couple | +0.073 at matched capacity, carried by the 3 QoS node columns, not the edge channel ([rq2-attribution-controls.md](rq2-attribution-controls.md)) |
+| Message passing | None found: the accuracy comes from graph-derived node features | `GBM-Feat` (no graph) 0.642 ≈ `GAT-QoS` 0.635; no message reaches an Application in the GATs; `HGT-QoS-U` 0.632 vs `HGT-QoS` 0.622 |
+| Topology and symmetry | Symmetric stars create betweenness ties for closed-form scores | Learned engines win all 4 weakest-centrality folds; EdgeX closed-form Overlap@K = 0 |
+| Scale | Learned gain over `Topo-QoS` shrinks with size, while the hybrid correction grows | Spearman −0.48 (apps), −0.62 (libraries); hybrid +0.43; accuracy is untested above 300 apps |
+| Typing × scale | Typed parameters may stand in for undeclared QoS in large multi-broker systems | Without QoS, HGT − GAT correlates +0.63 / +0.66 / +0.77 with apps / topics / brokers; +0.03 with QoS |
+| Receptive field | **Refuted** as an explanation | HGT-QoS RF share (35–59%) vs per-fold ρ: +0.12; vs gain over `Topo-QoS`: −0.06 |
+| Original system's paradigm | RPC failure semantics (synchronous calls) are not modelled | Pure learned ρ>0 0.18–0.83 on the 3 pub-sub-derived models; −0.19 to +0.16 on the 2 RPC-derived ones |
 | Inert-node base rates | Zero-impact components are part of what full-population ρ rewards | 21–52% of Applications carry $I^* = 0$; $\rho_{>0}/\rho \approx$ 49–56% (Supplement S25) |

@@ -51,7 +51,7 @@ SCENARIOS_DIR ?= data/scenarios
 RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 
-.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution rq-directionality rq-capacity nested-search kfold convergent-validity \
+.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution rq-directionality rq-capacity jss-regimes nested-search kfold convergent-validity \
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 \
@@ -263,6 +263,12 @@ rq-capacity:
 	OMP_NUM_THREADS=4 $(PYTHON) reproduce/realworld_zeroshot.py --variant gl_full_qos_cap --layers 3 \
 	    --epochs $(EPOCHS) --device cpu --workdir $(OUTPUT_DIR)/realworld_zeroshot_capacity \
 	    --output $(RESULTS_DIR)/realworld_zeroshot_gl_full_qos_cap_capacity.json
+
+# Where graph learning helps and where it does not (manuscript Section 8.2,
+# post hoc, exploratory). Trains nothing: joins the per-fold and zero-shot
+# artifacts of the targets above with per-scenario corpus descriptors.
+jss-regimes:
+	$(PYTHON) reproduce/engine_regimes.py --output $(RESULTS_DIR)/engine_regimes.json
 
 seed-robustness:
 	$(PYTHON) reproduce/factorial_seed_robustness.py \
