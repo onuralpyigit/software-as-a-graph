@@ -20,6 +20,8 @@ and without Neo4j:
 * ``cost``        — wall-clock cost of the projection and each ranker.
 * ``substrate``   — what the published ``Topo`` column measured, beside unweighted
                     and QoS-weighted betweenness on the projection.
+* ``derivation``  — Amendment 10: InDeg / Reach against raw-multigraph counts
+                    (Degree-raw, Pubs-raw) and Rule-1-only reach (Reach-R1).
 
 Labels are cached under output/tf_labels/ keyed by scenario and oracle setting.
 The script re-executes itself with PYTHONHASHSEED=0: the CDI sample breaks
@@ -693,6 +695,128 @@ def cmd_cost(_: argparse.Namespace) -> int:
     return 0
 
 
+# ── Amendment 10: value of the dependency derivation ───────────────────────────
+
+def degree_raw(topology: Dict[str, Any]) -> Dict[str, float]:
+    """Total degree in the raw multigraph: the count available without derivation."""
+    g = build_graph_from_json(topology)
+    return {str(v): float(g.degree(v)) for v in g.nodes}
+
+
+def pubs_raw(topology: Dict[str, Any]) -> Dict[str, float]:
+    """Number of topics a component publishes to."""
+    out: Dict[str, float] = {}
+    for r in topology.get("relationships", {}).get("publishes_to", []):
+        src = r.get("source") or r.get("application_id") or r.get("from")
+        if src:
+            out[str(src)] = out.get(str(src), 0.0) + 1.0
+    return out
+
+
+def reach_r1(flow: nx.DiGraph) -> Dict[str, float]:
+    """``reach`` over Rule-1 (app_to_app) edges only: the raw pub-sub closure."""
+    r1 = nx.DiGraph()
+    r1.add_nodes_from(flow.nodes)
+    r1.add_edges_from((u, v) for u, v, d in flow.edges(data=True)
+                      if d.get("dependency_type", "app_to_app") == "app_to_app")
+    return reach(r1)
+
+
+def subscriber_count_raw(topology: Dict[str, Any]) -> Dict[str, float]:
+    """Distinct subscribers (other than v) of the topics v publishes: 2-hop, raw graph."""
+    rels = topology.get("relationships", {})
+    subs: Dict[str, set] = {}
+    for r in rels.get("subscribes_to", []):
+        src = r.get("source") or r.get("application_id") or r.get("from")
+        dst = r.get("target") or r.get("topic_id") or r.get("to")
+        if src and dst:
+            subs.setdefault(str(dst), set()).add(str(src))
+    reached: Dict[str, set] = {}
+    for r in rels.get("publishes_to", []):
+        src = r.get("source") or r.get("application_id") or r.get("from")
+        dst = r.get("target") or r.get("topic_id") or r.get("to")
+        if src and dst:
+            reached.setdefault(str(src), set()).update(subs.get(str(dst), set()) - {str(src)})
+    return {v: float(len(u)) for v, u in reached.items()}
+
+
+def _derivation_set(ids: Dict[str, str]) -> Dict[str, Dict[str, Any]]:
+    out: Dict[str, Dict[str, Any]] = {}
+    for sid, name in ids.items():
+        path = SCENARIOS_DIR / f"{sid}.json"
+        topo = _topology(path)
+        lab = labels_for(path)["impact"]
+        graph = build_graph_from_json(topo)
+        flow = _flow(topo)
+        ind = indeg(flow)
+        sub = subscriber_count_raw(topo)
+        apps = [n for n, d in graph.nodes(data=True) if d.get("type") == "Application"]
+        row: Dict[str, Any] = {
+            "InDeg": score(ind, lab, graph),
+            "Reach": score(reach(flow), lab, graph),
+            "Reach-R1": score(reach_r1(flow), lab, graph),
+            "Degree-raw": score(degree_raw(topo), lab, graph),
+            "Pubs-raw": score(pubs_raw(topo), lab, graph),
+            # The registered identity: InDeg of an Application is its raw 2-hop
+            # subscriber count, so this must be 0 on every graph.
+            "identity_max_abs_diff": max(
+                (abs(ind.get(a, 0.0) - sub.get(a, 0.0)) for a in apps), default=0.0),
+        }
+        out[name] = row
+        print(f"{name:32s} " + " ".join(f"{k}={row[k]['rho']:.3f}" for k in
+                                         ("InDeg", "Degree-raw", "Pubs-raw", "Reach", "Reach-R1"))
+              + f"  identity={row['identity_max_abs_diff']:.0f}")
+    return out
+
+
+def cmd_derivation(_: argparse.Namespace) -> int:
+    loso = _derivation_set(FOLDS)
+    systems = _derivation_set(SYSTEMS)
+    names = list(FOLDS.values())
+    arms = ("InDeg", "Reach", "Reach-R1", "Degree-raw", "Pubs-raw")
+
+    def col(a: str, src=loso, key: str = "rho") -> List[Optional[float]]:
+        return [src[n][a][key] for n in src]
+
+    tf = json.loads((RESULTS / "tf_baselines.json").read_text())
+    check = {a: max(abs(loso[n][a]["rho"] - tf["per_fold"][n][a]["rho"]) for n in names)
+             for a in ("InDeg", "Reach")}
+    identity = max(r["identity_max_abs_diff"] for r in (*loso.values(), *systems.values()))
+    contrasts = {
+        "InDeg vs Degree-raw": paired(col("InDeg"), col("Degree-raw")),
+        "InDeg vs Pubs-raw": paired(col("InDeg"), col("Pubs-raw")),
+        "Reach vs Reach-R1": paired(col("Reach"), col("Reach-R1")),
+    }
+    for k, ph in holm({k: c["p"] for k, c in contrasts.items()}).items():
+        contrasts[k]["p_holm"] = ph
+
+    def wins(k: str) -> bool:
+        return contrasts[k]["delta"] > 0 and contrasts[k]["p_holm"] < 0.05
+
+    summary = {a: {"loso_mean_rho": _mean(col(a)), "loso_mean_rho_active": _mean(col(a, key="rho_active")),
+                   "systems_mean_rho": _mean(col(a, systems)),
+                   "systems_mean_rho_active": _mean(col(a, systems, "rho_active")),
+                   "loso_rho_ci95": mean_ci(col(a))}
+               for a in arms}
+    decisions = {
+        "E1": {"triggered": wins("InDeg vs Degree-raw") and wins("InDeg vs Pubs-raw")},
+        "E2": {"triggered": wins("Reach vs Reach-R1")},
+    }
+    for a, s in summary.items():
+        print(f"{a:12s} LOSO {s['loso_mean_rho']:.3f} | systems {s['systems_mean_rho']:.3f}")
+    for k, c in contrasts.items():
+        print(f"{k:22s} {c['delta']:+.3f} {c['ci95']} {c['won']}/12 p={c['p']:.4f} holm={c['p_holm']:.4f}")
+    print("identity max |InDeg - raw 2-hop subscribers|:", identity, "| check vs tf_baselines:", check)
+    print("decisions:", decisions)
+    _write("derivation_ablation.json", {
+        "per_fold": loso, "per_system": systems, "summary": summary,
+        "contrasts": contrasts, "decisions": decisions,
+        "checks": {"indeg_equals_raw_subscriber_count_max_abs_diff": identity,
+                   "counts_vs_tf_baselines_max_abs_diff": check},
+    }, experiment="derivation")
+    return 0
+
+
 def main() -> int:
     # CDI's BFS sample is the top-degree nodes of a set, so equal-degree ties are
     # ordered by string hashing, which Python salts per process. Pin the salt so
@@ -703,12 +827,13 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("command", choices=["gate", "baselines", "controls", "oracle",
                                         "descriptives", "qos-indep", "make-variant", "substrate",
-                                        "cost", "all"])
+                                        "cost", "derivation", "all"])
     ap.add_argument("--variant-dir", default="output/variants/qos_indep")
     args = ap.parse_args()
     cmds = {"gate": cmd_gate, "baselines": cmd_baselines, "controls": cmd_controls,
             "oracle": cmd_oracle, "descriptives": cmd_descriptives, "qos-indep": cmd_qos_indep,
-            "make-variant": cmd_make_variant, "substrate": cmd_substrate, "cost": cmd_cost}
+            "make-variant": cmd_make_variant, "substrate": cmd_substrate, "cost": cmd_cost,
+            "derivation": cmd_derivation}
     if args.command == "all":
         rc = cmd_gate(args)
         if rc:

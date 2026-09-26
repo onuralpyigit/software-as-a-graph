@@ -184,3 +184,48 @@ def test_registry_routes_only_the_amendment9_arms_through_the_projection():
     assert registry.prior_for("gl_proj_qos16_indeg_prior") == "indeg"
     assert registry.prior_for("gl_qos16_prior") == registry.prior_for("hgl_qos_prior") == "topo_qos"
     assert registry.prior_for("gl_proj_qos16_cap") is None
+
+
+def _all_scenarios():
+    from reproduce.training_free_suite import FOLDS, SYSTEMS
+    return [*FOLDS, *SYSTEMS]
+
+
+@pytest.mark.parametrize("scenario", _all_scenarios())
+def test_indeg_is_the_raw_two_hop_subscriber_count(scenario):
+    """Amendment 10's recorded identities, on every committed scenario.
+
+    For an Application, projection InDeg is the number of distinct subscribers
+    of the topics it publishes, so removing Rule 5 cannot change it; and
+    Rule-1-only reach is the raw publisher -> topic -> subscriber closure.
+    """
+    import networkx as nx
+
+    from reproduce.training_free_suite import indeg, reach_r1, subscriber_count_raw
+    from saag.prediction.structural_predictor import derive_flow_projection
+
+    topo = json.loads((SCENARIOS / f"{scenario}.json").read_text())
+    flow = derive_flow_projection(topo)
+    apps = [n for n, d in flow.nodes(data=True) if d.get("type") == "Application"]
+    ind, sub = indeg(flow), subscriber_count_raw(topo)
+    assert all(ind[a] == sub.get(a, 0.0) for a in apps)
+
+    no_r5 = flow.copy()
+    no_r5.remove_edges_from([(u, v) for u, v, d in flow.edges(data=True)
+                             if d.get("dependency_type") == "app_to_lib"])
+    assert all(no_r5.in_degree(a) == flow.in_degree(a) for a in apps)
+
+    # Raw closure: u depends on v iff u subscribes to a topic v publishes, transitively.
+    rels = topo["relationships"]
+    raw = nx.DiGraph()
+    raw.add_nodes_from(flow.nodes)
+    pubs = {}
+    for r in rels.get("publishes_to", []):
+        pubs.setdefault(str(r.get("to") or r.get("target")), set()).add(str(r.get("from") or r.get("source")))
+    for r in rels.get("subscribes_to", []):
+        s, t = str(r.get("from") or r.get("source")), str(r.get("to") or r.get("target"))
+        raw.add_edges_from((s, p) for p in pubs.get(t, ()) if p != s and s in raw and p in raw)
+    n = max(1, flow.number_of_nodes() - 1)
+    expected = {v: len(nx.ancestors(raw, v)) / n for v in raw.nodes}
+    got = reach_r1(flow)
+    assert all(got[a] == pytest.approx(expected[a]) for a in apps)
