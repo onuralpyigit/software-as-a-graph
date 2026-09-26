@@ -47,7 +47,7 @@ where:
 | $w(t)$, $w(e)$          | QoS topic weight, edge weight            | Overlap@$K$                                | Top-$K$ set overlap, $K = 0.20\,|V_{\text{app}}|$ |
 | $I^*(v)$                | Primary cascade-reachability oracle      | $I_{\text{comp}}$, $I_{\text{dyn}}$, $I_M$ | Further oracles (Table 4)                         |
 
-## 3.2 QoS-Aware Weights and Logical Dependency Derivation
+## 3.2 Logical Dependency Derivation and QoS-Aware Weights
 
 A link’s strength depends on its QoS contract: a `RELIABLE` topic with `TRANSIENT_LOCAL` durability couples services more strongly than a `BEST_EFFORT` telemetry stream. Each topic $t$ therefore carries a weight $w(t) \in (0, 1]$ combining its declared QoS with payload size and publication frequency:
 
@@ -69,7 +69,7 @@ where $B(t)$ is the payload in bytes (design envelope 1 MiB, the practical DDS s
 
 ### Logical Dependency Projection (`DEPENDS_ON`)
 
-Structural edges do not capture implicit runtime dependencies: a subscriber depends on a publisher, yet no edge joins them. SaG therefore derives one semantic relation, `DEPENDS_ON`, directed from *dependent* to *dependency* (“if the target fails, the source is impacted”), by the six rules of Table 3. Its weight $w \in (0, 1]$ expresses how likely a disruption of the dependency is to reach the dependent.
+Structural edges do not capture implicit runtime dependencies: a subscriber depends on a publisher, yet no edge joins them. SaG therefore derives one semantic relation, `DEPENDS_ON`, directed from *dependent* to *dependency* (“if the target fails, the source is impacted”), by the six rules of Table 3. This derivation is what makes a component’s dependents countable, and counting them on the derived graph is the strongest ranker in this study (§7.1). Its weight $w \in (0, 1]$ expresses how likely a disruption of the dependency is to reach the dependent.
 
 **Table 3.** The six `DEPENDS_ON` logical dependency projection rules.
 
@@ -82,7 +82,7 @@ Structural edges do not capture implicit runtime dependencies: a subscriber depe
 |  **5**   | `app_to_lib`            | Application $\to$ Shared Library it `USES`                                           | $H(w_V(\text{app}), w_V(\text{lib}))$                                                       |
 |  **6**   | `broker_to_broker`      | Broker $\leftrightarrow$ Broker (shared physical fault-domain colocation, symmetric) | $w_V(\text{host})$                                                                          |
 
-Rules 1 and 2 combine the topics $T$ joining a pair by probabilistic union rather than maximum [77, 78, 79], so parallel failure paths always increase coupling. Rule 5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ [80], and Rules 3 and 4 lift dependencies to hosts by maximum.
+Rules 1 and 2 combine the topics $T$ joining a pair by probabilistic union rather than maximum [80, 81, 82], so parallel failure paths always increase coupling. Rule 5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ [83], and Rules 3 and 4 lift dependencies to hosts by maximum.
 
 **Sequential cascades and simultaneous blasts.** Rule 1 captures sequential cascades, in which a failed publisher starves subscribers through queues and topic buffers. Rule 5 captures simultaneous blasts, in which a crashed library or host takes down every consumer at once. Untyped graphs collapse the two into indistinguishable edges. Rule 6, the only symmetric rule, joins brokers colocated on a host, which share its failure domain. Figure 2 shows both mechanisms on a seven-entity example.
 

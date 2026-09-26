@@ -1,4 +1,4 @@
-# Software-as-a-Graph: Predicting Cascading-Failure Impact in Publish–Subscribe Systems Before Deployment with QoS-Aware Graphs and Hybrid Learning
+# Software-as-a-Graph: Dependency-Graph Analysis and Learning for Pre-Deployment Cascading-Failure Ranking in Publish–Subscribe Systems
 
 **Authors.** Ibrahim Onuralp Yigit, Feza Buzluca
 
