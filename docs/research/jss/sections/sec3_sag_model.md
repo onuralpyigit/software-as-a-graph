@@ -4,7 +4,7 @@ Figure 1 presents the end-to-end architecture of the SaG framework. The shared f
 
 ![Figure 1](../latex/figures/Figure_1.png)
 
-*Figure 1. End-to-end architecture of the SaG framework. The predictive pathway runs down the center: manifest ingestion, typed multigraph, DEPENDS_ON projection with typed node properties, the ranking engines (closed-form, learned and hybrid; Figure 3), and the ranked critical set. The dashed edge marks the ground-truth simulation oracles, which operate only on Gstructural, train the predictor offline and take no part in inference. The proposed explanation layer (Supplementary §S24, not evaluated) reads the same analysis multigraph, shares no parameters with the predictor, and is applied to components after they have been ranked; no output of the predictor flows into it.*
+*Figure 1. End-to-end architecture of the SaG framework. The predictive pathway runs down the center: manifest ingestion, typed multigraph, DEPENDS_ON projection with typed node properties, the ranking engines (training-free baseline, learned and hybrid; Figure 3), and the ranked critical set. The dashed edge marks the ground-truth simulation oracles, which operate only on Gstructural, train the predictor offline and take no part in inference. The proposed explanation layer (Supplementary §S24, not evaluated) reads the same analysis multigraph, shares no parameters with the predictor, and is applied to components after they have been ranked; no output of the predictor flows into it.*
 
 ## 3.1 Multigraph Definition
 
@@ -56,7 +56,7 @@ where:
 
 A link’s strength depends on its Quality-of-Service (QoS) contract: a `RELIABLE` topic with `TRANSIENT_LOCAL` durability couples services more strongly than a `BEST_EFFORT` telemetry stream. Each topic $t$ carries an aggregate weight $w(t) \in (0, 1]$ combining declared QoS policies (reliability, durability, priority) with payload size and publication frequency. The sub-weights of reliability, durability and priority come from an Analytic Hierarchy Process (AHP) pairwise-comparison matrix that was stated independently rather than back-solved from a target vector ($CR = 0.016$, non-degenerate; Supplementary §S4, which also shows that three of the framework’s other AHP matrices do encode a declared vector).
 
-On the reachability oracle, QoS weighting does not improve closed-form ranking: unweighted betweenness on the Application–Library projection scores $\rho = 0.591$, against $0.553$ for QoS-weighted betweenness (`Topo-QoS`; §6.1). On the multi-criteria oracle the order reverses, and `Topo-QoS` is the best training-free ranker (§6.1). The reference dependency counts reported in this paper are unweighted and do not read $w(t)$.
+Whether these weights help a learned ranker is measured directly: with the weighted in-degree held in both arms, the QoS inputs add nothing measurable to the graph neural networks on the reachability oracle (§6.2), whereas on the queue-flow oracle they carry the learned surrogate’s gain (§6.1). How the weighting affects the training-free baseline is reported in Supplementary §S37. The reference dependency counts reported in this paper are unweighted and do not read $w(t)$.
 
 ## 3.3 Logical Dependency Projection (`DEPENDS_ON`)
 
@@ -88,7 +88,7 @@ The right-hand side of Eq. 2 is publish–subscribe afferent coupling (fan-in, t
 
 ## 3.4 Dual Graph Views
 
-The **structural graph** $G_{\text{structural}}$ is the raw deployment topology. The **analysis graph** $G_{\text{analysis}}$ adds the derived `DEPENDS_ON` edges and code metrics (Figure 2). Predictor features are computed on $G_{\text{analysis}}$, while simulation oracles run strictly on $G_{\text{structural}}$ (§4.4).
+The **structural graph** $G_{\text{structural}}$ is the raw deployment topology. The **analysis graph** $G_{\text{analysis}}$ adds the derived `DEPENDS_ON` edges and code metrics (Figure 2). Predictor features are computed on $G_{\text{analysis}}$, while simulation oracles run strictly on $G_{\text{structural}}$ (§4.4). The two views also differ for a learner: on $G_{\text{structural}}$ every relation points away from Applications, so forward message passing never reaches them, whereas on the `DEPENDS_ON` graph each Application receives messages from its dependents (§6.2).
 
 ## 3.5 Typed Node Feature Encoding
 
