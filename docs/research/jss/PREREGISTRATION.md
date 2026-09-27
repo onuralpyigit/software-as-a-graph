@@ -1291,3 +1291,23 @@ answer. A failed arm is reported with its failure. Any follow-up needs its own a
 **What is unchanged.** The plan's primary and secondary contrasts and their published values; every
 published arm, label and table value (new rows are added beside them); the 13-contrast omnibus,
 now reported as a sensitivity check under the tier rule above.
+
+### Amendment 14 — results log and deviations (2026-09-27, after the arms ran)
+
+**Gate G0.** Every learned comparator re-run in the Amendment 14 invocation reproduces its
+published per-seed ρ exactly (max |Δ| = 0). **Deviation:** the training-free `topo_qos`
+row does not (Δ up to 0.297). The sweep ran from a git worktree without `output/loso_cache`;
+`reproduce/main_table._find_cache_dir` resolves that relative path and fell back to
+`data/scenarios` with NX-derived structural metrics. No Amendment 14 contrast reads that row;
+the published Topo-QoS is used wherever one is needed. Recorded, not gated.
+
+**Outcomes against the decision rules** (`data/benchmarks/referee_round8_amendment14.json`):
+- **F1a** — both GAT-P-QoS−deg arms lose to GAT-P-QoS (−0.136 and −0.161, Holm 0.005);
+  GAT-QoS−deg loses −0.270 (Holm 0.0015).
+- **F2b** — no aggregator effect at Holm p < 0.05 (GIN−deg vs GAT−deg +0.108, +0.124; Holm 0.157).
+  Descriptively, GIN-P-QoS keeps 0.721 / 0.711 without degree features (0.732 with them).
+- **F3b** — no arm is equivalent to `InDeg` within ±0.05 (equivalence bounds 0.063–0.276).
+- **F4b** — with `w_in` held, the QoS main effect is +0.030 (Holm 0.330).
+- **F5b** — GAT-P-QoS→dyn loses to Analytic-I* on `I_dyn-full` (−0.108, Holm 0.014) and to
+  GBM-Dep-QoS→dyn (−0.201, Holm 0.0015); label source makes no difference (−0.008 vs I*-App).
+- **F6** — pending (arm N running).
