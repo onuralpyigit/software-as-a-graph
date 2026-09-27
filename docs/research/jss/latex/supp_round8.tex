@@ -127,6 +127,45 @@ HGT-P-QoS & 0.496 & 0.418 & 0.112 \\
 \end{tabular}
 \end{table}
 
-%%F6SUPP%%
+\noindent\textbf{The registered selection rule (arm N).} Table~\ref{tab:r8-nested} gives, per outer fold, the configuration the two-fold inner holdout selected and the outer $\rho$ it reached, beside the published fixed configuration (3 layers, no rank normalization). The search harness early-stops on a held-out training scenario, whereas every published sweep early-stops on a $20\%$ node-level split of the largest training scenario; the gate, which compares folds where the published hyperparameters were selected, fails for \texttt{HGT-QoS} (up to $0.102$ apart on 3 folds), so the table compares two protocols, not two hyperparameter choices. Family F6 (Holm across three): nested vs.\ fixed \texttt{HGT-QoS} $+0.055$; nested vs.\ fixed \texttt{GAT-P-QoS} $-0.054$ (both $p_{\text{Holm}} = 0.259$); nested \texttt{HGT-QoS} vs.\ \texttt{Topo-QoS} $+0.123$ ($p_{\text{Holm}} = 0.192$, Nadeau--Bengio $p = 0.160$).
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Arm N: per-fold outer $\rho$ on $I^*$ under nested stage-1 selection, against the published fixed configuration. L: layers; RN-feat/RN-lab: rank-normalized features/labels.}
+\label{tab:r8-nested}
+\begin{tabular}{llccl}
+\toprule
+Engine & Held-out fold & Fixed & Nested & Selected \\
+\midrule
+HGT-QoS & atm & 0.523 & 0.512 & 2L, RN-feat, RN-lab \\
+HGT-QoS & av & 0.704 & 0.727 & 3L, RN-feat \\
+HGT-QoS & enterprise & 0.426 & 0.634 & 3L, RN-feat, RN-lab \\
+HGT-QoS & financial trading & 0.695 & 0.752 & 2L, RN-feat \\
+HGT-QoS & healthcare & 0.730 & 0.805 & 2L, RN-feat \\
+HGT-QoS & hub and spoke & 0.548 & 0.546 & 2L, RN-feat, RN-lab \\
+HGT-QoS & industrial scada & 0.684 & 0.674 & 3L \\
+HGT-QoS & iot smart city & 0.688 & 0.821 & 2L, RN-feat, RN-lab \\
+HGT-QoS & logistics fleet & 0.771 & 0.755 & 3L, RN-feat \\
+HGT-QoS & microservices & 0.475 & 0.498 & 3L \\
+HGT-QoS & realtime gaming & 0.789 & 0.687 & 3L \\
+HGT-QoS & telecom ran & 0.427 & 0.708 & 3L, RN-feat \\
+GAT-P-QoS & atm & 0.603 & 0.471 & 2L, RN-feat \\
+GAT-P-QoS & av & 0.764 & 0.781 & 3L, RN-feat \\
+GAT-P-QoS & enterprise & 0.738 & 0.599 & 2L, RN-lab \\
+GAT-P-QoS & financial trading & 0.800 & 0.814 & 3L, RN-feat \\
+GAT-P-QoS & healthcare & 0.863 & 0.871 & 3L, RN-feat \\
+GAT-P-QoS & hub and spoke & 0.758 & 0.570 & 3L, RN-feat \\
+GAT-P-QoS & industrial scada & 0.834 & 0.718 & 2L, RN-lab \\
+GAT-P-QoS & iot smart city & 0.747 & 0.583 & 2L, RN-lab \\
+GAT-P-QoS & logistics fleet & 0.774 & 0.734 & 2L, RN-lab \\
+GAT-P-QoS & microservices & 0.649 & 0.677 & 2L, RN-lab \\
+GAT-P-QoS & realtime gaming & 0.795 & 0.826 & 2L, RN-feat \\
+GAT-P-QoS & telecom ran & 0.647 & 0.675 & 2L, RN-lab \\
+\midrule
+\multicolumn{2}{l}{Mean HGT-QoS / GAT-P-QoS} & 0.622 / 0.748 & 0.677 / 0.693 & \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 %%COSTSUPP%%

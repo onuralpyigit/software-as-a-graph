@@ -2020,6 +2020,90 @@ def check_reference_demotion(rep: Report) -> None:
                                         f"ref={sorted(got_ref)} stray={sorted(stray)}", sorted(expected)))
 
 
+
+def check_round8(rep: Report) -> None:
+    """Round 8 (Amendment 14): Table tab:a14 and the quoted F3/F6/F7 figures.
+
+    Rows of tab:a14 are matched by their first cell; every numeric cell is checked
+    against referee_round8_amendment14.json (and the w_in-held factorial against
+    loso_significance_amendment14_cpu.json). Prose quotes are checked at printed
+    precision.
+    """
+    a14 = _load("referee_round8_amendment14.json")
+    sig = _load("loso_significance_amendment14_cpu.json")
+    hyb = _load("referee_round8_hybrid.json")
+    tost = _load("referee_round8_tost.json")
+    nest = _load("referee_round8_nested.json")
+    tex = _tex("sec7_results.tex")
+    if None in (a14, sig, hyb, tost, nest) or r"\label{tab:a14}" not in tex:
+        rep.skipped.append("round 8: an Amendment 14 artifact or tab:a14 absent")
+        return
+    fam = {**a14["F1"], **a14["F2"]}
+    summ, zs = a14["summary"], a14["zero_shot"]
+    fact = {r["quantity"]: r for r in sig["factorial"]}
+    i = tex.index(r"\label{tab:a14}")
+    body = tex[tex.index(r"\toprule", i):tex.index(r"\bottomrule", i)]
+    seen = 0
+    for line in body.splitlines():
+        t = line.strip()
+        if "&" not in t or t.startswith((r"\multicolumn", "Arm &")):
+            continue
+        cells = _cells(t)
+        name = cells[0].replace("$-$", "-").replace("$^*$", "*")
+        comp = cells[1].split(" (")[0].replace("$-$", "-").replace("$^*$", "*")
+        checks = []
+        if name in summ:
+            key = f"{name} vs {comp}"
+            c = fam[key]
+            dyn, comp_ = cells[6].split("/")
+            checks = [(cells[2], summ[name]["loso_i_star"]), (cells[3], c["delta"]),
+                      (cells[5], c["p_holm"]), (dyn, summ[name]["i_dyn"]),
+                      (comp_, summ[name]["i_comp"]), (cells[7], zs[name])]
+        else:
+            q = {"Typing (main effect)": "main_typing", "``QoS'' inputs (main effect)": "main_qos",
+                 "Interaction": "interaction"}.get(name)
+            if q is None:
+                continue
+            checks = [(cells[3], fact[q]["mean_delta"]), (cells[5], fact[q]["p_holm"])]
+        seen += 1
+        for cell, truth in checks:
+            got = _num(cell)
+            rep.checked += 1
+            tol = 0.0006 if abs(truth) >= 0.01 else 0.00006
+            if got is None or abs(got - truth) > max(tol, 0.0006):
+                rep.findings.append(Finding("tab:a14", name, "cell", got, round(truth, 4)))
+    rep.checked += 1
+    if seen != 9:
+        rep.findings.append(Finding("tab:a14", "rows", "count", seen, 9))
+    num = r"\$?([-+]?[\d.]+)\$?"
+    _quote(rep, "sec:rq1", tex,
+           r"a two one-sided test at the registered margin of \$\\pm 0\.05\$ fails \(\$p = ([\d.]+)\$ per seed, \$([\d.]+)\$ for the ensemble",
+           [(1, tost["GAT-P-QoS_vs_InDeg"]["per_seed_mean"]["tost_t"]["p"]),
+            (2, tost["GAT-P-QoS_vs_InDeg"]["seed_ensemble"]["tost_t"]["p"])])
+    reg, f7 = hyb["registered_amendments_5_6"], hyb["F7"]
+    _quote(rep, "sec:rq1", tex,
+           r"Hybrid-HGT vs\.\\ \\texttt\{HGT-QoS\} \$\+([\d.]+)\$, \$p = ([\d.]+)\$; Hybrid-GAT vs\.\\ \\texttt\{GAT-QoS\} \$\+([\d.]+)\$, \$p = ([\d.]+)\$",
+           [(1, reg["Hybrid-HGT vs HGT-QoS"]["delta"]), (2, reg["Hybrid-HGT vs HGT-QoS"]["p"]),
+            (3, reg["Hybrid-GAT vs GAT-QoS"]["delta"]), (4, reg["Hybrid-GAT vs GAT-QoS"]["p"])])
+    _quote(rep, "sec:rq1", tex,
+           r"unweighted betweenness on the same graph \$\+([\d.]+)\$, constant topic weights \$\+([\d.]+)\$, both Holm \$p = ([\d.]+)\$",
+           [(1, f7["Hybrid-GAT vs Topo (projection)"]["delta"]), (2, f7["Hybrid-GAT vs Topo-Mult"]["delta"]),
+            (3, f7["Hybrid-GAT vs Topo-Mult"]["p_holm"])])
+    F = nest["F6"]
+    _quote(rep, "sec:rq2", tex,
+           r"it moves \\texttt\{HGT-QoS\} from \$([\d.]+)\$ to \$([\d.]+)\$ \(\$\+([\d.]+)\$\) and \\texttt\{GAT-P-QoS\} from \$([\d.]+)\$ to \$([\d.]+)\$ \(\$-([\d.]+)\$\), neither significant \(Holm \$p = ([\d.]+)\$\); nested \\texttt\{HGT-QoS\} against \\texttt\{Topo-QoS\} is \$\+([\d.]+)\$ on 9 of 12 folds, still not significant \(Holm \$p = ([\d.]+)\$",
+           [(1, nest["summary"]["HGT-QoS"]["fixed"]), (2, nest["summary"]["HGT-QoS"]["nested"]),
+            (3, F["nested HGT-QoS vs fixed HGT-QoS"]["delta"]), (4, nest["summary"]["GAT-P-QoS"]["fixed"]),
+            (5, nest["summary"]["GAT-P-QoS"]["nested"]), (6, -F["nested GAT-P-QoS vs fixed GAT-P-QoS"]["delta"]),
+            (7, F["nested HGT-QoS vs fixed HGT-QoS"]["p_holm"]), (8, F["nested HGT-QoS vs Topo-QoS"]["delta"]),
+            (9, F["nested HGT-QoS vs Topo-QoS"]["p_holm"])])
+    for f, pat in (("abstract.tex", r"without exceeding|never exceed"),
+                   ("sec9_conclusion.tex", r"never exceed"),
+                   ("sec4_failure_impact_prediction.tex", r"registered \(Amendment~11\) but not completed")):
+        rep.checked += 1
+        if re.search(pat, _tex(f)):
+            rep.findings.append(Finding("round 8 wording", f, "withdrawn phrase", pat, None))
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -2061,6 +2145,7 @@ def main() -> int:
     check_engine_regimes(rep)
     check_dependency_graph(rep)
     check_reference_demotion(rep)
+    check_round8(rep)
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts "
           f"({len(rep.skipped)} check(s) skipped).\n")

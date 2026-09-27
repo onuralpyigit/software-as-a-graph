@@ -1310,4 +1310,14 @@ the published Topo-QoS is used wherever one is needed. Recorded, not gated.
 - **F4b** — with `w_in` held, the QoS main effect is +0.030 (Holm 0.330).
 - **F5b** — GAT-P-QoS→dyn loses to Analytic-I* on `I_dyn-full` (−0.108, Holm 0.014) and to
   GBM-Dep-QoS→dyn (−0.201, Holm 0.0015); label source makes no difference (−0.008 vs I*-App).
-- **F6** — pending (arm N running).
+- **F6b** — nested `hgl_qos` vs `Topo-QoS` +0.123 (9/12, Holm 0.192); nested vs fixed `hgl_qos`
+  +0.055 (Holm 0.259); nested vs fixed `gl_proj_qos16_cap` −0.054 (Holm 0.259).
+  **Deviation (arm N):** `reproduce/nested_loso_search.py` scores every configuration with
+  early stopping on a held-out validation *scenario* (`inner_val="auto"`), whereas every published
+  sweep early-stops on a 20% node-level split of the largest training scenario
+  (`--inner-val-scenario none`). The published configuration is therefore **not** one of the eight
+  grid points, contrary to this amendment's text. The gate caught it: on the three `hgl_qos` folds
+  where the inner search chose the published hyperparameters, the outer ρ differs from the
+  published value by up to 0.102. Per the stopping rule the arm is not re-run; F6 is reported as
+  "nested selection *with scenario-level early stopping*" against the published protocol, and no
+  difference is attributed to hyperparameter selection alone.
