@@ -532,7 +532,7 @@ def cmd_amendment14(_: argparse.Namespace) -> int:
     for v in A14_LABELS:
         p = RESULTS / f"realworld_zeroshot_{v}_amendment14.json"
         if p.exists():
-            zs[A14_LABELS[v]] = json.loads(p.read_text()).get("mean_rho_all")
+            zs[A14_LABELS[v]] = json.loads(p.read_text()).get("mean_rho_across_systems")
     for k, v in summary.items():
         print(f"{k:20s} " + " ".join(f"{o}={x:.3f}" for o, x in v.items() if x is not None))
     for name, fm in fam.items():
