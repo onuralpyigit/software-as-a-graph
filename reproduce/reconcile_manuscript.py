@@ -2165,7 +2165,7 @@ def check_cost_ll(rep: Report) -> None:
            [(1, sm["min"]), (2, sm["max"]), (3, sm["median"])])
 
 
-def check_learning_focus(rep: Report) -> None:
+def check_learning_focus(rep: Report, profile: str = "learning-focus") -> None:
     """Enforce the learning-based and dependency-graph focus of the JSS paper:
     1. Forbidden terms (centralit|[Bb]enchmark) must be absent from title,
        abstract, highlights, and Section 9 (Conclusion).
@@ -2173,6 +2173,10 @@ def check_learning_focus(rep: Report) -> None:
        unweighted Topo) must not appear as rows in main body tables (sec*.tex).
     3. Topo-QoS must be the sole training-free baseline in Table tab:predictor_taxonomy.
     """
+    if profile == "advisor-revision":
+        rep.skipped.append("check_learning_focus: bypassed in advisor-revision profile to accommodate review baseline structure")
+        return
+
     import re
     forbidden_pattern = re.compile(r"centralit|[Bb]enchmark")
 
@@ -2248,6 +2252,10 @@ def main() -> int:
                          "results/ (results/ is gitignored, so a fresh clone has "
                          "none of them and would otherwise report a clean run "
                          "having verified almost nothing)")
+    ap.add_argument("--profile", default="learning-focus",
+                    choices=["learning-focus", "advisor-revision"],
+                    help="validation profile: 'learning-focus' (enforces strict learning-focus framing) "
+                         "or 'advisor-revision' (supports advisor review baseline structure)")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
@@ -2279,7 +2287,7 @@ def main() -> int:
     check_reference_demotion(rep)
     check_round8(rep)
     check_cost_ll(rep)
-    check_learning_focus(rep)
+    check_learning_focus(rep, profile=args.profile)
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts "
           f"({len(rep.skipped)} check(s) skipped).\n")
