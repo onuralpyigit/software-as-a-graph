@@ -8,18 +8,23 @@ Table <a href="#tab:supp-notation" data-reference-type="ref" data-reference="tab
 
 <div id="tab:supp-notation">
 
-| **Symbol**              | **Description**                                                                    |
-|:------------------------|:-----------------------------------------------------------------------------------|
-| $G_{\text{structural}}$ | Raw multigraph (used exclusively by simulation oracles)                            |
-| $G_{\text{analysis}}$   | Logical `DEPENDS_ON` projection (input to predictors)                              |
-| $V_{\text{app}}$        | Application nodes (the primary scored population)                                  |
-| $w(t)$, $w(e)$          | QoS topic weight; derived dependency edge weight ($w(e) = w_E(e)$ on `DEPENDS_ON`) |
-| $I^*(v)$                | Primary cascade-reachability simulation oracle                                     |
-| $I_{\text{dyn}}(v)$     | Dynamic queue-flow discrete-event simulation oracle                                |
-| $I_{\text{comp}}(v)$    | Multi-criteria composite simulation oracle                                         |
-| $\rho$                  | Spearman rank correlation coefficient (full population)                            |
-| $\rho_{>0}$             | Spearman rank correlation restricted to active stratum ($I > 0$)                   |
-| Overlap@$K$             | Top-$K$ identification set overlap ($K = 0.20\,|V_{\text{app}}|$)                  |
+| **Symbol**              | **Description**                                                                     |
+|:------------------------|:------------------------------------------------------------------------------------|
+| $G_{\text{structural}}$ | Raw multigraph (used exclusively by simulation oracles)                             |
+| $G_{\text{analysis}}$   | Logical `DEPENDS_ON` projection (input to predictors)                               |
+| $V_{\text{app}}$        | Application nodes (the primary scored population)                                   |
+| $w(t)$, $w(e)$          | QoS topic weight; derived dependency edge weight ($w(e) = w_E(e)$ on `DEPENDS_ON`)  |
+| $I^*(v)$                | Primary cascade-reachability simulation oracle                                      |
+| $\hat{I}^*_1(v)$        | Analytic first-order closed-form expansion of $I^*$ (Analytic $I^*$)                |
+| $I^*_R(v)$              | Reliability-scaled feed loss (auxiliary prediction target)                          |
+| $I_{\text{dyn}}(v)$     | Dynamic queue-flow discrete-event simulation oracle ($N = 1{,}321$ full population) |
+| $I_{\text{dyn}}^{n=30}$ | Exploratory developmental sample of queue-flow simulation ($n = 30$ per fold)       |
+| $I_{\text{comp}}(v)$    | Multi-criteria composite simulation oracle                                          |
+| $\text{RL}, \text{FR}$  | Reachability Loss and Fragmentation components of $I_{\text{comp}}$                 |
+| $\text{TL}, \text{FD}$  | Throughput Loss and Flow Disruption components of $I_{\text{comp}}$                 |
+| $\rho$                  | Spearman rank correlation coefficient (full population)                             |
+| $\rho_{>0}$             | Spearman rank correlation restricted to active stratum ($I > 0$)                    |
+| Overlap@$K$             | Top-$K$ identification set overlap ($K = 0.20\,|V_{\text{app}}|$)                   |
 
 Notation used throughout the paper.
 
@@ -1333,8 +1338,8 @@ This section consolidates the non-registered training-free baselines and control
 
 #### Unweighted Topo Baseline
 
-The unweighted topological baseline `Topo` is defined on the application layer as: $$\label{eq:topo-supp}
-\text{Topo}(v) = 0.6 \cdot \text{BT}(v) + 0.4 \cdot \text{AP}(v),$$ where $\text{BT}(v)$ is normalized betweenness centrality, and $\text{AP}(v)$ flags articulation points. Due to an implementation defect in the registered benchmark code (disclosed in Section <a href="#M-sec:6.2" data-reference-type="ref" data-reference="M-sec:6.2">[M-sec:6.2]</a> of the main manuscript), the articulation point term reads zero for every node, so the reported score ranks nodes identically to betweenness centrality on the application layer.
+The unweighted topological baseline `Topo` is evaluated strictly on the raw application layer without Rule 5 library derivation: $$\label{eq:topo-supp}
+\text{Topo}(v) = 0.6 \cdot \text{BT}(v) + 0.4 \cdot \text{AP}(v),$$ where $\text{BT}(v)$ is normalized betweenness centrality, and $\text{AP}(v)$ flags articulation points. Due to an implementation defect in the registered benchmark code (disclosed in Section <a href="#M-sec:6.2" data-reference-type="ref" data-reference="M-sec:6.2">[M-sec:6.2]</a> of the main manuscript), the articulation point term reads zero for every node, so the reported score ranks nodes identically to betweenness centrality on the application layer. This distinguishes `Topo` from `Topo-QoS`, which evaluates QoS-weighted betweenness on the derived dependency graph.
 
 #### Performance on Synthetic Architectures
 
@@ -1369,11 +1374,11 @@ Table <a href="#tab:supp-moved-oracles" data-reference-type="ref" data-reference
 
 <div id="tab:supp-moved-oracles">
 
-| **Predictor**   | **$I^*$** | **$I_{\text{dyn}}$ [95% CI]** |  **Partial vs $I^*$**  | **Partial vs $\hat{I}^*_1$** | **$I_{\text{comp}}$** |
-|:----------------|:---------:|:-------------------------------:|:----------------------:|:----------------------------:|:---------------------:|
-| **Degree-raw**  |   0.199   |     0.232 $[0.134, 0.329]$      | 0.149 $[0.089, 0.227]$ |           $-0.091$           |         0.719         |
-| **Pubs-raw**    |   0.731   |     0.645 $[0.543, 0.737]$      | 0.255 $[0.179, 0.332]$ |            0.056             |         0.616         |
-| **GBM-Dep-QoS** |   0.818   |              0.718              |           —            |              —               |         0.483         |
+| **Predictor**  | **$I^*$** | **$I_{\text{dyn}}$ [95% CI]** |  **Partial vs $I^*$**  | **Partial vs $\hat{I}^*_1$** | **$I_{\text{comp}}$** |
+|:---------------|:---------:|:-------------------------------:|:----------------------:|:----------------------------:|:---------------------:|
+| **Degree-raw** |   0.199   |     0.232 $[0.134, 0.329]$      | 0.149 $[0.089, 0.227]$ |           $-0.091$           |         0.719         |
+| **Pubs-raw**   |   0.731   |     0.645 $[0.543, 0.737]$      | 0.255 $[0.179, 0.332]$ |            0.056             |         0.616         |
+| **GBM-P-QoS**  |   0.818   |              0.718              |           —            |              —               |         0.483         |
 
 Supplemental predictors and baselines against three simulation oracles, twelve LOSO folds, Application population. Partial $\rho$: Spearman correlation with $I_{\text{dyn}}$ after $I^*$ or Analytic $I^*$ ($\hat{I}^*_1$) is regressed out.
 

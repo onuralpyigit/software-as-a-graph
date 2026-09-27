@@ -55,8 +55,13 @@ $G_{\text{analysis}}$   & Logical \texttt{DEPENDS\_ON} projection (input to pred
 $V_{\text{app}}$        & Application nodes (the primary scored population) \\
 $w(t)$, $w(e)$          & QoS topic weight; derived dependency edge weight ($w(e) = w_E(e)$ on \texttt{DEPENDS\_ON}) \\
 $I^*(v)$                & Primary cascade-reachability simulation oracle \\
-$I_{\text{dyn}}(v)$     & Dynamic queue-flow discrete-event simulation oracle \\
+$\hat{I}^*_1(v)$        & Analytic first-order closed-form expansion of $I^*$ (Analytic $I^*$) \\
+$I^*_R(v)$              & Reliability-scaled feed loss (auxiliary prediction target) \\
+$I_{\text{dyn}}(v)$     & Dynamic queue-flow discrete-event simulation oracle ($N = 1{,}321$ full population) \\
+$I_{\text{dyn}}^{n=30}$ & Exploratory developmental sample of queue-flow simulation ($n = 30$ per fold) \\
 $I_{\text{comp}}(v)$    & Multi-criteria composite simulation oracle \\
+$\text{RL}, \text{FR}$  & Reachability Loss and Fragmentation components of $I_{\text{comp}}$ \\
+$\text{TL}, \text{FD}$  & Throughput Loss and Flow Disruption components of $I_{\text{comp}}$ \\
 $\rho$                  & Spearman rank correlation coefficient (full population) \\
 $\rho_{>0}$             & Spearman rank correlation restricted to active stratum ($I > 0$) \\
 Overlap@$K$             & Top-$K$ identification set overlap ($K = 0.20\,|V_{\text{app}}|$) \\
@@ -1109,10 +1114,10 @@ Table~\ref{tab:supp-taxonomy} lists every predictor run in the study; the main m
 \item \texttt{-QoS}: QoS-weighted distances for Topo, the 16-D QoS edge vector for a GNN;
 \item \texttt{-w}: a scalar QoS edge weight $w(e)$;
 \item \texttt{-S}: a small GAT (28k parameters);
-\item \texttt{-P}: the Application--Library flow projection instead of the native multigraph;
-\item \texttt{Hybrid-X}: engine X corrected by the \texttt{Topo-QoS} prior.
+\item \texttt{-P}: the Application--Library derived dependency graph (Rules~1 and~5) instead of the raw multigraph;
+\item \texttt{Hybrid-X}: engine X corrected by the \texttt{Topo-QoS} prior (\texttt{GAT-P+InDeg} uses the \texttt{InDeg} reference prior).
 \end{itemize}
-Unsuffixed \texttt{GAT} and \texttt{GAT-QoS} are matched to HGT's parameter budget.
+Unsuffixed \texttt{GAT} and \texttt{GAT-QoS} are matched to HGT's parameter budget on the raw multigraph.
 
 \begin{table}[htbp]
 \centering
@@ -1124,13 +1129,13 @@ Unsuffixed \texttt{GAT} and \texttt{GAT-QoS} are matched to HGT's parameter budg
 \toprule
 \textbf{Predictor} & \textbf{Evaluation Substrate} & \textbf{Typing} & \textbf{Edge Features} & \textbf{Parameters} & \textbf{Trained?} & \textbf{Empirical Role} \\
 \midrule
-\textbf{Topo} & $G_{\text{analysis}}$ (Application layer) & No & None & 0 & No & Standard centrality baseline \\
-\textbf{Topo-QoS} & $G_{\text{analysis}}$ (Flow Projection) & No & Scalar $w(e)$ & 0 & No & SaG closed-form engine \\
-\textbf{Betweenness (proj.)} & $G_{\text{analysis}}$ (Flow Projection) & No & None & 0 & No & Unweighted reference (Amendment~7) \\
-\textbf{InDeg} / \textbf{Reach} / \textbf{Reach-QoS} / \textbf{CDI} & $G_{\text{analysis}}$ (Flow Projection) & No & None or $w(e)$ & 0 & No & Dependency counts (Amendment~7); \texttt{InDeg}, \texttt{Reach}: references, not predictors (Amendment~13) \\
+\textbf{Topo} & $G_{\text{analysis}}$ (Application layer only) & No & None & 0 & No & Standard unweighted centrality baseline \\
+\textbf{Topo-QoS} & $G_{\text{analysis}}$ (Derived \texttt{DEPENDS\_ON}) & No & Scalar $w(e)$ & 0 & No & SaG closed-form engine \\
+\textbf{Betweenness (proj.)} & $G_{\text{analysis}}$ (Derived \texttt{DEPENDS\_ON}) & No & None & 0 & No & Unweighted reference (Amendment~7) \\
+\textbf{InDeg} / \textbf{Reach} / \textbf{Reach-QoS} / \textbf{CDI} & $G_{\text{analysis}}$ (Derived \texttt{DEPENDS\_ON}) & No & None or $w(e)$ & 0 & No & Dependency counts (Amendment~7); \texttt{InDeg}, \texttt{Reach}: references, not predictors (Amendment~13) \\
 \textbf{Degree-raw} / \textbf{Pubs-raw} / \textbf{Reach-R1} & Raw multigraph / Rule~1 only & No & None & 0 & No & Derivation controls (Amendment~10); Pubs-raw, Reach-R1: references (Amendment~13) \\
-\textbf{GAT-S-P} & $G_{\text{analysis}}$ (Flow Projection) & Homogeneous & None & 28{,}168 & Yes & In-distribution counterpart of GAT-S (Table~\ref{tab:supp-indist-cells}) \\
-\textbf{GAT-S-P-w} & $G_{\text{analysis}}$ (Flow Projection) & Homogeneous & Scalar $w(e)$ & 28{,}168 & Yes & In-distribution counterpart of GAT-S-w (Table~\ref{tab:supp-indist-cells}) \\
+\textbf{GAT-S-P} & $G_{\text{analysis}}$ (Derived \texttt{DEPENDS\_ON}) & Homogeneous & None & 28{,}168 & Yes & In-distribution counterpart of GAT-S (Table~\ref{tab:supp-indist-cells}) \\
+\textbf{GAT-S-P-w} & $G_{\text{analysis}}$ (Derived \texttt{DEPENDS\_ON}) & Homogeneous & Scalar $w(e)$ & 28{,}168 & Yes & In-distribution counterpart of GAT-S-w (Table~\ref{tab:supp-indist-cells}) \\
 \textbf{GAT-S} & Native Multigraph & Homogeneous & None & 28{,}168 & Yes & Untyped, unweighted GNN floor \\
 \textbf{GAT-S-w} & Native Multigraph & Homogeneous & Scalar $w(e)$ & 28{,}168 & Yes & Adds a scalar QoS weight \\
 \textbf{GAT} & Native Multigraph & Homogeneous & None & 437{,}496 & Yes & Untyped, matched to HGT; no QoS channel \\
@@ -1146,8 +1151,9 @@ Unsuffixed \texttt{GAT} and \texttt{GAT-QoS} are matched to HGT's parameter budg
 \textbf{GBM-Feat-QoS} & Per-node features only & None & None & Trees & Yes & GBM-Feat with the three QoS node columns \\
 \textbf{GAT-P} & App--Lib \texttt{DEPENDS\_ON} & Homogeneous & None & 437{,}496 & Yes & GAT on the dependency graph (Amendment~9) \\
 \textbf{GAT-P-QoS} & App--Lib \texttt{DEPENDS\_ON} & Homogeneous & 16-D QoS Vector & 429{,}992 & Yes & GAT-QoS on the dependency graph \\
-\textbf{GAT-P+InDeg} & App--Lib \texttt{DEPENDS\_ON} & Homogeneous & 16-D QoS Vector & 431{,}433 & Yes & GAT-P-QoS correcting \texttt{InDeg}; supplement only, prior is a reference (Amendment~13) \\
+\textbf{GAT-P+InDeg} & App--Lib \texttt{DEPENDS\_ON} & Homogeneous & 16-D QoS Vector & 431{,}433 & Yes & Hybrid: GAT-P-QoS correcting \texttt{InDeg}; supplement only (Amendment~13) \\
 \textbf{HGT-P-QoS} & App--Lib \texttt{DEPENDS\_ON} & Heterogeneous & 16-D QoS Vector & 430{,}680 & Yes & HGT-QoS on the dependency graph (width 100) \\
+\textbf{GBM-P-QoS} & App--Lib \texttt{DEPENDS\_ON} & None & Node + QoS features & Trees & Yes & Dynamic surrogate / tabular learner on dependency features \\
 \textbf{RM / $Q(v)$} & $G_{\text{analysis}}$ (Analysis Graph) & Per-type rules & Scalar $w(e)$ & 0 & No & Diagnostic attribution reference \\
 \bottomrule
 \end{tabular}%
@@ -2137,12 +2143,12 @@ Telecom RAN & 2.5 & 0.19 & 1.13 & 2.30 & 3.83 & $12.2\times$ & $3.4\times$ \\
 This section consolidates the non-registered training-free baselines and controls moved out of the main manuscript. The main manuscript retains \texttt{Topo-QoS} as its sole training-free baseline, because it forms one side of the registered primary contrast and acts as the prior inside both hybrid engines.
 
 \paragraph{Unweighted Topo Baseline}
-The unweighted topological baseline \texttt{Topo} is defined on the application layer as:
+The unweighted topological baseline \texttt{Topo} is evaluated strictly on the raw application layer without Rule~5 library derivation:
 \begin{equation}
 \label{eq:topo-supp}
 \text{Topo}(v) = 0.6 \cdot \text{BT}(v) + 0.4 \cdot \text{AP}(v),
 \end{equation}
-where $\text{BT}(v)$ is normalized betweenness centrality, and $\text{AP}(v)$ flags articulation points. Due to an implementation defect in the registered benchmark code (disclosed in Section~\ref{M-sec:6.2} of the main manuscript), the articulation point term reads zero for every node, so the reported score ranks nodes identically to betweenness centrality on the application layer.
+where $\text{BT}(v)$ is normalized betweenness centrality, and $\text{AP}(v)$ flags articulation points. Due to an implementation defect in the registered benchmark code (disclosed in Section~\ref{M-sec:6.2} of the main manuscript), the articulation point term reads zero for every node, so the reported score ranks nodes identically to betweenness centrality on the application layer. This distinguishes \texttt{Topo} from \texttt{Topo-QoS}, which evaluates QoS-weighted betweenness on the derived dependency graph.
 
 \paragraph{Performance on Synthetic Architectures}
 Table~\ref{tab:supp-moved-baselines} reports the performance of \texttt{Degree-raw}, \texttt{RevPR-raw}, \texttt{Topo}, and the raw-multigraph reference rankings (\texttt{Pubs-raw}, \texttt{Reach-R1}) across the twelve synthetic LOSO folds.
@@ -2190,7 +2196,7 @@ Table~\ref{tab:supp-moved-oracles} reports supplemental predictors and baselines
 \midrule
 \textbf{Degree-raw} & 0.199 & 0.232 $[0.134, 0.329]$ & 0.149 $[0.089, 0.227]$ & $-0.091$ & 0.719 \\
 \textbf{Pubs-raw} & 0.731 & 0.645 $[0.543, 0.737]$ & 0.255 $[0.179, 0.332]$ & 0.056 & 0.616 \\
-\textbf{GBM-Dep-QoS} & 0.818 & 0.718 & --- & --- & 0.483 \\
+\textbf{GBM-P-QoS} & 0.818 & 0.718 & --- & --- & 0.483 \\
 \bottomrule
 \end{tabular}
 \end{table}
