@@ -1226,50 +1226,54 @@ SUPPLEMENT_ONLY_ENGINES = ("GAT-P+InDeg",)
 
 
 def check_independent_oracles(rep: Report) -> None:
-    """Table tab:independent_oracles: rankers against I*, I_dyn (n=30 sample), I_comp.
+    """Table tab:independent_oracles: rankers against I*, full-population I_dyn, I_comp.
 
-    Training-free rows: I* from independent_oracle_evaluation.json (raw-graph rows from
-    the Amendment 12 R1 artifact), I_dyn and the partial correlation from the R2
-    artifact, I_comp from R1. Learned rows: the R3 seed-ensemble artifact.
+    Round 8 (Amendment 11 rule R): every ranker's I*, I_dyn (five-seed full population),
+    partial correlations given I* and given the first-order expansion, and I_comp come
+    from referee_round8_table7.json; Amendment 11's GBM rows from oracle_robust_ltr.json;
+    the GNN surrogate from referee_round8_amendment14.json (per-seed means).
     """
-    ioe = _load("independent_oracle_evaluation.json")
-    raw = _load("referee_round7_raw_baselines.json")
-    part = _load("referee_round7_partial.json")
-    lrn = _load("referee_round7_learned_oracles.json")
+    t7 = _load("referee_round8_table7.json")
+    ltr = _load("oracle_robust_ltr.json")
+    a14 = _load("referee_round8_amendment14.json")
     tex = _tex("sec7_results.tex")
-    if None in (ioe, raw, part, lrn) or r"\label{tab:independent_oracles}" not in tex:
-        rep.skipped.append("tab:independent_oracles: table or an Amendment 12 artifact absent")
+    if None in (t7, ltr, a14) or r"\label{tab:independent_oracles}" not in tex:
+        rep.skipped.append("tab:independent_oracles: table or a round-8 artifact absent")
         return
-    rs, ps = raw["summary"], part["summary"]
+    sm = t7["summary"]
 
-    def tf(key: str):
-        i_star = (ioe["summary"]["i_star"][key]["mean_rho"] if key in ioe["summary"]["i_star"]
-                  else rs["i_star"][key]["loso"]["mean"])
-        i_dyn = ps[key]["rho"]["mean"] if key in ps else rs["i_dyn"][key]["loso"]["mean"]
-        partial = ps[key]["partial_given_istar"]["mean"] if key in ps else None
-        return [(1, i_star, "i_star"), (2, i_dyn, "i_dyn"), (3, partial, "partial"),
-                (4, rs["i_comp"][key]["loso"]["mean"], "i_comp")]
+    def ranker(key: str):
+        r = sm[key]
+        return [(1, r["i_star"]["mean"], "i_star"), (2, r["i_dyn"]["mean"], "i_dyn"),
+                (3, r["partial_idyn_given_istar"]["mean"], "partial"),
+                (4, None if key == "Analytic-I*" else r["partial_idyn_given_analytic"]["mean"],
+                 "partial_analytic"),
+                (5, r["i_comp"]["mean"], "i_comp")]
 
-    def learned(key: str):
-        sm = lrn[key]["summary"]
-        return [(1, sm["i_star"]["rho"]["mean"], "i_star"), (2, sm["i_dyn"]["rho"]["mean"], "i_dyn"),
-                (4, sm["i_comp"]["rho"]["mean"], "i_comp")]
-
-    rows = {"Analytic $I^*$": tf("Analytic-I*"), "InDeg": tf("InDeg"), "Reach": tf("Reach"),
-            "Topo-QoS": tf("Topo-QoS"), "Pubs-raw": tf("Pubs-raw"), "Degree-raw": tf("Degree-raw")}
-    rows.update({k: learned(k) for k in lrn if isinstance(lrn[k], dict) and "summary" in lrn[k]
-                 and k not in SUPPLEMENT_ONLY_ENGINES})
+    arms = ltr["loso"]["arm_means"]
+    dyn = a14["summary"]["GAT-P-QoS-dyn"]
+    rows = {"Analytic $I^*$": ranker("Analytic-I*")}
+    rows.update({k: ranker(k) for k in sm if not k.startswith("_") and k != "Analytic-I*"})
+    rows["GBM-Dep-QoS"] = [(1, arms["gbm_dep_qos"]["i_star"], "i_star"),
+                           (2, arms["gbm_dep_qos"]["i_dyn"], "i_dyn"),
+                           (5, arms["gbm_dep_qos"]["i_comp"], "i_comp")]
+    rows["GBM-Dep-QoS$to$dyn$^star$"] = [(1, arms["gbm_dep_qos_dyn"]["i_star"], "i_star"),
+                                         (2, arms["gbm_dep_qos_dyn"]["i_dyn"], "i_dyn"),
+                                         (5, arms["gbm_dep_qos_dyn"]["i_comp"], "i_comp")]
+    rows["GAT-P-QoS$to$dyn$^star$ (Amendment~14)"] = [(1, dyn["i_star"], "i_star"),
+                                                     (2, dyn["i_dyn"], "i_dyn"),
+                                                     (5, dyn["i_comp"], "i_comp")]
     seen = 0
     for row in _rows(tex, r"\midrule", after_label=r"\label{tab:independent_oracles}"):
         cells = _cells(row)
-        name = _label(cells[0])
+        name = _label(cells[0]).replace("underline", "")
         if name not in rows:
             continue
         seen += 1
         for idx, truth, nm in rows[name]:
             if truth is None:
                 continue
-            got = _num(cells[idx]) if idx < len(cells) else None
+            got = _num(cells[idx].replace("\\underline", "")) if idx < len(cells) else None
             rep.checked += 1
             if got is None or abs(got - truth) > 0.0006:
                 rep.findings.append(Finding("tab:independent_oracles", name, nm, got, round(truth, 4)))
@@ -1326,7 +1330,7 @@ def check_contrasts_matched(rep: Report) -> None:
 #: (file, pattern). Each pattern captures (SaG-Hybrid, SaG-Hybrid-GAT) in that
 #: order; the sites that name one engine first say so in the pattern.
 OMNIBUS_PROSE = [
-    ("sec7_results.tex", r"thirteen (?:registered|confirmatory) contrasts(?: of the study)? \(\$p_\{\\text\{omni\}\} = ([\d.]+)\$ and \$([\d.]+)\$"),
+    ("sec7_results.tex", r"omnibus Holm correction \(\$p_\{\\text\{omni\}\} = ([\d.]+)\$ and \$([\d.]+)\$"),
 ]
 
 
@@ -1853,14 +1857,18 @@ def check_referee_round7(rep: Report) -> None:
 
     ps, cur = part["summary"], rec["curves"]["i_star"]["InDeg"]["curve"]
     num = r"\$([-+]?[\d.]+)\$"
-    _quote(rep, "sec:rq1", tex,
-           r"After the rank of \$I\^\*\$ is removed, \\texttt\{InDeg\} keeps \$\\rho = ([\d.]+)\$ "
-           r"\$\[([\d.]+), ([\d.]+)\]\$ with \$I_\{\\text\{dyn\}\}\$, and " + num + r" \$\[([\d.]+), ([\d.]+)\]\$"
-           r".*?\\texttt\{Reach\} keeps nothing \(" + num,
-           [(1, ps["InDeg"]["partial_given_istar"]["mean"]), (2, ps["InDeg"]["partial_given_istar"]["ci95"][0]),
-            (3, ps["InDeg"]["partial_given_istar"]["ci95"][1]), (4, ps["InDeg"]["partial_given_analytic"]["mean"]),
-            (5, ps["InDeg"]["partial_given_analytic"]["ci95"][0]), (6, ps["InDeg"]["partial_given_analytic"]["ci95"][1]),
-            (7, ps["Reach"]["partial_given_istar"]["mean"])])
+    t7 = _load("referee_round8_table7.json")
+    if t7 is not None:
+        q = t7["summary"]
+        _quote(rep, "sec:rq1", tex,
+               r"After the rank of \$I\^\*\$ is removed, \\texttt\{InDeg\} keeps " + num
+               + r" \$\[([\d.]+), ([\d.]+)\]\$, \\texttt\{Reach\} " + num
+               + r", \\texttt\{Topo-QoS\} " + num,
+               [(1, q["InDeg"]["partial_idyn_given_istar"]["mean"]),
+                (2, q["InDeg"]["partial_idyn_given_istar"]["ci95"][0]),
+                (3, q["InDeg"]["partial_idyn_given_istar"]["ci95"][1]),
+                (4, q["Reach"]["partial_idyn_given_istar"]["mean"]),
+                (5, q["Topo-QoS"]["partial_idyn_given_istar"]["mean"])])
     gat, topo_c = rec["curves"]["i_star"]["GAT-P-QoS"]["curve"], rec["curves"]["i_star"]["Topo-QoS"]["curve"]
     ana, gat_dyn = rec["curves"]["i_star"]["Analytic-I*"]["curve"], rec["curves"]["i_dyn"]["GAT-P-QoS"]["curve"]
     indeg_dyn = rec["curves"]["i_dyn"]["InDeg"]["curve"]

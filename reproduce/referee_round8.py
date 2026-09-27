@@ -589,6 +589,64 @@ def cmd_degree_leak(_: argparse.Namespace) -> int:
     return 0
 
 
+
+# ── F6: the registered selection rule (arm N) ────────────────────────────────
+
+NESTED_DIR = RESULTS / "nested_a14_shards"
+FIXED_CONFIG = {"layers": 3, "rank_normalize_features": False, "rank_normalize_labels": False}
+NESTED = {"hgl_qos": ("HGT-QoS", "loso_hybrid_cpu.json"),
+          "gl_proj_qos16_cap": ("GAT-P-QoS", "loso_dependency_graph_cpu.json")}
+
+
+def cmd_nested(_: argparse.Namespace) -> int:
+    """Merge the per-outer-fold shards of arm N and run family F6."""
+    folds = list(FOLDS)
+    per: Dict[str, Dict[str, Any]] = {}
+    gate: Dict[str, Any] = {}
+    for v, (lab, art) in NESTED.items():
+        fixed = seed_mean(per_seed_rho(art, v))
+        recs = {}
+        for f in folds:
+            rep = json.loads((NESTED_DIR / f"{v}__{f}.json").read_text())
+            prov = rep["provenance"]
+            assert not prov["dirty"] and prov["config"]["grid"] == "stage1", (v, f)
+            rec = rep["folds"][0]
+            assert rec["holdout"] == f
+            recs[f] = rec
+        # Gate: where the inner search picked the published configuration, the outer
+        # score must equal the published per-fold value.
+        same = {f: abs(recs[f]["outer_rho"] - fixed[f]) for f in folds
+                if recs[f]["selected_config"] == FIXED_CONFIG}
+        gate[lab] = {"folds_selecting_fixed": sorted(same), "max_abs_diff": max(same.values(), default=None),
+                     "passed": all(d < 1e-6 for d in same.values())}
+        per[lab] = {"nested": {f: float(recs[f]["outer_rho"]) for f in folds}, "fixed": fixed,
+                    "selected": {f: recs[f]["selected_config"] for f in folds},
+                    "commits": sorted({json.loads((NESTED_DIR / f"{v}__{f}.json").read_text())
+                                       ["provenance"]["commit"][:8] for f in folds})}
+    topo = seed_mean(per_seed_rho(*PER_SEED["Topo-QoS"]))
+    fam = {"nested HGT-QoS vs fixed HGT-QoS": _contrast(per["HGT-QoS"]["nested"], per["HGT-QoS"]["fixed"]),
+           "nested GAT-P-QoS vs fixed GAT-P-QoS": _contrast(per["GAT-P-QoS"]["nested"], per["GAT-P-QoS"]["fixed"]),
+           "nested HGT-QoS vs Topo-QoS": _contrast(per["HGT-QoS"]["nested"], topo)}
+    for k, q in holm({k: c["p"] for k, c in fam.items()}).items():
+        fam[k]["p_holm"] = q
+    ratios = _ratios()
+    d = [per["HGT-QoS"]["nested"][f] - topo[f] for f in folds]
+    fam["nested HGT-QoS vs Topo-QoS"]["nadeau_bengio"] = nb_corrected_t(d, ratios["scenario"])
+    summary = {lab: {"nested": _mean(list(x["nested"].values())), "fixed": _mean(list(x["fixed"].values())),
+                     "n_folds_selecting_fixed": len(gate[lab]["folds_selecting_fixed"])}
+               for lab, x in per.items()}
+    rule = "F6a" if (fam["nested HGT-QoS vs Topo-QoS"]["p_holm"] < 0.05
+                     and fam["nested HGT-QoS vs Topo-QoS"]["delta"] > 0) else "F6b"
+    print("gate:", gate)
+    print("summary:", summary)
+    for k, c in fam.items():
+        print(f"F6 {k:40s} d={c['delta']:+.3f} won={c['won']} p={c['p']:.4f} holm={c['p_holm']:.4f}")
+    print("decision:", rule)
+    _write("referee_round8_nested.json", {"gate": gate, "F6": fam, "summary": summary,
+                                          "decision": rule, "per_fold": per},
+           experiment="F6 selection rule (arm N)")
+    return 0 if all(g["passed"] for g in gate.values()) else 1
+
 # ── cost ──────────────────────────────────────────────────────────────────────
 
 def _median_time(fn, repeats: int) -> float:
@@ -707,7 +765,7 @@ def _istar(topo: Dict[str, Any], seeds: List[int], types: List[str]) -> None:
 def main() -> int:
     stages = {"hybrid": cmd_hybrid, "tost": cmd_tost, "table7": cmd_table7,
               "hierarchical": cmd_hierarchical, "amendment14": cmd_amendment14,
-              "degree_leak": cmd_degree_leak, "cost": cmd_cost}
+              "degree_leak": cmd_degree_leak, "nested": cmd_nested, "cost": cmd_cost}
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("stages", nargs="+", choices=list(stages))
     ap.add_argument("--sizes", type=int, nargs="+", default=[250, 500, 1000, 2000, 5000])

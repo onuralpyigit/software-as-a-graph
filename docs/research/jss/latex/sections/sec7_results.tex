@@ -6,7 +6,7 @@ All results are reported on the Application population ($V_{\text{app}}$) agains
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figures/Figure_5}
-\caption{Main results at a glance, Application population. (A)~Mean Spearman $\rho$ with 95\% bootstrap intervals under LOSO (filled circles; Table~\ref{tab:hybrid}) and zero-shot on five system models (open diamonds). Grey hollow markers are reference rankings that restate $I^*$'s propagation rule (\texttt{InDeg}, \texttt{Reach}; Amendment~13), not predictors; the neural model reading the dependency graph (\texttt{GAT-P-QoS}) approaches \texttt{InDeg} without exceeding it. (B)~Per held-out fold, the gain of \texttt{HGT-QoS} and of Hybrid-HGT over \texttt{Topo-QoS}. (C)~Cell means of the capacity- and channel-matched $2\times2$ (Table~\ref{tab:contrasts_matched}): the ``QoS'' inputs, which include a QoS-weighted in-degree column, raise both models by about $0.07$ (not significant after Holm), while typed and untyped configurations are indistinguishable.}
+\caption{Main results at a glance, Application population. (A)~Mean Spearman $\rho$ with 95\% bootstrap intervals under LOSO (filled circles; Table~\ref{tab:hybrid}) and zero-shot on five system models (open diamonds). Grey hollow markers are reference rankings that restate $I^*$'s propagation rule (\texttt{InDeg}, \texttt{Reach}; Amendment~13), not predictors; the neural model reading the dependency graph (\texttt{GAT-P-QoS}) approaches \texttt{InDeg} without exceeding it. (B)~Per held-out fold, the gain of \texttt{HGT-QoS} and of Hybrid-HGT over \texttt{Topo-QoS}. (C)~Cell means of the capacity- and channel-matched $2\times2$ (Table~\ref{tab:contrasts_matched}): the ``QoS'' inputs, which include a QoS-weighted in-degree column, raise both models by about $0.07$ (not significant after Holm), while typed and untyped configurations are indistinguishable; with $w_{\text{in}}$ held in both arms the ``QoS'' effect falls to $+0.030$ (Table~\ref{tab:a14}).}
 \label{fig:results}
 \end{figure}
 
@@ -22,39 +22,39 @@ Learned engines are trained on eleven scenarios and scored on the twelfth; train
 \begin{table}[htbp]
 \centering
 \small
-\caption{Main results under LOSO across twelve synthetic architectures (Application population; learned engines: five seeds, CPU sweeps). $\Delta\rho$ is paired by fold against \texttt{Topo-QoS}, with a bootstrap 95\% CI ($B = 2{,}000$) and a two-sided Wilcoxon signed-rank test. $\rho_{>0}$ denotes Spearman correlation restricted to active components ($I^* > 0$). $p_{\text{Holm}}$ is given within each registered family: hybrids (Amendments~5 and~6, confirmatory). The reference block holds rankings that restate $I^*$'s propagation rule (the post hoc first-order expansion, Eq.~\eqref{eq:analytic_istar}; the dependency counts of Amendment~7; their raw-graph equivalents of Amendment~12); they are not predictors and carry no contrast (Amendment~13). $^\ddagger$Exploratory: Amendment~9 registered its contrasts against the references and raw counterparts. $^\S$Raw-multigraph rankers (Amendment~12, exploratory; unadjusted $p$); PR-raw is constant for every Application and has no defined $\rho$. $^\P$Topo and \texttt{Topo-QoS} carry an implementation defect (articulation term zero; Section~\ref{sec:6.2}); corrected values are $0.329$ and $0.533$. Bold: best predictor per column. Per-fold values, contrasts among references, and \texttt{GAT-P+InDeg}, whose prior is a reference: Supplementary Sections~\ref{S-supp:hybrid-folds}, \ref{S-supp:amendment7}, \ref{S-supp:amendment9} and~\ref{S-supp:referee}.}
+\caption{Main results under LOSO across twelve synthetic architectures (Application population; learned engines: five seeds, CPU sweeps). $\Delta\rho$ is paired by fold against \texttt{Topo-QoS}, with a bootstrap 95\% CI ($B = 2{,}000$) and a two-sided Wilcoxon signed-rank test. $\rho_{>0}$ denotes Spearman correlation restricted to active components ($I^* > 0$). $p_{\text{Holm}}$ is given within each registered family: hybrids (Amendments~5 and~6, confirmatory). The reference block holds rankings that restate $I^*$'s propagation rule (the post hoc first-order expansion, Eq.~\eqref{eq:analytic_istar}; the dependency counts of Amendment~7; their raw-graph equivalents of Amendment~12); they are not predictors and carry no contrast (Amendment~13). $^\ddagger$Exploratory: Amendment~9 registered its contrasts against the references and raw counterparts. $^\S$Raw-multigraph rankers (Amendment~12, exploratory; unadjusted $p$); PR-raw is constant for every Application and has no defined $\rho$. $^\P$Topo and \texttt{Topo-QoS} carry an implementation defect (articulation term zero; Section~\ref{sec:6.2}); corrected values are $0.329$ and $0.533$. Underlined: best predictor per column. Per-fold values, contrasts among references, and \texttt{GAT-P+InDeg}, whose prior is a reference: Supplementary Sections~\ref{S-supp:hybrid-folds}, \ref{S-supp:amendment7}, \ref{S-supp:amendment9} and~\ref{S-supp:referee}.}
 \label{tab:hybrid}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lcccccc}
 \toprule
-Predictor & \textbf{LOSO $\rho$ [95\% CI]} & \textbf{Active $\rho_{>0}$} & \textbf{$\Delta\rho$ vs \texttt{Topo-QoS} [95\% CI]} & \textbf{Won} & \textbf{$p$ ($p_{\text{Holm}}$)} & \textbf{Overlap@$K$} \\
+\textbf{Predictor} & \textbf{LOSO $\rho$ [95\% CI]} & \textbf{Active $\rho_{>0}$} & \textbf{$\Delta\rho$ vs \texttt{Topo-QoS} [95\% CI]} & \textbf{Won} & \textbf{$p$ ($p_{\text{Holm}}$)} & \textbf{Overlap@$K$} \\
 \midrule
 \multicolumn{7}{l}{\textit{Reference: restatements of $I^*$'s propagation rule (not predictors; Amendment~13)}} \\
-Analytic $I^*$ & 0.808 $[0.755, 0.853]$ & 0.631 & --- & --- & --- & 0.536 \\
-InDeg (direct dependents) & 0.764 $[0.674, 0.840]$ & 0.516 & --- & --- & --- & 0.504 \\
-Reach (transitive dependents) & 0.732 $[0.674, 0.782]$ & 0.286 & --- & --- & --- & 0.344 \\
-Pubs-raw$^\S$ & 0.731 $[0.637, 0.810]$ & 0.410 & --- & --- & --- & 0.487 \\
-Reach-R1$^\S$ & 0.674 $[0.606, 0.738]$ & 0.088 & --- & --- & --- & 0.300 \\
+\textbf{Analytic $I^*$} & 0.808 $[0.755, 0.853]$ & 0.631 & --- & --- & --- & 0.536 \\
+\textbf{InDeg (direct dependents)} & 0.764 $[0.674, 0.840]$ & 0.516 & --- & --- & --- & 0.504 \\
+\textbf{Reach (transitive dependents)} & 0.732 $[0.674, 0.782]$ & 0.286 & --- & --- & --- & 0.344 \\
+\textbf{Pubs-raw$^\S$} & 0.731 $[0.637, 0.810]$ & 0.410 & --- & --- & --- & 0.487 \\
+\textbf{Reach-R1$^\S$} & 0.674 $[0.606, 0.738]$ & 0.088 & --- & --- & --- & 0.300 \\
 \midrule
 \multicolumn{7}{l}{\textit{Training-free, raw multigraph (no derivation)$^\S$}} \\
-Degree-raw & 0.199 $[0.068, 0.328]$ & 0.218 & $-0.354$ $[-0.475, -0.236]$ & 1/12 & 0.0015 & 0.307 \\
-RevPR-raw & 0.089 $[-0.019, 0.192]$ & 0.075 & $-0.465$ $[-0.558, -0.364]$ & 0/12 & 0.0005 & 0.199 \\
+\textbf{Degree-raw} & 0.199 $[0.068, 0.328]$ & 0.218 & $-0.354$ $[-0.475, -0.236]$ & 1/12 & 0.0015 & 0.307 \\
+\textbf{RevPR-raw} & 0.089 $[-0.019, 0.192]$ & 0.075 & $-0.465$ $[-0.558, -0.364]$ & 0/12 & 0.0005 & 0.199 \\
 \midrule
 \multicolumn{7}{l}{\textit{Training-free, application layer}} \\
-Topo$^\P$ & 0.349 $[0.254, 0.452]$ & 0.174 & $-0.204$ $[-0.286, -0.122]$ & 0/12 & 0.0005 & 0.366 \\
+\textbf{Topo$^\P$} & 0.349 $[0.254, 0.452]$ & 0.174 & $-0.204$ $[-0.286, -0.122]$ & 0/12 & 0.0005 & 0.366 \\
 \midrule
 \multicolumn{7}{l}{\textit{Training-free, dependency graph}} \\
-Topo-QoS$^\P$ & 0.553 $[0.443, 0.657]$ & 0.280 & --- & --- & --- & 0.388 \\
+\textbf{Topo-QoS$^\P$} & 0.553 $[0.443, 0.657]$ & 0.280 & --- & --- & --- & 0.388 \\
 \midrule
 \multicolumn{7}{l}{\textit{Learned and hybrid, on the raw multigraph}} \\
-HGT-QoS & 0.622 $[0.547, 0.690]$ & 0.312 & $+0.069$ $[-0.046, +0.174]$ & 8/12 & 0.266 & 0.426 \\
-GAT-QoS & 0.635 $[0.567, 0.696]$ & 0.338 & $+0.082$ $[-0.046, +0.201]$ & 7/12 & 0.233 & 0.438 \\
-Hybrid-HGT & 0.657 $[0.572, 0.733]$ & 0.345 & $+0.103$ $[+0.055, +0.152]$ & 11/12 & 0.0034 (0.0068) & 0.435 \\
-Hybrid-GAT & 0.683 $[0.603, 0.753]$ & 0.362 & $+0.130$ $[+0.075, +0.190]$ & 11/12 & 0.0015 (0.0029) & 0.450 \\
+\textbf{HGT-QoS} & 0.622 $[0.547, 0.690]$ & 0.312 & $+0.069$ $[-0.046, +0.174]$ & 8/12 & 0.266 & 0.426 \\
+\textbf{GAT-QoS} & 0.635 $[0.567, 0.696]$ & 0.338 & $+0.082$ $[-0.046, +0.201]$ & 7/12 & 0.233 & 0.438 \\
+\textbf{Hybrid-HGT} & 0.657 $[0.572, 0.733]$ & 0.345 & $+0.103$ $[+0.055, +0.152]$ & 11/12 & 0.0034 (0.0068) & 0.435 \\
+\textbf{Hybrid-GAT} & 0.683 $[0.603, 0.753]$ & 0.362 & $+0.130$ $[+0.075, +0.190]$ & 11/12 & 0.0015 (0.0029) & 0.450 \\
 \midrule
 \multicolumn{7}{l}{\textit{Learned, on the dependency graph (Amendment~9)}} \\
-GAT-P-QoS & \textbf{0.748} $[0.704, 0.789]$ & \textbf{0.440} & $\mathbf{+0.195}$ $[+0.100, +0.294]$ & 10/12 & 0.0068$^\ddagger$ & \textbf{0.454} \\
-HGT-P-QoS & 0.514 $[0.392, 0.636]$ & 0.237 & $-0.039$ $[-0.155, +0.077]$ & 4/12 & 0.622$^\ddagger$ & 0.380 \\
+\textbf{GAT-P-QoS} & \underline{0.748} $[0.704, 0.789]$ & \underline{0.440} & $\underline{+0.195}$ $[+0.100, +0.294]$ & 10/12 & 0.0068$^\ddagger$ & \underline{0.454} \\
+\textbf{HGT-P-QoS} & 0.514 $[0.392, 0.636]$ & 0.237 & $-0.039$ $[-0.155, +0.077]$ & 4/12 & 0.622$^\ddagger$ & 0.380 \\
 \bottomrule
 \end{tabular}%
 }
@@ -78,35 +78,35 @@ where $|\text{pub}(t)| \ge 1$ holds for all published topics $t \in \text{pub}(v
 \begin{table}[htbp]
 \centering
 \small
-\caption{Rankers against three oracles, twelve LOSO folds, Application population (registered secondary and exploratory). All three oracles are exhaustive over the $1{,}321$ Applications; $I_{\text{dyn}}$ is the five-seed mean of Amendment~11 (the earlier lexicographic $n = 30$ sample is in Supplementary Section~\ref{S-supp:round8}). Partial $\rho$: Spearman correlation with $I_{\text{dyn}}$ after the rank of $I^*$, or of the first-order expansion $\hat{I}^*_1$ (Eq.~\eqref{eq:analytic_istar}), is regressed out of both. Published learned rows score the mean of the five seeds' \emph{predictions}, which raises $\rho$ on $I^*$ above the per-seed means of Table~\ref{tab:hybrid}; Amendment~11's GBM rows and Amendment~14's surrogate are per-seed means. $^\star$Trained on $I_{\text{dyn}}$ labels of the eleven training scenarios: a surrogate for $I_{\text{dyn}}$, not an independent check of it. Reference rows restate $I^*$'s rule (Section~\ref{sec:4.4}). Italics: highest value per column among predictors. 95\% CIs bootstrap folds.}
+\caption{Rankers against three oracles, twelve LOSO folds, Application population (registered secondary and exploratory). All three oracles are exhaustive over the $1{,}321$ Applications; $I_{\text{dyn}}$ is the five-seed mean of Amendment~11 (the earlier lexicographic $n = 30$ sample is in Supplementary Section~\ref{S-supp:round8}). Partial $\rho$: Spearman correlation with $I_{\text{dyn}}$ after the rank of $I^*$, or of the first-order expansion $\hat{I}^*_1$ (Eq.~\eqref{eq:analytic_istar}), is regressed out of both. Published learned rows score the mean of the five seeds' \emph{predictions}, which raises $\rho$ on $I^*$ above the per-seed means of Table~\ref{tab:hybrid}; Amendment~11's GBM rows and Amendment~14's surrogate are per-seed means. $^\star$Trained on $I_{\text{dyn}}$ labels of the eleven training scenarios: a surrogate for $I_{\text{dyn}}$, not an independent check of it. Reference rows restate $I^*$'s rule (Section~\ref{sec:4.4}). Underlined: highest value per column among predictors. 95\% CIs bootstrap folds.}
 \label{tab:independent_oracles}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lccccc}
 \toprule
-Ranker & $I^*$ $\rho$ & $I_{\text{dyn}}$ $\rho$ [95\% CI] & Partial $\rho(\cdot, I_{\text{dyn}} \mid I^*)$ [95\% CI] & Partial $\mid \hat{I}^*_1$ & $I_{\text{comp}}$ $\rho$ \\
+\textbf{Ranker} & $I^*$ $\rho$ & $I_{\text{dyn}}$ $\rho$ [95\% CI] & Partial $\rho(\cdot, I_{\text{dyn}} \mid I^*)$ [95\% CI] & Partial $\mid \hat{I}^*_1$ & $I_{\text{comp}}$ $\rho$ \\
 \midrule
 \multicolumn{6}{l}{\textit{Reference: restatements of $I^*$'s propagation rule (not predictors)}} \\
-Analytic $I^*$ & 0.808 & 0.706 $[0.629, 0.783]$ & 0.318 $[0.234, 0.412]$ & --- & 0.636 \\
-InDeg & 0.764 & 0.664 $[0.562, 0.758]$ & 0.272 $[0.188, 0.366]$ & 0.079 & 0.650 \\
-Reach & 0.732 & 0.583 $[0.510, 0.651]$ & 0.117 $[0.055, 0.184]$ & 0.102 & 0.302 \\
-Pubs-raw & 0.731 & 0.645 $[0.543, 0.737]$ & 0.255 $[0.179, 0.332]$ & 0.056 & 0.616 \\
+\textbf{Analytic $I^*$} & 0.808 & 0.706 $[0.629, 0.783]$ & 0.318 $[0.234, 0.412]$ & --- & 0.636 \\
+\textbf{InDeg} & 0.764 & 0.664 $[0.562, 0.758]$ & 0.272 $[0.188, 0.366]$ & 0.079 & 0.650 \\
+\textbf{Reach} & 0.732 & 0.583 $[0.510, 0.651]$ & 0.117 $[0.055, 0.184]$ & 0.102 & 0.302 \\
+\textbf{Pubs-raw} & 0.731 & 0.645 $[0.543, 0.737]$ & 0.255 $[0.179, 0.332]$ & 0.056 & 0.616 \\
 \midrule
 \multicolumn{6}{l}{\textit{Training-free predictors (proximate to $I_{\text{comp}}$; Section~\ref{sec:4.4})}} \\
-Topo-QoS & 0.553 & 0.471 $[0.381, 0.559]$ & 0.134 $[0.061, 0.204]$ & $-0.091$ & 0.702 \\
-Degree-raw & 0.199 & 0.232 $[0.134, 0.329]$ & 0.149 $[0.089, 0.227]$ & $-0.091$ & \emph{0.719} \\
+\textbf{Topo-QoS} & 0.553 & 0.471 $[0.381, 0.559]$ & 0.134 $[0.061, 0.204]$ & $-0.091$ & 0.702 \\
+\textbf{Degree-raw} & 0.199 & 0.232 $[0.134, 0.329]$ & 0.149 $[0.089, 0.227]$ & $-0.091$ & \underline{0.719} \\
 \midrule
 \multicolumn{6}{l}{\textit{Learned GNNs (seed ensemble)}} \\
-GAT-P-QoS & 0.772 & 0.615 $[0.549, 0.673]$ & 0.111 $[0.016, 0.213]$ & 0.182 & 0.274 \\
-Hybrid-GAT & 0.702 & 0.599 $[0.514, 0.669]$ & \emph{0.173} $[0.082, 0.267]$ & 0.056 & 0.585 \\
-Hybrid-HGT & 0.672 & 0.573 $[0.497, 0.638]$ & 0.162 $[0.074, 0.252]$ & 0.029 & 0.582 \\
-HGT-QoS & 0.667 & 0.549 $[0.464, 0.622]$ & 0.130 $[0.035, 0.224]$ & 0.212 & 0.201 \\
-GAT-QoS & 0.647 & 0.523 $[0.436, 0.606]$ & 0.107 $[0.018, 0.199]$ & \emph{0.217} & 0.144 \\
-HGT-P-QoS & 0.618 & 0.496 $[0.395, 0.601]$ & 0.112 $[0.033, 0.190]$ & 0.087 & 0.334 \\
+\textbf{GAT-P-QoS} & 0.772 & 0.615 $[0.549, 0.673]$ & 0.111 $[0.016, 0.213]$ & 0.182 & 0.274 \\
+\textbf{Hybrid-GAT} & 0.702 & 0.599 $[0.514, 0.669]$ & \underline{0.173} $[0.082, 0.267]$ & 0.056 & 0.585 \\
+\textbf{Hybrid-HGT} & 0.672 & 0.573 $[0.497, 0.638]$ & 0.162 $[0.074, 0.252]$ & 0.029 & 0.582 \\
+\textbf{HGT-QoS} & 0.667 & 0.549 $[0.464, 0.622]$ & 0.130 $[0.035, 0.224]$ & 0.212 & 0.201 \\
+\textbf{GAT-QoS} & 0.647 & 0.523 $[0.436, 0.606]$ & 0.107 $[0.018, 0.199]$ & \underline{0.217} & 0.144 \\
+\textbf{HGT-P-QoS} & 0.618 & 0.496 $[0.395, 0.601]$ & 0.112 $[0.033, 0.190]$ & 0.087 & 0.334 \\
 \midrule
 \multicolumn{6}{l}{\textit{Learned combinations of dependency signals (Amendment~11; GBM over counts, Analytic $I^*$ and QoS features)}} \\
-GBM-Dep-QoS & \emph{0.818} & 0.718 & --- & --- & 0.483 \\
-GBM-Dep-QoS$\to$dyn$^\star$ & 0.764 & \emph{0.799} & --- & --- & 0.477 \\
-GAT-P-QoS$\to$dyn$^\star$ (Amendment~14) & 0.734 & 0.598 & --- & --- & 0.368 \\
+\textbf{GBM-Dep-QoS} & \underline{0.818} & 0.718 & --- & --- & 0.483 \\
+\textbf{GBM-Dep-QoS$\to$dyn$^\star$} & 0.764 & \underline{0.799} & --- & --- & 0.477 \\
+\textbf{GAT-P-QoS$\to$dyn$^\star$ (Amendment~14)} & 0.734 & 0.598 & --- & --- & 0.368 \\
 \bottomrule
 \end{tabular}%
 }
@@ -199,30 +199,30 @@ Interaction & difference of differences & --- & $+0.046$ $[-0.009, +0.101]$ & 9/
 \begin{table}[htbp]
 \centering
 \small
-\caption{Zero-shot transfer to hand-authored models inspired by five open-source systems (Application population). Models are evaluated out-of-distribution without fine-tuning. $\rho_{>0}$ denotes rank correlation restricted to active components ($I^* > 0$). PR-AUC measures critical-set identification quality. All rows are scored on the same labels (the learned engines' zero-shot label files; Amendment~12, R5). The training-free rows are not trained on anything, so ``zero-shot'' applies to the learned rows only. Reference rows restate $I^*$'s propagation rule and are not predictors (Amendment~13). Bold: best predictor per column. 95\% CIs bootstrap the five systems and are indicative only.}
+\caption{Zero-shot transfer to hand-authored models inspired by five open-source systems (Application population). Models are evaluated out-of-distribution without fine-tuning. $\rho_{>0}$ denotes rank correlation restricted to active components ($I^* > 0$). PR-AUC measures critical-set identification quality. All rows are scored on the same labels (the learned engines' zero-shot label files; Amendment~12, R5). The training-free rows are not trained on anything, so ``zero-shot'' applies to the learned rows only. Reference rows restate $I^*$'s propagation rule and are not predictors (Amendment~13). Underlined: best predictor per column. 95\% CIs bootstrap the five systems and are indicative only.}
 \label{tab:system_models_transfer}
 \label{tab:9b}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{llccc}
 \toprule
-Predictor & \textbf{Evaluation Substrate} & \textbf{Mean $\rho$ [95\% CI]} & \textbf{Active $\rho_{>0}$} & \textbf{PR-AUC} \\
+\textbf{Predictor} & \textbf{Evaluation Substrate} & \textbf{Mean $\rho$ [95\% CI]} & \textbf{Active $\rho_{>0}$} & \textbf{PR-AUC} \\
 \midrule
 \multicolumn{5}{l}{\textit{Reference: restatements of $I^*$'s propagation rule (not predictors)}} \\
-Reach & Dependency graph & 0.938 $[0.879, 0.991]$ & 0.871 & 0.933 \\
-InDeg & Dependency graph & 0.863 $[0.734, 0.952]$ & 0.321 & 0.752 \\
+\textbf{Reach} & Dependency graph & 0.938 $[0.879, 0.991]$ & 0.871 & 0.933 \\
+\textbf{InDeg} & Dependency graph & 0.863 $[0.734, 0.952]$ & 0.321 & 0.752 \\
 \midrule
 \multicolumn{5}{l}{\textit{Training-free predictors}} \\
-Topo & Application layer & 0.511 $[0.346, 0.703]$ & $-0.104$ & 0.474 \\
-Topo-QoS & Dependency graph & 0.526 $[0.357, 0.699]$ & $-0.088$ & 0.474 \\
+\textbf{Topo} & Application layer & 0.511 $[0.346, 0.703]$ & $-0.104$ & 0.474 \\
+\textbf{Topo-QoS} & Dependency graph & 0.526 $[0.357, 0.699]$ & $-0.088$ & 0.474 \\
 \midrule
 \multicolumn{5}{l}{\textit{Learned and hybrid, raw multigraph}} \\
-HGT-QoS & Raw multigraph & 0.760 $[0.714, 0.819]$ & 0.236 & 0.713 \\
-GAT-QoS & Raw multigraph & 0.805 $[0.759, 0.868]$ & 0.319 & 0.790 \\
-Hybrid-HGT & Raw multigraph & 0.695 $[0.643, 0.730]$ & 0.210 & 0.602 \\
-Hybrid-GAT & Raw multigraph & 0.662 $[0.597, 0.727]$ & 0.185 & 0.600 \\
+\textbf{HGT-QoS} & Raw multigraph & 0.760 $[0.714, 0.819]$ & 0.236 & 0.713 \\
+\textbf{GAT-QoS} & Raw multigraph & 0.805 $[0.759, 0.868]$ & 0.319 & 0.790 \\
+\textbf{Hybrid-HGT} & Raw multigraph & 0.695 $[0.643, 0.730]$ & 0.210 & 0.602 \\
+\textbf{Hybrid-GAT} & Raw multigraph & 0.662 $[0.597, 0.727]$ & 0.185 & 0.600 \\
 \midrule
 \multicolumn{5}{l}{\textit{Learned, dependency graph}} \\
-GAT-P-QoS & Dependency graph & \textbf{0.806} $[0.785, 0.829]$ & \textbf{0.342} & \textbf{0.838} \\
+\textbf{GAT-P-QoS} & Dependency graph & \underline{0.806} $[0.785, 0.829]$ & \underline{0.342} & \underline{0.838} \\
 \bottomrule
 \end{tabular}%
 }
