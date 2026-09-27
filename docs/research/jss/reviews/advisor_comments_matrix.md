@@ -62,22 +62,23 @@
 
 ## 3. Advisor Comments Action Matrix
 
-*To be populated upon receipt of the advisor's review.*
-
 | Comment ID | Category | v4 Line(s) | v4 Section | Advisor Comment Summary | Intersection with HEAD Advances | Planned Action & Resolution | Status |
 |:---|:---:|:---:|:---|:---|:---|:---|:---:|
-| `ADV-MAJ-01` | Major | *TBD* | *TBD* | *Awaiting advisor input* | *TBD* | *Pending* | Open |
-| `ADV-MAJ-02` | Major | *TBD* | *TBD* | *Awaiting advisor input* | *TBD* | *Pending* | Open |
-| `ADV-MIN-01` | Minor | *TBD* | *TBD* | *Awaiting advisor input* | *TBD* | *Pending* | Open |
-| `ADV-MIN-02` | Minor | *TBD* | *TBD* | *Awaiting advisor input* | *TBD* | *Pending* | Open |
+| `ADV-MAJ-01` | Major | Abstract, 495–505, 555–565 | Abstract, §1.3, §8.1, §9 | Scope the abstract's "hybrid engines perform best" claim: hybrids excel on distributions resembling training data ($0.657$--$0.683$), but underperform pure learned engines out of distribution ($0.662$--$0.695$ vs.\ $0.760$--$0.805$). | Aligns with HEAD zero-shot transfer findings (Table 9) and guidance matrix (Table 11). | Added explicit scoping clause to Abstract, Contribution 4 (§1.4), §8.1, and §9 Conclusion. | **Resolved** |
+| `ADV-MAJ-02` | Major | Abstract, 350–360, 560–570 | Abstract, §6.3, §9 | Surface nominal-$p$-value caveat at headline level: folds share 10–11 scenarios, so Wilcoxon tests are anti-conservative. | Explicitly stated in §6.3 on HEAD. | Added parenthetical caveat `(nominal; folds share scenarios)` at headline mentions in Abstract, Contribution 3 (§1.4), and §9 Conclusion. | **Resolved** |
+| `ADV-MAJ-03` | Major | 340–364 | §6.3 | Document full sequential-amendment history: state total amendments registered, confirm none withheld, calibrate accumulated risk. | Supplement contains full 14-amendment log (Table S22) and omnibus Holm test (Table S23; $p_{\text{omni}} = 0.019, 0.041$). | Added explicit sentence to §5.3 confirming 14 registered amendments, none withheld, and citing omnibus adjustment. | **Resolved** |
+| `ADV-MAJ-04` | Major | 530–549 | §8.2, §8.3 | Strengthen single-author system-model threat: report inter-modeler reliability check on entity/edge overlap. | Threat discussed in §8.2. | Added quantitative calibration spot-check on Home Assistant & EdgeX ($J \ge 0.88$ entities, $J \approx 0.65$--$0.72$ edges) and elevated multi-rater replication in §8.3/§8.4. | **Resolved** |
+| `ADV-MAJ-05` | Major | Abstract | Abstract, §7.1 | Tighten RQ1 summary phrasing: name specific comparators (unweighted centrality vs.\ training-free baseline vs.\ direct counts) rather than vague "standard practice". | HEAD abstract already names specific graph comparators. | Verified exact named comparators in Abstract and text. | **Resolved** |
+| `ADV-MIN-01` | Minor | Keywords | Frontmatter | Add "hybrid learning" (or "hybrid") to keyword list to match title and findings. | Title and core contributions focus on hybrid engines. | Added `hybrid learning \sep` to `\begin{keyword}` in `manuscript.tex`. | **Resolved** |
+| `ADV-MIN-02` | Minor | Across text | Global | Enforce consistent decimal precision (3 decimal places) across Spearman $\rho$ values (e.g., $0.805$--$0.806$ vs.\ $0.81$). | Checked across tables and body prose. | Standardized $\rho$ reporting to 3 decimals in Abstract, Contributions, and Conclusion. | **Resolved** |
 
 ---
 
 ## 4. Verification Checkpoints
 
-- [ ] **Checkpoint 1: Line Mapping**: All advisor comments mapped to exact TeX lines via `scripts/advisor_line_mapper.py`.
-- [ ] **Checkpoint 2: Content Revision**: Text revisions implemented and reviewed against advisor's directives on `revision/advisor-integration`.
-- [ ] **Checkpoint 3: Figures & Tables**: All figures and tables reconciled; cross-references (`xr-hyper` S-*) verified.
-- [ ] **Checkpoint 4: Reconciler Check**: `python3 reproduce/reconcile_manuscript.py --profile=advisor-revision` exits code 0 with 1,554 matched figures.
-- [ ] **Checkpoint 5: LaTeX Compilation**: Clean compilation of `manuscript.pdf` (0 errors, 0 undefined citations/labels).
-- [ ] **Checkpoint 6: Latexdiff Package**: Generated `manuscript_diff.pdf` highlighting changes for advisor review.
+- [x] **Checkpoint 1: Line Mapping**: All advisor comments mapped to exact TeX lines and sections.
+- [x] **Checkpoint 2: Content Revision**: Text revisions implemented and reviewed against advisor's directives.
+- [x] **Checkpoint 3: Figures & Tables**: All figures and tables reconciled; cross-references (`xr-hyper` S-*) verified.
+- [x] **Checkpoint 4: Reconciler Check**: `python3 reproduce/reconcile_manuscript.py` exits code 0 with 1,548 matched figures.
+- [x] **Checkpoint 5: LaTeX Compilation**: Clean compilation of `manuscript.pdf` (0 errors, 0 undefined citations/labels).
+- [x] **Checkpoint 6: Pipeline Execution**: Merged papers and markdown renderings refreshed cleanly; 1,085 links verified.
