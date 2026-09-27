@@ -47,7 +47,7 @@ import logging
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -301,6 +301,8 @@ class GNNService:
         qos_injection: str = "pooled",
         use_bidirectional: bool = True,
         topo_prior: bool = False,
+        drop_feature_keys: Sequence[str] = (),
+        qos_exempt_keys: Sequence[str] = (),
     ):
         self.hidden_channels = hidden_channels
         self.num_heads = num_heads
@@ -317,6 +319,10 @@ class GNNService:
         #: conversion appends the ``topo_prior`` structural metric as one extra
         #: node-feature column and the model adds a learned correction to it.
         self.topo_prior = topo_prior
+        #: Amendment 14: node-feature columns zeroed, and QoS node columns kept
+        #: when QoS is off. Applied by every conversion and persisted like topo_prior.
+        self.drop_feature_keys = tuple(drop_feature_keys)
+        self.qos_exempt_keys = tuple(qos_exempt_keys)
         self.checkpoint_dir = Path(checkpoint_dir)
         self.device = device if device else torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -495,6 +501,8 @@ class GNNService:
             rank_normalize_features=rank_normalize_features,
             edge_simulation_results=edge_simulation_results,
             append_prior=self.topo_prior,
+            drop_feature_keys=self.drop_feature_keys,
+            qos_exempt_keys=self.qos_exempt_keys,
         )
         self._conversion_result = conv
         self._pinned_splits = node_splits
@@ -664,6 +672,8 @@ class GNNService:
                 if rank_normalize_features is None else rank_normalize_features
             ),
             append_prior=self.topo_prior,
+            drop_feature_keys=self.drop_feature_keys,
+            qos_exempt_keys=self.qos_exempt_keys,
         )
         self._conversion_result = conv
         # ── Run prediction ────────────────────────────────────────────────────
@@ -980,6 +990,8 @@ class GNNService:
                     "use_bidirectional": self.use_bidirectional,
                     "qos_injection": self.qos_injection,
                     "topo_prior": self.topo_prior,
+                    "drop_feature_keys": list(self.drop_feature_keys),
+                    "qos_exempt_keys": list(self.qos_exempt_keys),
                     "node_feature_dims": NODE_TYPE_TO_DIM,
                     "best_seed": self._best_seed,
                     "layer": self.layer,
@@ -1152,6 +1164,8 @@ class GNNService:
             use_bidirectional=cfg.get("use_bidirectional", True),
             qos_injection=cfg.get("qos_injection", "pooled"),
             topo_prior=cfg.get("topo_prior", False),
+            drop_feature_keys=cfg.get("drop_feature_keys", ()),
+            qos_exempt_keys=cfg.get("qos_exempt_keys", ()),
         )
         service._best_seed = cfg.get("best_seed", 42)
         service._rank_normalize_features = cfg.get("rank_normalize_features", False)

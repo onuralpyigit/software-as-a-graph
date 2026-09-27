@@ -1133,3 +1133,191 @@ The rows are therefore kept, as a measure of the circularity, and stop being can
 - The 13-contrast omnibus.
 - Every published value, CI and fold count.
 - The feature set of the learned engines. The in-degree feature path is disclosed, not ablated.
+
+---
+
+## Deviation record — the registered selection rule was not applied (2026-09-26, after all results existed)
+
+**Status when written.** Every number this record touches is already published. It is a
+reporting deviation, found in the round-8 referee response, and recorded as such.
+
+**What was registered.** §"Selection rule" (above): every hyperparameter and representation
+switch is selected by nested inner-LOSO, amended to a two-fold inner holdout by Amendment 1.
+
+**What was done.** Every published learned result (plan, Amendments 2, 5, 6, 8, 9) uses one fixed
+configuration: 3 layers, no rank normalisation of features or labels, and the optimiser, loss and
+width stated in manuscript §4.2. No arm was selected by the nested search. Supplementary Table
+`tab:supp-amendments`, row A1, described the amended rule as the "selection rule of every learned
+result", which was not true, and the manuscript said "no hyperparameter search was run", which
+was also not true: one stage-1 search exists.
+
+**The one search that was run.** `results/nested_loso_search_stage1.json` (2026-09-06 19:51),
+`hgl_qos`, grid `stage1` (8 configurations: layers × rank-normalise features × rank-normalise
+labels), outer mean ρ 0.716 (SD 0.117). It predates the corpus regeneration of 2026-09-10, carries
+no provenance stamp, and is therefore not comparable with any published number. It was never
+reported. Amendment 14, arm N, re-runs it on the current corpus.
+
+**Status tiers, applied from the round-8 revision onward.** One rule replaces the earlier mixed
+usage of "confirmatory":
+
+| Tier | Membership | Correction |
+|:---|:---|:---|
+| **Confirmatory** | The original plan only: `HGT-QoS` vs `Topo-QoS` (primary) and `HGT` vs `Topo-QoS` (secondary) | Holm across the two |
+| **Registered secondary** | Every amendment registered before any result of its own arms existed: 2, 5, 6, 7, 9, 10, 11, 14 | Holm within each amendment's family; the 13-contrast omnibus (plan + 2 + 5 + 6) is kept as a sensitivity check |
+| **Exploratory** | Everything registered after its results existed (Amendments 8, 12's R-arms where marked, 13) and every descriptive analysis | None claimed |
+
+Amendment 2 declared its own arms post hoc and exploratory; Amendments 5 and 6 declared nothing
+and were registered after the primary null was known. Under the tier rule all three are registered
+secondary, which is what they are.
+
+---
+
+## Amendment 14 — round-8 referee arms: degree dependence, aggregation, the QoS factor with w_in held, a GNN queue-flow surrogate, and the selection rule (2026-09-26, before any result)
+
+**Status when written.** No arm below is implemented, fitted or run. What was seen before writing,
+in full:
+- every published number, and Amendment 11's outcomes (A″, B, C, Z);
+- a **TOST preview** on existing artifacts, computed while designing this amendment: per-fold
+  GAT-P-QoS − `InDeg` on `I*`, n = 12, mean −0.0165, SD 0.1145; at ±0.05 the t-based TOST gives
+  p = 0.17 and the smallest margin that passes is about ±0.076. The margin below is therefore
+  **not blind**. It is fixed at ±0.05 on substantive grounds (it is smaller than every between-engine
+  gap the paper interprets, and smaller than the cross-device drift of learned cells, ±0.041 on
+  `HGT-QoS`), and the equivalence bound is reported whatever it is;
+- a **degree-leak spot check**: on Applications, Spearman ρ with `InDeg` of `in_degree_centrality`,
+  `qos_weight_in`, `pagerank`, `closeness_centrality` and `eigenvector_centrality` is 0.52–1.00 on
+  Enterprise, ATM and Telecom RAN. This is why the strict arms exist;
+- the unreported `hybrid_vs_learned` rows of `loso_significance_hybrid{,_gat}_cpu.json`
+  (Amendments 5 and 6 registered them; Hybrid-HGT vs HGT-QoS +0.035, p = 0.733).
+
+**Why it exists.** The round-8 referee reports (`reviews/review_2026-09-26_round8.md`, M3, M4, M6,
+M7; `…_round8_r2.md`, Major 2–3) ask whether the dependency-graph learners approach the reference
+only because they read degree features, whether a sum aggregator can count what softmax attention
+cannot, what the QoS factor means once `w_in` is held, whether a GNN can serve as the queue-flow
+surrogate that Amendment 11's Family B licensed, and what the registered selection rule would have
+produced.
+
+### Arms, fixed before any run
+
+All arms: LOSO over the twelve folds, five seeds {42, 123, 456, 789, 2024}, CPU, the published
+fixed configuration unless stated, the Application population, one invocation together with their
+comparators (`make -f reproduce/Makefile rq-amendment14`). Dropped columns are set to 0 after rank
+normalisation; the input width, and so the parameter budget, is unchanged.
+
+| id | Label | Substrate | Change against its comparator | Comparator |
+|:---|:---|:---|:---|:---|
+| `gl_proj_qos16_cap_nodeg` | GAT-P-QoS−deg | projection | drop `in_degree_centrality`, `qos_weight_in` | `gl_proj_qos16_cap` |
+| `gl_proj_qos16_cap_nodeg_strict` | GAT-P-QoS−deg* | projection | also drop `pagerank`, `closeness_centrality`, `eigenvector_centrality` | `gl_proj_qos16_cap` |
+| `gl_full_qos16_cap_nodeg` | GAT-QoS−deg | native | drop `in_degree_centrality`, `qos_weight_in` | `gl_full_qos16_cap` |
+| `gin_proj_qos16` | GIN-P-QoS | projection | `GINEConv` (sum aggregation), width 228, 434,123 parameters | `gl_proj_qos16_cap` |
+| `gin_proj_qos16_nodeg` | GIN-P-QoS−deg | projection | GIN + the two-column drop | `gl_proj_qos16_cap_nodeg` |
+| `gin_proj_qos16_nodeg_strict` | GIN-P-QoS−deg* | projection | GIN + the strict drop | `gl_proj_qos16_cap_nodeg_strict` |
+| `gl_full_cap_win` | GAT+w_in | native | QoS-off, but `qos_weight_in` exempt from masking | cell ¬T¬Q of the w_in-matched 2×2 |
+| `hgl_win` | HGT+w_in | native | QoS-off, `qos_weight_in` exempt | cell T¬Q |
+| `gl_proj_qos16_cap_idyn` | GAT-P-QoS→dyn | projection | trained on `I_dyn-full` (Amendment 11 labels, Applications only) | Analytic-I*, GBM-Dep-QoS→dyn |
+| `gl_proj_qos16_cap_istar_app` | GAT-P-QoS[I*-App] | projection | trained on `I*`, Applications only (label-support control for →dyn) | `gl_proj_qos16_cap` |
+
+Cells TQ and ¬TQ of the w_in-matched 2×2 are the published `hgl_qos` and `gl_full_qos16_cap`,
+re-run in the same invocation. Every comparator is re-run in that invocation.
+
+**Arm N (selection rule).** `reproduce/nested_loso_search.py --grid stage1` (8 configurations;
+two-fold inner holdout per Amendment 1; inner seed 42; outer seeds as above) for `hgl_qos` and
+`gl_proj_qos16_cap`, on the current corpus. The published fixed configuration is one of the eight
+grid points.
+
+**Labels.** `I*` as published. `I_dyn-full`: `data/benchmarks/idyn_full_labels_jss12.json`
+(Amendment 11; mean over five seeds), read from disk by `cli/`, never imported from
+`saag/simulation`. Held-out scoring in the harness stays on `I*`; `referee_round8.py` scores every
+arm on `I*`, `I_dyn-full` and `I_comp` from the saved per-seed predictions. `I_comp` is never a
+training label.
+
+### Contrasts
+
+Two-sided Wilcoxon over folds on the registered statistic (mean over seeds of per-seed ρ), bootstrap
+95% CI (B = 2,000), Holm within each family. No family joins the omnibus. Tier: registered secondary.
+
+- **F1 degree dependence** (on `I*`): GAT-P-QoS−deg vs GAT-P-QoS; GAT-P-QoS−deg* vs GAT-P-QoS;
+  GAT-QoS−deg vs GAT-QoS.
+- **F2 aggregation** (on `I*`): GIN-P-QoS vs GAT-P-QoS; GIN-P-QoS−deg vs GAT-P-QoS−deg;
+  GIN-P-QoS−deg* vs GAT-P-QoS−deg*.
+- **F3 distance to the reference** (on `I*`; descriptive plus equivalence, no superiority claim,
+  per Amendment 13): for GAT-P-QoS (per-seed mean and seed ensemble), both −deg arms and all three
+  GIN arms, the mean Δ against `InDeg`, its 90% CI, and a t-based TOST at ±0.05 (Wilcoxon TOST as
+  sensitivity).
+- **F4 QoS factor with w_in held** (on `I*`): typing main effect, QoS main effect, interaction, over
+  (GAT+w_in, HGT+w_in, GAT-QoS, HGT-QoS).
+- **F5 GNN surrogate** (on `I_dyn-full`): GAT-P-QoS→dyn vs Analytic-I*; vs GBM-Dep-QoS→dyn
+  (Amendment 11); vs GAT-P-QoS[I*-App].
+- **F6 selection rule**: nested `hgl_qos` vs fixed `hgl_qos`; nested `gl_proj_qos16_cap` vs fixed;
+  nested `hgl_qos` vs `Topo-QoS`.
+- **F7 hybrid attribution** (on `I*`, from existing artifacts): each hybrid vs `Topo (projection)`
+  (unweighted betweenness) and vs `Topo-Mult` (constant weights). The hybrid-vs-own-learner rows of
+  Amendments 5 and 6 are reported as registered there. Sensitivity, descriptive: the same contrasts
+  under |V_app|-weighted averaging with an exact sign-flip permutation p, and a Nadeau–Bengio
+  corrected t for the primary, secondary and hybrid contrasts.
+
+Descriptive, no tests: every arm × oracle cell; ρ>0 on `I*`; Overlap@K; zero-shot means on the
+five system models; the degree-leak table; hierarchical fold→seed bootstrap CIs for the learned
+rows of Table 6; the cost reconciliation below.
+
+**Cost reconciliation (descriptive).** On the twelve corpus graphs and on generated graphs of 250,
+500, 1,000 and 2,000 components (5,000 once), in one session on an otherwise idle machine, median of
+3: the analysis gate (per phase and per detector), `analyze_layer("app")`, one `I*` pass (seed 42,
+Applications only), five seeds on Applications, the published five-seed sweep over Application,
+Broker and Library nodes, and the counting path. Ratios are reported only between regions timed on
+the same graph in the same session.
+
+### Decision rules
+
+| Rule | Condition | What the text says |
+|:---|:---|:---|
+| F1a | Both GAT-P-QoS−deg arms lose to GAT-P-QoS at Holm p < 0.05 | "The dependency-graph learner's approach to the reference depends on the degree features." |
+| F1b | Neither loses at Holm p < 0.05 | "Removing the degree features costs no measurable accuracy: message passing on the dependency graph recovers the signal." |
+| F1c | Otherwise | Reported per arm; no single verdict. |
+| F2a | GIN-P-QoS−deg or −deg* beats its GAT counterpart at Holm p < 0.05 | "Without degree features, sum aggregation recovers accuracy that softmax attention loses", with the expressivity citation. |
+| F2b | Otherwise | "No measurable effect of the aggregator." |
+| F3a | TOST p < 0.05 for an arm | "Equivalent to `InDeg` within ±0.05." |
+| F3b | Otherwise | "Neither equivalence within ±0.05 nor superiority is shown"; the 90% bound is reported. "Never exceeds" is not used. |
+| F4a | QoS main effect with w_in held, Holm p < 0.05, Δ > 0 | "QoS inputs beyond the weighted in-degree carry signal on `I*`", discussed against Amendment 7's R2. |
+| F4b | Otherwise | "With `w_in` held, the QoS inputs add nothing measurable on `I*`." |
+| F5a | GAT-P-QoS→dyn beats Analytic-I* at Holm p < 0.05 | "A GNN surrogate ranks held-out queue-flow impact better than the analytic approximation", with the surrogate caveat and cost ledger; compared descriptively with GBM-Dep-QoS→dyn. |
+| F5b | Otherwise | No GNN surrogate claim; Amendment 11's GBM result stands alone. |
+| F6a | Nested `hgl_qos` vs `Topo-QoS`, Holm p < 0.05, Δ > 0 | Abstract and §7.1 state that under the registered selection rule, which the published sweep did not apply, the primary contrast is positive (Δ, p). The fixed-configuration tables stay as published and are labelled as such. |
+| F6b | Otherwise | "Applying the registered selection rule does not change the primary result"; Δ between nested and fixed is reported. |
+| F7 | Any outcome | Reported beside the hybrid rows in §7.1 with the nested-comparator caveat. |
+
+**Stopping rule.** No arm is re-run with other features, widths or seeds in search of a different
+answer. A failed arm is reported with its failure. Any follow-up needs its own amendment.
+
+**What is unchanged.** The plan's primary and secondary contrasts and their published values; every
+published arm, label and table value (new rows are added beside them); the 13-contrast omnibus,
+now reported as a sensitivity check under the tier rule above.
+
+### Amendment 14 — results log and deviations (2026-09-27, after the arms ran)
+
+**Gate G0.** Every learned comparator re-run in the Amendment 14 invocation reproduces its
+published per-seed ρ exactly (max |Δ| = 0). **Deviation:** the training-free `topo_qos`
+row does not (Δ up to 0.297). The sweep ran from a git worktree without `output/loso_cache`;
+`reproduce/main_table._find_cache_dir` resolves that relative path and fell back to
+`data/scenarios` with NX-derived structural metrics. No Amendment 14 contrast reads that row;
+the published Topo-QoS is used wherever one is needed. Recorded, not gated.
+
+**Outcomes against the decision rules** (`data/benchmarks/referee_round8_amendment14.json`):
+- **F1a** — both GAT-P-QoS−deg arms lose to GAT-P-QoS (−0.136 and −0.161, Holm 0.005);
+  GAT-QoS−deg loses −0.270 (Holm 0.0015).
+- **F2b** — no aggregator effect at Holm p < 0.05 (GIN−deg vs GAT−deg +0.108, +0.124; Holm 0.157).
+  Descriptively, GIN-P-QoS keeps 0.721 / 0.711 without degree features (0.732 with them).
+- **F3b** — no arm is equivalent to `InDeg` within ±0.05 (equivalence bounds 0.063–0.276).
+- **F4b** — with `w_in` held, the QoS main effect is +0.030 (Holm 0.330).
+- **F5b** — GAT-P-QoS→dyn loses to Analytic-I* on `I_dyn-full` (−0.108, Holm 0.014) and to
+  GBM-Dep-QoS→dyn (−0.201, Holm 0.0015); label source makes no difference (−0.008 vs I*-App).
+- **F6b** — nested `hgl_qos` vs `Topo-QoS` +0.123 (9/12, Holm 0.192); nested vs fixed `hgl_qos`
+  +0.055 (Holm 0.259); nested vs fixed `gl_proj_qos16_cap` −0.054 (Holm 0.259).
+  **Deviation (arm N):** `reproduce/nested_loso_search.py` scores every configuration with
+  early stopping on a held-out validation *scenario* (`inner_val="auto"`), whereas every published
+  sweep early-stops on a 20% node-level split of the largest training scenario
+  (`--inner-val-scenario none`). The published configuration is therefore **not** one of the eight
+  grid points, contrary to this amendment's text. The gate caught it: on the three `hgl_qos` folds
+  where the inner search chose the published hyperparameters, the outer ρ differs from the
+  published value by up to 0.102. Per the stopping rule the arm is not re-run; F6 is reported as
+  "nested selection *with scenario-level early stopping*" against the published protocol, and no
+  difference is attributed to hyperparameter selection alone.

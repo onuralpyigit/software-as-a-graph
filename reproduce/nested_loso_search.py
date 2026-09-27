@@ -53,7 +53,10 @@ import numpy as np
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from cli.loso_evaluate import ScenarioBundle, discover_scenarios, run_one_fold
+from cli.loso_evaluate import (
+    _HGT_VARIANTS, _HOMOGENEOUS_VARIANTS, ScenarioBundle, discover_scenarios, run_one_fold,
+)
+from reproduce._provenance import stamp
 
 RESULTS_DIR = Path("results")
 
@@ -200,6 +203,7 @@ def run_search(
     inner_epochs: Optional[int] = None,
     inner_k: int = 2,
     device: Optional[str] = "auto",
+    outer_only: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     cache: Dict[str, float] = {}
     if cache_path and cache_path.exists():
@@ -220,6 +224,8 @@ def run_search(
     t0 = time.time()
 
     for outer_idx, outer in enumerate(bundles):
+        if outer_only and outer.scenario_id not in outer_only:
+            continue
         inner_bundles = [b for b in bundles if b.scenario_id != outer.scenario_id]
         # The guarantee the whole claim rests on.
         assert outer.scenario_id not in {b.scenario_id for b in inner_bundles}, (
@@ -292,7 +298,7 @@ def parse_args():
     p = argparse.ArgumentParser(description="Nested-CV configuration search for LOSO.")
     p.add_argument("--cache-dir", type=Path, default=Path("output/loso_cache"))
     p.add_argument("--variant", default="hgl_qos",
-                   choices=["hgl_qos", "hgl", "gl_qos", "gl"])
+                   choices=sorted({"gl_qos", "gl", *_HGT_VARIANTS, *_HOMOGENEOUS_VARIANTS}))
     p.add_argument("--grid", default="stage1", choices=sorted(_AXES))
     p.add_argument("--epochs", type=int, default=300)
     p.add_argument("--seeds", default="42,123,456,789,2024",
@@ -324,6 +330,9 @@ def parse_args():
                         "shorter budget is often enough; the reported outer "
                         "folds always use --epochs.")
     p.add_argument("--skip", default="", help="Comma-separated scenario id substrings")
+    p.add_argument("--outer", default="",
+                   help="Comma-separated outer holdouts to run (a shard); every scenario "
+                        "stays in the corpus, so inner sets are unchanged")
     p.add_argument(
         "--device", default="auto", choices=["auto", "cuda", "cpu"],
         help="Device to use for training/evaluation (default: auto).",
@@ -363,8 +372,14 @@ def main() -> int:
         cache_path=cache_path, inner_mode=args.inner_mode,
         inner_epochs=args.inner_epochs, inner_k=args.inner_k,
         device=args.device,
+        outer_only=[s.strip() for s in args.outer.split(",") if s.strip()] or None,
     )
 
+    report["provenance"] = stamp(
+        script="reproduce/nested_loso_search.py", variant=args.variant, grid=args.grid,
+        seeds=outer_seeds, inner_seeds=inner_seeds, inner_mode=args.inner_mode, outer=args.outer,
+        inner_k=args.inner_k, epochs=args.epochs, eval_population=args.eval_population,
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2))
     print(f"\n  Nested LOSO rho = {report['mean_outer_rho']:.4f} "

@@ -36,7 +36,6 @@ SECTIONS = [
     "sec2_related_work",
     "sec3_sag_model",
     "sec4_failure_impact_prediction",
-    "sec5_explanation_layer",
     "sec6_experimental_setup",
     "sec7_results",
     "sec8_discussion",

@@ -1,12 +1,12 @@
 \section{Results}
 \label{sec:7}
 
-All results are reported on the Application population ($V_{\text{app}}$) against the primary oracle $I^*(v)$, and, for the rankers of Table~\ref{tab:independent_oracles}, also against the queue-flow oracle $I_{\text{dyn}}(v)$ and the multi-criteria oracle $I_{\text{comp}}(v)$ (Section~\ref{sec:4.3}). Everything except the primary contrast, the matched $2\times2$ and the two hybrid contrasts is exploratory (Section~\ref{sec:6.3}). Per-fold results, secondary strata and extended protocol notes are in the Supplementary Material and public experiment pages (Section~\ref{sec:6.1}). Figure~\ref{fig:results} summarizes the main findings.
+All results are reported on the Application population ($V_{\text{app}}$) against the primary oracle $I^*(v)$, and, for the rankers of Table~\ref{tab:independent_oracles}, also against the queue-flow oracle $I_{\text{dyn}}(v)$ and the multi-criteria oracle $I_{\text{comp}}(v)$ (Section~\ref{sec:4.3}). Only the primary and secondary contrasts are confirmatory; every other contrast is registered secondary or exploratory (Section~\ref{sec:6.3}). Per-fold results, secondary strata and extended protocol notes are in the Supplementary Material and public experiment pages (Section~\ref{sec:6.1}). Figure~\ref{fig:results} summarizes the main findings.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figures/Figure_5}
-\caption{Main results at a glance, Application population. (A)~Mean Spearman $\rho$ with 95\% bootstrap intervals under LOSO (filled circles; Table~\ref{tab:hybrid}) and zero-shot on five system models (open diamonds). Grey hollow markers are reference rankings that restate $I^*$'s propagation rule (\texttt{InDeg}, \texttt{Reach}; Amendment~13), not predictors; the neural model reading the dependency graph (\texttt{GAT-P-QoS}) approaches \texttt{InDeg} without exceeding it. (B)~Per held-out fold, the gain of \texttt{HGT-QoS} and of Hybrid-HGT over \texttt{Topo-QoS}. (C)~Cell means of the capacity- and channel-matched $2\times2$ (Table~\ref{tab:contrasts_matched}): the ``QoS'' inputs, which include a QoS-weighted in-degree column, raise both models by about $0.07$ (not significant after Holm), while typed and untyped configurations are indistinguishable.}
+\caption{Main results at a glance, Application population. (A)~Mean Spearman $\rho$ with 95\% bootstrap intervals under LOSO (filled circles; Table~\ref{tab:hybrid}) and zero-shot on five system models (open diamonds). Grey hollow markers are reference rankings that restate $I^*$'s propagation rule (\texttt{InDeg}, \texttt{Reach}; Amendment~13), not predictors; the neural model reading the dependency graph (\texttt{GAT-P-QoS}) comes close to \texttt{InDeg}; the two are statistically indistinguishable but not equivalent. (B)~Per held-out fold, the gain of \texttt{HGT-QoS} and of Hybrid-HGT over \texttt{Topo-QoS}. (C)~Cell means of the capacity- and channel-matched $2\times2$ (Table~\ref{tab:contrasts_matched}): the ``QoS'' inputs, which include a QoS-weighted in-degree column, raise both models by about $0.07$ (not significant after Holm), while typed and untyped configurations are indistinguishable; with $w_{\text{in}}$ held in both arms the ``QoS'' effect falls to $+0.030$ (Table~\ref{tab:a14}).}
 \label{fig:results}
 \end{figure}
 
@@ -15,14 +15,14 @@ All results are reported on the Application population ($V_{\text{app}}$) agains
 \label{sec:rq1-hybrid}
 \label{sec:rq1-loso}
 
-\paragraph{Summary} \emph{Against $I^*$, no predictor reaches the strongest reference rankings, which restate the oracle's first propagation wave (first-order expansion $0.808$, direct dependents $0.764$). The registered primary contrast, \texttt{HGT-QoS} against \texttt{Topo-QoS} ($0.553$), is null; the two hybrids beat \texttt{Topo-QoS} on 11 of 12 folds (Holm $p = 0.0068$ and $0.0029$). The best contender is a GAT on the dependency graph ($0.748$), $0.017$ below the direct-dependent reference. On $I_{\text{dyn}}$ no contender reaches the reference; on $I_{\text{comp}}$ QoS-weighted centrality ranks above every learned engine and above the references. Recovering $80\%$ of the true top-$20\%$ set requires flagging the top $40\%$ by \texttt{GAT-P-QoS}.}
+\paragraph{Summary} \emph{Against $I^*$, the strongest rankings are references that restate its first propagation wave (first-order expansion $0.808$, direct dependents $0.764$). The registered primary contrast, \texttt{HGT-QoS} against \texttt{Topo-QoS} ($0.553$), is null. The two hybrids beat \texttt{Topo-QoS} on 11 of 12 folds (Holm $p = 0.0068$ and $0.0029$), but not their own base learners, and only Hybrid-GAT beats unweighted betweenness after correction. The best GNN is a GAT on the dependency graph ($0.748$); it is statistically indistinguishable from the direct-dependent count, but not equivalent to it within $\pm 0.05$, and it depends on its degree features (Section~\ref{sec:rq2}). On full-population $I_{\text{dyn}}$ no GNN reaches the references, while a gradient-boosted surrogate trained on $I_{\text{dyn}}$ exceeds them; on $I_{\text{comp}}$ closed-form centrality and raw degree, which are proximate to its terms, rank highest. Recovering $80\%$ of the true top-$20\%$ set requires flagging the top $40\%$ by \texttt{GAT-P-QoS}.}
 
 Learned engines are trained on eleven scenarios and scored on the twelfth; training-free rankers are simply scored on each of the twelve (26 to 300 Applications, $K$ between 5 and 60). Table~\ref{tab:hybrid} reports all of them against $I^*$, with the reference rankings of Section~\ref{sec:6.2} in a separate block: they restate $I^*$'s rule, so their rows measure the circularity and carry no contrast.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Main results under LOSO across twelve synthetic architectures (Application population; learned engines: five seeds, CPU sweeps). $\Delta\rho$ is paired by fold against \texttt{Topo-QoS}, with a bootstrap 95\% CI ($B = 2{,}000$) and a two-sided Wilcoxon signed-rank test. $\rho_{>0}$ denotes Spearman correlation restricted to active components ($I^* > 0$). $p_{\text{Holm}}$ is given within each registered family: hybrids (Amendments~5 and~6, confirmatory). The reference block holds rankings that restate $I^*$'s propagation rule (the post hoc first-order expansion, Eq.~\eqref{eq:analytic_istar}; the dependency counts of Amendment~7; their raw-graph equivalents of Amendment~12); they are not predictors and carry no contrast (Amendment~13). $^\ddagger$Exploratory: Amendment~9 registered its contrasts against the references and raw counterparts. $^\S$Raw-multigraph rankers (Amendment~12, exploratory; unadjusted $p$); PR-raw is constant for every Application and has no defined $\rho$. $^\P$Topo and \texttt{Topo-QoS} carry an implementation defect (articulation term zero; Section~\ref{sec:6.2}); corrected values are $0.329$ and $0.533$. Bold: best predictor per column. Per-fold values, contrasts among references, and \texttt{GAT-P+InDeg}, whose prior is a reference: Supplementary Sections~\ref{S-supp:hybrid-folds}, \ref{S-supp:amendment7}, \ref{S-supp:amendment9} and~\ref{S-supp:referee}.}
+\caption{Main results under LOSO across twelve synthetic architectures (Application population; learned engines: five seeds, CPU sweeps). $\Delta\rho$ is paired by fold against \texttt{Topo-QoS}, with a bootstrap 95\% CI ($B = 2{,}000$) and a two-sided Wilcoxon signed-rank test. $\rho_{>0}$ denotes Spearman correlation restricted to active components ($I^* > 0$). $p_{\text{Holm}}$ is given within each registered family: hybrids (Amendments~5 and~6, registered secondary). The reference block holds rankings that restate $I^*$'s propagation rule (the post hoc first-order expansion, Eq.~\eqref{eq:analytic_istar}; the dependency counts of Amendment~7; their raw-graph equivalents of Amendment~12); they are not predictors and carry no contrast (Amendment~13). $^\ddagger$Exploratory: Amendment~9 registered its contrasts against the references and raw counterparts. $^\S$Raw-multigraph rankers (Amendment~12, exploratory; unadjusted $p$); PR-raw is constant for every Application and has no defined $\rho$. $^\P$Topo and \texttt{Topo-QoS} carry an implementation defect (articulation term zero; Section~\ref{sec:6.2}); corrected values are $0.329$ and $0.533$. Underlined: best predictor per column. Per-fold values, contrasts among references, and \texttt{GAT-P+InDeg}, whose prior is a reference: Supplementary Sections~\ref{S-supp:hybrid-folds}, \ref{S-supp:amendment7}, \ref{S-supp:amendment9} and~\ref{S-supp:referee}.}
 \label{tab:hybrid}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lcccccc}
@@ -31,20 +31,20 @@ Learned engines are trained on eleven scenarios and scored on the twelfth; train
 \midrule
 \multicolumn{7}{l}{\textit{Reference: restatements of $I^*$'s propagation rule (not predictors; Amendment~13)}} \\
 \textbf{Analytic $I^*$} & 0.808 $[0.755, 0.853]$ & 0.631 & --- & --- & --- & 0.536 \\
-\textbf{InDeg} (direct dependents) & 0.764 $[0.674, 0.840]$ & 0.516 & --- & --- & --- & 0.504 \\
-\textbf{Reach} (transitive dependents) & 0.732 $[0.674, 0.782]$ & 0.286 & --- & --- & --- & 0.344 \\
-\textbf{Pubs-raw}$^\S$ & 0.731 $[0.637, 0.810]$ & 0.410 & --- & --- & --- & 0.487 \\
-\textbf{Reach-R1}$^\S$ & 0.674 $[0.606, 0.738]$ & 0.088 & --- & --- & --- & 0.300 \\
+\textbf{InDeg (direct dependents)} & 0.764 $[0.674, 0.840]$ & 0.516 & --- & --- & --- & 0.504 \\
+\textbf{Reach (transitive dependents)} & 0.732 $[0.674, 0.782]$ & 0.286 & --- & --- & --- & 0.344 \\
+\textbf{Pubs-raw$^\S$} & 0.731 $[0.637, 0.810]$ & 0.410 & --- & --- & --- & 0.487 \\
+\textbf{Reach-R1$^\S$} & 0.674 $[0.606, 0.738]$ & 0.088 & --- & --- & --- & 0.300 \\
 \midrule
 \multicolumn{7}{l}{\textit{Training-free, raw multigraph (no derivation)$^\S$}} \\
 \textbf{Degree-raw} & 0.199 $[0.068, 0.328]$ & 0.218 & $-0.354$ $[-0.475, -0.236]$ & 1/12 & 0.0015 & 0.307 \\
 \textbf{RevPR-raw} & 0.089 $[-0.019, 0.192]$ & 0.075 & $-0.465$ $[-0.558, -0.364]$ & 0/12 & 0.0005 & 0.199 \\
 \midrule
 \multicolumn{7}{l}{\textit{Training-free, application layer}} \\
-\textbf{Topo}$^\P$ & 0.349 $[0.254, 0.452]$ & 0.174 & $-0.204$ $[-0.286, -0.122]$ & 0/12 & 0.0005 & 0.366 \\
+\textbf{Topo$^\P$} & 0.349 $[0.254, 0.452]$ & 0.174 & $-0.204$ $[-0.286, -0.122]$ & 0/12 & 0.0005 & 0.366 \\
 \midrule
 \multicolumn{7}{l}{\textit{Training-free, dependency graph}} \\
-\textbf{Topo-QoS}$^\P$ & 0.553 $[0.443, 0.657]$ & 0.280 & --- & --- & --- & 0.388 \\
+\textbf{Topo-QoS$^\P$} & 0.553 $[0.443, 0.657]$ & 0.280 & --- & --- & --- & 0.388 \\
 \midrule
 \multicolumn{7}{l}{\textit{Learned and hybrid, on the raw multigraph}} \\
 \textbf{HGT-QoS} & 0.622 $[0.547, 0.690]$ & 0.312 & $+0.069$ $[-0.046, +0.174]$ & 8/12 & 0.266 & 0.426 \\
@@ -53,18 +53,18 @@ Learned engines are trained on eleven scenarios and scored on the twelfth; train
 \textbf{Hybrid-GAT} & 0.683 $[0.603, 0.753]$ & 0.362 & $+0.130$ $[+0.075, +0.190]$ & 11/12 & 0.0015 (0.0029) & 0.450 \\
 \midrule
 \multicolumn{7}{l}{\textit{Learned, on the dependency graph (Amendment~9)}} \\
-\textbf{GAT-P-QoS} & \textbf{0.748} $[0.704, 0.789]$ & \textbf{0.440} & $\mathbf{+0.195}$ $[+0.100, +0.294]$ & 10/12 & 0.0068$^\ddagger$ & \textbf{0.454} \\
+\textbf{GAT-P-QoS} & \underline{0.748} $[0.704, 0.789]$ & \underline{0.440} & $\underline{+0.195}$ $[+0.100, +0.294]$ & 10/12 & 0.0068$^\ddagger$ & \underline{0.454} \\
 \textbf{HGT-P-QoS} & 0.514 $[0.392, 0.636]$ & 0.237 & $-0.039$ $[-0.155, +0.077]$ & 4/12 & 0.622$^\ddagger$ & 0.380 \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-\noindent\textbf{The reference level.} By Proposition~1, \texttt{InDeg} is publish--subscribe afferent coupling \cite{martin2003agile,rud2006ais,bogner2017maintainability} and counts exactly the Applications that $I^*$'s first propagation wave reaches; \texttt{Reach} counts the transitive dependents a reachability cascade can visit. Their values on $I^*$ ($0.764$, $\rho_{>0} = 0.516$; $0.732$) therefore measure how much of the oracle a restatement of its rule recovers, not predictive skill, and the same holds for their raw-graph equivalents: counting the topics a component publishes (Pubs-raw) reaches $0.731$, and the raw publisher $\to$ topic $\to$ subscriber closure (Reach-R1) $0.674$. Among the references, the derivation contributes in one measured place: without Rule~5, \texttt{Reach} falls by $0.058$ (9/12 folds, Holm $p = 0.0068$; Amendment~10). Untyped raw-graph metrics recover none of the reference: total degree reaches $0.199$ and reverse PageRank $0.089$, and PageRank is constant for every Application because Applications have no incoming raw edges.
+\noindent\textbf{The reference level.} By Remark~1, \texttt{InDeg} is publish--subscribe afferent coupling \cite{martin2003agile,rud2006ais,bogner2017maintainability} and counts exactly the Applications that $I^*$'s first propagation wave reaches; \texttt{Reach} counts the transitive dependents a reachability cascade can visit. Their values on $I^*$ ($0.764$, $\rho_{>0} = 0.516$; $0.732$) therefore measure how much of the oracle a restatement of its rule recovers, not predictive skill, and the same holds for their raw-graph equivalents: counting the topics a component publishes (Pubs-raw) reaches $0.731$, and the raw publisher $\to$ topic $\to$ subscriber closure (Reach-R1) $0.674$. Among the references, the derivation contributes in one measured place: without Rule~5, \texttt{Reach} falls by $0.058$ (9/12 folds, Holm $p = 0.0068$; Amendment~10). Untyped raw-graph metrics recover none of the reference: total degree reaches $0.199$ and reverse PageRank $0.089$, and PageRank is constant for every Application because Applications have no incoming raw edges.
 
-\noindent\textbf{Learners on the dependency graph approach the reference.} The same graph neural networks, trained on the dependency graph instead of the raw multigraph, reach $\rho = 0.748$ (\texttt{GAT-P-QoS}), the best predictor in Table~\ref{tab:hybrid} and $0.017$ below the direct-dependent reference (Holm $p = 1.000$), though above the transitive one ($0.732$). On the registered per-seed statistic it never exceeds \texttt{InDeg}; its five-seed ensemble reaches $0.772$, level with it (Table~\ref{tab:independent_oracles}). This is not an escape from the circularity: every learner receives in-degree and its QoS-weighted version $w_{\text{in}}$ as node features (Section~\ref{sec:3.5}), is trained on $I^*$, and on the dependency graph aggregates exactly the dependent neighbourhood. A learner without those features was not run, so whether message passing alone would approach the reference is untested. A variant that uses \texttt{InDeg} as its prior is reported only in Supplementary Section~\ref{S-supp:amendment9}, because its prior is a reference. \texttt{HGT-P-QoS} reaches only $0.514$ and is highly seed-dependent (mean within-fold seed SD $0.254$; Section~\ref{sec:8.3}).
+\noindent\textbf{Learners on the dependency graph approach the reference.} The same graph neural networks, trained on the dependency graph instead of the raw multigraph, reach $\rho = 0.748$ (\texttt{GAT-P-QoS}), the best GNN in Table~\ref{tab:hybrid}, and $0.016$ below the direct-dependent count on the per-seed statistic; its five-seed ensemble is $0.007$ above it ($0.772$, Table~\ref{tab:independent_oracles}). Neither difference is significant, and neither is equivalence: the $90\%$ interval of the per-fold difference reaches $\pm 0.076$, so a two one-sided test at the registered margin of $\pm 0.05$ fails ($p = 0.17$ per seed, $0.13$ for the ensemble; Amendment~14, F3). The learner and the count are therefore indistinguishable at this sample size, not ranked. The approach to the reference rests on the degree features every learner receives (Section~\ref{sec:3.5}): removing \texttt{in\_degree} and $w_{\text{in}}$ lowers \texttt{GAT-P-QoS} to $0.612$ (Section~\ref{sec:rq2}). A variant that uses \texttt{InDeg} as its prior is reported only in Supplementary Section~\ref{S-supp:amendment9}, because its prior is a reference. \texttt{HGT-P-QoS} reaches only $0.514$ and is highly seed-dependent (mean within-fold seed SD $0.254$; Section~\ref{sec:8.3}).
 
-\noindent\textbf{Hybrids outperform closed-form centrality, not the references.} Hybrid-HGT reaches $\rho = 0.657$ ($+0.103$, Holm $p = 0.0068$) and Hybrid-GAT reaches $\rho = 0.683$ ($+0.130$, Holm $p = 0.0029$), each on 11 of 12 folds. Both survive omnibus Holm correction across all thirteen confirmatory contrasts ($p_{\text{omni}} = 0.041$ and $0.019$). These are the study's only significant confirmatory results. On their own, the raw-multigraph learned engines do not differ significantly from \texttt{Topo-QoS} (\texttt{HGT-QoS} $+0.069$, $p = 0.266$, the null primary contrast; \texttt{GAT-QoS} $+0.082$, $p = 0.233$), and both hybrids remain below the references ($0.657$ and $0.683$ against $0.764$ for the direct-dependent count).
+\noindent\textbf{Hybrids outperform the registered comparator, and little else.} Hybrid-HGT reaches $\rho = 0.657$ ($+0.103$, Holm $p = 0.0068$) and Hybrid-GAT $0.683$ ($+0.130$, Holm $p = 0.0029$) against \texttt{Topo-QoS}, each on 11 of 12 folds; both stay significant under the omnibus Holm correction ($p_{\text{omni}} = 0.041$ and $0.019$), under the Nadeau--Bengio corrected $t$ ($p = 0.019$ and $0.014$) and under $|V_{\text{app}}|$-weighted averaging (exact sign-flip $p = 0.038$ and $0.005$; Supplementary Section~\ref{S-supp:round8}). They are the study's only significant registered improvements, and they are weaker than they look, because a hybrid receives $p(v)$ as an input and adds a learned correction to its logit, so it nests its comparator. Against their own base learners, which Amendments~5 and~6 registered alongside, neither is significant (Hybrid-HGT vs.\ \texttt{HGT-QoS} $+0.035$, $p = 0.73$; Hybrid-GAT vs.\ \texttt{GAT-QoS} $+0.048$, $p = 0.30$). Against the two stronger training-free controls of Amendment~7 (Amendment~14, F7), Hybrid-GAT keeps a margin (unweighted betweenness on the same graph $+0.092$, constant topic weights $+0.088$, both Holm $p = 0.049$), Hybrid-HGT does not ($+0.065$ and $+0.061$, Holm $p = 0.085$). The prior also costs transfer: zero-shot, both hybrids fall below their base learners (Section~\ref{sec:rq3}). On their own, the raw-multigraph learned engines do not differ significantly from \texttt{Topo-QoS} (\texttt{HGT-QoS} $+0.069$, $p = 0.266$, the null primary contrast; \texttt{GAT-QoS} $+0.082$, $p = 0.233$).
 
 \noindent\textbf{Where the closed-form gain comes from.} \texttt{Topo} reads betweenness from the application-layer graph, whereas \texttt{Topo-QoS} computes QoS-weighted betweenness on the Application--Library dependency graph. Three controls registered in Amendment~7 separate substrate from weighting: unweighted betweenness on the same graph scores $0.591$; constant topic weights score $0.595$; permuting QoS profiles scores $0.559$ ($-0.006$, $p = 0.73$). On $I^*$, the gain comes from the Application--Library graph structure, not from QoS contract content.
 
@@ -78,40 +78,45 @@ where $|\text{pub}(t)| \ge 1$ holds for all published topics $t \in \text{pub}(v
 \begin{table}[htbp]
 \centering
 \small
-\caption{Rankers against three oracles, twelve LOSO folds, Application population (exploratory). $I^*$ and $I_{\text{comp}}$ are exhaustive over all $1{,}321$ Applications. $I_{\text{dyn}}$ covers only the first $30$ Applications of each fold in lexicographic order (all $26$ on ATM), seed 42; the full-population labels registered in Amendment~11 were not produced (Section~\ref{sec:8.3}). Partial $\rho$: Spearman correlation with $I_{\text{dyn}}$ after the rank of $I^*$ is regressed out of both (Amendment~12). Learned rows (Amendment~12, R3) score the mean of the five seeds' \emph{predictions}, which raises $\rho$ on $I^*$ above the per-seed means of Table~\ref{tab:hybrid}; their $I^*$ column is on that basis. Reference rows restate $I^*$'s propagation rule and are not predictors (Amendment~13); \texttt{GAT-P+InDeg}, whose prior is a reference, is in Supplementary Section~\ref{S-supp:referee}. Bold: best predictor per column. 95\% CIs bootstrap folds.}
+\caption{Rankers against three oracles, twelve LOSO folds, Application population (registered secondary and exploratory). All three oracles are exhaustive over the $1{,}321$ Applications; $I_{\text{dyn}}$ is the five-seed mean of Amendment~11 (the earlier lexicographic $n = 30$ sample is in Supplementary Section~\ref{S-supp:round8}). Partial $\rho$: Spearman correlation with $I_{\text{dyn}}$ after the rank of $I^*$, or of the first-order expansion $\hat{I}^*_1$ (Eq.~\eqref{eq:analytic_istar}), is regressed out of both. Published learned rows score the mean of the five seeds' \emph{predictions}, which raises $\rho$ on $I^*$ above the per-seed means of Table~\ref{tab:hybrid}; Amendment~11's GBM rows and Amendment~14's surrogate are per-seed means. $^\star$Trained on $I_{\text{dyn}}$ labels of the eleven training scenarios: a surrogate for $I_{\text{dyn}}$, not an independent check of it. Reference rows restate $I^*$'s rule (Section~\ref{sec:4.4}). Underlined: highest value per column among predictors. 95\% CIs bootstrap folds.}
 \label{tab:independent_oracles}
 \resizebox{\linewidth}{!}{%
-\begin{tabular}{lcccc}
+\begin{tabular}{lccccc}
 \toprule
-\textbf{Ranker} & \textbf{$I^*$ $\rho$} & \textbf{$I_{\text{dyn}}$ $\rho$ [95\% CI]} & \textbf{Partial $\rho(\cdot, I_{\text{dyn}} \mid I^*)$ [95\% CI]} & \textbf{$I_{\text{comp}}$ $\rho$} \\
+\textbf{Ranker} & $I^*$ $\rho$ & $I_{\text{dyn}}$ $\rho$ [95\% CI] & Partial $\rho(\cdot, I_{\text{dyn}} \mid I^*)$ [95\% CI] & Partial $\mid \hat{I}^*_1$ & $I_{\text{comp}}$ $\rho$ \\
 \midrule
-\multicolumn{5}{l}{\textit{Reference: restatements of $I^*$'s propagation rule (not predictors)}} \\
-\textbf{Analytic $I^*$} & 0.808 & 0.636 $[0.526, 0.731]$ & 0.276 $[0.180, 0.375]$ & 0.636 \\
-\textbf{InDeg} & 0.764 & 0.610 $[0.475, 0.727]$ & 0.259 $[0.143, 0.367]$ & 0.650 \\
-\textbf{Reach} & 0.732 & 0.505 $[0.415, 0.593]$ & 0.058 $[-0.059, 0.166]$ & 0.302 \\
-\textbf{Pubs-raw} & 0.731 & 0.571 $[0.429, 0.699]$ & --- & 0.616 \\
+\multicolumn{6}{l}{\textit{Reference: restatements of $I^*$'s propagation rule (not predictors)}} \\
+\textbf{Analytic $I^*$} & 0.808 & 0.706 $[0.629, 0.783]$ & 0.318 $[0.234, 0.412]$ & --- & 0.636 \\
+\textbf{InDeg} & 0.764 & 0.664 $[0.562, 0.758]$ & 0.272 $[0.188, 0.366]$ & 0.079 & 0.650 \\
+\textbf{Reach} & 0.732 & 0.583 $[0.510, 0.651]$ & 0.117 $[0.055, 0.184]$ & 0.102 & 0.302 \\
+\textbf{Pubs-raw} & 0.731 & 0.645 $[0.543, 0.737]$ & 0.255 $[0.179, 0.332]$ & 0.056 & 0.616 \\
 \midrule
-\multicolumn{5}{l}{\textit{Training-free predictors}} \\
-\textbf{Topo-QoS} & 0.553 & 0.393 $[0.275, 0.506]$ & \textbf{0.104} $[0.016, 0.201]$ & 0.702 \\
-\textbf{Degree-raw} & 0.199 & 0.233 $[0.102, 0.359]$ & --- & \textbf{0.719} \\
+\multicolumn{6}{l}{\textit{Training-free predictors (proximate to $I_{\text{comp}}$; Section~\ref{sec:4.4})}} \\
+\textbf{Topo-QoS} & 0.553 & 0.471 $[0.381, 0.559]$ & 0.134 $[0.061, 0.204]$ & $-0.091$ & 0.702 \\
+\textbf{Degree-raw} & 0.199 & 0.232 $[0.134, 0.329]$ & 0.149 $[0.089, 0.227]$ & $-0.091$ & \underline{0.719} \\
 \midrule
-\multicolumn{5}{l}{\textit{Learned (seed ensemble)}} \\
-\textbf{GAT-P-QoS} & \textbf{0.772} & \textbf{0.519} & --- & 0.274 \\
-\textbf{Hybrid-GAT} & 0.702 & 0.502 & --- & 0.585 \\
-\textbf{Hybrid-HGT} & 0.672 & 0.457 & --- & 0.582 \\
-\textbf{HGT-QoS} & 0.667 & 0.440 & --- & 0.201 \\
-\textbf{GAT-QoS} & 0.647 & 0.433 & --- & 0.144 \\
-\textbf{HGT-P-QoS} & 0.618 & 0.418 & --- & 0.334 \\
+\multicolumn{6}{l}{\textit{Learned GNNs (seed ensemble)}} \\
+\textbf{GAT-P-QoS} & 0.772 & 0.615 $[0.549, 0.673]$ & 0.111 $[0.016, 0.213]$ & 0.182 & 0.274 \\
+\textbf{Hybrid-GAT} & 0.702 & 0.599 $[0.514, 0.669]$ & \underline{0.173} $[0.082, 0.267]$ & 0.056 & 0.585 \\
+\textbf{Hybrid-HGT} & 0.672 & 0.573 $[0.497, 0.638]$ & 0.162 $[0.074, 0.252]$ & 0.029 & 0.582 \\
+\textbf{HGT-QoS} & 0.667 & 0.549 $[0.464, 0.622]$ & 0.130 $[0.035, 0.224]$ & 0.212 & 0.201 \\
+\textbf{GAT-QoS} & 0.647 & 0.523 $[0.436, 0.606]$ & 0.107 $[0.018, 0.199]$ & \underline{0.217} & 0.144 \\
+\textbf{HGT-P-QoS} & 0.618 & 0.496 $[0.395, 0.601]$ & 0.112 $[0.033, 0.190]$ & 0.087 & 0.334 \\
+\midrule
+\multicolumn{6}{l}{\textit{Learned combinations of dependency signals (Amendment~11; GBM over counts, Analytic $I^*$ and QoS features)}} \\
+\textbf{GBM-Dep-QoS} & \underline{0.818} & 0.718 & --- & --- & 0.483 \\
+\textbf{GBM-Dep-QoS$\to$dyn$^\star$} & 0.764 & \underline{0.799} & --- & --- & 0.477 \\
+\textbf{GAT-P-QoS$\to$dyn$^\star$ (Amendment~14)} & 0.734 & 0.598 & --- & --- & 0.368 \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-\noindent\textbf{Beyond the reachability oracle.} Table~\ref{tab:independent_oracles} scores the rankers against the two other oracles. $I_{\text{dyn}}$ agrees with $I^*$ only moderately ($\rho = 0.627$ $[0.495, 0.749]$ on the same sample), and its published test--retest reliability is $0.74$--$0.97$ (Supplementary Section~\ref{S-supp:convergent}), which bounds what any deterministic ranker can reach. On $I_{\text{dyn}}$ every predictor stays below the direct-dependent reference ($0.610$): the learned engines reach $0.418$--$0.519$ and \texttt{Topo-QoS} $0.393$. Because $I_{\text{dyn}}$ shares the topology and the first-order effect with $I^*$, the partial correlation shows how much of a reference survives outside the oracle it restates. After the rank of $I^*$ is removed, \texttt{InDeg} keeps $\rho = 0.259$ $[0.143, 0.367]$ with $I_{\text{dyn}}$, and $0.163$ $[0.043, 0.275]$ after the first-order expansion is removed instead; \texttt{Reach} keeps nothing ($0.058$, CI includes zero). The direct count is therefore not only a restatement of $I^*$, since it carries some queue-flow signal the reachability oracle lacks, whereas transitive reach carries none. \texttt{Topo-QoS}, the one predictor for which the partial correlation was computed, keeps $0.104$ $[0.016, 0.201]$. Two caveats bound all of this: the sample is the lexicographic $30$ Applications per fold, and the learned engines were not scored after partialling.
+\noindent\textbf{Beyond the reachability oracle.} Table~\ref{tab:independent_oracles} scores the rankers against the two other oracles. On full-population $I_{\text{dyn}}$, which agrees with $I^*$ at $\rho = 0.711$ $[0.625, 0.794]$, the references stay ahead of every GNN (first-order expansion $0.706$, \texttt{InDeg} $0.664$, against $0.496$--$0.615$), and \texttt{Topo-QoS} reaches $0.471$. Because $I_{\text{dyn}}$ shares the topology and the first-order effect with $I^*$, the partial correlation shows how much of each ranking survives outside the oracle it was fitted to or restates. After the rank of $I^*$ is removed, \texttt{InDeg} keeps $0.272$ $[0.188, 0.366]$, \texttt{Reach} $0.117$, \texttt{Topo-QoS} $0.134$ and the GNNs $0.107$--$0.173$, every interval excluding zero. After the first-order expansion is removed instead, the order reverses: \texttt{InDeg} keeps $0.079$, and the raw-multigraph GNNs keep most ($0.212$--$0.217$), so the learners carry queue-flow signal beyond the direct count that the count does not. Learning from the right labels matters more than the graph model. A gradient-boosted model over the counts, the first-order expansion and QoS features, trained on $I_{\text{dyn}}$ labels of the training scenarios, ranks held-out architectures at $0.799$, above the first-order expansion ($+0.094$, Holm $p = 0.019$) and \texttt{InDeg} ($+0.135$, Holm $p = 0.019$; Amendment~11, Family B); its QoS features carry that gain ($+0.095$ over the same model without them, Holm $p = 0.014$), whereas on $I^*$ they add nothing ($-0.003$, $p = 0.62$; Family C). The GNN given the same labels does not: \texttt{GAT-P-QoS}$\to$dyn reaches $0.598$, below the first-order expansion ($-0.108$, Holm $p = 0.014$) and the gradient-boosted surrogate ($-0.201$, Holm $p = 0.0015$), and no better than the same GNN trained on $I^*$ ($-0.008$; Amendment~14, F5). These surrogates are trained on the oracle they are scored on; their value is cost, since labeling $I_{\text{dyn}}$ took $12.7$ CPU-hours for the corpus (Section~\ref{sec:rq4}). Trained on $I^*$ instead, the same gradient-boosted model is less robust across the three oracles than the first-order expansion alone (worst-case $\rho$ $-0.121$, Holm $p = 0.001$; Family A).
 
-\noindent\textbf{The multi-criteria oracle favours different rankers.} On $I_{\text{comp}}$, which adds fragmentation, throughput and flow disruption (Section~\ref{sec:4.3}), QoS-weighted centrality ranks above the direct-dependent reference ($\rho = 0.702$ $[0.649, 0.753]$ against $0.650$; the reference ahead on only 3 of 12 folds, $p = 0.110$), so on this oracle the reference is no ceiling. Raw total degree, the weakest ranker on $I^*$, reaches $0.719$ on $I_{\text{comp}}$ (the reference ahead on 4 of 12 folds, Holm $p = 0.220$), and \texttt{Reach} falls to $0.302$. The learned engines without a centrality prior collapse on this oracle ($0.144$--$0.334$); the two hybrids, which carry \texttt{Topo-QoS} as a prior, keep $0.58$. No ranker is best on all three oracles, so which one to use depends on which failure notion matters (Section~\ref{sec:8.1}).
+\noindent\textbf{The multi-criteria oracle favors different rankers.} On $I_{\text{comp}}$, which adds fragmentation, throughput and flow disruption (Section~\ref{sec:4.3}), QoS-weighted centrality ranks above the direct-dependent reference ($\rho = 0.702$ $[0.649, 0.753]$ against $0.650$; the reference ahead on only 3 of 12 folds, $p = 0.110$), and raw total degree, the weakest ranker on $I^*$, reaches $0.719$ (the reference ahead on 4 of 12 folds, Holm $p = 0.220$), while \texttt{Reach} falls to $0.302$. Both leaders are proximate to $I_{\text{comp}}$'s fragmentation and flow terms (Section~\ref{sec:4.4}), so their lead is read as the same kind of overlap as the references' lead on $I^*$, not as predictive skill. The learned engines without a centrality prior collapse on this oracle ($0.144$--$0.334$; the sum-aggregation GNNs of Section~\ref{sec:rq2} reach $0.41$--$0.44$); the two hybrids, which carry \texttt{Topo-QoS} as a prior, keep $0.58$. No ranker is best on all three oracles.
 
-\noindent\textbf{Identifying the critical set.} Rank correlation over all Applications is not the operational question in a CI gate, which is whether the true top of the ranking gets flagged. Figure~\ref{fig:recall} gives, for each ranker, the share of the true top-$20\%$ set on $I^*$ that falls within its top $k\%$, with ties resolved in expectation (Amendment~12). At $k = 20\%$, \texttt{GAT-P-QoS} recovers $0.48$ of the critical set and \texttt{Topo-QoS} $0.38$, consistent with their Overlap@$K$ ($0.454$ and $0.388$): about half of what a top-$20\%$ gate flags is not in the true top $20\%$, and about half of the true top $20\%$ is missed. Recovering $80\%$ of the critical set requires flagging the top $40\%$ by \texttt{GAT-P-QoS} ($0.81$), and \texttt{Topo-QoS} does not reach $80\%$ within $50\%$. The references do little better: at $k = 20\%$, \texttt{InDeg} recovers $0.49$ (tie-breaking bounds $0.48$--$0.50$), and $80\%$ needs the top $45\%$ by \texttt{InDeg} ($0.83$) or by the first-order expansion ($0.89$); only the first-order expansion reaches $90\%$ within the top $50\%$, and \texttt{Reach} does not reach $80\%$ within $50\%$. On the $I_{\text{dyn}}$ sample, \texttt{GAT-P-QoS} reaches $0.65$ at $40\%$ and $0.80$ at $50\%$, against $0.83$ at $40\%$ for the \texttt{InDeg} reference.
+\noindent\textbf{Identifying the critical set.} Rank correlation over all Applications is not the operational question in a CI gate, which is whether the true top of the ranking gets flagged. Figure~\ref{fig:recall} gives, for each ranker, the share of the true top-$20\%$ set on $I^*$ that falls within its top $k\%$, with ties resolved in expectation (Amendment~12). At $k = 20\%$, \texttt{GAT-P-QoS} recovers $0.48$ of the critical set and \texttt{Topo-QoS} $0.38$, consistent with their Overlap@$K$ ($0.454$ and $0.388$): about half of what a top-$20\%$ gate flags is not in the true top $20\%$, and about half of the true top $20\%$ is missed. Recovering $80\%$ of the critical set requires flagging the top $40\%$ by \texttt{GAT-P-QoS} ($0.81$), and \texttt{Topo-QoS} does not reach $80\%$ within $50\%$. The references do little better: at $k = 20\%$, \texttt{InDeg} recovers $0.49$ (tie-breaking bounds $0.48$--$0.50$), and $80\%$ needs the top $45\%$ by \texttt{InDeg} ($0.83$) or by the first-order expansion ($0.89$); only the first-order expansion reaches $90\%$ within the top $50\%$, and \texttt{Reach} does not reach $80\%$ within $50\%$. On the earlier $n = 30$ $I_{\text{dyn}}$ sample (the right panel of Figure~\ref{fig:recall}; not recomputed on the full population), \texttt{GAT-P-QoS} reaches $0.65$ at $40\%$ and $0.80$ at $50\%$, against $0.83$ at $40\%$ for the \texttt{InDeg} reference.
 
 \begin{figure}[htbp]
 \centering
@@ -124,7 +129,7 @@ where $|\text{pub}(t)| \ge 1$ holds for all published topics $t \in \text{pub}(v
 \subsection{RQ2: What Learned Engines Need}
 \label{sec:rq2}
 
-\paragraph{Summary} \emph{Learned engines gain $+0.08$ to $+0.11$ from reading the dependency graph, where messages reach the scored Applications from their dependents (11--12 of 12 folds), but none exceeds the reference count. With capacity matched, relation typing adds nothing (typing main effect $-0.014$). The ``QoS'' factor cannot be read as QoS content: its inputs include a QoS-weighted in-degree, so switching it off also removes a version of the reference count.}
+\paragraph{Summary} \emph{Learned engines gain $+0.08$ to $+0.11$ from reading the dependency graph, where messages reach the scored Applications from their dependents (11--12 of 12 folds). What brings the dependency-graph GAT close to the reference is its degree features: without them it loses $0.14$ (Holm $p = 0.005$). A sum-aggregation GNN, which can count dependents, loses only $0.01$ without them, although the aggregator contrast itself is not significant after correction. With capacity matched, relation typing adds nothing; with the weighted in-degree held in both arms, the ``QoS'' inputs add nothing measurable either ($+0.030$, Holm $p = 0.33$).}
 
 \begin{table}[htbp]
 \centering
@@ -151,19 +156,50 @@ where $|\text{pub}(t)| \ge 1$ holds for all published topics $t \in \text{pub}(v
 }
 \end{table}
 
-\noindent\textbf{The ``QoS'' factor is confounded with the reference count.} Its main effect ($+0.073$) is not significant after Holm correction ($p_{\text{Holm}} = 0.127$), and it could not be attributed to QoS content even if it were. In the node features, $w_{\text{in}}$ is the sum of incoming dependency weights, a QoS-weighted version of \texttt{InDeg}; the QoS-off arms zero it, and so remove a version of the quantity closest to $I^*$'s first wave along with the QoS contracts. A rerun of the $2\times2$ with $w_{\text{in}}$ kept in both arms was not performed. The closed-form controls point the same way: unweighted betweenness ($0.591$) and constant topic weights ($0.595$) match or exceed QoS-weighted betweenness ($0.553$), and permuting QoS profiles across topics changes nothing ($\Delta = -0.006$ $[-0.025, +0.015]$, $p = 0.733$). On $I^*$ we find no evidence that QoS contract content carries ranking signal.
-
-\noindent\textbf{Relation typing under matched capacity.} \texttt{HGT-QoS} remains within $0.013$ of \texttt{GAT-QoS} (Table~\ref{tab:contrasts_matched}). On the raw multigraph this says little about typing, because no message reaches an Application there: a gradient-boosted model over the same per-node features without any graph (\texttt{GBM-Feat}, Amendment~8) reaches $0.642$, level with \texttt{GAT-QoS}, and removing HGT's reverse pass, the only route by which messages reach Applications, changes nothing (\texttt{HGT-QoS-U}, $-0.010$, $p = 0.91$; Supplementary Section~\ref{S-supp:amendments}). On the dependency graph, where messages do arrive, \texttt{HGT-P-QoS} reaches $0.514$ with a mean within-fold seed SD of $0.254$, against $0.748$ and $0.030$ for \texttt{GAT-P-QoS}. This is one untuned configuration (width 100, no hyperparameter search), and averaging its five seeds' predictions raises it to $0.618$; we therefore read it as seed instability of that configuration, not as evidence against relational typing in general.
-
-\subsection{RQ3: Zero-Shot Transfer to Models of Open-Source Systems}
-\label{sec:rq3}
-
-\paragraph{Summary} \emph{On five hand-authored models of open-source systems, the best learned engines rank $I^*$ at about $0.81$ zero-shot (\texttt{GAT-P-QoS} $0.806$, \texttt{GAT-QoS} $0.805$), far above closed-form centrality ($0.511$--$0.526$), but their active-stratum agreement is weak ($\rho_{>0} \le 0.342$). The reference rankings reach higher (transitive dependents $0.938$, $\rho_{>0} = 0.871$; direct dependents $0.863$), because on these models most of $I^*$ is reachability itself. The models differ structurally from the synthetic corpus, and all five were written by one author, so these numbers describe transfer to those models, not to deployed systems.}
+\noindent\textbf{The ``QoS'' factor was mostly the weighted in-degree.} In Table~\ref{tab:contrasts_matched} its main effect ($+0.073$) is not significant after Holm correction ($p_{\text{Holm}} = 0.127$), and it could not be attributed to QoS content in any case: $w_{\text{in}}$, the sum of incoming dependency weights, is a QoS-weighted version of \texttt{InDeg}, and the QoS-off arms zeroed it. Amendment~14 reran the matched $2\times2$ with $w_{\text{in}}$ kept in the QoS-off cells (Table~\ref{tab:a14}, F4): the main effect falls to $+0.030$ $[-0.023, +0.085]$ (Holm $p = 0.33$), typing is $-0.036$ and the interaction $+0.046$, none significant. More than half of the earlier QoS effect was therefore the weighted in-degree. The closed-form controls point the same way: unweighted betweenness ($0.591$) and constant topic weights ($0.595$) match or exceed QoS-weighted betweenness ($0.553$), and permuting QoS profiles across topics changes nothing ($\Delta = -0.006$ $[-0.025, +0.015]$, $p = 0.733$). On $I^*$ we find no evidence that QoS contract content carries ranking signal; on $I_{\text{dyn}}$, whose mechanics read the contracts, it does (Section~\ref{sec:rq1}, Amendment~11 Family C).
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Zero-shot transfer to hand-authored models inspired by five open-source systems (Application population). Models are evaluated out-of-distribution without fine-tuning. $\rho_{>0}$ denotes rank correlation restricted to active components ($I^* > 0$). PR-AUC measures critical-set identification quality. All rows are scored on the same labels (the learned engines' zero-shot label files; Amendment~12, R5). The training-free rows are not trained on anything, so ``zero-shot'' applies to the learned rows only. Reference rows restate $I^*$'s propagation rule and are not predictors (Amendment~13). Bold: best predictor per column. 95\% CIs bootstrap the five systems and are indicative only.}
+\caption{Amendment~14 arms: twelve LOSO folds, five seeds, one CPU invocation with every comparator re-run (each reproduces its published per-seed $\rho$ exactly), Application population. $\Delta\rho$ is paired by fold against the comparator named, with a bootstrap 95\% CI; Holm within each registered family (F1: degree features; F2: aggregator; F4: the $2\times2$ with $w_{\text{in}}$ held). $-$deg: \texttt{in\_degree} and $w_{\text{in}}$ zeroed; $-$deg$^*$: also PageRank, closeness and eigenvector centrality, whose correlation with \texttt{InDeg} is $0.74$--$0.77$ on average (Supplementary Section~\ref{S-supp:round8}). Zero-shot: mean $\rho$ on the five system models. Registered secondary.}
+\label{tab:a14}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llcccccc}
+\toprule
+Arm & Comparator & LOSO $\rho$ ($I^*$) & $\Delta\rho$ [95\% CI] & Won & $p_{\text{Holm}}$ & $I_{\text{dyn}}$ / $I_{\text{comp}}$ & Zero-shot \\
+\midrule
+\multicolumn{8}{l}{\textit{F1: removing the degree features}} \\
+GAT-P-QoS$-$deg & GAT-P-QoS ($0.748$) & 0.612 & $-0.136$ $[-0.205, -0.072]$ & 1/12 & 0.0049 & 0.485 / 0.156 & 0.821 \\
+GAT-P-QoS$-$deg$^*$ & GAT-P-QoS & 0.587 & $-0.161$ $[-0.252, -0.080]$ & 1/12 & 0.0049 & 0.462 / 0.138 & 0.654 \\
+GAT-QoS$-$deg & GAT-QoS ($0.635$) & 0.365 & $-0.270$ $[-0.344, -0.199]$ & 0/12 & 0.0015 & 0.295 / $-0.047$ & 0.810 \\
+\midrule
+\multicolumn{8}{l}{\textit{F2: sum aggregation (GINE, 434{,}123 parameters) instead of softmax attention}} \\
+GIN-P-QoS & GAT-P-QoS & 0.732 & $-0.016$ $[-0.055, +0.017]$ & 7/12 & 0.910 & 0.606 / 0.407 & 0.806 \\
+GIN-P-QoS$-$deg & GAT-P-QoS$-$deg & 0.721 & $+0.108$ $[+0.027, +0.197]$ & 8/12 & 0.157 & 0.602 / 0.428 & 0.810 \\
+GIN-P-QoS$-$deg$^*$ & GAT-P-QoS$-$deg$^*$ & 0.711 & $+0.124$ $[+0.031, +0.230]$ & 9/12 & 0.157 & 0.589 / 0.438 & 0.776 \\
+\midrule
+\multicolumn{8}{l}{\textit{F4: matched $2\times2$ with $w_{\text{in}}$ held (cells GAT+$w_{\text{in}}$ $0.628$, HGT+$w_{\text{in}}$ $0.569$, GAT-QoS $0.635$, HGT-QoS $0.622$)}} \\
+Typing (main effect) & averaged over Q & --- & $-0.036$ $[-0.079, +0.004]$ & 2/12 & 0.330 & --- & --- \\
+``QoS'' inputs (main effect) & averaged over T & --- & $+0.030$ $[-0.023, +0.085]$ & 9/12 & 0.330 & --- & --- \\
+Interaction & difference of differences & --- & $+0.046$ $[-0.009, +0.101]$ & 9/12 & 0.330 & --- & --- \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\noindent\textbf{What the dependency-graph learner needs.} Every learner receives in-degree and $w_{\text{in}}$ as node features, and on the dependency graph it also aggregates exactly the dependent neighborhood, so its closeness to \texttt{InDeg} could come from either. Amendment~14 separates the two (Table~\ref{tab:a14}). Removing the two degree columns costs \texttt{GAT-P-QoS} $0.136$, and removing the three centralities most correlated with in-degree as well costs $0.161$ (F1, rule F1a): the approach to the reference depends on the degree features. That is what message-passing theory predicts for this architecture: softmax attention normalizes over neighbors and computes a weighted mean, which cannot count them, whereas a sum aggregator can \cite{xu2019gin,corso2020pna}. A GINE network of the same parameter budget bears this out descriptively, keeping $0.721$ and $0.711$ without the same columns, $0.01$--$0.02$ below its own full-feature score, but the aggregator contrasts miss significance after Holm correction ($+0.108$ and $+0.124$, $p_{\text{Holm}} = 0.157$; rule F2b), so the study does not claim an aggregator effect. No dependency-graph learner, with or without degree features, is equivalent to \texttt{InDeg} within $\pm 0.05$ (equivalence bounds $0.063$--$0.276$; F3). Zero-shot, the degree columns matter little ($0.810$--$0.821$ without them), because on the system models most of the ranking is separating inert from active components (Section~\ref{sec:rq3}).
+
+\noindent\textbf{Relation typing under matched capacity.} \texttt{HGT-QoS} remains within $0.013$ of \texttt{GAT-QoS} (Table~\ref{tab:contrasts_matched}). On the raw multigraph this says little about typing, because no message reaches an Application there: a gradient-boosted model over the same per-node features without any graph (\texttt{GBM-Feat}, Amendment~8) reaches $0.642$, level with \texttt{GAT-QoS}, and removing HGT's reverse pass, the only route by which messages reach Applications, changes nothing (\texttt{HGT-QoS-U}, $-0.010$, $p = 0.91$; Supplementary Section~\ref{S-supp:amendments}). On the dependency graph, where messages do arrive, \texttt{HGT-P-QoS} reaches $0.514$ with a mean within-fold seed SD of $0.254$, against $0.748$ and $0.030$ for \texttt{GAT-P-QoS}. This is one fixed configuration (width 100), and averaging its five seeds' predictions raises it to $0.618$; we therefore read it as seed instability of that configuration, not as evidence against relational typing in general. \textbf{The registered selection rule.} The plan chose every hyperparameter by nested selection, which the published results did not apply (Section~\ref{sec:6.3}). Run afterwards on the stage-1 grid (Amendment~14, arm N), it moves \texttt{HGT-QoS} from $0.622$ to $0.677$ ($+0.055$) and \texttt{GAT-P-QoS} from $0.748$ to $0.693$ ($-0.054$), neither significant (Holm $p = 0.259$); nested \texttt{HGT-QoS} against \texttt{Topo-QoS} is $+0.123$ on 9 of 12 folds, still not significant (Holm $p = 0.192$; rule F6b). Applying the registered rule therefore does not change the primary result. The search harness also early-stops on a held-out training scenario rather than on the published node-level split, and on the three folds where it chose the published hyperparameters it does not reproduce the published scores (up to $0.10$ apart), so these differences cannot be attributed to hyperparameter selection alone (Supplementary Section~\ref{S-supp:round8}).
+
+\subsection{RQ3: Zero-Shot Transfer to Models of Open-Source Systems}
+\label{sec:rq3}
+
+\paragraph{Summary} \emph{On five hand-authored models of open-source systems, the best learned engines rank $I^*$ at about $0.81$ zero-shot (\texttt{GAT-P-QoS} $0.806$, \texttt{GAT-QoS} $0.805$), far above closed-form centrality ($0.511$--$0.526$), but their active-stratum agreement is weak ($\rho_{>0} \le 0.342$). The reference rankings reach higher (transitive dependents $0.938$, $\rho_{>0} = 0.871$; direct dependents $0.863$), because on these models most of $I^*$ is reachability itself. The models differ structurally from the synthetic corpus, and all five were written by one author, so these numbers describe transfer to those models, not to deployed systems. The centrality prior costs transfer: both hybrids fall below their base learners ($0.695$ and $0.662$ against $0.760$ and $0.805$).}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Zero-shot transfer to hand-authored models inspired by five open-source systems (Application population). Models are evaluated out-of-distribution without fine-tuning. $\rho_{>0}$ denotes rank correlation restricted to active components ($I^* > 0$). PR-AUC measures critical-set identification quality. All rows are scored on the same labels (the learned engines' zero-shot label files; Amendment~12, R5). The training-free rows are not trained on anything, so ``zero-shot'' applies to the learned rows only. Reference rows restate $I^*$'s propagation rule and are not predictors (Amendment~13). Underlined: best predictor per column. 95\% CIs bootstrap the five systems and are indicative only.}
 \label{tab:system_models_transfer}
 \label{tab:9b}
 \resizebox{\linewidth}{!}{%
@@ -175,15 +211,18 @@ where $|\text{pub}(t)| \ge 1$ holds for all published topics $t \in \text{pub}(v
 \textbf{Reach} & Dependency graph & 0.938 $[0.879, 0.991]$ & 0.871 & 0.933 \\
 \textbf{InDeg} & Dependency graph & 0.863 $[0.734, 0.952]$ & 0.321 & 0.752 \\
 \midrule
+\multicolumn{5}{l}{\textit{Training-free predictors}} \\
 \textbf{Topo} & Application layer & 0.511 $[0.346, 0.703]$ & $-0.104$ & 0.474 \\
 \textbf{Topo-QoS} & Dependency graph & 0.526 $[0.357, 0.699]$ & $-0.088$ & 0.474 \\
 \midrule
+\multicolumn{5}{l}{\textit{Learned and hybrid, raw multigraph}} \\
 \textbf{HGT-QoS} & Raw multigraph & 0.760 $[0.714, 0.819]$ & 0.236 & 0.713 \\
 \textbf{GAT-QoS} & Raw multigraph & 0.805 $[0.759, 0.868]$ & 0.319 & 0.790 \\
 \textbf{Hybrid-HGT} & Raw multigraph & 0.695 $[0.643, 0.730]$ & 0.210 & 0.602 \\
 \textbf{Hybrid-GAT} & Raw multigraph & 0.662 $[0.597, 0.727]$ & 0.185 & 0.600 \\
 \midrule
-\textbf{GAT-P-QoS} & Dependency graph & \textbf{0.806} $[0.785, 0.829]$ & \textbf{0.342} & \textbf{0.838} \\
+\multicolumn{5}{l}{\textit{Learned, dependency graph}} \\
+\textbf{GAT-P-QoS} & Dependency graph & \underline{0.806} $[0.785, 0.829]$ & \underline{0.342} & \underline{0.838} \\
 \bottomrule
 \end{tabular}%
 }
@@ -194,13 +233,35 @@ The \texttt{Reach} reference reaches $\rho = 0.938$ and $\rho_{>0} = 0.871$ on t
 \subsection{RQ4: Analysis Cost}
 \label{sec:rq4}
 
-\paragraph{Summary} \emph{The reference counting path (projection plus \texttt{InDeg}), which approximates $I^*$'s first wave, takes $1$--$29$~ms per corpus architecture and $1.1$~s at $10{,}000$ components; one labelling pass of the reachability oracle takes $0.08$--$4.5$~s on the corpus and grows roughly quadratically, to $347$~s at $2{,}000$ components and $36$~minutes at $5{,}000$. The neural pipeline is dominated by feature extraction, which costs median $5.6\times$ a direct run of the oracle; inference itself takes $56$~ms at $2{,}000$ nodes. No energy was measured.}
+\paragraph{Summary} \emph{Measured like for like, on the same graphs in one session (Table~\ref{tab:cost-ll}), one labeling pass of the reachability oracle over the Applications takes $0.01$--$0.72$~s per corpus architecture, the counting path that restates its first wave $17$--$176\times$ less (median $45\times$), and the feature extraction every learned engine needs $4.5$--$72.5\times$ more (median $16.9\times$). On generated graphs of up to $5{,}000$ components the ordering holds, with features at $5.7$--$18.7\times$ one pass. The queue-flow oracle is the expensive one: $12.7$ CPU-hours to label the corpus. No energy was measured.}
 
 \begin{table}[htbp]
 \centering
 \footnotesize
 \setlength{\tabcolsep}{3pt}
-\caption{Per-stage latency of the inference pipeline across graph sizes (CPU, median of 3 runs; 5 for the forward pass). The analysis stage is stable across repeats (p10--p90 within $1\%$ of the median), while the forward pass is dominated by interpreter and dispatch overhead; the 249-node row carries first-call warm-up.}
+\caption{Like-for-like cost, every region timed on the same graph in one session (Amendment~14; CPU, one thread, median of 3 runs, once at $4{,}995$ components, where the three-type sweep was not run). Count: Application--Library projection plus \texttt{InDeg}. One $I^*$ pass: seed 42, Applications, the population every ranker is scored on. Sweep: the published labeling run, five seeds over Application, Broker and Library nodes. Features: the app-layer analysis that produces the learned engines' node features. Gate: the system-layer analysis, quality scoring and 18 anti-pattern detectors, the stage behind the earlier ratio of Supplementary Table~\ref{S-tab:gate_ratio}. Corpus row: minimum--median--maximum over the twelve folds.}
+\label{tab:cost-ll}
+\begin{tabular}{rrrrrrrr}
+\toprule
+$|V|$ & Count (ms) & One $I^*$ pass (s) & Sweep (s) & Features (s) & Gate (s) & Pass : count & Features : pass \\
+\midrule
+249 & 2.5 & 0.26 & 1.63 & 1.46 & 2.05 & $105\times$ & $5.7\times$ \\
+499 & 6.6 & 0.79 & 6.59 & 6.49 & 10.01 & $119\times$ & $8.2\times$ \\
+999 & 13.1 & 3.90 & 32.42 & 30.57 & 50.92 & $297\times$ & $7.8\times$ \\
+1{,}998 & 35.5 & 18.45 & 157.86 & 160.73 & 275.80 & $521\times$ & $8.7\times$ \\
+4{,}995 & 226.2 & 94.58 & --- & 1{,}768.81 & 3{,}072.60 & $418\times$ & $18.7\times$ \\
+\midrule
+Corpus & 0.4--15.6 & 0.01--0.72 & 0.09--4.98 & 0.07--52.25 & 0.16--81.48 & $17$--$45$--$176\times$ & $4.5$--$16.9$--$72.5\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\caption{Per-stage latency of the inference pipeline across graph sizes (CPU, median of 3 runs; 5 for the forward pass; an earlier session, system-layer analysis). Only ratios within one row are meaningful: comparing this table's analysis stage with Table~\ref{tab:count-scale}'s oracle mixes stages, sessions and graphs, which is what earlier revisions did. The analysis stage is stable across repeats (p10--p90 within $1\%$ of the median), while the forward pass is dominated by interpreter and dispatch overhead; the 249-node row carries first-call warm-up.}
 \label{tab:scale}
 \begin{tabular}{ccccccc}
 \toprule
@@ -217,11 +278,11 @@ The \texttt{Reach} reference reaches $\rho = 0.938$ and $\rho_{>0} = 0.871$ on t
 \begin{table}[htbp]
 \centering
 \footnotesize
-\caption{The counting path against one labelling pass of the reachability oracle $I^*$ on generated graphs of increasing size (Amendment~12, R6; CPU, median of 5 runs; $I^*$ timed once at $4{,}995$ components and not at $9{,}990$, where one pass would take hours). Projection: deriving the Application--Library \texttt{DEPENDS\_ON} graph from the manifest.}
+\caption{The counting path against the published five-seed labeling sweep of $I^*$ over Application, Broker and Library nodes, on generated graphs of increasing size (Amendment~12, R6, an earlier session; CPU, median of 5 runs; $I^*$ timed once at $4{,}995$ components and not at $9{,}990$, where one pass would take hours). Projection: deriving the Application--Library \texttt{DEPENDS\_ON} graph from the manifest.}
 \label{tab:count-scale}
 \begin{tabular}{rrrrrr}
 \toprule
-\textbf{$|V|$} & \textbf{$|E|$} & \textbf{\shortstack{Projection +\\\texttt{InDeg} (ms)}} & \textbf{\shortstack{\texttt{Reach}\\(ms)}} & \textbf{\shortstack{$I^*$ pass\\(s)}} & \textbf{\shortstack{$I^*$ :\\count}} \\
+\textbf{$|V|$} & \textbf{$|E|$} & \textbf{\shortstack{Projection +\\\texttt{InDeg} (ms)}} & \textbf{\shortstack{\texttt{Reach}\\(ms)}} & \textbf{\shortstack{$I^*$ sweep\\(s)}} & \textbf{\shortstack{$I^*$ :\\count}} \\
 \midrule
 249 & 1{,}081 & 8.0 & 11.7 & 4.0 & $500\times$ \\
 499 & 2{,}437 & 11.2 & 24.9 & 15.1 & $1{,}351\times$ \\
@@ -233,6 +294,6 @@ The \texttt{Reach} reference reaches $\rho = 0.938$ and $\rho_{>0} = 0.871$ on t
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:scale} breaks down the neural pipeline. Its analysis stage, which computes the node features including betweenness and a directed articulation score, dominates; across the corpus it takes $2.0$--$17.7\times$ (median $5.6\times$) the time of running $I^*$ directly, so where the $I^*$ ranking itself is wanted, running the oracle is cheaper than approximating it with a learned engine. Table~\ref{tab:count-scale} shows the counting path. On the corpus it takes $1$--$29$~ms per architecture against $0.08$--$4.5$~s for one $I^*$ pass, and on generated graphs the gap widens with size: the count grows roughly with the number of edges, $I^*$ roughly with the square of the number of components. At $5{,}000$ components one $I^*$ pass takes $36$~minutes and the count $0.43$~s. Because the count restates $I^*$'s first wave, this is the cost of approximating the oracle, not of an independent prediction: the count's practical advantage is cost at scale and in inner loops, not accuracy over the oracle it approximates. \texttt{Reach} is costlier than \texttt{InDeg} ($23$~s at $10{,}000$ components) because it computes a transitive closure. These are wall-clock measurements on one CPU; no energy was measured, and we make no sustainability claim beyond them.
+Table~\ref{tab:cost-ll} replaces two comparisons earlier revisions got wrong. They set the full detection gate (system-layer analysis plus 18 anti-pattern detectors) against the five-seed labeling sweep over three node types and called that sweep ``one run'' of $I^*$ (median $5.6\times$; Supplementary Table~\ref{S-tab:gate_ratio}), and they read Table~\ref{tab:scale} against Table~\ref{tab:count-scale}, which were timed in different sessions on different graphs. Timed together, every stage keeps its place in the ordering. The counting path is the cheapest, one $I^*$ pass over the scored population is next, and the app-layer feature extraction that the learned engines read is the most expensive, at $4.5$--$72.5\times$ one pass on the corpus. The articulation and Connectivity Degradation Index phase accounts for $88$--$91\%$ of it (Enterprise, and the $2{,}000$-component graph), and it is largest on Enterprise, whose Rule~1 projection is nearly complete. Where the $I^*$ ranking itself is wanted, running the oracle is therefore cheaper than approximating it with a learned engine at every size measured, and the count is cheaper still, by one to two orders of magnitude, because it restates the oracle's first wave; its practical advantage is cost, not accuracy over the oracle it approximates. Table~\ref{tab:scale} shows that inference itself is negligible (tens of milliseconds at $2{,}000$ components), and Table~\ref{tab:count-scale} that the count scales to $10{,}000$ components ($1.1$~s) and \texttt{Reach} less well ($23$~s), because it computes a transitive closure. The expensive oracle is $I_{\text{dyn}}$: labeling the corpus took $12.7$ CPU-hours (about $7$~s per fault run and seed), which is the case for the learned surrogate of Section~\ref{sec:rq1}, whose inference runs in seconds. These are wall-clock measurements on one CPU; no energy was measured, and we make no sustainability claim beyond them.
 
 

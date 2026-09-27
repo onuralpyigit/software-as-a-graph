@@ -39,6 +39,7 @@ root.
 | §7.1, §8.3 | Value of the dependency derivation: InDeg vs raw-graph counts, Rule 5 in reach (Amendment 10, exploratory) | [amendment10-derivation.md](amendment10-derivation.md) | `python reproduce/training_free_suite.py derivation` | Supp. S33 |
 | §7.1, Tables 6–7, Fig. 6, §8 | Round-7 referee analyses: raw-graph rankers, partial ρ beyond I*, learned engines on all oracles, recall@k, single-harness zero-shot, latency (Amendment 12, exploratory) | [amendment12-referee.md](amendment12-referee.md) | `make -f reproduce/Makefile rq-referee-round7` | Supp. S-referee |
 | §1, §4.4, §6.2, §7, §8, Figs. 5–6 | Dependency counts reported as references that restate I*, not as predictors; GAT-P+InDeg to the supplement (Amendment 13, reporting deviation, no new runs) | [amendment13-reference-demotion.md](amendment13-reference-demotion.md) | none (figures re-rendered) | Supp. amendment log |
+| §4–§8 | Round-8 arms: degree-free and GIN learners, w_in-held 2×2, GNN I_dyn surrogate, nested selection; full-population I_dyn Table 7; hybrid attribution, TOST, cost reconciliation (Amendment 14) | [amendment14-round8.md](amendment14-round8.md) | `make -f reproduce/Makefile rq-amendment14 rq-referee-round8 rq-cost-reconcile` | Supp. S-round8 |
 | §6.4, §8.2 | Registered plan, amendments, omnibus correction, repeatability | [repeatability-and-amendments.md](repeatability-and-amendments.md) | `make -f reproduce/Makefile omnibus` | Supp. S24 |
 
 Section and table numbers are those of the compiled manuscript at the submission tag. The LaTeX

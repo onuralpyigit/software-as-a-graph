@@ -60,7 +60,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Tuple
 
 __all__ = [
     "Variant",
@@ -80,6 +80,12 @@ __all__ = [
     "node_qos_for",
     "prior_for",
     "learns_on_projection",
+    "drop_features_for",
+    "qos_exempt_for",
+    "label_source_for",
+    "baseline_name_for",
+    "DEGREE_FEATURES",
+    "DEGREE_FEATURES_STRICT",
 ]
 
 
@@ -117,6 +123,24 @@ class Variant:
     #: Closed-form score a hybrid reads as its prior column: ``"topo_qos"``
     #: (Amendments 5 and 6) or ``"indeg"`` (Amendment 9). ``None`` = no prior.
     prior: Optional[str] = None
+    #: Node-feature columns zeroed after normalisation (Amendment 14). The input
+    #: width is kept, so the parameter budget does not change.
+    drop_node_features: Tuple[str, ...] = ()
+    #: QoS node columns that survive QoS-off masking (Amendment 14's w_in-held 2x2).
+    qos_exempt_node_features: Tuple[str, ...] = ()
+    #: Homogeneous message-passing operator: ``"gat"`` or ``"gin"`` (sum aggregation).
+    aggregator: str = "gat"
+    #: Training labels: ``"i_star"`` (every reported arm), ``"idyn_full"``
+    #: (Amendment 11's queue-flow labels) or ``"istar_app"`` (I*, Applications only).
+    label_source: str = "i_star"
+
+
+#: Amendment 14: the in-degree column and its QoS-weighted version, and the strict set
+#: that also drops the centralities most correlated with in-degree.
+DEGREE_FEATURES: Tuple[str, ...] = ("in_degree_centrality", "qos_weight_in")
+DEGREE_FEATURES_STRICT: Tuple[str, ...] = DEGREE_FEATURES + (
+    "pagerank", "closeness_centrality", "eigenvector_centrality",
+)
 
 
 FAMILY_ORDER = [
@@ -368,6 +392,120 @@ _VARIANT_LIST = [
               "(430,680 params, 0.99x HGT-QoS)",
         hidden_channels=100,
     ),
+    # Amendment 14 (round-8 referee): does the approach to the InDeg reference
+    # need the degree features, can a sum aggregator count what softmax attention
+    # cannot, what does the QoS factor mean with w_in held, and can a GNN serve as
+    # the queue-flow surrogate? Exploratory; not manuscript columns.
+    Variant(
+        variant_id="gl_proj_qos16_cap_nodeg",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-P-QoS-deg",
+        blurb="GAT-P-QoS with in_degree_centrality and qos_weight_in zeroed",
+        hidden_channels=288,
+        drop_node_features=DEGREE_FEATURES,
+    ),
+    Variant(
+        variant_id="gl_proj_qos16_cap_nodeg_strict",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-P-QoS-deg*",
+        blurb="GAT-P-QoS with in-degree, w_in, PageRank, closeness and "
+              "eigenvector centrality zeroed",
+        hidden_channels=288,
+        drop_node_features=DEGREE_FEATURES_STRICT,
+    ),
+    Variant(
+        variant_id="gl_full_qos16_cap_nodeg",
+        family="control",
+        substrate="native",
+        qos="full16",
+        label="GAT-QoS-deg",
+        blurb="GAT-QoS with in_degree_centrality and qos_weight_in zeroed",
+        hidden_channels=288,
+        control_for="degree_features",
+        drop_node_features=DEGREE_FEATURES,
+    ),
+    Variant(
+        variant_id="gin_proj_qos16",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GIN-P-QoS",
+        blurb="GINE (sum aggregation, 228 channels, 434,123 params) on the "
+              "DEPENDS_ON projection with the 16-D QoS edge channel",
+        hidden_channels=228,
+        aggregator="gin",
+    ),
+    Variant(
+        variant_id="gin_proj_qos16_nodeg",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GIN-P-QoS-deg",
+        blurb="GIN-P-QoS with in_degree_centrality and qos_weight_in zeroed",
+        hidden_channels=228,
+        aggregator="gin",
+        drop_node_features=DEGREE_FEATURES,
+    ),
+    Variant(
+        variant_id="gin_proj_qos16_nodeg_strict",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GIN-P-QoS-deg*",
+        blurb="GIN-P-QoS with the strict degree set zeroed",
+        hidden_channels=228,
+        aggregator="gin",
+        drop_node_features=DEGREE_FEATURES_STRICT,
+    ),
+    Variant(
+        variant_id="gl_full_cap_win",
+        family="control",
+        substrate="native",
+        qos="none",
+        label="GAT+w_in",
+        blurb="GAT (296 channels, QoS off) keeping the qos_weight_in column; "
+              "the w_in-held QoS-off cell of the matched 2x2",
+        hidden_channels=296,
+        control_for="win_qos_off",
+        qos_exempt_node_features=("qos_weight_in",),
+    ),
+    Variant(
+        variant_id="hgl_win",
+        family="control",
+        substrate="native",
+        qos="none",
+        label="HGT+w_in",
+        blurb="HGT (QoS off) keeping the qos_weight_in column; the w_in-held "
+              "QoS-off typed cell of the matched 2x2",
+        control_for="win_qos_off",
+        qos_exempt_node_features=("qos_weight_in",),
+    ),
+    Variant(
+        variant_id="gl_proj_qos16_cap_idyn",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-P-QoS-dyn",
+        blurb="GAT-P-QoS trained on Amendment 11's full-population queue-flow "
+              "labels (Applications only); a surrogate for I_dyn",
+        hidden_channels=288,
+        label_source="idyn_full",
+    ),
+    Variant(
+        variant_id="gl_proj_qos16_cap_istar_app",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-P-QoS[I*-App]",
+        blurb="GAT-P-QoS trained on I* restricted to Applications; the "
+              "label-support control for GAT-P-QoS-dyn",
+        hidden_channels=288,
+        label_source="istar_app",
+    ),
 ]
 
 VARIANTS: Dict[str, Variant] = {v.variant_id: v for v in _VARIANT_LIST}
@@ -547,6 +685,31 @@ def learns_on_projection(variant_id: str, harness: str = "loso") -> bool:
     variant = VARIANTS.get(resolve(variant_id, harness), None)
     return (variant is not None and variant.family != "structural"
             and variant.substrate == "projection")
+
+
+def drop_features_for(variant_id: str, harness: str = "loso") -> Tuple[str, ...]:
+    """Node-feature columns ``variant_id`` zeroes (empty for every reported arm)."""
+    variant = VARIANTS.get(resolve(variant_id, harness), None)
+    return () if variant is None else variant.drop_node_features
+
+
+def qos_exempt_for(variant_id: str, harness: str = "loso") -> Tuple[str, ...]:
+    """QoS node columns ``variant_id`` keeps when its QoS inputs are off."""
+    variant = VARIANTS.get(resolve(variant_id, harness), None)
+    return () if variant is None else variant.qos_exempt_node_features
+
+
+def label_source_for(variant_id: str, harness: str = "loso") -> str:
+    """Training-label source for ``variant_id`` (``"i_star"`` for every reported arm)."""
+    variant = VARIANTS.get(resolve(variant_id, harness), None)
+    return "i_star" if variant is None else variant.label_source
+
+
+def baseline_name_for(variant_id: str, harness: str = "loso") -> str:
+    """``build_baseline`` name for a homogeneous ``variant_id``."""
+    if _lookup(variant_id, harness).aggregator == "gin":
+        return "homo_gin"
+    return "homo_unweighted" if edge_dim(variant_id, harness) is None else "homo_scalar"
 
 
 def order(
