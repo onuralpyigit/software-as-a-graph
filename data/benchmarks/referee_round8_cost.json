@@ -1,0 +1,450 @@
+{
+  "rows": {
+    "atm_system": {
+      "n_components": 74,
+      "repeats": 3,
+      "analyze_app_s": 0.06727941399731208,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.0002441476657016513,
+        "2. Computing centrality metrics": 0.005767398998917391,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.00022206366702448577,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 0.04783974366485685,
+        "5. Computing clustering coefficients and bridges": 0.0021031706637586467,
+        "6. Computing pub-sub topology metrics": 0.003251873000408523,
+        "7. Assembling component and edge metrics": 0.005189032667355302
+      },
+      "gate_system_s": 0.15771926700108452,
+      "istar_one_pass_app_s": 0.0149299990007421,
+      "istar_five_seed_app_s": 0.05892452999978559,
+      "istar_sweep_s": 0.0910598489936092,
+      "count_s": 0.0004480720017454587,
+      "ratio_app_analysis_to_one_pass": 4.506324079055058,
+      "ratio_gate_to_sweep": 1.7320396282685868,
+      "ratio_one_pass_to_count": 33.320535410787734
+    },
+    "av_system": {
+      "n_components": 152,
+      "repeats": 3,
+      "analyze_app_s": 1.8708000970000285,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.002239863334883315,
+        "2. Computing centrality metrics": 0.14232055233393717,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.001477672667533625,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 1.5742244263334821,
+        "5. Computing clustering coefficients and bridges": 0.0434489620020031,
+        "6. Computing pub-sub topology metrics": 0.02583469033803946,
+        "7. Assembling component and edge metrics": 0.06178668733142937
+      },
+      "gate_system_s": 2.636059288000979,
+      "istar_one_pass_app_s": 0.09575683200091589,
+      "istar_five_seed_app_s": 0.2586016290006228,
+      "istar_sweep_s": 0.4044795020017773,
+      "count_s": 0.002740771997196134,
+      "ratio_app_analysis_to_one_pass": 19.536988201344574,
+      "ratio_gate_to_sweep": 6.517164095967948,
+      "ratio_one_pass_to_count": 34.937905122672404
+    },
+    "enterprise_system": {
+      "n_components": 520,
+      "repeats": 3,
+      "analyze_app_s": 52.25322609599971,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.017269986000125453,
+        "2. Computing centrality metrics": 3.733821744334515,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.010169685333191106,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 46.04838960233125,
+        "5. Computing clustering coefficients and bridges": 0.8496661523337631,
+        "6. Computing pub-sub topology metrics": 0.3299280756691587,
+        "7. Assembling component and edge metrics": 1.0069413926660975
+      },
+      "gate_system_s": 81.48279205700237,
+      "istar_one_pass_app_s": 0.7210235460006515,
+      "istar_five_seed_app_s": 3.333440085996699,
+      "istar_sweep_s": 4.983671273002983,
+      "count_s": 0.015569170995149761,
+      "ratio_app_analysis_to_one_pass": 72.47090110418182,
+      "ratio_gate_to_sweep": 16.349953195830217,
+      "ratio_one_pass_to_count": 46.31097867865096
+    },
+    "financial_trading_system": {
+      "n_components": 124,
+      "repeats": 3,
+      "analyze_app_s": 1.215175254001224,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.0019286996660715279,
+        "2. Computing centrality metrics": 0.09644234466638106,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.0012534829996487435,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 0.9972562563343672,
+        "5. Computing clustering coefficients and bridges": 0.033122801001203094,
+        "6. Computing pub-sub topology metrics": 0.017292038998372544,
+        "7. Assembling component and edge metrics": 0.047568026331039924
+      },
+      "gate_system_s": 1.807369940004719,
+      "istar_one_pass_app_s": 0.0370207170053618,
+      "istar_five_seed_app_s": 0.14793526099674636,
+      "istar_sweep_s": 0.26256986599764787,
+      "count_s": 0.002195132998167537,
+      "ratio_app_analysis_to_one_pass": 32.82419553962791,
+      "ratio_gate_to_sweep": 6.883386763128826,
+      "ratio_one_pass_to_count": 16.86490842981547
+    },
+    "healthcare_system": {
+      "n_components": 98,
+      "repeats": 3,
+      "analyze_app_s": 0.6464655270028743,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.0011504393308617484,
+        "2. Computing centrality metrics": 0.046363715666908924,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.000841945999127347,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 0.5292352953304847,
+        "5. Computing clustering coefficients and bridges": 0.01728322700121983,
+        "6. Computing pub-sub topology metrics": 0.008714228000220222,
+        "7. Assembling component and edge metrics": 0.029894716998872656
+      },
+      "gate_system_s": 0.9490648179998971,
+      "istar_one_pass_app_s": 0.027436848999059293,
+      "istar_five_seed_app_s": 0.11233101499965414,
+      "istar_sweep_s": 0.1656829569983529,
+      "count_s": 0.0008809489954728633,
+      "ratio_app_analysis_to_one_pass": 23.56194499685584,
+      "ratio_gate_to_sweep": 5.7281982117770385,
+      "ratio_one_pass_to_count": 31.14465098439908
+    },
+    "hub_and_spoke_system": {
+      "n_components": 139,
+      "repeats": 3,
+      "analyze_app_s": 2.323562530997151,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.003253150001304069,
+        "2. Computing centrality metrics": 0.2062254286647658,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.002016258668542529,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 1.9056610740032436,
+        "5. Computing clustering coefficients and bridges": 0.05553963066631695,
+        "6. Computing pub-sub topology metrics": 0.01891577166679781,
+        "7. Assembling component and edge metrics": 0.08782963966465711
+      },
+      "gate_system_s": 3.2846861660000286,
+      "istar_one_pass_app_s": 0.03816923200065503,
+      "istar_five_seed_app_s": 0.14779529799852753,
+      "istar_sweep_s": 0.26841810600308236,
+      "count_s": 0.002189642997109331,
+      "ratio_app_analysis_to_one_pass": 60.875275954131745,
+      "ratio_gate_to_sweep": 12.237200444154498,
+      "ratio_one_pass_to_count": 17.43171469095389
+    },
+    "industrial_scada_system": {
+      "n_components": 254,
+      "repeats": 3,
+      "analyze_app_s": 1.3397233719952055,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.0010932653337173785,
+        "2. Computing centrality metrics": 0.08413861633744091,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.0010296643352679287,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 1.1363320133314119,
+        "5. Computing clustering coefficients and bridges": 0.017732044667354785,
+        "6. Computing pub-sub topology metrics": 0.04619621333404211,
+        "7. Assembling component and edge metrics": 0.03821614900031515
+      },
+      "gate_system_s": 2.579454327998974,
+      "istar_one_pass_app_s": 0.24744576199736912,
+      "istar_five_seed_app_s": 1.0796312180027599,
+      "istar_sweep_s": 1.3146539709996432,
+      "count_s": 0.0014060620014788583,
+      "ratio_app_analysis_to_one_pass": 5.41421021391124,
+      "ratio_gate_to_sweep": 1.962078527810322,
+      "ratio_one_pass_to_count": 175.9849578020829
+    },
+    "iot_smart_city_system": {
+      "n_components": 326,
+      "repeats": 3,
+      "analyze_app_s": 3.193281006999314,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.0018873610000203673,
+        "2. Computing centrality metrics": 0.15033076833545542,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.0016068849993947272,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 2.807563217332548,
+        "5. Computing clustering coefficients and bridges": 0.04963977866767285,
+        "6. Computing pub-sub topology metrics": 0.09767458633238373,
+        "7. Assembling component and edge metrics": 0.08251951566732411
+      },
+      "gate_system_s": 5.812652902997797,
+      "istar_one_pass_app_s": 0.22311686300236033,
+      "istar_five_seed_app_s": 0.9894288489958853,
+      "istar_sweep_s": 1.2403211019991431,
+      "count_s": 0.0035115440041408874,
+      "ratio_app_analysis_to_one_pass": 14.31214550092313,
+      "ratio_gate_to_sweep": 4.686409747950747,
+      "ratio_one_pass_to_count": 63.53810823365909
+    },
+    "logistics_fleet_system": {
+      "n_components": 205,
+      "repeats": 3,
+      "analyze_app_s": 1.6784365990024526,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.0015719376679044217,
+        "2. Computing centrality metrics": 0.1228850586679376,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.0012498356688107985,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 1.4213574376650893,
+        "5. Computing clustering coefficients and bridges": 0.023837809999046538,
+        "6. Computing pub-sub topology metrics": 0.034623781000846066,
+        "7. Assembling component and edge metrics": 0.050350438332922444
+      },
+      "gate_system_s": 2.8818979209972895,
+      "istar_one_pass_app_s": 0.1591841569970711,
+      "istar_five_seed_app_s": 0.7135128779991646,
+      "istar_sweep_s": 1.0177738790007425,
+      "count_s": 0.0019355640033609234,
+      "ratio_app_analysis_to_one_pass": 10.543992760745246,
+      "ratio_gate_to_sweep": 2.831569939510294,
+      "ratio_one_pass_to_count": 82.24174283085598
+    },
+    "microservices_system": {
+      "n_components": 186,
+      "repeats": 3,
+      "analyze_app_s": 1.4942067739975755,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.0014001800009282306,
+        "2. Computing centrality metrics": 0.12379304066901871,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.0011031596635196668,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 1.265983460667485,
+        "5. Computing clustering coefficients and bridges": 0.021256929668500863,
+        "6. Computing pub-sub topology metrics": 0.03218865133142875,
+        "7. Assembling component and edge metrics": 0.040405446336080786
+      },
+      "gate_system_s": 2.4172802009998122,
+      "istar_one_pass_app_s": 0.13356313300027978,
+      "istar_five_seed_app_s": 0.6102094460002263,
+      "istar_sweep_s": 0.9056590769978357,
+      "count_s": 0.00205871799698798,
+      "ratio_app_analysis_to_one_pass": 11.187269573816044,
+      "ratio_gate_to_sweep": 2.6690840542479197,
+      "ratio_one_pass_to_count": 64.87684723973373
+    },
+    "realtime_gaming_system": {
+      "n_components": 158,
+      "repeats": 3,
+      "analyze_app_s": 1.5962543040004675,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.0019967856690830863,
+        "2. Computing centrality metrics": 0.13071741099944725,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.0013077220016081508,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 1.3444687343314097,
+        "5. Computing clustering coefficients and bridges": 0.02493120166521597,
+        "6. Computing pub-sub topology metrics": 0.019053016665566247,
+        "7. Assembling component and edge metrics": 0.05087287500161134
+      },
+      "gate_system_s": 2.573833378002746,
+      "istar_one_pass_app_s": 0.05528747599601047,
+      "istar_five_seed_app_s": 0.23322319900034927,
+      "istar_sweep_s": 0.41981014200428035,
+      "count_s": 0.0012716269993688911,
+      "ratio_app_analysis_to_one_pass": 28.871896849037796,
+      "ratio_gate_to_sweep": 6.130946159886969,
+      "ratio_one_pass_to_count": 43.47774624433868
+    },
+    "telecom_ran_system": {
+      "n_components": 225,
+      "repeats": 3,
+      "analyze_app_s": 2.3027565110023716,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.001770772997891375,
+        "2. Computing centrality metrics": 0.18362059033339997,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.0014533560000321206,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 1.968357888001871,
+        "5. Computing clustering coefficients and bridges": 0.03174438033359669,
+        "6. Computing pub-sub topology metrics": 0.042691358668283406,
+        "7. Assembling component and edge metrics": 0.05745739100044981
+      },
+      "gate_system_s": 3.827047311999195,
+      "istar_one_pass_app_s": 0.18930573300167453,
+      "istar_five_seed_app_s": 0.846461150002142,
+      "istar_sweep_s": 1.1349925649992656,
+      "count_s": 0.0024838370009092614,
+      "ratio_app_analysis_to_one_pass": 12.164219617067817,
+      "ratio_gate_to_sweep": 3.371869939960066,
+      "ratio_one_pass_to_count": 76.21503864077036
+    },
+    "generated_250": {
+      "n_components": 249,
+      "repeats": 3,
+      "analyze_app_s": 1.4616744669983746,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.0012441339980189998,
+        "2. Computing centrality metrics": 0.06265739766725649,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.0010654306655245211,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 1.2771238446681916,
+        "5. Computing clustering coefficients and bridges": 0.017219938995064393,
+        "6. Computing pub-sub topology metrics": 0.04904253866940659,
+        "7. Assembling component and edge metrics": 0.03673012900010993
+      },
+      "gate_system_s": 2.0525664269953268,
+      "istar_one_pass_app_s": 0.2575508949958021,
+      "istar_five_seed_app_s": 1.1849143389990786,
+      "istar_sweep_s": 1.6318915049996576,
+      "count_s": 0.002459946001181379,
+      "ratio_app_analysis_to_one_pass": 5.675283974541028,
+      "ratio_gate_to_sweep": 1.2577836337200354,
+      "ratio_one_pass_to_count": 104.69778396440992
+    },
+    "generated_500": {
+      "n_components": 499,
+      "repeats": 3,
+      "analyze_app_s": 6.490326125996944,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.002735367333419466,
+        "2. Computing centrality metrics": 0.2477316470006675,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.002358104997256305,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 5.815767902667479,
+        "5. Computing clustering coefficients and bridges": 0.058795983333160017,
+        "6. Computing pub-sub topology metrics": 0.19281113300288175,
+        "7. Assembling component and edge metrics": 0.11565403533556189
+      },
+      "gate_system_s": 10.007492992997868,
+      "istar_one_pass_app_s": 0.7911723609940964,
+      "istar_five_seed_app_s": 3.9102146799996262,
+      "istar_sweep_s": 6.592876677001186,
+      "count_s": 0.006638897997618187,
+      "ratio_app_analysis_to_one_pass": 8.203428792484543,
+      "ratio_gate_to_sweep": 1.517925100572311,
+      "ratio_one_pass_to_count": 119.17224233267966
+    },
+    "generated_1000": {
+      "n_components": 999,
+      "repeats": 3,
+      "analyze_app_s": 30.57357112900354,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.00611879466547786,
+        "2. Computing centrality metrics": 1.2245690373359441,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.0053350856639250805,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 27.866835196332733,
+        "5. Computing clustering coefficients and bridges": 0.21273563066642964,
+        "6. Computing pub-sub topology metrics": 0.8892335019991151,
+        "7. Assembling component and edge metrics": 0.4254760870001822
+      },
+      "gate_system_s": 50.92142831700039,
+      "istar_one_pass_app_s": 3.9036972929970943,
+      "istar_five_seed_app_s": 18.607818942997255,
+      "istar_sweep_s": 32.415769282997644,
+      "count_s": 0.013125703997502569,
+      "ratio_app_analysis_to_one_pass": 7.8319523349953295,
+      "ratio_gate_to_sweep": 1.5708844628194318,
+      "ratio_one_pass_to_count": 297.408603282525
+    },
+    "generated_2000": {
+      "n_components": 1998,
+      "repeats": 3,
+      "analyze_app_s": 160.73065549099556,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.04447413533489453,
+        "2. Computing centrality metrics": 6.305283555666392,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.012644424001337029,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 146.97362921100043,
+        "5. Computing clustering coefficients and bridges": 1.0651324999998906,
+        "6. Computing pub-sub topology metrics": 3.984143177998097,
+        "7. Assembling component and edge metrics": 2.0126101069981814
+      },
+      "gate_system_s": 275.8002074429969,
+      "istar_one_pass_app_s": 18.454698796995217,
+      "istar_five_seed_app_s": 85.43412993499805,
+      "istar_sweep_s": 157.86411852700257,
+      "count_s": 0.035452698000881355,
+      "ratio_app_analysis_to_one_pass": 8.709470539674461,
+      "ratio_gate_to_sweep": 1.7470734326231419,
+      "ratio_one_pass_to_count": 520.544269903984
+    },
+    "generated_5000": {
+      "n_components": 4995,
+      "repeats": 1,
+      "analyze_app_s": 1768.809502092001,
+      "analyze_app_phases_s": {
+        "1. Building layer subgraph for 'app'": 0.07523703500191914,
+        "2. Computing centrality metrics": 67.57613564599887,
+        "3. Computing MPCI / fan-out criticality / path complexity": 0.04818471800535917,
+        "4. Computing AP_c / CDI, blast radius, cascade depth": 1639.8495501159996,
+        "5. Computing clustering coefficients and bridges": 9.512132458999986,
+        "6. Computing pub-sub topology metrics": 31.132823071995517,
+        "7. Assembling component and edge metrics": 19.589418862000457
+      },
+      "gate_system_s": 3072.5983700049983,
+      "istar_one_pass_app_s": 94.5825596240029,
+      "istar_five_seed_app_s": 403.0755492390017,
+      "istar_sweep_s": null,
+      "count_s": 0.22624335000000428,
+      "ratio_app_analysis_to_one_pass": 18.70122260513573,
+      "ratio_gate_to_sweep": null,
+      "ratio_one_pass_to_count": 418.0567500613879
+    }
+  },
+  "corpus_summary": {
+    "analyze_app_s": {
+      "min": 0.06727941399731208,
+      "median": 1.63734545150146,
+      "max": 52.25322609599971
+    },
+    "gate_system_s": {
+      "min": 0.15771926700108452,
+      "median": 2.6077568079999764,
+      "max": 81.48279205700237
+    },
+    "istar_one_pass_app_s": {
+      "min": 0.0149299990007421,
+      "median": 0.11465998250059783,
+      "max": 0.7210235460006515
+    },
+    "istar_sweep_s": {
+      "min": 0.0910598489936092,
+      "median": 0.662734609501058,
+      "max": 4.983671273002983
+    },
+    "count_s": {
+      "min": 0.0004480720017454587,
+      "median": 0.0021241804970486555,
+      "max": 0.015569170995149761
+    },
+    "ratio_app_analysis_to_one_pass": {
+      "min": 4.506324079055058,
+      "median": 16.924566851133854,
+      "max": 72.47090110418182
+    },
+    "ratio_gate_to_sweep": {
+      "min": 1.7320396282685868,
+      "median": 5.207303979863893,
+      "max": 16.349953195830217
+    },
+    "ratio_one_pass_to_count": {
+      "min": 16.86490842981547,
+      "median": 44.89436246149482,
+      "max": 175.9849578020829
+    }
+  },
+  "definitions": {
+    "analyze_app_s": "AnalysisService.analyze_layer('app'), the stage behind the learners' node features",
+    "gate_system_s": "detection gate: analyze_layer('system') + predict_quality + 18 detectors (DEEP_PIPELINE excluded)",
+    "istar_one_pass_app_s": "FaultInjector, seed 42, Applications only: one I* labelling pass",
+    "istar_five_seed_app_s": "FaultInjector, five seeds, Applications only",
+    "istar_sweep_s": "FaultInjector, five seeds, Application+Broker+Library (the published sweep)",
+    "count_s": "Application-Library DEPENDS_ON projection + InDeg"
+  },
+  "machine": {
+    "processor": "",
+    "python": "3.11.5"
+  },
+  "provenance": {
+    "commit": "a933ffb51b19f6a001796e61b474fe510120e098",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/referee_round8.py",
+      "amendment": 14,
+      "experiment": "cost reconciliation",
+      "repeats": 3,
+      "sizes": [
+        250,
+        500,
+        1000,
+        2000,
+        5000
+      ]
+    }
+  }
+}
