@@ -55,8 +55,13 @@ $G_{\text{analysis}}$   & Logical \texttt{DEPENDS\_ON} projection (input to pred
 $V_{\text{app}}$        & Application nodes (the primary scored population) \\
 $w(t)$, $w(e)$          & QoS topic weight; derived dependency edge weight ($w(e) = w_E(e)$ on \texttt{DEPENDS\_ON}) \\
 $I^*(v)$                & Primary cascade-reachability simulation oracle \\
-$I_{\text{dyn}}(v)$     & Dynamic queue-flow discrete-event simulation oracle \\
+$\hat{I}^*_1(v)$        & Analytic first-order closed-form expansion of $I^*$ (Analytic $I^*$) \\
+$I^*_R(v)$              & Reliability-scaled feed loss (auxiliary prediction target) \\
+$I_{\text{dyn}}(v)$     & Dynamic queue-flow discrete-event simulation oracle ($N = 1{,}321$ full population) \\
+$I_{\text{dyn}}^{n=30}$ & Exploratory developmental sample of queue-flow simulation ($n = 30$ per fold) \\
 $I_{\text{comp}}(v)$    & Multi-criteria composite simulation oracle \\
+$\text{RL}, \text{FR}$  & Reachability Loss and Fragmentation components of $I_{\text{comp}}$ \\
+$\text{TL}, \text{FD}$  & Throughput Loss and Flow Disruption components of $I_{\text{comp}}$ \\
 $\rho$                  & Spearman rank correlation coefficient (full population) \\
 $\rho_{>0}$             & Spearman rank correlation restricted to active stratum ($I > 0$) \\
 Overlap@$K$             & Top-$K$ identification set overlap ($K = 0.20\,|V_{\text{app}}|$) \\
