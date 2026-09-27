@@ -132,6 +132,8 @@ def main():
     # 2b. Extract v4 manuscript.md from c2d2f792
     cmd = ["git", "show", f"{BASE_COMMIT}:docs/research/jss/manuscript.md"]
     v4_md = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
+    # Adjust relative image paths for draft in drafts/ subdirectory
+    v4_md = v4_md.replace("latex/figures/", "../latex/figures/")
     (DRAFTS / "manuscript_v4_advisor.md").write_text(v4_md, encoding="utf8")
     print(f"✓ Generated: {DRAFTS / 'manuscript_v4_advisor.md'} ({len(v4_md)} bytes)")
 

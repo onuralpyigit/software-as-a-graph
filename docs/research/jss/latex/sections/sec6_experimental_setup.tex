@@ -4,7 +4,7 @@
 \subsection{Corpus and Replication Package}
 \label{sec:6.1}
 
-The corpus comprises 2,812 components across seventeen architectures (Table~\ref{tab:4}). Twelve synthetic topologies form the LOSO folds. They span autonomous vehicles, financial trading, healthcare, industrial SCADA, smart-city IoT, telecom RAN, logistics, gaming, microservices, enterprise integration and air-traffic management. All twelve come from one generator family, as do their code metrics, so LOSO measures transfer across configurations of that generator. Each regenerates byte-identically from a committed configuration, and CI verifies this against a SHA-256 manifest.
+The corpus comprises 2,812 components across seventeen architectures (Table~\ref{tab:4}). Twelve synthetic topologies form the LOSO folds. They span autonomous vehicles, financial trading, healthcare, industrial SCADA, smart-city IoT, telecom RAN, logistics, gaming, microservices, enterprise integration and air-traffic management. All twelve come from one generator family, as do their code metrics, so LOSO measures transfer across parametric configurations of that generator rather than across structurally distinct industrial ecosystems. Each regenerates byte-identically from a committed configuration, and CI verifies this against a SHA-256 manifest.
 
 \begin{table}[htbp]
 \centering
@@ -26,7 +26,7 @@ Synthetic case study — ATM (1)    &    74 &    26 &  27 &  5 &   8 &   8 &   2
 \end{tabular}
 \end{table}
 
-\noindent\textbf{The five open-source systems are hand-authored models.} Autoware.universe (ROS~2), EdgeX Foundry, Home Assistant, and two meshes inspired by Online Boutique and Train-Ticket were each authored by one author as typed multigraphs from public documentation; they are not mechanical extractions. Brokers, QoS profiles, code metrics and host specifications are partly assumed. Two models depart materially from their originals: the Online Boutique model is a 22-application pub-sub mesh with four brokers, whereas the original is an RPC-based service mesh with no broker, and the Train-Ticket model represents its service-discovery server as a broker. Neither contains synchronous call edges. RQ3 therefore tests transfer to independently authored architecture models inspired by open-source systems, not to running deployed systems.
+\noindent\textbf{The five open-source systems are hand-authored models.} Autoware.universe (ROS~2), EdgeX Foundry, Home Assistant, and two meshes inspired by Online Boutique and Train-Ticket were each authored by one author as typed multigraphs from public documentation; they are not mechanical extractions. Brokers, QoS profiles, code metrics and host specifications are partly assumed. Two models depart materially from their originals: the Online Boutique model is a 22-application pub-sub mesh with four brokers, whereas the original is an RPC-based service mesh with no broker, and the Train-Ticket model represents its service-discovery server as a broker. Neither contains synchronous call edges. RQ3 therefore tests zero-shot transfer to stylized architecture models inspired by open-source systems created by a single modeler, not to deployed production systems or mechanically extracted call graphs.
 
 \noindent\textbf{Replication package.} Datasets, harnesses, checkpoints and result artifacts are archived on Zenodo (see Data Availability). The public repository documents each experiment: its protocol, hyperparameters, \texttt{make} target, artifacts and the supplementary section holding its extended results (\sagexperiments).
 
@@ -38,14 +38,14 @@ Table~\ref{tab:predictor_taxonomy} lists the predictors: the training-free basel
 \begin{table}[htbp]
 \centering
 \small
-\caption{Predictors reported in the main text. \texttt{-QoS}: QoS-weighted distances (\texttt{Topo-QoS}) or the 16-D QoS edge vector plus three QoS node columns (GNNs); \texttt{-P}: trained on the dependency graph; \texttt{Hybrid-X}: engine X corrected by the \texttt{Topo-QoS} prior. Reference rankings that restate the oracle (Analytic $I^*$, \texttt{InDeg}, \texttt{Reach}, Pubs-raw, Reach-R1) and \texttt{GAT-P+InDeg}, which uses one as its prior, are not predictors (Amendment~13). Other training-free baselines are reported in Supplementary Section~\ref{S-supp:baselines}. Each dependency-graph learner keeps its raw-multigraph counterpart's architecture and parameter budget. All runs, with substrate details: Supplementary Section~\ref{S-supp:taxonomy}.}
+\caption{Predictors reported in the main text. \texttt{-QoS}: QoS-weighted distances (\texttt{Topo-QoS}) or the 16-D QoS edge vector plus three QoS node columns (GNNs); \texttt{-P}: trained on the dependency graph; \texttt{Hybrid-X}: engine X corrected by the \texttt{Topo-QoS} prior. $^\P$\texttt{Topo-QoS} carries an implementation defect where the articulation point term is zero (corrected score is $0.533$). Reference rankings that restate the oracle (Analytic $I^*$, \texttt{InDeg}, \texttt{Reach}, Pubs-raw, Reach-R1) and \texttt{GAT-P+InDeg}, which uses one as its prior, are not predictors (Amendment~13). Other training-free baselines are reported in Supplementary Section~\ref{S-supp:baselines}. Each dependency-graph learner keeps its raw-multigraph counterpart's architecture and parameter budget. All runs, with substrate details: Supplementary Section~\ref{S-supp:taxonomy}.}
 \label{tab:predictor_taxonomy}
 \begin{tabular}{lllr}
 \toprule
 \textbf{Predictor} & \textbf{Graph read} & \textbf{Typing / edge input} & \textbf{Params} \\
 \midrule
 \multicolumn{4}{l}{\textit{Training-free baseline (registered comparator)}} \\
-\texttt{Topo-QoS}$^\P$ & App--Lib \texttt{DEPENDS\_ON} & scalar $w(e)$; betweenness only (AP term zero) & 0 \\
+\texttt{Topo-QoS}$^\P$ & App--Lib \texttt{DEPENDS\_ON} & scalar $w(e)$; betweenness only (AP term zero; corr.\ $0.533$) & 0 \\
 \midrule
 \multicolumn{4}{l}{\textit{Learned, dependency graph (Amendment~9)}} \\
 \texttt{GAT-P}, \texttt{GAT-P-QoS}, \texttt{HGT-P-QoS} & App--Lib \texttt{DEPENDS\_ON} & as counterpart & as counterpart \\
