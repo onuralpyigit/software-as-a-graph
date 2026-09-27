@@ -94,7 +94,7 @@ def panel_graph(ax) -> None:
 
 
 def panel_bars(ax, n: dict) -> None:
-    rows = [("QoS-weighted centrality", n["Topo-QoS"], NEUTRAL),
+    rows = [("Training-free baseline", n["Topo-QoS"], NEUTRAL),
             ("Hybrid GNN", n["Hybrid-GAT"], NEUTRAL),
             ("GNN, dependency graph", n["GAT-P-QoS"], ACCENT)]
     ys = range(len(rows))
@@ -123,8 +123,8 @@ def panel_text(ax, n: dict) -> None:
     ax.set_title("3. Beyond one simulator", loc="left", fontsize=7.4, fontweight="bold", color=INK)
     lines = [
         "Dependency counts restate the\nsimulator: references, not predictors.",
-        "Registered primary contrast null;\nhybrids beat centrality on 11/12.",
-        f"Multi-criteria: centrality ranks above\nevery learned engine ({n['comp_topo']:.2f} vs ≤{n['comp_learned']:.2f}).",
+        "Registered primary contrast null;\nhybrids beat baseline, not base learners.",
+        "Queue-flow surrogate pays:\nGBM 0.80 vs 0.71; GNN fails (0.60).",
         f"80% of the critical set needs\nthe top {100 * n['margin']:.0f}% by the best GNN.",
         "One simulation: seconds; GNN\nfeature extraction: ~5.6x that.",
     ]

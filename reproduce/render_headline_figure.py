@@ -73,7 +73,6 @@ ENGINES = [  # (variant, printed label, colour), top to bottom
     (v, f"{v} (ref.)" if v in COUNTS else label(v, "loso"), c) for v, c in (
         ("InDeg", COUNTS["InDeg"]),
         ("Reach", COUNTS["Reach"]),
-        ("topo_baseline", "#999999"),
         ("topo_qos", "#0072B2"),
         ("hgl_qos", "#E69F00"),
         ("gl_full_qos16_cap", "#CC79A7"),
@@ -169,7 +168,7 @@ def panel_a(ax, loso_ci, rw):
                label="zero-shot (5 systems)"),
     ], loc="upper right", ncol=2, frameon=False, fontsize=6.2, handletextpad=0.2,
        columnspacing=1.0, borderaxespad=0.0)
-    ax.set_title("A. Learners approach, never exceed, the InDeg reference", loc="left", fontsize=7.6,
+    ax.set_title("A. Dependency-graph learners reach the reference level", loc="left", fontsize=7.6,
                  fontweight="bold", color=INK)
 
 
@@ -193,14 +192,14 @@ def panel_b(ax, loso):
     ax.set_ylabel(r"$\Delta\rho$ vs. Topo-QoS")
     ax.grid(axis="y", color=GRID, lw=0.6)
     ax.set_axisbelow(True)
-    ax.set_xlabel("held-out fold, ordered by Topo-QoS ρ (in brackets): closed-form engine strongest → weakest",
+    ax.set_xlabel("held-out fold, ordered by Topo-QoS ρ (in brackets): baseline strongest → weakest",
                   fontsize=6.4, color=INK2)
     ax.legend(handles=[
         Line2D([], [], marker="o", color=COLOUR["hgl_qos"], ls="none", ms=5, label=label("hgl_qos", "loso")),
         Line2D([], [], marker="o", color=COLOUR["hgl_qos_prior"], ls="none", ms=5,
-               label=f"{label('hgl_qos_prior', 'loso')} ({label('hgl_qos', 'loso')} + closed-form prior)"),
+               label=f"{label('hgl_qos_prior', 'loso')} ({label('hgl_qos', 'loso')} + baseline prior)"),
     ], loc="upper left", frameon=False, fontsize=6.2, handletextpad=0.2, borderaxespad=0.1, ncol=2)
-    ax.set_title("B. Per fold: the prior repairs HGT-QoS where the closed form is strong",
+    ax.set_title("B. Per fold: the prior repairs HGT-QoS where the baseline is strong",
                  loc="left", fontsize=7.6, fontweight="bold", color=INK)
 
 
