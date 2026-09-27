@@ -6,7 +6,7 @@ All results are reported on the Application population ($V_{\text{app}}$) agains
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figures/Figure_5}
-\caption{Main results at a glance, Application population. (A)~Mean Spearman $\rho$ with 95\% bootstrap intervals under LOSO (filled circles; Table~\ref{tab:hybrid}) and zero-shot on five system models (open diamonds). Grey hollow markers are reference rankings that restate $I^*$'s propagation rule (\texttt{InDeg}, \texttt{Reach}; Amendment~13), not predictors; the neural model reading the dependency graph (\texttt{GAT-P-QoS}) approaches \texttt{InDeg} without exceeding it. (B)~Per held-out fold, the gain of \texttt{HGT-QoS} and of Hybrid-HGT over \texttt{Topo-QoS}. (C)~Cell means of the capacity- and channel-matched $2\times2$ (Table~\ref{tab:contrasts_matched}): the ``QoS'' inputs, which include a QoS-weighted in-degree column, raise both models by about $0.07$ (not significant after Holm), while typed and untyped configurations are indistinguishable; with $w_{\text{in}}$ held in both arms the ``QoS'' effect falls to $+0.030$ (Table~\ref{tab:a14}).}
+\caption{Main results at a glance, Application population. (A)~Mean Spearman $\rho$ with 95\% bootstrap intervals under LOSO (filled circles; Table~\ref{tab:hybrid}) and zero-shot on five system models (open diamonds). Grey hollow markers are reference rankings that restate $I^*$'s propagation rule (\texttt{InDeg}, \texttt{Reach}; Amendment~13), not predictors; the neural model reading the dependency graph (\texttt{GAT-P-QoS}) comes close to \texttt{InDeg}; the two are statistically indistinguishable but not equivalent. (B)~Per held-out fold, the gain of \texttt{HGT-QoS} and of Hybrid-HGT over \texttt{Topo-QoS}. (C)~Cell means of the capacity- and channel-matched $2\times2$ (Table~\ref{tab:contrasts_matched}): the ``QoS'' inputs, which include a QoS-weighted in-degree column, raise both models by about $0.07$ (not significant after Holm), while typed and untyped configurations are indistinguishable; with $w_{\text{in}}$ held in both arms the ``QoS'' effect falls to $+0.030$ (Table~\ref{tab:a14}).}
 \label{fig:results}
 \end{figure}
 
@@ -233,13 +233,35 @@ The \texttt{Reach} reference reaches $\rho = 0.938$ and $\rho_{>0} = 0.871$ on t
 \subsection{RQ4: Analysis Cost}
 \label{sec:rq4}
 
-\paragraph{Summary} \emph{The reference counting path (projection plus \texttt{InDeg}), which approximates $I^*$'s first wave, takes $1$--$29$~ms per corpus architecture and $1.1$~s at $10{,}000$ components; one labeling pass of the reachability oracle takes $0.08$--$4.5$~s on the corpus and grows roughly quadratically, to $347$~s at $2{,}000$ components and $36$~minutes at $5{,}000$. The neural pipeline is dominated by feature extraction, which costs median $5.6\times$ a direct run of the oracle; inference itself takes $56$~ms at $2{,}000$ nodes. No energy was measured.}
+\paragraph{Summary} \emph{Measured like for like, on the same graphs in one session (Table~\ref{tab:cost-ll}), one labeling pass of the reachability oracle over the Applications takes $0.01$--$0.72$~s per corpus architecture, the counting path that restates its first wave $17$--$176\times$ less (median $45\times$), and the feature extraction every learned engine needs $4.5$--$72.5\times$ more (median $16.9\times$). On generated graphs of up to $5{,}000$ components the ordering holds, with features at $5.7$--$18.7\times$ one pass. The queue-flow oracle is the expensive one: $12.7$ CPU-hours to label the corpus. No energy was measured.}
 
 \begin{table}[htbp]
 \centering
 \footnotesize
 \setlength{\tabcolsep}{3pt}
-\caption{Per-stage latency of the inference pipeline across graph sizes (CPU, median of 3 runs; 5 for the forward pass). The analysis stage is stable across repeats (p10--p90 within $1\%$ of the median), while the forward pass is dominated by interpreter and dispatch overhead; the 249-node row carries first-call warm-up.}
+\caption{Like-for-like cost, every region timed on the same graph in one session (Amendment~14; CPU, one thread, median of 3 runs, once at $4{,}995$ components, where the three-type sweep was not run). Count: Application--Library projection plus \texttt{InDeg}. One $I^*$ pass: seed 42, Applications, the population every ranker is scored on. Sweep: the published labeling run, five seeds over Application, Broker and Library nodes. Features: the app-layer analysis that produces the learned engines' node features. Gate: the system-layer analysis, quality scoring and 18 anti-pattern detectors, the stage behind the earlier ratio of Supplementary Table~\ref{S-tab:gate_ratio}. Corpus row: minimum--median--maximum over the twelve folds.}
+\label{tab:cost-ll}
+\begin{tabular}{rrrrrrrr}
+\toprule
+$|V|$ & Count (ms) & One $I^*$ pass (s) & Sweep (s) & Features (s) & Gate (s) & Pass : count & Features : pass \\
+\midrule
+249 & 2.5 & 0.26 & 1.63 & 1.46 & 2.05 & $105\times$ & $5.7\times$ \\
+499 & 6.6 & 0.79 & 6.59 & 6.49 & 10.01 & $119\times$ & $8.2\times$ \\
+999 & 13.1 & 3.90 & 32.42 & 30.57 & 50.92 & $297\times$ & $7.8\times$ \\
+1{,}998 & 35.5 & 18.45 & 157.86 & 160.73 & 275.80 & $521\times$ & $8.7\times$ \\
+4{,}995 & 226.2 & 94.58 & --- & 1{,}768.81 & 3{,}072.60 & $418\times$ & $18.7\times$ \\
+\midrule
+Corpus & 0.4--15.6 & 0.01--0.72 & 0.09--4.98 & 0.07--52.25 & 0.16--81.48 & $17$--$45$--$176\times$ & $4.5$--$16.9$--$72.5\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\caption{Per-stage latency of the inference pipeline across graph sizes (CPU, median of 3 runs; 5 for the forward pass; an earlier session, system-layer analysis). Only ratios within one row are meaningful: comparing this table's analysis stage with Table~\ref{tab:count-scale}'s oracle mixes stages, sessions and graphs, which is what earlier revisions did. The analysis stage is stable across repeats (p10--p90 within $1\%$ of the median), while the forward pass is dominated by interpreter and dispatch overhead; the 249-node row carries first-call warm-up.}
 \label{tab:scale}
 \begin{tabular}{ccccccc}
 \toprule
@@ -256,11 +278,11 @@ The \texttt{Reach} reference reaches $\rho = 0.938$ and $\rho_{>0} = 0.871$ on t
 \begin{table}[htbp]
 \centering
 \footnotesize
-\caption{The counting path against one labeling pass of the reachability oracle $I^*$ on generated graphs of increasing size (Amendment~12, R6; CPU, median of 5 runs; $I^*$ timed once at $4{,}995$ components and not at $9{,}990$, where one pass would take hours). Projection: deriving the Application--Library \texttt{DEPENDS\_ON} graph from the manifest.}
+\caption{The counting path against the published five-seed labeling sweep of $I^*$ over Application, Broker and Library nodes, on generated graphs of increasing size (Amendment~12, R6, an earlier session; CPU, median of 5 runs; $I^*$ timed once at $4{,}995$ components and not at $9{,}990$, where one pass would take hours). Projection: deriving the Application--Library \texttt{DEPENDS\_ON} graph from the manifest.}
 \label{tab:count-scale}
 \begin{tabular}{rrrrrr}
 \toprule
-\textbf{$|V|$} & \textbf{$|E|$} & \textbf{\shortstack{Projection +\\\texttt{InDeg} (ms)}} & \textbf{\shortstack{\texttt{Reach}\\(ms)}} & \textbf{\shortstack{$I^*$ pass\\(s)}} & \textbf{\shortstack{$I^*$ :\\count}} \\
+\textbf{$|V|$} & \textbf{$|E|$} & \textbf{\shortstack{Projection +\\\texttt{InDeg} (ms)}} & \textbf{\shortstack{\texttt{Reach}\\(ms)}} & \textbf{\shortstack{$I^*$ sweep\\(s)}} & \textbf{\shortstack{$I^*$ :\\count}} \\
 \midrule
 249 & 1{,}081 & 8.0 & 11.7 & 4.0 & $500\times$ \\
 499 & 2{,}437 & 11.2 & 24.9 & 15.1 & $1{,}351\times$ \\
@@ -272,6 +294,6 @@ The \texttt{Reach} reference reaches $\rho = 0.938$ and $\rho_{>0} = 0.871$ on t
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:scale} breaks down the neural pipeline. Its analysis stage, which computes the node features including betweenness and a directed articulation score, dominates; across the corpus it takes $2.0$--$17.7\times$ (median $5.6\times$) the time of running $I^*$ directly, so where the $I^*$ ranking itself is wanted, running the oracle is cheaper than approximating it with a learned engine. Table~\ref{tab:count-scale} shows the counting path. On the corpus it takes $1$--$29$~ms per architecture against $0.08$--$4.5$~s for one $I^*$ pass, and on generated graphs the gap widens with size: the count grows roughly with the number of edges, $I^*$ roughly with the square of the number of components. At $5{,}000$ components one $I^*$ pass takes $36$~minutes and the count $0.43$~s. Because the count restates $I^*$'s first wave, this is the cost of approximating the oracle, not of an independent prediction: the count's practical advantage is cost at scale and in inner loops, not accuracy over the oracle it approximates. \texttt{Reach} is costlier than \texttt{InDeg} ($23$~s at $10{,}000$ components) because it computes a transitive closure. These are wall-clock measurements on one CPU; no energy was measured, and we make no sustainability claim beyond them.
+Table~\ref{tab:cost-ll} replaces two comparisons earlier revisions got wrong. They set the full detection gate (system-layer analysis plus 18 anti-pattern detectors) against the five-seed labeling sweep over three node types and called that sweep ``one run'' of $I^*$ (median $5.6\times$; Supplementary Table~\ref{S-tab:gate_ratio}), and they read Table~\ref{tab:scale} against Table~\ref{tab:count-scale}, which were timed in different sessions on different graphs. Timed together, every stage keeps its place in the ordering. The counting path is the cheapest, one $I^*$ pass over the scored population is next, and the app-layer feature extraction that the learned engines read is the most expensive, at $4.5$--$72.5\times$ one pass on the corpus. The articulation and Connectivity Degradation Index phase accounts for $88$--$91\%$ of it (Enterprise, and the $2{,}000$-component graph), and it is largest on Enterprise, whose Rule~1 projection is nearly complete. Where the $I^*$ ranking itself is wanted, running the oracle is therefore cheaper than approximating it with a learned engine at every size measured, and the count is cheaper still, by one to two orders of magnitude, because it restates the oracle's first wave; its practical advantage is cost, not accuracy over the oracle it approximates. Table~\ref{tab:scale} shows that inference itself is negligible (tens of milliseconds at $2{,}000$ components), and Table~\ref{tab:count-scale} that the count scales to $10{,}000$ components ($1.1$~s) and \texttt{Reach} less well ($23$~s), because it computes a transitive closure. The expensive oracle is $I_{\text{dyn}}$: labeling the corpus took $12.7$ CPU-hours (about $7$~s per fault run and seed), which is the case for the learned surrogate of Section~\ref{sec:rq1}, whose inference runs in seconds. These are wall-clock measurements on one CPU; no energy was measured, and we make no sustainability claim beyond them.
 
 

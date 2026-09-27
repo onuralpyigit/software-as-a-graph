@@ -1,5 +1,7 @@
 # RQ4 — Analysis cost and comparison with direct simulation
 
+> **Round 8 (Amendment 14).** The 2–18× (median 5.6×) figure below compared the system-layer detection gate with the five-seed sweep over Application, Broker and Library nodes, not with one `I*` pass. The like-for-like table (`data/benchmarks/referee_round8_cost.json`, `make -f reproduce/Makefile rq-cost-reconcile`, main Table `tab:cost-ll`) times every region on the same graphs in one session: app-layer feature extraction is 4.5–72.5× (median 16.9×) one `I*` pass over Applications on the corpus, and 5.7–18.7× on generated graphs up to 5,000 components.
+
 > **Amendment 7 update.** The strongest rankers are also the cheapest. The projection plus InDeg takes at most 0.06 s per scenario, and Reach at most 0.15 s (`results/dependency_count_cost.json`). That compares with 4.5 s for the simulator and 79 s for the analysis gate on Enterprise.
 
 **Paper:** §7.4, Table 11, and the sustainability paragraph of §8.1. **Extended results:**

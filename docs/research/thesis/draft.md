@@ -661,7 +661,7 @@ sequential-cascade and simultaneous-blast edges visually distinguished.)*
 > ([`material/rm_attribution.md`](material/rm_attribution.md) and
 > [`material/relationship_criticality.md`](material/relationship_criticality.md)), with every formula
 > checked against [`saag/analysis/analyzer.py`](../../../saag/analysis/analyzer.py) and the JSS
-> explanation-layer section ([`sec5_explanation_layer.md`](../jss/sections/sec5_explanation_layer.md)).
+> explanation-layer section ([`sec5_explanation_layer.md`](../jss/latex/supplementary.tex)).
 > Where the material and the code disagreed (the Availability coefficients, the Topic Fault Tolerance
 > term, the metrics still computed, the classification rule), the code wins. The worked example of
 > §4.6 was re-run through the current pipeline ([`examples/run_running_example.py`](../../../examples/run_running_example.py)).

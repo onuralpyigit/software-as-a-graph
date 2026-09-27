@@ -1758,13 +1758,15 @@ def check_dependency_graph(rep: Report) -> None:
     if None not in (ioe, raw12, lrn):
         learned_comp = max(v["summary"]["i_comp"]["rho"]["mean"] for k, v in lrn.items()
                            if isinstance(v, dict) and "summary" in v and k not in SUPPLEMENT_ONLY_ENGINES)
+        t7 = _load("referee_round8_table7.json")
+        arms = (_load("oracle_robust_ltr.json") or {}).get("loso", {}).get("arm_means", {})
         _quote(rep, "abstract", _tex("abstract.tex"),
-               r"first-order expansion reaches Spearman \$\\rho = ([\d.]+)\$ and the direct-dependent count \$([\d.]+)\$.*?"
-               r"reached \$([\d.]+)\$, approaching the reference.*?"
-               r"weighted centrality \(\$([\d.]+)\$\) ranked above every learned engine \(\$\\le ([\d.]+)\$\)",
+               r"first-order expansion reaches Spearman \$\\rho = ([\d.]+)\$ and the count \$([\d.]+)\$.*?"
+               r"reached \$([\d.]+)\$, statistically indistinguishable.*?"
+               r"above every closed-form approximation \(\$([\d.]+)\$ against \$([\d.]+)\$\)",
                [(1, ioe["summary"]["i_star"]["Analytic-I*"]["mean_rho"]), (2, tf["summary"]["InDeg"]["loso_mean_rho"]),
                 (3, means["gl_proj_qos16_cap"]["loso_mean_rho"]),
-                (4, raw12["summary"]["i_comp"]["Topo-QoS"]["loso"]["mean"]), (5, learned_comp)])
+                (4, arms["gbm_dep_qos_dyn"]["i_dyn"]), (5, t7["summary"]["Analytic-I*"]["i_dyn"]["mean"])])
     regimes = _load("engine_regimes.json")
     if regimes is not None:
         by = regimes["loso"]["regimes_by_topo_qos_tercile"]
@@ -2104,6 +2106,46 @@ def check_round8(rep: Report) -> None:
         if re.search(pat, _tex(f)):
             rep.findings.append(Finding("round 8 wording", f, "withdrawn phrase", pat, None))
 
+
+def check_cost_ll(rep: Report) -> None:
+    """Table tab:cost-ll (round 8): like-for-like timings against referee_round8_cost.json."""
+    d = _load("referee_round8_cost.json")
+    tex = _tex("sec7_results.tex")
+    if d is None or r"\label{tab:cost-ll}" not in tex:
+        rep.skipped.append("tab:cost-ll: artifact or table absent")
+        return
+    by_n = {r["n_components"]: r for k, r in d["rows"].items() if k.startswith("generated_")}
+    i = tex.index(r"\label{tab:cost-ll}")
+    body = tex[tex.index(r"\midrule", i):tex.index(r"\bottomrule", i)]
+    seen = 0
+    for line in body.splitlines():
+        t = line.strip()
+        if "&" not in t or t.startswith("Corpus"):
+            continue
+        cells = _cells(t)
+        n = _num(cells[0])
+        r = by_n.get(int(n)) if n is not None else None
+        if r is None:
+            continue
+        seen += 1
+        truths = [(1, 1000 * r["count_s"], 0.051), (2, r["istar_one_pass_app_s"], 0.0051),
+                  (3, r["istar_sweep_s"], 0.0051), (4, r["analyze_app_s"], 0.0051),
+                  (5, r["gate_system_s"], 0.0051), (6, r["ratio_one_pass_to_count"], 0.51),
+                  (7, r["ratio_app_analysis_to_one_pass"], 0.051)]
+        for idx, truth, tol in truths:
+            if truth is None:
+                continue
+            got = _num(cells[idx])
+            rep.checked += 1
+            if got is None or abs(got - truth) > tol:
+                rep.findings.append(Finding("tab:cost-ll", f"n={int(n)}", str(idx), got, round(truth, 3)))
+    rep.checked += 1
+    if seen != len(by_n):
+        rep.findings.append(Finding("tab:cost-ll", "rows", "count", seen, len(by_n)))
+    sm = d["corpus_summary"]["ratio_app_analysis_to_one_pass"]
+    _quote(rep, "sec:rq4", tex, r"feature extraction every learned engine needs \$([\d.]+)\$--\$([\d.]+)\\times\$ more \(median \$([\d.]+)\\times\$\)",
+           [(1, sm["min"]), (2, sm["max"]), (3, sm["median"])])
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -2146,6 +2188,7 @@ def main() -> int:
     check_dependency_graph(rep)
     check_reference_demotion(rep)
     check_round8(rep)
+    check_cost_ll(rep)
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts "
           f"({len(rep.skipped)} check(s) skipped).\n")
