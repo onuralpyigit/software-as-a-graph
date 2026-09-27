@@ -458,17 +458,17 @@
     }
   },
   "zero_shot": {
-    "GAT-P-QoS": null,
-    "GAT-P-QoS-deg": null,
-    "GAT-P-QoS-deg*": null,
-    "GAT-QoS-deg": null,
-    "GIN-P-QoS": null,
-    "GIN-P-QoS-deg": null,
-    "GIN-P-QoS-deg*": null,
-    "GAT+w_in": null,
-    "HGT+w_in": null,
-    "GAT-P-QoS-dyn": null,
-    "GAT-P-QoS[I*-App]": null
+    "GAT-P-QoS": 0.8061300768961299,
+    "GAT-P-QoS-deg": 0.8213159603044129,
+    "GAT-P-QoS-deg*": 0.6536568110916404,
+    "GAT-QoS-deg": 0.8096289088778059,
+    "GIN-P-QoS": 0.8060606202866865,
+    "GIN-P-QoS-deg": 0.8098334576444408,
+    "GIN-P-QoS-deg*": 0.7760464143900678,
+    "GAT+w_in": 0.8250592213669652,
+    "HGT+w_in": 0.8111488439601404,
+    "GAT-P-QoS-dyn": 0.819657068969186,
+    "GAT-P-QoS[I*-App]": 0.8398614616225082
   },
   "per_fold": {
     "loso_i_star": {
@@ -1403,7 +1403,7 @@
     }
   },
   "provenance": {
-    "commit": "8e8e10adbc857ccac3ac800fae12f9ac30a0e33a",
+    "commit": "a60dd1ebd0d3d8b53cf33fa75ce03e75e929a612",
     "dirty": false,
     "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
     "config": {
