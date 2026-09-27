@@ -15,13 +15,13 @@
 \small
 \caption{Which predictor the evidence supports, by the failure notion the oracle encodes (registered secondary and exploratory; Section~\ref{sec:7}; conditional on simulation fidelity). Reference rankings are excluded because they restate $I^*$'s propagation rule (Section~\ref{sec:4.4}).}
 \label{tab:guidance}
-\begin{tabular}{@{}p{0.30\linewidth}p{0.20\linewidth}p{0.44\linewidth}@{}}
+\begin{tabular}{@{}p{0.26\linewidth}>{\raggedright\arraybackslash}p{0.24\linewidth}p{0.44\linewidth}@{}}
 \toprule
 \textbf{Failure notion (oracle)} & \textbf{Ranker} & \textbf{Evidence} \\
 \midrule
 Reachability cascade ($I^*$) & Run $I^*$ directly & $0.01$--$0.72$~s per pass; cheaper than any learned engine's features; best predictor \texttt{GAT-P-QoS} $\rho = 0.748$, indistinguishable from, not equivalent to, the direct-dependent count \\
-Queue-flow delivery loss ($I_{\text{dyn}}$) & Surrogate trained on $I_{\text{dyn}}$ (GBM-Dep-QoS$\to$dyn) & $0.799$ vs.\ first-order expansion $0.706$ (Holm $p = 0.019$); costs $12.7$ CPU-hours of labels; the GNN surrogate reaches $0.598$ \\
-Fragmentation and throughput ($I_{\text{comp}}$) & Hybrid (Hybrid-GAT) & $\rho = 0.585$; learned engines without prior collapse ($\le 0.334$); training-free scores proximate to oracle rank higher (Supplementary Section~\ref{S-supp:baselines}) \\
+Queue-flow delivery loss ($I_{\text{dyn}}$) & Dynamic surrogate (\texttt{GBM-Dep-QoS$\to$dyn}) & $\rho = 0.799$ vs.\ first-order expansion $0.706$ (Holm $p = 0.019$); amortizes $12.7$ CPU-hours ($\sim 355.6$~Wh) of simulation for staging; GNN surrogate reaches $0.598$ \\
+Fragmentation and throughput ($I_{\text{comp}}$) & Hybrid (\texttt{Hybrid-GAT}) & $\rho = 0.585$; learned engines without prior collapse ($\le 0.334$); training-free scores proximate to oracle rank higher (Supplementary Section~\ref{S-supp:baselines}) \\
 Unfamiliar topology & \texttt{GAT-P-QoS} or \texttt{GAT-QoS} & $\rho = 0.806$ / $0.805$ vs.\ baseline $0.526$; $\rho_{>0} \le 0.342$; five single-author models \\
 \bottomrule
 \end{tabular}
@@ -32,7 +32,7 @@ Unfamiliar topology & \texttt{GAT-P-QoS} or \texttt{GAT-QoS} & $\rho = 0.806$ / 
 \subsection{When Graph Learning Helps, and When It Does Not}
 \label{sec:8.2}
 
-Practitioners also need to understand the boundary conditions under which learned models add value, whether relation-specific typing is warranted, and where learning fails. Table~\ref{tab:regimes} summarizes the empirical evidence across accuracy terciles and architectural paradigms (extended per-fold details in Supplementary Section~\ref{S-supp:regimes}).
+To guide architectural adoption, Table~\ref{tab:regimes} synthesizes the empirical evidence across accuracy terciles and architectural paradigms into an actionable design framework for applied graph learning in software systems (extended per-fold details in Supplementary Section~\ref{S-supp:regimes}).
 
 \begin{table}[htbp]
 \centering

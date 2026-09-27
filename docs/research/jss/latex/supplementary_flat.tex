@@ -2052,12 +2052,12 @@ The unweighted topological baseline \texttt{Topo} is defined on the application 
 where $\text{BT}(v)$ is normalized betweenness centrality, and $\text{AP}(v)$ flags articulation points. Due to an implementation defect in the registered benchmark code (disclosed in Section~\ref{M-sec:6.2} of the main manuscript), the articulation point term reads zero for every node, so the reported score ranks nodes identically to betweenness centrality on the application layer.
 
 \paragraph{Performance on Synthetic Architectures}
-Table~\ref{tab:supp-moved-baselines} reports the performance of \texttt{Degree-raw}, \texttt{RevPR-raw}, and \texttt{Topo} across the twelve synthetic LOSO folds.
+Table~\ref{tab:supp-moved-baselines} reports the performance of \texttt{Degree-raw}, \texttt{RevPR-raw}, \texttt{Topo}, and the raw-multigraph reference rankings (\texttt{Pubs-raw}, \texttt{Reach-R1}) across the twelve synthetic LOSO folds.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Non-registered training-free baselines evaluated under Leave-One-Scenario-Out (LOSO) cross-validation across twelve synthetic architectures (Application population). $\Delta\rho$ is paired by fold against \texttt{Topo-QoS} with a bootstrap 95\% CI; two-sided Wilcoxon signed-rank test against \texttt{Topo-QoS}.}
+\caption{Non-registered training-free baselines and exploratory raw-graph references evaluated under Leave-One-Scenario-Out (LOSO) cross-validation across twelve synthetic architectures (Application population). $\Delta\rho$ is paired by fold against \texttt{Topo-QoS} with a bootstrap 95\% CI; two-sided Wilcoxon signed-rank test against \texttt{Topo-QoS}.}
 \label{tab:supp-moved-baselines}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lcccccc}
@@ -2070,6 +2070,10 @@ Table~\ref{tab:supp-moved-baselines} reports the performance of \texttt{Degree-r
 \midrule
 \multicolumn{7}{l}{\textit{Training-free, application layer}} \\
 \textbf{Topo} & 0.349 $[0.254, 0.452]$ & 0.174 & $-0.204$ $[-0.286, -0.122]$ & 0/12 & 0.0005 & 0.366 \\
+\midrule
+\multicolumn{7}{l}{\textit{Raw-multigraph reference rankings (Amendment~12)}} \\
+\textbf{Pubs-raw} & 0.731 $[0.637, 0.810]$ & 0.410 & --- & --- & --- & 0.487 \\
+\textbf{Reach-R1} & 0.674 $[0.606, 0.738]$ & 0.088 & --- & --- & --- & 0.300 \\
 \bottomrule
 \end{tabular}%
 }
@@ -2079,19 +2083,21 @@ Table~\ref{tab:supp-moved-baselines} reports the performance of \texttt{Degree-r
 
 Against the two stronger training-free controls of Amendment~7 (Amendment~14, F7), Hybrid-GAT keeps a margin (unweighted betweenness on the same graph $+0.092$, constant topic weights $+0.088$, both Holm $p = 0.049$), Hybrid-HGT does not ($+0.065$ and $+0.061$, Holm $p = 0.085$).
 
-\paragraph{Degree-raw Across Simulation Oracles}
-Table~\ref{tab:supp-moved-oracles} reports raw total degree across the three simulation oracles. On the multi-criteria oracle $I_{\text{comp}}$, raw total degree reaches $\rho = 0.719$, exceeding every learned engine without a prior.
+\paragraph{Degree-raw and Supplemental Predictors Across Simulation Oracles}
+Table~\ref{tab:supp-moved-oracles} reports supplemental predictors and baselines across the three simulation oracles. On the multi-criteria oracle $I_{\text{comp}}$, raw total degree reaches $\rho = 0.719$, exceeding every learned engine without a prior.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{Raw total degree (Degree-raw) against three simulation oracles, twelve LOSO folds, Application population. Partial $\rho$: Spearman correlation with $I_{\text{dyn}}$ after $I^*$ or Analytic $I^*$ ($\hat{I}^*_1$) is regressed out.}
+\caption{Supplemental predictors and baselines against three simulation oracles, twelve LOSO folds, Application population. Partial $\rho$: Spearman correlation with $I_{\text{dyn}}$ after $I^*$ or Analytic $I^*$ ($\hat{I}^*_1$) is regressed out.}
 \label{tab:supp-moved-oracles}
 \begin{tabular}{lccccc}
 \toprule
 \textbf{Predictor} & \textbf{$I^*$} & \textbf{$I_{\text{dyn}}$ [95\% CI]} & \textbf{Partial vs $I^*$} & \textbf{Partial vs $\hat{I}^*_1$} & \textbf{$I_{\text{comp}}$} \\
 \midrule
 \textbf{Degree-raw} & 0.199 & 0.232 $[0.134, 0.329]$ & 0.149 $[0.089, 0.227]$ & $-0.091$ & 0.719 \\
+\textbf{Pubs-raw} & 0.731 & 0.645 $[0.543, 0.737]$ & 0.255 $[0.179, 0.332]$ & 0.056 & 0.616 \\
+\textbf{GBM-Dep-QoS} & 0.818 & 0.718 & --- & --- & 0.483 \\
 \bottomrule
 \end{tabular}
 \end{table}

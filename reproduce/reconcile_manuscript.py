@@ -2011,8 +2011,8 @@ def check_reference_demotion(rep: Report) -> None:
 
     # Each results table: references sit in the reference block and nowhere else.
     sec7 = _tex("sec7_results.tex")
-    blocks = {"tab:hybrid": {"Analytic $I^*$", "InDeg", "Reach", "Pubs-raw", "Reach-R1"},
-              "tab:independent_oracles": {"Analytic $I^*$", "InDeg", "Reach", "Pubs-raw"},
+    blocks = {"tab:hybrid": {"Analytic $I^*$", "InDeg", "Reach"},
+              "tab:independent_oracles": {"Analytic $I^*$", "InDeg", "Reach"},
               "tab:system_models_transfer": {"Reach", "InDeg"}}
     for label, expected in blocks.items():
         k = sec7.index(r"\label{%s}" % label)

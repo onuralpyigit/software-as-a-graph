@@ -1552,19 +1552,22 @@ The unweighted topological baseline `Topo` is defined on the application layer a
 
 #### Performance on Synthetic Architectures
 
-Table <a href="#tab:supp-moved-baselines" data-reference-type="ref" data-reference="tab:supp-moved-baselines">61</a> reports the performance of `Degree-raw`, `RevPR-raw`, and `Topo` across the twelve synthetic LOSO folds.
+Table <a href="#tab:supp-moved-baselines" data-reference-type="ref" data-reference="tab:supp-moved-baselines">61</a> reports the performance of `Degree-raw`, `RevPR-raw`, `Topo`, and the raw-multigraph reference rankings (`Pubs-raw`, `Reach-R1`) across the twelve synthetic LOSO folds.
 
 <div id="tab:supp-moved-baselines">
 
-| **Predictor**                                   | **LOSO $\rho$ [95% CI]** | **Active $\rho_{>0}$** | **$\Delta\rho$ vs `Topo-QoS` [95% CI]** | **Won** | **$p$** | **Overlap@$K$** |
-|:------------------------------------------------|:--------------------------:|:----------------------:|:-----------------------------------------:|:-------:|:-------:|:---------------:|
-| *Training-free, raw multigraph (no derivation)* |                            |                        |                                           |         |         |                 |
-| **Degree-raw**                                  |   0.199 $[0.068, 0.328]$   |         0.218          |        $-0.354$ $[-0.475, -0.236]$        |  1/12   | 0.0015  |      0.307      |
-| **RevPR-raw**                                   |  0.089 $[-0.019, 0.192]$   |         0.075          |        $-0.465$ $[-0.558, -0.364]$        |  0/12   | 0.0005  |      0.199      |
-| *Training-free, application layer*              |                            |                        |                                           |         |         |                 |
-| **Topo**                                        |   0.349 $[0.254, 0.452]$   |         0.174          |        $-0.204$ $[-0.286, -0.122]$        |  0/12   | 0.0005  |      0.366      |
+| **Predictor**                                      | **LOSO $\rho$ [95% CI]** | **Active $\rho_{>0}$** | **$\Delta\rho$ vs `Topo-QoS` [95% CI]** | **Won** | **$p$** | **Overlap@$K$** |
+|:---------------------------------------------------|:--------------------------:|:----------------------:|:-----------------------------------------:|:-------:|:-------:|:---------------:|
+| *Training-free, raw multigraph (no derivation)*    |                            |                        |                                           |         |         |                 |
+| **Degree-raw**                                     |   0.199 $[0.068, 0.328]$   |         0.218          |        $-0.354$ $[-0.475, -0.236]$        |  1/12   | 0.0015  |      0.307      |
+| **RevPR-raw**                                      |  0.089 $[-0.019, 0.192]$   |         0.075          |        $-0.465$ $[-0.558, -0.364]$        |  0/12   | 0.0005  |      0.199      |
+| *Training-free, application layer*                 |                            |                        |                                           |         |         |                 |
+| **Topo**                                           |   0.349 $[0.254, 0.452]$   |         0.174          |        $-0.204$ $[-0.286, -0.122]$        |  0/12   | 0.0005  |      0.366      |
+| *Raw-multigraph reference rankings (Amendment 12)* |                            |                        |                                           |         |         |                 |
+| **Pubs-raw**                                       |   0.731 $[0.637, 0.810]$   |         0.410          |                     —                     |    —    |    —    |      0.487      |
+| **Reach-R1**                                       |   0.674 $[0.606, 0.738]$   |         0.088          |                     —                     |    —    |    —    |      0.300      |
 
-Non-registered training-free baselines evaluated under Leave-One-Scenario-Out (LOSO) cross-validation across twelve synthetic architectures (Application population). $\Delta\rho$ is paired by fold against `Topo-QoS` with a bootstrap 95% CI; two-sided Wilcoxon signed-rank test against `Topo-QoS`.
+Non-registered training-free baselines and exploratory raw-graph references evaluated under Leave-One-Scenario-Out (LOSO) cross-validation across twelve synthetic architectures (Application population). $\Delta\rho$ is paired by fold against `Topo-QoS` with a bootstrap 95% CI; two-sided Wilcoxon signed-rank test against `Topo-QoS`.
 
 </div>
 
@@ -1574,17 +1577,19 @@ Non-registered training-free baselines evaluated under Leave-One-Scenario-Out (L
 
 Against the two stronger training-free controls of Amendment 7 (Amendment 14, F7), Hybrid-GAT keeps a margin (unweighted betweenness on the same graph $+0.092$, constant topic weights $+0.088$, both Holm $p = 0.049$), Hybrid-HGT does not ($+0.065$ and $+0.061$, Holm $p = 0.085$).
 
-#### Degree-raw Across Simulation Oracles
+#### Degree-raw and Supplemental Predictors Across Simulation Oracles
 
-Table <a href="#tab:supp-moved-oracles" data-reference-type="ref" data-reference="tab:supp-moved-oracles">62</a> reports raw total degree across the three simulation oracles. On the multi-criteria oracle $I_{\text{comp}}$, raw total degree reaches $\rho = 0.719$, exceeding every learned engine without a prior.
+Table <a href="#tab:supp-moved-oracles" data-reference-type="ref" data-reference="tab:supp-moved-oracles">62</a> reports supplemental predictors and baselines across the three simulation oracles. On the multi-criteria oracle $I_{\text{comp}}$, raw total degree reaches $\rho = 0.719$, exceeding every learned engine without a prior.
 
 <div id="tab:supp-moved-oracles">
 
-| **Predictor**  | **$I^*$** | **$I_{\text{dyn}}$ [95% CI]** |  **Partial vs $I^*$**  | **Partial vs $\hat{I}^*_1$** | **$I_{\text{comp}}$** |
-|:---------------|:---------:|:-------------------------------:|:----------------------:|:----------------------------:|:---------------------:|
-| **Degree-raw** |   0.199   |     0.232 $[0.134, 0.329]$      | 0.149 $[0.089, 0.227]$ |           $-0.091$           |         0.719         |
+| **Predictor**   | **$I^*$** | **$I_{\text{dyn}}$ [95% CI]** |  **Partial vs $I^*$**  | **Partial vs $\hat{I}^*_1$** | **$I_{\text{comp}}$** |
+|:----------------|:---------:|:-------------------------------:|:----------------------:|:----------------------------:|:---------------------:|
+| **Degree-raw**  |   0.199   |     0.232 $[0.134, 0.329]$      | 0.149 $[0.089, 0.227]$ |           $-0.091$           |         0.719         |
+| **Pubs-raw**    |   0.731   |     0.645 $[0.543, 0.737]$      | 0.255 $[0.179, 0.332]$ |            0.056             |         0.616         |
+| **GBM-Dep-QoS** |   0.818   |              0.718              |           —            |              —               |         0.483         |
 
-Raw total degree (Degree-raw) against three simulation oracles, twelve LOSO folds, Application population. Partial $\rho$: Spearman correlation with $I_{\text{dyn}}$ after $I^*$ or Analytic $I^*$ ($\hat{I}^*_1$) is regressed out.
+Supplemental predictors and baselines against three simulation oracles, twelve LOSO folds, Application population. Partial $\rho$: Spearman correlation with $I_{\text{dyn}}$ after $I^*$ or Analytic $I^*$ ($\hat{I}^*_1$) is regressed out.
 
 </div>
 
