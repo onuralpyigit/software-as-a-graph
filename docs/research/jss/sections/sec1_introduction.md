@@ -26,7 +26,7 @@ Existing practice leaves this gap open, which we call the **Architecture–Code 
 
 -   **RQ4 (Cost and Sustainability):** *What does learned ranking cost at CI/CD time in latency and computational energy, which stage dominates, and how does it compare with running the simulation directly?*
 
-The evaluation follows a version-controlled analysis plan. Only the plan’s two contrasts are confirmatory; the matched $2\times2$, the hybrids, the reference counts, the dependency-graph learners, the full-population queue-flow labels and the round-8 arms were registered in later amendments, each before its own arms ran but after the primary result was known, and are reported as registered secondary results; the rest is exploratory (§5.3). One deviation from the plan, its unapplied selection rule, is disclosed and tested. Supplementary §S26 logs every amendment and maps these four research questions onto the plan.
+The evaluation follows a version-controlled analysis plan. Only the plan’s two contrasts are confirmatory; the matched $2\times2$, the hybrids, the reference counts, the dependency-graph learners, the full-population queue-flow labels and the sensitivity arms were registered as planned extensions, each before its own arms ran but after the primary result was known, and are reported as registered secondary results; the rest is exploratory (§5.3). One deviation from the plan, its unapplied selection rule, is disclosed and tested. The replication repository documents the revision history and maps these four research questions onto the plan.
 
 ## 1.4 Contributions
 
