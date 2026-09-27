@@ -1,12 +1,12 @@
 \section{The Software-as-a-Graph (SaG) Architectural Model}
 \label{sec:3}
 
-Figure~\ref{fig:1} presents the end-to-end architecture of the SaG framework. The shared front end processes Architecture-as-Code manifests, constructs a typed multigraph, projects implicit runtime interactions throughout a logical dependency layer, and extracts typed node properties. These features feed the ranking engines (Section~\ref{sec:4}) and, separately and with no shared parameters, the explanation layer (Section~\ref{sec:5}).
+Figure~\ref{fig:1} presents the end-to-end architecture of the SaG framework. The shared front end processes Architecture-as-Code manifests, constructs a typed multigraph, projects implicit runtime interactions throughout a logical dependency layer, and extracts typed node properties. These features feed the ranking engines (Section~\ref{sec:4}) and, separately and with no shared parameters, the proposed explanation layer (Supplementary Section~\ref{S-supp:explanation}).
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.70\linewidth]{figures/Figure_1}
-\caption{End-to-end architecture of the SaG framework. The predictive pathway runs down the centre: manifest ingestion, typed multigraph, \texttt{DEPENDS\_ON} projection with typed node properties, the ranking engines (closed-form, learned and hybrid; Figure~\ref{fig:engines}), and the ranked critical set. The dashed edge marks the ground-truth simulation oracles, which operate only on $G_{\text{structural}}$, train the predictor offline and take no part in inference. The proposed explanation layer (Section~\ref{sec:5}, not evaluated) reads the same analysis multigraph, shares no parameters with the predictor, and is applied to components after they have been ranked; no output of the predictor flows into it.}
+\caption{End-to-end architecture of the SaG framework. The predictive pathway runs down the centre: manifest ingestion, typed multigraph, \texttt{DEPENDS\_ON} projection with typed node properties, the ranking engines (closed-form, learned and hybrid; Figure~\ref{fig:engines}), and the ranked critical set. The dashed edge marks the ground-truth simulation oracles, which operate only on $G_{\text{structural}}$, train the predictor offline and take no part in inference. The proposed explanation layer (Supplementary Section~\ref{S-supp:explanation}, not evaluated) reads the same analysis multigraph, shares no parameters with the predictor, and is applied to components after they have been ranked; no output of the predictor flows into it.}
 \label{fig:1}
 \end{figure}
 
@@ -68,11 +68,10 @@ where:
 $G_{\text{structural}}$ & Raw multigraph (used exclusively by simulation oracles) \\
 $G_{\text{analysis}}$   & Logical \texttt{DEPENDS\_ON} projection (input to predictors) \\
 $V_{\text{app}}$        & Application nodes (the primary scored population) \\
-$w(t)$, $w(e)$          & QoS topic weight and derived dependency edge weight \\
+$w(t)$, $w(e)$          & QoS topic weight; derived dependency edge weight ($w(e) = w_E(e)$ on \texttt{DEPENDS\_ON}) \\
 $I^*(v)$                & Primary cascade-reachability simulation oracle \\
 $I_{\text{dyn}}(v)$     & Dynamic queue-flow discrete-event simulation oracle \\
 $I_{\text{comp}}(v)$    & Multi-criteria composite simulation oracle \\
-$Q(v)$                  & Reliability--Maintainability composite quality score \\
 $\rho$                  & Spearman rank correlation coefficient (full population) \\
 $\rho_{>0}$             & Spearman rank correlation restricted to active stratum ($I > 0$) \\
 Overlap@$K$             & Top-$K$ identification set overlap ($K = 0.20\,|V_{\text{app}}|$) \\
@@ -95,19 +94,19 @@ Structural edges do not directly reflect failure propagation: a subscriber depen
 \begin{table}[htbp]
 \centering
 \small
-\caption{The \texttt{DEPENDS\_ON} logical dependency projection rules.}
+\caption{The \texttt{DEPENDS\_ON} logical dependency projection rules. $^\dagger$Defined for completeness; not exercised by the Application-level evaluation.}
 \label{tab:2}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{clll}
 \toprule
 \textbf{Rule} & \textbf{Dependency Category} & \textbf{Structural Pattern ($\text{Dependent} \to \text{Dependency}$)} & \textbf{Derived Weight ($w$)} \\
 \midrule
-\textbf{1} & \texttt{app\_to\_app} & Subscriber $\to$ Publisher (via shared Topic, incl.\ transitive \texttt{USES}) & $1 - \prod_{t \in T}(1 - w(t))$ \\
-\textbf{2} & \texttt{app\_to\_broker} & Publisher/Subscriber $\to$ Broker routing its topics & $1 - \prod_{t \in T}(1 - w(t))$ \\
-\textbf{3} & \texttt{host\_to\_host} & Host $\to$ Host (lifted from inter-host app dependencies) & $\max_{u \in \text{hosted}(h_1), v \in \text{hosted}(h_2)} w_{\text{DEPENDS\_ON}}(u \to v)$ \\
-\textbf{4} & \texttt{host\_to\_broker} & Host $\to$ Broker (lifted from hosted app dependencies) & $\max_{u \in \text{hosted}(h)} w_{\text{DEPENDS\_ON}}(u \to b)$ \\
+\textbf{1} & \texttt{app\_to\_app} & Subscriber $\to$ Publisher (via shared Topic) & $1 - \prod_{t \in T}(1 - w(t))$ \\
+\textbf{2}$^\dagger$ & \texttt{app\_to\_broker} & Publisher/Subscriber $\to$ Broker routing its topics & $1 - \prod_{t \in T}(1 - w(t))$ \\
+\textbf{3}$^\dagger$ & \texttt{host\_to\_host} & Host $\to$ Host (lifted from inter-host app dependencies) & $\max_{u \in \text{hosted}(h_1), v \in \text{hosted}(h_2)} w_E(u \to v)$ \\
+\textbf{4}$^\dagger$ & \texttt{host\_to\_broker} & Host $\to$ Broker (lifted from hosted app dependencies) & $\max_{u \in \text{hosted}(h)} w_E(u \to b)$ \\
 \textbf{5} & \texttt{app\_to\_lib} & Application $\to$ Shared Library it \texttt{USES} & $H(w_V(\text{app}), w_V(\text{lib}))$ \\
-\textbf{6} & \texttt{broker\_to\_broker} & Broker $\leftrightarrow$ Broker (shared fault-domain colocation, symmetric) & $w_V(\text{host})$ \\
+\textbf{6}$^\dagger$ & \texttt{broker\_to\_broker} & Broker $\leftrightarrow$ Broker (shared fault-domain colocation, symmetric) & $w_V(\text{host})$ \\
 \bottomrule
 \end{tabular}%
 }
@@ -115,14 +114,14 @@ Structural edges do not directly reflect failure propagation: a subscriber depen
 
 Rules~1 and~2 combine topics $T$ joining a pair by probabilistic union \cite{pearl1988probabilistic,beliakov2007aggregation,yager1988owa}, ensuring parallel failure paths increase coupling. Rule~5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ \cite{hardy1952inequalities}, and Rules~3 and~4 lift dependencies to hosts by maximum.
 
-\noindent\textbf{Sequential cascades and simultaneous blasts.} Rule~1 captures sequential cascades, where a failed publisher starves subscribers through queues and buffers. Rule~5 captures simultaneous blasts, where a crashed library takes down all dependent applications at once. Libraries that publish or subscribe are endpoints of Rule~1 in their own right, and an Application reaches a library's topics transitively through Rule~5. Rules~2, 3, 4 and~6 represent infrastructural and broker dependencies; they are defined for completeness but are not exercised by the Application-level evaluation in this paper.
+\noindent\textbf{Sequential cascades and simultaneous blasts.} Rule~1 captures sequential cascades, where a failed publisher starves subscribers through queues and buffers. Rule~5 captures simultaneous blasts, where a crashed library takes down all dependent applications at once. Libraries that publish or subscribe are endpoints of Rule~1 in their own right, and an Application reaches a library's topics transitively through Rule~5. The projection on which every count, \texttt{Topo-QoS} and every \texttt{-P} learner is computed applies Rule~1 to direct subscriptions only; the repository derivation that produces the node features additionally follows up to three \texttt{USES} hops, so an Application subscribing through a library it uses is a Rule~1 dependent there. Rules~2, 3, 4 and~6 represent infrastructural and broker dependencies (Table~\ref{tab:2}).
 
-\noindent\textbf{Proposition 1 (dependency count = typed two-hop count).} Let $G_{\text{flow}}$ be the Application--Library projection (Rules~1 and~5) and $v$ an Application. Then
+\noindent\textbf{Remark 1 (the dependency count is a typed two-hop count).} Let $G_{\text{flow}}$ be the Application--Library projection (Rules~1 and~5) and $v$ an Application. By construction,
 \begin{equation}
 \label{eq:indeg}
 \texttt{InDeg}(v) \;=\; \bigl|\{\,u \neq v : \exists t \in V_{\text{topic}},\; (v, t) \in \texttt{PUBLISHES\_TO} \wedge (u, t) \in \texttt{SUBSCRIBES\_TO}\,\}\bigr|.
 \end{equation}
-\emph{Proof.} Rule~5 edges end at Libraries, so every edge into an Application is a Rule~1 edge $u \to v$, which exists exactly when $u \neq v$ subscribes to a topic that $v$ publishes; parallel topics collapse into one edge. $\square$
+since Rule~5 edges end at Libraries, every edge into an Application is a Rule~1 edge $u \to v$, which exists exactly when $u \neq v$ (an Application or a Library) directly subscribes to a topic that $v$ publishes; parallel topics collapse into one edge.
 
 \noindent The right-hand side of Eq.~\eqref{eq:indeg} is publish--subscribe afferent coupling (fan-in, the Absolute Importance of the Service \cite{martin2003agile,rud2006ais}), and it is a typed two-hop query on the raw multigraph. \texttt{InDeg} therefore needs no projection to compute; the projection states which typed query to ask. The equality is also checked on all seventeen corpus graphs (maximum absolute difference $0$). What the projection adds beyond this query is measured separately: Rule~5 raises transitive reach by $+0.058$ (Section~\ref{sec:rq1}). Because the primary oracle's first propagation wave is exactly this set (Section~\ref{sec:4.4}), \texttt{InDeg} and its transitive counterpart \texttt{Reach} are used in this paper as references that restate the oracle, not as predictors (Amendment~13).
 
@@ -141,4 +140,4 @@ The \textbf{structural graph} $G_{\text{structural}}$ is the raw deployment topo
 \subsection{Typed Node Feature Encoding}
 \label{sec:3.5}
 
-Both the predictive pathway (Section~\ref{sec:4}) and the explanation layer (Section~\ref{sec:5}) read typed node properties from $G_{\text{analysis}}$. All five entity types share an 18-dimensional base block of normalized topological metrics ($[0, 1]$): PageRank, Reverse PageRank, betweenness, closeness, eigenvector centrality, in- and out-degree, clustering, articulation, bridge ratio, the node QoS weight, incoming and outgoing dependency weights, multi-path coupling, path complexity, fan-out criticality, and the Connectivity Degradation Index (CDI). Four centrality features (PageRank, Reverse PageRank, betweenness and closeness) are computed over weighted edges and so carry QoS information; the nominal QoS-off condition is therefore not completely QoS-free. The in-degree feature, and the incoming dependency weight $w_{\text{in}}$, a QoS-weighted version of it, mean that every learner is given a quantity closely related to \texttt{InDeg} as an input, so the learners inherit part of the reference counts' overlap with the oracle through their features (Section~\ref{sec:rq2}); a learner without both columns was not run. Type-specific blocks extend the vector to 19--25 dimensions (full schema in Supplementary Section~\ref{S-supp:features}). CDI evaluates structural connectivity loss via a fixed-size breadth-first sample to control computation time (Section~\ref{sec:rq4}); its sensitivity to hash-seeded tie breaking is examined in Section~\ref{sec:8.3}.
+Both the predictive pathway (Section~\ref{sec:4}) and the proposed explanation layer (Supplementary Section~\ref{S-supp:explanation}) read typed node properties from $G_{\text{analysis}}$. All five entity types share an 18-dimensional base block of normalized topological metrics ($[0, 1]$): PageRank, Reverse PageRank, betweenness, closeness, eigenvector centrality, in- and out-degree, clustering, articulation, bridge ratio, the node QoS weight, incoming and outgoing dependency weights, multi-path coupling, path complexity, fan-out criticality, and the Connectivity Degradation Index (CDI). Four centrality features (PageRank, Reverse PageRank, betweenness and closeness) are computed over weighted edges and so carry QoS information; the nominal QoS-off condition is therefore not completely QoS-free. The in-degree feature, and the incoming dependency weight $w_{\text{in}}$, a QoS-weighted version of it, mean that every learner is given a quantity closely related to \texttt{InDeg} as an input, so the learners inherit part of the reference counts' overlap with the oracle through their features (Section~\ref{sec:rq2}); a learner without both columns was not run. Type-specific blocks extend the vector to 19--25 dimensions (full schema in Supplementary Section~\ref{S-supp:features}). CDI evaluates structural connectivity loss via a fixed-size breadth-first sample to control computation time (Section~\ref{sec:rq4}); its sensitivity to hash-seeded tie breaking is examined in Section~\ref{sec:8.3}.
