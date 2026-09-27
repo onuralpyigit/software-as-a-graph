@@ -455,6 +455,11 @@ G0 = {"gl_proj_qos16_cap": "loso_dependency_graph_cpu.json", "hgl_qos": "loso_hy
       "gl_full_qos16_cap": "loso_hybrid_gat_cpu.json", "gl_full_cap": "loso_rq2_matched.json",
       "hgl": "loso_rq2_matched.json", "topo_qos": "loso_hybrid_cpu.json"}
 G0_TOL = 1e-6
+#: Recorded, not gated: the sweep ran from a git worktree without output/loso_cache,
+#: and main_table._find_cache_dir resolves that relative path, so the training-free
+#: topo_qos row fell back to data/scenarios (a different substrate). No Amendment 14
+#: contrast reads it; the published Topo-QoS is used wherever one is needed.
+G0_RECORD_ONLY = {"topo_qos"}
 
 
 def _family(pairs, rho) -> Dict[str, Any]:
@@ -471,7 +476,8 @@ def cmd_amendment14(_: argparse.Namespace) -> int:
     for v, art in G0.items():
         pub = per_seed_rho(art, v)
         diff = max(abs(a - b) for f in folds for a, b in zip(ps[v][f], pub[f]))
-        gate[v] = {"max_abs_diff": diff, "passed": diff < G0_TOL}
+        gate[v] = {"max_abs_diff": diff, "passed": diff < G0_TOL or v in G0_RECORD_ONLY,
+                   "record_only": v in G0_RECORD_ONLY}
     print("G0:", {v: round(g["max_abs_diff"], 9) for v, g in gate.items()})
     rho = {v: seed_mean(p) for v, p in ps.items()}
     ioe = json.loads((RESULTS / "independent_oracle_evaluation.json").read_text())["per_fold"]
@@ -532,6 +538,9 @@ def cmd_amendment14(_: argparse.Namespace) -> int:
     for name, fm in fam.items():
         for k, c in fm.items():
             print(f"{name} {k:40s} d={c['delta']:+.3f} p_holm={c['p_holm']:.4f}")
+    for row in f4:
+        print(f"F4 {row.get('quantity', row.get('label'))}: d={row.get('mean_delta', 0):+.3f} "
+              f"p={row.get('p')} p_holm={row.get('p_holm')}")
     for k, c in f5.items():
         if c:
             print(f"F5 {k:40s} d={c['delta']:+.3f} p_holm={c['p_holm']:.4f}")
@@ -549,8 +558,8 @@ def cmd_amendment14(_: argparse.Namespace) -> int:
 def _gbm_idyn(ltr: Dict[str, Any]) -> Optional[Dict[str, float]]:
     """Amendment 11's GBM-Dep-QoS->dyn per-fold rho on I_dyn-full, if recorded."""
     try:
-        arm = ltr["loso"]["gbm_dep_qos_dyn"]
-        return {f: float(arm["per_fold"][f]["i_dyn"]["rho"]) for f in FOLDS}
+        per = ltr["loso"]["per_fold"]
+        return {f: float(per[f]["arms"]["gbm_dep_qos_dyn"]["i_dyn"]["rho"]) for f in FOLDS}
     except (KeyError, TypeError):
         return None
 
