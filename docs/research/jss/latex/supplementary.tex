@@ -348,7 +348,7 @@ Consequently, Figure~\ref{fig:S2} serves as an illustrative artifact confirming 
 \section{Convergent Validity Over Simulation Oracles}
 \label{supp:convergent}
 
-We evaluated inter-oracle agreement across $I^*(v)$ (cascade reachability injection), $I_{\text{comp}}(v)$ (composite failure simulation), and $I_{\text{dyn}}(v)$ (dynamic queue-flow simulation) over the twelve inductive folds of Table~\ref{tab:7}, summarized in Table~S3.1:
+We evaluated inter-oracle agreement across $I^*(v)$ (cascade reachability injection), $I_{\text{comp}}(v)$ (composite failure simulation), and $I_{\text{dyn}}(v)$ (dynamic queue-flow simulation) over the twelve inductive folds of Table~\ref{tab:7}, summarized in Table~\ref{tab:supp-oracles}:
 
 \begin{table}[htbp]
 \centering
@@ -879,6 +879,7 @@ A12 & 2026-09-26 & Mixed (per arm; see text) & Round-7 referee analyses: raw-gra
 A13 & 2026-09-26 & \emph{After} all results & Reclassification: \texttt{InDeg}, \texttt{Reach}, Pubs-raw and Reach-R1 restate $I^*$'s propagation rule (Remark~1) and are reported as references beside the first-order expansion, not as predictors; \texttt{GAT-P+InDeg} moves to this supplement; no arm run, dropped or changed & None & Contrasts of A7, A10 and A12 (R1) against the references lose claim status in the main text and stay here as descriptive comparisons (main \S\ref{M-sec:4.4}, \S\ref{M-sec:6.2}, \S\ref{M-sec:rq1}) \\
 Deviation & 2026-09-26 & \emph{After} all results & The plan's selection rule was not applied to any published learned result; recorded with status tiers & None & Disclosed (main \S\ref{M-sec:4.2}, \S\ref{M-sec:6.3}); applied as arm N of A14 \\
 A14 & 2026-09-26 & Before any result & Round-8 arms: degree-free learners, GIN sum aggregation, the $2\times2$ with $w_{\text{in}}$ held, a GAT surrogate for $I_{\text{dyn}}$, nested selection (arm N); F7 hybrid attribution; TOST at $\pm 0.05$ (margin not blind; see text); decision rules F1a--F6b & 3 + 3 + 3 + 3 + 3 + 4, Holm within & F1a, F2b, F3b, F4b, F5b, F6: see Section~\ref{supp:round8} (main \S\ref{M-sec:rq1}--\ref{M-sec:rq2}) \\
+Reporting & 2026-09-27 & 2026-09-27 & Training-free baselines consolidated to Section~\ref{supp:baselines}; no analysis, contrast or number changed & None & Reporting only (Section~\ref{supp:baselines}) \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1319,5 +1320,80 @@ This section backs the round-7 revision of the main manuscript. Everything in it
 \input{supp_referee.tex}
 
 \input{supp_round8.tex}
+
+\section{Training-Free Baselines}
+\label{supp:baselines}
+
+This section consolidates the non-registered training-free baselines and controls moved out of the main manuscript. The main manuscript retains \texttt{Topo-QoS} as its sole training-free baseline, because it forms one side of the registered primary contrast and acts as the prior inside both hybrid engines.
+
+\paragraph{Unweighted Topo Baseline}
+The unweighted topological baseline \texttt{Topo} is defined on the application layer as:
+\begin{equation}
+\label{eq:topo-supp}
+\text{Topo}(v) = 0.6 \cdot \text{BT}(v) + 0.4 \cdot \text{AP}(v),
+\end{equation}
+where $\text{BT}(v)$ is normalized betweenness centrality, and $\text{AP}(v)$ flags articulation points. Due to an implementation defect in the registered benchmark code (disclosed in Section~\ref{M-sec:6.2} of the main manuscript), the articulation point term reads zero for every node, so the reported score ranks nodes identically to betweenness centrality on the application layer.
+
+\paragraph{Performance on Synthetic Architectures}
+Table~\ref{tab:supp-moved-baselines} reports the performance of \texttt{Degree-raw}, \texttt{RevPR-raw}, and \texttt{Topo} across the twelve synthetic LOSO folds.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Non-registered training-free baselines evaluated under Leave-One-Scenario-Out (LOSO) cross-validation across twelve synthetic architectures (Application population). $\Delta\rho$ is paired by fold against \texttt{Topo-QoS} with a bootstrap 95\% CI; two-sided Wilcoxon signed-rank test against \texttt{Topo-QoS}.}
+\label{tab:supp-moved-baselines}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Predictor} & \textbf{LOSO $\rho$ [95\% CI]} & \textbf{Active $\rho_{>0}$} & \textbf{$\Delta\rho$ vs \texttt{Topo-QoS} [95\% CI]} & \textbf{Won} & \textbf{$p$} & \textbf{Overlap@$K$} \\
+\midrule
+\multicolumn{7}{l}{\textit{Training-free, raw multigraph (no derivation)}} \\
+\textbf{Degree-raw} & 0.199 $[0.068, 0.328]$ & 0.218 & $-0.354$ $[-0.475, -0.236]$ & 1/12 & 0.0015 & 0.307 \\
+\textbf{RevPR-raw} & 0.089 $[-0.019, 0.192]$ & 0.075 & $-0.465$ $[-0.558, -0.364]$ & 0/12 & 0.0005 & 0.199 \\
+\midrule
+\multicolumn{7}{l}{\textit{Training-free, application layer}} \\
+\textbf{Topo} & 0.349 $[0.254, 0.452]$ & 0.174 & $-0.204$ $[-0.286, -0.122]$ & 0/12 & 0.0005 & 0.366 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\paragraph{Where the closed-form gain comes from} \texttt{Topo} reads betweenness from the application-layer graph, whereas \texttt{Topo-QoS} computes QoS-weighted betweenness on the Application--Library dependency graph. Three controls registered in Amendment~7 separate substrate from weighting: unweighted betweenness on the same graph scores $0.591$; constant topic weights score $0.595$; permuting QoS profiles scores $0.559$ ($-0.006$, $p = 0.73$). On $I^*$, the gain comes from the Application--Library graph structure, not from QoS contract content.
+
+Against the two stronger training-free controls of Amendment~7 (Amendment~14, F7), Hybrid-GAT keeps a margin (unweighted betweenness on the same graph $+0.092$, constant topic weights $+0.088$, both Holm $p = 0.049$), Hybrid-HGT does not ($+0.065$ and $+0.061$, Holm $p = 0.085$).
+
+\paragraph{Degree-raw Across Simulation Oracles}
+Table~\ref{tab:supp-moved-oracles} reports raw total degree across the three simulation oracles. On the multi-criteria oracle $I_{\text{comp}}$, raw total degree reaches $\rho = 0.719$, exceeding every learned engine without a prior.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Raw total degree (Degree-raw) against three simulation oracles, twelve LOSO folds, Application population. Partial $\rho$: Spearman correlation with $I_{\text{dyn}}$ after $I^*$ or Analytic $I^*$ ($\hat{I}^*_1$) is regressed out.}
+\label{tab:supp-moved-oracles}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Predictor} & \textbf{$I^*$} & \textbf{$I_{\text{dyn}}$ [95\% CI]} & \textbf{Partial vs $I^*$} & \textbf{Partial vs $\hat{I}^*_1$} & \textbf{$I_{\text{comp}}$} \\
+\midrule
+\textbf{Degree-raw} & 0.199 & 0.232 $[0.134, 0.329]$ & 0.149 $[0.089, 0.227]$ & $-0.091$ & 0.719 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Topo on Open-Source System Models}
+Table~\ref{tab:supp-moved-systems} reports the zero-shot performance of unweighted \texttt{Topo} on the five hand-authored open-source system models.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Unweighted Topo evaluated zero-shot across the five hand-authored open-source system models (Application population).}
+\label{tab:supp-moved-systems}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Predictor} & \textbf{Substrate} & \textbf{LOSO $\rho$ [95\% CI]} & \textbf{Active $\rho_{>0}$} & \textbf{PR-AUC} \\
+\midrule
+\textbf{Topo} & Application layer & 0.511 $[0.346, 0.703]$ & $-0.104$ & 0.474 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \end{document}

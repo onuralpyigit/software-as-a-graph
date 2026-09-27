@@ -1156,21 +1156,26 @@ def check_hybrid_table(rep: Report) -> None:
     labels = {_registry.label(v, "loso"): v
               for v in ("topo_baseline", "topo_qos", "hgl_qos", "hgl_qos_prior",
                         "gl_full_qos16_cap", "gl_qos16_prior")}
-    for row in _rows(tex, r"\midrule", after_label=r"\label{tab:hybrid}"):
-        cells = _cells(row)
-        v = labels.get(_label(cells[0]))
-        if v is None or v not in table:
-            continue
-        checks = [(1, table[v]["mean_rho"], "mean_rho"), (6, table[v]["mean_f1"], "overlap_at_k")]
-        if v in deltas:
-            checks.append((3, deltas[v]["mean_delta"], "delta_vs_topo_qos"))
-        for idx, truth, nm in checks:
-            if truth is None:
+    sources = [
+        ("tab:hybrid", _rows(tex, r"\midrule", after_label=r"\label{tab:hybrid}")),
+        ("tab:supp-moved-baselines", _rows(_supp(), r"\midrule", after_label=r"\label{tab:supp-moved-baselines}")),
+    ]
+    for tab_name, rows_list in sources:
+        for row in rows_list:
+            cells = _cells(row)
+            v = labels.get(_label(cells[0]))
+            if v is None or v not in table:
                 continue
-            got = _num(cells[idx]) if idx < len(cells) else None
-            rep.checked += 1
-            if got is None or abs(got - truth) > 0.001:
-                rep.findings.append(Finding("tab:hybrid", _label(cells[0]), nm, got, round(truth, 4)))
+            checks = [(1, table[v]["mean_rho"], "mean_rho"), (6, table[v]["mean_f1"], "overlap_at_k")]
+            if v in deltas:
+                checks.append((3, deltas[v]["mean_delta"], "delta_vs_topo_qos"))
+            for idx, truth, nm in checks:
+                if truth is None:
+                    continue
+                got = _num(cells[idx]) if idx < len(cells) else None
+                rep.checked += 1
+                if got is None or abs(got - truth) > 0.001:
+                    rep.findings.append(Finding(tab_name, _label(cells[0]), nm, got, round(truth, 4)))
 
 
 def check_system_models_transfer(rep: Report) -> None:
@@ -1200,19 +1205,24 @@ def check_system_models_transfer(rep: Report) -> None:
         "Hybrid-GAT": (rw["gl_qos16_prior"]["mean_rho_across_systems"], float(np.mean([x["mean_pr_auc"] for x in rw["gl_qos16_prior"]["per_system"].values()]))),
         "GAT-P-QoS": (z_proj["mean_rho_across_systems"], float(np.mean([x["mean_pr_auc"] for x in z_proj["per_system"].values()]))),
     }
-    for row in _rows(tex, r"\midrule", after_label=r"\label{tab:system_models_transfer}"):
-        cells = _cells(row)
-        name = _label(cells[0]).replace("$^\\dagger$", "").replace("^\\dagger", "").strip()
-        if name in expected:
-            rho_truth, prauc_truth = expected[name]
-            got_rho = _num(cells[2])
-            got_prauc = _num(cells[4])
-            rep.checked += 1
-            if got_rho is None or abs(got_rho - rho_truth) > 0.001:
-                rep.findings.append(Finding("tab:system_models_transfer", name, "mean_rho", got_rho, round(rho_truth, 4)))
-            rep.checked += 1
-            if got_prauc is None or abs(got_prauc - prauc_truth) > 0.001:
-                rep.findings.append(Finding("tab:system_models_transfer", name, "pr_auc", got_prauc, round(prauc_truth, 4)))
+    sources = [
+        ("tab:system_models_transfer", _rows(tex, r"\midrule", after_label=r"\label{tab:system_models_transfer}")),
+        ("tab:supp-moved-systems", _rows(_supp(), r"\midrule", after_label=r"\label{tab:supp-moved-systems}")),
+    ]
+    for tab_name, rows_list in sources:
+        for row in rows_list:
+            cells = _cells(row)
+            name = _label(cells[0]).replace("$^\\dagger$", "").replace("^\\dagger", "").strip()
+            if name in expected:
+                rho_truth, prauc_truth = expected[name]
+                got_rho = _num(cells[2])
+                got_prauc = _num(cells[4])
+                rep.checked += 1
+                if got_rho is None or abs(got_rho - rho_truth) > 0.001:
+                    rep.findings.append(Finding(tab_name, name, "mean_rho", got_rho, round(rho_truth, 4)))
+                rep.checked += 1
+                if got_prauc is None or abs(got_prauc - prauc_truth) > 0.001:
+                    rep.findings.append(Finding(tab_name, name, "pr_auc", got_prauc, round(prauc_truth, 4)))
 
 
 #: Rankings that restate I*'s propagation rule (Proposition 1). Amendment 13 reports
@@ -1260,23 +1270,28 @@ def check_independent_oracles(rep: Report) -> None:
     rows["GBM-Dep-QoS$to$dyn$^star$"] = [(1, arms["gbm_dep_qos_dyn"]["i_star"], "i_star"),
                                          (2, arms["gbm_dep_qos_dyn"]["i_dyn"], "i_dyn"),
                                          (5, arms["gbm_dep_qos_dyn"]["i_comp"], "i_comp")]
-    rows["GAT-P-QoS$to$dyn$^star$ (Amendment~14)"] = [(1, dyn["i_star"], "i_star"),
+    rows["GAT-P-QoS$to$dyn$^star$"] = [(1, dyn["i_star"], "i_star"),
                                                      (2, dyn["i_dyn"], "i_dyn"),
                                                      (5, dyn["i_comp"], "i_comp")]
     seen = 0
-    for row in _rows(tex, r"\midrule", after_label=r"\label{tab:independent_oracles}"):
-        cells = _cells(row)
-        name = _label(cells[0]).replace("underline", "")
-        if name not in rows:
-            continue
-        seen += 1
-        for idx, truth, nm in rows[name]:
-            if truth is None:
+    sources = [
+        ("tab:independent_oracles", _rows(tex, r"\midrule", after_label=r"\label{tab:independent_oracles}")),
+        ("tab:supp-moved-oracles", _rows(_supp(), r"\midrule", after_label=r"\label{tab:supp-moved-oracles}")),
+    ]
+    for tab_name, rows_list in sources:
+        for row in rows_list:
+            cells = _cells(row)
+            name = _label(cells[0]).replace("underline", "")
+            if name not in rows:
                 continue
-            got = _num(cells[idx].replace("\\underline", "")) if idx < len(cells) else None
-            rep.checked += 1
-            if got is None or abs(got - truth) > 0.0006:
-                rep.findings.append(Finding("tab:independent_oracles", name, nm, got, round(truth, 4)))
+            seen += 1
+            for idx, truth, nm in rows[name]:
+                if truth is None:
+                    continue
+                got = _num(cells[idx].replace("\\underline", "")) if idx < len(cells) else None
+                rep.checked += 1
+                if got is None or abs(got - truth) > 0.0006:
+                    rep.findings.append(Finding(tab_name, name, nm, got, round(truth, 4)))
     rep.checked += 1
     if seen != len(rows):
         rep.findings.append(Finding("tab:independent_oracles", "rows", "count", seen, len(rows)))
@@ -1515,12 +1530,12 @@ def check_engine_regimes(rep: Report) -> None:
             (4, n("strong")), (5, m("strong", "GAT-QoS")), (6, w["strong"]["GAT-QoS"]), (7, n("strong")),
             (8, m("strong", "Hybrid-HGT")), (9, m("strong", "Hybrid-GAT"))])
     _quote(rep, "tab:regimes", table,
-           r"originally pub-sub.*?Learned " + num + "--" + num + r" vs.\\ closed-form " + num + "--" + num
+           r"originally pub-sub.*?Learned " + num + "--" + num + r" vs.\\ baseline " + num + "--" + num
            + r"; learned \$\\rho_\{>0\}\$ " + num + "--" + num,
            [(1, ps_lo), (2, ps_hi), (3, ps_cf_lo), (4, ps_cf_hi), (5, ps_pos_lo), (6, ps_pos_hi)])
     _quote(rep, "tab:regimes", table,
-           r"originally RPC.*?Learned " + num + "--" + num + r", but Topo " + num
-           + r" on Online Boutique; learned \$\\rho_\{>0\}\$ " + num + " to " + num,
+           r"originally RPC.*?Learned " + num + "--" + num + r", but application-layer baseline " + num
+           + r" on Online Boutique.*?learned \$\\rho_\{>0\}\$ " + num + " to " + num,
            [(1, rpc_lo), (2, rpc_hi), (3, zs["Topo"]["realworld_cloud_microservices"]["rho"]),
             (4, rpc_pos_lo), (5, rpc_pos_hi)])
     for pattern, truths in (
@@ -1761,12 +1776,10 @@ def check_dependency_graph(rep: Report) -> None:
         t7 = _load("referee_round8_table7.json")
         arms = (_load("oracle_robust_ltr.json") or {}).get("loso", {}).get("arm_means", {})
         _quote(rep, "abstract", _tex("abstract.tex"),
-               r"first-order expansion reaches Spearman \$\\rho = ([\d.]+)\$ and the count \$([\d.]+)\$.*?"
-               r"reached \$([\d.]+)\$, statistically indistinguishable.*?"
+               r"reaching Spearman \$\\rho = ([\d.]+)\$\. That is level with, but not equivalent to, the number of direct dependents \(\$([\d.]+)\$\).*?"
                r"above every closed-form approximation \(\$([\d.]+)\$ against \$([\d.]+)\$\)",
-               [(1, ioe["summary"]["i_star"]["Analytic-I*"]["mean_rho"]), (2, tf["summary"]["InDeg"]["loso_mean_rho"]),
-                (3, means["gl_proj_qos16_cap"]["loso_mean_rho"]),
-                (4, arms["gbm_dep_qos_dyn"]["i_dyn"]), (5, t7["summary"]["Analytic-I*"]["i_dyn"]["mean"])])
+               [(1, means["gl_proj_qos16_cap"]["loso_mean_rho"]), (2, tf["summary"]["InDeg"]["loso_mean_rho"]),
+                (3, arms["gbm_dep_qos_dyn"]["i_dyn"]), (4, t7["summary"]["Analytic-I*"]["i_dyn"]["mean"])])
     regimes = _load("engine_regimes.json")
     if regimes is not None:
         by = regimes["loso"]["regimes_by_topo_qos_tercile"]
@@ -1839,23 +1852,28 @@ def check_referee_round7(rep: Report) -> None:
     from reproduce.training_free_suite import FOLDS as _F, mean_ci as _ci
     tex = _tex("sec7_results.tex")
     per = raw["per_scenario"]
-    for row in _rows(tex, r"\midrule", after_label=r"\label{tab:hybrid}"):
-        cells = _cells(row)
-        name = _label(cells[0]).replace("$^\\S$", "").strip()
-        if name not in ("Degree-raw", "RevPR-raw", "Pubs-raw", "Reach-R1"):
-            continue
-        xs = [per[f]["i_star"][name]["rho"] for f in _F]
-        for idx, truth, nm in ((1, sum(xs) / len(xs), "mean_rho"),
-                               (2, sum(per[f]["i_star"][name]["rho_active"] for f in _F) / len(_F), "rho_active"),
-                               (6, sum(per[f]["i_star"][name]["overlap_at_k"] for f in _F) / len(_F), "overlap")):
-            got = _num(cells[idx])
+    sources = [
+        ("tab:hybrid", _rows(tex, r"\midrule", after_label=r"\label{tab:hybrid}")),
+        ("tab:supp-moved-baselines", _rows(_supp(), r"\midrule", after_label=r"\label{tab:supp-moved-baselines}")),
+    ]
+    for tab_name, rows_list in sources:
+        for row in rows_list:
+            cells = _cells(row)
+            name = _label(cells[0]).replace("$^\\S$", "").strip()
+            if name not in ("Degree-raw", "RevPR-raw", "Pubs-raw", "Reach-R1"):
+                continue
+            xs = [per[f]["i_star"][name]["rho"] for f in _F]
+            for idx, truth, nm in ((1, sum(xs) / len(xs), "mean_rho"),
+                                   (2, sum(per[f]["i_star"][name]["rho_active"] for f in _F) / len(_F), "rho_active"),
+                                   (6, sum(per[f]["i_star"][name]["overlap_at_k"] for f in _F) / len(_F), "overlap")):
+                got = _num(cells[idx])
+                rep.checked += 1
+                if got is None or abs(got - truth) > 0.0006:
+                    rep.findings.append(Finding(tab_name, name, nm, got, round(truth, 4)))
+            lo, hi = _ci(xs)
             rep.checked += 1
-            if got is None or abs(got - truth) > 0.0006:
-                rep.findings.append(Finding("tab:hybrid", name, nm, got, round(truth, 4)))
-        lo, hi = _ci(xs)
-        rep.checked += 1
-        if f"[{lo:.3f}, {hi:.3f}]".replace("-", "") not in cells[1].replace("$", "").replace("-", ""):
-            rep.findings.append(Finding("tab:hybrid", name, "ci95", cells[1], f"[{lo:.3f}, {hi:.3f}]"))
+            if f"[{lo:.3f}, {hi:.3f}]".replace("-", "") not in cells[1].replace("$", "").replace("-", ""):
+                rep.findings.append(Finding(tab_name, name, "ci95", cells[1], f"[{lo:.3f}, {hi:.3f}]"))
 
     ps, cur = part["summary"], rec["curves"]["i_star"]["InDeg"]["curve"]
     num = r"\$([-+]?[\d.]+)\$"
@@ -2087,7 +2105,7 @@ def check_round8(rep: Report) -> None:
            r"Hybrid-HGT vs\.\\ \\texttt\{HGT-QoS\} \$\+([\d.]+)\$, \$p = ([\d.]+)\$; Hybrid-GAT vs\.\\ \\texttt\{GAT-QoS\} \$\+([\d.]+)\$, \$p = ([\d.]+)\$",
            [(1, reg["Hybrid-HGT vs HGT-QoS"]["delta"]), (2, reg["Hybrid-HGT vs HGT-QoS"]["p"]),
             (3, reg["Hybrid-GAT vs GAT-QoS"]["delta"]), (4, reg["Hybrid-GAT vs GAT-QoS"]["p"])])
-    _quote(rep, "sec:rq1", tex,
+    _quote(rep, "supp:baselines", _supp(),
            r"unweighted betweenness on the same graph \$\+([\d.]+)\$, constant topic weights \$\+([\d.]+)\$, both Holm \$p = ([\d.]+)\$",
            [(1, f7["Hybrid-GAT vs Topo (projection)"]["delta"]), (2, f7["Hybrid-GAT vs Topo-Mult"]["delta"]),
             (3, f7["Hybrid-GAT vs Topo-Mult"]["p_holm"])])
@@ -2146,6 +2164,78 @@ def check_cost_ll(rep: Report) -> None:
     _quote(rep, "sec:rq4", tex, r"feature extraction every learned engine needs \$([\d.]+)\$--\$([\d.]+)\\times\$ more \(median \$([\d.]+)\\times\$\)",
            [(1, sm["min"]), (2, sm["max"]), (3, sm["median"])])
 
+
+def check_learning_focus(rep: Report) -> None:
+    """Enforce the learning-based and dependency-graph focus of the JSS paper:
+    1. Forbidden terms (centralit|[Bb]enchmark) must be absent from title,
+       abstract, highlights, and Section 9 (Conclusion).
+    2. Non-registered training-free baselines (Degree-raw, RevPR-raw, PR-raw,
+       unweighted Topo) must not appear as rows in main body tables (sec*.tex).
+    3. Topo-QoS must be the sole training-free baseline in Table tab:predictor_taxonomy.
+    """
+    import re
+    forbidden_pattern = re.compile(r"centralit|[Bb]enchmark")
+
+    # 1. Title in manuscript.tex and title_page.tex
+    for fname in ("manuscript.tex", "title_page.tex"):
+        content = (LATEX / fname).read_text()
+        m = re.search(r"\\title(?:\[.*?\])?\{([^}]+)\}", content, re.DOTALL)
+        if m:
+            title_text = m.group(1)
+            rep.checked += 1
+            if forbidden_pattern.search(title_text):
+                rep.findings.append(Finding(fname, "title", "forbidden_terms", "found", "absent"))
+
+    # Abstract
+    abs_tex = _tex("abstract.tex")
+    rep.checked += 1
+    if forbidden_pattern.search(abs_tex):
+        rep.findings.append(Finding("abstract.tex", "abstract", "forbidden_terms", "found", "absent"))
+
+    # Highlights
+    hl_tex = (LATEX / "highlights.tex").read_text()
+    rep.checked += 1
+    if forbidden_pattern.search(hl_tex):
+        rep.findings.append(Finding("highlights.tex", "highlights", "forbidden_terms", "found", "absent"))
+
+    # Section 9 Conclusion
+    sec9_tex = _tex("sec9_conclusion.tex")
+    rep.checked += 1
+    if forbidden_pattern.search(sec9_tex):
+        rep.findings.append(Finding("sec9_conclusion.tex", "conclusion", "forbidden_terms", "found", "absent"))
+
+    # 2. No moved baselines as rows in body tables (sec*.tex)
+    moved_baselines = ("Degree-raw", "RevPR-raw", "PR-raw", "Topo")
+    sec_dir = Path("docs/research/jss/latex/sections")
+    for p in sorted(sec_dir.glob("sec*.tex")):
+        content = p.read_text(encoding="utf-8")
+        for table_chunk in re.findall(r"\\begin\{table\}.*?\\end\{table\}", content, re.DOTALL):
+            for bl in moved_baselines:
+                rep.checked += 1
+                if re.search(r"\\textbf\{" + re.escape(bl) + r"(?:\$[^}]*\$)?\}\s*&", table_chunk):
+                    rep.findings.append(Finding(p.name, bl, "body_table_row", "found", "absent"))
+
+    # 3. Topo-QoS is the only training-free predictor in tab:predictor_taxonomy
+    sec6 = _tex("sec6_experimental_setup.tex")
+    if r"\label{tab:predictor_taxonomy}" in sec6:
+        tax_table = sec6[sec6.index(r"\label{tab:predictor_taxonomy}"):sec6.index(r"\end{table}", sec6.index(r"\label{tab:predictor_taxonomy}"))]
+        if "Training-free baseline" in tax_table:
+            start = tax_table.index("Training-free baseline")
+            end = tax_table.index(r"\midrule", start)
+            tf_block = tax_table[start:end]
+            tf_predictors = []
+            for line in tf_block.splitlines():
+                if "&" in line and not line.strip().startswith(r"\multicolumn"):
+                    cells = _cells(line)
+                    if cells:
+                        m = re.search(r"\\texttt\{([^}]+)\}", cells[0])
+                        if m:
+                            tf_predictors.append(m.group(1))
+            rep.checked += 1
+            if tf_predictors != ["Topo-QoS"]:
+                rep.findings.append(Finding("tab:predictor_taxonomy", "tf_predictors", "only_Topo-QoS", tf_predictors, ["Topo-QoS"]))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -2189,6 +2279,7 @@ def main() -> int:
     check_reference_demotion(rep)
     check_round8(rep)
     check_cost_ll(rep)
+    check_learning_focus(rep)
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts "
           f"({len(rep.skipped)} check(s) skipped).\n")

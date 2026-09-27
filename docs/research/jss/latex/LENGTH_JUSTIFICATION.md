@@ -7,8 +7,8 @@ justified."*
 
 ---
 
-The manuscript runs to **27 single-column pages** in the `elsarticle` preprint class, including all
-declarations and the reference list (97 entries), well within the recommended limit of 36 pages. No special
+The manuscript runs to **29 single-column pages** in the `elsarticle` preprint class, including all
+declarations and the reference list (101 entries), well within the recommended limit of 36 pages. No special
 length justification is required.
 
 The body maintains each headline result with the empirical evidence needed to inspect it (13 tables, 6 figures).

@@ -199,7 +199,7 @@ def figure2():
 
 def figure3():
     fig, ax, ymax = canvas(3.0)
-    ax.text(1, ymax - 2.2, "(a) Three ranking engines, one analysis graph",
+    ax.text(1, ymax - 2.2, "(a) Learned engines and baseline, one analysis graph",
             fontsize=8.2, fontweight="bold", color=INK, va="center")
     ax.text(62, ymax - 2.2, "(b) Ground truth and evaluation",
             fontsize=8.2, fontweight="bold", color=INK, va="center")
@@ -208,11 +208,11 @@ def figure3():
     box(ax, 1, 14, 13.5, 17, r"$G_{\mathrm{analysis}}$",
         "QoS-weighted\nDEPENDS_ON\nedges, typed\nnode features", fc="#EEF2FF", ec="#3730A3",
         body_size=6.8)
-    box(ax, 19, 29, 22, 9.5, "Closed-form engine",
+    box(ax, 19, 29, 22, 9.5, "Baseline (training-free)",
         "QoS-weighted betweenness\n" r"(Topo-QoS) $\rightarrow p(v)$", fc="#E6F1F8",
         ec=ENGINE["closed"], body_size=6.8)
     box(ax, 19, 5, 22, 13.5, "Learned engine",
-        "GNN over the typed multi-\ngraph with 16-D QoS edge\n" r"vectors $\rightarrow$ logit $z(v)$",
+        "GNN over the DEPENDS_ON\ngraph or typed multigraph,\n16-D QoS edges " r"$\rightarrow$ logit $z(v)$",
         fc="#FDF4E3", ec=ENGINE["learned"], body_size=6.8)
     arrow(ax, (14.5, 27), (19, 32), color=INK2, head=4)
     arrow(ax, (14.5, 18), (19, 13), color=INK2, head=4)
