@@ -696,7 +696,11 @@ def check_scale_table(rep: Report) -> None:
         rep.skipped.append("tab:scale: no inference_latency artifact")
         return
     sizes = {s["n_actual"]: s for s in d["sizes"]}
-    tex = _tex("sec7_results.tex")
+    supp_text = _supp()
+    if r"\label{tab:supp-scale}" in supp_text or r"\label{tab:scale}" in supp_text:
+        tex = supp_text
+    else:
+        tex = _tex("sec7_results.tex")
     i = tex.index(r"\textbf{$|V|$} & \textbf{$|E|$}")
     j = tex.index(r"\bottomrule", i)
     for line in tex[i:j].split("\n"):
@@ -1509,7 +1513,10 @@ def check_engine_regimes(rep: Report) -> None:
     num = r"\$([-+]?[\d.]+)\$"
 
     sec8 = _tex("sec8_discussion.tex")
-    table = sec8[sec8.index(r"\label{tab:regimes}"):sec8.index(r"\end{table}", sec8.index(r"\label{tab:regimes}"))]
+    supp = _supp()
+    lbl = r"\label{tab:supp-regimes}" if r"\label{tab:supp-regimes}" in supp else r"\label{tab:regimes}"
+    table_source = supp if lbl in supp else sec8
+    table = table_source[table_source.index(lbl):table_source.index(r"\end{table}", table_source.index(lbl))]
     _quote(rep, "tab:regimes", table,
            r"Closed-form ranks poorly.*?\\texttt\{Topo-QoS\} " + num + r"; \\texttt\{HGT-QoS\} " + num
            + r", \\texttt\{GAT-QoS\} " + num + r", both (\d+)/(\d+) folds.*?hybrids " + num + " / " + num,
@@ -1783,8 +1790,10 @@ def check_dependency_graph(rep: Report) -> None:
     regimes = _load("engine_regimes.json")
     if regimes is not None:
         by = regimes["loso"]["regimes_by_topo_qos_tercile"]
-        sec8 = _tex("sec8_discussion.tex")
-        table = sec8[sec8.index(r"\label{tab:regimes}"):sec8.index(r"\end{table}", sec8.index(r"\label{tab:regimes}"))]
+        supp = _supp()
+        lbl = r"\label{tab:supp-regimes}" if r"\label{tab:supp-regimes}" in supp else r"\label{tab:regimes}"
+        table_source = supp if lbl in supp else _tex("sec8_discussion.tex")
+        table = table_source[table_source.index(lbl):table_source.index(r"\end{table}", table_source.index(lbl))]
 
         def tm(t: str, arm: str) -> float:
             ids = by[t]["folds"]
@@ -1937,8 +1946,11 @@ def check_referee_round7(rep: Report) -> None:
     lat = _load("referee_round7_latency.json")
     if lat is not None:
         by_n = {r["n_actual"]: r for r in lat["sizes"]}
-        k0 = tex.index(r"\midrule", tex.index(r"\label{tab:count-scale}"))
-        body = tex[k0:tex.index(r"\bottomrule", k0)]
+        supp_text = _supp()
+        lbl_cs = r"\label{tab:supp-count-scale}" if r"\label{tab:supp-count-scale}" in supp_text else r"\label{tab:count-scale}"
+        tex_cs = supp_text if lbl_cs in supp_text else tex
+        k0 = tex_cs.index(r"\midrule", tex_cs.index(lbl_cs))
+        body = tex_cs[k0:tex_cs.index(r"\bottomrule", k0)]
         rows_cs = [ln.strip() for ln in body.split("\n") if ln.strip().endswith(r"\\")]
         rep.checked += 1
         if len(rows_cs) != len(by_n):

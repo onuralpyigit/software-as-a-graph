@@ -28,6 +28,8 @@ where:
     \item $w_V: V \to (0, 1]$ and $w_E: E \to (0, 1]$ weight entity criticality and connection strength. For Applications and Libraries, $w_V(v) = 1 - \text{CQP}(v)$, where CQP is a code-quality penalty computed from static code metrics (lines of code, cyclomatic complexity, coupling and cohesion); otherwise $w_V(v) = 1.0$.
 \end{itemize}
 
+\noindent The raw multigraph is denoted $G_{\text{structural}}$ (used exclusively by simulation oracles), while $G_{\text{analysis}}$ denotes the logical \texttt{DEPENDS\_ON} projection consumed by predictors. A comprehensive reference of mathematical notation is provided in Supplementary Section~\ref{S-supp:notation} and in the replication repository.
+
 \begin{table}[htbp]
 \centering
 \small
@@ -54,29 +56,6 @@ where:
 \bottomrule
 \end{tabular}%
 }
-\end{table}
-
-\begin{table}[htbp]
-\centering
-\small
-\caption{Notation used throughout the paper.}
-\label{tab:notation}
-\begin{tabular}{ll}
-\toprule
-\textbf{Symbol} & \textbf{Description} \\
-\midrule
-$G_{\text{structural}}$ & Raw multigraph (used exclusively by simulation oracles) \\
-$G_{\text{analysis}}$   & Logical \texttt{DEPENDS\_ON} projection (input to predictors) \\
-$V_{\text{app}}$        & Application nodes (the primary scored population) \\
-$w(t)$, $w(e)$          & QoS topic weight; derived dependency edge weight ($w(e) = w_E(e)$ on \texttt{DEPENDS\_ON}) \\
-$I^*(v)$                & Primary cascade-reachability simulation oracle \\
-$I_{\text{dyn}}(v)$     & Dynamic queue-flow discrete-event simulation oracle \\
-$I_{\text{comp}}(v)$    & Multi-criteria composite simulation oracle \\
-$\rho$                  & Spearman rank correlation coefficient (full population) \\
-$\rho_{>0}$             & Spearman rank correlation restricted to active stratum ($I > 0$) \\
-Overlap@$K$             & Top-$K$ identification set overlap ($K = 0.20\,|V_{\text{app}}|$) \\
-\bottomrule
-\end{tabular}
 \end{table}
 
 \subsection{Quality-of-Service Link Weighting}
@@ -112,7 +91,7 @@ Structural edges do not directly reflect failure propagation: a subscriber depen
 }
 \end{table}
 
-Rules~1 and~2 combine topics $T$ joining a pair by probabilistic union \cite{pearl1988probabilistic,beliakov2007aggregation,yager1988owa}, ensuring parallel failure paths increase coupling. Rule~5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ \cite{hardy1952inequalities}, and Rules~3 and~4 lift dependencies to hosts by maximum.
+Rules~1 and~2 combine topics $T$ joining a pair by probabilistic union \cite{pearl1988probabilistic}, ensuring parallel failure paths increase coupling. Rule~5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ \cite{hardy1952inequalities}, and Rules~3 and~4 lift dependencies to hosts by maximum.
 
 \noindent\textbf{Sequential cascades and simultaneous blasts.} Rule~1 captures sequential cascades, where a failed publisher starves subscribers through queues and buffers. Rule~5 captures simultaneous blasts, where a crashed library takes down all dependent applications at once. Libraries that publish or subscribe are endpoints of Rule~1 in their own right, and an Application reaches a library's topics transitively through Rule~5. The projection on which every count, \texttt{Topo-QoS} and every \texttt{-P} learner is computed applies Rule~1 to direct subscriptions only; the repository derivation that produces the node features additionally follows up to three \texttt{USES} hops, so an Application subscribing through a library it uses is a Rule~1 dependent there. Rules~2, 3, 4 and~6 represent infrastructural and broker dependencies (Table~\ref{tab:2}).
 

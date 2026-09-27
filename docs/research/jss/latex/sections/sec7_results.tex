@@ -242,43 +242,6 @@ Corpus & 0.4--15.6 & 0.01--0.72 & 0.09--4.98 & 0.07--52.25 & 0.16--81.48 & $17$-
 \end{table}
 
 
-\begin{table}[htbp]
-\centering
-\footnotesize
-\setlength{\tabcolsep}{3pt}
-\caption{Per-stage latency of the inference pipeline across graph sizes (CPU, median of 3 runs; 5 for the forward pass; an earlier session, system-layer analysis). Only ratios within one row are meaningful: comparing this table's analysis stage with Table~\ref{tab:count-scale}'s oracle mixes stages, sessions and graphs, which is what earlier revisions did. The analysis stage is stable across repeats (p10--p90 within $1\%$ of the median), while the forward pass is dominated by interpreter and dispatch overhead; the 249-node row carries first-call warm-up.}
-\label{tab:scale}
-\begin{tabular}{ccccccc}
-\toprule
-\textbf{$|V|$} & \textbf{$|E|$} & \textbf{\shortstack{Analyze\\(s)}} & \textbf{\shortstack{Graph $\to$\\Tensor (s)}} & \textbf{\shortstack{HGT\\Forward (ms)}} & \textbf{\shortstack{Analyze :\\Forward}} & \textbf{\shortstack{Forward\\p10--p90 (ms)}} \\
-\midrule
-249   & 1{,}127  & 1.74   & 0.010 & 26.5 & 66$\times$ & 13.0--34.4 \\
-499   & 2{,}402  & 8.32   & 0.022 & 16.4 & 509$\times$ & 15.6--16.4 \\
-999   & 6{,}422  & 44.54  & 0.056 & 21.1 & 2{,}108$\times$ & 19.1--36.5 \\
-1{,}998 & 19{,}301 & 239.34 & 0.157 & 56.2 & \textbf{4{,}259$\times$} & 43.8--57.8 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{table}[htbp]
-\centering
-\footnotesize
-\caption{The counting path against the published five-seed labeling sweep of $I^*$ over Application, Broker and Library nodes, on generated graphs of increasing size (Amendment~12, R6, an earlier session; CPU, median of 5 runs; $I^*$ timed once at $4{,}995$ components and not at $9{,}990$, where one pass would take hours). Projection: deriving the Application--Library \texttt{DEPENDS\_ON} graph from the manifest.}
-\label{tab:count-scale}
-\begin{tabular}{rrrrrr}
-\toprule
-\textbf{$|V|$} & \textbf{$|E|$} & \textbf{\shortstack{Projection +\\\texttt{InDeg} (ms)}} & \textbf{\shortstack{\texttt{Reach}\\(ms)}} & \textbf{\shortstack{$I^*$ sweep\\(s)}} & \textbf{\shortstack{$I^*$ :\\count}} \\
-\midrule
-249 & 1{,}081 & 8.0 & 11.7 & 4.0 & $500\times$ \\
-499 & 2{,}437 & 11.2 & 24.9 & 15.1 & $1{,}351\times$ \\
-999 & 6{,}372 & 25.3 & 113.1 & 58.5 & $2{,}313\times$ \\
-1{,}998 & 19{,}242 & 109.7 & 490.8 & 346.6 & $3{,}159\times$ \\
-4{,}995 & 94{,}790 & 426.8 & 4{,}369.9 & 2{,}163.5 & $5{,}069\times$ \\
-9{,}990 & 348{,}277 & 1{,}095.3 & 23{,}302.4 & not timed & --- \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Table~\ref{tab:cost-ll} replaces two comparisons earlier revisions got wrong. They set the full detection gate (system-layer analysis plus 18 anti-pattern detectors) against the five-seed labeling sweep over three node types and called that sweep ``one run'' of $I^*$ (median $5.6\times$; Supplementary Table~\ref{S-tab:gate_ratio}), and they read Table~\ref{tab:scale} against Table~\ref{tab:count-scale}, which were timed in different sessions on different graphs. Timed together, every stage keeps its place in the ordering. The counting path is the cheapest, one $I^*$ pass over the scored population is next, and the app-layer feature extraction that the learned engines read is the most expensive, at $4.5$--$72.5\times$ one pass on the corpus. The articulation and Connectivity Degradation Index phase accounts for $88$--$91\%$ of it (Enterprise, and the $2{,}000$-component graph), and it is largest on Enterprise, whose Rule~1 projection is nearly complete. Where the $I^*$ ranking itself is wanted, running the oracle is therefore cheaper than approximating it with a learned engine at every size measured, and the count is cheaper still, by one to two orders of magnitude, because it restates the oracle's first wave; its practical advantage is cost, not accuracy over the oracle it approximates. Table~\ref{tab:scale} shows that inference itself is negligible (tens of milliseconds at $2{,}000$ components), and Table~\ref{tab:count-scale} that the count scales to $10{,}000$ components ($1.1$~s) and \texttt{Reach} less well ($23$~s), because it computes a transitive closure. The expensive oracle is $I_{\text{dyn}}$: labeling the corpus took $12.7$ CPU-hours (about $7$~s per fault run and seed), which is the case for the learned surrogate of Section~\ref{sec:rq1}, whose inference runs in seconds. While direct hardware power counters (e.g., RAPL or physical wall meters) were not instrumented, we can bound the computational energy expenditure using the host CPU's base package power ($28.0$~W TDP for the 13th Gen Intel Core i7-1370P; \path{reproduce/energy_estimate.py}). Under this upper-bound model, generating labels for the $12.7$ CPU-hour $I_{\text{dyn}}$ simulation expended up to $\sim 355.6$~Wh ($\approx 1.28$~MJ). In contrast, executing static feature extraction across the entire corpus required only $106.9$~s (an upper bound of $0.83$~Wh / $2.99$~kJ), and computing the training-free counting baseline took just $11.1$~s total ($0.086$~Wh / $310$~J). From a Green Software Engineering and Green CI/CD perspective \cite{calero2015green,verdecchia2023greenai,schwartz2020greenai}, deploying heavy neural architectures or full dynamic simulations in continuous integration represents a high-overhead, energy-intensive path. Learning pays its computational and carbon footprint only where it displaces repeated executions of expensive simulation oracles like $I_{\text{dyn}}$, providing a $19\times$ speedup and massive energy savings, whereas for cheap reachability analysis, simple static graph queries remain the strictly greener choice.
+Table~\ref{tab:cost-ll} replaces two comparisons earlier revisions got wrong. They set the full detection gate (system-layer analysis plus 18 anti-pattern detectors) against the five-seed labeling sweep over three node types and called that sweep ``one run'' of $I^*$ (median $5.6\times$; Supplementary Table~\ref{S-tab:gate_ratio}), and they read earlier profiling sessions against different graphs (Supplementary Tables~\ref{S-tab:supp-scale} and~\ref{S-tab:supp-count-scale}). Timed together, every stage keeps its place in the ordering. The counting path is the cheapest, one $I^*$ pass over the scored population is next, and the app-layer feature extraction that the learned engines read is the most expensive, at $4.5$--$72.5\times$ one pass on the corpus. The articulation and Connectivity Degradation Index phase accounts for $88$--$91\%$ of it (Enterprise, and the $2{,}000$-component graph), and it is largest on Enterprise, whose Rule~1 projection is nearly complete. Where the $I^*$ ranking itself is wanted, running the oracle is therefore cheaper than approximating it with a learned engine at every size measured, and the count is cheaper still, by one to two orders of magnitude, because it restates the oracle's first wave; its practical advantage is cost, not accuracy over the oracle it approximates. Supplementary Table~\ref{S-tab:supp-scale} shows that inference itself is negligible (tens of milliseconds at $2{,}000$ components), and Supplementary Table~\ref{S-tab:supp-count-scale} that the count scales to $10{,}000$ components ($1.1$~s) and \texttt{Reach} less well ($23$~s), because it computes a transitive closure; complete timing artifacts and execution scripts are in \path{docs/research/jss/experiments/rq4-cost.md}. The expensive oracle is $I_{\text{dyn}}$: labeling the corpus took $12.7$ CPU-hours (about $7$~s per fault run and seed), which is the case for the learned surrogate of Section~\ref{sec:rq1}, whose inference runs in seconds. While direct hardware power counters (e.g., RAPL or physical wall meters) were not instrumented, we can bound the computational energy expenditure using the host CPU's base package power ($28.0$~W TDP for the 13th Gen Intel Core i7-1370P; \path{reproduce/energy_estimate.py}). Under this upper-bound model, generating labels for the $12.7$ CPU-hour $I_{\text{dyn}}$ simulation expended up to $\sim 355.6$~Wh ($\approx 1.28$~MJ). In contrast, executing static feature extraction across the entire corpus required only $106.9$~s (an upper bound of $0.83$~Wh / $2.99$~kJ), and computing the training-free counting baseline took just $11.1$~s total ($0.086$~Wh / $310$~J). From a Green Software Engineering and Green CI/CD perspective \cite{calero2015green,verdecchia2023greenai,schwartz2020greenai}, deploying heavy neural architectures or full dynamic simulations in continuous integration represents a high-overhead, energy-intensive path. Learning pays its computational and carbon footprint only where it displaces repeated executions of expensive simulation oracles like $I_{\text{dyn}}$, providing a $19\times$ speedup and massive energy savings, whereas for cheap reachability analysis, simple static graph queries remain the strictly greener choice.
 
 

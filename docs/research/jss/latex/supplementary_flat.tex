@@ -36,6 +36,34 @@
              city={Istanbul}, postcode={34469}, country={Turkey}}
 \end{frontmatter}
 
+\section{Notation and Architectural Concepts}
+\label{supp:notation}
+
+Table~\ref{tab:supp-notation} summarizes the mathematical symbols, graph representations, and evaluation metrics used across the main manuscript and this supplementary document.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Notation used throughout the paper.}
+\label{tab:supp-notation}
+\begin{tabular}{ll}
+\toprule
+\textbf{Symbol} & \textbf{Description} \\
+\midrule
+$G_{\text{structural}}$ & Raw multigraph (used exclusively by simulation oracles) \\
+$G_{\text{analysis}}$   & Logical \texttt{DEPENDS\_ON} projection (input to predictors) \\
+$V_{\text{app}}$        & Application nodes (the primary scored population) \\
+$w(t)$, $w(e)$          & QoS topic weight; derived dependency edge weight ($w(e) = w_E(e)$ on \texttt{DEPENDS\_ON}) \\
+$I^*(v)$                & Primary cascade-reachability simulation oracle \\
+$I_{\text{dyn}}(v)$     & Dynamic queue-flow discrete-event simulation oracle \\
+$I_{\text{comp}}(v)$    & Multi-criteria composite simulation oracle \\
+$\rho$                  & Spearman rank correlation coefficient (full population) \\
+$\rho_{>0}$             & Spearman rank correlation restricted to active stratum ($I > 0$) \\
+Overlap@$K$             & Top-$K$ identification set overlap ($K = 0.20\,|V_{\text{app}}|$) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \section{Parameter Sensitivity of the Explanation Layer}
 \label{supp:params}
 
@@ -1029,6 +1057,50 @@ Timing the cascade reachability labeling sweep (five seeds, node types Applicati
 
 \noindent\textbf{Training cost.} Training is a separate, one-off cost per model version: the last sweep with recorded per-arm wall-clock (CPU, sequential, 12 folds $\times$ 5 seeds $= 60$ fits per arm) took $0.6\,\text{h}$ for \texttt{GAT-S}, $0.9\,\text{h}$ for \texttt{GAT-S-w}, $1.4\,\text{h}$ for \texttt{HGT} and $4.9\,\text{h}$ for \texttt{HGT-QoS}, $7.7$ CPU-hours in all. The GPU sweep behind Table~\ref{tab:7} did not record per-fit durations.
 
+\section{Latency and Scaling Micro-benchmarks}
+\label{supp:scale}
+
+This section preserves the legacy profiling micro-benchmarks referenced in Section~\ref{M-sec:rq4} of the main manuscript. Table~\ref{tab:supp-scale} reports the per-stage latency breakdown across graph sizes from an earlier system-layer analysis session. Table~\ref{tab:supp-count-scale} reports the scaling behavior of the training-free counting path against the published 5-seed labeling sweep of $I^*$ up to 9,990 components. The definitive, like-for-like single-session benchmark across all stages is presented in Table~\ref{M-tab:cost-ll} of the main manuscript; detailed execution scripts and raw profiling traces are archived in \path{docs/research/jss/experiments/rq4-cost.md}.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\caption{Per-stage latency of the inference pipeline across graph sizes (CPU, median of 3 runs; 5 for the forward pass; an earlier session, system-layer analysis). Only ratios within one row are meaningful: comparing this table's analysis stage with Table~\ref{tab:supp-count-scale}'s oracle mixes stages, sessions and graphs, which is what earlier revisions did. The analysis stage is stable across repeats (p10--p90 within $1\%$ of the median), while the forward pass is dominated by interpreter and dispatch overhead; the 249-node row carries first-call warm-up.}
+\label{tab:supp-scale}
+\label{tab:scale}
+\begin{tabular}{ccccccc}
+\toprule
+\textbf{$|V|$} & \textbf{$|E|$} & \textbf{\shortstack{Analyze\\(s)}} & \textbf{\shortstack{Graph $\to$\\Tensor (s)}} & \textbf{\shortstack{HGT\\Forward (ms)}} & \textbf{\shortstack{Analyze :\\Forward}} & \textbf{\shortstack{Forward\\p10--p90 (ms)}} \\
+\midrule
+249   & 1{,}127  & 1.74   & 0.010 & 26.5 & 66$\times$ & 13.0--34.4 \\
+499   & 2{,}402  & 8.32   & 0.022 & 16.4 & 509$\times$ & 15.6--16.4 \\
+999   & 6{,}422  & 44.54  & 0.056 & 21.1 & 2{,}108$\times$ & 19.1--36.5 \\
+1{,}998 & 19{,}301 & 239.34 & 0.157 & 56.2 & \textbf{4{,}259$\times$} & 43.8--57.8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{The counting path against the published five-seed labeling sweep of $I^*$ over Application, Broker and Library nodes, on generated graphs of increasing size (Amendment~12, R6, an earlier session; CPU, median of 5 runs; $I^*$ timed once at $4{,}995$ components and not at $9{,}990$, where one pass would take hours). Projection: deriving the Application--Library \texttt{DEPENDS\_ON} graph from the manifest.}
+\label{tab:supp-count-scale}
+\label{tab:count-scale}
+\begin{tabular}{rrrrrr}
+\toprule
+\textbf{$|V|$} & \textbf{$|E|$} & \textbf{\shortstack{Projection +\\\texttt{InDeg} (ms)}} & \textbf{\shortstack{\texttt{Reach}\\(ms)}} & \textbf{\shortstack{$I^*$ sweep\\(s)}} & \textbf{\shortstack{$I^*$ :\\count}} \\
+\midrule
+249 & 1{,}081 & 8.0 & 11.7 & 4.0 & $500\times$ \\
+499 & 2{,}437 & 11.2 & 24.9 & 15.1 & $1{,}351\times$ \\
+999 & 6{,}372 & 25.3 & 113.1 & 58.5 & $2{,}313\times$ \\
+1{,}998 & 19{,}242 & 109.7 & 490.8 & 346.6 & $3{,}159\times$ \\
+4{,}995 & 94{,}790 & 426.8 & 4{,}369.9 & 2{,}163.5 & $5{,}069\times$ \\
+9{,}990 & 348{,}277 & 1{,}095.3 & 23{,}302.4 & not timed & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \section{Predictor Taxonomy and Substrate Details}
 \label{supp:taxonomy}
 
@@ -1153,7 +1225,28 @@ The analysis plan registered its two confirmatory contrasts, \texttt{HGT-QoS} an
 
 This section backs Section~\ref{M-sec:8.2} of the main manuscript. It is post hoc and exploratory and trains nothing: \path{reproduce/engine_regimes.py} (\texttt{make -f reproduce/Makefile jss-regimes}) reads the per-fold and zero-shot artifacts of the registered sweeps, joins them with descriptors read from the committed corpus, and writes \path{results/engine_regimes.json}. Every arm is read from the sweep that reports it, so each column mean equals the mean printed in the main manuscript. \texttt{GBM-Feat} is gradient-boosted trees over each Application's own feature vector (Section~\ref{M-sec:3.4} of the main manuscript) with no graph model; \texttt{GBM-Feat-QoS} adds the three QoS node columns.
 
-\noindent\textbf{Regimes.} Folds are grouped into terciles of \texttt{Topo-QoS} accuracy: W (closed-form ranks poorly), I (intermediate) and S (closed-form ranks well). The grouping uses the labels, so it describes the corpus and cannot place an unseen architecture. Because it conditions on the comparator, part of the per-tercile \emph{gain} of any engine over \texttt{Topo-QoS} is regression to the mean; the main manuscript therefore quotes each engine's own per-tercile $\rho$ rather than its gain.
+\noindent\textbf{Regimes.} Folds are grouped into terciles of \texttt{Topo-QoS} accuracy: W (closed-form ranks poorly), I (intermediate) and S (closed-form ranks well). The grouping uses the labels, so it describes the corpus and cannot place an unseen architecture. Because it conditions on the comparator, part of the per-tercile \emph{gain} of any engine over \texttt{Topo-QoS} is regression to the mean; the main manuscript therefore quotes each engine's own per-tercile $\rho$ rather than its gain. Table~\ref{tab:supp-regimes} synthesizes the empirical evidence across the five operational regimes.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Where graph learning helps. LOSO folds are grouped into terciles of closed-form accuracy (\texttt{Topo-QoS} $\rho$); system models are grouped by architectural paradigm. Mean Spearman $\rho$ against $I^*(v)$, Application population; $\rho_{>0}$: active stratum. For system models, ``learned'' ranges over the pure learned engines and ``baseline'' over Topo and \texttt{Topo-QoS}. The last column gives the reference counts (Amendment~7), which restate $I^*$'s rule and are not predictors (Amendment~13), and the dependency-graph learner (Amendment~9). ``Best choice'' ranges over predictors only. Exploratory. Because the terciles are formed on the comparator's own score, a learner's gain over \texttt{Topo-QoS} is inflated in the lowest tercile and deflated in the highest by regression to the mean; with four folds per tercile the pattern is descriptive only.}
+\label{tab:supp-regimes}
+\label{tab:regimes}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.14\linewidth}>{\raggedright\arraybackslash}p{0.17\linewidth}>{\raggedright\arraybackslash}p{0.13\linewidth}>{\raggedright\arraybackslash}p{0.34\linewidth}>{\raggedright\arraybackslash}p{0.22\linewidth}@{}}
+\toprule
+\textbf{Regime} & \textbf{Where} & \textbf{Best choice} & \textbf{Evidence: raw-multigraph engines} & \textbf{Dependency graph (references; learner)} \\
+\midrule
+Closed-form ranks poorly & Microservices, ATM, IoT Smart City, Healthcare & Dependency-graph learner & \texttt{Topo-QoS} $0.324$; \texttt{HGT-QoS} $0.604$, \texttt{GAT-QoS} $0.626$, both 4/4 folds. The prior trims the gain (hybrids $0.502$ / $0.554$). & \texttt{InDeg} $0.693$, \texttt{Reach} $0.700$, \texttt{GAT-P-QoS} $0.716$. \\
+Intermediate & ESB, Telecom RAN, Financial Trading, Industrial SCADA & Dependency-graph learner & \texttt{Topo-QoS} $0.561$; \texttt{HGT-QoS} $0.589$, \texttt{GAT-QoS} $0.660$; Hybrid-HGT $0.681$, Hybrid-GAT $0.697$, both 4/4 folds. & \texttt{InDeg} $0.742$, \texttt{GAT-P-QoS} $0.760$. \\
+Closed-form ranks well & Logistics Fleet, AV System, Enterprise, Real-Time Gaming & Hybrid engine & \texttt{Topo-QoS} $0.775$; \texttt{HGT-QoS} $0.672$ (1/4 folds), \texttt{GAT-QoS} $0.620$ (0/4); hybrids $0.786$ / $0.798$. & \texttt{InDeg} $0.858$, \texttt{GAT-P-QoS} $0.768$. \\
+Unlike the corpus, originally pub-sub & Autoware, EdgeX, Home Assistant & Learned engine & Learned $0.716$--$0.927$ vs.\ baseline $0.289$--$0.534$; learned $\rho_{>0}$ $0.183$--$0.833$ where baseline is negative. & \texttt{Reach} $0.836$--$0.997$; $\rho_{>0}$ $0.674$--$0.971$. \\
+Unlike the corpus, originally RPC & Online Boutique, Train-Ticket models & Mixed & Learned $0.710$--$0.810$, but application-layer baseline $0.891$ on Online Boutique (Supplementary Section~\ref{supp:baselines}); learned $\rho_{>0}$ $-0.19$ to $+0.16$. & \texttt{Reach} $0.966$--$0.998$; $\rho_{>0}$ $0.813$--$0.976$. \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
 
 \begin{table}[htbp]
 \centering
