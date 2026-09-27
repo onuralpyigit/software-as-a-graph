@@ -6,7 +6,7 @@ Figure~\ref{fig:1} presents the end-to-end architecture of the SaG framework. Th
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.70\linewidth]{figures/Figure_1}
-\caption{End-to-end architecture of the SaG framework. The predictive pathway runs down the center: manifest ingestion, typed multigraph, \texttt{DEPENDS\_ON} projection with typed node properties, the ranking engines (closed-form, learned and hybrid; Figure~\ref{fig:engines}), and the ranked critical set. The dashed edge marks the ground-truth simulation oracles, which operate only on $G_{\text{structural}}$, train the predictor offline and take no part in inference. The proposed explanation layer (Supplementary Section~\ref{S-supp:explanation}, not evaluated) reads the same analysis multigraph, shares no parameters with the predictor, and is applied to components after they have been ranked; no output of the predictor flows into it.}
+\caption{End-to-end architecture of the SaG framework. The predictive pathway runs down the center: manifest ingestion, typed multigraph, \texttt{DEPENDS\_ON} projection with typed node properties, the ranking engines (training-free baseline, learned and hybrid; Figure~\ref{fig:engines}), and the ranked critical set. The dashed edge marks the ground-truth simulation oracles, which operate only on $G_{\text{structural}}$, train the predictor offline and take no part in inference. The proposed explanation layer (Supplementary Section~\ref{S-supp:explanation}, not evaluated) reads the same analysis multigraph, shares no parameters with the predictor, and is applied to components after they have been ranked; no output of the predictor flows into it.}
 \label{fig:1}
 \end{figure}
 
@@ -84,7 +84,7 @@ Overlap@$K$             & Top-$K$ identification set overlap ($K = 0.20\,|V_{\te
 
 A link's strength depends on its Quality-of-Service (QoS) contract: a \texttt{RELIABLE} topic with \texttt{TRANSIENT\_LOCAL} durability couples services more strongly than a \texttt{BEST\_EFFORT} telemetry stream. Each topic $t$ carries an aggregate weight $w(t) \in (0, 1]$ combining declared QoS policies (reliability, durability, priority) with payload size and publication frequency. The sub-weights of reliability, durability and priority come from an Analytic Hierarchy Process (AHP) pairwise-comparison matrix that was stated independently rather than back-solved from a target vector ($CR = 0.016$, non-degenerate; Supplementary Section~\ref{S-supp:ahp}, which also shows that three of the framework's other AHP matrices do encode a declared vector).
 
-On the reachability oracle, QoS weighting does not improve closed-form ranking: unweighted betweenness on the Application--Library projection scores $\rho = 0.591$, against $0.553$ for QoS-weighted betweenness (\texttt{Topo-QoS}; Section~\ref{sec:rq1}). On the multi-criteria oracle the order reverses, and \texttt{Topo-QoS} is the best training-free ranker (Section~\ref{sec:rq1}). The reference dependency counts reported in this paper are unweighted and do not read $w(t)$.
+Whether these weights help a learned ranker is measured directly: with the weighted in-degree held in both arms, the QoS inputs add nothing measurable to the graph neural networks on the reachability oracle (Section~\ref{sec:rq2}), whereas on the queue-flow oracle they carry the learned surrogate's gain (Section~\ref{sec:rq1}). How the weighting affects the training-free baseline is reported in Supplementary Section~\ref{S-supp:baselines}. The reference dependency counts reported in this paper are unweighted and do not read $w(t)$.
 
 \subsection{Logical Dependency Projection (\texttt{DEPENDS\_ON})}
 \label{sec:3.3}
@@ -135,7 +135,7 @@ Since Rule~5 edges end at Libraries, every edge into an Application is a Rule~1 
 \subsection{Dual Graph Views}
 \label{sec:3.4}
 
-The \textbf{structural graph} $G_{\text{structural}}$ is the raw deployment topology. The \textbf{analysis graph} $G_{\text{analysis}}$ adds the derived \texttt{DEPENDS\_ON} edges and code metrics (Figure~\ref{fig:2}). Predictor features are computed on $G_{\text{analysis}}$, while simulation oracles run strictly on $G_{\text{structural}}$ (Section~\ref{sec:4.4}).
+The \textbf{structural graph} $G_{\text{structural}}$ is the raw deployment topology. The \textbf{analysis graph} $G_{\text{analysis}}$ adds the derived \texttt{DEPENDS\_ON} edges and code metrics (Figure~\ref{fig:2}). Predictor features are computed on $G_{\text{analysis}}$, while simulation oracles run strictly on $G_{\text{structural}}$ (Section~\ref{sec:4.4}). The two views also differ for a learner: on $G_{\text{structural}}$ every relation points away from Applications, so forward message passing never reaches them, whereas on the \texttt{DEPENDS\_ON} graph each Application receives messages from its dependents (Section~\ref{sec:rq2}).
 
 \subsection{Typed Node Feature Encoding}
 \label{sec:3.5}
