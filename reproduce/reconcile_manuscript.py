@@ -1268,12 +1268,12 @@ def check_independent_oracles(rep: Report) -> None:
     dyn = a14["summary"]["GAT-P-QoS-dyn"]
     rows = {"Analytic $I^*$": ranker("Analytic-I*")}
     rows.update({k: ranker(k) for k in sm if not k.startswith("_") and k != "Analytic-I*"})
-    rows["GBM-Dep-QoS"] = [(1, arms["gbm_dep_qos"]["i_star"], "i_star"),
-                           (2, arms["gbm_dep_qos"]["i_dyn"], "i_dyn"),
-                           (5, arms["gbm_dep_qos"]["i_comp"], "i_comp")]
-    rows["GBM-Dep-QoS$to$dyn$^star$"] = [(1, arms["gbm_dep_qos_dyn"]["i_star"], "i_star"),
-                                         (2, arms["gbm_dep_qos_dyn"]["i_dyn"], "i_dyn"),
-                                         (5, arms["gbm_dep_qos_dyn"]["i_comp"], "i_comp")]
+    rows["GBM-P-QoS"] = [(1, arms["gbm_dep_qos"]["i_star"], "i_star"),
+                         (2, arms["gbm_dep_qos"]["i_dyn"], "i_dyn"),
+                         (5, arms["gbm_dep_qos"]["i_comp"], "i_comp")]
+    rows["GBM-P-QoS$to$dyn$^star$"] = [(1, arms["gbm_dep_qos_dyn"]["i_star"], "i_star"),
+                                       (2, arms["gbm_dep_qos_dyn"]["i_dyn"], "i_dyn"),
+                                       (5, arms["gbm_dep_qos_dyn"]["i_comp"], "i_comp")]
     rows["GAT-P-QoS$to$dyn$^star$"] = [(1, dyn["i_star"], "i_star"),
                                                      (2, dyn["i_dyn"], "i_dyn"),
                                                      (5, dyn["i_comp"], "i_comp")]
