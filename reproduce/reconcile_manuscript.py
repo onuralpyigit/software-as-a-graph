@@ -1260,7 +1260,7 @@ def check_independent_oracles(rep: Report) -> None:
     rows["GBM-Dep-QoS$to$dyn$^star$"] = [(1, arms["gbm_dep_qos_dyn"]["i_star"], "i_star"),
                                          (2, arms["gbm_dep_qos_dyn"]["i_dyn"], "i_dyn"),
                                          (5, arms["gbm_dep_qos_dyn"]["i_comp"], "i_comp")]
-    rows["GAT-P-QoS$to$dyn$^star$ (Amendment~14)"] = [(1, dyn["i_star"], "i_star"),
+    rows["GAT-P-QoS$to$dyn$^star$"] = [(1, dyn["i_star"], "i_star"),
                                                      (2, dyn["i_dyn"], "i_dyn"),
                                                      (5, dyn["i_comp"], "i_comp")]
     seen = 0

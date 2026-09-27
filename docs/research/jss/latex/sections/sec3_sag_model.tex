@@ -121,7 +121,7 @@ Rules~1 and~2 combine topics $T$ joining a pair by probabilistic union \cite{pea
 \label{eq:indeg}
 \texttt{InDeg}(v) \;=\; \bigl|\{\,u \neq v : \exists t \in V_{\text{topic}},\; (v, t) \in \texttt{PUBLISHES\_TO} \wedge (u, t) \in \texttt{SUBSCRIBES\_TO}\,\}\bigr|.
 \end{equation}
-since Rule~5 edges end at Libraries, every edge into an Application is a Rule~1 edge $u \to v$, which exists exactly when $u \neq v$ (an Application or a Library) directly subscribes to a topic that $v$ publishes; parallel topics collapse into one edge.
+Since Rule~5 edges end at Libraries, every edge into an Application is a Rule~1 edge $u \to v$, which exists exactly when $u \neq v$ (an Application or a Library) directly subscribes to a topic that $v$ publishes; parallel topics collapse into one edge.
 
 \noindent The right-hand side of Eq.~\eqref{eq:indeg} is publish--subscribe afferent coupling (fan-in, the Absolute Importance of the Service \cite{martin2003agile,rud2006ais}), and it is a typed two-hop query on the raw multigraph. \texttt{InDeg} therefore needs no projection to compute; the projection states which typed query to ask. The equality is also checked on all seventeen corpus graphs (maximum absolute difference $0$). What the projection adds beyond this query is measured separately: Rule~5 raises transitive reach by $+0.058$ (Section~\ref{sec:rq1}). Because the primary oracle's first propagation wave is exactly this set (Section~\ref{sec:4.4}), \texttt{InDeg} and its transitive counterpart \texttt{Reach} are used in this paper as references that restate the oracle, not as predictors (Amendment~13).
 
