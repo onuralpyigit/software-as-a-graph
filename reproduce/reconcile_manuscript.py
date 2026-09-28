@@ -1546,9 +1546,9 @@ def check_engine_regimes(rep: Report) -> None:
            [(1, rpc_lo), (2, rpc_hi), (3, zs["Topo"]["realworld_cloud_microservices"]["rho"]),
             (4, rpc_pos_lo), (5, rpc_pos_hi)])
     for pattern, truths in (
-        (r"\\texttt\{GBM-Feat\}\) achieve \$\\rho = ([\d.]+)\$ under LOSO, level with \\texttt\{GAT-QoS\} \(\$([\d.]+)\$\)",
+        (r"\\texttt\{GBM-Feat\}\) (?:achieve|reach) \$\\rho = ([\d.]+)\$ under LOSO, (?:level with|similar to) \\texttt\{GAT-QoS\} \(\$([\d.]+)\$\)",
          [(1, L["mean_rho"]["GBM-Feat"]), (2, L["mean_rho"]["GAT-QoS"])]),
-        (r"typing added nothing measurable \(main effect " + num + r", interaction " + num,
+        (r"(?:typing added nothing measurable|adding typing made no measurable difference) \(main effect " + num + r", interaction " + num,
          [(1, -0.014), (2, +0.001)]),
     ):
         _quote(rep, "sec:8.2", sec8, pattern, truths)
@@ -1557,7 +1557,7 @@ def check_engine_regimes(rep: Report) -> None:
         sp = avg["seed_spread"]
         _quote(rep, "sec:8.2", sec8,
                r"mean within-fold seed standard deviation " + num + r", mean \$\\rho = ([\d.]+)\$\)"
-               r".*?\\texttt\{GAT-P-QoS\} was not \(" + num + r", \$\\rho = ([\d.]+)\$\)",
+               r".*?\\texttt\{GAT-P-QoS\} was (?:not \(|stable \()" + num + r", (?:mean )?\$\\rho = ([\d.]+)\$\)",
                [(1, sp["HGT-P-QoS"]["mean_sd"]), (2, avg["per_ranker"]["HGT-P-QoS"]["arithmetic"]),
                 (3, sp["GAT-P-QoS"]["mean_sd"]), (4, avg["per_ranker"]["GAT-P-QoS"]["arithmetic"])])
     else:
@@ -1772,7 +1772,7 @@ def check_dependency_graph(rep: Report) -> None:
     c10, s10 = dv["contrasts"], dv["summary"]
     num = r"\$([-+]?[\d.]+)\$"
     _quote(rep, "sec:rq1", tex,
-           r"without Rule~5, \\texttt\{Reach\} falls by " + num + r" \((\d+)/12 folds, Holm \$p = ([\d.]+)[\$;]",
+           r"without Rule~5, \\texttt\{Reach\} (?:falls|drops) by " + num + r" \((\d+)/12 folds, Holm \$p = ([\d.]+)[\$;]",
            [(1, c10["Reach vs Reach-R1"]["delta"]), (2, c10["Reach vs Reach-R1"]["won"]),
             (3, c10["Reach vs Reach-R1"]["p_holm"])])
     ioe = _load("independent_oracle_evaluation.json")
@@ -1783,8 +1783,9 @@ def check_dependency_graph(rep: Report) -> None:
         t7 = _load("referee_round8_table7.json")
         arms = (_load("oracle_robust_ltr.json") or {}).get("loso", {}).get("arm_means", {})
         _quote(rep, "abstract", _tex("abstract.tex"),
-               r"reaching Spearman \$\\rho = ([\d.]+)\$\. That is level with, but not equivalent to, the number of direct dependents \(\$([\d.]+)\$\).*?"
-               r"above every closed-form approximation \(\$([\d.]+)\$ against \$([\d.]+)\$\)",
+               r"reaching Spearman \$\\rho = ([\d.]+)\$.*?"
+               r"direct dependent[s\s\w\(\)]*?\$?([\d.]+)\$?.*?"
+               r"above (?:every|unweighted) closed-form approximations?.*?\(\$([\d.]+)\$ (?:against|vs\.\\ )\$([\d.]+)\$",
                [(1, means["gl_proj_qos16_cap"]["loso_mean_rho"]), (2, tf["summary"]["InDeg"]["loso_mean_rho"]),
                 (3, arms["gbm_dep_qos_dyn"]["i_dyn"]), (4, t7["summary"]["Analytic-I*"]["i_dyn"]["mean"])])
     regimes = _load("engine_regimes.json")
@@ -1890,7 +1891,7 @@ def check_referee_round7(rep: Report) -> None:
     if t7 is not None:
         q = t7["summary"]
         _quote(rep, "sec:rq1", tex,
-               r"After the rank of \$I\^\*\$ is removed, \\texttt\{InDeg\} keeps " + num
+               r"After (?:the rank of \$I\^\*\$ is removed|removing the rank of \$I\^\*\$), \\texttt\{InDeg\} keeps " + num
                + r" \$\[([\d.]+), ([\d.]+)\]\$, \\texttt\{Reach\} " + num
                + r", \\texttt\{Topo-QoS\} " + num,
                [(1, q["InDeg"]["partial_idyn_given_istar"]["mean"]),
@@ -1902,18 +1903,18 @@ def check_referee_round7(rep: Report) -> None:
     ana, gat_dyn = rec["curves"]["i_star"]["Analytic-I*"]["curve"], rec["curves"]["i_dyn"]["GAT-P-QoS"]["curve"]
     indeg_dyn = rec["curves"]["i_dyn"]["InDeg"]["curve"]
     _quote(rep, "sec:rq1", tex,
-           r"At \$k = 20\\%\$, \\texttt\{GAT-P-QoS\} recovers " + num + r" of the critical set and \\texttt\{Topo-QoS\} "
-           + num + r".*?top \$40\\%\$ by \\texttt\{GAT-P-QoS\} \(" + num,
+           r"At \$k = 20\\%\$, \\texttt\{GAT-P-QoS\} recovers " + num + r" of the critical set and \\texttt\{Topo-QoS\} (?:recovers )?"
+           + num + r".*?(?:top \$?40\\%\$? by \\texttt\{GAT-P-QoS\}|\\texttt\{GAT-P-QoS\} must flag the top \$?40\\%\$?) \(" + num,
            [(1, gat["0.20"]["expected"]), (2, topo_c["0.20"]["expected"]), (3, gat["0.40"]["expected"])])
     _quote(rep, "sec:rq1", tex,
            r"at \$k = 20\\%\$, \\texttt\{InDeg\} recovers " + num + r" \(tie-breaking bounds " + num + "--" + num
-           + r"\), and \$80\\%\$ needs the top \$45\\%\$ by \\texttt\{InDeg\} \(" + num
+           + r"\), and \$?80\\%\$? (?:needs|recall requires) the top \$?45\\%\$? by \\texttt\{InDeg\} \(" + num
            + r"\) or by the first-order expansion \(" + num,
            [(1, cur["0.20"]["expected"]), (2, cur["0.20"]["pessimistic"]), (3, cur["0.20"]["optimistic"]),
             (4, cur["0.45"]["expected"]), (5, ana["0.45"]["expected"])])
     _quote(rep, "sec:rq1", tex,
-           r"\\texttt\{GAT-P-QoS\} reaches " + num + r" at \$40\\%\$ and " + num + r" at \$50\\%\$, against "
-           + num + r" at \$40\\%\$ for the \\texttt\{InDeg\} reference",
+           r"\\texttt\{GAT-P-QoS\} reaches " + num + r" at \$?40\\%\$? and " + num + r" at \$?50\\%\$?, (?:against|compared to) "
+           + num + r" at \$?40\\%\$? for the \\texttt\{InDeg\} reference",
            [(1, gat_dyn["0.40"]["expected"]), (2, gat_dyn["0.50"]["expected"]), (3, indeg_dyn["0.40"]["expected"])])
     for key, k80 in (("InDeg", 0.45), ("GAT-P-QoS", 0.40), ("Analytic-I*", 0.45)):
         rep.checked += 1
@@ -2109,12 +2110,12 @@ def check_round8(rep: Report) -> None:
         rep.findings.append(Finding("tab:a14", "rows", "count", seen, 9))
     num = r"\$?([-+]?[\d.]+)\$?"
     _quote(rep, "sec:rq1", tex,
-           r"a two one-sided test at the registered margin of \$\\pm 0\.05\$ fails \(\$p = ([\d.]+)\$ per seed, \$([\d.]+)\$ for the ensemble",
+           r"a two one-sided test at the registered margin of \$\\pm 0\.05\$ (?:fails|does not pass) \(\$p = ([\d.]+)\$ per seed, \$?([\d.]+)\$? for the ensemble",
            [(1, tost["GAT-P-QoS_vs_InDeg"]["per_seed_mean"]["tost_t"]["p"]),
             (2, tost["GAT-P-QoS_vs_InDeg"]["seed_ensemble"]["tost_t"]["p"])])
     reg, f7 = hyb["registered_amendments_5_6"], hyb["F7"]
     _quote(rep, "sec:rq1", tex,
-           r"Hybrid-HGT vs\.\\ \\texttt\{HGT-QoS\} \$\+([\d.]+)\$, \$p = ([\d.]+)\$; Hybrid-GAT vs\.\\ \\texttt\{GAT-QoS\} \$\+([\d.]+)\$, \$p = ([\d.]+)\$",
+           r"Hybrid-HGT vs\.(?:\\ )?\s*\\texttt\{HGT-QoS\} \$\+([\d.]+)\$, \$p = ([\d.]+)\$; Hybrid-GAT vs\.(?:\\ )?\s*\\texttt\{GAT-QoS\} \$\+([\d.]+)\$, \$p = ([\d.]+)\$",
            [(1, reg["Hybrid-HGT vs HGT-QoS"]["delta"]), (2, reg["Hybrid-HGT vs HGT-QoS"]["p"]),
             (3, reg["Hybrid-GAT vs GAT-QoS"]["delta"]), (4, reg["Hybrid-GAT vs GAT-QoS"]["p"])])
     _quote(rep, "supp:baselines", _supp(),
@@ -2123,7 +2124,7 @@ def check_round8(rep: Report) -> None:
             (3, f7["Hybrid-GAT vs Topo-Mult"]["p_holm"])])
     F = nest["F6"]
     _quote(rep, "sec:rq2", tex,
-           r"it moves \\texttt\{HGT-QoS\} from \$([\d.]+)\$ to \$([\d.]+)\$ \(\$\+([\d.]+)\$\) and \\texttt\{GAT-P-QoS\} from \$([\d.]+)\$ to \$([\d.]+)\$ \(\$-([\d.]+)\$\), neither significant \(Holm \$p = ([\d.]+)\$\); nested \\texttt\{HGT-QoS\} against \\texttt\{Topo-QoS\} is \$\+([\d.]+)\$ on 9 of 12 folds, still not significant \(Holm \$p = ([\d.]+)\$",
+           r"it (?:moves|changes) \\texttt\{HGT-QoS\} from \$([\d.]+)\$ to \$([\d.]+)\$ \(\$\+([\d.]+)\$\) and \\texttt\{GAT-P-QoS\} from \$([\d.]+)\$ to \$([\d.]+)\$ \(\$-([\d.]+)\$\), neither(?: of which is)? significant \(Holm \$p = ([\d.]+)\$\)[;.]\s*[Nn]ested \\texttt\{HGT-QoS\} (?:against|versus) \\texttt\{Topo-QoS\} is \$\+([\d.]+)\$ on 9 of 12 folds, still not significant \(Holm \$p = ([\d.]+)\$",
            [(1, nest["summary"]["HGT-QoS"]["fixed"]), (2, nest["summary"]["HGT-QoS"]["nested"]),
             (3, F["nested HGT-QoS vs fixed HGT-QoS"]["delta"]), (4, nest["summary"]["GAT-P-QoS"]["fixed"]),
             (5, nest["summary"]["GAT-P-QoS"]["nested"]), (6, -F["nested GAT-P-QoS vs fixed GAT-P-QoS"]["delta"]),

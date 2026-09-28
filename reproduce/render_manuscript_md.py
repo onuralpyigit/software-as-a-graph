@@ -53,6 +53,7 @@ def load_numbering() -> tuple[dict, dict]:
     if supp.exists():
         for m in re.finditer(r"\\newlabel\{([^}]+)\}\{\{([^}]*)\}", supp.read_text(encoding="utf8")):
             labels.setdefault("S-" + m.group(1), m.group(2).strip())
+            labels.setdefault(m.group(1), m.group(2).strip())
     bbl = (LATEX / "manuscript.bbl").read_text(encoding="utf8")
     cites = {k: i + 1 for i, k in enumerate(re.findall(r"\\bibitem\{([^}]+)\}", bbl))}
     return labels, cites
@@ -109,6 +110,7 @@ def to_markdown(tex: str, name: str = "") -> str:
     if r.returncode:
         sys.exit(f"pandoc failed on {name}:\n{r.stderr[:800]}")
     md = r.stdout.replace(r"\[", "[").replace(r"\]", "]")
+    md = md.replace(r"\todyn", "→dyn")
     return md.strip()
 
 

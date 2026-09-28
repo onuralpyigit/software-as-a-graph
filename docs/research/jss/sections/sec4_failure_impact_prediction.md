@@ -14,7 +14,7 @@ Each directed edge has a 16-dimensional vector. Index 0 represents the coupling 
 
 ## 4.2 Prediction Head and Training Objective
 
-A composite head predicts the simulated cascade impact, with auxiliary heads for reliability along with maintainability. The reliability head regresses on the oracle’s reliability column; the oracle records no maintainability, so the maintainability head’s regression term is masked and trained only through the composite head. The training objective combines regression with listwise and pairwise ranking: $$\tag{3}
+A composite head predicts the simulated cascade impact, supplemented by an active auxiliary head $\hat{a}_1$ regressing on the simulator’s reliability column $I^*_R$. (A secondary maintainability head defined in the schema is masked out of backpropagation as ground-truth maintainability is unrecorded by the simulator.) The operational training objective combines mean-squared error regression with listwise and margin-ranking terms: $$\tag{3}
 \mathcal{L} = \text{MSE}(\hat{I}^*, I^*) + 0.5 \cdot \text{MSE}(\hat{a}_1, I^*_R) + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}},$$ where $\mathcal{L}_{\text{rank}}$ is ListMLE [70] over the ground-truth permutation $\pi$, $$\tag{4}
 \mathcal{L}_{\text{rank}} = -\frac{1}{N}\sum_{i=1}^N \Big( \hat{s}_{\pi_i} - \log \sum_{j=i}^N \exp(\hat{s}_{\pi_j}) \Big),$$ and $\mathcal{L}_{\text{pairwise}}$ is a margin-ranking loss with $\gamma = 0.05$ over pairs differing by more than $\gamma$. Tied labels, which affect about 31% of Applications with $I^* = 0$, enter $\pi$ in a fixed but arbitrary order, so ListMLE is only approximately defined on them; the pairwise term ignores pairs among $\gamma$.
 

@@ -22,6 +22,16 @@ A Docker image is provided for exact environment replication.
 | Smoke-test (50 epochs, 2 seeds) | ~15–30 min CPU |
 | Diagnostic & sensitivity sweeps (Tables 10–13) | seconds to minutes — pure graph computation & simulation |
 
+### Measurement Hardware & Energy Estimation Baseline
+
+The latency profiles and execution benchmarks reported in the paper were measured on the following hardware platform:
+- **CPU:** 13th Gen Intel(R) Core(TM) i7-1370P (14 cores / 20 threads: 6 P-cores, 8 E-cores; Raptor Lake architecture)
+- **Base Package Power (PBP / TDP):** 28.0 W nominal specification (vendor published rating)
+- **RAM:** 32 GB LPDDR5
+- **OS:** Linux x86_64
+
+Energy consumption figures reported in the manuscript (Section 6.4, Section 7.1, Section 8.3) represent theoretical upper-bound proxies calculated by `reproduce/energy_estimate.py` using this 28.0W TDP base. Hardware-level variations (e.g. DVFS, DRAM/disk power) are not captured, and physical meters (RAPL/external wattmeter) were not instrumented.
+
 ---
 
 ## Quick Start — Docker (recommended)
