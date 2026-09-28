@@ -171,9 +171,9 @@ supplement builds to 25 pages (S1--S30, 29 tables, 2 figures), also with zero un
   Authors, confirmed September 2026), so `manuscript.tex` correctly carries the author block
   and `title_page.tex` is uploaded to Editorial Manager as a separate file. Do not anonymise
   the body.
-- **Generative-AI declaration** — its own `\section*{}` at the end of `sections/declarations.tex`,
-  immediately before the reference list, with the heading the Guide prescribes. Tool name filled in
-  (Anthropic's Claude, for language and LaTeX typesetting only). Resolved.
+- **Generative-AI declaration** — in `sections/declarations.tex`,
+  immediately before the reference list, with the heading the Guide prescribes. Tool names filled in
+  (Anthropic's Claude Opus 5 and Google's Gemini Flash 3.8 for drafting, LaTeX typesetting, and analysis scripts; Grammarly for copy-editing). Resolved.
 - **Vitae** — `vitae.tex` is drafted from facts recorded in this repository (affiliation,
   CRediT contributions, the RASSE 2025 joint publication, and the degree/advisor line in
   `docs/research/thesis/outline.md`). Yigit's entry is 82 words, Buzluca's 58, both under the
