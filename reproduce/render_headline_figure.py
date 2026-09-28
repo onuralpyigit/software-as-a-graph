@@ -11,10 +11,10 @@ carry the paper's three findings at a glance:
        -> learners that read the dependency graph approach, but never exceed,
           InDeg; the dependency counts are drawn as references (Amendment 13:
           they restate I*'s propagation rule and are not predictors).
-    B. Per-fold Delta-rho against Topo-QoS for HGT-QoS and Hybrid-HGT, folds
+    B. Per-fold Delta-rho against Topo-QoS for GAT-P-QoS and Hybrid-GAT, folds
        ordered by the closed-form engine's own score.
-       -> the engines are complementary; the prior removes the learned
-          engine's losses on the folds where closed-form structure is strongest.
+       -> GAT-P-QoS leads on weak-baseline folds; both models stay robust on
+          strong-baseline folds.
     C. Cell means of the capacity- and channel-matched 2x2.
        -> QoS inputs move accuracy (Table 9: the node columns, not the edge
           channel); typing does not.
@@ -137,7 +137,7 @@ def load():
         rw.setdefault("topo_baseline", tuple(b["Topo"]["rho"][k] for k in ("mean", "lo", "hi")))
         rw.setdefault("topo_qos", tuple(b["Topo-QoS"]["rho"][k] for k in ("mean", "lo", "hi")))
     matched = _load("loso_rq2_matched.json")["comparison_table"]
-    return loso, loso_ci, rw, matched
+    return loso, loso_ci, rw, matched, dg
 
 
 def panel_a(ax, loso_ci, rw):
@@ -172,34 +172,34 @@ def panel_a(ax, loso_ci, rw):
                  fontweight="bold", color=INK)
 
 
-def panel_b(ax, loso):
+def panel_b(ax, loso, dg):
     base = _folds(loso, "topo_qos")
-    learned, hybrid = _folds(loso, "hgl_qos"), _folds(loso, "hgl_qos_prior")
+    gat_p = {k: v["rho"] for k, v in dg["gl_proj_qos16_cap"].items()}
+    hybrid = _folds(loso, "gl_qos16_prior")
     order = sorted(base, key=base.get, reverse=True)
     xs = np.arange(len(order))
     for x, k in zip(xs, order):
-        dl, dh = learned[k] - base[k], hybrid[k] - base[k]
-        ax.annotate("", xy=(x, dh), xytext=(x, dl),
-                    arrowprops=dict(arrowstyle="-|>,head_length=0.35,head_width=0.2",
-                                    color="#9CA3AF", lw=0.9, shrinkA=3, shrinkB=3))
-        ax.plot(x, dl, "o", ms=5, mfc=COLOUR["hgl_qos"], mec="white", mew=0.8, zorder=3)
-        ax.plot(x, dh, "o", ms=5, mfc=COLOUR["hgl_qos_prior"], mec="white", mew=0.8, zorder=3)
+        dl, dh = gat_p[k] - base[k], hybrid[k] - base[k]
+        ax.plot([x, x], [dh, dl], color="#9CA3AF", lw=0.9, zorder=2)
+        ax.plot(x, dl, "o", ms=5, mfc=COLOUR["gl_proj_qos16_cap"], mec="white", mew=0.8, zorder=3)
+        ax.plot(x, dh, "o", ms=5, mfc=COLOUR["gl_qos16_prior"], mec="white", mew=0.8, zorder=3)
     ax.axhline(0, color=COLOUR["topo_qos"], lw=1.0)
     ax.text(len(order) - 0.45, 0.012, "Topo-QoS", color=INK2, fontsize=6.0, ha="right", va="bottom")
     ax.set_xticks(xs, [f"{FOLD[k]}\n({base[k]:.2f})" for k in order], fontsize=5.9)
     ax.set_xlim(-0.6, len(order) - 0.4)
-    ax.set_ylim(-0.42, 0.42)
+    ax.set_ylim(-0.12, 0.55)
     ax.set_ylabel(r"$\Delta\rho$ vs. Topo-QoS")
     ax.grid(axis="y", color=GRID, lw=0.6)
     ax.set_axisbelow(True)
     ax.set_xlabel("held-out fold, ordered by Topo-QoS ρ (in brackets): baseline strongest → weakest",
                   fontsize=6.4, color=INK2)
     ax.legend(handles=[
-        Line2D([], [], marker="o", color=COLOUR["hgl_qos"], ls="none", ms=5, label=label("hgl_qos", "loso")),
-        Line2D([], [], marker="o", color=COLOUR["hgl_qos_prior"], ls="none", ms=5,
-               label=f"{label('hgl_qos_prior', 'loso')} ({label('hgl_qos', 'loso')} + baseline prior)"),
+        Line2D([], [], marker="o", color=COLOUR["gl_proj_qos16_cap"], ls="none", ms=5,
+               label=label("gl_proj_qos16_cap", "loso")),
+        Line2D([], [], marker="o", color=COLOUR["gl_qos16_prior"], ls="none", ms=5,
+               label=label("gl_qos16_prior", "loso")),
     ], loc="upper left", frameon=False, fontsize=6.2, handletextpad=0.2, borderaxespad=0.1, ncol=2)
-    ax.set_title("B. Per fold: the prior repairs HGT-QoS where the baseline is strong",
+    ax.set_title("B. Per fold: GAT-P-QoS and Hybrid-GAT differences against Topo-QoS",
                  loc="left", fontsize=7.6, fontweight="bold", color=INK)
 
 
@@ -225,7 +225,7 @@ def panel_c(ax, matched):
 
 
 def main() -> None:
-    loso, loso_ci, rw, matched = load()
+    loso, loso_ci, rw, matched, dg = load()
     fig = plt.figure(figsize=(6.5, 5.6))
     gs = fig.add_gridspec(2, 2, width_ratios=[1.55, 1.0], height_ratios=[1.45, 0.95],
                           wspace=0.42, hspace=0.62, left=0.15, right=0.99, bottom=0.14, top=0.95)
@@ -235,7 +235,7 @@ def main() -> None:
         for side in ("top", "right"):
             ax.spines[side].set_visible(False)
     panel_a(ax_a, loso_ci, rw)
-    panel_b(ax_b, loso)
+    panel_b(ax_b, loso, dg)
     panel_c(ax_c, matched)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT.with_suffix(".pdf"), bbox_inches="tight", pad_inches=0.02)
