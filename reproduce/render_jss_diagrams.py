@@ -208,7 +208,7 @@ def figure3():
     box(ax, 1, 14, 13.5, 17, r"$G_{\mathrm{analysis}}$",
         "QoS-weighted\nDEPENDS_ON\nedges, typed\nnode features", fc="#EEF2FF", ec="#3730A3",
         body_size=6.8)
-    box(ax, 19, 29, 22, 9.5, "Baseline (training-free)",
+    box(ax, 19, 29, 22, 9.5, "Baseline",
         "QoS-weighted betweenness\n" r"(Topo-QoS) $\rightarrow p(v)$", fc="#E6F1F8",
         ec=ENGINE["closed"], body_size=6.8)
     box(ax, 19, 5, 22, 13.5, "Learned engine",
