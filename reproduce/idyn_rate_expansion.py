@@ -200,6 +200,8 @@ def main() -> int:
                       for o in ORACLES if oracles[o].get(name)}
             row[k]["partial_idyn_given_istar"] = _partial(
                 pred, oracles["i_dyn"][name], oracles["i_star"][name], apps)
+            row[k]["partial_idyn_given_analytic"] = _partial(
+                pred, oracles["i_dyn"][name], forms["Analytic-I*"], apps)
         row["InDeg"] = {"i_dyn": score(indeg(flow), oracles["i_dyn"][name], flow)}
         per[name] = row
 
@@ -215,6 +217,8 @@ def main() -> int:
             if scope == "loso":
                 s["partial_idyn_given_istar"] = _summ(
                     [per[n][k]["partial_idyn_given_istar"] for n in ns])
+                s["partial_idyn_given_analytic"] = _summ(
+                    [per[n][k]["partial_idyn_given_analytic"] for n in ns])
             summary[scope][k] = s
 
     # Gate: Analytic-I* reproduces the published Amendment 11 comparator on every fold and oracle.
