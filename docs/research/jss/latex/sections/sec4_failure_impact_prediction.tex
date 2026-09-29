@@ -25,12 +25,12 @@ A composite head predicts the simulated cascade impact, supplemented by an activ
 \label{eq:loss_active}
 \mathcal{L} = \text{MSE}(\hat{I}^*, I^*) + 0.5 \cdot \text{MSE}(\hat{a}_1, I^*_R) + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}},
 \end{equation}
-where $\mathcal{L}_{\text{rank}}$ is ListMLE \cite{xia2008listwise} over the ground-truth permutation $\pi$,
+where $\mathcal{L}_{\text{rank}}$ is Listwise Maximum Likelihood Estimation (ListMLE) \cite{xia2008listwise} over the ground-truth permutation $\pi$,
 \begin{equation}
 \label{eq:listmle}
 \mathcal{L}_{\text{rank}} = -\frac{1}{N}\sum_{i=1}^N \Big( \hat{s}_{\pi_i} - \log \sum_{j=i}^N \exp(\hat{s}_{\pi_j}) \Big),
 \end{equation}
-and $\mathcal{L}_{\text{pairwise}}$ is a margin-ranking loss with $\gamma = 0.05$ over pairs differing by more than $\gamma$. Tied labels, which affect about 31\% of Applications with $I^* = 0$, enter $\pi$ in a fixed but arbitrary order, so ListMLE is only approximately defined on them; the pairwise term ignores pairs among $\gamma$.
+and $\mathcal{L}_{\text{pairwise}}$ is a margin-ranking loss with $\gamma = 0.05$ over pairs differing by more than $\gamma$. Tied labels, which affect about 31\% of Applications with $I^* = 0$, enter $\pi$ in a fixed deterministic sequence (ordered by entity identifier), so ListMLE is only approximately defined on them; the pairwise term ignores pairs separated by less than $\gamma$.
 
 Models are trained with AdamW ($\eta = 3 \times 10^{-4}$, weight decay $10^{-4}$) using cosine warm restarts for up to 300 epochs. We set early stopping at 60 epochs of patience on a 20\% node-level validation split from the largest training scenario, using five fixed seeds ($\{42, 123, 456, 789, 2024\}$). We set hyperparameters and loss coefficients before the first sweep and kept them the same across all experiments. This approach differs from the registered plan, which called for selecting every hyperparameter using nested inner-LOSO selection (two-fold inner holdout). Instead, the published results use one fixed configuration, chosen during the main experiments to keep computation manageable across seeds and folds. We explain this difference in Section~\ref{sec:6.3}. We ran the registered selection later as a sensitivity analysis on the eight-configuration stage-1 grid (varying depth and rank normalization of features and labels). This analysis also used early stopping on a held-out training scenario, which is another difference from the published protocol (Section~\ref{sec:rq2}). The results confirm that the main null finding does not change under nested tuning.
 
