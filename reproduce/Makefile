@@ -59,7 +59,7 @@ ORACLE_ROBUST_WORKERS ?= 8
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency rq-referee-round7 \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 jss-fig6 jss-graphical-abstract \
-        jss-figures jss-figS1 jss-figS2 jss-tables all bundle smoke-test clean clean-all
+        jss-figures jss-figS1 jss-figS2 jss-tables all bundle package-zenodo smoke-test clean clean-all
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 0. Environment
@@ -595,6 +595,9 @@ all: setup scenarios block0 table3 table4 jss-tables jss-figures
 bundle:
 	$(PYTHON) reproduce/reconcile_manuscript.py
 	$(PYTHON) reproduce/cut_results_bundle.py
+
+package-zenodo:
+	$(PYTHON) scripts/package_zenodo.py
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Fast smoke-test (50 epochs, 2 seeds, 3 scenarios only)

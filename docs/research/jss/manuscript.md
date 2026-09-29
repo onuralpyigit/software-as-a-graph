@@ -529,7 +529,7 @@ These findings concern simulated failures on synthetic architectures and single-
 
 **Funding.** This research received no external grant.
 
-**Data Availability.** The complete replication package—including datasets, simulation harnesses, model checkpoints, analysis scripts, and reproduction workflows—is archived on Zenodo under DOI [10.5281/zenodo.14922108](https://doi.org/10.5281/zenodo.14922108) [75]. The open-source codebase, environment specifications, and reproduction documentation are publicly available on GitHub at <https://github.com/onuralpyigit/software-as-a-graph/tree/main/reproduce>.
+**Data Availability.** The complete replication package—including datasets, simulation harnesses, model checkpoints, analysis scripts, and reproduction workflows—is archived on Zenodo under DOI [10.5281/zenodo.23045204](https://doi.org/10.5281/zenodo.23045204) [75]. The open-source codebase, environment specifications, and reproduction documentation are publicly available on GitHub at <https://github.com/onuralpyigit/software-as-a-graph/tree/main/reproduce>.
 
 **Declaration of generative AI and AI-assisted technologies in the manuscript preparation process.** During the preparation of this work, the authors used Anthropic’s Claude Opus 5 and Opus 5.5, and Google’s Gemini Flash 3.8, for drafting manuscript revisions, LaTeX typesetting and formatting assistance, and developing analysis scripts in the replication package, and Grammarly for grammar checking and language copy-editing. The authors reviewed and edited the output as needed and take full responsibility for the content of the published article. The study design, the choice of experiments, the interpretation of results, and all scientific claims are the authors’ own.
 
@@ -685,4 +685,4 @@ These findings concern simulated failures on synthetic architectures and single-
 
 [74] C. Nadeau, Y. Bengio, Inference for the generalization error, Machine Learning 52 (2003) 239--281. [doi:10.1023/A:1024068626366](https://doi.org/10.1023/A:1024068626366).
 
-[75] I. O. Yigit, F. Buzluca, [dataset] software-as-a-graph: Replication package (datasets, generator configurations, simulation harnesses, model checkpoints, and analysis scripts), <https://doi.org/10.5281/zenodo.14922108> (2026). [doi:10.5281/zenodo.14922108](https://doi.org/10.5281/zenodo.14922108).
+[75] \.I. O. Yigit, F. Buzluca, [dataset] software-as-a-graph: Replication package (datasets, generator configurations, simulation harnesses, model checkpoints, and analysis scripts), <https://doi.org/10.5281/zenodo.23045204> (2026). [doi:10.5281/zenodo.23045204](https://doi.org/10.5281/zenodo.23045204).

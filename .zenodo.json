@@ -1,0 +1,41 @@
+{
+  "title": "[dataset] Software-as-a-Graph: Replication Package (Datasets, Generator Configurations, Simulation Harnesses, Model Checkpoints, and Analysis Scripts)",
+  "description": "Replication package for the paper 'Software-as-a-Graph: When Does Graph Learning Improve Cascade-Impact Ranking in Publish-Subscribe Systems?', submitted to the Journal of Systems and Software (Elsevier), Special Issue on AI Techniques for Performance, Reliability, and Sustainability of Modern Software Systems (VSI:AI4MSS).<br><br>This package contains everything required to reproduce all findings, tables, and figures in the manuscript and supplementary material:<ul><li><strong>Results Bundle:</strong> Complete set of 36 empirical JSON result artifacts backing all reported experiments, alongside rendered LaTeX, Markdown, and CSV tables, and figure graphics. Includes a cryptographic MANIFEST.json recording SHA-256 digests, git commit hashes, and corpus provenance.</li><li><strong>Trained Model Checkpoints:</strong> PyTorch Geometric model checkpoints for all architecture variants (HGT-QoS, HGT, GAT, GAT-QoS, etc.) across 12 scenario topologies and 5 random seeds (42, 123, 456, 789, 2024).</li><li><strong>Scenario Datasets:</strong> 12 synthetic publish-subscribe scenario topologies byte-identically regenerable from YAML specifications, plus 5 real-world open-source system architecture models.</li><li><strong>Simulation & Learning Harnesses:</strong> Full source code for the cascading-failure simulation engine, QoS-aware graph builder, GNN training and evaluation pipelines, and cross-validation harnesses.</li><li><strong>Environment Replication:</strong> Exact dependency specification (pyproject.toml) and Dockerfile for containerized one-command reproduction.</li></ul>",
+  "creators": [
+    {
+      "name": "Yiğit, İbrahim Onuralp",
+      "affiliation": "Istanbul Technical University"
+    },
+    {
+      "name": "Buzluca, Feza",
+      "affiliation": "Istanbul Technical University"
+    }
+  ],
+  "upload_type": "dataset",
+  "access_right": "open",
+  "license": "GPL-3.0-or-later",
+  "keywords": [
+    "Software Architecture",
+    "Publish-Subscribe Systems",
+    "Cascading Failures",
+    "Graph Neural Networks",
+    "Heterogeneous Graph Transformer",
+    "Quality of Service",
+    "Software Reliability",
+    "Empirical Software Engineering",
+    "Reproducibility",
+    "Journal of Systems and Software"
+  ],
+  "communities": [
+    {
+      "identifier": "zenodo"
+    }
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/onuralpyigit/software-as-a-graph",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}

@@ -887,6 +887,7 @@ FRESHNESS_TARGETS = {
     "loso_dependency_graph_cpu.json": "Table 7 / tab:dg-learners (Amendment 9 LOSO)",
     "dependency_graph_contrasts.json": "tab:dg-learners, Section 8.2, Supplementary Amendment 9",
     "derivation_ablation.json": "Section 7.1 / Supplementary Amendment 10",
+    "gate_oracle_ratio.json": "Table gate_ratio (Section 7.5)",
 }
 
 #: Artifacts that never read the corpus, so the corpus-freshness rule cannot
@@ -918,7 +919,6 @@ CORPUS_INDEPENDENT_ARTIFACTS = {
 #: together, on one machine, or leave both; ``oracle_timing.py --gate-file``
 #: names the half it was paired with, and the artifact records it.
 PAIRED_TIMING_ARTIFACTS = {
-    "gate_oracle_ratio.json": "Table gate_ratio (Section 7.5)",
     "oracle_timing_jss12.json": "detection_validation_timed_jss12.json",
 }
 

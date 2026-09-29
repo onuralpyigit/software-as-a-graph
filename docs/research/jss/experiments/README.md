@@ -18,7 +18,7 @@ tables, since a hand-copied table is exactly the kind of number that drifts. The
 abstract-level headline values, and point to the table that carries the full result.
 
 **Where the artifacts live.** `results/` is not tracked in git, except the Amendment 7, 9 and 10 artifacts; Amendment 12's artifacts are tracked under `data/benchmarks/`. The JSON artifacts named below ship
-in the Zenodo replication package ([10.5281/zenodo.14922108](https://doi.org/10.5281/zenodo.14922108))
+in the Zenodo replication package ([10.5281/zenodo.23045204](https://doi.org/10.5281/zenodo.23045204))
 as a dated bundle `SaG_JSS_Results_<stamp>` with a `MANIFEST.json` of SHA-256 digests, commit hashes
 and corpus provenance. Every `make` target below writes into `results/` when run from the repository
 root.
