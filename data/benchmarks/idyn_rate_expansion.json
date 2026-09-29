@@ -44,6 +44,13 @@
             0.23395085867819965,
             0.4123782928627771
           ]
+        },
+        "partial_idyn_given_analytic": {
+          "mean": null,
+          "ci95": [
+            NaN,
+            NaN
+          ]
         }
       },
       "Rate-I_dyn": {
@@ -74,6 +81,13 @@
           "ci95": [
             0.4707531574174385,
             0.6790344908763052
+          ]
+        },
+        "partial_idyn_given_analytic": {
+          "mean": 0.5730918139328262,
+          "ci95": [
+            0.4093300754029386,
+            0.7073144322635092
           ]
         }
       },
@@ -106,6 +120,13 @@
             0.34255288259300803,
             0.5551004628675199
           ]
+        },
+        "partial_idyn_given_analytic": {
+          "mean": 0.3147797139774659,
+          "ci95": [
+            0.15680040089122155,
+            0.45868400819483246
+          ]
         }
       },
       "PubRate": {
@@ -136,6 +157,13 @@
           "ci95": [
             0.4020530148791928,
             0.6202292307748434
+          ]
+        },
+        "partial_idyn_given_analytic": {
+          "mean": 0.4093055844435915,
+          "ci95": [
+            0.248024384320507,
+            0.5515566922757269
           ]
         }
       }
@@ -464,12 +492,12 @@
     }
   },
   "timing": {
-    "closed_form_seconds_max": 0.001263319999907253,
-    "closed_form_seconds_median": 0.00012540800003080221
+    "closed_form_seconds_max": 0.0013708669998777623,
+    "closed_form_seconds_median": 0.00017715500007398077
   },
   "per_fold": {
     "atm_system": {
-      "seconds": 6.189400005496282e-05,
+      "seconds": 0.00018568299992693937,
       "n_apps": 26,
       "Analytic-I*": {
         "i_star": {
@@ -496,7 +524,8 @@
           "n_apps": 26,
           "n_active": 26
         },
-        "partial_idyn_given_istar": 0.07687837512578564
+        "partial_idyn_given_istar": 0.07687837512578564,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -523,7 +552,8 @@
           "n_apps": 26,
           "n_active": 26
         },
-        "partial_idyn_given_istar": 0.7053187255429381
+        "partial_idyn_given_istar": 0.7053187255429381,
+        "partial_idyn_given_analytic": 0.7987720731981575
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -550,7 +580,8 @@
           "n_apps": 26,
           "n_active": 26
         },
-        "partial_idyn_given_istar": 0.47967031233510676
+        "partial_idyn_given_istar": 0.47967031233510676,
+        "partial_idyn_given_analytic": 0.40917134259015897
       },
       "PubRate": {
         "i_star": {
@@ -577,7 +608,8 @@
           "n_apps": 26,
           "n_active": 26
         },
-        "partial_idyn_given_istar": 0.6865169194829086
+        "partial_idyn_given_istar": 0.6865169194829086,
+        "partial_idyn_given_analytic": 0.6578193320221354
       },
       "InDeg": {
         "i_dyn": {
@@ -591,7 +623,7 @@
       }
     },
     "av_system": {
-      "seconds": 0.00016339700005119084,
+      "seconds": 0.00020488100017246325,
       "n_apps": 80,
       "Analytic-I*": {
         "i_star": {
@@ -618,7 +650,8 @@
           "n_apps": 80,
           "n_active": 80
         },
-        "partial_idyn_given_istar": 0.18195145949161468
+        "partial_idyn_given_istar": 0.18195145949161468,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -645,7 +678,8 @@
           "n_apps": 80,
           "n_active": 80
         },
-        "partial_idyn_given_istar": 0.4756520160540371
+        "partial_idyn_given_istar": 0.4756520160540371,
+        "partial_idyn_given_analytic": 0.5065737620435381
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -672,7 +706,8 @@
           "n_apps": 80,
           "n_active": 80
         },
-        "partial_idyn_given_istar": 0.44197832870887743
+        "partial_idyn_given_istar": 0.44197832870887743,
+        "partial_idyn_given_analytic": 0.49272062808966427
       },
       "PubRate": {
         "i_star": {
@@ -699,7 +734,8 @@
           "n_apps": 80,
           "n_active": 80
         },
-        "partial_idyn_given_istar": 0.4833908538743683
+        "partial_idyn_given_istar": 0.4833908538743683,
+        "partial_idyn_given_analytic": 0.52935852052739
       },
       "InDeg": {
         "i_dyn": {
@@ -713,7 +749,7 @@
       }
     },
     "enterprise_system": {
-      "seconds": 0.001263319999907253,
+      "seconds": 0.0013708669998777623,
       "n_apps": 300,
       "Analytic-I*": {
         "i_star": {
@@ -740,7 +776,8 @@
           "n_apps": 300,
           "n_active": 300
         },
-        "partial_idyn_given_istar": 0.3616817006038638
+        "partial_idyn_given_istar": 0.3616817006038638,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -767,7 +804,8 @@
           "n_apps": 300,
           "n_active": 300
         },
-        "partial_idyn_given_istar": 0.35496663413272656
+        "partial_idyn_given_istar": 0.35496663413272656,
+        "partial_idyn_given_analytic": -0.014288139168508265
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -794,7 +832,8 @@
           "n_apps": 300,
           "n_active": 300
         },
-        "partial_idyn_given_istar": 0.23533649093163123
+        "partial_idyn_given_istar": 0.23533649093163123,
+        "partial_idyn_given_analytic": -0.1571718835648426
       },
       "PubRate": {
         "i_star": {
@@ -821,7 +860,8 @@
           "n_apps": 300,
           "n_active": 300
         },
-        "partial_idyn_given_istar": 0.2813179856355298
+        "partial_idyn_given_istar": 0.2813179856355298,
+        "partial_idyn_given_analytic": -0.12664866483520013
       },
       "InDeg": {
         "i_dyn": {
@@ -835,7 +875,7 @@
       }
     },
     "financial_trading_system": {
-      "seconds": 0.00012540800003080221,
+      "seconds": 0.00019587399992815335,
       "n_apps": 60,
       "Analytic-I*": {
         "i_star": {
@@ -862,7 +902,8 @@
           "n_apps": 60,
           "n_active": 60
         },
-        "partial_idyn_given_istar": 0.28673288262139157
+        "partial_idyn_given_istar": 0.28673288262139157,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -889,7 +930,8 @@
           "n_apps": 60,
           "n_active": 60
         },
-        "partial_idyn_given_istar": 0.32398711285501464
+        "partial_idyn_given_istar": 0.32398711285501464,
+        "partial_idyn_given_analytic": 0.3468358251410202
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -916,7 +958,8 @@
           "n_apps": 60,
           "n_active": 60
         },
-        "partial_idyn_given_istar": 0.12190227155909514
+        "partial_idyn_given_istar": 0.12190227155909514,
+        "partial_idyn_given_analytic": -0.051774446602647885
       },
       "PubRate": {
         "i_star": {
@@ -943,7 +986,8 @@
           "n_apps": 60,
           "n_active": 60
         },
-        "partial_idyn_given_istar": 0.2980839765446845
+        "partial_idyn_given_istar": 0.2980839765446845,
+        "partial_idyn_given_analytic": 0.34082623871534984
       },
       "InDeg": {
         "i_dyn": {
@@ -957,7 +1001,7 @@
       }
     },
     "healthcare_system": {
-      "seconds": 8.469900012642029e-05,
+      "seconds": 0.00011518500014062738,
       "n_apps": 50,
       "Analytic-I*": {
         "i_star": {
@@ -984,7 +1028,8 @@
           "n_apps": 50,
           "n_active": 50
         },
-        "partial_idyn_given_istar": 0.6419672274157789
+        "partial_idyn_given_istar": 0.6419672274157789,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -1011,7 +1056,8 @@
           "n_apps": 50,
           "n_active": 50
         },
-        "partial_idyn_given_istar": 0.6419672274157789
+        "partial_idyn_given_istar": 0.6419672274157789,
+        "partial_idyn_given_analytic": null
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -1038,7 +1084,8 @@
           "n_apps": 50,
           "n_active": 50
         },
-        "partial_idyn_given_istar": 0.5881398146517646
+        "partial_idyn_given_istar": 0.5881398146517646,
+        "partial_idyn_given_analytic": -0.016783731720227252
       },
       "PubRate": {
         "i_star": {
@@ -1065,7 +1112,8 @@
           "n_apps": 50,
           "n_active": 50
         },
-        "partial_idyn_given_istar": 0.5559268305095857
+        "partial_idyn_given_istar": 0.5559268305095857,
+        "partial_idyn_given_analytic": 0.06563256252080349
       },
       "InDeg": {
         "i_dyn": {
@@ -1079,7 +1127,7 @@
       }
     },
     "hub_and_spoke_system": {
-      "seconds": 0.00017716399997880217,
+      "seconds": 0.00012107299971830798,
       "n_apps": 70,
       "Analytic-I*": {
         "i_star": {
@@ -1106,7 +1154,8 @@
           "n_apps": 70,
           "n_active": 70
         },
-        "partial_idyn_given_istar": 0.1379270950141403
+        "partial_idyn_given_istar": 0.1379270950141403,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -1133,7 +1182,8 @@
           "n_apps": 70,
           "n_active": 70
         },
-        "partial_idyn_given_istar": 0.35359755210088667
+        "partial_idyn_given_istar": 0.35359755210088667,
+        "partial_idyn_given_analytic": 0.4855503272166957
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -1160,7 +1210,8 @@
           "n_apps": 70,
           "n_active": 70
         },
-        "partial_idyn_given_istar": 0.32697785149843545
+        "partial_idyn_given_istar": 0.32697785149843545,
+        "partial_idyn_given_analytic": 0.26532348204799805
       },
       "PubRate": {
         "i_star": {
@@ -1187,7 +1238,8 @@
           "n_apps": 70,
           "n_active": 70
         },
-        "partial_idyn_given_istar": 0.3539117909973505
+        "partial_idyn_given_istar": 0.3539117909973505,
+        "partial_idyn_given_analytic": 0.26096437741130407
       },
       "InDeg": {
         "i_dyn": {
@@ -1201,7 +1253,7 @@
       }
     },
     "industrial_scada_system": {
-      "seconds": 0.00026656500017452345,
+      "seconds": 0.0003077209998991748,
       "n_apps": 140,
       "Analytic-I*": {
         "i_star": {
@@ -1228,7 +1280,8 @@
           "n_apps": 140,
           "n_active": 140
         },
-        "partial_idyn_given_istar": 0.1975959806745136
+        "partial_idyn_given_istar": 0.1975959806745136,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -1255,7 +1308,8 @@
           "n_apps": 140,
           "n_active": 140
         },
-        "partial_idyn_given_istar": 0.5694838831485307
+        "partial_idyn_given_istar": 0.5694838831485307,
+        "partial_idyn_given_analytic": 0.588960745814878
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -1282,7 +1336,8 @@
           "n_apps": 140,
           "n_active": 140
         },
-        "partial_idyn_given_istar": 0.4610064573752792
+        "partial_idyn_given_istar": 0.4610064573752792,
+        "partial_idyn_given_analytic": 0.47041911234400935
       },
       "PubRate": {
         "i_star": {
@@ -1309,7 +1364,8 @@
           "n_apps": 140,
           "n_active": 140
         },
-        "partial_idyn_given_istar": 0.43232288668665675
+        "partial_idyn_given_istar": 0.43232288668665675,
+        "partial_idyn_given_analytic": 0.4507915346177962
       },
       "InDeg": {
         "i_dyn": {
@@ -1323,7 +1379,7 @@
       }
     },
     "iot_smart_city_system": {
-      "seconds": 0.0005294649999996182,
+      "seconds": 0.0005350530000214349,
       "n_apps": 200,
       "Analytic-I*": {
         "i_star": {
@@ -1350,7 +1406,8 @@
           "n_apps": 200,
           "n_active": 200
         },
-        "partial_idyn_given_istar": 0.3967756737851787
+        "partial_idyn_given_istar": 0.3967756737851787,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -1377,7 +1434,8 @@
           "n_apps": 200,
           "n_active": 200
         },
-        "partial_idyn_given_istar": 0.3967756737851787
+        "partial_idyn_given_istar": 0.3967756737851787,
+        "partial_idyn_given_analytic": null
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -1404,7 +1462,8 @@
           "n_apps": 200,
           "n_active": 200
         },
-        "partial_idyn_given_istar": 0.1873735923214048
+        "partial_idyn_given_istar": 0.1873735923214048,
+        "partial_idyn_given_analytic": -0.00425638427222746
       },
       "PubRate": {
         "i_star": {
@@ -1431,7 +1490,8 @@
           "n_apps": 200,
           "n_active": 200
         },
-        "partial_idyn_given_istar": 0.181883063504481
+        "partial_idyn_given_istar": 0.181883063504481,
+        "partial_idyn_given_analytic": 0.048617535263799645
       },
       "InDeg": {
         "i_dyn": {
@@ -1445,7 +1505,7 @@
       }
     },
     "logistics_fleet_system": {
-      "seconds": 0.00022295099984148692,
+      "seconds": 0.00025806399980865535,
       "n_apps": 110,
       "Analytic-I*": {
         "i_star": {
@@ -1472,7 +1532,8 @@
           "n_apps": 110,
           "n_active": 110
         },
-        "partial_idyn_given_istar": 0.3916224202721061
+        "partial_idyn_given_istar": 0.3916224202721061,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -1499,7 +1560,8 @@
           "n_apps": 110,
           "n_active": 110
         },
-        "partial_idyn_given_istar": 0.744877042490314
+        "partial_idyn_given_istar": 0.744877042490314,
+        "partial_idyn_given_analytic": 0.7041769800292417
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -1526,7 +1588,8 @@
           "n_apps": 110,
           "n_active": 110
         },
-        "partial_idyn_given_istar": 0.6056347321562048
+        "partial_idyn_given_istar": 0.6056347321562048,
+        "partial_idyn_given_analytic": 0.5245925420902314
       },
       "PubRate": {
         "i_star": {
@@ -1553,7 +1616,8 @@
           "n_apps": 110,
           "n_active": 110
         },
-        "partial_idyn_given_istar": 0.6639222987766333
+        "partial_idyn_given_istar": 0.6639222987766333,
+        "partial_idyn_given_analytic": 0.6020049208437682
       },
       "InDeg": {
         "i_dyn": {
@@ -1567,7 +1631,7 @@
       }
     },
     "microservices_system": {
-      "seconds": 0.0001838380001117912,
+      "seconds": 0.00017715500007398077,
       "n_apps": 90,
       "Analytic-I*": {
         "i_star": {
@@ -1594,7 +1658,8 @@
           "n_apps": 90,
           "n_active": 90
         },
-        "partial_idyn_given_istar": 0.5875627157987297
+        "partial_idyn_given_istar": 0.5875627157987297,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -1621,7 +1686,8 @@
           "n_apps": 90,
           "n_active": 90
         },
-        "partial_idyn_given_istar": 0.8839576471344083
+        "partial_idyn_given_istar": 0.8839576471344083,
+        "partial_idyn_given_analytic": 0.8167660831837675
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -1648,7 +1714,8 @@
           "n_apps": 90,
           "n_active": 90
         },
-        "partial_idyn_given_istar": 0.6959871982665778
+        "partial_idyn_given_istar": 0.6959871982665778,
+        "partial_idyn_given_analytic": 0.5998786168225451
       },
       "PubRate": {
         "i_star": {
@@ -1675,7 +1742,8 @@
           "n_apps": 90,
           "n_active": 90
         },
-        "partial_idyn_given_istar": 0.7941779836890683
+        "partial_idyn_given_istar": 0.7941779836890683,
+        "partial_idyn_given_analytic": 0.7045329282077154
       },
       "InDeg": {
         "i_dyn": {
@@ -1689,7 +1757,7 @@
       }
     },
     "realtime_gaming_system": {
-      "seconds": 0.00012156100001448067,
+      "seconds": 0.0001115120003305492,
       "n_apps": 75,
       "Analytic-I*": {
         "i_star": {
@@ -1716,7 +1784,8 @@
           "n_apps": 75,
           "n_active": 75
         },
-        "partial_idyn_given_istar": 0.3379565595162299
+        "partial_idyn_given_istar": 0.3379565595162299,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -1743,7 +1812,8 @@
           "n_apps": 75,
           "n_active": 75
         },
-        "partial_idyn_given_istar": 0.7510078230797835
+        "partial_idyn_given_istar": 0.7510078230797835,
+        "partial_idyn_given_analytic": 0.7393867044736916
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -1770,7 +1840,8 @@
           "n_apps": 75,
           "n_active": 75
         },
-        "partial_idyn_given_istar": 0.6627237244278065
+        "partial_idyn_given_istar": 0.6627237244278065,
+        "partial_idyn_given_analytic": 0.6161865563990697
       },
       "PubRate": {
         "i_star": {
@@ -1797,7 +1868,8 @@
           "n_apps": 75,
           "n_active": 75
         },
-        "partial_idyn_given_istar": 0.6917175124289173
+        "partial_idyn_given_istar": 0.6917175124289173,
+        "partial_idyn_given_analytic": 0.6456966781962404
       },
       "InDeg": {
         "i_dyn": {
@@ -1811,7 +1883,7 @@
       }
     },
     "telecom_ran_system": {
-      "seconds": 0.0002996700000039709,
+      "seconds": 0.00029521900023610215,
       "n_apps": 120,
       "Analytic-I*": {
         "i_star": {
@@ -1838,7 +1910,8 @@
           "n_apps": 120,
           "n_active": 120
         },
-        "partial_idyn_given_istar": 0.2193499562339179
+        "partial_idyn_given_istar": 0.2193499562339179,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -1865,7 +1938,8 @@
           "n_apps": 120,
           "n_active": 120
         },
-        "partial_idyn_given_istar": 0.7402698750997334
+        "partial_idyn_given_istar": 0.7402698750997334,
+        "partial_idyn_given_analytic": 0.7581837773957808
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -1892,7 +1966,8 @@
           "n_apps": 120,
           "n_active": 120
         },
-        "partial_idyn_given_istar": 0.6278072400341693
+        "partial_idyn_given_istar": 0.6278072400341693,
+        "partial_idyn_given_analytic": 0.6290507335058593
       },
       "PubRate": {
         "i_star": {
@@ -1919,7 +1994,8 @@
           "n_apps": 120,
           "n_active": 120
         },
-        "partial_idyn_given_istar": 0.7320982843871219
+        "partial_idyn_given_istar": 0.7320982843871219,
+        "partial_idyn_given_analytic": 0.7320710498319948
       },
       "InDeg": {
         "i_dyn": {
@@ -1933,7 +2009,7 @@
       }
     },
     "realworld_autoware_ros2": {
-      "seconds": 4.153700001552352e-05,
+      "seconds": 4.918300010103849e-05,
       "n_apps": 32,
       "Analytic-I*": {
         "i_star": {
@@ -1960,7 +2036,8 @@
           "n_apps": 32,
           "n_active": 32
         },
-        "partial_idyn_given_istar": 0.12756984592866918
+        "partial_idyn_given_istar": 0.12756984592866918,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -1987,7 +2064,8 @@
           "n_apps": 32,
           "n_active": 32
         },
-        "partial_idyn_given_istar": 0.7321954714716634
+        "partial_idyn_given_istar": 0.7321954714716634,
+        "partial_idyn_given_analytic": 0.8417188235828533
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -2014,7 +2092,8 @@
           "n_apps": 32,
           "n_active": 32
         },
-        "partial_idyn_given_istar": 0.2456258597949389
+        "partial_idyn_given_istar": 0.2456258597949389,
+        "partial_idyn_given_analytic": 0.43624582511590215
       },
       "PubRate": {
         "i_star": {
@@ -2041,7 +2120,8 @@
           "n_apps": 32,
           "n_active": 32
         },
-        "partial_idyn_given_istar": 0.4938661372258518
+        "partial_idyn_given_istar": 0.4938661372258518,
+        "partial_idyn_given_analytic": 0.5191900284062568
       },
       "InDeg": {
         "i_dyn": {
@@ -2055,7 +2135,7 @@
       }
     },
     "realworld_edgex": {
-      "seconds": 3.88920000204962e-05,
+      "seconds": 3.843300009975792e-05,
       "n_apps": 22,
       "Analytic-I*": {
         "i_star": {
@@ -2082,7 +2162,8 @@
           "n_apps": 22,
           "n_active": 22
         },
-        "partial_idyn_given_istar": 0.4337683945022082
+        "partial_idyn_given_istar": 0.4337683945022082,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -2109,7 +2190,8 @@
           "n_apps": 22,
           "n_active": 22
         },
-        "partial_idyn_given_istar": 0.7434033880292396
+        "partial_idyn_given_istar": 0.7434033880292396,
+        "partial_idyn_given_analytic": 0.7107765761081991
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -2136,7 +2218,8 @@
           "n_apps": 22,
           "n_active": 22
         },
-        "partial_idyn_given_istar": 0.7338030518762583
+        "partial_idyn_given_istar": 0.7338030518762583,
+        "partial_idyn_given_analytic": 0.6997419411280844
       },
       "PubRate": {
         "i_star": {
@@ -2163,7 +2246,8 @@
           "n_apps": 22,
           "n_active": 22
         },
-        "partial_idyn_given_istar": 0.6919208391293888
+        "partial_idyn_given_istar": 0.6919208391293888,
+        "partial_idyn_given_analytic": 0.7417467882907206
       },
       "InDeg": {
         "i_dyn": {
@@ -2177,7 +2261,7 @@
       }
     },
     "realworld_homeassistant": {
-      "seconds": 3.4756000104607665e-05,
+      "seconds": 3.6968000131309964e-05,
       "n_apps": 24,
       "Analytic-I*": {
         "i_star": {
@@ -2204,7 +2288,8 @@
           "n_apps": 24,
           "n_active": 24
         },
-        "partial_idyn_given_istar": 0.3992156014953835
+        "partial_idyn_given_istar": 0.3992156014953835,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -2231,7 +2316,8 @@
           "n_apps": 24,
           "n_active": 24
         },
-        "partial_idyn_given_istar": 0.9154342803996429
+        "partial_idyn_given_istar": 0.9154342803996429,
+        "partial_idyn_given_analytic": 0.9408356653321001
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -2258,7 +2344,8 @@
           "n_apps": 24,
           "n_active": 24
         },
-        "partial_idyn_given_istar": 0.6379688723038517
+        "partial_idyn_given_istar": 0.6379688723038517,
+        "partial_idyn_given_analytic": 0.8108877059498023
       },
       "PubRate": {
         "i_star": {
@@ -2285,7 +2372,8 @@
           "n_apps": 24,
           "n_active": 24
         },
-        "partial_idyn_given_istar": 0.6706953897150661
+        "partial_idyn_given_istar": 0.6706953897150661,
+        "partial_idyn_given_analytic": 0.8522993335911165
       },
       "InDeg": {
         "i_dyn": {
@@ -2299,7 +2387,7 @@
       }
     },
     "realworld_cloud_microservices": {
-      "seconds": 3.51319999936095e-05,
+      "seconds": 2.8402000225469237e-05,
       "n_apps": 22,
       "Analytic-I*": {
         "i_star": {
@@ -2326,7 +2414,8 @@
           "n_apps": 22,
           "n_active": 22
         },
-        "partial_idyn_given_istar": -0.1762317424884501
+        "partial_idyn_given_istar": -0.1762317424884501,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -2353,7 +2442,8 @@
           "n_apps": 22,
           "n_active": 22
         },
-        "partial_idyn_given_istar": 0.15569427815731643
+        "partial_idyn_given_istar": 0.15569427815731643,
+        "partial_idyn_given_analytic": 0.40750568614229604
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -2380,7 +2470,8 @@
           "n_apps": 22,
           "n_active": 22
         },
-        "partial_idyn_given_istar": 0.0984322112657266
+        "partial_idyn_given_istar": 0.0984322112657266,
+        "partial_idyn_given_analytic": 0.12081621445987474
       },
       "PubRate": {
         "i_star": {
@@ -2407,7 +2498,8 @@
           "n_apps": 22,
           "n_active": 22
         },
-        "partial_idyn_given_istar": 0.2484332510958565
+        "partial_idyn_given_istar": 0.2484332510958565,
+        "partial_idyn_given_analytic": 0.2960449243604036
       },
       "InDeg": {
         "i_dyn": {
@@ -2421,7 +2513,7 @@
       }
     },
     "realworld_trainticket": {
-      "seconds": 5.375000000640284e-05,
+      "seconds": 4.727300029117032e-05,
       "n_apps": 41,
       "Analytic-I*": {
         "i_star": {
@@ -2448,7 +2540,8 @@
           "n_apps": 41,
           "n_active": 41
         },
-        "partial_idyn_given_istar": 0.6263897396707281
+        "partial_idyn_given_istar": 0.6263897396707281,
+        "partial_idyn_given_analytic": null
       },
       "Rate-I_dyn": {
         "i_star": {
@@ -2475,7 +2568,8 @@
           "n_apps": 41,
           "n_active": 41
         },
-        "partial_idyn_given_istar": 0.7791583403967556
+        "partial_idyn_given_istar": 0.7791583403967556,
+        "partial_idyn_given_analytic": 0.6486326606927351
       },
       "RatePayload-I_dyn": {
         "i_star": {
@@ -2502,7 +2596,8 @@
           "n_apps": 41,
           "n_active": 41
         },
-        "partial_idyn_given_istar": 0.7561479976852111
+        "partial_idyn_given_istar": 0.7561479976852111,
+        "partial_idyn_given_analytic": 0.6491539582645951
       },
       "PubRate": {
         "i_star": {
@@ -2529,7 +2624,8 @@
           "n_apps": 41,
           "n_active": 41
         },
-        "partial_idyn_given_istar": 0.7327439848678096
+        "partial_idyn_given_istar": 0.7327439848678096,
+        "partial_idyn_given_analytic": 0.7248883918474457
       },
       "InDeg": {
         "i_dyn": {
@@ -2544,7 +2640,7 @@
     }
   },
   "provenance": {
-    "commit": "1c816ae359578804e34db289e7c4ec774ebd9e89",
+    "commit": "dcb93b8adacd0d5e13de6020a3067bc72b0e6c28",
     "dirty": false,
     "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
     "config": {
