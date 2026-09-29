@@ -1,0 +1,78 @@
+\section{Amendment 15: The Rate-Weighted Reference for \texorpdfstring{$I_{\text{dyn}}$}{I\_dyn} and Input Attribution}
+\label{supp:advisor-v6}
+
+Amendment~15 is post hoc and exploratory: it was recorded after every other result existed, and its headline value was first computed ad hoc during the manuscript revision. It runs no simulator. \path{reproduce/idyn_rate_expansion.py} (\texttt{make rq-rate-expansion}) reads the five-seed, full-population $I_{\text{dyn}}$ labels cached by Amendment~11 and writes \path{data/benchmarks/idyn_rate_expansion.json}. Two gates hold: the first-order expansion of $I^*$ (main Eq.~\eqref{M-eq:analytic_istar}) reproduces Amendment~11's comparator on every fold, system and oracle (max $|\Delta| = 0$), and the attribution arm with all Q columns reproduces the published \texttt{GBM-P-QoS$\to$dyn} ($0.799$).
+
+\noindent\textbf{Closed forms.} Table~\ref{tab:a15-folds} scores four closed forms against $I_{\text{dyn}}$: the unweighted expansion (main Eq.~\eqref{M-eq:analytic_istar}); the rate-weighted expansion (main Eq.~\eqref{M-eq:rate-expansion}), the reference for $I_{\text{dyn}}$; a payload-weighted variant ($r_t B_t$ in place of $r_t$); and the bare declared publication rate of $v$. A saturation-aware variant, adding lost flow at brokers whose declared capacity is exceeded, was not built: $I_{\text{dyn}}$ runs at target utilisation $0.65$, and the plain rate form already exceeds the learned approximation. Each closed form takes at most $1.2$~ms per architecture.
+
+\noindent\textbf{Input attribution.} The same table retrains Amendment~11's gradient-boosted learner (same seeds, LOSO protocol and $I_{\text{dyn}}$ labels) on the structural feature set S alone, on S plus the declared rate and rate$\times$payload columns, and on S plus the seven QoS-policy columns (\texttt{Topo-QoS}, \texttt{Reach-QoS}, QoS-weighted in-degree, reliable, durable and deadline shares, maximum priority). Table~\ref{tab:a15-contrasts} gives the paired contrasts.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Amendment~15 on $I_{\text{dyn}}$ (five-seed mean, full population), twelve LOSO folds. Closed forms are training-free; the learned columns are means over five seeds. GBM$\to$dyn is Amendment~11's \texttt{GBM-P-QoS$\to$dyn} (S + all Q).}
+\label{tab:a15-folds}
+\begin{tabular}{lcccc|cccc}
+\toprule
+ & \multicolumn{4}{c|}{\textbf{Closed forms}} & \multicolumn{4}{c}{\textbf{Learned approximation (GBM, trained on $I_{\text{dyn}}$)}} \\
+\textbf{Fold} & Eq.~\eqref{M-eq:analytic_istar} & Eq.~\eqref{M-eq:rate-expansion} & $r_t B_t$ & Rate & GBM$\to$dyn & S & S + rate, payload & S + QoS-policy \\
+\midrule
+ATM & 0.533 & 0.838 & 0.628 & 0.770 & 0.798 & 0.644 & 0.842 & 0.586 \\
+AV & 0.634 & 0.741 & 0.732 & 0.748 & 0.742 & 0.649 & 0.736 & 0.628 \\
+Enterprise & 0.859 & 0.856 & 0.801 & 0.827 & 0.824 & 0.831 & 0.824 & 0.834 \\
+Financial Trading & 0.833 & 0.847 & 0.758 & 0.854 & 0.879 & 0.836 & 0.876 & 0.861 \\
+Healthcare & 0.898 & 0.898 & 0.841 & 0.834 & 0.893 & 0.913 & 0.887 & 0.903 \\
+Hub-and-Spoke & 0.481 & 0.598 & 0.516 & 0.517 & 0.590 & 0.504 & 0.560 & 0.524 \\
+Industrial SCADA & 0.602 & 0.759 & 0.708 & 0.681 & 0.732 & 0.620 & 0.727 & 0.618 \\
+IoT Smart City & 0.923 & 0.923 & 0.843 & 0.855 & 0.865 & 0.891 & 0.882 & 0.885 \\
+Logistics Fleet & 0.758 & 0.886 & 0.814 & 0.849 & 0.846 & 0.722 & 0.847 & 0.741 \\
+Microservices & 0.660 & 0.901 & 0.735 & 0.823 & 0.863 & 0.633 & 0.862 & 0.603 \\
+Real-Time Gaming & 0.690 & 0.866 & 0.821 & 0.831 & 0.763 & 0.612 & 0.769 & 0.604 \\
+Telecom RAN & 0.601 & 0.850 & 0.782 & 0.839 & 0.797 & 0.597 & 0.801 & 0.608 \\
+\midrule
+\textbf{Mean} & 0.706 & 0.830 & 0.748 & 0.786 & 0.799 & 0.704 & 0.801 & 0.700 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Amendment~15, zero-shot on the five system models, $I_{\text{dyn}}$. GBM$\to$dyn is trained on the twelve synthetic folds.}
+\label{tab:a15-zeroshot}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{System} & Eq.~\eqref{M-eq:analytic_istar} & Eq.~\eqref{M-eq:rate-expansion} & $r_t B_t$ & Rate & GBM$\to$dyn \\
+\midrule
+Autoware & 0.424 & 0.839 & 0.576 & 0.537 & 0.668 \\
+EdgeX & 0.844 & 0.926 & 0.924 & 0.750 & 0.834 \\
+Home Assistant & 0.723 & 0.972 & 0.909 & 0.890 & 0.790 \\
+Online Boutique & 0.775 & 0.815 & 0.751 & 0.673 & 0.806 \\
+Train-Ticket & 0.841 & 0.911 & 0.906 & 0.819 & 0.899 \\
+\midrule
+\textbf{Mean} & 0.722 & 0.893 & 0.813 & 0.734 & 0.800 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Amendment~15 contrasts on $I_{\text{dyn}}$, twelve LOSO folds. Two-sided Wilcoxon signed-rank; Holm within each block. Nominal: folds share training scenarios, and the amendment is post hoc.}
+\label{tab:a15-contrasts}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Contrast} & $\Delta\rho$ [95\% CI] & Won & $p$ & $p_{\text{Holm}}$ \\
+\midrule
+Eq.~\eqref{M-eq:rate-expansion} vs GBM$\to$dyn & $+0.031$ $[+0.013, +0.049]$ & 10/12 & 0.009 & 0.009 \\
+Eq.~\eqref{M-eq:rate-expansion} vs Eq.~\eqref{M-eq:analytic_istar} & $+0.124$ $[+0.068, +0.184]$ & 9/12 & 0.004 & 0.008 \\
+Eq.~\eqref{M-eq:rate-expansion} vs \texttt{InDeg} & $+0.166$ $[+0.091, +0.245]$ & 11/12 & 0.002 & 0.007 \\
+\midrule
+S + rate, payload vs S & $+0.097$ $[+0.049, +0.143]$ & 9/12 & 0.007 & 0.021 \\
+S + QoS-policy vs S & $-0.005$ $[-0.019, +0.007]$ & 5/12 & 0.677 & 1.000 \\
+S + all Q vs S + rate, payload & $-0.002$ $[-0.012, +0.007]$ & 6/12 & 0.970 & 1.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The rate-weighted expansion keeps a partial correlation of $0.578$ with $I_{\text{dyn}}$ after the rank of $I^*$ is removed, against $0.318$ for the unweighted expansion: the rate term is exactly the part of $I_{\text{dyn}}$ that $I^*$ does not contain. On the other oracles it scores $0.756$ ($I^*$) and $0.551$ ($I_{\text{comp}}$).

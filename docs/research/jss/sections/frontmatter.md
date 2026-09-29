@@ -1,4 +1,4 @@
-# Software-as-a-Graph: Learning Cascade-Impact Rankings from Dependency Graphs of Publish–Subscribe Systems
+# Software-as-a-Graph: When Does Graph Learning Improve Cascade-Impact Ranking in Publish–Subscribe Systems?
 
 **Authors.** Ibrahim Onuralp Yigit, Feza Buzluca
 
