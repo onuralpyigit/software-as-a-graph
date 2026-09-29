@@ -93,5 +93,5 @@ These are consistency fixes only, so that §§2–6 no longer contradict the new
 
 ## Open
 
-- The supplement has four undefined citations (`kato2018autoware`, `edgexfoundry2024`, `homeassistant2024`, `zhou2021fault`). They predate this revision: the keys are missing from `refs.bib`.
+- Fixed during this revision: five supplement citations were undefined, because their `refs.bib` entries had been pruned in `b6dac343`. `kato2018autoware`, `edgexfoundry2024`, `homeassistant2024` and `google2024onlineboutique` are restored verbatim from history. The Train-Ticket row now cites the existing `zhou2018trainticket`, which is the same TSE 2021 paper as the old `zhou2021fault`.
 - The other sections are waiting for your reading.
