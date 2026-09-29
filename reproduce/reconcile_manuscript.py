@@ -1782,12 +1782,15 @@ def check_dependency_graph(rep: Report) -> None:
                            if isinstance(v, dict) and "summary" in v and k not in SUPPLEMENT_ONLY_ENGINES)
         t7 = _load("referee_round8_table7.json")
         arms = (_load("oracle_robust_ltr.json") or {}).get("loso", {}).get("arm_means", {})
+        a15 = _load("idyn_rate_expansion.json") or {}
         _quote(rep, "abstract", _tex("abstract.tex"),
-               r"reaching Spearman \$\\rho = ([\d.]+)\$.*?"
-               r"direct dependent[s\s\w\(\)]*?\$?([\d.]+)\$?.*?"
-               r"above (?:every|unweighted) closed-form approximations?.*?\(\$([\d.]+)\$ (?:against|vs\.\\ )\$([\d.]+)\$",
+               r"reaches Spearman's \$\\rho = ([\d.]+)\$.*?"
+               r"counting direct dependents \(\$\\rho = ([\d.]+)\$\).*?"
+               r"rate-weighted first-order approximation reaches \$\\rho = ([\d.]+)\$.*?"
+               r"trained on simulator labels \(\$\\rho = ([\d.]+)\$\)",
                [(1, means["gl_proj_qos16_cap"]["loso_mean_rho"]), (2, tf["summary"]["InDeg"]["loso_mean_rho"]),
-                (3, arms["gbm_dep_qos_dyn"]["i_dyn"]), (4, t7["summary"]["Analytic-I*"]["i_dyn"]["mean"])])
+                (3, a15["summary"]["loso"]["Rate-I_dyn"]["i_dyn"]["mean"]),
+                (4, arms["gbm_dep_qos_dyn"]["i_dyn"])])
     regimes = _load("engine_regimes.json")
     if regimes is not None:
         by = regimes["loso"]["regimes_by_topo_qos_tercile"]
@@ -2025,7 +2028,8 @@ def check_reference_demotion(rep: Report) -> None:
     # Each results table: references sit in the reference block and nowhere else.
     sec7 = _tex("sec7_results.tex")
     blocks = {"tab:hybrid": {"Analytic $I^*$", "InDeg", "Reach"},
-              "tab:independent_oracles": {"Analytic $I^*$", "InDeg", "Reach"},
+              # Eq. 7 (Amendment 15) restates I_dyn's first-order rule.
+              "tab:independent_oracles": {"Analytic $I^*$", "InDeg", "Reach", "Rate-weighted"},
               "tab:system_models_transfer": {"Reach", "InDeg"}}
     for label, expected in blocks.items():
         k = sec7.index(r"\label{%s}" % label)
@@ -2178,10 +2182,127 @@ def check_cost_ll(rep: Report) -> None:
            [(1, sm["min"]), (2, sm["max"]), (3, sm["median"])])
 
 
+def check_rate_expansion(rep: Report) -> None:
+    """Amendment 15: the rate-weighted I_dyn reference (Eq. 7) and the input attribution.
+
+    Table tab:independent_oracles' Eq. 7 row, the supplement's three Amendment 15 tables
+    (every cell), and the figures quoted in Sections 6.1 and 7 and the Conclusion, all
+    from data/benchmarks/idyn_rate_expansion.json. Also checks that the committed
+    artifact reproduced Amendment 11 (its two gates).
+    """
+    a15 = _load("idyn_rate_expansion.json")
+    ltr = _load("oracle_robust_ltr.json")
+    if a15 is None or ltr is None:
+        rep.skipped.append("check_rate_expansion: idyn_rate_expansion.json or oracle_robust_ltr.json absent")
+        return
+    for g, v in a15["gates"].items():
+        rep.checked += 1
+        if not v["passed"]:
+            rep.findings.append(Finding("idyn_rate_expansion.json", g, "gate", "failed", "passed"))
+    L, Z = a15["summary"]["loso"], a15["summary"]["zeroshot"]
+    rate, C = L["Rate-I_dyn"], a15["contrasts"]["loso"]
+    att, AC = a15["attribution"]["means"], a15["attribution"]["contrasts"]
+    gbm_l = ltr["loso"]["arm_means"]["gbm_dep_qos_dyn"]["i_dyn"]
+    gbm_z = ltr["zeroshot"]["arm_means"]["gbm_dep_qos_dyn"]["i_dyn"]
+
+    # Table 6 row: I*, I_dyn [CI], partial|I* [CI], partial|Eq. 6, I_comp.
+    sec7 = _tex("sec7_results.tex")
+    row = [r for r in _rows(sec7, r"\midrule", after_label=r"\label{tab:independent_oracles}")
+           if r.startswith(r"\textbf{Rate-weighted}")]
+    rep.checked += 1
+    if len(row) != 1:
+        rep.findings.append(Finding("tab:independent_oracles", "Rate-weighted", "row", len(row), 1))
+    else:
+        nums = [float(x) for x in re.findall(r"-?\d+\.\d+", row[0].split("&", 1)[1])]
+        truth = [rate["i_star"]["mean"], rate["i_dyn"]["mean"], *rate["i_dyn"]["ci95"],
+                 rate["partial_idyn_given_istar"]["mean"], *rate["partial_idyn_given_istar"]["ci95"],
+                 rate["partial_idyn_given_analytic"]["mean"], rate["i_comp"]["mean"]]
+        rep.checked += 1
+        if len(nums) != len(truth) or any(abs(a - round(b, 3)) > 1e-9 for a, b in zip(nums, truth)):
+            rep.findings.append(Finding("tab:independent_oracles", "Rate-weighted", "cells",
+                                        nums, [round(t, 3) for t in truth]))
+
+    # Supplement tables: every numeric cell of every row.
+    supp = (LATEX / "supp_advisor_v6.tex").read_text()
+    names = {r.split(" & ")[0]: r for r in supp.splitlines() if r.endswith(r"\\") and " & " in r}
+    per, afold = a15["per_fold"], a15["attribution"]["per_fold"]
+
+    def gbm(n: str) -> float:
+        b = ltr["loso"]["per_fold"].get(n) or ltr["zeroshot"]["per_system"][n]
+        return b["arms"]["gbm_dep_qos_dyn"]["i_dyn"]["rho"]
+
+    forms = ("Analytic-I*", "Rate-I_dyn", "RatePayload-I_dyn", "PubRate")
+    expect: Dict[str, List[float]] = {}
+    for n in per:
+        label = _A15_NAMES.get(n)
+        vals = [per[n][k]["i_dyn"]["rho"] for k in forms] + [gbm(n)]
+        if n in afold["S"]:
+            vals += [afold[a][n] for a in ("S", "S+rate,payload", "S+QoS-policy")]
+        expect[label] = vals
+    # The two Mean rows: LOSO table first, then the zero-shot table.
+    means = [[L[k]["i_dyn"]["mean"] for k in forms] + [gbm_l]
+             + [att[a]["mean"] for a in ("S", "S+rate,payload", "S+QoS-policy")],
+             [Z[k]["i_dyn"]["mean"] for k in forms] + [gbm_z]]
+    mean_rows = [r for r in supp.splitlines() if r.startswith(r"\textbf{Mean}")]
+    checks = [(label, names.get(label), vals) for label, vals in expect.items()]
+    checks += [(f"Mean ({k})", mean_rows[i] if i < len(mean_rows) else None, v)
+               for i, (k, v) in enumerate(zip(("LOSO", "zero-shot"), means))]
+    for label, r, vals in checks:
+        rep.checked += 1
+        if r is None:
+            rep.findings.append(Finding("supp_advisor_v6.tex", label, "row", "absent", "present"))
+            continue
+        got = [float(x) for x in re.findall(r"-?\d+\.\d+", r.split("&", 1)[1])]
+        if len(got) != len(vals) or any(abs(a - round(b, 3)) > 1e-9 for a, b in zip(got, vals)):
+            rep.findings.append(Finding("supp_advisor_v6.tex", label, "cells", got, [round(v, 3) for v in vals]))
+
+    num = r"\$([-+]?[\d.]+)\$"
+    # Section 6.1: attribution and the Eq. 7 contrast.
+    _quote(rep, "sec:rq1 attribution", sec7,
+           r"rate and payload columns alone add " + num + r" \((\d+)/12 folds, Holm \$p = ([\d.]+)\$\), "
+           r"and the seven QoS-policy columns add " + num + r" \(\$p = ([\d.]+)\$\)",
+           [(1, AC["S+rate,payload vs S"]["delta"]), (2, AC["S+rate,payload vs S"]["won"]),
+            (3, AC["S+rate,payload vs S"]["p_holm"]), (4, AC["S+QoS-policy vs S"]["delta"]),
+            (5, AC["S+QoS-policy vs S"]["p"])])
+    c = C["Rate-I_dyn vs gbm_dep_qos_dyn"]
+    _quote(rep, "sec:rq1 Eq. 7", sec7,
+           r"reaches " + num + r" \$\[([\d.]+), ([\d.]+)\]\$ and exceeds the learned approximation by " + num
+           + r" \(\$\[([-+\d.]+), ([-+\d.]+)\]\$, (\d+)/12 folds, nominal Holm \$p = ([\d.]+)\$",
+           [(1, rate["i_dyn"]["mean"]), (2, rate["i_dyn"]["ci95"][0]), (3, rate["i_dyn"]["ci95"][1]),
+            (4, c["delta"]), (5, c["ci95"][0]), (6, c["ci95"][1]), (7, c["won"]), (8, c["p_holm"])])
+    # Every other main-text mention of Eq. 7's value and of the learned approximation it is set against.
+    for fname in ("abstract.tex", "sec1_introduction.tex", "sec7_results.tex", "sec8_discussion.tex",
+                  "sec9_conclusion.tex"):
+        text = _tex(fname)
+        for m in re.finditer(r"rate-weighted[^.]*?\$(?:\\rho = )?(0\.8\d\d)\$", text):
+            rep.checked += 1
+            if abs(float(m.group(1)) - round(rate["i_dyn"]["mean"], 3)) > 1e-9:
+                rep.findings.append(Finding(fname, "Eq. 7 rho", "quote", float(m.group(1)),
+                                            round(rate["i_dyn"]["mean"], 3)))
+        rep.checked += 1
+        if "0.830" in text and f"{gbm_l:.3f}" not in text and fname != "sec7_results.tex":
+            rep.findings.append(Finding(fname, "learned approximation", "quote", "absent", round(gbm_l, 3)))
+
+
+#: Supplement row labels for Amendment 15's per-fold and per-system tables.
+_A15_NAMES = {
+    "atm_system": "ATM", "av_system": "AV", "enterprise_system": "Enterprise",
+    "financial_trading_system": "Financial Trading", "healthcare_system": "Healthcare",
+    "hub_and_spoke_system": "Hub-and-Spoke", "industrial_scada_system": "Industrial SCADA",
+    "iot_smart_city_system": "IoT Smart City", "logistics_fleet_system": "Logistics Fleet",
+    "microservices_system": "Microservices", "realtime_gaming_system": "Real-Time Gaming",
+    "telecom_ran_system": "Telecom RAN", "realworld_autoware_ros2": "Autoware",
+    "realworld_edgex": "EdgeX", "realworld_homeassistant": "Home Assistant",
+    "realworld_cloud_microservices": "Online Boutique", "realworld_trainticket": "Train-Ticket",
+}
+
+
 def check_learning_focus(rep: Report, profile: str = "learning-focus") -> None:
     """Enforce the learning-based and dependency-graph focus of the JSS paper:
-    1. Forbidden terms (centralit|[Bb]enchmark) must be absent from title,
-       abstract, highlights, and Section 9 (Conclusion).
+    1. Forbidden terms (centralit) must be absent from title, abstract,
+       highlights, and Section 9 (Conclusion). "Benchmark" was forbidden too
+       until the advisor's v6 revision, whose Conclusion names the released
+       benchmark as a contribution.
     2. Non-registered training-free baselines (Degree-raw, RevPR-raw, PR-raw,
        unweighted Topo) must not appear as rows in main body tables (sec*.tex).
     3. Topo-QoS must be the sole training-free baseline in Table tab:predictor_taxonomy.
@@ -2191,7 +2312,7 @@ def check_learning_focus(rep: Report, profile: str = "learning-focus") -> None:
         return
 
     import re
-    forbidden_pattern = re.compile(r"centralit|[Bb]enchmark")
+    forbidden_pattern = re.compile(r"centralit")
 
     # 1. Title in manuscript.tex and title_page.tex
     for fname in ("manuscript.tex", "title_page.tex"):
@@ -2300,6 +2421,7 @@ def main() -> int:
     check_reference_demotion(rep)
     check_round8(rep)
     check_cost_ll(rep)
+    check_rate_expansion(rep)
     check_learning_focus(rep, profile=args.profile)
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts "

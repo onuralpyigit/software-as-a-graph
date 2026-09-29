@@ -547,7 +547,7 @@ Entity and edge counts for every scenario, read from the committed topology file
 \multicolumn{9}{l}{\textit{Hand-authored open-source system models (never used as training folds)}} \\
 \textbf{Autoware.universe \cite{kato2018autoware}} & Model of ROS~2 Autoware & 75 & 32 & 24 & 3 & 6 & 10 & 179 \\
 \textbf{Cloud Microservices \cite{google2024onlineboutique}} & Pub-sub model after GCP Online Boutique & 60 & 22 & 20 & 4 & 6 & 8 & 128 \\
-\textbf{Train-Ticket \cite{zhou2021fault}} & Model of Train-Ticket booking & 90 & 41 & 30 & 3 & 8 & 8 & 162 \\
+\textbf{Train-Ticket \cite{zhou2018trainticket}} & Model of Train-Ticket booking & 90 & 41 & 30 & 3 & 8 & 8 & 162 \\
 \textbf{Home Assistant \cite{homeassistant2024}} & Model of Smart Home & 63 & 24 & 22 & 3 & 6 & 8 & 119 \\
 \textbf{EdgeX Foundry \cite{edgexfoundry2024}} & Model of Industrial IoT & 63 & 22 & 24 & 3 & 6 & 8 & 112 \\
 \midrule
@@ -877,9 +877,9 @@ The composite is $Q(v) = 0.80 \cdot R(v) + 0.20 \cdot M(v)$, and an ISO/IEC 2501
 \section{Analysis-Plan Amendment Log}
 \label{supp:amendments}
 
-The analysis plan (Section~\ref{M-sec:6.3} of the main manuscript) was amended fourteen times, and one deviation from it is recorded. Table~\ref{tab:supp-amendments} lists the plan and every amendment, with its date, whether it was written before or after the results it governs, what it changed, the contrasts it registered, and its outcome. The full text, with each design and decision rule as committed, is \path{docs/research/jss/PREREGISTRATION.md} in the replication package.
+The analysis plan (Section~\ref{M-sec:6.3} of the main manuscript) was amended fifteen times, and one deviation from it is recorded. Table~\ref{tab:supp-amendments} lists the plan and every amendment, with its date, whether it was written before or after the results it governs, what it changed, the contrasts it registered, and its outcome. The full text, with each design and decision rule as committed, is \path{docs/research/jss/PREREGISTRATION.md} in the replication package.
 
-\noindent\textbf{Completeness.} No amendment was issued and left out of this table. The log is under version control, and its history shows the plan and Amendments~1--14 added in order, one commit each, at commits \texttt{44713326} (plan and A1), \texttt{fef9f211} (A2), \texttt{f1162e90} (A3), \texttt{c75fe944} (A4), \texttt{e80c3bec} (A5), \texttt{a80008e2} (A6), \texttt{4878cf28} (A7), \texttt{0b3f7ca0} (A9), \texttt{0c52329d} (A10), \texttt{e981cf01} (A11), \texttt{8a30eab2} (A12), \texttt{18f44f44} (A13) and \texttt{714e70fc} (A14 and the deviation record). These timestamps are the repository's own; the plan was not deposited with an independent registry; Amendment~12's deviation notes were appended before the analyses they govern were run. Amendment~8 was first committed as Amendment~7 on a parallel branch and renumbered, with its text otherwise unchanged, when the branches were merged. No amendment was removed, and no registered design or decision rule was edited after its commit. Only two passages were edited later: the plan's motivation paragraph, rewritten once the pre-revision artifact it cited was withdrawn, and the plan's outcome note, which is marked as recorded after the fact.
+\noindent\textbf{Completeness.} No amendment was issued and left out of this table. The log is under version control, and its history shows the plan and Amendments~1--15 added in order, one commit each, at commits \texttt{44713326} (plan and A1), \texttt{fef9f211} (A2), \texttt{f1162e90} (A3), \texttt{c75fe944} (A4), \texttt{e80c3bec} (A5), \texttt{a80008e2} (A6), \texttt{4878cf28} (A7), \texttt{0b3f7ca0} (A9), \texttt{0c52329d} (A10), \texttt{e981cf01} (A11), \texttt{8a30eab2} (A12), \texttt{18f44f44} (A13) and \texttt{714e70fc} (A14 and the deviation record) and \texttt{2c5275f2} (A15). These timestamps are the repository's own; the plan was not deposited with an independent registry; Amendment~12's deviation notes were appended before the analyses they govern were run. Amendment~8 was first committed as Amendment~7 on a parallel branch and renumbered, with its text otherwise unchanged, when the branches were merged. No amendment was removed, and no registered design or decision rule was edited after its commit. Only two passages were edited later: the plan's motivation paragraph, rewritten once the pre-revision artifact it cited was withdrawn, and the plan's outcome note, which is marked as recorded after the fact.
 
 \noindent\textbf{Registered arms.} All four model arms that Amendment~2 registered have now run. \texttt{GAT} and \texttt{GAT-QoS} form, with \texttt{HGT} and \texttt{HGT-QoS}, the matched $2\times2$ of the main manuscript. The two later arms were each run in their own CPU sweep, with \texttt{HGT-QoS} re-run in the same invocation. \texttt{GAT-w}, a capacity-matched untyped GAT that reads only the scalar QoS weight $w(e)$, reaches $\rho = 0.633$ (registered contrast \texttt{HGT-QoS} vs.\ \texttt{GAT-w} $-0.011$, \texttt{HGT-QoS} ahead on 5/12 folds, $p = 0.68$). \texttt{HGT-QoS-U}, which drops HGT's reverse pass and with it the only route by which any message reaches an Application, reaches $0.632$ (\texttt{HGT-QoS} vs.\ \texttt{HGT-QoS-U} $-0.010$, 6/12, $p = 0.91$), and transfers zero-shot at $0.804$ against $0.760$, higher on all five system models. Neither control changes a decision: on the raw multigraph, typed parameters, the 16-D edge width and message passing into Applications each add nothing measurable (main Section~\ref{M-sec:8.2}). On the dependency graph, where messages come from each component's dependents, message passing does add (Section~\ref{supp:amendment9}). Amendment~2's label-side arm, a LOSO sweep against a label cache with the oracle's QoS ladder disabled, was not run as a sweep. Section~\ref{M-sec:4.3} of the main manuscript bounds the label's QoS content instead, using the rank agreement between labels computed with and without the ladder.
 
@@ -890,7 +890,7 @@ The analysis plan (Section~\ref{M-sec:6.3} of the main manuscript) was amended f
 \begin{table}[htbp]
 \centering
 \scriptsize
-\caption{The analysis plan, its fourteen amendments and one recorded deviation. Status tier (main \S\ref{M-sec:6.3}): the plan is confirmatory; amendments written before any result of their own arms are registered secondary; the rest are exploratory. ``Before'' means no outcome of the analysis the entry governs existed when it was committed. Contrast counts are the decision-bearing contrasts the entry registered; the exploratory analyses it added are not counted.}
+\caption{The analysis plan, its fifteen amendments and one recorded deviation. Status tier (main \S\ref{M-sec:6.3}): the plan is confirmatory; amendments written before any result of their own arms are registered secondary; the rest are exploratory. ``Before'' means no outcome of the analysis the entry governs existed when it was committed. Contrast counts are the decision-bearing contrasts the entry registered; the exploratory analyses it added are not counted.}
 \label{tab:supp-amendments}
 \begin{tabular}{>{\raggedright\arraybackslash}p{0.9cm}>{\raggedright\arraybackslash}p{1.35cm}>{\raggedright\arraybackslash}p{1.6cm}>{\raggedright\arraybackslash}p{4.3cm}>{\raggedright\arraybackslash}p{1.9cm}>{\raggedright\arraybackslash}p{3.4cm}}
 \toprule
@@ -907,11 +907,12 @@ A7 & 2026-09-25 & Before any result & Training-free dependency counts (InDeg, Re
 A8 & 2026-09-26 & \emph{After} its results & Attribution controls: disclosure that the untyped GATs score Applications per node on the raw multigraph; \texttt{GAT-QoS-nf}, \texttt{GBM-Feat-QoS}, and the first run of A3's \texttt{GBM-Feat}; receptive-field probe & None (5 exploratory, Holm within) & QoS gain carried by node features ($+0.095$), not the edge channel ($-0.023$) (main \S\ref{M-sec:rq2}) \\
 A9 & 2026-09-26 & Before any result of its learned arms & The same learners on the dependency graph (\texttt{GAT-P}, \texttt{GAT-P-QoS}, GAT-P+InDeg with an \texttt{InDeg} prior, \texttt{HGT-P-QoS}); decision rules D1--D3, M, Z & 12, Holm within & D3, M and Z apply: no arm exceeds \texttt{InDeg}, the two QoS arms match it, and the GAT arms gain $+0.075$ to $+0.113$ over their raw-multigraph counterparts (main \S\ref{M-sec:rq2}; Section~\ref{supp:amendment9}) \\
 A10 & 2026-09-26 & Before any result & The value of the dependency derivation: \texttt{InDeg} against raw-graph counts, \texttt{Reach} against Rule-1-only reach; two identities recorded; decision rules E1--E3 & 3, Holm within & E1 and E2 apply. As corrected in round 7 (Pubs-raw had been scored on publishers only): \texttt{InDeg} beats raw degree by $+0.565$ and topics published by $+0.033$ (12/12 and 11/12); Rule~5 adds $+0.058$ to reach (main \S\ref{M-sec:rq1}; Section~\ref{supp:amendment9}) \\
-A11 & 2026-09-26 & Before any result & Full-population, five-seed $I_{\text{dyn}}$ labels; a learned combination of training-free signals (GBM, four arms); cross-oracle robustness families A--C & 6, Holm within three families & Completed after round 7 (an earlier attempt was killed by the out-of-memory killer). A$''$: no robustness gain over the first-order expansion ($-0.121$, Holm $p = 0.001$); B: the $I_{\text{dyn}}$ surrogate beats it on $I_{\text{dyn}}$ ($+0.094$, Holm $p = 0.019$); C: QoS features help on $I_{\text{dyn}}$ only ($+0.095$, Holm $p = 0.014$); R: full-population $I_{\text{dyn}}$ replaces the $n = 30$ sample (main \S\ref{M-sec:rq1}) \\
+A11 & 2026-09-26 & Before any result & Full-population, five-seed $I_{\text{dyn}}$ labels; a learned combination of training-free signals (GBM, four arms); cross-oracle robustness families A--C & 6, Holm within three families & Completed after round 7 (an earlier attempt was killed by the out-of-memory killer). A$''$: no robustness gain over the first-order expansion ($-0.121$, Holm $p = 0.001$); B: the learned $I_{\text{dyn}}$ approximation beats it on $I_{\text{dyn}}$ ($+0.094$, Holm $p = 0.019$); C: QoS features help on $I_{\text{dyn}}$ only ($+0.095$, Holm $p = 0.014$; carried by the rate and payload columns, A15); R: full-population $I_{\text{dyn}}$ replaces the $n = 30$ sample (main \S\ref{M-sec:rq1}) \\
 A12 & 2026-09-26 & Mixed (per arm; see text) & Round-7 referee analyses: raw-graph rankers, partial correlation beyond $I^*$, learned engines on all oracles, recall curves, single-harness zero-shot, latency by size; four logged deviations & 12 (R1), Holm within & D1, D2 (on $I^*$ only), D3$'$ for \texttt{InDeg}, D3 for \texttt{Reach}, D4--D7 apply (main \S\ref{M-sec:rq1}, \S\ref{M-sec:rq4}; Section~\ref{supp:referee}) \\
 A13 & 2026-09-26 & \emph{After} all results & Reclassification: \texttt{InDeg}, \texttt{Reach}, Pubs-raw and Reach-R1 restate $I^*$'s propagation rule (Remark~1) and are reported as references beside the first-order expansion, not as predictors; \texttt{GAT-P+InDeg} moves to this supplement; no arm run, dropped or changed & None & Contrasts of A7, A10 and A12 (R1) against the references lose claim status in the main text and stay here as descriptive comparisons (main \S\ref{M-sec:4.4}, \S\ref{M-sec:6.2}, \S\ref{M-sec:rq1}) \\
 Deviation & 2026-09-26 & \emph{After} all results & The plan's selection rule was not applied to any published learned result; recorded with status tiers & None & Disclosed (main \S\ref{M-sec:4.2}, \S\ref{M-sec:6.3}); applied as arm N of A14 \\
-A14 & 2026-09-26 & Before any result & Round-8 arms: degree-free learners, GIN sum aggregation, the $2\times2$ with $w_{\text{in}}$ held, a GAT surrogate for $I_{\text{dyn}}$, nested selection (arm N); F7 hybrid attribution; TOST at $\pm 0.05$ (margin not blind; see text); decision rules F1a--F6b & 3 + 3 + 3 + 3 + 3 + 4, Holm within & F1a, F2b, F3b, F4b, F5b, F6: see Section~\ref{supp:round8} (main \S\ref{M-sec:rq1}--\ref{M-sec:rq2}) \\
+A14 & 2026-09-26 & Before any result & Round-8 arms: degree-free learners, GIN sum aggregation, the $2\times2$ with $w_{\text{in}}$ held, a learned GAT approximation of $I_{\text{dyn}}$, nested selection (arm N); F7 hybrid attribution; TOST at $\pm 0.05$ (margin not blind; see text); decision rules F1a--F6b & 3 + 3 + 3 + 3 + 3 + 4, Holm within & F1a, F2b, F3b, F4b, F5b, F6: see Section~\ref{supp:round8} (main \S\ref{M-sec:rq1}--\ref{M-sec:rq2}) \\
+A15 & 2026-09-29 & \emph{After} all results & Post hoc, exploratory: the rate-weighted first-order expansion of $I_{\text{dyn}}$ (main Eq.~\eqref{M-eq:rate-expansion}) as that oracle's reference, and the input attribution of the learned $I_{\text{dyn}}$ approximation (rate and payload vs QoS-policy columns); no registered arm run, dropped or changed & None & Reference $\rho = 0.830$ on $I_{\text{dyn}}$, $+0.031$ over the learned approximation (10/12); the A11 Family C gain is carried by rate and payload ($+0.097$), not QoS policies ($-0.005$) (main \S\ref{M-sec:6.2}, \S\ref{M-sec:rq1}; Section~\ref{supp:advisor-v6}) \\
 Reporting & 2026-09-27 & 2026-09-27 & Training-free baselines consolidated to Section~\ref{supp:baselines}; no analysis, contrast or number changed & None & Reporting only (Section~\ref{supp:baselines}) \\
 \bottomrule
 \end{tabular}
@@ -1153,7 +1154,7 @@ Unsuffixed \texttt{GAT} and \texttt{GAT-QoS} are matched to HGT's parameter budg
 \textbf{GAT-P-QoS} & App--Lib \texttt{DEPENDS\_ON} & Homogeneous & 16-D QoS Vector & 429{,}992 & Yes & GAT-QoS on the dependency graph \\
 \textbf{GAT-P+InDeg} & App--Lib \texttt{DEPENDS\_ON} & Homogeneous & 16-D QoS Vector & 431{,}433 & Yes & Hybrid: GAT-P-QoS correcting \texttt{InDeg}; supplement only (Amendment~13) \\
 \textbf{HGT-P-QoS} & App--Lib \texttt{DEPENDS\_ON} & Heterogeneous & 16-D QoS Vector & 430{,}680 & Yes & HGT-QoS on the dependency graph (width 100) \\
-\textbf{GBM-P-QoS} & App--Lib \texttt{DEPENDS\_ON} & None & Node + QoS features & Trees & Yes & Dynamic surrogate / tabular learner on dependency features \\
+\textbf{GBM-P-QoS} & App--Lib \texttt{DEPENDS\_ON} & None & Node + QoS features & Trees & Yes & Learned $I_{\text{dyn}}$ approximation / tabular learner on dependency features \\
 \textbf{RM / $Q(v)$} & $G_{\text{analysis}}$ (Analysis Graph) & Per-type rules & Scalar $w(e)$ & 0 & No & Diagnostic attribution reference \\
 \bottomrule
 \end{tabular}%
@@ -2135,6 +2136,86 @@ Telecom RAN & 2.5 & 0.19 & 1.13 & 2.30 & 3.83 & $12.2\times$ & $3.4\times$ \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+
+\section{Amendment 15: The Rate-Weighted Reference for \texorpdfstring{$I_{\text{dyn}}$}{I\_dyn} and Input Attribution}
+\label{supp:advisor-v6}
+
+Amendment~15 is post hoc and exploratory: it was recorded after every other result existed, and its headline value was first computed ad hoc during the manuscript revision. It runs no simulator. \path{reproduce/idyn_rate_expansion.py} (\texttt{make rq-rate-expansion}) reads the five-seed, full-population $I_{\text{dyn}}$ labels cached by Amendment~11 and writes \path{data/benchmarks/idyn_rate_expansion.json}. Two gates hold: the first-order expansion of $I^*$ (main Eq.~\eqref{M-eq:analytic_istar}) reproduces Amendment~11's comparator on every fold, system and oracle (max $|\Delta| = 0$), and the attribution arm with all Q columns reproduces the published \texttt{GBM-P-QoS$\to$dyn} ($0.799$).
+
+\noindent\textbf{Closed forms.} Table~\ref{tab:a15-folds} scores four closed forms against $I_{\text{dyn}}$: the unweighted expansion (main Eq.~\eqref{M-eq:analytic_istar}); the rate-weighted expansion (main Eq.~\eqref{M-eq:rate-expansion}), the reference for $I_{\text{dyn}}$; a payload-weighted variant ($r_t B_t$ in place of $r_t$); and the bare declared publication rate of $v$. A saturation-aware variant, adding lost flow at brokers whose declared capacity is exceeded, was not built: $I_{\text{dyn}}$ runs at target utilisation $0.65$, and the plain rate form already exceeds the learned approximation. Each closed form takes at most $1.2$~ms per architecture.
+
+\noindent\textbf{Input attribution.} The same table retrains Amendment~11's gradient-boosted learner (same seeds, LOSO protocol and $I_{\text{dyn}}$ labels) on the structural feature set S alone, on S plus the declared rate and rate$\times$payload columns, and on S plus the seven QoS-policy columns (\texttt{Topo-QoS}, \texttt{Reach-QoS}, QoS-weighted in-degree, reliable, durable and deadline shares, maximum priority). Table~\ref{tab:a15-contrasts} gives the paired contrasts.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Amendment~15 on $I_{\text{dyn}}$ (five-seed mean, full population), twelve LOSO folds. Closed forms are training-free; the learned columns are means over five seeds. GBM$\to$dyn is Amendment~11's \texttt{GBM-P-QoS$\to$dyn} (S + all Q).}
+\label{tab:a15-folds}
+\begin{tabular}{lcccc|cccc}
+\toprule
+ & \multicolumn{4}{c|}{\textbf{Closed forms}} & \multicolumn{4}{c}{\textbf{Learned approximation (GBM, trained on $I_{\text{dyn}}$)}} \\
+\textbf{Fold} & Eq.~\eqref{M-eq:analytic_istar} & Eq.~\eqref{M-eq:rate-expansion} & $r_t B_t$ & Rate & GBM$\to$dyn & S & S + rate, payload & S + QoS-policy \\
+\midrule
+ATM & 0.533 & 0.838 & 0.628 & 0.770 & 0.798 & 0.644 & 0.842 & 0.586 \\
+AV & 0.634 & 0.741 & 0.732 & 0.748 & 0.742 & 0.649 & 0.736 & 0.628 \\
+Enterprise & 0.859 & 0.856 & 0.801 & 0.827 & 0.824 & 0.831 & 0.824 & 0.834 \\
+Financial Trading & 0.833 & 0.847 & 0.758 & 0.854 & 0.879 & 0.836 & 0.876 & 0.861 \\
+Healthcare & 0.898 & 0.898 & 0.841 & 0.834 & 0.893 & 0.913 & 0.887 & 0.903 \\
+Hub-and-Spoke & 0.481 & 0.598 & 0.516 & 0.517 & 0.590 & 0.504 & 0.560 & 0.524 \\
+Industrial SCADA & 0.602 & 0.759 & 0.708 & 0.681 & 0.732 & 0.620 & 0.727 & 0.618 \\
+IoT Smart City & 0.923 & 0.923 & 0.843 & 0.855 & 0.865 & 0.891 & 0.882 & 0.885 \\
+Logistics Fleet & 0.758 & 0.886 & 0.814 & 0.849 & 0.846 & 0.722 & 0.847 & 0.741 \\
+Microservices & 0.660 & 0.901 & 0.735 & 0.823 & 0.863 & 0.633 & 0.862 & 0.603 \\
+Real-Time Gaming & 0.690 & 0.866 & 0.821 & 0.831 & 0.763 & 0.612 & 0.769 & 0.604 \\
+Telecom RAN & 0.601 & 0.850 & 0.782 & 0.839 & 0.797 & 0.597 & 0.801 & 0.608 \\
+\midrule
+\textbf{Mean} & 0.706 & 0.830 & 0.748 & 0.786 & 0.799 & 0.704 & 0.801 & 0.700 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Amendment~15, zero-shot on the five system models, $I_{\text{dyn}}$. GBM$\to$dyn is trained on the twelve synthetic folds.}
+\label{tab:a15-zeroshot}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{System} & Eq.~\eqref{M-eq:analytic_istar} & Eq.~\eqref{M-eq:rate-expansion} & $r_t B_t$ & Rate & GBM$\to$dyn \\
+\midrule
+Autoware & 0.424 & 0.839 & 0.576 & 0.537 & 0.668 \\
+EdgeX & 0.844 & 0.926 & 0.924 & 0.750 & 0.834 \\
+Home Assistant & 0.723 & 0.972 & 0.909 & 0.890 & 0.790 \\
+Online Boutique & 0.775 & 0.815 & 0.751 & 0.673 & 0.806 \\
+Train-Ticket & 0.841 & 0.911 & 0.906 & 0.819 & 0.899 \\
+\midrule
+\textbf{Mean} & 0.722 & 0.893 & 0.813 & 0.734 & 0.800 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Amendment~15 contrasts on $I_{\text{dyn}}$, twelve LOSO folds. Two-sided Wilcoxon signed-rank; Holm within each block. Nominal: folds share training scenarios, and the amendment is post hoc.}
+\label{tab:a15-contrasts}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Contrast} & $\Delta\rho$ [95\% CI] & Won & $p$ & $p_{\text{Holm}}$ \\
+\midrule
+Eq.~\eqref{M-eq:rate-expansion} vs GBM$\to$dyn & $+0.031$ $[+0.013, +0.049]$ & 10/12 & 0.009 & 0.009 \\
+Eq.~\eqref{M-eq:rate-expansion} vs Eq.~\eqref{M-eq:analytic_istar} & $+0.124$ $[+0.068, +0.184]$ & 9/12 & 0.004 & 0.008 \\
+Eq.~\eqref{M-eq:rate-expansion} vs \texttt{InDeg} & $+0.166$ $[+0.091, +0.245]$ & 11/12 & 0.002 & 0.007 \\
+\midrule
+S + rate, payload vs S & $+0.097$ $[+0.049, +0.143]$ & 9/12 & 0.007 & 0.021 \\
+S + QoS-policy vs S & $-0.005$ $[-0.019, +0.007]$ & 5/12 & 0.677 & 1.000 \\
+S + all Q vs S + rate, payload & $-0.002$ $[-0.012, +0.007]$ & 6/12 & 0.970 & 1.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The rate-weighted expansion keeps a partial correlation of $0.578$ with $I_{\text{dyn}}$ after the rank of $I^*$ is removed, against $0.318$ for the unweighted expansion: the rate term is exactly the part of $I_{\text{dyn}}$ that $I^*$ does not contain. On the other oracles it scores $0.756$ ($I^*$) and $0.551$ ($I_{\text{comp}}$).
 
 
 \section{Training-Free Baselines}

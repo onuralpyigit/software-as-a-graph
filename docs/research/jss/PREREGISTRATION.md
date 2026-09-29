@@ -1321,3 +1321,32 @@ the published Topo-QoS is used wherever one is needed. Recorded, not gated.
   published value by up to 0.102. Per the stopping rule the arm is not re-run; F6 is reported as
   "nested selection *with scenario-level early stopping*" against the published protocol, and no
   difference is attributed to hyperparameter selection alone.
+
+---
+
+## Amendment 15 — rate-weighted first-order expansion of `I_dyn` and input attribution of the learned queue-flow approximation (2026-09-29, post hoc, after all results existed)
+
+**Status when written.** Post hoc and exploratory. Every Amendment 11 result was already published, and the headline number of this amendment (ρ = 0.830) was first computed ad hoc during the manuscript revision before this record existed. No registered arm is re-run, dropped or changed; no label changes. Harness: `reproduce/idyn_rate_expansion.py` (`make -f reproduce/Makefile rq-rate-expansion`), which reads the Amendment 11 label caches and runs no simulator. Artifact: `data/benchmarks/idyn_rate_expansion.json`.
+
+**Why it exists.** The advisor's v5 review asked whether `GBM-P-QoS→dyn` (Amendment 11, Family B: 0.799 vs Analytic-I* 0.706) beats the closed forms because it learns, or because its Q feature set carries declared publication rates (`PubRate`) and rate × payload (`PubBytes`), which `I_dyn` reads and Analytic-I* ignores. A fair comparator gives the closed form the same inputs.
+
+### Quantities, fixed by this record
+
+- **Eq. 7, the `I_dyn` reference:** `I_dyn,1^rate(v) = Σ_{t∈pub(v)} (r_t / |pub(t)|)·|sub(t)|`, where `r_t` is the declared publication rate of topic `t`. It weights each term of Analytic-I* (Eq. 6) by `r_t`, so it truncates `I_dyn` to direct delivered-message loss. By the Amendment 13 criterion it is a *reference* for `I_dyn` (a closed-form simplification of the oracle's own computation on the same inputs), not a predictor.
+- **Variants:** rate × payload (`r_t·B_t`) and the bare publication rate of `v`. A saturation-aware variant (lost flow at brokers whose declared capacity is exceeded) is **not** built: `I_dyn` runs at target utilisation 0.65, and the plain rate form already exceeds the learned approximation, so a stronger closed form cannot change the conclusion.
+- **Attribution arms:** the Amendment 11 learner, seeds and LOSO protocol, trained on `I_dyn`, with feature set S plus (a) nothing, (b) `PubRate`, `PubBytes`, (c) the seven QoS-policy columns of Q, (d) all of Q. Arm (d) is `gbm_dep_qos_dyn` and must reproduce it (gate G_A15, |Δ| ≤ 1e-3).
+- **Contrasts** (paired Wilcoxon over folds, Holm within each family): Eq. 7 vs `gbm_dep_qos_dyn`, vs Analytic-I*, vs `InDeg` on `I_dyn`; attribution (b) vs (a), (c) vs (a), (d) vs (b).
+
+### Results log
+
+- **Gates.** Analytic-I* reproduces the Amendment 11 comparator on every fold, system and oracle (max |Δ| = 0). G_A15: arm (d) = 0.7993, the published value.
+- **Eq. 7 on `I_dyn`:** LOSO ρ = 0.830 [0.778, 0.872] (ρ>0 = 0.832); zero-shot 0.893. On `I*` 0.756, on `I_comp` 0.551. Partial ρ(·, `I_dyn` | `I*`) = 0.578 [0.471, 0.679]. Computed in ≤ 1.2 ms per architecture.
+- **Eq. 7 vs `gbm_dep_qos_dyn`:** +0.031 [0.013, 0.049], 10/12 folds, Holm p = 0.009 (LOSO); +0.093, 5/5 systems, Holm p = 0.19 zero-shot. Eq. 7 vs Analytic-I* +0.124 (Holm 0.008); vs `InDeg` +0.166 (Holm 0.007).
+- **Variants:** rate × payload 0.748; publication rate alone 0.786.
+- **Attribution (LOSO, `I_dyn`):** S 0.704; S + rate, payload 0.801 (+0.097, 9/12, Holm 0.021); S + QoS-policy 0.700 (−0.005, Holm 1.0); S + Q 0.799 (vs S + rate, payload −0.002, Holm 1.0). The Amendment 11 Family C "QoS" gain (+0.095) is carried entirely by the declared rate and payload columns; the QoS-policy columns add nothing.
+
+### Consequences for reporting
+
+- Eq. 7 is reported with the other references (Table 6 reference block), not as a predictor, and is flagged exploratory wherever it appears.
+- The learned queue-flow model is reported as a *learned approximation* of `I_dyn`, not as the recommended ranker; Table 11 recommends Eq. 7 for `I_dyn`.
+- "Declared QoS contracts carry signal on `I_dyn`" is replaced by "declared publication rates and payload sizes carry signal on `I_dyn`; QoS-policy inputs do not".
