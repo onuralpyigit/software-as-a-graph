@@ -21,6 +21,7 @@
 #   make rq-capacity     — HGT-QoS vs GAT-w (Amendment 2's capacity arm), LOSO + zero-shot
 #   make rq-dependency-graph — learners on the DEPENDS_ON projection vs InDeg/Reach (Amendment 9)
 #   make rq-oracle-robust — GBM over dependency-graph signals across I*/I_dyn/I_comp (Amendment 11)
+#   make rq-rate-expansion — rate-weighted first-order expansion of I_dyn + GBM input attribution (Amendment 15)
 #   make omnibus         — one Holm correction over every registered contrast (no training)
 #   make nested-search   — nested-CV config search (opt-in, expensive; GRID=stage1|stage2|full)
 #   make convergent-validity — JSS Table 13: Three-oracle rank agreement (opt-in; expensive)
@@ -54,7 +55,7 @@ RESULTS_DIR   ?= results
 OUTPUT_DIR    ?= output
 ORACLE_ROBUST_WORKERS ?= 8
 
-.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution rq-directionality rq-capacity rq-dependency-graph rq-oracle-robust rq-amendment14 rq-referee-round8 rq-cost-reconcile jss-regimes nested-search kfold convergent-validity \
+.PHONY: setup scenarios cache block0 table3 table4 significance rq2-matched seed-robustness omnibus rq-hybrid rq-hybrid-gat rq-attribution rq-directionality rq-capacity rq-dependency-graph rq-oracle-robust rq-rate-expansion rq-amendment14 rq-referee-round8 rq-cost-reconcile jss-regimes nested-search kfold convergent-validity \
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency rq-referee-round7 \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 jss-fig6 jss-graphical-abstract \
@@ -341,6 +342,12 @@ rq-cost-reconcile:
 # data/benchmarks/{idyn_full_labels_jss12,oracle_robust_ltr,oracle_robust_significance}.json.
 rq-oracle-robust:
 	OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 $(PYTHON) reproduce/oracle_robust_ltr.py all --workers $(ORACLE_ROBUST_WORKERS)
+
+# Rate-weighted first-order expansion of I_dyn (Eq. 7) and the GBM input attribution
+# (PREREGISTRATION.md Amendment 15, post hoc). Reads the rq-oracle-robust label caches;
+# runs no simulator. Writes data/benchmarks/idyn_rate_expansion.json.
+rq-rate-expansion:
+	OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 $(PYTHON) reproduce/idyn_rate_expansion.py
 
 # Amendment 12 (round-7 referee analyses): raw-graph baselines, partial correlations
 # beyond I*, learned engines on I_dyn/I_comp, recall@k curves, single-harness
