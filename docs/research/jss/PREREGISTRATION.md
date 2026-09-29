@@ -1350,3 +1350,8 @@ the published Topo-QoS is used wherever one is needed. Recorded, not gated.
 - Eq. 7 is reported with the other references (Table 6 reference block), not as a predictor, and is flagged exploratory wherever it appears.
 - The learned queue-flow model is reported as a *learned approximation* of `I_dyn`, not as the recommended ranker; Table 11 recommends Eq. 7 for `I_dyn`.
 - "Declared QoS contracts carry signal on `I_dyn`" is replaced by "declared publication rates and payload sizes carry signal on `I_dyn`; QoS-policy inputs do not".
+
+### Amendment 15 — clarifications (2026-09-29, pre-submission review)
+
+- **"QoS-policy columns" is a misnomer for three of the seven.** `w(t)` = 0.75·QoS score + 0.15·log-size + 0.10·log-rate (`saag/core/models.py`, `TOPIC_*_WEIGHT_*`), so `Topo-QoS`, `Reach-QoS` and `QoS-InDeg` carry declared rate and size in log-compressed form at 25% of the weight. The other four (reliable, durable and deadline shares, maximum priority) are pure policy. The manuscript therefore calls arm (c) the *QoS-derived* columns. The artifact key `S+QoS-policy` and every number are unchanged; the conclusion stands, because neither the weighted scores nor the policy shares add signal, while the linear rate and payload columns do.
+- **Added quantity: label reliability.** Per fold, the mean pairwise Spearman agreement of two `I_dyn` seeds over the full population is 0.431–0.964. Its Spearman–Brown projection to the five-seed mean used as the label is 0.791–0.993. No Table 6 ranker exceeds its fold's projected bound. Eq. 7 exceeds the single-seed agreement on 8/12 folds, which is why the manuscript's earlier "test–retest 0.74–0.97 is an upper bound" sentence was wrong and has been replaced.
