@@ -22,6 +22,11 @@ publication rates and payload sizes that the unweighted first-order expansion of
    columns of Q, (c) only the QoS-policy columns of Q, (d) all of Q. Arm (d) is the published
    ``gbm_dep_qos_dyn`` and must reproduce it (gate G_A15).
 
+3. **Label reliability.** Per fold, the mean pairwise Spearman agreement of two I_dyn seeds
+   (single-run reliability) and its Spearman-Brown projection to the five-seed mean that the
+   paper uses as the label. The projection bounds any ranker's agreement with the label; every
+   Table 6 ranker is checked against its fold's bound.
+
 No simulator runs here: I_dyn comes from the Amendment 11 label cache (refused unless its key
 matches), I* from the published label cache and I_comp from the published I_comp cache.
 
@@ -31,6 +36,7 @@ Usage:
 
 from __future__ import annotations
 
+import itertools
 import json
 import sys
 import time
@@ -38,6 +44,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
+from scipy.stats import spearmanr
 
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -75,6 +82,8 @@ from reproduce.training_free_suite import (  # noqa: E402
 
 OUT = DATA_BENCHMARKS / "idyn_rate_expansion.json"
 ORACLE_ROBUST = DATA_BENCHMARKS / "oracle_robust_ltr.json"
+TABLE6 = DATA_BENCHMARKS / "referee_round8_table7.json"
+AMENDMENT14 = DATA_BENCHMARKS / "referee_round8_amendment14.json"
 ORACLES = ("i_star", "i_dyn", "i_comp")
 CLOSED_FORMS = ("Analytic-I*", "Rate-I_dyn", "RatePayload-I_dyn", "PubRate")
 GATE_TOL = 1e-3
@@ -164,6 +173,37 @@ def attribution(idyn: Dict[str, Dict[str, float]]) -> Dict[str, Dict[str, float]
                 rhos.append(score(dict(zip(apps, model.predict(X))), idyn[test], flow)["rho"])
             out[arm][test] = float(np.mean(rhos))
         print(f"  {test}: " + ", ".join(f"{a} {out[a][test]:.3f}" for a in ATTRIBUTION), flush=True)
+    return out
+
+
+# ── label reliability ─────────────────────────────────────────────────────────
+
+def label_reliability(per_seed: Dict[str, Dict[str, float]]) -> Dict[str, float]:
+    """Mean pairwise seed rho over the Applications every seed observed, and its
+    Spearman-Brown projection to the mean of all seeds."""
+    seeds = sorted(per_seed)
+    common = sorted(set.intersection(*(set(per_seed[s]) for s in seeds)))
+    rhos = [spearmanr([per_seed[a][v] for v in common], [per_seed[b][v] for v in common]).correlation
+            for a, b in itertools.combinations(seeds, 2)]
+    r1 = float(np.nanmean(rhos))
+    k = len(seeds)
+    return {"single_seed": r1, "seed_mean": k * r1 / (1 + (k - 1) * r1), "n_seeds": k,
+            "n_apps": len(common)}
+
+
+def table6_idyn(per: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
+    """Per-fold I_dyn rho of every Table 6 ranker, from the artifacts that back each row."""
+    out: Dict[str, Dict[str, float]] = {}
+    t6 = json.loads(TABLE6.read_text())["per_fold"]
+    for ranker, folds in t6.items():
+        rows = {f: c["i_dyn"]["rho"] for f, c in folds.items() if isinstance(c, dict) and "i_dyn" in c}
+        if rows:
+            out[ranker] = rows
+    a11 = json.loads(ORACLE_ROBUST.read_text())["loso"]["per_fold"]
+    out["GBM-P-QoS->dyn"] = {f: a11[f]["arms"]["gbm_dep_qos_dyn"]["i_dyn"]["rho"] for f in FOLDS}
+    a14 = json.loads(AMENDMENT14.read_text())["per_fold"]["cells"]["gl_proj_qos16_cap_idyn"]["i_dyn"]
+    out["GAT-P-QoS->dyn"] = {f: float(a14[f]) for f in FOLDS}
+    out["Rate-I_dyn"] = {f: per[f]["Rate-I_dyn"]["i_dyn"]["rho"] for f in FOLDS}
     return out
 
 
@@ -266,6 +306,21 @@ def main() -> int:
                   "published_gbm_dep_qos_dyn": published, "recomputed": att_means["S+Q"]["mean"],
                   "abs_diff": gate_a15},
     }
+    rel = {f: label_reliability(cached["labels"][f]["per_seed"]) for f in FOLDS}
+    rankers = table6_idyn(per)
+    exceed = {r: sorted(f for f, v in folds.items() if v is not None and v > rel[f]["seed_mean"])
+              for r, folds in rankers.items()}
+    reliability = {
+        "per_fold": rel,
+        "single_seed_range": [min(v["single_seed"] for v in rel.values()),
+                              max(v["single_seed"] for v in rel.values())],
+        "seed_mean_range": [min(v["seed_mean"] for v in rel.values()),
+                            max(v["seed_mean"] for v in rel.values())],
+        "rankers_checked": sorted(rankers),
+        "folds_above_seed_mean_bound": exceed,
+        "folds_where_rate_exceeds_single_seed": sorted(
+            f for f in FOLDS if rankers["Rate-I_dyn"][f] > rel[f]["single_seed"]),
+    }
     secs = [per[n]["seconds"] for n in names]
     payload = {
         "gates": gates,
@@ -273,6 +328,7 @@ def main() -> int:
         "contrasts": contrasts,
         "attribution": {"columns": {a: c for a, c in ATTRIBUTION.items()},
                         "means": att_means, "per_fold": att, "contrasts": att_fam},
+        "label_reliability": reliability,
         "timing": {"closed_form_seconds_max": max(secs), "closed_form_seconds_median": float(np.median(secs))},
         "per_fold": per,
         "provenance": stamp(script="reproduce/idyn_rate_expansion.py", amendment=15, seeds=SEEDS,
@@ -284,6 +340,9 @@ def main() -> int:
     for scope in ("loso", "zeroshot"):
         print(scope, {k: round(v["i_dyn"]["mean"], 4) for k, v in summary[scope].items()})
     print("attribution", {a: round(v["mean"], 4) for a, v in att_means.items()})
+    print("reliability single-seed", [round(x, 3) for x in reliability["single_seed_range"]],
+          "five-seed", [round(x, 3) for x in reliability["seed_mean_range"]],
+          "rankers above bound:", {r: f for r, f in exceed.items() if f})
     print(f"wrote {OUT}")
     return 0 if all(g["passed"] for g in gates.values()) else 1
 

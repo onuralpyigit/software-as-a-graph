@@ -2260,7 +2260,8 @@ def check_rate_expansion(rep: Report) -> None:
     # Section 6.1: attribution and the Eq. 7 contrast.
     _quote(rep, "sec:rq1 attribution", sec7,
            r"rate and payload columns alone add " + num + r" \((\d+)/12 folds, Holm \$p = ([\d.]+)\$\), "
-           r"and the seven QoS-policy columns add " + num + r" \(\$p = ([\d.]+)\$\)",
+           r"and the seven QoS-derived columns \(\$w\(t\)\$-weighted scores and policy shares\) add "
+           + num + r" \(\$p = ([\d.]+)\$\)",
            [(1, AC["S+rate,payload vs S"]["delta"]), (2, AC["S+rate,payload vs S"]["won"]),
             (3, AC["S+rate,payload vs S"]["p_holm"]), (4, AC["S+QoS-policy vs S"]["delta"]),
             (5, AC["S+QoS-policy vs S"]["p"])])
@@ -2270,6 +2271,22 @@ def check_rate_expansion(rep: Report) -> None:
            + r" \(\$\[([-+\d.]+), ([-+\d.]+)\]\$, (\d+)/12 folds, nominal Holm \$p = ([\d.]+)\$",
            [(1, rate["i_dyn"]["mean"]), (2, rate["i_dyn"]["ci95"][0]), (3, rate["i_dyn"]["ci95"][1]),
             (4, c["delta"]), (5, c["ci95"][0]), (6, c["ci95"][1]), (7, c["won"]), (8, c["p_holm"])])
+    # Section 4.3: I_dyn label reliability, and the claim that no Table 6 ranker exceeds it.
+    rel = a15.get("label_reliability")
+    if rel is None:
+        rep.findings.append(Finding("idyn_rate_expansion.json", "label_reliability", "block", "absent", "present"))
+    else:
+        (s1, s2), (m1, m2) = rel["single_seed_range"], rel["seed_mean_range"]
+        _quote(rep, "sec:4.3 reliability", _tex("sec4_failure_impact_prediction.tex"),
+               r"agrees with another at \$\\rho = ([\d.]+)\$--\$([\d.]+)\$ per fold; the five-seed mean"
+               r" used as the label has an estimated reliability of \$([\d.]+)\$--\$([\d.]+)\$",
+               [(1, s1), (2, s2), (3, m1), (4, m2)])
+        rep.checked += 1
+        above = {r: f for r, f in rel["folds_above_seed_mean_bound"].items() if f}
+        if above:
+            rep.findings.append(Finding("sec4_failure_impact_prediction.tex", "every ranker stays below",
+                                        "claim", str(above), "no fold above its bound"))
+
     # Every other main-text mention of Eq. 7's value and of the learned approximation it is set against.
     for fname in ("abstract.tex", "sec1_introduction.tex", "sec7_results.tex", "sec8_discussion.tex",
                   "sec9_conclusion.tex"):
