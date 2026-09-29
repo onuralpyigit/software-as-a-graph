@@ -5,7 +5,7 @@ Amendment~15 is post hoc and exploratory: it was recorded after every other resu
 
 \noindent\textbf{Closed forms.} Table~\ref{tab:a15-folds} scores four closed forms against $I_{\text{dyn}}$: the unweighted expansion (main Eq.~\eqref{M-eq:analytic_istar}); the rate-weighted expansion (main Eq.~\eqref{M-eq:rate-expansion}), the reference for $I_{\text{dyn}}$; a payload-weighted variant ($r_t B_t$ in place of $r_t$); and the bare declared publication rate of $v$. A saturation-aware variant, adding lost flow at brokers whose declared capacity is exceeded, was not built: $I_{\text{dyn}}$ runs at target utilisation $0.65$, and the plain rate form already exceeds the learned approximation. Each closed form takes at most $1.2$~ms per architecture.
 
-\noindent\textbf{Input attribution.} The same table retrains Amendment~11's gradient-boosted learner (same seeds, LOSO protocol and $I_{\text{dyn}}$ labels) on the structural feature set S alone, on S plus the declared rate and rate$\times$payload columns, and on S plus the seven QoS-policy columns (\texttt{Topo-QoS}, \texttt{Reach-QoS}, QoS-weighted in-degree, reliable, durable and deadline shares, maximum priority). Table~\ref{tab:a15-contrasts} gives the paired contrasts.
+\noindent\textbf{Input attribution.} The same table retrains Amendment~11's gradient-boosted learner (same seeds, LOSO protocol and $I_{\text{dyn}}$ labels) on the structural feature set S alone, on S plus the declared rate and rate$\times$payload columns, and on S plus the seven QoS-derived columns: three $w(t)$-weighted scores (\texttt{Topo-QoS}, \texttt{Reach-QoS}, QoS-weighted in-degree), in which declared size and rate enter log-compressed at a quarter of $w(t)$, and four pure policy shares (reliable, durable and deadline shares, maximum priority). Table~\ref{tab:a15-contrasts} gives the paired contrasts.
 
 \begin{table}[htbp]
 \centering
@@ -15,7 +15,7 @@ Amendment~15 is post hoc and exploratory: it was recorded after every other resu
 \begin{tabular}{lcccc|cccc}
 \toprule
  & \multicolumn{4}{c|}{\textbf{Closed forms}} & \multicolumn{4}{c}{\textbf{Learned approximation (GBM, trained on $I_{\text{dyn}}$)}} \\
-\textbf{Fold} & Eq.~\eqref{M-eq:analytic_istar} & Eq.~\eqref{M-eq:rate-expansion} & $r_t B_t$ & Rate & GBM$\to$dyn & S & S + rate, payload & S + QoS-policy \\
+\textbf{Fold} & Eq.~\eqref{M-eq:analytic_istar} & Eq.~\eqref{M-eq:rate-expansion} & $r_t B_t$ & Rate & GBM$\to$dyn & S & S + rate, payload & S + QoS-derived \\
 \midrule
 ATM & 0.533 & 0.838 & 0.628 & 0.770 & 0.798 & 0.644 & 0.842 & 0.586 \\
 AV & 0.634 & 0.741 & 0.732 & 0.748 & 0.742 & 0.649 & 0.736 & 0.628 \\
@@ -69,7 +69,7 @@ Eq.~\eqref{M-eq:rate-expansion} vs Eq.~\eqref{M-eq:analytic_istar} & $+0.124$ $[
 Eq.~\eqref{M-eq:rate-expansion} vs \texttt{InDeg} & $+0.166$ $[+0.091, +0.245]$ & 11/12 & 0.002 & 0.007 \\
 \midrule
 S + rate, payload vs S & $+0.097$ $[+0.049, +0.143]$ & 9/12 & 0.007 & 0.021 \\
-S + QoS-policy vs S & $-0.005$ $[-0.019, +0.007]$ & 5/12 & 0.677 & 1.000 \\
+S + QoS-derived vs S & $-0.005$ $[-0.019, +0.007]$ & 5/12 & 0.677 & 1.000 \\
 S + all Q vs S + rate, payload & $-0.002$ $[-0.012, +0.007]$ & 6/12 & 0.970 & 1.000 \\
 \bottomrule
 \end{tabular}

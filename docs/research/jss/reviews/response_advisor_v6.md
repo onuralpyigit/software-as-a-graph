@@ -37,7 +37,7 @@ Cross-references use LaTeX labels, so the renumbering you listed for lines 47, 7
    |:--|:--:|
    | S (structural only) | 0.704 |
    | S + rate, payload | **0.801** (+0.097, 9/12, Holm p = 0.021) |
-   | S + QoS-policy columns only | 0.700 (−0.005, p = 0.68) |
+   | S + QoS-derived columns only (w(t)-weighted scores and policy shares) | 0.700 (−0.005, p = 0.68) |
    | S + all Q (published) | 0.799 |
 
    The three sentences now say that declared publication rates and payload sizes carry the signal and QoS policies add none. On I*, QoS inputs were already n.s. (+0.030 with w_in held). So QoS policy information shows no measurable effect on either simulator.
@@ -95,3 +95,29 @@ These are consistency fixes only, so that §§2–6 no longer contradict the new
 
 - Fixed during this revision: five supplement citations were undefined, because their `refs.bib` entries had been pruned in `b6dac343`. `kato2018autoware`, `edgexfoundry2024`, `homeassistant2024` and `google2024onlineboutique` are restored verbatim from history. The Train-Ticket row now cites the existing `zhou2018trainticket`, which is the same TSE 2021 paper as the old `zhou2021fault`.
 - The other sections are waiting for your reading.
+
+## Pre-submission fixes (2026-09-29, after the v6 merge)
+
+These came from a full read of the merged v6 manuscript. They are on branch `jss-presubmission-fixes`.
+
+1. **§6.2 contradicted Amendment 15.** The "QoS factor" paragraph ended "on I_dyn, which uses the contracts, it does (Family C)". It now says the Family C gain comes from declared rates and payload sizes, and QoS-policy content adds nothing.
+2. **w(t) is not pure QoS policy.** `w(t) = 0.75·QoS + 0.15·log size + 0.10·log rate`. So three of the seven attribution columns (the w(t)-weighted `Topo-QoS`, `Reach-QoS` and QoS-weighted in-degree) carry declared rate and size, log-compressed at a quarter of the weight.
+   - §3.2 and §6.1 now describe the block as "QoS-derived columns (w(t)-weighted scores and policy shares)", and so do the supplement and this note.
+   - The Findings, Contribution 3 and §7.4 now say "QoS policies and QoS-weighted scores add none".
+   - No number changes, and the conclusion stands.
+3. **The I_dyn "test–retest 0.74–0.97 upper bound" in §4.3 was false.** On the full-population labels, one seed agrees with another at 0.43–0.96 per fold, and Eq. (7) exceeds that on 8/12 folds.
+   - The labels are five-seed means, with an estimated reliability of 0.79–0.99 (Spearman–Brown). No Table 6 ranker exceeds its fold's bound.
+   - §4.3 now says this. The values are computed in `idyn_rate_expansion.json` (`label_reliability`) and checked by the reconciler.
+4. **"Supplementary §S.36" in §5.1 pointed to Amendments 9–10.** No supplement section documents the RPC→pub-sub conversion. It now points to the per-system composition (S14) and the RQ3 experiment page.
+5. **§6 headings now match the new RQs:** "RQ1: Ranking Accuracy", "RQ2: Sources of Predictive Performance", "RQ4: Cost".
+6. **Triage protocol.** Both formulas run in milliseconds, so the direct-dependent count and Eq. (7) are now Tier 1 (commit). Tier 2 (staging) runs the simulators on the Tier-1 shortlist, which keeps your "reserve full simulation for those components".
+7. **The alert-fatigue paragraph now leads with the recommended training-free ranking:** `InDeg` recovers 0.49 at 20% and needs the top 45% for 80% recall. The GAT figures are kept for comparison.
+8. **Contribution 4** now marks the 0.830 result "exploratory, added after the registered analyses". The abstract is unchanged.
+
+Also:
+- The AI-use declaration now names Claude Opus 5 and Opus 5.5 and Gemini Flash 3.8.
+- The build statistics in `latex/README.md` are refreshed: 30 pages, 75 references.
+
+Still open before submission:
+- A new Zenodo version that includes the Amendment 15 artifact, then a check of the DOI in Data Availability and `refs.bib`.
+- Your reading of §§2–6.

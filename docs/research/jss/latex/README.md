@@ -80,7 +80,7 @@ the layout JSS's "<36 pages single-column" guidance reads naturally against.
 | `[preprint,review,3p]` | — | 1.5-spaced reviewing copy; add `review` back if the editor asks for one |
 | `[preprint]` | — | Elsevier's generic preprint layout (larger type/margins) |
 
-Of the 22 pages, the reference list is the last 3. `LENGTH_JUSTIFICATION.md` records what was moved
+Of the 30 pages, the reference list is the last 3. `LENGTH_JUSTIFICATION.md` records what was moved
 to the supplement and to the public experiment pages ([`../experiments/`](../experiments/README.md))
 when the body was condensed from 35 pages.
 
@@ -160,10 +160,10 @@ revision:
 grep -rnE '0\.680|0\.160|0\.695|0\.581|0\.568|0\.114|0\.054|0\.127|2,461|2,812' sections/ ../manuscript.md
 ```
 
-Current state of the build: **22 pages**, 9 sections, 11 tables, 5 figures, 90 references,
+Current state of the build: **30 pages**, 8 numbered sections, 11 tables, 5 figures, 75 references,
 **zero LaTeX errors, zero undefined references, zero undefined citations, zero overfull boxes**. The
-supplement builds to 25 pages (S1--S30, 29 tables, 2 figures), also with zero undefined references
-(its four overfull boxes predate the condensation).
+supplement builds to 44 pages (S1--S40, 70 tables, 3 figures), also with zero undefined references
+(its three overfull boxes predate the condensation).
 
 ## What's still a placeholder
 
@@ -173,7 +173,7 @@ supplement builds to 25 pages (S1--S30, 29 tables, 2 figures), also with zero un
   the body.
 - **Generative-AI declaration** — in `sections/declarations.tex`,
   immediately before the reference list, with the heading the Guide prescribes. Tool names filled in
-  (Anthropic's Claude Opus 5 and Google's Gemini Flash 3.8 for drafting, LaTeX typesetting, and analysis scripts; Grammarly for copy-editing). Resolved.
+  (Anthropic's Claude Opus 5 and Opus 5.5, and Google's Gemini Flash 3.8, for drafting, LaTeX typesetting, and analysis scripts; Grammarly for copy-editing). Resolved.
 - **Vitae** — `vitae.tex` is drafted from facts recorded in this repository (affiliation,
   CRediT contributions, the RASSE 2025 joint publication, and the degree/advisor line in
   `docs/research/thesis/outline.md`). Yigit's entry is 82 words, Buzluca's 58, both under the
@@ -185,7 +185,7 @@ supplement builds to 25 pages (S1--S30, 29 tables, 2 figures), also with zero un
   own section directly before the reference list (and before the generative-AI declaration).
 - **Graphical abstract** — encouraged by the Guide, not required; not produced here. If added:
   531 × 1328 px (h × w) or proportionally more, TIFF/EPS/PDF/MS Office, separate file.
-- **Length** — 22 pages, inside the "less than 36 pages single-column" the Guide encourages. No
+- **Length** — 30 pages, inside the "less than 36 pages single-column" the Guide encourages. No
   explanation is required in "Comments to the Editor"; `LENGTH_JUSTIFICATION.md` is kept as a record
   of what was moved to the supplement and the experiment pages.
 - **Experiment-pages tag** — `\sagexperimentsurl` in `manuscript.tex` points at the tag
