@@ -135,7 +135,7 @@ digraph Figure1 {
       label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
         <tr><td><b>Ranking Engines</b></td></tr>
         <tr><td align="left"><font point-size="9.5" color="#312E81">• Learned: GNN on DEPENDS_ON or multigraph</font></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Surrogate: GBM on dependency features</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Approximation: GBM on dependency features</font></td></tr>
         <tr><td align="left"><font point-size="9.5" color="#312E81">• Hybrid: learned correction of baseline</font></td></tr>
         <tr><td align="left"><font point-size="9.5" color="#312E81">• Baseline: QoS-weighted betweenness</font></td></tr>
       </table>>,
