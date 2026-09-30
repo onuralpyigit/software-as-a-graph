@@ -25,7 +25,7 @@ where:
 \begin{itemize}\tightlist
     \item $V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\text{host}} \cup V_{\text{lib}}$ holds the five entity types $\mathcal{T}_V$ of Table~\ref{tab:1}; $V_{\text{host}}$ denotes physical or virtual \emph{Execution Hosts}.
     \item $E$ is the set of directed edges, and $\tau_V: V \to \mathcal{T}_V$ and $\tau_E: E \to \mathcal{T}_E$ assign entity and relation types.
-    \item $w_V: V \to (0, 1]$ and $w_E: E \to (0, 1]$ weight entity criticality along with connection strength. For Applications and Libraries, $w_V(v) = 1 - \text{CQP}(v)$, where CQP is a code-quality penalty computed from static code metrics (lines of code, cyclomatic complexity, coupling and cohesion); otherwise $w_V(v) = 1.0$.
+    \item $w_V: V \to (0, 1]$ and $w_E: E \to (0, 1]$ weight entity criticality along with connection strength. In the multi-layer metamodel, $w_V(v) = 1 - \text{CQP}(v)$ incorporates static code quality penalties for Applications and Libraries; in the empirical benchmarks reported here, $w_V(v) = 1.0$ is held across all components to focus strictly on architectural topology.
 \end{itemize}
 
 \noindent The raw multigraph is denoted $G_{\text{structural}}$ (used exclusively by simulation oracles), while $G_{\text{analysis}}$ denotes the logical \texttt{DEPENDS\_ON} projection from which all rankers, analytical and learned, are computed. A comprehensive reference of mathematical notation is provided in the replication repository.

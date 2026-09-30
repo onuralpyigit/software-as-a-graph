@@ -76,16 +76,15 @@ the layout JSS's "<36 pages single-column" guidance reads naturally against.
 
 | Class options | Pages | Note |
 |---|---:|---|
-| **`[preprint,3p]`** | **22** | **current setting** |
+| **`[preprint,3p]`** | **33** | **current setting** |
 | `[preprint,review,3p]` | — | 1.5-spaced reviewing copy; add `review` back if the editor asks for one |
 | `[preprint]` | — | Elsevier's generic preprint layout (larger type/margins) |
 
-Of the 30 pages, the reference list is the last 3. `LENGTH_JUSTIFICATION.md` records what was moved
+Of the 33 pages, the reference list is the last 3. `LENGTH_JUSTIFICATION.md` records what was moved
 to the supplement and to the public experiment pages ([`../experiments/`](../experiments/README.md))
-when the body was condensed from 35 pages.
+when the body was condensed.
 
-**Re-measure, do not restate.** This file previously carried three different page counts at once (43,
-43 and 36) against an actual 39. Take every count here from the build: `pdfinfo manuscript.pdf`,
+**Re-measure, do not restate.** Take every count here from the build: `pdfinfo manuscript.pdf`,
 `grep -c 'begin{table' sections/*.tex`, `grep -c '^\\bibitem' manuscript.bbl`.
 
 ## Supplementary material
@@ -147,7 +146,7 @@ printed numbering agree, as the JSS Guide for Authors requires.
 python ../../../../reproduce/reconcile_manuscript.py --verbose
 ```
 
-Reconciles every reported table figure — currently **1,275** — against the artifact that produced it,
+Reconciles every reported table figure — currently **1,617** — against the artifact that produced it,
 and flags any that is missing, stale against the corpus, or was produced from a dirty working tree.
 It covers `supplementary.tex` as well as the body: the supplement restates body figures as literal
 text (it cannot `\ref` across documents), and that is how S6/S7 once kept a superseded pooled ρ after
@@ -160,7 +159,7 @@ revision:
 grep -rnE '0\.680|0\.160|0\.695|0\.581|0\.568|0\.114|0\.054|0\.127|2,461|2,812' sections/ ../manuscript.md
 ```
 
-Current state of the build: **30 pages**, 8 numbered sections, 11 tables, 5 figures, 75 references,
+Current state of the build: **33 pages**, 8 numbered sections, 11 tables, 5 figures, 87 references,
 **zero LaTeX errors, zero undefined references, zero undefined citations, zero overfull boxes**. The
 supplement builds to 44 pages (S1--S40, 70 tables, 3 figures), also with zero undefined references
 (its three overfull boxes predate the condensation).
@@ -185,8 +184,8 @@ supplement builds to 44 pages (S1--S40, 70 tables, 3 figures), also with zero un
   own section directly before the reference list (and before the generative-AI declaration).
 - **Graphical abstract** — encouraged by the Guide, not required; not produced here. If added:
   531 × 1328 px (h × w) or proportionally more, TIFF/EPS/PDF/MS Office, separate file.
-- **Length** — 30 pages, inside the "less than 36 pages single-column" the Guide encourages. No
+- **Length** — 33 pages, inside the "less than 36 pages single-column" the Guide encourages. No
   explanation is required in "Comments to the Editor"; `LENGTH_JUSTIFICATION.md` is kept as a record
   of what was moved to the supplement and the experiment pages.
-- **Experiment-pages tag** — `\sagexperimentsurl` in `manuscript.tex` points at the tag
-  `jss-submission-v4`, which does not exist yet. Create and push it at submission, or change the URL.
+- **Experiment-pages tag** — `\sagexperimentsurl` in `manuscript.tex` points at the release tag
+  `v1.0-jss`. Create and push it at submission.
