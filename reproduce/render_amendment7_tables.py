@@ -194,7 +194,7 @@ def controls_table(ctl: Dict[str, Any], ind: Dict[str, Any], sub: Dict[str, Any]
         r"\emph{Topo-Mult}: \texttt{Topo-QoS} with every topic weight fixed at $0.5$. "
         r"\emph{Perm}: \texttt{Topo-QoS} with QoS profiles permuted across topics (mean of 20). "
         r"\emph{Indep.}: the corpus regenerated with QoS no longer steering topology "
-        r"(\texttt{qos\_affinity: false}), relabelled. Rendered from "
+        r"(\texttt{qos\_affinity: false}), relabeled. Rendered from "
         r"\texttt{results/qos\_attribution\_controls.json}, \texttt{results/topo\_substrate\_check.json} "
         r"and \texttt{results/qos\_indep\_corpus.json}.}",
         r"\label{tab:a7-controls}",

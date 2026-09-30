@@ -100,12 +100,12 @@ Feature & $\rho$ with \texttt{InDeg} \\
 \end{tabular}
 \end{table}
 
-\noindent\textbf{The $n = 30$ sensitivity check (Amendment~11, rule R).} Table~\ref{tab:r8-n30} sets the full-population $I_{\text{dyn}}$ values of the main manuscript's Table~\ref{M-tab:independent_oracles} beside the earlier lexicographic sample. Every ranker scores higher on the full population, the order of the rankers is unchanged, and $I^*$ agrees with $I_{\text{dyn}}$ at $0.711$ against $0.627$ on the sample.
+\noindent\textbf{The $n = 30$ sensitivity check (Amendment~11, rule R).} Table~\ref{tab:r8-n30} sets the full-population $I_{\text{dyn}}$ values of the main manuscript's Table~\ref{M-tab:independent_oracles} beside the $n = 30$ lexicographic sample. Every ranker scores higher on the full population, the order of the rankers is unchanged, and $I^*$ agrees with $I_{\text{dyn}}$ at $0.711$ against $0.627$ on the sample.
 
 \begin{table}[htbp]
 \centering
 \scriptsize
-\caption{Mean Spearman $\rho$ against $I_{\text{dyn}}$: full population (five-seed mean) and the earlier $n = 30$ lexicographic sample (seed 42), twelve LOSO folds.}
+\caption{Mean Spearman $\rho$ against $I_{\text{dyn}}$: full population (five-seed mean) and the $n = 30$ lexicographic sample (seed 42), twelve LOSO folds.}
 \label{tab:r8-n30}
 \begin{tabular}{lccc}
 \toprule
@@ -168,7 +168,7 @@ GAT-P-QoS & telecom ran & 0.647 & 0.675 & 2L, RN-lab \\
 \end{tabular}
 \end{table}
 
-\noindent\textbf{Cost reconciliation.} Table~\ref{tab:r8-cost} gives the per-fold rows behind the corpus row of the main manuscript's Table~\ref{M-tab:cost-ll}. Every region was timed on the same topology in one session on an otherwise idle machine (CPU, one thread, median of three runs). The earlier ratio of Table~\ref{tab:gate_ratio} compared the system-layer gate with the three-type sweep; the ``Gate : sweep'' column repeats that comparison in this session ($1.7$--$16.3\times$, against $2.0$--$17.7\times$ earlier).
+\noindent\textbf{Cost reconciliation.} Table~\ref{tab:r8-cost} gives the per-fold rows behind the corpus row of the main manuscript's Table~\ref{M-tab:cost-ll}. Every region was timed on the same topology in one session on an otherwise idle machine (CPU, one thread, median of three runs). The ratio of Table~\ref{tab:gate_ratio}, measured in a separate session, compared the system-layer gate with the three-type sweep; the ``Gate : sweep'' column repeats that comparison in this session ($1.7$--$16.3\times$, against $2.0$--$17.7\times$ in that session).
 
 \begin{table}[htbp]
 \centering
