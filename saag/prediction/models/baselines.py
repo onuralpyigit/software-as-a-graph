@@ -94,9 +94,16 @@ class _HomoGATBase(nn.Module):
         dropout: float,
         edge_dim: Optional[int],  # None → no edge features
         topo_prior: bool = False,
+        reverse_edges: bool = False,
     ):
         super().__init__()
         self._require_pyg()
+        #: PREREGISTRATION.md Amendment 16: also pass every message against its
+        #: edge. On the raw multigraph every relation points away from
+        #: Applications, so without this a GAT never delivers a message to them.
+        #: The reversed copies share the convolution weights, so the parameter
+        #: count is unchanged.
+        self.reverse_edges = reverse_edges
         #: SaG-Hybrid-GAT (PREREGISTRATION.md, Amendment 6): the last input
         #: column carries the rank-normalised Topo-QoS score and the composite
         #: head learns a correction on its logit, exactly as in the HGT hybrid.
@@ -213,6 +220,15 @@ class _HomoGATBase(nn.Module):
 
         return x_flat, edge_index_flat, offsets
 
+    def _add_reverse(self, ei: Tensor, ea: Optional[Tensor] = None) -> Tuple[Tensor, Optional[Tensor]]:
+        """Append each edge reversed (and its features) when ``reverse_edges`` is set."""
+        if not self.reverse_edges:
+            return ei, ea
+        ei = torch.cat([ei, ei.flip(0)], dim=1)
+        if ea is not None:
+            ea = torch.cat([ea, ea], dim=0)
+        return ei, ea
+
     def _prior_logit(
         self, x_dict: Dict[str, Tensor], offsets: Dict[str, Tuple[int, int]], device
     ) -> Optional[Tensor]:
@@ -277,7 +293,8 @@ class HomogeneousGAT_Unweighted(_HomoGATBase):
         **kwargs,
     ):
         dims = node_type_dims or NODE_TYPE_TO_DIM
-        super().__init__(dims, hidden_channels, num_heads, num_layers, dropout, edge_dim=None)
+        super().__init__(dims, hidden_channels, num_heads, num_layers, dropout, edge_dim=None,
+                         reverse_edges=kwargs.get("reverse_edges", False))
 
     def forward(
         self,
@@ -288,7 +305,7 @@ class HomogeneousGAT_Unweighted(_HomoGATBase):
         device = next(self.parameters()).device
         x_flat, ei_flat, offsets = self._build_homo_graph(x_dict, edge_index_dict)
         x_flat = x_flat.to(device)
-        ei_flat = ei_flat.to(device)
+        ei_flat, _ = self._add_reverse(ei_flat.to(device))
 
         h = x_flat
         for conv, norm in zip(self.convs, self.norms):
@@ -332,7 +349,7 @@ class HomogeneousGAT_ScalarWeighted(_HomoGATBase):
         dims = node_type_dims or NODE_TYPE_TO_DIM
         super().__init__(
             dims, hidden_channels, num_heads, num_layers, dropout, edge_dim=edge_dim,
-            topo_prior=topo_prior,
+            topo_prior=topo_prior, reverse_edges=kwargs.get("reverse_edges", False),
         )
 
     def _build_homo_edge_attr(
@@ -379,6 +396,7 @@ class HomogeneousGAT_ScalarWeighted(_HomoGATBase):
 
         # Build scalar edge weights (1-d)
         ea_flat = self._build_homo_edge_attr(edge_index_dict, edge_attr_dict).to(device)
+        ei_flat, ea_flat = self._add_reverse(ei_flat, ea_flat)
 
         h = x_flat
         for conv, norm in zip(self.convs, self.norms):
@@ -418,6 +436,7 @@ def build_baseline(
     dropout: float = 0.2,
     edge_dim: Optional[int] = None,
     topo_prior: bool = False,
+    reverse_edges: bool = False,
 ) -> nn.Module:
     """Instantiate a baseline model by variant name.
 
@@ -433,6 +452,9 @@ def build_baseline(
         by ``"homo_unweighted"``, which takes no edge features by construction.
         Resolve it from a variant id with
         ``saag.evaluation.variant_registry.edge_dim`` rather than hard-coding.
+    reverse_edges:
+        Also pass messages against every edge (Amendment 16). Shares weights,
+        so the parameter count is unchanged.
     """
     kwargs = dict(
         node_type_dims=node_type_dims or NODE_TYPE_TO_DIM,
@@ -440,6 +462,7 @@ def build_baseline(
         num_heads=num_heads,
         num_layers=num_layers,
         dropout=dropout,
+        reverse_edges=reverse_edges,
     )
     if variant == "homo_unweighted":
         return HomogeneousGAT_Unweighted(**kwargs)

@@ -377,6 +377,8 @@ class TestControlArmCapacityParity:
         # Amendment 9: GATConv's size does not depend on the relation set, so
         # the projection arms keep their native counterparts' widths.
         "gl_proj_cap", "gl_proj_qos16_cap", "gl_proj_qos16_indeg_prior",
+        # Amendment 16: reversed copies share weights; priors add one input column.
+        "gl_full_qos16_cap_rev", "gl_qos16_prior_ap", "gl_qos16_indeg_prior",
     ])
     def test_control_arms_match_hgt_within_five_percent(self, variant_id):
         from saag.prediction.models.baselines import build_baseline
@@ -389,6 +391,7 @@ class TestControlArmCapacityParity:
             hidden_channels=registry.hidden_for(variant_id, 64),
             edge_dim=edge_dim,
             topo_prior=registry.prior_for(variant_id) is not None,
+            reverse_edges=registry.reverse_edges_for(variant_id),
         )
         ratio = _n_params(model) / _HGT_PARAMS
         assert 0.95 <= ratio <= 1.05, (
@@ -501,3 +504,38 @@ class TestEdgeChannelWidth:
             "edge_dim=16 does not respond to QoS dims 9-15, so the RQ2 "
             "edge-channel control is not controlling anything."
         )
+
+
+# ── Amendment 16: reverse-edge direction control ──────────────────────────────
+
+class TestReverseEdges:
+    """On the raw multigraph every relation points away from Applications, so a
+    forward GAT never delivers a message to them; ``reverse_edges`` must."""
+
+    def _app_out(self, reverse, x_dict, ei_dict, ea_dict, bump_topics):
+        from saag.prediction.models.baselines import build_baseline
+        torch.manual_seed(0)
+        model = build_baseline("homo_scalar", hidden_channels=32, num_heads=2,
+                               num_layers=2, edge_dim=16, reverse_edges=reverse)
+        model.eval()
+        x = {k: v.clone() for k, v in x_dict.items()}
+        if bump_topics:
+            x["Topic"] = x["Topic"] + 1.0
+        with torch.no_grad():
+            return model(x, ei_dict, ea_dict)["Application"]
+
+    def test_forward_gat_ignores_topics_at_applications(self, x_dict, ei_dict, ea_dict):
+        a = self._app_out(False, x_dict, ei_dict, ea_dict, bump_topics=False)
+        b = self._app_out(False, x_dict, ei_dict, ea_dict, bump_topics=True)
+        assert torch.allclose(a, b), "a forward GAT should not see Topic features at Applications"
+
+    def test_reverse_edges_deliver_messages_to_applications(self, x_dict, ei_dict, ea_dict):
+        a = self._app_out(True, x_dict, ei_dict, ea_dict, bump_topics=False)
+        b = self._app_out(True, x_dict, ei_dict, ea_dict, bump_topics=True)
+        assert not torch.allclose(a, b), "reverse edges must carry Topic messages to Applications"
+
+    def test_reverse_edges_add_no_parameters(self):
+        from saag.prediction.models.baselines import build_baseline
+        fwd = build_baseline("homo_scalar", hidden_channels=288, edge_dim=16)
+        rev = build_baseline("homo_scalar", hidden_channels=288, edge_dim=16, reverse_edges=True)
+        assert _n_params(fwd) == _n_params(rev)

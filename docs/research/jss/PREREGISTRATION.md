@@ -1355,3 +1355,96 @@ the published Topo-QoS is used wherever one is needed. Recorded, not gated.
 
 - **"QoS-policy columns" is a misnomer for three of the seven.** `w(t)` = 0.75·QoS score + 0.15·log-size + 0.10·log-rate (`saag/core/models.py`, `TOPIC_*_WEIGHT_*`), so `Topo-QoS`, `Reach-QoS` and `QoS-InDeg` carry declared rate and size in log-compressed form at 25% of the weight. The other four (reliable, durable and deadline shares, maximum priority) are pure policy. The manuscript therefore calls arm (c) the *QoS-derived* columns. The artifact key `S+QoS-policy` and every number are unchanged; the conclusion stands, because neither the weighted scores nor the policy shares add signal, while the linear rate and payload columns do.
 - **Added quantity: label reliability.** Per fold, the mean pairwise Spearman agreement of two `I_dyn` seeds over the full population is 0.431–0.964. Its Spearman–Brown projection to the five-seed mean used as the label is 0.791–0.993. No Table 6 ranker exceeds its fold's projected bound. Eq. 7 exceeds the single-seed agreement on 8/12 folds, which is why the manuscript's earlier "test–retest 0.74–0.97 is an upper bound" sentence was wrong and has been replaced.
+
+## Amendment 16 — round-11 referee arms: a direction control for the dependency-graph learner, and the hybrids with a corrected prior (2026-09-30, before any result)
+
+**Numbering.** An earlier draft on the unmerged branch `jss-revision-round9` also used the number 16
+for descriptive round-9 analyses. That draft never reached `main` and is superseded; this is
+Amendment 16 on `main`.
+
+**Status when written.** The code for every arm below exists (`gl_full_qos16_cap_rev`,
+`gl_qos16_prior_ap`, `hgl_qos_prior_ap`, `gl_qos16_indeg_prior`, `hgl_qos_indeg_prior` in
+`saag/evaluation/variant_registry.py`; reverse edges in `saag/prediction/models/baselines.py`; the
+corrected prior `reproduce/main_table.topo_qos_ap_prior`). Nothing has been trained or scored. What was
+seen before writing:
+- every published number;
+- `data/benchmarks/topo_ap_sensitivity.json`: Topo-QoS with its articulation term restored scores
+  0.533 on `I*` (0.553 as run), and differs from the as-run score only on the folds with articulation
+  points;
+- a unit test showing that the reverse-edge GAT delivers Topic features to Applications and the
+  forward GAT does not.
+
+**Why it exists.** The round-11 report (`reviews/review_2026-09-30_round11.md`) makes two requests:
+- **M1.** The +0.113 gain of GAT-P-QoS over GAT-QoS may be edge direction rather than dependency
+  semantics. On the raw multigraph no edge reaches an Application, so the forward GAT is a per-node
+  model.
+- **M2.** The hybrids were trained on the defective Topo-QoS prior. Their gain over that baseline is
+  not attributable to learning while they do not beat their own base learners.
+
+### Arms, fixed before any run
+
+All arms use LOSO over the twelve folds with five seeds {42, 123, 456, 789, 2024}, on CPU, with the
+published fixed configuration and the Application population. They run in one invocation together
+with their comparators (`make -f reproduce/Makefile rq-amendment16`).
+
+| id | Label | Change against its comparator | Comparator |
+|:---|:---|:---|:---|
+| `gl_full_qos16_cap_rev` | GAT-QoS-R | Every raw-multigraph edge is also passed in reverse, with shared weights and the same edge features. Parameters: 429,992, unchanged. | `gl_full_qos16_cap` |
+| `gl_qos16_prior_ap` | Hybrid-GAT-AP | Prior is Topo-QoS with the articulation term restored | `gl_qos16_prior`, `gl_full_qos16_cap` |
+| `hgl_qos_prior_ap` | Hybrid-HGT-AP | as above | `hgl_qos_prior`, `hgl_qos` |
+| `gl_qos16_indeg_prior` | GAT-QoS+InDeg | Prior is rank-normalised `InDeg` | `gl_full_qos16_cap` |
+| `hgl_qos_indeg_prior` | HGT-QoS+InDeg | as above | `hgl_qos` |
+
+The following comparators are re-run in the same invocation: `topo_qos`, `gl_full_qos16_cap`,
+`gl_proj_qos16_cap`, `hgl_qos`, `gl_qos16_prior` and `hgl_qos_prior`.
+
+**Gate G0.** Each learned comparator must reproduce its published per-seed ρ (max |Δ| < 1e-6).
+
+**Corrected baseline for contrasts.** Topo-QoS-AP per fold is the `topo_qos_ap_restored` column of
+`data/benchmarks/topo_ap_sensitivity.json`.
+
+**Zero-shot.** GAT-QoS-R, Hybrid-GAT-AP and Hybrid-HGT-AP are trained on all twelve folds and scored
+on the five system models (`--save-predictions`).
+
+### Contrasts
+
+Each contrast uses a two-sided Wilcoxon over folds on the mean over seeds of per-seed ρ, with a
+bootstrap 95% CI (B = 2,000) and Holm correction within each family. Tier: registered secondary. No
+family joins the omnibus.
+
+- **F8 direction** (on `I*`):
+  - (a) GAT-QoS-R vs GAT-QoS;
+  - (b) GAT-P-QoS vs GAT-QoS-R.
+- **F9 corrected prior** (on `I*`):
+  - Hybrid-GAT-AP vs Topo-QoS-AP;
+  - Hybrid-HGT-AP vs Topo-QoS-AP;
+  - Hybrid-GAT-AP vs GAT-QoS;
+  - Hybrid-HGT-AP vs HGT-QoS.
+- **F10 InDeg prior** (on `I*`):
+  - GAT-QoS+InDeg vs GAT-QoS;
+  - HGT-QoS+InDeg vs HGT-QoS.
+
+Descriptive only, with no tests:
+- every new arm scored on `I*`, `I_dyn-full` and `I_comp` from its saved per-seed predictions;
+- ρ>0 on `I*`;
+- each AP hybrid against its published defective-prior counterpart;
+- the mean Δ of each F10 arm against `InDeg`, with a t-based TOST at ±0.05;
+- zero-shot means.
+
+### Decision rules
+
+| Rule | Condition | What the text says |
+|:---|:---|:---|
+| F8a | (b) Holm p < 0.05, Δ > 0 | "The dependency graph adds beyond edge direction: GAT-P-QoS beats a reverse-edge raw-graph GAT (Δ, p)." The representation claim stays, stated against this control. |
+| F8b | (b) not significant, and (a) Holm p < 0.05 with Δ > 0 | "The dependency-graph gain is largely edge direction." The abstract, highlight 2 and contribution 1 no longer credit dependency semantics for the learned gain. |
+| F8c | Otherwise | Both Δ are reported. "The learned gain from the derived graph is not separated from edge direction" stays, and the representation claim is limited to the analytical rankings. |
+| F9a | Both AP hybrids beat Topo-QoS-AP at Holm p < 0.05 | The hybrid-over-baseline result is reported with the corrected prior. It sits beside the base-learner rows, whatever their outcome. |
+| F9b | Otherwise | The hybrid-over-baseline claim leaves the abstract, highlights and contributions. It is reported only in §6.1. |
+| F9c | Either AP hybrid beats its base learner at Holm p < 0.05 | "Correcting the prior adds skill beyond the learner" is stated for that hybrid. Otherwise the text says the hybrid gain belongs to the comparator, not to the correction. |
+| F10 | Any outcome | Reported beside the hybrids. An InDeg prior is a reference prior (Amendment 13), so no superiority over `InDeg` is claimed. |
+
+**Stopping rule.** No arm is re-run with other widths, features or seeds in search of a different
+answer. A failed arm is reported with its failure.
+
+**What is unchanged.** Every published arm, table value and tier. The defective-prior hybrids stay
+as published; the new rows are added beside them.

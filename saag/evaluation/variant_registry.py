@@ -79,6 +79,7 @@ __all__ = [
     "bidirectional_for",
     "node_qos_for",
     "prior_for",
+    "reverse_edges_for",
     "learns_on_projection",
     "drop_features_for",
     "qos_exempt_for",
@@ -121,8 +122,11 @@ class Variant:
     #: every arm except the two that decouple them.
     node_qos: Optional[bool] = None
     #: Closed-form score a hybrid reads as its prior column: ``"topo_qos"``
-    #: (Amendments 5 and 6) or ``"indeg"`` (Amendment 9). ``None`` = no prior.
+    #: (Amendments 5 and 6), ``"indeg"`` (Amendment 9) or ``"topo_qos_ap"``
+    #: (Topo-QoS with its articulation term restored; Amendment 16). ``None`` = no prior.
     prior: Optional[str] = None
+    #: Homogeneous GAT also passes messages against every edge (Amendment 16).
+    reverse_edges: bool = False
     #: Node-feature columns zeroed after normalisation (Amendment 14). The input
     #: width is kept, so the parameter budget does not change.
     drop_node_features: Tuple[str, ...] = ()
@@ -506,6 +510,60 @@ _VARIANT_LIST = [
         hidden_channels=288,
         label_source="istar_app",
     ),
+    # Amendment 16 (round-11 referee): is the dependency-graph gain direction or
+    # semantics, and what do the hybrids gain once their prior is corrected?
+    Variant(
+        variant_id="gl_full_qos16_cap_rev",
+        family="control",
+        substrate="native",
+        qos="full16",
+        label="GAT-QoS-R",
+        blurb="GAT-QoS (288 channels, 16-D QoS) on the raw multigraph with every "
+              "edge also passed in reverse; the direction control for GAT-P-QoS",
+        hidden_channels=288,
+        control_for="directionality",
+        reverse_edges=True,
+    ),
+    Variant(
+        variant_id="gl_qos16_prior_ap",
+        family="hybrid",
+        substrate="native",
+        qos="full16",
+        label="Hybrid-GAT-AP",
+        blurb="Hybrid-GAT reading Topo-QoS with its articulation term restored",
+        hidden_channels=288,
+        prior="topo_qos_ap",
+    ),
+    Variant(
+        variant_id="hgl_qos_prior_ap",
+        family="hybrid",
+        substrate="native",
+        qos="full16",
+        label="Hybrid-HGT-AP",
+        blurb="Hybrid-HGT reading Topo-QoS with its articulation term restored",
+        prior="topo_qos_ap",
+    ),
+    Variant(
+        variant_id="gl_qos16_indeg_prior",
+        family="hybrid",
+        substrate="native",
+        qos="full16",
+        label="GAT-QoS+InDeg",
+        blurb="GAT-QoS learning a residual correction on the rank-normalised "
+              "InDeg prior (raw multigraph)",
+        hidden_channels=288,
+        prior="indeg",
+    ),
+    Variant(
+        variant_id="hgl_qos_indeg_prior",
+        family="hybrid",
+        substrate="native",
+        qos="full16",
+        label="HGT-QoS+InDeg",
+        blurb="HGT-QoS learning a residual correction on the rank-normalised "
+              "InDeg prior (raw multigraph)",
+        prior="indeg",
+    ),
 ]
 
 VARIANTS: Dict[str, Variant] = {v.variant_id: v for v in _VARIANT_LIST}
@@ -670,9 +728,15 @@ def bidirectional_for(variant_id: str, default: bool = True) -> bool:
 
 
 def prior_for(variant_id: str) -> Optional[str]:
-    """Closed-form prior ``variant_id`` reads (``"topo_qos"``/``"indeg"``), or ``None``."""
+    """Closed-form prior ``variant_id`` reads (``"topo_qos"``/``"indeg"``/``"topo_qos_ap"``), or ``None``."""
     variant = VARIANTS.get(resolve(variant_id, "loso"), None)
     return None if variant is None else variant.prior
+
+
+def reverse_edges_for(variant_id: str) -> bool:
+    """Whether ``variant_id``'s homogeneous GAT also passes messages in reverse."""
+    variant = VARIANTS.get(resolve(variant_id, "loso"), None)
+    return False if variant is None else variant.reverse_edges
 
 
 def learns_on_projection(variant_id: str, harness: str = "loso") -> bool:

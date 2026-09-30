@@ -69,6 +69,9 @@ CONTROL_VARIANTS = [
     "gl_proj_qos16_cap_nodeg", "gl_proj_qos16_cap_nodeg_strict", "gl_full_qos16_cap_nodeg",
     "gin_proj_qos16", "gin_proj_qos16_nodeg", "gin_proj_qos16_nodeg_strict",
     "gl_full_cap_win", "hgl_win", "gl_proj_qos16_cap_idyn", "gl_proj_qos16_cap_istar_app",
+    # Amendment 16: reverse-edge direction control; hybrids with corrected and InDeg priors.
+    "gl_full_qos16_cap_rev", "gl_qos16_prior_ap", "hgl_qos_prior_ap",
+    "gl_qos16_indeg_prior", "hgl_qos_indeg_prior",
 ]
 #: The comparator every reported Δρ is measured against, re-exported from the
 #: registry that owns it so this harness, the k-fold harness, the significance
