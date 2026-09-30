@@ -1910,6 +1910,12 @@ def check_referee_round7(rep: Report) -> None:
     gat, topo_c = rec["curves"]["i_star"]["GAT-P-QoS"]["curve"], rec["curves"]["i_star"]["Topo-QoS"]["curve"]
     ana, gat_dyn = rec["curves"]["i_star"]["Analytic-I*"]["curve"], rec["curves"]["i_dyn"]["GAT-P-QoS"]["curve"]
     indeg_dyn = rec["curves"]["i_dyn"]["InDeg"]["curve"]
+    full = _load("referee_round10_recall_idyn_full.json")  # Figure 5B: exhaustive I_dyn
+    if full is None:
+        rep.skipped.append("referee_round10_recall_idyn_full.json absent; Figure 5B prose unchecked")
+    else:
+        gat_dyn = full["curves"]["i_dyn"]["GAT-P-QoS"]["curve"]
+        indeg_dyn = full["curves"]["i_dyn"]["InDeg"]["curve"]
     _quote(rep, "sec:rq1", tex,
            r"At \$k = 20\\%\$, \\texttt\{GAT-P-QoS\} recovers " + num + r" of the critical set and \\texttt\{Topo-QoS\} (?:recovers )?"
            + num + r".*?(?:top \$?40\\%\$? by \\texttt\{GAT-P-QoS\}|\\texttt\{GAT-P-QoS\} must flag the top \$?40\\%\$?) \(" + num,
