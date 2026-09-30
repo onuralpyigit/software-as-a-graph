@@ -47,7 +47,7 @@ The simulators define three different notions of cascade impact rather than dire
 \subsection{Input--Label Separation and the Reference Criterion}
 \label{sec:4.4}
 
-Features are extracted strictly from $G_{\text{analysis}}$, while simulation oracles execute on $G_{\text{structural}}$, and no simulation output is used as an input feature; a regression test in the replication package ensures this separation.
+No simulation output is used as an input: node features are computed on $G_{\text{analysis}}$, and labels come only from the oracles, which execute on $G_{\text{structural}}$; a regression test in the replication package ensures this separation. The separation is between inputs and labels, not between graphs: the raw-graph learners pass messages over the same structural edges the oracles traverse.
 
 Procedural separation does not eliminate construct overlap, which is the main risk discussed in this paper. High agreement with a simulator does not necessarily imply predictive skill: a ranking may correlate strongly with a simulator because it reproduces the simulator's propagation rule, not because it infers impact from independent evidence.
 

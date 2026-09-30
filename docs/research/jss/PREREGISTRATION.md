@@ -1448,3 +1448,47 @@ answer. A failed arm is reported with its failure.
 
 **What is unchanged.** Every published arm, table value and tier. The defective-prior hybrids stay
 as published; the new rows are added beside them.
+
+### Amendment 16 — results log and deviations (2026-10-01, after the arms ran)
+
+Artifacts:
+- `results/loso_amendment16_cpu.json` (one CPU invocation, `output/loso_cpu_amendment16`);
+- `data/benchmarks/referee_round11_amendment16.json` (`reproduce/referee_round11.py amendment16`);
+- `results/realworld_zeroshot_{gl_full_qos16_cap_rev,gl_qos16_prior_ap,hgl_qos_prior_ap}_amendment16.json`.
+
+**Gate G0.** Five of the six re-run comparators reproduce their published per-seed ρ exactly (max |Δ| = 0): `topo_qos`, `gl_full_qos16_cap`, `gl_qos16_prior`, `gl_proj_qos16_cap` and `hgl_qos`.
+
+**Deviation.** `hgl_qos_prior` (Hybrid-HGT) differs by at most 1.2 × 10⁻⁴ per seed. Its fold means round identically at three decimals (0.657). It is a comparator in no F8–F10 contrast; it appears only in the descriptive AP-vs-published row, where the re-run values are used. The gate is recorded as failed for this arm. Nothing was re-run.
+
+**Results (on `I*`; mean over seeds of per-seed ρ; Holm within family).**
+
+| Family | Contrast | Δ [95% CI] | won | Holm p |
+|:---|:---|:---|:---|:---|
+| F8 | GAT-QoS-R (0.676) vs GAT-QoS (0.635) | +0.041 [+0.000, +0.087] | 10/12 | 0.064 |
+| F8 | GAT-P-QoS (0.748) vs GAT-QoS-R | +0.072 [+0.034, +0.113] | 10/12 | 0.014 |
+| F9 | Hybrid-GAT-AP (0.669) vs Topo-QoS-AP (0.533) | +0.136 [+0.076, +0.198] | 11/12 | 0.0059 |
+| F9 | Hybrid-HGT-AP (0.640) vs Topo-QoS-AP | +0.107 [+0.060, +0.153] | 11/12 | 0.0073 |
+| F9 | Hybrid-GAT-AP vs GAT-QoS | +0.034 [−0.047, +0.118] | 7/12 | 0.940 |
+| F9 | Hybrid-HGT-AP vs HGT-QoS (0.622) | +0.018 [−0.067, +0.100] | 8/12 | 0.940 |
+| F10 | GAT-QoS+InDeg (0.763) vs GAT-QoS | +0.128 [+0.063, +0.204] | 11/12 | 0.0049 |
+| F10 | HGT-QoS+InDeg (0.759) vs HGT-QoS | +0.137 [+0.074, +0.211] | 10/12 | 0.0049 |
+
+**Decision rules.**
+- **F8a applies.** "The dependency graph adds beyond edge direction."
+- **F9a applies**, and **F9c is false for both hybrids**: "the hybrid gain belongs to the comparator, not to the correction".
+- **F10 (descriptive).** Both InDeg-prior arms lie within ±0.012 of `InDeg` (0.764). The 90% bounds are 0.012, and the t-TOST at ±0.05 gives p < 0.001.
+
+**Descriptive.**
+- Each AP hybrid against its published defective-prior counterpart: −0.014 and −0.017 (p = 0.62).
+- `I_dyn` / `I_comp`:
+  - GAT-QoS-R: 0.547 / 0.299
+  - Hybrid-GAT-AP: 0.577 / 0.561
+  - Hybrid-HGT-AP: 0.552 / 0.553
+  - GAT-QoS+InDeg: 0.657 / 0.563
+  - HGT-QoS+InDeg: 0.657 / 0.589
+- Zero-shot mean ρ:
+  - GAT-QoS-R: 0.744
+  - Hybrid-GAT-AP: 0.668
+  - Hybrid-HGT-AP: 0.702
+
+**Operational deviation.** The first zero-shot launch failed at import because `PYTHONPATH` was unset. It was relaunched unchanged; no result existed before the relaunch.

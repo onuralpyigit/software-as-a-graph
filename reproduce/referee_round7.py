@@ -405,6 +405,7 @@ def cmd_recall(args: argparse.Namespace) -> int:
     if full:  # exhaustive five-seed mean over every Application instead of the n=30 sample
         lab = json.loads(IDYN_FULL.read_text())["labels"]
         oracles["i_dyn"] = {n: {str(k): float(v) for k, v in lab[n]["mean"].items()} for n in folds}
+    rankers = ("InDeg", "Reach", "Topo-QoS", "Analytic-I*", "GAT-P-QoS") + (("Rate-weighted",) if full else ())
     gatp = _learned_preds(LEARNED["GAT-P-QoS"][0])
     per: Dict[str, Any] = {}
     for sid in folds:
@@ -412,16 +413,19 @@ def cmd_recall(args: argparse.Namespace) -> int:
         graph = build_graph_from_json(topo)
         rk = raw_rankers(topo)
         rk["GAT-P-QoS"] = gatp[sid]
+        if full:  # Eq. 7, the I_dyn reference (Amendment 15); local import avoids a cycle
+            from reproduce.idyn_rate_expansion import closed_forms
+            rk["Rate-weighted"] = closed_forms(topo)["Rate-I_dyn"]
         per[sid] = {}
         for o in ("i_star", "i_dyn"):
             lab = oracles[o][sid]
             apps = [a for a in _apps(graph) if a in lab]
             per[sid][o] = {r: {f"{k:.2f}": expected_recall(rk[r], lab, apps, k) for k in K_GRID}
-                           for r in ("InDeg", "Reach", "Topo-QoS", "Analytic-I*", "GAT-P-QoS")}
+                           for r in rankers}
     curves: Dict[str, Any] = {}
     for o in ("i_star", "i_dyn"):
         curves[o] = {}
-        for r in ("InDeg", "Reach", "Topo-QoS", "Analytic-I*", "GAT-P-QoS"):
+        for r in rankers:
             c = {}
             for k in K_GRID:
                 kk = f"{k:.2f}"

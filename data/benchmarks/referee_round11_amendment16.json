@@ -1,0 +1,1086 @@
+{
+  "gate_G0": {
+    "gl_full_qos16_cap": {
+      "max_abs_diff": 0.0,
+      "passed": true
+    },
+    "gl_qos16_prior": {
+      "max_abs_diff": 0.0,
+      "passed": true
+    },
+    "gl_proj_qos16_cap": {
+      "max_abs_diff": 0.0,
+      "passed": true
+    },
+    "hgl_qos": {
+      "max_abs_diff": 0.0,
+      "passed": true
+    },
+    "hgl_qos_prior": {
+      "max_abs_diff": 0.00012281944511505216,
+      "passed": false
+    },
+    "topo_qos": {
+      "max_abs_diff": 0.0,
+      "passed": true
+    }
+  },
+  "F8": {
+    "GAT-QoS-R vs GAT-QoS": {
+      "delta": 0.041140750064118776,
+      "ci95": [
+        0.0001383923225344075,
+        0.08686573817433643
+      ],
+      "won": 10,
+      "n": 12,
+      "p": 0.06396484375,
+      "p_holm": 0.06396484375
+    },
+    "GAT-P-QoS vs GAT-QoS-R": {
+      "delta": 0.07153158245216619,
+      "ci95": [
+        0.033815437555493204,
+        0.11282293972304884
+      ],
+      "won": 10,
+      "n": 12,
+      "p": 0.0068359375,
+      "p_holm": 0.013671875
+    }
+  },
+  "F9": {
+    "Hybrid-GAT-AP vs Topo-QoS-AP": {
+      "delta": 0.13599241351195465,
+      "ci95": [
+        0.07649875595343258,
+        0.19765189411147457
+      ],
+      "won": 11,
+      "n": 12,
+      "p": 0.00146484375,
+      "p_holm": 0.005859375
+    },
+    "Hybrid-HGT-AP vs Topo-QoS-AP": {
+      "delta": 0.10655379294378232,
+      "ci95": [
+        0.05971781930233304,
+        0.15320706074848833
+      ],
+      "won": 11,
+      "n": 12,
+      "p": 0.00244140625,
+      "p_holm": 0.00732421875
+    },
+    "Hybrid-GAT-AP vs GAT-QoS": {
+      "delta": 0.034171527574552545,
+      "ci95": [
+        -0.04703129246058221,
+        0.11824955164610164
+      ],
+      "won": 7,
+      "n": 12,
+      "p": 0.4697265625,
+      "p_holm": 0.939453125
+    },
+    "Hybrid-HGT-AP vs HGT-QoS": {
+      "delta": 0.01810251539177292,
+      "ci95": [
+        -0.06661604108570682,
+        0.1002946089627706
+      ],
+      "won": 8,
+      "n": 12,
+      "p": 0.791015625,
+      "p_holm": 0.939453125
+    }
+  },
+  "F10": {
+    "GAT-QoS+InDeg vs GAT-QoS": {
+      "delta": 0.12755578407918808,
+      "ci95": [
+        0.06329581845378572,
+        0.2043233679128743
+      ],
+      "won": 11,
+      "n": 12,
+      "p": 0.00244140625,
+      "p_holm": 0.0048828125
+    },
+    "HGT-QoS+InDeg vs HGT-QoS": {
+      "delta": 0.13708466822647045,
+      "ci95": [
+        0.07406775237544932,
+        0.2111869707939959
+      ],
+      "won": 10,
+      "n": 12,
+      "p": 0.00244140625,
+      "p_holm": 0.0048828125
+    }
+  },
+  "descriptive": {
+    "Hybrid-GAT-AP vs Hybrid-GAT": {
+      "delta": -0.013936027329517575,
+      "ci95": [
+        -0.04593225512205491,
+        0.005942360433223357
+      ],
+      "won": 6,
+      "n": 12,
+      "p": 0.6220703125
+    },
+    "Hybrid-HGT-AP vs Hybrid-HGT": {
+      "delta": -0.016798666409891177,
+      "ci95": [
+        -0.04651315668520544,
+        0.001971882871480333
+      ],
+      "won": 6,
+      "n": 12,
+      "p": 0.6220703125
+    }
+  },
+  "to_indeg": {
+    "GAT-QoS+InDeg": {
+      "mean": -0.0016728953421806202,
+      "won": 4,
+      "tost_t": {
+        "mean": -0.0016728953421806202,
+        "se": 0.0057494744795497125,
+        "df": 11,
+        "margin": 0.05,
+        "p": 2.0348883048582067e-06,
+        "ci90": [
+          -0.011998289275528127,
+          0.008652498591166888
+        ],
+        "equivalence_bound": 0.011998289275528127
+      },
+      "tost_wilcoxon": {
+        "margin": 0.05,
+        "p": 0.000244140625
+      }
+    },
+    "HGT-QoS+InDeg": {
+      "mean": -0.0055136195802909654,
+      "won": 3,
+      "tost_t": {
+        "mean": -0.0055136195802909654,
+        "se": 0.0037445499866023755,
+        "df": 11,
+        "margin": 0.05,
+        "p": 6.447308920076722e-08,
+        "ci90": [
+          -0.0122384000541072,
+          0.0012111608935252687
+        ],
+        "equivalence_bound": 0.0122384000541072
+      },
+      "tost_wilcoxon": {
+        "margin": 0.05,
+        "p": 0.000244140625
+      }
+    }
+  },
+  "decision_rules": {
+    "F8": "F8a",
+    "F9": "F9a",
+    "F9c": {
+      "Hybrid-GAT-AP": false,
+      "Hybrid-HGT-AP": false
+    }
+  },
+  "summary": {
+    "Topo-QoS": {
+      "loso_i_star": 0.5531394221414575
+    },
+    "GAT-QoS": {
+      "loso_i_star": 0.6350046539119647,
+      "i_star": 0.6350046539119647,
+      "i_dyn": 0.5139001572702079,
+      "i_comp": 0.1412865128217735,
+      "i_star_active": 0.3381086313024814
+    },
+    "GAT-P-QoS": {
+      "loso_i_star": 0.7476769864282496,
+      "i_star": 0.7476769864282495,
+      "i_dyn": 0.5971274624977666,
+      "i_comp": 0.2796501443830202,
+      "i_star_active": 0.4401065746792927
+    },
+    "HGT-QoS": {
+      "loso_i_star": 0.6216350455265719,
+      "i_star": 0.6216350455265719,
+      "i_dyn": 0.5161806978424898,
+      "i_comp": 0.17060210466062056,
+      "i_star_active": 0.3350075017789184
+    },
+    "Hybrid-GAT": {
+      "loso_i_star": 0.6831122088160347,
+      "i_star": 0.6831122088160347,
+      "i_dyn": 0.5800294010639212,
+      "i_comp": 0.5739100823758905,
+      "i_star_active": 0.3980206379203284
+    },
+    "Hybrid-HGT": {
+      "loso_i_star": 0.656536227328236,
+      "i_star": 0.656536227328236,
+      "i_dyn": 0.5570030687838617,
+      "i_comp": 0.5538199085689212,
+      "i_star_active": 0.33983474666927305
+    },
+    "GAT-QoS-R": {
+      "loso_i_star": 0.6761454039760834,
+      "i_star": 0.6761454039760834,
+      "i_dyn": 0.5470488383447846,
+      "i_comp": 0.2992745645027899,
+      "i_star_active": 0.3931837942499729
+    },
+    "Hybrid-GAT-AP": {
+      "loso_i_star": 0.6691761814865173,
+      "i_star": 0.6691761814865173,
+      "i_dyn": 0.5766089817912045,
+      "i_comp": 0.5605050228244463,
+      "i_star_active": 0.4087317458077491
+    },
+    "Hybrid-HGT-AP": {
+      "loso_i_star": 0.6397375609183449,
+      "i_star": 0.6397375609183449,
+      "i_dyn": 0.5515247719748706,
+      "i_comp": 0.5527758955694049,
+      "i_star_active": 0.3497818794705709
+    },
+    "GAT-QoS+InDeg": {
+      "loso_i_star": 0.7625604379911527,
+      "i_star": 0.7625604379911527,
+      "i_dyn": 0.656825982905573,
+      "i_comp": 0.563114276811548,
+      "i_star_active": 0.5258024280363406
+    },
+    "HGT-QoS+InDeg": {
+      "loso_i_star": 0.7587197137530425,
+      "i_star": 0.7587197137530425,
+      "i_dyn": 0.6572018013957527,
+      "i_comp": 0.5894075001054514,
+      "i_star_active": 0.5205344071576548
+    },
+    "Topo-QoS-AP": {
+      "loso_i_star": 0.5331837679745625
+    }
+  },
+  "zero_shot": {
+    "GAT-QoS-R": {
+      "mean_rho": 0.7437838442114162,
+      "mean_rho_positive": 0.16989622545056746,
+      "per_system": {
+        "realworld_autoware_ros2": 0.7491909047600718,
+        "realworld_cloud_microservices": 0.6309049351190601,
+        "realworld_edgex": 0.7728346713711991,
+        "realworld_homeassistant": 0.8519181311595257,
+        "realworld_trainticket": 0.7140705786472238
+      }
+    },
+    "Hybrid-GAT-AP": {
+      "mean_rho": 0.6684825448626859,
+      "mean_rho_positive": 0.12743378713978037,
+      "per_system": {
+        "realworld_autoware_ros2": 0.5918703102091862,
+        "realworld_cloud_microservices": 0.6500391520960819,
+        "realworld_edgex": 0.7582575468152846,
+        "realworld_homeassistant": 0.7140870428990753,
+        "realworld_trainticket": 0.628158672293801
+      }
+    },
+    "Hybrid-HGT-AP": {
+      "mean_rho": 0.7021909192496565,
+      "mean_rho_positive": 0.12078884486199837,
+      "per_system": {
+        "realworld_autoware_ros2": 0.5699927963363446,
+        "realworld_cloud_microservices": 0.7156983487090127,
+        "realworld_edgex": 0.7367624648430039,
+        "realworld_homeassistant": 0.7570542711829618,
+        "realworld_trainticket": 0.7314467151769589
+      }
+    }
+  },
+  "per_fold": {
+    "loso_i_star": {
+      "Topo-QoS": {
+        "atm_system": 0.3109239422098597,
+        "av_system": 0.7526918117294357,
+        "enterprise_system": 0.7953082495191883,
+        "financial_trading_system": 0.5864231295106708,
+        "healthcare_system": 0.36869084150771025,
+        "hub_and_spoke_system": 0.42951365098479605,
+        "industrial_scada_system": 0.6503746663112442,
+        "iot_smart_city_system": 0.3512103555774073,
+        "logistics_fleet_system": 0.7406995865664335,
+        "microservices_system": 0.26538514238447786,
+        "realtime_gaming_system": 0.8102612338299412,
+        "telecom_ran_system": 0.5761904555663259
+      },
+      "GAT-QoS": {
+        "atm_system": 0.5055127761105372,
+        "av_system": 0.731611846262757,
+        "enterprise_system": 0.40749947480478194,
+        "financial_trading_system": 0.7134646779755948,
+        "healthcare_system": 0.7983703287478553,
+        "hub_and_spoke_system": 0.6303834059252347,
+        "industrial_scada_system": 0.7208818711191824,
+        "iot_smart_city_system": 0.7202664779998796,
+        "logistics_fleet_system": 0.6541422005337407,
+        "microservices_system": 0.4785937583240486,
+        "realtime_gaming_system": 0.6849432055188599,
+        "telecom_ran_system": 0.5743858236211034
+      },
+      "GAT-P-QoS": {
+        "atm_system": 0.6031280894768033,
+        "av_system": 0.7638419054268627,
+        "enterprise_system": 0.7384660746529251,
+        "financial_trading_system": 0.8001996453691754,
+        "healthcare_system": 0.8628833043164637,
+        "hub_and_spoke_system": 0.7582514375449876,
+        "industrial_scada_system": 0.8335480526429337,
+        "iot_smart_city_system": 0.7471903464351488,
+        "logistics_fleet_system": 0.7741095081191699,
+        "microservices_system": 0.6488445219440877,
+        "realtime_gaming_system": 0.7949820382996833,
+        "telecom_ran_system": 0.646678912910754
+      },
+      "HGT-QoS": {
+        "atm_system": 0.5226057529236176,
+        "av_system": 0.7035779928474517,
+        "enterprise_system": 0.425903785342667,
+        "financial_trading_system": 0.695104891711547,
+        "healthcare_system": 0.7303062709607357,
+        "hub_and_spoke_system": 0.5481518236176625,
+        "industrial_scada_system": 0.683709946451834,
+        "iot_smart_city_system": 0.6882456266650809,
+        "logistics_fleet_system": 0.7707277298021755,
+        "microservices_system": 0.4751393089745607,
+        "realtime_gaming_system": 0.7888496628117652,
+        "telecom_ran_system": 0.42729775420976523
+      },
+      "Hybrid-GAT": {
+        "atm_system": 0.4471632568690982,
+        "av_system": 0.7929629235239594,
+        "enterprise_system": 0.7683043714213581,
+        "financial_trading_system": 0.7965825282787053,
+        "healthcare_system": 0.6863084611893205,
+        "hub_and_spoke_system": 0.5682745662073678,
+        "industrial_scada_system": 0.7681960907159724,
+        "iot_smart_city_system": 0.653580661507413,
+        "logistics_fleet_system": 0.8057808115852116,
+        "microservices_system": 0.4287144777407499,
+        "realtime_gaming_system": 0.8251455144995227,
+        "telecom_ran_system": 0.656332842253738
+      },
+      "Hybrid-HGT": {
+        "atm_system": 0.42904058265763945,
+        "av_system": 0.7816639085207863,
+        "enterprise_system": 0.7344912616181627,
+        "financial_trading_system": 0.7537313588762805,
+        "healthcare_system": 0.6249805788640567,
+        "hub_and_spoke_system": 0.5642401518727131,
+        "industrial_scada_system": 0.7584243727208101,
+        "iot_smart_city_system": 0.5902797104597071,
+        "logistics_fleet_system": 0.7918200199423495,
+        "microservices_system": 0.36560935551914886,
+        "realtime_gaming_system": 0.836588340623841,
+        "telecom_ran_system": 0.6475650862633369
+      },
+      "GAT-QoS-R": {
+        "atm_system": 0.47201328741662874,
+        "av_system": 0.8093253767922134,
+        "enterprise_system": 0.6438156817283751,
+        "financial_trading_system": 0.7922594899496112,
+        "healthcare_system": 0.8346823700407657,
+        "hub_and_spoke_system": 0.5339203830083434,
+        "industrial_scada_system": 0.7308082959898206,
+        "iot_smart_city_system": 0.7752174684103,
+        "logistics_fleet_system": 0.7061982136335659,
+        "microservices_system": 0.5406848059156089,
+        "realtime_gaming_system": 0.6977967111755699,
+        "telecom_ran_system": 0.5770227636521981
+      },
+      "Hybrid-GAT-AP": {
+        "atm_system": 0.2758902562721685,
+        "av_system": 0.7940500882057513,
+        "enterprise_system": 0.7619545144526079,
+        "financial_trading_system": 0.7980877157131268,
+        "healthcare_system": 0.6885340698220923,
+        "hub_and_spoke_system": 0.5651879749784092,
+        "industrial_scada_system": 0.7400627695049959,
+        "iot_smart_city_system": 0.690713940685616,
+        "logistics_fleet_system": 0.8115172352260529,
+        "microservices_system": 0.4211641562270002,
+        "realtime_gaming_system": 0.8275646550199465,
+        "telecom_ran_system": 0.6553868017304386
+      },
+      "Hybrid-HGT-AP": {
+        "atm_system": 0.26669162617998876,
+        "av_system": 0.7819263275819084,
+        "enterprise_system": 0.7448223933909891,
+        "financial_trading_system": 0.7629666755766261,
+        "healthcare_system": 0.624871771330899,
+        "hub_and_spoke_system": 0.561593998889896,
+        "industrial_scada_system": 0.7306364994013561,
+        "iot_smart_city_system": 0.5569586068401199,
+        "logistics_fleet_system": 0.7943362675237851,
+        "microservices_system": 0.3708627567733106,
+        "realtime_gaming_system": 0.8312254266990458,
+        "telecom_ran_system": 0.6499583808322132
+      },
+      "GAT-QoS+InDeg": {
+        "atm_system": 0.5241846222677977,
+        "av_system": 0.8502377580357315,
+        "enterprise_system": 0.8737623714063695,
+        "financial_trading_system": 0.8653952638949887,
+        "healthcare_system": 0.851864068685763,
+        "hub_and_spoke_system": 0.5476444387581075,
+        "industrial_scada_system": 0.8288384875267087,
+        "iot_smart_city_system": 0.8874290740244188,
+        "logistics_fleet_system": 0.8286306404025494,
+        "microservices_system": 0.5657843896854923,
+        "realtime_gaming_system": 0.8326710817570341,
+        "telecom_ran_system": 0.6942830594488713
+      },
+      "HGT-QoS+InDeg": {
+        "atm_system": 0.5133384763382125,
+        "av_system": 0.8477485257988017,
+        "enterprise_system": 0.8663585127890367,
+        "financial_trading_system": 0.8628924522307763,
+        "healthcare_system": 0.8297464646729742,
+        "hub_and_spoke_system": 0.5332121583085482,
+        "industrial_scada_system": 0.8467134278541997,
+        "iot_smart_city_system": 0.8901749427716359,
+        "logistics_fleet_system": 0.8254661577765496,
+        "microservices_system": 0.5573370655721621,
+        "realtime_gaming_system": 0.8340642735266275,
+        "telecom_ran_system": 0.6975841073969841
+      },
+      "Topo-QoS-AP": {
+        "atm_system": 0.13158382317767953,
+        "av_system": 0.7526918117294357,
+        "enterprise_system": 0.7953082495191883,
+        "financial_trading_system": 0.5864231295106708,
+        "healthcare_system": 0.36869084150771025,
+        "hub_and_spoke_system": 0.42951365098479605,
+        "industrial_scada_system": 0.6089602463074906,
+        "iot_smart_city_system": 0.3313061124108045,
+        "logistics_fleet_system": 0.7418905187662295,
+        "microservices_system": 0.26538514238447786,
+        "realtime_gaming_system": 0.8102612338299413,
+        "telecom_ran_system": 0.5761904555663259
+      }
+    },
+    "cells": {
+      "GAT-QoS": {
+        "i_star": {
+          "atm_system": 0.5055127761105372,
+          "av_system": 0.731611846262757,
+          "enterprise_system": 0.40749947480478194,
+          "financial_trading_system": 0.7134646779755947,
+          "healthcare_system": 0.7983703287478553,
+          "hub_and_spoke_system": 0.6303834059252347,
+          "industrial_scada_system": 0.7208818711191824,
+          "iot_smart_city_system": 0.7202664779998799,
+          "logistics_fleet_system": 0.6541422005337407,
+          "microservices_system": 0.4785937583240486,
+          "realtime_gaming_system": 0.6849432055188599,
+          "telecom_ran_system": 0.5743858236211034
+        },
+        "i_star_active": {
+          "atm_system": 0.07981804248651173,
+          "av_system": 0.19326001305005883,
+          "enterprise_system": 0.006819503165167076,
+          "financial_trading_system": 0.2824355637315929,
+          "healthcare_system": 0.6123936216498949,
+          "hub_and_spoke_system": 0.33291896233457907,
+          "industrial_scada_system": 0.3946114280414531,
+          "iot_smart_city_system": 0.5182336976799153,
+          "logistics_fleet_system": 0.39887941592374265,
+          "microservices_system": 0.3537585811339359,
+          "realtime_gaming_system": 0.5589113761489277,
+          "telecom_ran_system": 0.3252633702839983
+        },
+        "i_dyn": {
+          "atm_system": 0.5373675213675213,
+          "av_system": 0.606938584153774,
+          "enterprise_system": 0.2950734447131036,
+          "financial_trading_system": 0.6560489024729093,
+          "healthcare_system": 0.8026987444989429,
+          "hub_and_spoke_system": 0.2735777585421678,
+          "industrial_scada_system": 0.5243720822533913,
+          "iot_smart_city_system": 0.6825987448424676,
+          "logistics_fleet_system": 0.531604264815274,
+          "microservices_system": 0.4289303206157138,
+          "realtime_gaming_system": 0.4679748789227819,
+          "telecom_ran_system": 0.3596166400444475
+        },
+        "i_comp": {
+          "atm_system": 0.14320396858296255,
+          "av_system": 0.16809977045059027,
+          "enterprise_system": -0.1446021652771159,
+          "financial_trading_system": -0.023674229288246418,
+          "healthcare_system": 0.10572328012487893,
+          "hub_and_spoke_system": 0.03721028487142522,
+          "industrial_scada_system": 0.31199400937072524,
+          "iot_smart_city_system": 0.20217649329158544,
+          "logistics_fleet_system": 0.3296188847748921,
+          "microservices_system": 0.011334732683047289,
+          "realtime_gaming_system": 0.250110967305831,
+          "telecom_ran_system": 0.3042421569707062
+        }
+      },
+      "GAT-P-QoS": {
+        "i_star": {
+          "atm_system": 0.6031280894768033,
+          "av_system": 0.7638419054268626,
+          "enterprise_system": 0.738466074652925,
+          "financial_trading_system": 0.8001996453691754,
+          "healthcare_system": 0.8628833043164637,
+          "hub_and_spoke_system": 0.7582514375449876,
+          "industrial_scada_system": 0.833548052642934,
+          "iot_smart_city_system": 0.7471903464351488,
+          "logistics_fleet_system": 0.7741095081191698,
+          "microservices_system": 0.6488445219440877,
+          "realtime_gaming_system": 0.7949820382996833,
+          "telecom_ran_system": 0.646678912910754
+        },
+        "i_star_active": {
+          "atm_system": 0.30770245368985877,
+          "av_system": 0.11107976728805528,
+          "enterprise_system": 0.22321082380033924,
+          "financial_trading_system": 0.28475336272035123,
+          "healthcare_system": 0.7411767282934724,
+          "hub_and_spoke_system": 0.6111076483033527,
+          "industrial_scada_system": 0.5796059859291274,
+          "iot_smart_city_system": 0.4755038472811079,
+          "logistics_fleet_system": 0.5367195631290886,
+          "microservices_system": 0.490934192973244,
+          "realtime_gaming_system": 0.5239576777650028,
+          "telecom_ran_system": 0.39552684497851215
+        },
+        "i_dyn": {
+          "atm_system": 0.6058803418803418,
+          "av_system": 0.6156680731364276,
+          "enterprise_system": 0.5964942495465818,
+          "financial_trading_system": 0.7334037232564603,
+          "healthcare_system": 0.7725323539406544,
+          "hub_and_spoke_system": 0.37692220211574506,
+          "industrial_scada_system": 0.5384741506778216,
+          "iot_smart_city_system": 0.706377383893434,
+          "logistics_fleet_system": 0.6408105853977413,
+          "microservices_system": 0.5521982137712474,
+          "realtime_gaming_system": 0.5646014552166647,
+          "telecom_ran_system": 0.4621668171400791
+        },
+        "i_comp": {
+          "atm_system": 0.2708155279792415,
+          "av_system": 0.3487364624771519,
+          "enterprise_system": 0.21270871972923394,
+          "financial_trading_system": 0.2421884770849246,
+          "healthcare_system": 0.3192929521336189,
+          "hub_and_spoke_system": 0.041366156920953044,
+          "industrial_scada_system": 0.4519074415439327,
+          "iot_smart_city_system": 0.13128126895248118,
+          "logistics_fleet_system": 0.49246493064355124,
+          "microservices_system": 0.22846112688809317,
+          "realtime_gaming_system": 0.26767484382088036,
+          "telecom_ran_system": 0.3489038244221808
+        }
+      },
+      "HGT-QoS": {
+        "i_star": {
+          "atm_system": 0.5226057529236176,
+          "av_system": 0.7035779928474518,
+          "enterprise_system": 0.425903785342667,
+          "financial_trading_system": 0.695104891711547,
+          "healthcare_system": 0.7303062709607357,
+          "hub_and_spoke_system": 0.5481518236176625,
+          "industrial_scada_system": 0.683709946451834,
+          "iot_smart_city_system": 0.6882456266650809,
+          "logistics_fleet_system": 0.7707277298021755,
+          "microservices_system": 0.4751393089745607,
+          "realtime_gaming_system": 0.7888496628117652,
+          "telecom_ran_system": 0.42729775420976523
+        },
+        "i_star_active": {
+          "atm_system": 0.14377647392521495,
+          "av_system": 0.19216144141632788,
+          "enterprise_system": 0.015032052817887814,
+          "financial_trading_system": 0.24894504790851987,
+          "healthcare_system": 0.5727853289670737,
+          "hub_and_spoke_system": 0.3159537224450531,
+          "industrial_scada_system": 0.47355887008042935,
+          "iot_smart_city_system": 0.4744675347848088,
+          "logistics_fleet_system": 0.46917050471736654,
+          "microservices_system": 0.2953408907282442,
+          "realtime_gaming_system": 0.5651608713512773,
+          "telecom_ran_system": 0.25373728220481634
+        },
+        "i_dyn": {
+          "atm_system": 0.5499487179487179,
+          "av_system": 0.5745850914205345,
+          "enterprise_system": 0.3103843720912887,
+          "financial_trading_system": 0.6342206168380107,
+          "healthcare_system": 0.7280270836932466,
+          "hub_and_spoke_system": 0.25368431183117374,
+          "industrial_scada_system": 0.4993575896074939,
+          "iot_smart_city_system": 0.6532453559700901,
+          "logistics_fleet_system": 0.6477839641142393,
+          "microservices_system": 0.4877326418899452,
+          "realtime_gaming_system": 0.5725303878550774,
+          "telecom_ran_system": 0.282668240850059
+        },
+        "i_comp": {
+          "atm_system": 0.253034710485655,
+          "av_system": 0.1650710302344057,
+          "enterprise_system": -0.1241954215336342,
+          "financial_trading_system": -0.016383011253932035,
+          "healthcare_system": 0.026908760348004157,
+          "hub_and_spoke_system": 0.20882644346595383,
+          "industrial_scada_system": 0.27566795329073673,
+          "iot_smart_city_system": 0.04859747474675774,
+          "logistics_fleet_system": 0.48466995341971036,
+          "microservices_system": 0.13006873276536196,
+          "realtime_gaming_system": 0.3474477914723363,
+          "telecom_ran_system": 0.24751083848609148
+        }
+      },
+      "Hybrid-GAT": {
+        "i_star": {
+          "atm_system": 0.4471632568690982,
+          "av_system": 0.7929629235239594,
+          "enterprise_system": 0.7683043714213581,
+          "financial_trading_system": 0.7965825282787053,
+          "healthcare_system": 0.6863084611893205,
+          "hub_and_spoke_system": 0.5682745662073678,
+          "industrial_scada_system": 0.7681960907159724,
+          "iot_smart_city_system": 0.653580661507413,
+          "logistics_fleet_system": 0.8057808115852116,
+          "microservices_system": 0.4287144777407498,
+          "realtime_gaming_system": 0.8251455144995227,
+          "telecom_ran_system": 0.656332842253738
+        },
+        "i_star_active": {
+          "atm_system": 0.10503742398876463,
+          "av_system": 0.38772491111775814,
+          "enterprise_system": 0.4262481328519982,
+          "financial_trading_system": 0.387845030785558,
+          "healthcare_system": 0.3683421471703947,
+          "hub_and_spoke_system": 0.5209497345635621,
+          "industrial_scada_system": 0.5053416504431696,
+          "iot_smart_city_system": 0.3473547209615009,
+          "logistics_fleet_system": 0.6018554324408714,
+          "microservices_system": 0.11381694942306156,
+          "realtime_gaming_system": 0.5993646303109202,
+          "telecom_ran_system": 0.412366890986382
+        },
+        "i_dyn": {
+          "atm_system": 0.5353162393162393,
+          "av_system": 0.627430848570089,
+          "enterprise_system": 0.6638093605272722,
+          "financial_trading_system": 0.748385662684079,
+          "healthcare_system": 0.7344137916592642,
+          "hub_and_spoke_system": 0.2741446430394731,
+          "industrial_scada_system": 0.5005352774684699,
+          "iot_smart_city_system": 0.6149311762764434,
+          "logistics_fleet_system": 0.6758487929130131,
+          "microservices_system": 0.4755434827344939,
+          "realtime_gaming_system": 0.6645737167573266,
+          "telecom_ran_system": 0.4454198208208903
+        },
+        "i_comp": {
+          "atm_system": 0.6778594730631925,
+          "av_system": 0.5978925413294555,
+          "enterprise_system": 0.40484487106066797,
+          "financial_trading_system": 0.48965086111692574,
+          "healthcare_system": 0.5120542075362263,
+          "hub_and_spoke_system": 0.5913697390645296,
+          "industrial_scada_system": 0.5624814557427825,
+          "iot_smart_city_system": 0.39982509452046544,
+          "logistics_fleet_system": 0.7236245519211005,
+          "microservices_system": 0.732750545334815,
+          "realtime_gaming_system": 0.47115461524057123,
+          "telecom_ran_system": 0.723413032579953
+        }
+      },
+      "Hybrid-HGT": {
+        "i_star": {
+          "atm_system": 0.42904058265763956,
+          "av_system": 0.7816639085207863,
+          "enterprise_system": 0.7344912616181627,
+          "financial_trading_system": 0.7537313588762805,
+          "healthcare_system": 0.6249805788640568,
+          "hub_and_spoke_system": 0.5642401518727131,
+          "industrial_scada_system": 0.75842437272081,
+          "iot_smart_city_system": 0.5902797104597071,
+          "logistics_fleet_system": 0.7918200199423495,
+          "microservices_system": 0.36560935551914897,
+          "realtime_gaming_system": 0.836588340623841,
+          "telecom_ran_system": 0.6475650862633369
+        },
+        "i_star_active": {
+          "atm_system": 0.07487816363555497,
+          "av_system": 0.3427011930321068,
+          "enterprise_system": 0.24057395736181197,
+          "financial_trading_system": 0.3042363107417979,
+          "healthcare_system": 0.2622832689374718,
+          "hub_and_spoke_system": 0.4956890194286398,
+          "industrial_scada_system": 0.47889093962794965,
+          "iot_smart_city_system": 0.2919239031909894,
+          "logistics_fleet_system": 0.5625993720195293,
+          "microservices_system": 0.034086188604707315,
+          "realtime_gaming_system": 0.5935716199755248,
+          "telecom_ran_system": 0.3965830234751927
+        },
+        "i_dyn": {
+          "atm_system": 0.49880341880341883,
+          "av_system": 0.6216455696202532,
+          "enterprise_system": 0.6172967941084709,
+          "financial_trading_system": 0.7044067796610172,
+          "healthcare_system": 0.6754736010014435,
+          "hub_and_spoke_system": 0.269997987920295,
+          "industrial_scada_system": 0.4967546019504329,
+          "iot_smart_city_system": 0.5509852077284263,
+          "logistics_fleet_system": 0.6812424768388071,
+          "microservices_system": 0.445284603037412,
+          "realtime_gaming_system": 0.6668155534703044,
+          "telecom_ran_system": 0.45533023126606
+        },
+        "i_comp": {
+          "atm_system": 0.7154727408380871,
+          "av_system": 0.52673824428468,
+          "enterprise_system": 0.33033848941104393,
+          "financial_trading_system": 0.4508829213247175,
+          "healthcare_system": 0.4452098110701739,
+          "hub_and_spoke_system": 0.5413872374814972,
+          "industrial_scada_system": 0.5979282216973989,
+          "iot_smart_city_system": 0.46444892209436883,
+          "logistics_fleet_system": 0.7394687786159915,
+          "microservices_system": 0.6414668477589826,
+          "realtime_gaming_system": 0.45694247151909523,
+          "telecom_ran_system": 0.735554216731018
+        }
+      },
+      "GAT-QoS-R": {
+        "i_star": {
+          "atm_system": 0.47201328741662874,
+          "av_system": 0.8093253767922132,
+          "enterprise_system": 0.6438156817283751,
+          "financial_trading_system": 0.792259489949611,
+          "healthcare_system": 0.8346823700407656,
+          "hub_and_spoke_system": 0.5339203830083434,
+          "industrial_scada_system": 0.7308082959898206,
+          "iot_smart_city_system": 0.7752174684103001,
+          "logistics_fleet_system": 0.7061982136335659,
+          "microservices_system": 0.540684805915609,
+          "realtime_gaming_system": 0.69779671117557,
+          "telecom_ran_system": 0.5770227636521981
+        },
+        "i_star_active": {
+          "atm_system": 0.043678928787407076,
+          "av_system": 0.38425200724338276,
+          "enterprise_system": 0.19958720769736055,
+          "financial_trading_system": 0.3914728900723102,
+          "healthcare_system": 0.5934505251494152,
+          "hub_and_spoke_system": 0.35012863611715533,
+          "industrial_scada_system": 0.4298395456502833,
+          "iot_smart_city_system": 0.5784678975422779,
+          "logistics_fleet_system": 0.4668003179389145,
+          "microservices_system": 0.36840112852205803,
+          "realtime_gaming_system": 0.5850831751876375,
+          "telecom_ran_system": 0.3270432710914725
+        },
+        "i_dyn": {
+          "atm_system": 0.5282051282051281,
+          "av_system": 0.635897796530708,
+          "enterprise_system": 0.5319404139979825,
+          "financial_trading_system": 0.7543873298138373,
+          "healthcare_system": 0.8559437203840592,
+          "hub_and_spoke_system": 0.1721614221168329,
+          "industrial_scada_system": 0.5048859854095576,
+          "iot_smart_city_system": 0.7379793331958769,
+          "logistics_fleet_system": 0.551182742375403,
+          "microservices_system": 0.45046384327283195,
+          "realtime_gaming_system": 0.4926293928246423,
+          "telecom_ran_system": 0.3489089520105563
+        },
+        "i_comp": {
+          "atm_system": 0.2063942584447856,
+          "av_system": 0.35757653937748624,
+          "enterprise_system": 0.14559902434216626,
+          "financial_trading_system": 0.1494477403801696,
+          "healthcare_system": 0.25971132711458217,
+          "hub_and_spoke_system": 0.3784994605377462,
+          "industrial_scada_system": 0.3723535580864451,
+          "iot_smart_city_system": 0.2842223174809867,
+          "logistics_fleet_system": 0.42764985282037554,
+          "microservices_system": 0.2808396098283739,
+          "realtime_gaming_system": 0.29657713729890905,
+          "telecom_ran_system": 0.43242394832145203
+        }
+      },
+      "Hybrid-GAT-AP": {
+        "i_star": {
+          "atm_system": 0.2758902562721685,
+          "av_system": 0.7940500882057512,
+          "enterprise_system": 0.7619545144526079,
+          "financial_trading_system": 0.7980877157131268,
+          "healthcare_system": 0.6885340698220923,
+          "hub_and_spoke_system": 0.5651879749784093,
+          "industrial_scada_system": 0.740062769504996,
+          "iot_smart_city_system": 0.6907139406856161,
+          "logistics_fleet_system": 0.8115172352260529,
+          "microservices_system": 0.4211641562270002,
+          "realtime_gaming_system": 0.8275646550199467,
+          "telecom_ran_system": 0.6553868017304386
+        },
+        "i_star_active": {
+          "atm_system": 0.09320771410884188,
+          "av_system": 0.3924027000097738,
+          "enterprise_system": 0.4388687971282278,
+          "financial_trading_system": 0.38693806596387,
+          "healthcare_system": 0.3750059242002077,
+          "hub_and_spoke_system": 0.5203615655084097,
+          "industrial_scada_system": 0.5179453868026755,
+          "iot_smart_city_system": 0.4496353263426835,
+          "logistics_fleet_system": 0.6138935529090178,
+          "microservices_system": 0.10380985023843366,
+          "realtime_gaming_system": 0.6020926708253374,
+          "telecom_ran_system": 0.4106193956555105
+        },
+        "i_dyn": {
+          "atm_system": 0.4307008547008547,
+          "av_system": 0.628424753867792,
+          "enterprise_system": 0.6590926853734733,
+          "financial_trading_system": 0.7501750486246181,
+          "healthcare_system": 0.7354126151607169,
+          "hub_and_spoke_system": 0.27291989258233196,
+          "industrial_scada_system": 0.5133812518209304,
+          "iot_smart_city_system": 0.6622893990287632,
+          "logistics_fleet_system": 0.681736582287041,
+          "microservices_system": 0.4722377248219945,
+          "realtime_gaming_system": 0.6688866919564058,
+          "telecom_ran_system": 0.44405028126953255
+        },
+        "i_comp": {
+          "atm_system": 0.6136433668075087,
+          "av_system": 0.5953279578956273,
+          "enterprise_system": 0.4006734765468554,
+          "financial_trading_system": 0.48649429721182613,
+          "healthcare_system": 0.5118908912470739,
+          "hub_and_spoke_system": 0.594195171873265,
+          "industrial_scada_system": 0.5674523870200765,
+          "iot_smart_city_system": 0.29928429005068213,
+          "logistics_fleet_system": 0.7194741435739241,
+          "microservices_system": 0.7389867061777174,
+          "realtime_gaming_system": 0.4739230668603903,
+          "telecom_ran_system": 0.7247145186284083
+        }
+      },
+      "Hybrid-HGT-AP": {
+        "i_star": {
+          "atm_system": 0.26669162617998876,
+          "av_system": 0.7819263275819084,
+          "enterprise_system": 0.7448223933909892,
+          "financial_trading_system": 0.7629666755766261,
+          "healthcare_system": 0.624871771330899,
+          "hub_and_spoke_system": 0.5615939988898959,
+          "industrial_scada_system": 0.7306364994013561,
+          "iot_smart_city_system": 0.5569586068401199,
+          "logistics_fleet_system": 0.794336267523785,
+          "microservices_system": 0.3708627567733106,
+          "realtime_gaming_system": 0.831225426699046,
+          "telecom_ran_system": 0.6499583808322132
+        },
+        "i_star_active": {
+          "atm_system": 0.10646738891930474,
+          "av_system": 0.3435162623087459,
+          "enterprise_system": 0.2996336831736325,
+          "financial_trading_system": 0.31199589866068445,
+          "healthcare_system": 0.2617591516429921,
+          "hub_and_spoke_system": 0.4960938630640044,
+          "industrial_scada_system": 0.49110092315933096,
+          "iot_smart_city_system": 0.29419034091074825,
+          "logistics_fleet_system": 0.5692090817869735,
+          "microservices_system": 0.03971025196674595,
+          "realtime_gaming_system": 0.5829963872244182,
+          "telecom_ran_system": 0.4007093208292699
+        },
+        "i_dyn": {
+          "atm_system": 0.40376068376068375,
+          "av_system": 0.6213502109704642,
+          "enterprise_system": 0.6333461742181813,
+          "financial_trading_system": 0.7120866907474301,
+          "healthcare_system": 0.6770774810470449,
+          "hub_and_spoke_system": 0.26990700645776455,
+          "industrial_scada_system": 0.506607457078555,
+          "iot_smart_city_system": 0.5299234416934271,
+          "logistics_fleet_system": 0.6806690259901269,
+          "microservices_system": 0.45289377289377286,
+          "realtime_gaming_system": 0.6735296837274461,
+          "telecom_ran_system": 0.45714563511354955
+        },
+        "i_comp": {
+          "atm_system": 0.6166524282295003,
+          "av_system": 0.5296028886687182,
+          "enterprise_system": 0.3624762052088565,
+          "financial_trading_system": 0.4571238038342716,
+          "healthcare_system": 0.44168410059258817,
+          "hub_and_spoke_system": 0.5419124108660206,
+          "industrial_scada_system": 0.6055373622151716,
+          "iot_smart_city_system": 0.4961737174604681,
+          "logistics_fleet_system": 0.7440817460511759,
+          "microservices_system": 0.6439264106679836,
+          "realtime_gaming_system": 0.4620440478339313,
+          "telecom_ran_system": 0.732095625204173
+        }
+      },
+      "GAT-QoS+InDeg": {
+        "i_star": {
+          "atm_system": 0.5241846222677976,
+          "av_system": 0.8502377580357315,
+          "enterprise_system": 0.8737623714063695,
+          "financial_trading_system": 0.8653952638949886,
+          "healthcare_system": 0.851864068685763,
+          "hub_and_spoke_system": 0.5476444387581075,
+          "industrial_scada_system": 0.8288384875267087,
+          "iot_smart_city_system": 0.8874290740244188,
+          "logistics_fleet_system": 0.8286306404025494,
+          "microservices_system": 0.5657843896854923,
+          "realtime_gaming_system": 0.8326710817570341,
+          "telecom_ran_system": 0.6942830594488714
+        },
+        "i_star_active": {
+          "atm_system": 0.17172578847668077,
+          "av_system": 0.5503312318072593,
+          "enterprise_system": 0.650806364805864,
+          "financial_trading_system": 0.637260356749768,
+          "healthcare_system": 0.5758177218851348,
+          "hub_and_spoke_system": 0.39499753261021053,
+          "industrial_scada_system": 0.5598199063158678,
+          "iot_smart_city_system": 0.7759744005965155,
+          "logistics_fleet_system": 0.6063453807138194,
+          "microservices_system": 0.33531933084970167,
+          "realtime_gaming_system": 0.5673237401256558,
+          "telecom_ran_system": 0.48390738149960966
+        },
+        "i_dyn": {
+          "atm_system": 0.44697435897435894,
+          "av_system": 0.6381809657759024,
+          "enterprise_system": 0.800528894824269,
+          "financial_trading_system": 0.8523589886079469,
+          "healthcare_system": 0.9097937528133245,
+          "hub_and_spoke_system": 0.33578108461686085,
+          "industrial_scada_system": 0.5507462531578005,
+          "iot_smart_city_system": 0.8781540503916482,
+          "logistics_fleet_system": 0.7191731848612583,
+          "microservices_system": 0.6003753549820965,
+          "realtime_gaming_system": 0.6382093756162532,
+          "telecom_ran_system": 0.511635530245156
+        },
+        "i_comp": {
+          "atm_system": 0.5458027092935168,
+          "av_system": 0.6268390461200491,
+          "enterprise_system": 0.6258096674346337,
+          "financial_trading_system": 0.5623574202197726,
+          "healthcare_system": 0.5397411219678394,
+          "hub_and_spoke_system": 0.49303977570228097,
+          "industrial_scada_system": 0.5598803318196668,
+          "iot_smart_city_system": 0.3468683330009967,
+          "logistics_fleet_system": 0.7757566743214254,
+          "microservices_system": 0.6058114170473721,
+          "realtime_gaming_system": 0.4454219570189438,
+          "telecom_ran_system": 0.6300428677920791
+        }
+      },
+      "HGT-QoS+InDeg": {
+        "i_star": {
+          "atm_system": 0.5133384763382125,
+          "av_system": 0.8477485257988017,
+          "enterprise_system": 0.8663585127890366,
+          "financial_trading_system": 0.8628924522307763,
+          "healthcare_system": 0.8297464646729743,
+          "hub_and_spoke_system": 0.5332121583085482,
+          "industrial_scada_system": 0.8467134278541997,
+          "iot_smart_city_system": 0.8901749427716359,
+          "logistics_fleet_system": 0.8254661577765499,
+          "microservices_system": 0.5573370655721621,
+          "realtime_gaming_system": 0.8340642735266275,
+          "telecom_ran_system": 0.6975841073969842
+        },
+        "i_star_active": {
+          "atm_system": 0.1728957597834863,
+          "av_system": 0.5456357240179253,
+          "enterprise_system": 0.6009687164303485,
+          "financial_trading_system": 0.6438778408191214,
+          "healthcare_system": 0.5215715819064883,
+          "hub_and_spoke_system": 0.38590000865324275,
+          "industrial_scada_system": 0.6138114399426896,
+          "iot_smart_city_system": 0.7928285518077443,
+          "logistics_fleet_system": 0.6048554767516974,
+          "microservices_system": 0.31979071083277777,
+          "realtime_gaming_system": 0.55521602246406,
+          "telecom_ran_system": 0.4890610524822761
+        },
+        "i_dyn": {
+          "atm_system": 0.43507692307692303,
+          "av_system": 0.6226629160806376,
+          "enterprise_system": 0.7939904658930109,
+          "financial_trading_system": 0.8593609335926647,
+          "healthcare_system": 0.8967610269337968,
+          "hub_and_spoke_system": 0.342286259187791,
+          "industrial_scada_system": 0.5607579124068492,
+          "iot_smart_city_system": 0.8831736352930012,
+          "logistics_fleet_system": 0.7265523071027659,
+          "microservices_system": 0.6035033131662345,
+          "realtime_gaming_system": 0.6352079317936751,
+          "telecom_ran_system": 0.527087992221682
+        },
+        "i_comp": {
+          "atm_system": 0.578423670618289,
+          "av_system": 0.6200970516450128,
+          "enterprise_system": 0.5835387363495995,
+          "financial_trading_system": 0.6143351353683568,
+          "healthcare_system": 0.5713188068174966,
+          "hub_and_spoke_system": 0.49083404748728315,
+          "industrial_scada_system": 0.6217058015354473,
+          "iot_smart_city_system": 0.44288934566222016,
+          "logistics_fleet_system": 0.8003435382820608,
+          "microservices_system": 0.6465835288307198,
+          "realtime_gaming_system": 0.45822569010135467,
+          "telecom_ran_system": 0.6445946485675774
+        }
+      }
+    },
+    "indeg": {
+      "atm_system": 0.4947,
+      "av_system": 0.8682,
+      "enterprise_system": 0.8907,
+      "financial_trading_system": 0.8737,
+      "healthcare_system": 0.8306,
+      "hub_and_spoke_system": 0.5287,
+      "industrial_scada_system": 0.8677,
+      "iot_smart_city_system": 0.8984,
+      "logistics_fleet_system": 0.8363,
+      "microservices_system": 0.5478,
+      "realtime_gaming_system": 0.8357,
+      "telecom_ran_system": 0.6983
+    }
+  },
+  "provenance": {
+    "commit": "c094c33c7ad21cf5a71e89290a380ab5ea7682c1",
+    "dirty": true,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/referee_round11.py",
+      "amendment": 16,
+      "experiment": "Amendment 16 arms",
+      "margin": 0.05
+    }
+  }
+}
