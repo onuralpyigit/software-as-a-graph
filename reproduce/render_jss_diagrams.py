@@ -195,28 +195,28 @@ def figure2():
     save(fig, "Figure_2")
 
 
-# ── Figure 3: engines and evaluation design ───────────────────────────────────
+# ── Figure 3: ranking methods and evaluation design ───────────────────────────────────
 
 def figure3():
     fig, ax, ymax = canvas(3.0)
-    ax.text(1, ymax - 2.2, "(a) Learned engines and baseline, one analysis graph",
+    ax.text(1, ymax - 2.2, "(a) Ranking methods on one analysis graph",
             fontsize=8.2, fontweight="bold", color=INK, va="center")
-    ax.text(62, ymax - 2.2, "(b) Ground truth and evaluation",
+    ax.text(62, ymax - 2.2, "(b) Simulator labels and evaluation",
             fontsize=8.2, fontweight="bold", color=INK, va="center")
 
-    # (a) engines
+    # (a) ranking methods
     box(ax, 1, 14, 13.5, 17, r"$G_{\mathrm{analysis}}$",
         "QoS-weighted\nDEPENDS_ON\nedges, typed\nnode features", fc="#EEF2FF", ec="#3730A3",
         body_size=6.8)
     box(ax, 19, 29, 22, 9.5, "Baseline",
         "QoS-weighted betweenness\n" r"(Topo-QoS) $\rightarrow p(v)$", fc="#E6F1F8",
         ec=ENGINE["closed"], body_size=6.8)
-    box(ax, 19, 5, 22, 13.5, "Learned engine",
+    box(ax, 19, 5, 22, 13.5, "Learned model",
         "GNN over the DEPENDS_ON\ngraph or typed multigraph,\n16-D QoS edges " r"$\rightarrow$ logit $z(v)$",
         fc="#FDF4E3", ec=ENGINE["learned"], body_size=6.8)
     arrow(ax, (14.5, 27), (19, 32), color=INK2, head=4)
     arrow(ax, (14.5, 18), (19, 13), color=INK2, head=4)
-    box(ax, 45.5, 14.5, 14, 10, "Hybrid engine",
+    box(ax, 45.5, 14.5, 14, 10, "Hybrid model",
         r"$\sigma\!\left(z + \alpha\,\mathrm{logit}\,p\right)$", fc="#FBEAE1", ec=ENGINE["hybrid"],
         title_size=7.6, body_size=7.4)
     arrow(ax, (41, 32), (50, 24.5), color=ENGINE["hybrid"], lw=1.1, rad=-0.25, head=4)
@@ -231,16 +231,17 @@ def figure3():
     ax.text(31, 2.8, r"ranking $\sigma(z)$", fontsize=6.6, color=INK2, va="center")
     arrow(ax, (52.5, 14.5), (52.5, 10.5), color=ENGINE["hybrid"], head=4)
     ax.text(52.5, 9.2, "ranking", fontsize=6.6, color=INK2, ha="center", va="top")
-    ax.text(1, 7.5, "Hybrids add one scalar $\\alpha$;\notherwise identical to\ntheir learned engine.",
+    ax.text(1, 7.5, "Hybrids add one scalar $\\alpha$;\notherwise identical to\ntheir learned model.",
             fontsize=6.0, color=INK2, va="center")
 
     ax.plot([60.5, 60.5], [1, ymax - 1], color=RULE, lw=0.8)
 
-    # (b) ground truth + protocols
+    # (b) simulator labels + protocols
     box(ax, 62.5, 30.5, 14, 6, r"$G_{\mathrm{structural}}$", fc="#DBEAFE", ec="#1E40AF", title_size=7.6)
-    box(ax, 81.5, 30.5, 17.5, 6, r"oracles $\rightarrow I^*(v)$", fc="#FFEDD5", ec=ORACLE, title_size=7.6)
+    box(ax, 81.5, 30, 17.5, 7, "Simulation oracles", r"$I^*,\ I_{\mathrm{dyn}},\ I_{\mathrm{comp}}$",
+        fc="#FFEDD5", ec=ORACLE, title_size=7.0, body_size=6.8, pad=0.6)
     arrow(ax, (76.5, 33.5), (81.5, 33.5), color=ORACLE, head=4)
-    ax.text(80.7, 28.8, "labels only; no predictor reads $G_{\\mathrm{structural}}$",
+    ax.text(80.7, 28.8, "labels only; no ranker reads $G_{\\mathrm{structural}}$",
             fontsize=6.1, color=INK2, ha="center", va="top")
     gx, gy, c = 64, 4.5, 1.45
     for i in range(12):

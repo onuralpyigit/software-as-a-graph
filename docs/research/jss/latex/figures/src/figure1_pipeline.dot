@@ -7,7 +7,7 @@
 // task and the explanation layer a characterisation of what the predictor
 // flagged, and the figure carries that asymmetry through geometry rather than
 // through a label: the centre line runs straight down
-//   manifest -> G_struct -> G_analysis -> engines -> Top-K -> ground-truth oracle,
+//   manifest -> G_struct -> G_analysis -> ranking methods -> Top-K -> simulation oracles,
 // and the explanation layer is the only thing that leaves it, branching right
 // out of the Analysis Multigraph. Do not re-add a "PRIMARY" tag to the
 // predictive cluster — the straight trunk is what states the primacy.
@@ -16,7 +16,7 @@
 // predictive pathway's training-and-validation loop, NOT because it is a stage
 // of inference (§4.4). Two things in the drawing carry that distinction and
 // must survive any edit: the Top-K -> oracle edge stays dashed, and the oracle
-// box keeps its "Offline: training & validation only" line.
+// box keeps its "Offline: training and evaluation labels" line.
 //
 // The one link between trunk and explanation layer is a triage relation, not a
 // data dependency: the two share no parameters and neither is fitted to the
@@ -121,7 +121,7 @@ digraph Figure1 {
 
   // ── Centre line, part 2: the predictive pathway ───────────────────────────
   subgraph cluster_b {
-    label = "PREDICTIVE PATHWAY";
+    label = "RANKING PATHWAY";
     fontname = "Helvetica-Bold";
     fontsize = 10.5;
     fontcolor = "#4C1D95";
@@ -133,11 +133,13 @@ digraph Figure1 {
 
     hgl [
       label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-        <tr><td><b>Ranking Engines</b></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Learned: GNN on DEPENDS_ON or multigraph</font></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Approximation: GBM on dependency features</font></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Hybrid: learned correction of baseline</font></td></tr>
-        <tr><td align="left"><font point-size="9.5" color="#312E81">• Baseline: QoS-weighted betweenness</font></td></tr>
+        <tr><td><b>Ranking Methods</b></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Analytical: dependency counts and first-order</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">&#160;&#160;expansions (references); QoS-weighted</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">&#160;&#160;betweenness (baseline)</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Hybrid: learned correction of the baseline</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">• Learned: GNN on DEPENDS_ON or multigraph;</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#312E81">&#160;&#160;GBM on dependency features</font></td></tr>
       </table>>,
       fillcolor="#EDE9FE", color="#6D28D9"
     ];
@@ -157,9 +159,9 @@ digraph Figure1 {
   // ── Centre line, foot: the offline oracle that closes the training loop ───
   oracle [
     label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
-      <tr><td><b>Ground-Truth Simulation Oracle (<i>I*</i>(<i>v</i>))</b></td></tr>
-      <tr><td><font point-size="9.5" color="#7C2D12">Cascade reachability on raw <i>G</i><sub>structural</sub></font></td></tr>
-      <tr><td><font point-size="9.5" color="#7C2D12">Offline: training &amp; validation only</font></td></tr>
+      <tr><td><b>Simulation Oracles (<i>I*</i>, <i>I</i><sub>dyn</sub>, <i>I</i><sub>comp</sub>)</b></td></tr>
+      <tr><td><font point-size="9.5" color="#7C2D12">Run on raw <i>G</i><sub>structural</sub></font></td></tr>
+      <tr><td><font point-size="9.5" color="#7C2D12">Offline: training and evaluation labels</font></td></tr>
     </table>>,
     fillcolor="#FFEDD5", color="#C2410C"
   ];
@@ -217,7 +219,7 @@ digraph Figure1 {
   // Dashed, and on the trunk only because it closes the training-and-validation
   // loop — see the header note before restyling it as a solid pipeline stage.
   topk -> oracle [
-    label=" Validated against\l ground truth\l",
+    label=" Evaluated against\l simulated labels\l",
     style="dashed", color="#C2410C", fontcolor="#9A3412", penwidth=1.6, weight=100
   ];
 

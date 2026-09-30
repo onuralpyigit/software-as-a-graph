@@ -1,14 +1,14 @@
 # Reproducing Software-as-a-Graph (SaG)
 
-> **Software-as-a-Graph: Predicting Cascading-Failure Impact in Publish–Subscribe Systems Before Deployment with QoS-Aware Graphs and Hybrid Learning**
+> **Software-as-a-Graph: When Does Graph Learning Improve Cascade-Impact Ranking in
+> Publish–Subscribe Systems?**
 > Submitted to the *Journal of Systems and Software* Special Issue **VSI:AI4MSS** (AI Techniques for
-> Performance, Reliability, and Sustainability of Modern Software Systems). See
-> `docs/research/jss/manuscript.md` for the Markdown version of the paper, `docs/research/jss/latex/`
-> for the authoritative Elsevier LaTeX submission sources, and
-> `docs/research/jss/methodology_revision_findings.md` for the pre-submission audit that regenerated
-> its numbers.
+> Performance, Reliability, and Sustainability of Modern Software Systems).
+> The authoritative manuscript sources are in [`docs/research/jss/latex/`](../docs/research/jss/latex/);
+> the per-experiment protocols, commands and artifacts are indexed in
+> [`docs/research/jss/experiments/`](../docs/research/jss/experiments/README.md).
 
-This directory contains everything needed to reproduce the paper's experimental results, tables, and figures from scratch.
+This directory contains the harnesses that reproduce the paper's results, tables and figures.
 A Docker image is provided for exact environment replication.
 
 ---
@@ -20,7 +20,7 @@ A Docker image is provided for exact environment replication.
 | CPU-only (8 cores, 32 GB RAM) | ~6–12 h (full, 5 seeds) |
 | GPU (CUDA 11.8+, ≥8 GB VRAM) | ~1–2 h |
 | Smoke-test (50 epochs, 2 seeds) | ~15–30 min CPU |
-| Diagnostic & sensitivity sweeps (Tables 10–13) | seconds to minutes — pure graph computation & simulation |
+| Diagnostic & sensitivity sweeps (supplement) | seconds to minutes — pure graph computation & simulation |
 
 ### Measurement Hardware & Energy Estimation Baseline
 
@@ -30,7 +30,7 @@ The latency profiles and execution benchmarks reported in the paper were measure
 - **RAM:** 32 GB LPDDR5
 - **OS:** Linux x86_64
 
-Energy consumption figures reported in the manuscript (Section 6.4, Section 7.1, Section 8.3) represent theoretical upper-bound proxies calculated by `reproduce/energy_estimate.py` using this 28.0W TDP base. Hardware-level variations (e.g. DVFS, DRAM/disk power) are not captured, and physical meters (RAPL/external wattmeter) were not instrumented.
+Energy consumption figures reported in the manuscript (Sections 6.4 and 7.4) represent theoretical upper-bound proxies calculated by `reproduce/energy_estimate.py` using this 28.0W TDP base. Hardware-level variations (e.g. DVFS, DRAM/disk power) are not captured, and physical meters (RAPL/external wattmeter) were not instrumented.
 
 ---
 
@@ -63,133 +63,59 @@ There is no separate `requirements.txt`; `pyproject.toml` at the repo root is th
 truth for dependencies (see its `[project.optional-dependencies]` table for the `neo4j`/`gnn`/`api`/
 `dev` extras, or use `all` as above to install everything this package needs).
 
-### Step 1 — W1 Gate (sanity check, ~10 s)
+## Reproducing the paper
+
+The experiment index, [`docs/research/jss/experiments/README.md`](../docs/research/jss/experiments/README.md),
+maps every table and section of the paper to the command that produces it and to the supplement
+section with its extended results. It is the source of truth for that mapping; this file covers setup.
+
+### Step 1 — Go/no-go gate (~10 s)
 
 ```bash
 make -f reproduce/Makefile block0
-# Expected: 32/32 tests pass
 ```
 
-### Step 2 — Main in-distribution results (JSS Tables 6 & 7, ~2–6 h CPU)
+### Step 2 — Corpus and caches
 
 ```bash
-make -f reproduce/Makefile table3
-# Output: results/table3_main_results.tex  /  .csv  /  .md
+make -f reproduce/Makefile scenarios   # regenerate the twelve synthetic scenarios (byte-identical)
+make -f reproduce/Makefile cache       # rebuild output/loso_cache from data/scenarios
 ```
 
-> **Table-number mapping.** This harness's internal target `table3` feeds **JSS Table 6 (`tab:5`)**
-> (In-distribution held-out Spearman $\rho$ across 7 scenarios × 6 variants × 5 seeds = 210 cells)
-> and **JSS Table 7 (`tab:6`)** (Paired Wilcoxon signed-rank tests across scenarios).
+A stale `output/loso_cache/` silently outranks the datasets, so rebuild it after any change to the
+generator.
 
-### Step 3 — Inductive LOSO cross-validation (JSS Table 8, ~3–8 h CPU)
+### Step 3 — Experiments
+
+| Research question | Commands |
+|---|---|
+| RQ1: ranking accuracy (Tables 5–6) | `make -f reproduce/Makefile table4 rq-hybrid rq-hybrid-gat rq-dependency-graph rq-referee-round7 rq-oracle-robust rq-rate-expansion` |
+| RQ2: sources of predictive performance (Tables 7–8) | `make -f reproduce/Makefile rq2-matched rq-attribution rq-amendment14 rq-referee-round8` |
+| RQ3: zero-shot transfer (Table 9) | `python reproduce/realworld_zeroshot.py` |
+| RQ4: cost (Table 10) | `make -f reproduce/Makefile inference-latency rq-cost-reconcile` |
+| Oracles and sensitivity (§4.3, §7.5) | `make -f reproduce/Makefile convergent-validity` |
+
+### Step 4 — Figures
 
 ```bash
-make -f reproduce/Makefile table4
-# Output: results/table4_loso_results.tex  /  .md
+make -f reproduce/Makefile jss-figures   # manuscript figures, supplement figures, graphical abstract
 ```
 
-> Feeds **JSS Table 8 (`tab:7`)** (Inductive Leave-One-Scenario-Out evaluation across 12 folds).
-
-### Step 3b — Per-domain k-fold (primary intra-scenario validation, ~8–20 h CPU)
+### Step 5 — Reconcile and bundle
 
 ```bash
-make -f reproduce/Makefile kfold
-# Output: results/table4_kfold_results.tex  /  .md
+python reproduce/reconcile_manuscript.py   # every reported figure against the artifact that produced it
+make -f reproduce/Makefile bundle          # reconcile, then cut the results bundle that ships with the paper
 ```
 
-Runs `reproduce/kfold_all_variants.py` for all 5 variants (`hgl_qos`, `hgl`, `gl_qos`, `gl`,
-`topology_rm`), each evaluated via repeated stratified k-fold (`k=5`, 5 seeds) *independently
-within* each of the 7 cached scenarios. Confirmed result: HGT-QoS reaches mean cross-scenario
-$\rho=0.587$ ($\sigma=0.146$), $F_1@K=0.505$, positive in all seven scenarios individually.
-
-### Step 4 — Figures (3 in the manuscript, 2 in the supplement)
-
-To generate all 5 figures into `docs/research/jss/latex/figures/`:
-
-```bash
-make -f reproduce/Makefile jss-figures
-```
-
-Individual figures can also be generated. Note the numbering: the manuscript's
-artwork is `Figure_1..3` and the supplement keeps a separate `Figure_S*` series,
-as the JSS Guide requires. There are no `jss-fig4` / `jss-fig5` targets.
-
-- `make -f reproduce/Makefile jss-fig1`: Figure 1 — SaG pipeline (`Figure_1.pdf`)
-- `make -f reproduce/Makefile jss-fig2`: Figure 2 — Running Example Multigraph (`Figure_2.pdf`)
-- `make -f reproduce/Makefile jss-fig3`: Figure 3 — Results at a Glance (`Figure_3.pdf`)
-- `make -f reproduce/Makefile jss-figS1`: Figure S1 — AHP Shrinkage Sensitivity (`Figure_S1.pdf`)
-- `make -f reproduce/Makefile jss-figS2`: Figure S2 — HGT Attention Case Study (`Figure_S2.pdf`)
-
-### Step 5 — Sensitivity & Diagnostic Sweeps (JSS Tables 5, 10–13, 15)
-
-```bash
-# Table 5: Generative parameters (tab_genparams.tex)
-make -f reproduce/Makefile jss-tables
-
-# Table 10: Topic-weight coefficient sensitivity (beta, alpha, psi)
-make -f reproduce/Makefile topic-weight-sensitivity
-
-# Table 11: AHP shrinkage parameter lambda sweep
-python reproduce/ahp_sensitivity.py
-
-# Table 12: Global Morris screening & Dirichlet sampling (k=10)
-make -f reproduce/Makefile weight-global-sensitivity
-
-# Table 13: Three-oracle rank agreement (I*, I_comp, I_dyn)
-make -f reproduce/Makefile convergent-validity
-
-# Table 15: Per-stage inference latency vs. system size
-make -f reproduce/Makefile inference-latency
-```
-
-### All at once
-
-```bash
-make -f reproduce/Makefile all EPOCHS=300 SEEDS=42,123,456,789,2024
-```
-
-### Smoke-test (fast sanity check, ~15–30 min)
+### Smoke test (~15–30 min)
 
 ```bash
 make -f reproduce/Makefile smoke-test EPOCHS=50
 ```
 
----
-
-## Expected Outputs & JSS Paper Mapping
-
-| Script / Target | Generated Artifact | JSS Paper Output | Content |
-|---|---|---|---|
-| `main_table.py` (`make table3`) | `results/table3_main_results.tex` | **Table 6 (`tab:5`)**, **Table 7 (`tab:6`)** | In-distribution held-out $\rho$, Wilcoxon tests |
-| `loso_all_variants.py` (`make table4`) | `results/table4_loso_results.tex` | **Table 8 (`tab:7`)** | Inductive LOSO cross-validation (12 folds) |
-| `scenario_param_table.py` (`make jss-tables`) | `tab_genparams.tex` | **Table 5 (`tab:genparams`)** | Scenario generation parameters |
-| `topic_weight_sensitivity.py` | `results/topic_weight_sensitivity.json` | **Table 10 (`tab:8b`)** | Sensitivity of topic weights $(\beta, \alpha, \psi)$ |
-| `ahp_sensitivity.py` | `results/ahp_shrinkage_sweep.json` | **Table 11 (`tab:8`)** | AHP shrinkage $\lambda$ sweep |
-| `weight_global_sensitivity.py` | `results/weight_global_sensitivity.json` | **Table 12 (`tab:8e`)** | Global Morris screening + Dirichlet sampling |
-| `convergent_validity.py` | `results/convergent_validity.json` | **Table 13 (`tab:8c`)** | Inter-oracle agreement ($I^*, I_{\text{comp}}, I_{\text{dyn}}$) |
-| `inference_latency.py` | `results/inference_latency.json` | **Table 15 (`tab:scale`)** | Per-stage inference latency |
-| `figure1_pipeline.dot` (`make jss-fig1`) | `docs/research/jss/latex/figures/Figure_1.pdf` | **Figure 1 (`fig:1`)** | Architecture flowchart |
-| `figure2_running_example.dot` (`make jss-fig2`) | `docs/research/jss/latex/figures/Figure_2.pdf` | **Figure 2 (`fig:2`)** | Running example graph |
-| `render_results_figure.py` (`make jss-fig3`) | `docs/research/jss/latex/figures/Figure_3.pdf` | **Figure 3 (`fig:3`)** | Results at a glance |
-| `render_shrinkage_figure.py` (`make jss-figS1`) | `docs/research/jss/latex/figures/Figure_S1.pdf` | **Figure S1** | AHP shrinkage curve |
-| `extract_attention.py` + `render_attention_subgraph.py` (`make jss-figS2`) | `docs/research/jss/latex/figures/Figure_S2.pdf` | **Figure S2** | HGT attention case study |
-| `cut_results_bundle.py` (`make bundle`) | `results/SaG_JSS_Results_<stamp>/` | — (shipped alongside the paper) | Every artifact the manuscript cites, plus `MANIFEST.json` with a SHA-256 and provenance stamp per file |
-
----
-
-## Architecture Variants (Table columns)
-
-These identifiers are used directly by `main_table.py`, `loso_all_variants.py`, and the evaluation suite:
-
-| Variant flag | Description |
-|---|---|
-| `hgl_qos` | **HGT-QoS (Proposed)** — Heterogeneous Graph Transformer (HGTConv) with 16-D continuous-categorical edge features |
-| `hgl` | **HGT** — Heterogeneous Graph Transformer (HGTConv) with QoS attributes masked |
-| `gl_qos` | **GAT-QoS** (in-distribution) / **GAT-N-QoS** (LOSO, k-fold) — Homogeneous GAT with scalar QoS weight per edge |
-| `gl` | **GL** — Homogeneous GAT with no edge weighting |
-| `topo_qos` | **Topo-QoS** — QoS-weighted structural centrality baseline |
-| `topo_baseline` | **Topo** — Unweighted structural centrality baseline |
-| `topology_rm` | **RM / $Q(v)$** — Diagnostic reference score from the ISO/IEC explanation layer |
+Predictor names and the original labels used by the registered plan and the result artifacts are
+mapped in the experiment index (section "Predictor names").
 
 ---
 
@@ -260,38 +186,13 @@ manual step performed outside this repo — there is no in-repo tooling or git-t
 
 ```
 reproduce/
-├── Makefile           — orchestration targets for JSS tables and figures
-├── Dockerfile         — exact environment (Python 3.11, PyG CPU)
-├── README.md          — this file
-├── EXPERIMENTS.md      — technical deep-dive on the harness internals and metrics
-├── __init__.py        — package initialization
-│
-│   Core empirical harness (JSS Tables 6, 7, 8):
-├── main_table.py                — 7×6×5 evaluation matrix (JSS Tables 6-7)
-├── loso_all_variants.py         — LOSO 12 folds (JSS Table 8)
-├── kfold_all_variants.py        — Stratified k-fold evaluation
-├── render_table.py              — LaTeX/CSV/MD table renderer
-│
-│   JSS manuscript figures (Figures 1–5):
-├── extract_attention.py         — HGT attention extraction for ATM System (Figure 3)
-├── render_attention_subgraph.py — Figure 3 renderer (Figure_3.{pdf,png})
-├── render_shrinkage_figure.py   — Figure 4 renderer (Figure_4.{pdf,png})
-├── render_results_figure.py     — Figure 5 renderer (Figure_5.{pdf,png})
-│
-│   JSS sensitivity & diagnostic sweeps (Tables 5, 10, 11, 12, 13, 15):
-├── scenario_param_table.py      — Generative scenario parameter table (Table 5)
-├── topic_weight_sensitivity.py  — Topic weight coefficient sensitivity (Table 10)
-├── ahp_sensitivity.py           — AHP shrinkage parameter lambda sweep (Table 11)
-├── weight_global_sensitivity.py — Joint Morris screening & Dirichlet sampling (Table 12)
-├── convergent_validity.py       — Inter-oracle rank agreement I*, I_comp, I_dyn (Table 13)
-├── inference_latency.py         — Per-stage inference latency vs scale (Table 15)
-│
-│   Auxiliary validation & diagnostic utilities:
-├── qos_pipeline_inspect.py      — Stage-by-stage QoS attribute trace
-├── recalibrate_main_table.py    — Post-hoc F1 recalibration utility
-├── run_prescribe_all.py         — Closed-loop counterfactual remediation verification
-├── reversed_projection_ablation.py  — Dependency projection direction ablation
-└── hardening_budget.py          — Risk-mass coverage by top-K selection
+├── Makefile                  — orchestration targets for the JSS experiments, tables and figures
+├── Dockerfile                — exact environment (Python 3.11, PyG CPU)
+├── README.md                 — this file
+├── EXPERIMENTS.md            — technical notes on the harness internals and metrics
+├── reconcile_manuscript.py   — checks every reported figure against its artifact
+├── render_manuscript_md.py   — regenerates the Markdown rendering of the manuscript
+└── *.py                      — one harness or renderer per experiment; see the experiment index
 ```
 
 ---
@@ -300,8 +201,8 @@ reproduce/
 
 ```bibtex
 @article{sag2026jss,
-  author  = {Yigit, Onuralp and Collaborators},
-  title   = {Software-as-a-Graph: Predicting Cascading-Failure Impact in Publish--Subscribe Systems Before Deployment with QoS-Aware Graphs and Hybrid Learning},
+  author  = {Yigit, Ibrahim Onuralp and Buzluca, Feza},
+  title   = {Software-as-a-Graph: When Does Graph Learning Improve Cascade-Impact Ranking in Publish--Subscribe Systems?},
   journal = {Journal of Systems and Software},
   note    = {Special Issue: AI Techniques for Performance, Reliability, and Sustainability of Modern Software Systems (VSI:AI4MSS). Under submission.},
   year    = {2026}
