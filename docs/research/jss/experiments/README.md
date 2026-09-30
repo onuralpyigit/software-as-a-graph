@@ -1,10 +1,10 @@
 # JSS experiments: protocols, commands and artifacts
 
 This folder is the experiment companion to the *Journal of Systems and Software* paper
-**"Software-as-a-Graph: Benchmarking Centrality and Graph Learning for Pre-Deployment
-Cascade-Impact Ranking in Publish–Subscribe Systems"**. The paper keeps the headline results and the
-evidence each one needs. Each page here documents one experiment:
-- the protocol and hyperparameters that the paper summarises in a sentence;
+**"Software-as-a-Graph: When Does Graph Learning Improve Cascade-Impact Ranking in
+Publish–Subscribe Systems?"**. The paper reports the headline results and the evidence each one
+needs. Each page here documents one experiment:
+- the protocol and hyperparameters that the paper summarizes in a sentence;
 - the command that reproduces it;
 - the artifacts it writes;
 - where its extended results live.
@@ -17,7 +17,8 @@ reported figure against the artifact that produced it. These pages deliberately 
 tables, since a hand-copied table is exactly the kind of number that drifts. They quote only
 abstract-level headline values, and point to the table that carries the full result.
 
-**Where the artifacts live.** `results/` is not tracked in git, except the Amendment 7, 9 and 10 artifacts; Amendment 12's artifacts are tracked under `data/benchmarks/`. The JSON artifacts named below ship
+**Where the artifacts live.** `results/` is not tracked in git, except the Amendment 7, 9 and 10
+artifacts; later artifacts are tracked under `data/benchmarks/`. The JSON artifacts named below ship
 in the Zenodo replication package ([10.5281/zenodo.23045204](https://doi.org/10.5281/zenodo.23045204))
 as a dated bundle `SaG_JSS_Results_<stamp>` with a `MANIFEST.json` of SHA-256 digests, commit hashes
 and corpus provenance. Every `make` target below writes into `results/` when run from the repository
@@ -27,24 +28,26 @@ root.
 
 | Paper | Experiment | Page | Command | Extended results |
 |---|---|---|---|---|
-| §7.1, Table 7 | LOSO ranking of the engines vs. baselines (registered GPU sweep: Supp. S30) | [rq1-engines-loso.md](rq1-engines-loso.md) | `make -f reproduce/Makefile table4` | Supp. S25, S30 |
-| §7.1, Table 7 | Hybrid-HGT and Hybrid-GAT | [rq1-hybrid.md](rq1-hybrid.md) | `make -f reproduce/Makefile rq-hybrid rq-hybrid-gat` | Supp. S23, S24 |
-| §7.2, Table 9 | Capacity- and channel-matched typing × QoS control | [rq2-matched-control.md](rq2-matched-control.md) | `make -f reproduce/Makefile rq2-matched` | Supp. S16, S21, S26 |
-| §7.2, §8.2 | Attribution controls: receptive field, QoS node columns vs edge channel, feature-only GBM (Amendment 8, exploratory) | [rq2-attribution-controls.md](rq2-attribution-controls.md) | `make -f reproduce/Makefile rq-attribution` | Supp. S32 |
-| §7.3, Table 10 | Zero-shot transfer to five open-source system models | [rq3-zero-shot-transfer.md](rq3-zero-shot-transfer.md) | `python reproduce/realworld_zeroshot.py` | Supp. S7, S15, S27, S29 |
-| §7.4, Table 11 | Analysis cost and comparison with direct simulation | [rq4-cost.md](rq4-cost.md) | `make -f reproduce/Makefile inference-latency` | Supp. S28 |
-| §4.3, §8.2 | Oracles, label QoS content, convergent validity, parameter sensitivity | [oracles-and-sensitivity.md](oracles-and-sensitivity.md) | `make -f reproduce/Makefile convergent-validity` | Supp. S1–S4, S9 |
-| §7.1, Table 7, Fig. 5 | Dependency counts and QoS-attribution controls (Amendment 7) | [amendment7-training-free.md](amendment7-training-free.md) | `python reproduce/training_free_suite.py all` | Supp. S32 |
-| §7.1–7.3, Tables 7–8, §8.2 | Graph learning on the dependency graph vs. dependency counts (Amendment 9, exploratory) | [amendment9-dependency-graph-learning.md](amendment9-dependency-graph-learning.md) | `make -f reproduce/Makefile rq-dependency-graph` | Supp. S33 |
-| §7.1, §8.3 | Value of the dependency derivation: InDeg vs raw-graph counts, Rule 5 in reach (Amendment 10, exploratory) | [amendment10-derivation.md](amendment10-derivation.md) | `python reproduce/training_free_suite.py derivation` | Supp. S33 |
-| §7.1, Tables 6–7, Fig. 6, §8 | Round-7 referee analyses: raw-graph rankers, partial ρ beyond I*, learned engines on all oracles, recall@k, single-harness zero-shot, latency (Amendment 12, exploratory) | [amendment12-referee.md](amendment12-referee.md) | `make -f reproduce/Makefile rq-referee-round7` | Supp. S-referee |
-| §1, §4.4, §6.2, §7, §8, Figs. 5–6 | Dependency counts reported as references that restate I*, not as predictors; GAT-P+InDeg to the supplement (Amendment 13, reporting deviation, no new runs) | [amendment13-reference-demotion.md](amendment13-reference-demotion.md) | none (figures re-rendered) | Supp. amendment log |
-| §4–§8 | Round-8 arms: degree-free and GIN learners, w_in-held 2×2, GNN I_dyn surrogate, nested selection; full-population I_dyn Table 7; hybrid attribution, TOST, cost reconciliation (Amendment 14) | [amendment14-round8.md](amendment14-round8.md) | `make -f reproduce/Makefile rq-amendment14 rq-referee-round8 rq-cost-reconcile` | Supp. S-round8 |
-| §6.4, §8.2 | Registered plan, amendments, omnibus correction, repeatability | [repeatability-and-amendments.md](repeatability-and-amendments.md) | `make -f reproduce/Makefile omnibus` | Supp. S24 |
+| §6.1, Table 5 | LOSO ranking of learned rankers against the training-free baseline | [rq1-engines-loso.md](rq1-engines-loso.md) | `make -f reproduce/Makefile table4` | Supp. S27, S33 |
+| §6.1, Table 5 | Hybrid rankers (Hybrid-HGT, Hybrid-GAT) | [rq1-hybrid.md](rq1-hybrid.md) | `make -f reproduce/Makefile rq-hybrid rq-hybrid-gat` | Supp. S24 |
+| §6.2, Table 7 | Capacity- and channel-matched typing × QoS control | [rq2-matched-control.md](rq2-matched-control.md) | `make -f reproduce/Makefile rq2-matched` | Supp. S17, S22, S28 |
+| §6.2, §7.2 | Attribution controls: receptive field, QoS node columns vs. edge channel, feature-only GBM (Amendment 8, exploratory) | [rq2-attribution-controls.md](rq2-attribution-controls.md) | `make -f reproduce/Makefile rq-attribution` | Supp. S32 |
+| §6.3, Table 9 | Zero-shot transfer to five open-source system models | [rq3-zero-shot-transfer.md](rq3-zero-shot-transfer.md) | `python reproduce/realworld_zeroshot.py` | Supp. S14, S29 |
+| §6.4, Table 10 | Analysis cost against direct simulation | [rq4-cost.md](rq4-cost.md) | `make -f reproduce/Makefile inference-latency rq-cost-reconcile` | Supp. S30, S31 |
+| §4.3, §7.5 | Simulation oracles, convergent validity, parameter sensitivity | [oracles-and-sensitivity.md](oracles-and-sensitivity.md) | `make -f reproduce/Makefile convergent-validity` | Supp. S3, S10 |
+| §6.1, Table 5, Fig. 4 | Dependency counts and QoS-attribution controls (Amendment 7) | [amendment7-training-free.md](amendment7-training-free.md) | `python reproduce/training_free_suite.py all` | Supp. S35 |
+| §6.1–6.3, Tables 5 and 9, §7.2 | Graph learning on the dependency graph vs. analytical references (Amendment 9, exploratory) | [amendment9-dependency-graph-learning.md](amendment9-dependency-graph-learning.md) | `make -f reproduce/Makefile rq-dependency-graph` | Supp. S36 |
+| §3.3, §6.1 | Value of the dependency derivation: Rule 5 in transitive reach (Amendment 10, exploratory) | [amendment10-derivation.md](amendment10-derivation.md) | `python reproduce/training_free_suite.py derivation` | Supp. S36 |
+| §6.1, Table 6 | Learned approximation of the queue-flow oracle (GBM on dependency features; Amendment 11) | — | `make -f reproduce/Makefile rq-oracle-robust` | Supp. S26 |
+| §6.1, Tables 5–6, Fig. 5 | Referee analyses: raw-graph rankers, partial ρ beyond I*, learned rankers on all oracles, recall@k, latency (Amendment 12, exploratory) | [amendment12-referee.md](amendment12-referee.md) | `make -f reproduce/Makefile rq-referee-round7` | Supp. S37 |
+| §4.4, §5.2, §6 | Dependency counts reported as references that restate I*, not as predictors (Amendment 13, reporting change, no new runs) | [amendment13-reference-demotion.md](amendment13-reference-demotion.md) | none | Supp. S26 |
+| §6.1–6.2, Tables 6 and 8 | Degree-free and GIN learners, w_in-held 2×2, GNN trained on I_dyn, nested selection, full-population I_dyn (Amendment 14) | [amendment14-round8.md](amendment14-round8.md) | `make -f reproduce/Makefile rq-amendment14 rq-referee-round8` | Supp. S38 |
+| §5.2, §6.1, Table 6 | Rate-weighted reference for I_dyn (Eq. 7) and input attribution of the learned approximation (Amendment 15, exploratory) | — | `make -f reproduce/Makefile rq-rate-expansion` | Supp. S39 |
+| §5.3 | Registered plan, amendments, omnibus correction, repeatability | [repeatability-and-amendments.md](repeatability-and-amendments.md) | `make -f reproduce/Makefile omnibus` | Supp. S26 |
 
-Section and table numbers are those of the compiled manuscript at the submission tag. The LaTeX
-sources refer to them by label (`sec:rq1`, `tab:7`, …), so `manuscript.aux` is the authoritative
-mapping if they drift.
+Section, table and figure numbers are those of the compiled manuscript and supplement at submission.
+The LaTeX sources refer to them by label (`sec:rq1`, `tab:hybrid`, …), so `manuscript.aux` and
+`supplementary.aux` are the authoritative mapping if they drift.
 
 ## Predictor names
 
@@ -53,15 +56,16 @@ A name gives the architecture and then what distinguishes it:
 - `-w` means a scalar QoS edge weight.
 - `-S` means a small GAT (28k parameters).
 - `-P` means the Application–Library `DEPENDS_ON` dependency graph rather than the native multigraph.
-- `Hybrid-X` means engine X corrected by the `Topo-QoS` prior.
+- `Hybrid-X` means model X corrected by the `Topo-QoS` prior.
+- `→dyn` means trained on queue-flow (`I_dyn`) labels instead of `I*`.
 
 Unsuffixed `GAT` and `GAT-QoS` are matched to HGT's parameter budget.
 
-The registered plan and the result artifacts use earlier labels. The map below mirrors
+The registered plan and the result artifacts use the original labels. The map below mirrors
 `LEGACY_LABELS` in [`saag/evaluation/variant_registry.py`](../../../../saag/evaluation/variant_registry.py).
 Internal variant ids never changed.
 
-| Current | Earlier label | Variant id |
+| Current | Original label | Variant id |
 |---|---|---|
 | `GAT-S` / `GAT-S-w` | `GAT-N` / `GAT-N-QoS` | `gl_full` / `gl_full_qos` (`gl` / `gl_qos` under LOSO) |
 | `GAT-S-P` / `GAT-S-P-w` | `GAT` / `GAT-QoS` (in-distribution only) | `gl` / `gl_qos` |
@@ -75,8 +79,8 @@ The paper answers four research questions. The registered analysis plan
 
 | Paper | Registered plan |
 |---|---|
-| RQ1: ranking accuracy of closed-form, learned and hybrid engines | RQ1, plus the hybrid Amendments 5–6 |
-| RQ2: what learned engines need (typing vs. QoS channel) | RQ2, plus the QoS-ablation part of RQ3 |
+| RQ1: ranking accuracy of analytical, hybrid and learned rankers | RQ1, plus the hybrid Amendments 5–6 |
+| RQ2: sources of predictive performance (representation, degree, typing, QoS, model family) | RQ2, plus the QoS-ablation part of RQ3 |
 | RQ3: zero-shot transfer | RQ4 |
 | RQ4: analysis cost | RQ5 |
 

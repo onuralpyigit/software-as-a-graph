@@ -1775,6 +1775,11 @@ def check_dependency_graph(rep: Report) -> None:
            r"without Rule~5, \\texttt\{Reach\} (?:falls|drops) by " + num + r" \((\d+)/12 folds, Holm \$p = ([\d.]+)[\$;]",
            [(1, c10["Reach vs Reach-R1"]["delta"]), (2, c10["Reach vs Reach-R1"]["won"]),
             (3, c10["Reach vs Reach-R1"]["p_holm"])])
+    _quote(rep, "sec:3.3 Rule 5", _tex("sec3_sag_model.tex"),
+           r"including Rule~5 raises the agreement of transitive reach with \$I\^\*\$ by " + num
+           + r" \((\d+) of 12 folds, Holm \$p = ([\d.]+)\$",
+           [(1, c10["Reach vs Reach-R1"]["delta"]), (2, c10["Reach vs Reach-R1"]["won"]),
+            (3, c10["Reach vs Reach-R1"]["p_holm"])])
     ioe = _load("independent_oracle_evaluation.json")
     raw12, lrn = _load("referee_round7_raw_baselines.json"), _load("referee_round7_learned_oracles.json")
     if None not in (ioe, raw12, lrn):
@@ -2012,11 +2017,35 @@ def check_reference_demotion(rep: Report) -> None:
     _absent("abstract", _tex("abstract.tex"))
     _absent("highlights", (LATEX / "highlights.tex").read_text())
     _absent("sec:9", _tex("sec9_conclusion.tex"))
-    for fname, label in (("sec6_experimental_setup.tex", "tab:predictor_taxonomy"),
-                         ("sec8_discussion.tex", "tab:guidance")):
-        tex = _tex(fname)
-        k = tex.index(r"\label{%s}" % label)
-        _absent(label, tex[tex.index(r"\begin{tabular}", k):tex.index(r"\end{tabular}", k)])
+    tex = _tex("sec8_discussion.tex")
+    k = tex.index(r"\label{tab:guidance}")
+    _absent("tab:guidance", tex[tex.index(r"\begin{tabular}", k):tex.index(r"\end{tabular}", k)])
+
+    # The ranker taxonomy lists the references for completeness (advisor v7_2),
+    # but only inside its own "Analytical: references" block.
+    tex = _tex("sec6_experimental_setup.tex")
+    k = tex.index(r"\label{tab:predictor_taxonomy}")
+    tab = tex[tex.index(r"\begin{tabular}", k):tex.index(r"\end{tabular}", k)]
+    in_ref, got_ref = False, set()
+    for line in tab.splitlines():
+        s_ = line.strip()
+        if s_.startswith(r"\multicolumn"):
+            in_ref = "references" in s_
+            continue
+        if s_ == r"\midrule" or "&" not in s_:
+            in_ref = False if s_ == r"\midrule" else in_ref
+            continue
+        first = _cells(s_)[0]
+        rep.checked += 1
+        if in_ref:
+            got_ref.update(n for n in ("Analytic", "Rate-weighted", "InDeg", "Reach") if re.search(r"\b%s\b" % n, first))
+        elif ref_pat.search(first):
+            rep.findings.append(Finding("tab:predictor_taxonomy", first[:30], "row", "outside reference block",
+                                        "reference block only", "Amendment 13: references are not predictors"))
+    rep.checked += 1
+    if got_ref != {"Analytic", "Rate-weighted", "InDeg", "Reach"}:
+        rep.findings.append(Finding("tab:predictor_taxonomy", "reference block", "rows", sorted(got_ref),
+                                    ["Analytic", "InDeg", "Rate-weighted", "Reach"]))
 
     for fname in sorted(p.name for p in SECTIONS.glob("*.tex")):
         for line in _tex(fname).splitlines():
@@ -2178,7 +2207,7 @@ def check_cost_ll(rep: Report) -> None:
     if seen != len(by_n):
         rep.findings.append(Finding("tab:cost-ll", "rows", "count", seen, len(by_n)))
     sm = d["corpus_summary"]["ratio_app_analysis_to_one_pass"]
-    _quote(rep, "sec:rq4", tex, r"feature extraction every learned engine needs \$([\d.]+)\$--\$([\d.]+)\\times\$ more \(median \$([\d.]+)\\times\$\)",
+    _quote(rep, "sec:rq4", tex, r"feature extraction every learned ranker needs \$([\d.]+)\$--\$([\d.]+)\\times\$ more \(median \$([\d.]+)\\times\$\)",
            [(1, sm["min"]), (2, sm["max"]), (3, sm["median"])])
 
 
@@ -2378,8 +2407,12 @@ def check_learning_focus(rep: Report, profile: str = "learning-focus") -> None:
     sec6 = _tex("sec6_experimental_setup.tex")
     if r"\label{tab:predictor_taxonomy}" in sec6:
         tax_table = sec6[sec6.index(r"\label{tab:predictor_taxonomy}"):sec6.index(r"\end{table}", sec6.index(r"\label{tab:predictor_taxonomy}"))]
-        if "Training-free baseline" in tax_table:
-            start = tax_table.index("Training-free baseline")
+        key = "training-free baseline (registered comparator)"
+        rep.checked += 1
+        if key not in tax_table:
+            rep.findings.append(Finding("tab:predictor_taxonomy", "baseline block", "heading", "absent", key))
+        else:
+            start = tax_table.index(key)
             end = tax_table.index(r"\midrule", start)
             tf_block = tax_table[start:end]
             tf_predictors = []
