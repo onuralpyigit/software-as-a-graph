@@ -178,7 +178,7 @@ Flow Disruption ($w_4$) & $0.15$ & $[0.05, 0.70]$ & $0.143$ & $0.113$ \\
 \noindent Table~\ref{tab:S_icomp} establishes three key findings:
 \begin{enumerate}
     \item \textbf{Stratum Dominance is Invariant:} Across all $1{,}000$ Dirichlet draws, Application correlation ($\rho \in [0.441, 0.599]$) strictly dominates pooled correlation ($\rho \in [0.096, 0.351]$); the two intervals do not overlap. Heterogeneous pooling degrades ranking performance under 100\% of sampled weight configurations, demonstrating that the failure of pooled evaluations is an intrinsic property of mixing distinct architectural strata rather than an artifact of weight tuning. This is the claim the stratification argument rests on, and it is the one that survives re-scoping: it held on the eight-scenario suite reported previously and holds on the twelve-scenario corpus reported here.
-    \item \textbf{The Strict Condition Does Not Hold at the Shipped Weights:} $\rho_{\text{pooled}} < \min(\rho_{\text{app}}, \rho_{\text{broker}}, \rho_{\text{node}})$ holds across $13.9\%$ of the Dirichlet simplex, and the shipped weight vector is not among them: at $(0.35, 0.25, 0.25, 0.15)$ the gap is $-0.078$, because pooled correlation ($0.218$) exceeds the Node stratum ($0.140$). A previous version of this supplement reported the condition as holding at the shipped weights on $34.8\%$ of the simplex; that sweep ran over an eight-scenario suite belonging to a companion study, whose Broker stratum ($\rho = 0.119$ over six scenarios) is far weaker than this corpus's ($0.317$ over eleven). The strict reversal was a property of that suite, not of type-heterogeneous aggregation, and we withdraw it.
+    \item \textbf{The Strict Condition Does Not Hold at the Shipped Weights:} $\rho_{\text{pooled}} < \min(\rho_{\text{app}}, \rho_{\text{broker}}, \rho_{\text{node}})$ holds across $13.9\%$ of the Dirichlet simplex, and the shipped weight vector is not among them: at $(0.35, 0.25, 0.25, 0.15)$ the gap is $-0.078$, because pooled correlation ($0.218$) exceeds the Node stratum ($0.140$). On an eight-scenario suite belonging to a companion study, the condition holds at the shipped weights on $34.8\%$ of the simplex, but that suite's Broker stratum ($\rho = 0.119$ over six scenarios) is far weaker than this corpus's ($0.317$ over eleven). The strict reversal is a property of that suite, not of type-heterogeneous aggregation.
     \item \textbf{Dominant Drivers of Separation:} Morris screening demonstrates that Throughput ($\mu^* = 0.231, \sigma = 0.075$) and Reachability ($\mu^* = 0.174, \sigma = 0.094$) are the primary drivers of the stratum gap, with Flow Disruption third ($\mu^* = 0.143$), whereas Fragmentation ($\mu^* = 0.002$) exerts virtually no influence. On the eight-scenario suite Flow Disruption ranked first; the re-ordering is a further consequence of that suite's atypically weak Broker stratum.
 \end{enumerate}
 
@@ -349,7 +349,7 @@ We evaluated the framework on hand-authored architecture models of five open-sou
 
     \item \textbf{Predictive Advantage over Structural Heuristics:} The ``Gain vs.\ Deg'' column reports $Q(v)$'s rank-correlation margin over an unweighted degree centrality baseline ($+0.427$ on EdgeX Foundry, $+0.357$ on Autoware, $+0.289$ on Home Assistant, $+0.264$ on Train-Ticket, $+0.014$ on Cloud Microservices), so on this population and this oracle the hierarchical attribution of Section~\ref{supp:explanation} of the main manuscript orders components better than degree centrality does. The margin does not generalize beyond those conditions, and we scope it accordingly: on the pooled synthetic detection benchmark of Section~\ref{M-sec:6.3} of the main manuscript --- which is measured against $I_{\text{comp}}(v)$ (composite failure simulation) rather than the $I^*(v)$ used here, and across all entity types --- degree \emph{beats} RM on both rank correlation ($0.314$ vs.\ $0.217$) and Overlap@$K$ ($0.459$ vs.\ $0.350$). The two findings are not in conflict --- one is stratified on Applications in five hand-authored system models under $I^*(v)$, the other pooled across types in eight generated ones under $I_{\text{comp}}(v)$ --- but neither supports a general claim that RM dominates degree. Wilcoxon signed-rank tests over the five systems do not reach significance ($p \ge 0.33$), which at $n = 5$ they could hardly do; we report them for completeness rather than as support.
 
-    \item \textbf{The QoS-weighted heuristic was initially unscorable here, and the fix is the substrate.} On the raw multigraph the unweighted \texttt{Topo} reference is computable ($\rho = 0.307 / 0.891 / 0.528$ on Autoware, Online Boutique and Train-Ticket; mean $0.511$) while \texttt{Topo-QoS} is not. The obstacle is not missing QoS data --- every topic in all five adapters carries declared \texttt{durability}, \texttt{reliability} and \texttt{transport\_priority} profiles, and projecting $w(t)$ onto the structural edges yields non-unit weights on $45.3$--$62.2\%$ of them. It is that \texttt{Topo} reads betweenness off the cached \texttt{DEPENDS\_ON} projection, whereas the QoS-weighted variant must recompute it on the raw multigraph, where Applications never route messages and betweenness is identically zero for all of them --- the same degeneracy Section~\ref{M-sec:6.2} of the main manuscript gives as the reason topological baselines are run on the projection at all. This is resolved in the reported evaluation: both baselines are scored on the \texttt{DEPENDS\_ON} flow projection, as Section~\ref{M-sec:6.2} of the main manuscript prescribes, and Table~\ref{M-tab:9b} of the main manuscript therefore carries \texttt{Topo-QoS} on all five systems ($0.289$--$0.888$). Earlier drafts measured the real-world margin against the unweighted reference alone; that gap is closed. Separately, projection-based baselines assign constant zero to Applications carrying no derived \texttt{DEPENDS\_ON} edge, accentuating sensitivity to tied ground truth.
+    \item \textbf{The QoS-weighted heuristic was initially unscorable here, and the fix is the substrate.} On the raw multigraph the unweighted \texttt{Topo} reference is computable ($\rho = 0.307 / 0.891 / 0.528$ on Autoware, Online Boutique and Train-Ticket; mean $0.511$) while \texttt{Topo-QoS} is not. The obstacle is not missing QoS data --- every topic in all five adapters carries declared \texttt{durability}, \texttt{reliability} and \texttt{transport\_priority} profiles, and projecting $w(t)$ onto the structural edges yields non-unit weights on $45.3$--$62.2\%$ of them. It is that \texttt{Topo} reads betweenness off the cached \texttt{DEPENDS\_ON} projection, whereas the QoS-weighted variant must recompute it on the raw multigraph, where Applications never route messages and betweenness is identically zero for all of them --- the same degeneracy Section~\ref{M-sec:6.2} of the main manuscript gives as the reason topological baselines are run on the projection at all. This is resolved in the reported evaluation: both baselines are scored on the \texttt{DEPENDS\_ON} flow projection, as Section~\ref{M-sec:6.2} of the main manuscript prescribes, and Table~\ref{M-tab:9b} of the main manuscript therefore carries \texttt{Topo-QoS} on all five systems ($0.289$--$0.888$). Separately, projection-based baselines assign constant zero to Applications carrying no derived \texttt{DEPENDS\_ON} edge, accentuating sensitivity to tied ground truth.
 \end{enumerate}
 
 \section{HGT Relational Attention Weight Analysis}
@@ -399,7 +399,7 @@ $I_{\text{comp}}$ vs.\ $I_{\text{dyn}}$ & $0.411$ ($-0.073$--$0.705$) & $0.389$ 
 \end{tabular}
 \end{table}
 
-\noindent The queue-flow simulator and the topological cascade oracle agree substantially but not interchangeably ($\rho = 0.627$, Jaccard $0.370$ against $0.111$ expected by chance). \textbf{This is the reading the ceiling supports.} $I^*$'s own seed-to-seed test--retest across these same twelve folds runs $0.811$--$1.000$ (median $0.982$; Section~\ref{M-sec:rq1} of the main manuscript), so $I_{\text{dyn}}$ agrees with $I^*$ distinctly \emph{less} closely than $I^*$ agrees with itself. The gap is the point: a behavioural oracle that reproduced the topological one to within label noise would be re-measuring the topology rather than corroborating it. Ranking over discrete-event queueing traffic recovers most of the topological ordering while retaining content the cascade abstraction does not express.
+\noindent The queue-flow simulator and the topological cascade oracle agree substantially but not interchangeably ($\rho = 0.627$, Jaccard $0.370$ against $0.111$ expected by chance). \textbf{This is the reading the ceiling supports.} $I^*$'s own seed-to-seed test--retest across these same twelve folds runs $0.811$--$1.000$ (median $0.982$; Section~\ref{M-sec:rq1} of the main manuscript), so $I_{\text{dyn}}$ agrees with $I^*$ distinctly \emph{less} closely than $I^*$ agrees with itself. The gap is the point: a behavioral oracle that reproduced the topological one to within label noise would be re-measuring the topology rather than corroborating it. Ranking over discrete-event queueing traffic recovers most of the topological ordering while retaining content the cascade abstraction does not express.
 
 \noindent Two boundaries qualify this. First, $\rho^{+} = 0.429$ against $\rho = 0.627$ shows that a substantial share of the agreement is the two oracles concurring on which components are \emph{harmless}; restricted to components both score non-zero, agreement is weak in four of twelve folds (Industrial SCADA $-0.069$, Enterprise Integration (ESB) $0.008$, Autonomous Vehicle $0.149$, Microservices $0.194$). Second, Industrial SCADA is the weakest fold ($\rho = 0.186$), and Microservices exhibits the least reproducible label in the corpus (test--retest $0.811$, top-$K$ Jaccard $0.720$), so part of that deficit is label noise rather than construct divergence.
 
@@ -621,7 +621,7 @@ HGT-QoS & 0.473 & 0.713 & — \\
 \section{The \texorpdfstring{$2\times2$}{2x2} on a Variance-Stabilised Scale}
 \label{supp:fisherz}
 
-\noindent\textbf{Scope note.} This section analyses the \emph{unmatched} $2\times2$ of Table~\ref{tab:contrasts} (Section~\ref{supp:naive-2x2}). The capacity- and channel-matched control (Table~\ref{M-tab:contrasts_matched} of the main manuscript) removes the interaction and the typing effect entirely, so these robustness checks establish only that the unmatched interaction is not a metric or seed artefact, not that it reflects typing.
+\noindent\textbf{Scope note.} This section analyzes the \emph{unmatched} $2\times2$ of Table~\ref{tab:contrasts} (Section~\ref{supp:naive-2x2}). The capacity- and channel-matched control (Table~\ref{M-tab:contrasts_matched} of the main manuscript) removes the interaction and the typing effect entirely, so these robustness checks establish only that the unmatched interaction is not a metric or seed artifact, not that it reflects typing.
 
 Spearman $\rho$ is bounded on $[-1, 1]$ and compresses toward either end. A
 difference of differences computed on it is therefore not scale-free: two
@@ -629,7 +629,7 @@ mechanisms that each move a predictor toward the attainable ceiling can appear
 sub-additive even if they contribute independently under any monotone
 rescaling. Since the sub-additivity claim of Section~\ref{supp:naive-2x2}
 \emph{is} a claim about an interaction, it has to survive the transformation
-that removes that artefact.
+that removes that artifact.
 
 Table~\ref{tab:contrasts_z} repeats the three orthogonal quantities of the
 $2\times2$ with each fold's $\rho$ passed through $\operatorname{arctanh}$
@@ -704,7 +704,7 @@ This table was moved out of the body because no comparison can be drawn down its
 \section{Results at a Glance}
 \label{supp:glance}
 
-The results-at-a-glance figure now appears in the main manuscript as Figure~\ref{M-fig:results}, generated from the same artifacts as Tables~\ref{M-tab:hybrid} and~\ref{M-tab:contrasts_matched} of the main manuscript (\path{reproduce/render_headline_figure.py}). The earlier version of this figure is withdrawn. Its panel~(D) showed the typing $\times$ QoS interaction of the unmatched $2\times2$ (Table~\ref{tab:contrasts}), which the capacity-matched control shows to be an effect of capacity and channel width (Section~\ref{supp:naive-2x2}). Its oracle-agreement panel is reported in Section~\ref{supp:convergent}.
+The results-at-a-glance figure now appears in the main manuscript as Figure~\ref{M-fig:results}, generated from the same artifacts as Tables~\ref{M-tab:hybrid} and~\ref{M-tab:contrasts_matched} of the main manuscript (\path{reproduce/render_headline_figure.py}). It omits the typing $\times$ QoS interaction of the unmatched $2\times2$ (Table~\ref{tab:contrasts}), which the capacity-matched control shows to be an effect of capacity and channel width (Section~\ref{supp:naive-2x2}); oracle agreement is reported in Section~\ref{supp:convergent}.
 
 \section{Illustrative Diagnostic Remediation Card}
 \label{supp:card}
@@ -749,7 +749,7 @@ where $\mathcal{L}_{\text{dimension}} = \frac{1}{\sum_{d} m_d} \sum_{d \in \{R, 
 \section{Seed-Aggregation Robustness of the \texorpdfstring{$2\times2$}{2x2}}
 \label{supp:seed-robust}
 
-\noindent\textbf{Scope note.} This section analyses the \emph{unmatched} $2\times2$ of Table~\ref{tab:contrasts} (Section~\ref{supp:naive-2x2}). The capacity- and channel-matched control (Table~\ref{M-tab:contrasts_matched} of the main manuscript) removes the interaction and the typing effect entirely, so these robustness checks establish only that the unmatched interaction is not a metric or seed artefact, not that it reflects typing.
+\noindent\textbf{Scope note.} This section analyzes the \emph{unmatched} $2\times2$ of Table~\ref{tab:contrasts} (Section~\ref{supp:naive-2x2}). The capacity- and channel-matched control (Table~\ref{M-tab:contrasts_matched} of the main manuscript) removes the interaction and the typing effect entirely, so these robustness checks establish only that the unmatched interaction is not a metric or seed artifact, not that it reflects typing.
 
 \texttt{GAT-S}, the floor cell of the reported $2\times2$, has a median within-fold seed standard deviation of $0.298$, against $0.114$ (\texttt{HGT}), $0.024$ (\texttt{GAT-S-w}) and $0.052$ (\texttt{HGT-QoS}). If a few collapsed seeds pull its fold means down, both main effects and the interaction inherit that optimization failure. Table~\ref{tab:supp-seed-robust} re-forms each fold score from the per-seed results of the same twelve-fold artifact under three aggregations and recomputes the three orthogonal quantities, Holm-corrected across the three within each aggregation. No model is retrained (\path{reproduce/factorial_seed_robustness.py}; \path{results/factorial_seed_robustness_v5.json}).
 
@@ -1072,7 +1072,7 @@ This section preserves the legacy profiling micro-benchmarks referenced in Secti
 \centering
 \footnotesize
 \setlength{\tabcolsep}{3pt}
-\caption{Per-stage latency of the inference pipeline across graph sizes (CPU, median of 3 runs; 5 for the forward pass; an earlier session, system-layer analysis). Only ratios within one row are meaningful: comparing this table's analysis stage with Table~\ref{tab:supp-count-scale}'s oracle mixes stages, sessions and graphs, which is what earlier revisions did. The analysis stage is stable across repeats (p10--p90 within $1\%$ of the median), while the forward pass is dominated by interpreter and dispatch overhead; the 249-node row carries first-call warm-up.}
+\caption{Per-stage latency of the inference pipeline across graph sizes (CPU, median of 3 runs; 5 for the forward pass; an earlier session, system-layer analysis). Only ratios within one row are meaningful: comparing this table's analysis stage with Table~\ref{tab:supp-count-scale}'s oracle mixes stages, sessions and graphs. The analysis stage is stable across repeats (p10--p90 within $1\%$ of the median), while the forward pass is dominated by interpreter and dispatch overhead; the 249-node row carries first-call warm-up.}
 \label{tab:supp-scale}
 \label{tab:scale}
 \begin{tabular}{ccccccc}
@@ -1464,7 +1464,7 @@ Train-Ticket & 41 & 0.535 / 0.625 & 0.598 / 0.750 & 0.867 / 0.500 & 0.966 / 0.75
 \begin{table}[htbp]
 \centering
 \small
-\caption{Where the closed-form gain comes from, per LOSO holdout (Spearman $\rho$, Application population). \emph{Published Topo}: the registered comparator, which read betweenness from the analysis stage's application-layer dependency graph; \emph{app-layer BT}: that betweenness rebuilt in memory (\texttt{MemoryRepository}, which differs slightly from Neo4j on Rule-1 weights). \emph{Proj.\ BT}: unweighted betweenness on the Application--Library projection \texttt{Topo-QoS} uses. \emph{Topo-Mult}: \texttt{Topo-QoS} with every topic weight fixed at $0.5$. \emph{Perm}: \texttt{Topo-QoS} with QoS profiles permuted across topics (mean of 20). \emph{Indep.}: the corpus regenerated with QoS no longer steering topology (\texttt{qos\_affinity: false}), relabelled. Rendered from \texttt{results/qos\_attribution\_controls.json}, \texttt{results/topo\_substrate\_check.json} and \texttt{results/qos\_indep\_corpus.json}.}
+\caption{Where the closed-form gain comes from, per LOSO holdout (Spearman $\rho$, Application population). \emph{Published Topo}: the registered comparator, which read betweenness from the analysis stage's application-layer dependency graph; \emph{app-layer BT}: that betweenness rebuilt in memory (\texttt{MemoryRepository}, which differs slightly from Neo4j on Rule-1 weights). \emph{Proj.\ BT}: unweighted betweenness on the Application--Library projection \texttt{Topo-QoS} uses. \emph{Topo-Mult}: \texttt{Topo-QoS} with every topic weight fixed at $0.5$. \emph{Perm}: \texttt{Topo-QoS} with QoS profiles permuted across topics (mean of 20). \emph{Indep.}: the corpus regenerated with QoS no longer steering topology (\texttt{qos\_affinity: false}), relabeled. Rendered from \texttt{results/qos\_attribution\_controls.json}, \texttt{results/topo\_substrate\_check.json} and \texttt{results/qos\_indep\_corpus.json}.}
 \label{tab:a7-controls}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lcccccccc}
@@ -1921,7 +1921,7 @@ Train-Ticket & 41 & 0.66 & 0.77 & 5 & 0.867 & 0.966 \\
 \begin{table}[htbp]
 \centering
 \small
-\caption{Counting path against one $I^*$ labelling pass on generated graphs (Amendment~12, R6; median of repeats, count in brackets for $I^*$). Projection, \texttt{InDeg} and \texttt{Reach} in ms; $I^*$ in s. Rendered from \texttt{data/benchmarks/referee\_round7\_latency.json}.}
+\caption{Counting path against one $I^*$ labeling pass on generated graphs (Amendment~12, R6; median of repeats, count in brackets for $I^*$). Projection, \texttt{InDeg} and \texttt{Reach} in ms; $I^*$ in s. Rendered from \texttt{data/benchmarks/referee\_round7\_latency.json}.}
 \label{tab:ref-latency}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{rrrrrr}
@@ -2042,12 +2042,12 @@ Feature & $\rho$ with \texttt{InDeg} \\
 \end{tabular}
 \end{table}
 
-\noindent\textbf{The $n = 30$ sensitivity check (Amendment~11, rule R).} Table~\ref{tab:r8-n30} sets the full-population $I_{\text{dyn}}$ values of the main manuscript's Table~\ref{M-tab:independent_oracles} beside the earlier lexicographic sample. Every ranker scores higher on the full population, the order of the rankers is unchanged, and $I^*$ agrees with $I_{\text{dyn}}$ at $0.711$ against $0.627$ on the sample.
+\noindent\textbf{The $n = 30$ sensitivity check (Amendment~11, rule R).} Table~\ref{tab:r8-n30} sets the full-population $I_{\text{dyn}}$ values of the main manuscript's Table~\ref{M-tab:independent_oracles} beside the $n = 30$ lexicographic sample. Every ranker scores higher on the full population, the order of the rankers is unchanged, and $I^*$ agrees with $I_{\text{dyn}}$ at $0.711$ against $0.627$ on the sample.
 
 \begin{table}[htbp]
 \centering
 \scriptsize
-\caption{Mean Spearman $\rho$ against $I_{\text{dyn}}$: full population (five-seed mean) and the earlier $n = 30$ lexicographic sample (seed 42), twelve LOSO folds.}
+\caption{Mean Spearman $\rho$ against $I_{\text{dyn}}$: full population (five-seed mean) and the $n = 30$ lexicographic sample (seed 42), twelve LOSO folds.}
 \label{tab:r8-n30}
 \begin{tabular}{lccc}
 \toprule
@@ -2110,7 +2110,7 @@ GAT-P-QoS & telecom ran & 0.647 & 0.675 & 2L, RN-lab \\
 \end{tabular}
 \end{table}
 
-\noindent\textbf{Cost reconciliation.} Table~\ref{tab:r8-cost} gives the per-fold rows behind the corpus row of the main manuscript's Table~\ref{M-tab:cost-ll}. Every region was timed on the same topology in one session on an otherwise idle machine (CPU, one thread, median of three runs). The earlier ratio of Table~\ref{tab:gate_ratio} compared the system-layer gate with the three-type sweep; the ``Gate : sweep'' column repeats that comparison in this session ($1.7$--$16.3\times$, against $2.0$--$17.7\times$ earlier).
+\noindent\textbf{Cost reconciliation.} Table~\ref{tab:r8-cost} gives the per-fold rows behind the corpus row of the main manuscript's Table~\ref{M-tab:cost-ll}. Every region was timed on the same topology in one session on an otherwise idle machine (CPU, one thread, median of three runs). The ratio of Table~\ref{tab:gate_ratio}, measured in a separate session, compared the system-layer gate with the three-type sweep; the ``Gate : sweep'' column repeats that comparison in this session ($1.7$--$16.3\times$, against $2.0$--$17.7\times$ in that session).
 
 \begin{table}[htbp]
 \centering
@@ -2143,7 +2143,7 @@ Telecom RAN & 2.5 & 0.19 & 1.13 & 2.30 & 3.83 & $12.2\times$ & $3.4\times$ \\
 
 Amendment~15 is post hoc and exploratory: it was recorded after every other result existed, and its headline value was first computed ad hoc during the manuscript revision. It runs no simulator. \path{reproduce/idyn_rate_expansion.py} (\texttt{make rq-rate-expansion}) reads the five-seed, full-population $I_{\text{dyn}}$ labels cached by Amendment~11 and writes \path{data/benchmarks/idyn_rate_expansion.json}. Two gates hold: the first-order expansion of $I^*$ (main Eq.~\eqref{M-eq:analytic_istar}) reproduces Amendment~11's comparator on every fold, system and oracle (max $|\Delta| = 0$), and the attribution arm with all Q columns reproduces the published \texttt{GBM-P-QoS$\to$dyn} ($0.799$).
 
-\noindent\textbf{Closed forms.} Table~\ref{tab:a15-folds} scores four closed forms against $I_{\text{dyn}}$: the unweighted expansion (main Eq.~\eqref{M-eq:analytic_istar}); the rate-weighted expansion (main Eq.~\eqref{M-eq:rate-expansion}), the reference for $I_{\text{dyn}}$; a payload-weighted variant ($r_t B_t$ in place of $r_t$); and the bare declared publication rate of $v$. A saturation-aware variant, adding lost flow at brokers whose declared capacity is exceeded, was not built: $I_{\text{dyn}}$ runs at target utilisation $0.65$, and the plain rate form already exceeds the learned approximation. Each closed form takes at most $1.2$~ms per architecture.
+\noindent\textbf{Closed forms.} Table~\ref{tab:a15-folds} scores four closed forms against $I_{\text{dyn}}$: the unweighted expansion (main Eq.~\eqref{M-eq:analytic_istar}); the rate-weighted expansion (main Eq.~\eqref{M-eq:rate-expansion}), the reference for $I_{\text{dyn}}$; a payload-weighted variant ($r_t B_t$ in place of $r_t$); and the bare declared publication rate of $v$. A saturation-aware variant, adding lost flow at brokers whose declared capacity is exceeded, was not built: $I_{\text{dyn}}$ runs at target utilization $0.65$, and the plain rate form already matches or exceeds the learned approximation. Each closed form takes at most $1.2$~ms per architecture.
 
 \noindent\textbf{Input attribution.} The same table retrains Amendment~11's gradient-boosted learner (same seeds, LOSO protocol and $I_{\text{dyn}}$ labels) on the structural feature set S alone, on S plus the declared rate and rate$\times$payload columns, and on S plus the seven QoS-derived columns: three $w(t)$-weighted scores (\texttt{Topo-QoS}, \texttt{Reach-QoS}, QoS-weighted in-degree), in which declared size and rate enter log-compressed at a quarter of $w(t)$, and four pure policy shares (reliable, durable and deadline shares, maximum priority). Table~\ref{tab:a15-contrasts} gives the paired contrasts.
 

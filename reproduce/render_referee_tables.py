@@ -164,7 +164,7 @@ def latency(d: Dict[str, Any]) -> str:
                     + (rf"{ist:.1f} ({r['istar_repeats']})" if ist is not None else "not timed")
                     + r" \\")
     return _table(
-        r"Counting path against one $I^*$ labelling pass on generated graphs (Amendment~12, R6; median of "
+        r"Counting path against one $I^*$ labeling pass on generated graphs (Amendment~12, R6; median of "
         r"repeats, count in brackets for $I^*$). Projection, \texttt{InDeg} and \texttt{Reach} in ms; "
         r"$I^*$ in s. Rendered from \texttt{data/benchmarks/referee\_round7\_latency.json}.",
         "tab:ref-latency", "rrrrrr",

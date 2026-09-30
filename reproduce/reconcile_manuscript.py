@@ -2267,10 +2267,14 @@ def check_rate_expansion(rep: Report) -> None:
             (5, AC["S+QoS-policy vs S"]["p"])])
     c = C["Rate-I_dyn vs gbm_dep_qos_dyn"]
     _quote(rep, "sec:rq1 Eq. 7", sec7,
-           r"reaches " + num + r" \$\[([\d.]+), ([\d.]+)\]\$ and exceeds the learned approximation by " + num
-           + r" \(\$\[([-+\d.]+), ([-+\d.]+)\]\$, (\d+)/12 folds, nominal Holm \$p = ([\d.]+)\$",
+           r"raises it to " + num + r" \$\[([\d.]+), ([\d.]+)\]\$ without training.*?"
+           r"falls below the rate-weighted reference, which exceeds it by " + num
+           + r" \$\[([-+\d.]+), ([-+\d.]+)\]\$ on (\d+) of 12 folds \(nominal Holm \$p = ([\d.]+)\$",
            [(1, rate["i_dyn"]["mean"]), (2, rate["i_dyn"]["ci95"][0]), (3, rate["i_dyn"]["ci95"][1]),
             (4, c["delta"]), (5, c["ci95"][0]), (6, c["ci95"][1]), (7, c["won"]), (8, c["p_holm"])])
+    _quote(rep, "sec:rq1 summary Eq. 7", sec7,
+           r"matching or exceeding the learned approximation \(" + num + r", (\d+) of 12 folds; exploratory\)",
+           [(1, c["delta"]), (2, c["won"])])
     # Section 4.3: I_dyn label reliability, and the claim that no Table 6 ranker exceeds it.
     rel = a15.get("label_reliability")
     if rel is None:
