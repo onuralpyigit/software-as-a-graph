@@ -2209,6 +2209,22 @@ def check_cost_ll(rep: Report) -> None:
     sm = d["corpus_summary"]["ratio_app_analysis_to_one_pass"]
     _quote(rep, "sec:rq4", tex, r"feature extraction every learned ranker needs \$([\d.]+)\$--\$([\d.]+)\\times\$ more \(median \$([\d.]+)\\times\$\)",
            [(1, sm["min"]), (2, sm["max"]), (3, sm["median"])])
+    # Round 10: corpus totals quoted in the RQ4 prose. These were once mislabelled
+    # (the I* sweep total was called the count, the detection gate the features).
+    folds = [r for k, r in d["rows"].items() if not k.startswith("generated_")]
+    _quote(rep, "sec:rq4 corpus totals", tex,
+           r"feature extraction that the learned rankers read took \$([\d.]+)\$~s.*?"
+           r"and the dependency count \$([\d.]+)\$~s",
+           [(1, sum(r["analyze_app_s"] for r in folds)), (2, sum(r["count_s"] for r in folds))])
+    en = _load("energy_estimate.json")
+    if en is None:
+        rep.skipped.append("energy_estimate.json absent; RQ4 energy totals unchecked")
+    else:
+        tot = en["corpus_totals"]
+        _quote(rep, "sec:rq4 energy", tex,
+               r"five-seed \$I\^\*\$ labeling sweep \$([\d.]+)\$~s \(\$([\d.]+)\$~Wh.*?"
+               r"full detection gate \$([\d.]+)\$~s \(\$([\d.]+)\$~Wh",
+               [(1, tot["oracle_s"]), (2, tot["oracle_Wh_upper"]), (3, tot["gate_s"]), (4, tot["gate_Wh_upper"])])
 
 
 def check_rate_expansion(rep: Report) -> None:
@@ -2302,7 +2318,7 @@ def check_rate_expansion(rep: Report) -> None:
            [(1, rate["i_dyn"]["mean"]), (2, rate["i_dyn"]["ci95"][0]), (3, rate["i_dyn"]["ci95"][1]),
             (4, c["delta"]), (5, c["ci95"][0]), (6, c["ci95"][1]), (7, c["won"]), (8, c["p_holm"])])
     _quote(rep, "sec:rq1 summary Eq. 7", sec7,
-           r"matching or exceeding the learned approximation \(" + num + r", (\d+) of 12 folds; exploratory\)",
+           r"exceeds the learned approximation \(" + num + r", (\d+) of 12 folds; exploratory\)",
            [(1, c["delta"]), (2, c["won"])])
     # Section 4.3: I_dyn label reliability, and the claim that no Table 6 ranker exceeds it.
     rel = a15.get("label_reliability")
