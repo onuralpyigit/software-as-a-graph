@@ -76,6 +76,8 @@ RESULTS = ROOT / "results"
 #: of each fold in lexicographic order (all 26 on ATM), LOSO folds only.
 IDYN_N30 = RESULTS / "idyn_scenario_cache_jss12.json"
 IDYN_SOURCE = "published n=30 lexical sample, seed 42 (results/idyn_scenario_cache_jss12.json)"
+#: Exhaustive five-seed I_dyn labels (Amendment 11), used by ``recall --idyn-full``.
+IDYN_FULL = DATA_BENCHMARKS / "idyn_full_labels_jss12.json"
 ICOMP_SYSTEMS_CACHE = RESULTS / "icomp_systems_labels_cache.json"
 ORACLES = ("i_star", "i_dyn", "i_comp")
 
@@ -396,9 +398,13 @@ def expected_recall(pred: Dict[str, float], true: Dict[str, float], apps: List[s
     return {"expected": exp / n_crit, "optimistic": opt / n_crit, "pessimistic": pes / n_crit}
 
 
-def cmd_recall(_: argparse.Namespace) -> int:
+def cmd_recall(args: argparse.Namespace) -> int:
     folds = list(FOLDS)
     oracles = load_oracles(folds)
+    full = getattr(args, "idyn_full", False)
+    if full:  # exhaustive five-seed mean over every Application instead of the n=30 sample
+        lab = json.loads(IDYN_FULL.read_text())["labels"]
+        oracles["i_dyn"] = {n: {str(k): float(v) for k, v in lab[n]["mean"].items()} for n in folds}
     gatp = _learned_preds(LEARNED["GAT-P-QoS"][0])
     per: Dict[str, Any] = {}
     for sid in folds:
@@ -428,9 +434,10 @@ def cmd_recall(_: argparse.Namespace) -> int:
                 margin[f"{target:.2f}"] = min(hit) if hit else None
             curves[o][r] = {"curve": c, "safety_margin": margin}
             print(o, r, " ".join(f"{k}:{v['expected']:.2f}" for k, v in c.items()), margin)
-    _write("referee_round7_recall.json", {"per_fold": per, "curves": curves,
-                                          "true_top": TRUE_TOP, "k_grid": K_GRID},
-           experiment="R4")
+    name = "referee_round10_recall_idyn_full.json" if full else "referee_round7_recall.json"
+    _write(name, {"per_fold": per, "curves": curves, "true_top": TRUE_TOP, "k_grid": K_GRID,
+                  "i_dyn_source": str(IDYN_FULL.relative_to(ROOT)) if full else IDYN_SOURCE},
+           experiment="R4-full" if full else "R4")
     return 0
 
 
@@ -619,6 +626,8 @@ def main() -> int:
                     help="largest size at which the I* labelling pass is timed")
     ap.add_argument("--istar-full-repeats-max", type=int, default=10000,
                     help="above this size I* is timed once rather than --repeats times")
+    ap.add_argument("--idyn-full", action="store_true",
+                    help="recall: score I_dyn on the exhaustive labels, not the n=30 sample")
     args = ap.parse_args()
     stages = {"raw": cmd_raw, "partial": cmd_partial, "learned": cmd_learned,
               "recall": cmd_recall, "zeroshot": cmd_zeroshot, "latency": cmd_latency,

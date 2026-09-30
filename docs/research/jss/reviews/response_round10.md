@@ -70,7 +70,7 @@ The paired GAT-P-QoS vs. InDeg comparison is still reported in §6.1, both as a 
 | 21 | "depart-mode flag" is now "transport departure mode". |
 | 22 | PR-AUC and the other identification metrics stay in Supplementary `tab:identification`; Table 9 already reports PR-AUC. |
 | 23 | The fold-weighting caveat was added to §7.5's conclusion validity. |
-| 24 | The Figure 5 caption is fixed. It says the $n = 30$ panel predates the exhaustive labels and was not redrawn. **Not done:** the redraw (text-only scope). |
+| 24 | **Done (follow-up).** Figure 5B is redrawn on the exhaustive $I_{\text{dyn}}$ labels (all 1,321 Applications) via `reproduce/referee_round7.py recall --idyn-full` → `data/benchmarks/referee_round10_recall_idyn_full.json`. The §6.1 prose now reads: GAT-P-QoS 0.74 at 40% and 0.82 at 50%, InDeg 0.80 at 40% (previously 0.65 / 0.80 / 0.83 on the n = 30 sample). The reconciler checks these figures against the new artifact. The $I^*$ panel is unchanged. |
 | 25–26 | Typography fixed; "SAG" → "SaG". |
 | 27 | Table 1 already separates entities and edges with a rule and a header row; unchanged. |
 | 28 | Eq. 5 is presented as executed (see M4). |
@@ -119,7 +119,6 @@ The paired GAT-P-QoS vs. InDeg comparison is still reported in §6.1, both as a 
 | Hybrids with corrected / InDeg prior | New experiment | §5.2, §7.6 item 5 |
 | RAPL-measured energy | New measurement (RAPL needs root on the test machine) | §7.5, §7.6 |
 | QoS-off $I_{\text{dyn}}$ | About 12.7 CPU-h | §4.3, §7.6 |
-| Figure 5 redraw on full $I_{\text{dyn}}$ | Text-only scope. The labels and predictions exist, and `reproduce/referee_round7.py recall` needs only its label source switched. | Figure 5 caption |
 
 ## Checks
 

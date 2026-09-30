@@ -4,8 +4,8 @@ reproduce/render_recall_figure.py — manuscript Figure 6 (Amendment 12, R4)
 ===========================================================================
 
 Recall of the true top-20% set by each ranker's top-k%, mean over the twelve LOSO
-folds, against I* and the n = 30 I_dyn sample. Reads
-data/benchmarks/referee_round7_recall.json; trains and simulates nothing.
+folds, against I* and the exhaustive I_dyn labels. Reads
+data/benchmarks/referee_round7_recall.json (I*) and referee_round10_recall_idyn_full.json (I_dyn); trains and simulates nothing.
 
 Usage:
     PYTHONPATH=. python reproduce/render_recall_figure.py
@@ -23,6 +23,8 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "data" / "benchmarks" / "referee_round7_recall.json"
+#: Panel B reads the exhaustive I_dyn labels (``referee_round7.py recall --idyn-full``).
+SRC_IDYN = ROOT / "data" / "benchmarks" / "referee_round10_recall_idyn_full.json"
 OUT = ROOT / "docs" / "research" / "jss" / "latex" / "figures" / "Figure_6"
 
 INK, INK2, GRID = "#1F2937", "#475569", "#E5E7EB"
@@ -35,7 +37,7 @@ SERIES = [("GAT-P-QoS", "GAT-P-QoS", "#7B3F8C", "-"), ("Topo-QoS", "Topo-QoS", "
           ("Reach", "Reach (ref.)", "#94A3B8", (0, (5, 1.5, 1, 1.5)))]
 REFERENCES = {"Analytic-I*", "InDeg", "Reach"}
 TITLES = {"i_star": "A. Against $I^*$ (all Applications)",
-          "i_dyn": "B. Against $I_{\\mathrm{dyn}}$ ($n = 30$ per fold)"}
+          "i_dyn": "B. Against $I_{\\mathrm{dyn}}$ (all Applications)"}
 
 plt.rcParams.update({
     "font.family": "DejaVu Sans", "font.size": 7, "axes.edgecolor": INK2,
@@ -47,6 +49,7 @@ plt.rcParams.update({
 
 def main() -> None:
     curves = json.loads(SRC.read_text())["curves"]
+    curves["i_dyn"] = json.loads(SRC_IDYN.read_text())["curves"]["i_dyn"]
     fig, axes = plt.subplots(1, 2, figsize=(6.5, 2.6), sharey=True)
     for ax, oracle in zip(axes, ("i_star", "i_dyn")):
         for key, name, colour, ls in SERIES:
