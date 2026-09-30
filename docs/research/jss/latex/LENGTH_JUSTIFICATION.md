@@ -7,7 +7,7 @@ justified."*
 
 ---
 
-The manuscript runs to **33 single-column pages** in the `elsarticle` preprint class, including all
+The manuscript runs to **34 single-column pages** in the `elsarticle` preprint class, including all
 declarations and the reference list (87 entries), well within the recommended limit of 36 pages. No special
 length justification is required.
 
@@ -29,10 +29,10 @@ Every table value across both documents is mechanically reconciled against the a
 
 The manuscript body contains 5 figures and the supplementary material contains 3 figures. For Elsevier production typesetters, the mapping between logical document numbers and graphics files is as follows:
 - **Body Figure 1** (Overview of SaG): `figures/Figure_1.pdf`
-- **Body Figure 2** (Derived Dependency Graph): `figures/Figure_2.pdf`
-- **Body Figure 3** (Cascade Impact Prediction): `figures/Figure_3.pdf`
+- **Body Figure 2** (Running example: structural and derived graphs): `figures/Figure_2.pdf`
+- **Body Figure 3** (Ranking methods and evaluation): `figures/Figure_3.pdf`
 - **Body Figure 4** (Main Results under LOSO): `figures/Figure_5.pdf`
 - **Body Figure 5** (Critical Set Recall): `figures/Figure_6.pdf`
-- **Supplementary Figure S1** (Metamodel Architecture): `figures/Figure_S1.pdf`
-- **Supplementary Figure S2** (AHP Evaluation Hierarchy): `figures/Figure_S2.pdf`
-- **Supplementary Figure S3** (Degree Sensitivity Ablation): `figures/Figure_4.pdf`
+- **Supplementary Figure S1** (RM composite vs. AHP shrinkage): `figures/Figure_S1.pdf`
+- **Supplementary Figure S2** (Relational attention on the ATM case study): `figures/Figure_S2.pdf`
+- **Supplementary Figure S3** (Proposed explanation layer): `figures/Figure_4.pdf`

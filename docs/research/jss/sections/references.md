@@ -70,23 +70,23 @@
 
 [35] S. Becker, H. Koziolek, R. Reussner, The Palladio component model for model-driven performance prediction, Journal of Systems and Software 82 (1) (2009) 3--22.
 
-[36] W. Abdelmoez, H. Nassar, M. Shereshevsky, R. Gunnalan, H. H. Ammar, Error propagation in software architectures, in: Proc. 10th IEEE Int. Software Metrics Symp. (METRICS), 2004, pp. 394--405.
+[36] W. Abdelmoez, D. M. Nassar, M. Shereshevsky, N. Gradetsky, R. Gunnalan, H. H. Ammar, B. Yu, A. Mili, Error propagation in software architectures, in: Proc. 10th IEEE Int. Software Metrics Symp. (METRICS), 2004, pp. 384--393.
 
-[37] V. Popic, K. Goseva-Popstojanova, Error propagation in the reliability analysis of component-based systems, in: Proc. 16th IEEE Int. Symp. on Software Reliability Engineering (ISSRE), 2005, pp. 317--326.
+[37] P. Popic, D. Desovski, W. Abdelmoez, B. Cukic, Error propagation in the reliability analysis of component based systems, in: Proc. 16th IEEE Int. Symp. on Software Reliability Engineering (ISSRE), 2005, pp. 53--62.
 
-[38] V. Cortellessa, V. Grassi, A modeling approach to analyze the impact of error propagation on reliability of component-based systems, in: Proc. 10th Int. Conf. on Component-Based Software Engineering (CBSE), 2007, pp. 140--156.
+[38] V. Cortellessa, V. Grassi, A modeling approach to analyze the impact of error propagation on reliability of component-based systems, in: Proc. 10th Int. Symp. on Component-Based Software Engineering (CBSE), Vol. 4608 of LNCS, Springer, 2007, pp. 140--156. [doi:10.1007/978-3-540-73551-9_10](https://doi.org/10.1007/978-3-540-73551-9_10).
 
-[39] M. Hiller, A. Jhumka, N. Suri, EPIC: An architecture-level failure propagation analysis tool, IEEE Transactions on Computers 53 (12) (2004) 1619--1630.
+[39] M. Hiller, A. Jhumka, N. Suri, EPIC: Profiling the propagation and effect of data errors in software, IEEE Transactions on Computers 53 (5) (2004) 512--530.
 
-[40] Y. Papadopoulos, J. A. McDermid, Hierarchically performed hazard origin and propagation studies, Safety Science 37 (1) (2001) 59--82.
+[40] Y. Papadopoulos, J. A. McDermid, Hierarchically performed hazard origin and propagation studies, in: Computer Safety, Reliability and Security (SAFECOMP), Vol. 1698 of LNCS, Springer, 1999, pp. 139--152. [doi:10.1007/3-540-48249-0_13](https://doi.org/10.1007/3-540-48249-0_13).
 
-[41] J. Delange, P. Feiler, Architecture fault modeling with the AADL Error Model Annex, IEEE Software 31 (2) (2014) 55--62.
+[41] J. Delange, P. Feiler, Architecture fault modeling with the AADL Error-Model Annex, in: Proc. 40th EUROMICRO Conf. on Software Engineering and Advanced Applications (SEAA), 2014, pp. 361--368. [doi:10.1109/SEAA.2014.20](https://doi.org/10.1109/SEAA.2014.20).
 
 [42] Y. Gan, Y. Zhang, K. Hu, D. Cheng, Y. He, M. Pancholi, C. Delimitrou, Seer: Leveraging big data to navigate the complexity of performance debugging in cloud microservices, in: Proc. ACM Int. Conf. on Architectural Support for Programming Languages and Operating Systems (ASPLOS), 2019.
 
 [43] L. Wu, J. Tordsson, E. Elmroth, O. Kao, MicroRCA: Root cause localization of performance issues in microservices, in: Proc. IEEE/IFIP Network Operations and Management Symposium (NOMS), 2020.
 
-[44] Y. Li, X. Lin, P. Chen, Z. Zheng, X. He, Eadro: An end-to-end framework for microservice root cause analysis via graph representation learning, in: Proc. 45th IEEE/ACM Int. Conf. on Software Engineering (ICSE), 2023, pp. 2338--2350.
+[44] C. Lee, T. Yang, Z. Chen, Y. Su, M. R. Lyu, Eadro: An end-to-end troubleshooting framework for microservices on multi-source data, in: Proc. 45th IEEE/ACM Int. Conf. on Software Engineering (ICSE), 2023, pp. 1750--1762. [doi:10.1109/ICSE48619.2023.00150](https://doi.org/10.1109/ICSE48619.2023.00150).
 
 [45] S. Zhang, S. Xia, W. Fan, B. Shi, X. Xiong, Z. Zhong, M. Ma, Y. Sun, D. Pei, Failure diagnosis in microservice systems: A comprehensive survey and analysis, ACM Transactions on Software Engineering and Methodology (2025). [doi:10.1145/3715005](https://doi.org/10.1145/3715005).
 
@@ -144,9 +144,9 @@
 
 [72] Z. Hu, Y. Dong, K. Wang, Y. Sun, Heterogeneous graph transformer, in: Proc. The Web Conference (WWW), 2020, pp. 2704--2710.
 
-[73] Q. Lv, M. Ding, L. Liu, Y. Chen, W. Feng, J. He, C. Zhou, J. Tang, Are we really making much progress? revisiting, benchmarking, and refining heterogeneous graph neural networks, in: Proc. 27th ACM SIGKDD Conf. on Knowledge Discovery and Data Mining (KDD), 2021, pp. 1150--1160.
+[73] Q. Lv, M. Ding, Q. Liu, Y. Chen, W. Feng, S. He, C. Zhou, J. Jiang, Y. Dong, J. Tang, Are we really making much progress? Revisiting, benchmarking, and refining heterogeneous graph neural networks, in: Proc. 27th ACM SIGKDD Conf. on Knowledge Discovery and Data Mining (KDD), 2021, pp. 1150--1160. [doi:10.1145/3447548.3467350](https://doi.org/10.1145/3447548.3467350).
 
-[74] O. Shchur, M. Mumme, A. Bojchevski, S. G"unnemann, Pitfalls of graph neural network evaluation, arXiv preprint arXiv:1811.05868 (2018).
+[74] O. Shchur, M. Mumme, A. Bojchevski, S. G\"unnemann, Pitfalls of graph neural network evaluation, arXiv preprint arXiv:1811.05868 (2018).
 
 [75] Q. Huang, H. He, A. Singh, S.-N. Lim, A. R. Benson, Combining label propagation and simple models out-performs graph neural networks, in: Proc. Int. Conf. on Learning Representations (ICLR), 2021.
 
@@ -154,7 +154,7 @@
 
 [77] International Organization for Standardization, ISO/IEC 25010:2023 --- systems and software engineering --- systems and software quality requirements and evaluation (SQuaRE) --- product quality model, Tech. rep., International Organization for Standardization (2023).
 
-[78] A. Arcuri, L. Briand, A practical guide for using statistical tests to assess randomized algorithms in software engineering, in: Proc. 33rd IEEE/ACM Int. Conf. on Software Engineering (ICSE), 2011, pp. 1--10.
+[78] A. Arcuri, L. Briand, A practical guide for using statistical tests to assess randomized algorithms in software engineering, in: Proc. 33rd Int. Conf. on Software Engineering (ICSE), 2011, pp. 1--10. [doi:10.1145/1985793.1985795](https://doi.org/10.1145/1985793.1985795).
 
 [79] J. Pearl, Probabilistic Reasoning in Intelligent Systems: Networks of Plausible Inference, Morgan Kaufmann, 1988.
 
