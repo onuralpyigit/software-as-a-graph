@@ -1,0 +1,60 @@
+% extension_statement.tex -- Improvements over the RASSE 2025 conference paper,
+% required by the special-issue call ("a document outlining the improvements made
+% for the journal extension"). Upload with the RASSE PDF, which is not in this
+% repository (IEEE copyright).
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{amsmath}
+
+\title{Journal extension statement\\[0.3em]
+\large Software-as-a-Graph: When Does Graph Learning Improve Cascade-Impact Ranking in Publish--Subscribe Systems?}
+\author{Ibrahim Onuralp Yigit \and Feza Buzluca}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Prior publication}
+I.~O.~Yigit, F.~Buzluca, ``A Graph-Based Dependency Analysis Method for Identifying Critical Components in Distributed Publish--Subscribe Systems'', in: \emph{Proc.\ IEEE Int.\ Conf.\ on Recent Advances in Systems Science and Engineering (RASSE)}, 2025, pp.~1--8, doi:10.1109/RASSE64831.2025.11315354. It is cited in the manuscript as reference~[32], and the manuscript's Section~1.4 states the relationship.
+
+\section*{What the conference paper contained}
+\begin{itemize}
+  \item A multi-layer directed graph of a publish--subscribe system with Applications, Topics, Brokers and physical Nodes, and an Application-level subscriber-to-publisher dependency.
+  \item A closed-form criticality score $CS(v) = \alpha\,C_B(v) + \beta\,AP(v)$ combining normalized betweenness and articulation-point status ($\alpha = 0.7$, $\beta = 0.3$).
+  \item Validation of that score against a reachability-loss vertex-removal simulation on one synthetic system and two iRobot ROS~2 benchmark topologies (Sierra Nevada, Mont Blanc), and a scalability measurement up to about 1{,}000 Applications.
+\end{itemize}
+
+\section*{What the journal manuscript retains}
+The manuscript retains the graph model (Section~3.1, extended), the Application-level dependency (Rule~1 of Table~2) and, as its training-free baseline \texttt{Topo-QoS} (Eq.~5), a QoS-weighted member of the same closed-form score family. Retained material is restated briefly and cited.
+
+\section*{New technical content}
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+Manuscript section & New in the journal version \\
+\midrule
+3.1--3.3 & Shared Libraries as a fifth entity type; five further dependency rules (library-mediated, broker, host and colocation dependencies) beside the conference paper's Application rule; QoS-derived topic weights from an AHP matrix; the QoS edge encoding. \\
+4.1--4.2, 5.2 & Learned rankers: heterogeneous graph transformer and graph attention networks on the raw multigraph and on the derived dependency graph, gradient-boosted trees, and hybrids that learn a correction to a closed-form prior. \\
+4.3 & Three failure simulators in place of one: a structural reachability cascade ($I^*$), a discrete-event queue-flow simulator ($I_{\text{dyn}}$), and a multi-criteria fragmentation oracle ($I_{\text{comp}}$). \\
+4.4 & The reference criterion that separates rankings restating a simulator's rule from rankings that predict it. \\
+5.1--5.3 & A benchmark of twelve synthetic architectures plus five hand-authored models of open-source systems (seventeen architectures, 2{,}812 components); leave-one-scenario-out and zero-shot protocols; a version-controlled analysis plan with disclosed amendments; paired tests with Holm and Nadeau--Bengio corrections. \\
+5.2, 6.1 & Analytical and learned approximations of the queue-flow simulator, including the rate-weighted first-order expansion (Eq.~7). \\
+6.1--6.3 & Results for ranking accuracy, matched-capacity sources of performance (representation, degree, typing, QoS, model family, edge direction) and zero-shot transfer. \\
+6.4 & Like-for-like latency and estimated-energy analysis of every stage against running each simulator directly. \\
+7 & Discussion of restatement versus prediction, practitioner guidance, and threats to validity. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section*{Relation to the conference paper's findings}
+The conference paper reported that its closed-form score agreed strongly with reachability loss on its case studies. Under the journal manuscript's broader evaluation, with reference rankings, the Application population and three simulators, that score family is the weakest analytical ranker, and the manuscript states explicitly that its results supersede the conference paper's implicit recommendation of it (Section~1.4).
+
+\section*{Extent of new content}
+The graph model, Rule~1 and the closed-form baseline account for a small part of Section~3 and one baseline in Sections~5--6. Every other section, including all learned and hybrid methods, the second and third simulators, the reference criterion, the benchmark, the statistical protocol, the results and the cost analysis, is new. The new technical content therefore substantially exceeds the 30\% required by the call.
+
+\end{document}
