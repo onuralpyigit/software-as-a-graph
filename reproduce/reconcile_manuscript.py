@@ -2401,7 +2401,8 @@ def check_rate_expansion(rep: Report) -> None:
     _quote(rep, "sec:rq1 summary Eq. 7", sec7,
            r"exceeds the learned approximation \(" + num + r", (\d+) of 12 folds; exploratory\)",
            [(1, c["delta"]), (2, c["won"])])
-    # Section 4.3: I_dyn label reliability, and the claim that no Table 6 ranker exceeds it.
+    # Section 4.3: I_dyn label reliability, its sqrt(r) ceiling, and the claim that no Table 6
+    # ranker exceeds even r.
     rel = a15.get("label_reliability")
     if rel is None:
         rep.findings.append(Finding("idyn_rate_expansion.json", "label_reliability", "block", "absent", "present"))
@@ -2409,8 +2410,9 @@ def check_rate_expansion(rep: Report) -> None:
         (s1, s2), (m1, m2) = rel["single_seed_range"], rel["seed_mean_range"]
         _quote(rep, "sec:4.3 reliability", _tex("sec4_failure_impact_prediction.tex"),
                r"agrees with another at \$\\rho = ([\d.]+)\$--\$([\d.]+)\$ per fold; the five-seed mean"
-               r" used as the label has an estimated reliability of \$([\d.]+)\$--\$([\d.]+)\$",
-               [(1, s1), (2, s2), (3, m1), (4, m2)])
+               r" used as the label has an estimated reliability of \$r = ([\d.]+)\$--\$([\d.]+)\$"
+               r".*?more than \$\\sqrt\{r\} \\approx ([\d.]+)\$--\$([\d.]+)\$",
+               [(1, s1), (2, s2), (3, m1), (4, m2), (5, m1 ** 0.5), (6, m2 ** 0.5)])
         rep.checked += 1
         above = {r: f for r, f in rel["folds_above_seed_mean_bound"].items() if f}
         if above:
@@ -2575,6 +2577,13 @@ def main() -> int:
     check_amendment16(rep)
     check_rate_expansion(rep)
     check_learning_focus(rep, profile=args.profile)
+
+    # Data Availability quotes this script's own count; it must not go stale.
+    m = re.search(r"mechanically verifies \$?([\d,{}]+)\$? reported figures", _tex("declarations.tex"))
+    quoted = int(re.sub(r"\D", "", m.group(1))) if m else None
+    if quoted != rep.checked:
+        rep.findings.append(Finding("declarations.tex", "Data Availability figure count", "quote",
+                                    quoted, rep.checked))
 
     print(f"\n  Reconciled {rep.checked} table figures against committed artifacts "
           f"({len(rep.skipped)} check(s) skipped).\n")

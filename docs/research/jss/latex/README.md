@@ -188,4 +188,5 @@ supplement builds to 44 pages (S1--S40, 70 tables, 3 figures), also with zero un
   explanation is required in "Comments to the Editor"; `LENGTH_JUSTIFICATION.md` is kept as a record
   of what was moved to the supplement and the experiment pages.
 - **Experiment-pages tag** — `\sagexperimentsurl` in `manuscript.tex` points at the release tag
-  `v1.0-jss`. Create and push it at submission.
+  `jss-submission` (advisor v8 note; it replaces the earlier `v1.0-jss`). Create it on the final
+  submission commit and push it at submission.

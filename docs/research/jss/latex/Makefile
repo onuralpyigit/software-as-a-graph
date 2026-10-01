@@ -59,14 +59,18 @@ clean:
 distclean: clean
 	rm -f $(MAIN).pdf $(MAIN)_flat.tex
 
-zip: $(MAIN).pdf supplementary.pdf
+zip: $(MAIN).pdf supplementary.pdf cover_letter.pdf extension_statement.pdf
 	rm -f submission_package.zip
 	zip -r submission_package.zip \
 	    $(MAIN).tex sections/ refs.bib vendor/ figures/*.pdf figures/*.png \
 	    title_page.tex highlights.tex vitae.tex $(MAIN).bbl $(MAIN).aux \
 	    supplementary.tex supp_*.tex supplementary.bbl supplementary.aux supplementary.pdf \
-	    LENGTH_JUSTIFICATION.md -x '*.dot'
+	    LENGTH_JUSTIFICATION.md cover_letter.tex cover_letter.pdf extension_statement.tex extension_statement.pdf -x '*.dot'
 	@echo "✓ submission_package.zip ready (manuscript + supplement + title page + highlights + vitae)."
+
+cover_letter.pdf extension_statement.pdf: %.pdf: %.tex
+	$(PDFLATEX) -interaction=nonstopmode $*
+	$(PDFLATEX) -interaction=nonstopmode $*
 
 supplementary.pdf: supplementary.tex refs.bib figures/Figure_S1.pdf figures/Figure_S2.pdf $(MAIN).pdf
 	$(PDFLATEX) -interaction=nonstopmode supplementary
