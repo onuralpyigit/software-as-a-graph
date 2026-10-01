@@ -72,6 +72,19 @@ Every number below comes from the current results text:
 
 Restoring the paragraph partly reverses round-10 M11. The page count is unchanged at 35, so the length concern behind M11 does not apply.
 
+## Abstract (follow-up request)
+
+At the author's request, the abstract is now the v8 abstract (`8dd4a536`), not the round-11 version. Four items from the round-10/11 referee responses are woven into its second paragraph, and the rest is verbatim:
+
+| Insertion | Commitment |
+|---|---|
+| "$+0.072$ above the same model with reverse edges on the raw multigraph" | Round 11, M1: the direction control. The reconciler quotes this phrase. |
+| "whereas on that graph the registered primary contrast against a training-free baseline was null" | Round 10, M1/M7: the primary null is stated. It replaces "whereas pure learned models on the raw architecture graph do not outperform a training-free baseline". |
+| "($\rho = 0.799$; exploratory)" | Round 11, M3: Eq. 7 is labeled exploratory. |
+| "…the training-free baseline but not their base learners" | Round 11, M2: the hybrid gain belongs to the comparator. |
+
+To stay within the 250-word limit (it is now exactly 250), "little additional predictive signal beyond that provided by explicit dependencies" became "little predictive signal beyond explicit dependencies". "Matched by counting direct dependents" stays, because it agrees with the definition of "matches" now in §5.3.
+
 ## Cover letter and extension document (new)
 
 - **`latex/cover_letter.tex`**, compiled to `cover_letter.pdf`. It uses your text, addressed to the VSI: AI4MSS guest editors, together with the RASSE extension sentence.
