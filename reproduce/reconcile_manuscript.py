@@ -1790,9 +1790,9 @@ def check_dependency_graph(rep: Report) -> None:
         a15 = _load("idyn_rate_expansion.json") or {}
         _quote(rep, "abstract", _tex("abstract.tex"),
                r"reaches Spearman's \$\\rho = ([\d.]+)\$.*?"
-               r"counting direct dependents \(\$\\rho = ([\d.]+)\$\).*?"
+               r"counting direct dependents \(\$\\rho = ([\d.]+)\$[;)].*?"
                r"rate-weighted first-order approximation reaches \$\\rho = ([\d.]+)\$.*?"
-               r"trained on simulator labels \(\$\\rho = ([\d.]+)\$\)",
+               r"trained on simulator labels \(\$\\rho = ([\d.]+)\$[;)]",
                [(1, means["gl_proj_qos16_cap"]["loso_mean_rho"]), (2, tf["summary"]["InDeg"]["loso_mean_rho"]),
                 (3, a15["summary"]["loso"]["Rate-I_dyn"]["i_dyn"]["mean"]),
                 (4, arms["gbm_dep_qos_dyn"]["i_dyn"])])
@@ -1916,6 +1916,10 @@ def check_referee_round7(rep: Report) -> None:
     else:
         gat_dyn = full["curves"]["i_dyn"]["GAT-P-QoS"]["curve"]
         indeg_dyn = full["curves"]["i_dyn"]["InDeg"]["curve"]
+        rate_dyn = full["curves"]["i_dyn"]["Rate-weighted"]["curve"]
+        _quote(rep, "sec:rq1 Figure 5B Eq. 7", tex,
+               r"first-order rule, recovers " + num + r" of that set at 20\\% and " + num + r" at 30\\%",
+               [(1, rate_dyn["0.20"]["expected"]), (2, rate_dyn["0.30"]["expected"])])
     _quote(rep, "sec:rq1", tex,
            r"At \$k = 20\\%\$, \\texttt\{GAT-P-QoS\} recovers " + num + r" of the critical set and \\texttt\{Topo-QoS\} (?:recovers )?"
            + num + r".*?(?:top \$?40\\%\$? by \\texttt\{GAT-P-QoS\}|\\texttt\{GAT-P-QoS\} must flag the top \$?40\\%\$?) \(" + num,
@@ -2175,6 +2179,77 @@ def check_round8(rep: Report) -> None:
         rep.checked += 1
         if re.search(pat, _tex(f)):
             rep.findings.append(Finding("round 8 wording", f, "withdrawn phrase", pat, None))
+
+
+def check_amendment16(rep: Report) -> None:
+    """Round 11 (Amendment 16): Table tab:a16 and the quoted F8/F9/F10 figures.
+
+    Rows are matched by (arm, comparator); every numeric cell is checked against
+    referee_round11_amendment16.json, zero-shot cells against its zero_shot block.
+    """
+    a16 = _load("referee_round11_amendment16.json")
+    tex = _tex("sec7_results.tex")
+    if a16 is None or r"\label{tab:a16}" not in tex:
+        rep.skipped.append("round 11: referee_round11_amendment16.json or tab:a16 absent")
+        return
+    fam = {**a16["F8"], **a16["F9"], **a16["F10"]}
+    summ, zs = a16["summary"], a16["zero_shot"]
+    i = tex.index(r"\label{tab:a16}")
+    body = tex[tex.index(r"\toprule", i):tex.index(r"\bottomrule", i)]
+    seen = 0
+    for line in body.splitlines():
+        t = line.strip()
+        if "&" not in t or t.startswith((r"\multicolumn", "Arm &")):
+            continue
+        cells = _cells(t)
+        name, comp = cells[0], cells[1].split(" (")[0]
+        c = fam[f"{name} vs {comp}"]
+        checks = [(cells[2], summ[name]["loso_i_star"]), (cells[3], c["delta"]), (cells[5], c["p_holm"])]
+        lo, hi = c["ci95"]
+        rep.checked += 1
+        if f"[{lo:+.3f}, {hi:+.3f}]".replace("+0.000", "+0.000") not in cells[3].replace("$", ""):
+            rep.findings.append(Finding("tab:a16", name, "ci95", cells[3], f"[{lo:+.3f}, {hi:+.3f}]"))
+        rep.checked += 1
+        if cells[4] != f"{c['won']}/12":
+            rep.findings.append(Finding("tab:a16", name, "won", cells[4], c["won"]))
+        if "---" not in cells[6]:
+            dyn, comp_ = cells[6].split("/")
+            checks += [(dyn, summ[name]["i_dyn"]), (comp_, summ[name]["i_comp"])]
+        if "---" not in cells[7]:
+            checks.append((cells[7], zs[name]["mean_rho"]))
+        seen += 1
+        for cell, truth in checks:
+            got = _num(cell)
+            rep.checked += 1
+            if got is None or abs(got - truth) > 0.0006:
+                rep.findings.append(Finding("tab:a16", f"{name} vs {comp}", "cell", got, round(truth, 4)))
+    rep.checked += 1
+    if seen != 8:
+        rep.findings.append(Finding("tab:a16", "rows", "count", seen, 8))
+    num = r"\$?([-+]?[\d.]+)\$?"
+    f8a, f8b = a16["F8"]["GAT-QoS-R vs GAT-QoS"], a16["F8"]["GAT-P-QoS vs GAT-QoS-R"]
+    _quote(rep, "abstract direction control", _tex("abstract.tex"),
+           r"\$\+([\d.]+)\$ above the same model with reverse edges on the raw multigraph",
+           [(1, f8b["delta"])])
+    _quote(rep, "sec:rq2 direction", tex,
+           r"It reaches " + num + r": direction alone recovers \$\+([\d.]+)\$ of the gain, which is not significant \(Holm \$p = ([\d.]+)\$\), and \\texttt\{GAT-P-QoS\} still exceeds it by \$\+([\d.]+)\$ \$\[\+([\d.]+), \+([\d.]+)\]\$ on 10 of 12 folds \(Holm \$p = ([\d.]+)\$\)",
+           [(1, summ["GAT-QoS-R"]["loso_i_star"]), (2, f8a["delta"]), (3, f8a["p_holm"]), (4, f8b["delta"]),
+            (5, f8b["ci95"][0]), (6, f8b["ci95"][1]), (7, f8b["p_holm"])])
+    g, h = a16["F9"]["Hybrid-GAT-AP vs Topo-QoS-AP"], a16["F9"]["Hybrid-HGT-AP vs Topo-QoS-AP"]
+    gb, hb = a16["F9"]["Hybrid-GAT-AP vs GAT-QoS"], a16["F9"]["Hybrid-HGT-AP vs HGT-QoS"]
+    _quote(rep, "sec:rq1 corrected-prior hybrids", tex,
+           r"Hybrid-GAT-AP reaches " + num + r" \(\$\+([\d.]+)\$, Holm \$p = ([\d.]+)\$\) and Hybrid-HGT-AP " + num
+           + r" \(\$\+([\d.]+)\$, Holm \$p = ([\d.]+)\$\), each on 11 of 12 folds, and again neither differs from its base learner \(\$\+([\d.]+)\$ and \$\+([\d.]+)\$, Holm \$p = ([\d.]+)\$\)",
+           [(1, summ["Hybrid-GAT-AP"]["loso_i_star"]), (2, g["delta"]), (3, g["p_holm"]),
+            (4, summ["Hybrid-HGT-AP"]["loso_i_star"]), (5, h["delta"]), (6, h["p_holm"]),
+            (7, gb["delta"]), (8, hb["delta"]), (9, gb["p_holm"])])
+    ti = a16["to_indeg"]
+    _quote(rep, "sec:rq1 InDeg prior", tex,
+           r"\\texttt\{GAT-QoS\+InDeg\} \(" + num + r"\) and \\texttt\{HGT-QoS\+InDeg\} \(" + num + r"\) gain \$\+([\d.]+)\$ and \$\+([\d.]+)\$ over their base learners \(Holm \$p = ([\d.]+)\$\) and land within \$\\pm ([\d.]+)\$",
+           [(1, summ["GAT-QoS+InDeg"]["loso_i_star"]), (2, summ["HGT-QoS+InDeg"]["loso_i_star"]),
+            (3, a16["F10"]["GAT-QoS+InDeg vs GAT-QoS"]["delta"]), (4, a16["F10"]["HGT-QoS+InDeg vs HGT-QoS"]["delta"]),
+            (5, a16["F10"]["GAT-QoS+InDeg vs GAT-QoS"]["p_holm"]),
+            (6, max(ti[k]["tost_t"]["equivalence_bound"] for k in ti))])
 
 
 def check_cost_ll(rep: Report) -> None:
@@ -2497,6 +2572,7 @@ def main() -> int:
     check_reference_demotion(rep)
     check_round8(rep)
     check_cost_ll(rep)
+    check_amendment16(rep)
     check_rate_expansion(rep)
     check_learning_focus(rep, profile=args.profile)
 

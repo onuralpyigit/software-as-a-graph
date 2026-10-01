@@ -156,10 +156,14 @@ _HOMOGENEOUS_VARIANTS = (
     "gl_proj_qos16_cap_nodeg", "gl_proj_qos16_cap_nodeg_strict", "gl_full_qos16_cap_nodeg",
     "gin_proj_qos16", "gin_proj_qos16_nodeg", "gin_proj_qos16_nodeg_strict",
     "gl_full_cap_win", "gl_proj_qos16_cap_idyn", "gl_proj_qos16_cap_istar_app",
+    # Amendment 16: reverse-edge direction control, corrected and InDeg priors.
+    "gl_full_qos16_cap_rev", "gl_qos16_prior_ap", "gl_qos16_indeg_prior",
 )
 _HGT_VARIANTS = (
     "hgl", "hgl_qos", "hgl_qos_uni", "hgl_qos_prior", "topology_rm", "hgl_proj_qos",
     "hgl_win",
+    # Amendment 16: hybrids with the corrected and InDeg priors.
+    "hgl_qos_prior_ap", "hgl_qos_indeg_prior",
 )
 #: Learned, but not a graph model: gradient boosting on the same typed node
 #: features the GNNs read. Its own branch because it has no HeteroData forward
@@ -536,12 +540,13 @@ def _with_prior(bundle: ScenarioBundle, sm: Dict[str, Any], kind: Any = "topo_qo
     ``sm`` itself is never mutated: it may be the bundle's own structural dict,
     shared with every other variant.
     """
-    from reproduce.main_table import indeg_prior, topo_qos_prior
+    from reproduce.main_table import indeg_prior, topo_qos_ap_prior, topo_qos_prior
 
     kind = "topo_qos" if kind is True else kind
     key = f"{bundle.cache_dir}::{bundle.scenario_id}::{kind}"
     if key not in _PRIOR_CACHE:
-        fn = {"topo_qos": topo_qos_prior, "indeg": indeg_prior}[kind]
+        fn = {"topo_qos": topo_qos_prior, "indeg": indeg_prior,
+              "topo_qos_ap": topo_qos_ap_prior}[kind]
         _PRIOR_CACHE[key] = fn(bundle.scenario_id, cache_dir=bundle.cache_dir)
     prior = _PRIOR_CACHE[key]
     out = {nid: dict(vals) for nid, vals in sm.items()}
@@ -1110,7 +1115,8 @@ def _run_seed(
                                    hidden_channels=_registry.hidden_for(variant, hidden, "loso"),
                                    num_heads=heads,
                                    num_layers=layers, dropout=dropout,
-                                   edge_dim=edge_dim, topo_prior=bool(use_prior))
+                                   edge_dim=edge_dim, topo_prior=bool(use_prior),
+                                   reverse_edges=_registry.reverse_edges_for(variant))
             model.to(target_device)
             best_path = ckpt_dir / "best_model.pt"
             if best_path.exists():

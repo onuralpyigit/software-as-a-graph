@@ -122,7 +122,7 @@ def train_once(
 
     train_graph, train_sm = _prepare_bundle_graph(primary, use_qos)
     if topo_prior:
-        train_sm = _with_prior(primary, train_sm)
+        train_sm = _with_prior(primary, train_sm, topo_prior)
     service = GNNService(
         checkpoint_dir=str(ckpt_dir),
         hidden_channels=hidden_channels,
@@ -131,7 +131,7 @@ def train_once(
         dropout=0.2,
         predict_edges=False,
         device=target_device,
-        topo_prior=topo_prior,
+        topo_prior=bool(topo_prior),
         use_bidirectional=use_bidirectional,
         drop_feature_keys=primary.drop_features,
         qos_exempt_keys=primary.qos_exempt,
@@ -289,7 +289,7 @@ def train_once_homogeneous(
         _registry.baseline_name_for(variant, "loso"),
         hidden_channels=_registry.hidden_for(variant, 64, "loso"),
         num_heads=4, num_layers=layers, dropout=0.2, edge_dim=edge_dim,
-        topo_prior=bool(topo_prior),
+        topo_prior=bool(topo_prior), reverse_edges=_registry.reverse_edges_for(variant),
     )
     model.to(target_device)
     trainer = GNNTrainer(
@@ -361,14 +361,15 @@ def train_once_tabular(
 
 
 def score(service: GNNService, bundle: ScenarioBundle, *, use_qos: bool,
-          population: str, rank_normalize_features: bool = True) -> Dict[str, Any]:
+          population: str, rank_normalize_features: bool = True,
+          prior_kind: Any = "topo_qos") -> Dict[str, Any]:
     """Zero-shot predict on one real system and score against its I*(v) labels."""
     if isinstance(service, (HomogeneousScorer, TabularScorer)):
         pred = service.predict_scores(bundle, use_qos)
     else:
         graph, sm = _prepare_bundle_graph(bundle, use_qos)
         if service.topo_prior:
-            sm = _with_prior(bundle, sm)
+            sm = _with_prior(bundle, sm, prior_kind)
         result = service.predict(
             graph=graph,
             structural_metrics=sm,
@@ -669,7 +670,8 @@ def main() -> int:
     homogeneous = args.variant in _HOMOGENEOUS_VARIANTS
     tabular = args.variant in ("tab_gbm", "tab_gbm_qos")
     use_qos = _registry.node_qos_for(args.variant, "loso")
-    topo_prior = args.variant == "hgl_qos_prior"
+    # HGT hybrids: the prior kind the registry names (Amendments 5 and 16).
+    topo_prior = False if homogeneous or tabular else (_registry.prior_for(args.variant) or False)
     # Amendment 9: learn and predict on the DEPENDS_ON projection of every graph.
     on_projection = _registry.learns_on_projection(args.variant, "loso")
 
@@ -727,7 +729,8 @@ def main() -> int:
                 m = score(service, _dependency_bundle(b) if on_projection else b,
                           use_qos=use_qos,
                           population=args.eval_population,
-                          rank_normalize_features=args.rank_normalize_features)
+                          rank_normalize_features=args.rank_normalize_features,
+                          prior_kind=topo_prior or "topo_qos")
             except Exception as exc:                      # noqa: BLE001
                 logger.error("  %s seed %d failed: %s", b.scenario_id, seed, exc,
                              exc_info=True)

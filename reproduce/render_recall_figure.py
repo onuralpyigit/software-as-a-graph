@@ -35,7 +35,9 @@ SERIES = [("GAT-P-QoS", "GAT-P-QoS", "#7B3F8C", "-"), ("Topo-QoS", "Topo-QoS", "
           ("Analytic-I*", "First-order $I^*$ (ref.)", "#9CA3AF", (0, (1, 1.5))),
           ("InDeg", "InDeg (ref.)", "#475569", (0, (4, 2))),
           ("Reach", "Reach (ref.)", "#94A3B8", (0, (5, 1.5, 1, 1.5)))]
-REFERENCES = {"Analytic-I*", "InDeg", "Reach"}
+REFERENCES = {"Analytic-I*", "InDeg", "Reach", "Rate-weighted"}
+#: Panel B only: Eq. 7, the reference for I_dyn (Amendment 15).
+IDYN_EXTRA = [("Rate-weighted", "Rate-weighted Eq. 7 (ref.)", "#1F2937", (0, (3, 1, 1, 1, 1, 1)))]
 TITLES = {"i_star": "A. Against $I^*$ (all Applications)",
           "i_dyn": "B. Against $I_{\\mathrm{dyn}}$ (all Applications)"}
 
@@ -52,7 +54,7 @@ def main() -> None:
     curves["i_dyn"] = json.loads(SRC_IDYN.read_text())["curves"]["i_dyn"]
     fig, axes = plt.subplots(1, 2, figsize=(6.5, 2.6), sharey=True)
     for ax, oracle in zip(axes, ("i_star", "i_dyn")):
-        for key, name, colour, ls in SERIES:
+        for key, name, colour, ls in SERIES + (IDYN_EXTRA if oracle == "i_dyn" else []):
             c = curves[oracle][key]["curve"]
             ks = sorted(c, key=float)
             x = [100 * float(k) for k in ks]
@@ -70,8 +72,10 @@ def main() -> None:
         for side in ("top", "right"):
             ax.spines[side].set_visible(False)
     axes[0].set_ylabel("Recall of the true top-20% set")
-    axes[1].legend(loc="lower right", frameon=False, fontsize=6.2)
-    fig.tight_layout()
+    handles, labels = axes[1].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=3, frameon=False, fontsize=6.2,
+               bbox_to_anchor=(0.5, -0.01))
+    fig.tight_layout(rect=(0, 0.12, 1, 1))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT.with_suffix(".pdf"), bbox_inches="tight", pad_inches=0.02)
     fig.savefig(OUT.with_suffix(".png"), dpi=300, bbox_inches="tight", pad_inches=0.02)

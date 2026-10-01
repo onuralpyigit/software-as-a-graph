@@ -59,7 +59,7 @@ ORACLE_ROBUST_WORKERS ?= 8
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency rq-referee-round7 \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 jss-fig6 jss-graphical-abstract \
-        jss-figures jss-figS1 jss-figS2 jss-tables all bundle package-zenodo smoke-test clean clean-all
+        jss-figures jss-figS1 jss-figS2 jss-tables rq-amendment16 all bundle package-zenodo smoke-test clean clean-all
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 0. Environment
@@ -326,6 +326,29 @@ rq-amendment14:
 	        --output $(RESULTS_DIR)/realworld_zeroshot_$${v}_amendment14.json || exit 1; \
 	done
 	OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 $(PYTHON) reproduce/referee_round8.py amendment14
+
+# Round-11 referee arms (PREREGISTRATION.md Amendment 16, registered secondary, not in
+# the omnibus): a reverse-edge raw-graph GAT (direction control for GAT-P-QoS) and the
+# hybrids with the corrected (AP-restored) and InDeg priors, run beside every comparator
+# in ONE CPU invocation; referee_round11.py's gate G0 checks the comparators reproduce.
+A16_ARMS        = gl_full_qos16_cap_rev gl_qos16_prior_ap hgl_qos_prior_ap \
+                  gl_qos16_indeg_prior hgl_qos_indeg_prior
+A16_COMPARATORS = topo_qos gl_full_qos16_cap gl_proj_qos16_cap hgl_qos gl_qos16_prior hgl_qos_prior
+
+rq-amendment16:
+	$(PYTHON) reproduce/loso_all_variants.py \
+	    --variants $(A16_COMPARATORS) $(A16_ARMS) \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --epochs $(EPOCHS) --seeds $(SEEDS) --device cpu \
+	    --jobs $(HYBRID_JOBS) --torch-threads 1 \
+	    --output-base $(OUTPUT_DIR)/loso_cpu_amendment16 \
+	    --output $(RESULTS_DIR)/loso_amendment16_cpu.json
+	for v in gl_full_qos16_cap_rev gl_qos16_prior_ap hgl_qos_prior_ap; do \
+	    OMP_NUM_THREADS=4 $(PYTHON) reproduce/realworld_zeroshot.py --variant $$v --layers 3 --epochs $(EPOCHS) \
+	        --device cpu --workdir $(OUTPUT_DIR)/realworld_zeroshot_amendment16 --save-predictions \
+	        --output $(RESULTS_DIR)/realworld_zeroshot_$${v}_amendment16.json || exit 1; \
+	done
+	OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 $(PYTHON) reproduce/referee_round11.py amendment16
 
 # Round-8 re-analysis of existing artifacts, no training (Amendment 14, F3/F7 and
 # descriptive analyses). Minutes.

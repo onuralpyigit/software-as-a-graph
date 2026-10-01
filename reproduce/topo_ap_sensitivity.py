@@ -37,14 +37,7 @@ if __name__ == "__main__" and __package__ is None:
 from cli.loso_evaluate import compute_inductive_metrics, load_scenario_bundle  # noqa: E402
 from reproduce._provenance import stamp  # noqa: E402
 from reproduce.main_table import _compute_topo_baseline_scores, _load_scenario_data  # noqa: E402
-
-
-def _with_ap(struct: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
-    """Copy of ``struct`` whose articulation term reads the computed ap_c_score."""
-    return {
-        nid: {**m, "articulation_point": float(m.get("ap_c_score", 0.0))}
-        for nid, m in struct.items()
-    }
+from reproduce.main_table import with_ap as _with_ap  # noqa: E402
 
 
 def main() -> int:

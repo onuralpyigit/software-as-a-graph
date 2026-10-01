@@ -124,6 +124,8 @@ CONTROL_VARIANTS = [
     "gl_full_qos16_cap_nodeg",  # GAT-QoS-deg: in-degree and w_in zeroed
     "gl_full_cap_win",          # GAT+w_in: QoS off, w_in kept
     "hgl_win",                  # HGT+w_in: QoS off, w_in kept
+    # Amendment 16 control, LOSO/zero-shot only
+    "gl_full_qos16_cap_rev",    # GAT-QoS-R: GAT-QoS with every edge also passed in reverse
 ]
 
 DEFAULT_SEEDS = [42, 123, 456, 789, 2024]
@@ -946,6 +948,30 @@ def topo_qos_prior(scenario: str, cache_dir: Optional[Path] = None) -> Dict[str,
         scenario, substrate="projection", cache_dir=cache_dir
     )
     return _rank_normalise(_compute_topo_baseline_scores(graph, struct, use_qos=True) or {})
+
+
+def with_ap(struct: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """Copy of ``struct`` whose articulation term reads the computed ``ap_c_score``.
+
+    ``_parse_structural_metrics`` writes ``articulation_point = 0.0`` because the
+    cached ``structural_metrics.json`` has no ``ap_c_score``, and that key takes
+    precedence; this restores the term the Topo-QoS formula specifies.
+    """
+    return {
+        nid: {**m, "articulation_point": float(m.get("ap_c_score", 0.0))}
+        for nid, m in struct.items()
+    }
+
+
+def topo_qos_ap_prior(scenario: str, cache_dir: Optional[Path] = None) -> Dict[str, float]:
+    """Amendment 16 prior: Topo-QoS with its articulation term restored, rank-normalised.
+
+    Identical to :func:`topo_qos_prior` except for :func:`with_ap`.
+    """
+    graph, struct, _sim, _rm, _gt = _load_scenario_data(
+        scenario, substrate="projection", cache_dir=cache_dir
+    )
+    return _rank_normalise(_compute_topo_baseline_scores(graph, with_ap(struct), use_qos=True) or {})
 
 
 def indeg_prior(scenario: str, cache_dir: Optional[Path] = None) -> Dict[str, float]:
