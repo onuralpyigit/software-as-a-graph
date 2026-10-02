@@ -1,5 +1,5 @@
 Software-as-a-Graph derives explicit dependency graphs from pub-sub manifests.
-Derived dependency graphs beat reverse-edge raw graphs for graph attention (+0.072).
-Direct dependent counts are indistinguishable from the best learned ranker.
+Graph-attention learners gain on derived dependency graphs (rho 0.748 vs 0.635).
+Counting direct dependents matches the best learned ranker (rho 0.764 vs 0.748).
 A rate-weighted formula approximates a 12.7 CPU-hour simulator (rho=0.830).
-Learning beats only a weak baseline, not dependency-based references.
+Learning beats the training-free baseline but not dependency-based references.
