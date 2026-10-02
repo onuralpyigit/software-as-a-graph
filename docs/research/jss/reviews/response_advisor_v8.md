@@ -89,6 +89,14 @@ To stay within the 250-word limit (it is now exactly 250), "little additional pr
 
 At the author's request, the keywords are now the v8 list, minus "empirical study": *Dependency graphs; cascading failures; publish–subscribe; graph neural networks; graph learning; software architecture; dependability*. The v8 list has eight entries, but the JSS Guide for Authors allows 1 to 7. Round 10 had met that limit by merging the two learning terms into "graph representation learning". This version keeps both of the advisor's learning terms and drops instead the keyword that adds least for indexing.
 
+## Highlights (follow-up request)
+
+At the author's request, `highlights.tex` is now the v8 version (`8dd4a536`), verbatim. All five bullets are within the 85-character limit (75–80 characters), and every number still matches the current results (0.748, 0.635, 0.764, 0.830). Two referee-driven wordings are given up here, though both points remain in the abstract and the body:
+- **Highlight 2.** Round 11 (M1) had restated it as the reverse-edge control, "+0.072". The v8 bullet's 0.748 vs 0.635 is the uncontrolled gain, but most of it survives the control: +0.072 of +0.113.
+- **Highlight 5.** Round 10 (M4) had said learning beats "only a weak baseline".
+
+Highlight 3's "matches" agrees with the definition now in §5.3.
+
 ## Cover letter and extension document (new)
 
 - **`latex/cover_letter.tex`**, compiled to `cover_letter.pdf`. It uses your text, addressed to the VSI: AI4MSS guest editors, together with the RASSE extension sentence.
