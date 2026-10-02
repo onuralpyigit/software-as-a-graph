@@ -16,7 +16,7 @@ On a reachability simulator, graph attention on the derived dependency graph rea
 
 All findings are conditional on simulation fidelity. In this simulated corpus, representation mattered more than model complexity, highlighting the importance of deriving meaningful dependency representations and evaluating learned methods against analytical alternatives aligned with the simulator.
 
-**Keywords:** Dependency graphs; cascading failures; publish–subscribe; graph representation learning; software architecture; dependability; empirical study
+**Keywords:** Dependency graphs; cascading failures; publish–subscribe; graph neural networks; graph learning; software architecture; dependability
 
 ---
 

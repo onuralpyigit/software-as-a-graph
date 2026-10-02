@@ -85,6 +85,10 @@ At the author's request, the abstract is now the v8 abstract (`8dd4a536`), not t
 
 To stay within the 250-word limit (it is now exactly 250), "little additional predictive signal beyond that provided by explicit dependencies" became "little predictive signal beyond explicit dependencies". "Matched by counting direct dependents" stays, because it agrees with the definition of "matches" now in §5.3.
 
+## Keywords (follow-up request)
+
+At the author's request, the keywords are now the v8 list, minus "empirical study": *Dependency graphs; cascading failures; publish–subscribe; graph neural networks; graph learning; software architecture; dependability*. The v8 list has eight entries, but the JSS Guide for Authors allows 1 to 7. Round 10 had met that limit by merging the two learning terms into "graph representation learning". This version keeps both of the advisor's learning terms and drops instead the keyword that adds least for indexing.
+
 ## Cover letter and extension document (new)
 
 - **`latex/cover_letter.tex`**, compiled to `cover_letter.pdf`. It uses your text, addressed to the VSI: AI4MSS guest editors, together with the RASSE extension sentence.
