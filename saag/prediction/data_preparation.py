@@ -802,8 +802,10 @@ def networkx_to_hetero_data(
             _rank_normalize_base_columns(feat_matrix)
 
         # After normalisation, so a zeroed column stays exactly 0 either way.
+        # "*" zeroes every column (Amendment 17's constant-feature arm).
+        drop_all = "*" in drop_feature_keys
         for col, key in enumerate(keys_to_use):
-            if key in drop_feature_keys:
+            if drop_all or key in drop_feature_keys:
                 feat_matrix[:, col] = 0.0
 
         if append_prior:

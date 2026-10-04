@@ -126,6 +126,8 @@ CONTROL_VARIANTS = [
     "hgl_win",                  # HGT+w_in: QoS off, w_in kept
     # Amendment 16 control, LOSO/zero-shot only
     "gl_full_qos16_cap_rev",    # GAT-QoS-R: GAT-QoS with every edge also passed in reverse
+    "gl_full_qos16_cap_rev_min",  # GAT-QoS-R-min: oracle-aligned features zeroed (Amendment 17)
+    "gl_full_qos16_cap_min",      # GAT-QoS-min: oracle-aligned features zeroed (Amendment 17)
 ]
 
 DEFAULT_SEEDS = [42, 123, 456, 789, 2024]
@@ -972,6 +974,19 @@ def topo_qos_ap_prior(scenario: str, cache_dir: Optional[Path] = None) -> Dict[s
         scenario, substrate="projection", cache_dir=cache_dir
     )
     return _rank_normalise(_compute_topo_baseline_scores(graph, with_ap(struct), use_qos=True) or {})
+
+
+def rate_idyn_prior(scenario: str, cache_dir: Optional[Path] = None) -> Dict[str, float]:
+    """Amendment 17 prior: the rate-weighted first-order expansion of I_dyn (Eq. 7),
+    rank-normalised exactly as :func:`topo_qos_prior`. Applications only; Libraries
+    are absent and read as 0. Topology source as in :func:`indeg_prior`.
+    """
+    from reproduce.idyn_rate_expansion import closed_forms
+
+    cache_dir = Path(cache_dir) if cache_dir is not None else _find_cache_dir(scenario)
+    cache_topo = cache_dir / "topology.json"
+    path = cache_topo if cache_topo.exists() else SCENARIOS_DIR / f"{scenario}.json"
+    return _rank_normalise(closed_forms(json.loads(path.read_text()))["Rate-I_dyn"])
 
 
 def indeg_prior(scenario: str, cache_dir: Optional[Path] = None) -> Dict[str, float]:

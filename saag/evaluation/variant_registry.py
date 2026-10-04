@@ -87,6 +87,10 @@ __all__ = [
     "baseline_name_for",
     "DEGREE_FEATURES",
     "DEGREE_FEATURES_STRICT",
+    "ORACLE_ALIGNED_FEATURES",
+    "ALL_NODE_FEATURES",
+    "permute_nodes_for",
+    "PERMUTATION_SEED",
 ]
 
 
@@ -137,6 +141,9 @@ class Variant:
     #: Training labels: ``"i_star"`` (every reported arm), ``"idyn_full"``
     #: (Amendment 11's queue-flow labels) or ``"istar_app"`` (I*, Applications only).
     label_source: str = "i_star"
+    #: Node order within each type is permuted before conversion (Amendment 17), so
+    #: ListMLE's tied labels no longer follow the generator's creation order.
+    permute_nodes: bool = False
 
 
 #: Amendment 14: the in-degree column and its QoS-weighted version, and the strict set
@@ -145,6 +152,20 @@ DEGREE_FEATURES: Tuple[str, ...] = ("in_degree_centrality", "qos_weight_in")
 DEGREE_FEATURES_STRICT: Tuple[str, ...] = DEGREE_FEATURES + (
     "pagerank", "closeness_centrality", "eigenvector_centrality",
 )
+#: Amendment 17: every base column that computes part of what the reachability oracle
+#: computes -- in-degree and w_in, reverse PageRank, the articulation column (stored
+#: twice), multi-path coupling, fan-out criticality and CDI.
+ORACLE_ALIGNED_FEATURES: Tuple[str, ...] = (
+    "reverse_pagerank", "in_degree_centrality", "ap_c_score", "qos_weight_in",
+    "mpci", "fan_out_criticality", "ap_c_directed", "cdi",
+)
+
+
+#: Amendment 17: every node-feature column of every type (the constant-feature arm).
+#: ``networkx_to_hetero_data`` reads ``"*"`` as "zero every column".
+ALL_NODE_FEATURES: Tuple[str, ...] = ("*",)
+#: Amendment 17: the fixed seed of the node-order permutation arm.
+PERMUTATION_SEED = 17
 
 
 FAMILY_ORDER = [
@@ -564,6 +585,85 @@ _VARIANT_LIST = [
               "InDeg prior (raw multigraph)",
         prior="indeg",
     ),
+    # Amendment 17 (round-12 referee): does the dependency-graph gain survive without
+    # the oracle-aligned features, can a learner add to Eq. 7, and is there
+    # identifier-order leakage?
+    Variant(
+        variant_id="gl_proj_qos16_cap_min",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-P-QoS-min",
+        blurb="GAT-P-QoS with every oracle-aligned feature column zeroed",
+        hidden_channels=288,
+        drop_node_features=ORACLE_ALIGNED_FEATURES,
+    ),
+    Variant(
+        variant_id="gl_full_qos16_cap_rev_min",
+        family="control",
+        substrate="native",
+        qos="full16",
+        label="GAT-QoS-R-min",
+        blurb="GAT-QoS-R with every oracle-aligned feature column zeroed",
+        hidden_channels=288,
+        control_for="directionality",
+        reverse_edges=True,
+        drop_node_features=ORACLE_ALIGNED_FEATURES,
+    ),
+    Variant(
+        variant_id="gl_full_qos16_cap_min",
+        family="control",
+        substrate="native",
+        qos="full16",
+        label="GAT-QoS-min",
+        blurb="GAT-QoS with every oracle-aligned feature column zeroed",
+        hidden_channels=288,
+        control_for="degree_features",
+        drop_node_features=ORACLE_ALIGNED_FEATURES,
+    ),
+    Variant(
+        variant_id="gin_proj_qos16_min",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GIN-P-QoS-min",
+        blurb="GIN-P-QoS with every oracle-aligned feature column zeroed",
+        hidden_channels=228,
+        aggregator="gin",
+        drop_node_features=ORACLE_ALIGNED_FEATURES,
+    ),
+    Variant(
+        variant_id="gin_proj_qos16_const",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GIN-P-QoS-const",
+        blurb="GIN-P-QoS with every node-feature column zeroed (structure only)",
+        hidden_channels=228,
+        aggregator="gin",
+        drop_node_features=ALL_NODE_FEATURES,
+    ),
+    Variant(
+        variant_id="gl_proj_qos16_cap_perm",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-P-QoS-perm",
+        blurb="GAT-P-QoS with node order permuted within each type before conversion",
+        hidden_channels=288,
+        permute_nodes=True,
+    ),
+    Variant(
+        variant_id="gl_proj_qos16_cap_idyn_rate",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-P-QoS-dyn+Eq7",
+        blurb="GAT-P-QoS-dyn reading the rank-normalised Eq. 7 score as its prior",
+        hidden_channels=288,
+        label_source="idyn_full",
+        prior="rate_idyn",
+    ),
 ]
 
 VARIANTS: Dict[str, Variant] = {v.variant_id: v for v in _VARIANT_LIST}
@@ -749,6 +849,12 @@ def learns_on_projection(variant_id: str, harness: str = "loso") -> bool:
     variant = VARIANTS.get(resolve(variant_id, harness), None)
     return (variant is not None and variant.family != "structural"
             and variant.substrate == "projection")
+
+
+def permute_nodes_for(variant_id: str, harness: str = "loso") -> bool:
+    """Whether ``variant_id`` permutes node order before conversion (Amendment 17)."""
+    variant = VARIANTS.get(resolve(variant_id, harness))
+    return False if variant is None else variant.permute_nodes
 
 
 def drop_features_for(variant_id: str, harness: str = "loso") -> Tuple[str, ...]:

@@ -158,6 +158,11 @@ _HOMOGENEOUS_VARIANTS = (
     "gl_full_cap_win", "gl_proj_qos16_cap_idyn", "gl_proj_qos16_cap_istar_app",
     # Amendment 16: reverse-edge direction control, corrected and InDeg priors.
     "gl_full_qos16_cap_rev", "gl_qos16_prior_ap", "gl_qos16_indeg_prior",
+    # Amendment 17: oracle-aligned features zeroed, constant features, node-order
+    # permutation, and the I_dyn GAT reading the Eq. 7 prior.
+    "gl_proj_qos16_cap_min", "gl_full_qos16_cap_rev_min", "gl_full_qos16_cap_min",
+    "gin_proj_qos16_min", "gin_proj_qos16_const", "gl_proj_qos16_cap_perm",
+    "gl_proj_qos16_cap_idyn_rate",
 )
 _HGT_VARIANTS = (
     "hgl", "hgl_qos", "hgl_qos_uni", "hgl_qos_prior", "topology_rm", "hgl_proj_qos",
@@ -501,6 +506,25 @@ def _external_labels(source: str, bundle: ScenarioBundle) -> Dict[str, Dict[str,
     return {n: {"composite": float(v)} for n, v in mean.items()}
 
 
+def _permuted_graph(graph: nx.DiGraph, seed: int) -> nx.DiGraph:
+    """Copy of ``graph`` with nodes inserted in a seeded random order (Amendment 17).
+
+    ``networkx_to_hetero_data`` indexes each node type in insertion order, which is
+    the generator's creation order; ListMLE then breaks label ties in that order.
+    Attributes, graph-level attributes (``infra_source``) and edges are unchanged.
+    """
+    nodes = list(graph.nodes)
+    order = np.random.default_rng(seed).permutation(len(nodes))
+    out = graph.__class__()
+    out.graph.update(graph.graph)
+    out.add_nodes_from((nodes[i], graph.nodes[nodes[i]]) for i in order)
+    if graph.is_multigraph():
+        out.add_edges_from(graph.edges(keys=True, data=True))
+    else:
+        out.add_edges_from(graph.edges(data=True))
+    return out
+
+
 def _variant_bundle(
     bundle: Optional[ScenarioBundle], variant: str, relabel: bool,
 ) -> Optional[ScenarioBundle]:
@@ -513,6 +537,8 @@ def _variant_bundle(
         return None
     b = replace(bundle, drop_features=_registry.drop_features_for(variant),
                 qos_exempt=_registry.qos_exempt_for(variant))
+    if _registry.permute_nodes_for(variant):
+        b = replace(b, graph=_permuted_graph(b.graph, _registry.PERMUTATION_SEED))
     source = _registry.label_source_for(variant)
     if relabel and source != "i_star":
         b = replace(b, simulation=_external_labels(source, b))
@@ -540,13 +566,18 @@ def _with_prior(bundle: ScenarioBundle, sm: Dict[str, Any], kind: Any = "topo_qo
     ``sm`` itself is never mutated: it may be the bundle's own structural dict,
     shared with every other variant.
     """
-    from reproduce.main_table import indeg_prior, topo_qos_ap_prior, topo_qos_prior
+    from reproduce.main_table import (
+        indeg_prior,
+        rate_idyn_prior,
+        topo_qos_ap_prior,
+        topo_qos_prior,
+    )
 
     kind = "topo_qos" if kind is True else kind
     key = f"{bundle.cache_dir}::{bundle.scenario_id}::{kind}"
     if key not in _PRIOR_CACHE:
         fn = {"topo_qos": topo_qos_prior, "indeg": indeg_prior,
-              "topo_qos_ap": topo_qos_ap_prior}[kind]
+              "topo_qos_ap": topo_qos_ap_prior, "rate_idyn": rate_idyn_prior}[kind]
         _PRIOR_CACHE[key] = fn(bundle.scenario_id, cache_dir=bundle.cache_dir)
     prior = _PRIOR_CACHE[key]
     out = {nid: dict(vals) for nid, vals in sm.items()}
