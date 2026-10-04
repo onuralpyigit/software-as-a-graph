@@ -3,7 +3,7 @@
 reproduce/render_headline_figure.py — the JSS manuscript's results figure
 =========================================================================
 
-Writes ``docs/research/jss/latex/figures/Figure_5.{pdf,png}``, three panels that
+Writes ``docs/research/jss/latex/figures/Figure_4.{pdf,png}``, three panels that
 carry the paper's three findings at a glance:
 
     A. Accuracy on unseen synthetic architectures (LOSO) against zero-shot
@@ -60,7 +60,7 @@ from reproduce.loso_significance import _bootstrap_delta_ci  # noqa: E402
 from saag.evaluation.variant_registry import label  # noqa: E402
 
 RESULTS = Path("results")
-OUT = Path("docs/research/jss/latex/figures/Figure_5")
+OUT = Path("docs/research/jss/latex/figures/Figure_4")
 
 INK, INK2, GRID = "#1F2937", "#475569", "#E5E7EB"
 # Engine identity, fixed across the paper's figures (Okabe-Ito; validated with

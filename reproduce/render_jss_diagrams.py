@@ -7,7 +7,7 @@ Writes three conceptual figures into ``docs/research/jss/latex/figures/``:
 
     Figure_2  running example: structural graph and its DEPENDS_ON projection (§3.2)
     Figure_3  the three ranking engines and the evaluation design (§4)
-    Figure_4  the explanation layer: metrics -> FT / A / M -> Q(v) -> remediation (§5)
+    Figure_S3 the explanation layer (supplement): metrics -> FT / A / M -> Q(v) -> remediation (§5)
 
 They carry no measured numbers -- only the declared model constants of §3 and
 §5 -- so nothing here needs an artifact. Figure_5 (results) is data-driven and
@@ -306,7 +306,7 @@ def figure4():
         arrow(ax, (72.5, 10), (77.5, y + 4.6), color=GREEN, head=4)
     ax.text(88.25, 2.2, "each flagged component is read\nby its FT / A / M profile",
             fontsize=5.9, color=INK2, ha="center", va="center")
-    save(fig, "Figure_4")
+    save(fig, "Figure_S3")
 
 
 def main() -> None:
