@@ -77,6 +77,8 @@ CONTROL_VARIANTS = [
     "gl_proj_qos16_cap_min", "gl_full_qos16_cap_rev_min", "gl_full_qos16_cap_min",
     "gin_proj_qos16_min", "gin_proj_qos16_const", "gl_proj_qos16_cap_perm",
     "gl_proj_qos16_cap_idyn_rate",
+    # Amendment 17b: two more node-order permutation seeds.
+    "gl_proj_qos16_cap_perm18", "gl_proj_qos16_cap_perm19",
 ]
 #: The comparator every reported Δρ is measured against, re-exported from the
 #: registry that owns it so this harness, the k-fold harness, the significance

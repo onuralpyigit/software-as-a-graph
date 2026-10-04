@@ -59,7 +59,7 @@ ORACLE_ROBUST_WORKERS ?= 8
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency rq-referee-round7 \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 jss-fig6 jss-graphical-abstract \
-        jss-figures jss-figS1 jss-figS2 jss-tables rq-amendment16 rq-amendment17 all bundle package-zenodo smoke-test clean clean-all
+        jss-figures jss-figS1 jss-figS2 jss-tables rq-amendment16 rq-amendment17 rq-amendment17b all bundle package-zenodo smoke-test clean clean-all
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 0. Environment
@@ -375,6 +375,17 @@ rq-amendment17:
 	        --output $(RESULTS_DIR)/realworld_zeroshot_$${v}_amendment17.json || exit 1; \
 	done
 	OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=. $(PYTHON) reproduce/referee_round12.py f12 amendment17 descriptive
+
+# Amendment 17b: two more node-order permutation seeds for GAT-P-QoS, beside its comparator.
+rq-amendment17b:
+	$(PYTHON) reproduce/loso_all_variants.py \
+	    --variants gl_proj_qos16_cap gl_proj_qos16_cap_perm18 gl_proj_qos16_cap_perm19 \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --epochs $(EPOCHS) --seeds $(SEEDS) --device cpu \
+	    --jobs $(HYBRID_JOBS) --torch-threads 1 \
+	    --output-base $(OUTPUT_DIR)/loso_cpu_amendment17b \
+	    --output $(RESULTS_DIR)/loso_amendment17b_cpu.json
+	OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=. $(PYTHON) reproduce/referee_round12.py perm
 
 # Round-8 re-analysis of existing artifacts, no training (Amendment 14, F3/F7 and
 # descriptive analyses). Minutes.

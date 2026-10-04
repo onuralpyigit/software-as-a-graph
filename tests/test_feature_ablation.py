@@ -41,7 +41,7 @@ A14_IDS = [
 A17_IDS = [
     "gl_proj_qos16_cap_min", "gl_full_qos16_cap_rev_min", "gl_full_qos16_cap_min",
     "gin_proj_qos16_min", "gin_proj_qos16_const", "gl_proj_qos16_cap_perm",
-    "gl_proj_qos16_cap_idyn_rate",
+    "gl_proj_qos16_cap_idyn_rate", "gl_proj_qos16_cap_perm18", "gl_proj_qos16_cap_perm19",
 ]
 
 
@@ -108,7 +108,8 @@ def test_registry_invariants():
     for vid, v in R.VARIANTS.items():
         if vid not in A14_IDS + A17_IDS:
             assert (v.drop_node_features, v.qos_exempt_node_features, v.aggregator,
-                    v.label_source, v.permute_nodes) == ((), (), "gat", "i_star", False), vid
+                    v.label_source, v.permute_nodes, v.permutation_seed) == (
+                        (), (), "gat", "i_star", False, None), vid
 
 
 def test_new_arms_are_dispatched_and_swept():
@@ -241,3 +242,9 @@ def test_harness_does_not_import_simulation():
             assert not node.module.startswith("saag.simulation"), node.module
         if isinstance(node, ast.Import):
             assert not any(a.name.startswith("saag.simulation") for a in node.names)
+
+
+def test_permutation_seeds_differ():
+    seeds = {R.permutation_seed_for(v) for v in
+             ("gl_proj_qos16_cap_perm", "gl_proj_qos16_cap_perm18", "gl_proj_qos16_cap_perm19")}
+    assert seeds == {17, 18, 19}

@@ -163,6 +163,8 @@ _HOMOGENEOUS_VARIANTS = (
     "gl_proj_qos16_cap_min", "gl_full_qos16_cap_rev_min", "gl_full_qos16_cap_min",
     "gin_proj_qos16_min", "gin_proj_qos16_const", "gl_proj_qos16_cap_perm",
     "gl_proj_qos16_cap_idyn_rate",
+    # Amendment 17b: two more node-order permutation seeds.
+    "gl_proj_qos16_cap_perm18", "gl_proj_qos16_cap_perm19",
 )
 _HGT_VARIANTS = (
     "hgl", "hgl_qos", "hgl_qos_uni", "hgl_qos_prior", "topology_rm", "hgl_proj_qos",
@@ -538,7 +540,7 @@ def _variant_bundle(
     b = replace(bundle, drop_features=_registry.drop_features_for(variant),
                 qos_exempt=_registry.qos_exempt_for(variant))
     if _registry.permute_nodes_for(variant):
-        b = replace(b, graph=_permuted_graph(b.graph, _registry.PERMUTATION_SEED))
+        b = replace(b, graph=_permuted_graph(b.graph, _registry.permutation_seed_for(variant)))
     source = _registry.label_source_for(variant)
     if relabel and source != "i_star":
         b = replace(b, simulation=_external_labels(source, b))

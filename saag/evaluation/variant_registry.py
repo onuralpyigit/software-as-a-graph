@@ -90,6 +90,7 @@ __all__ = [
     "ORACLE_ALIGNED_FEATURES",
     "ALL_NODE_FEATURES",
     "permute_nodes_for",
+    "permutation_seed_for",
     "PERMUTATION_SEED",
 ]
 
@@ -144,6 +145,8 @@ class Variant:
     #: Node order within each type is permuted before conversion (Amendment 17), so
     #: ListMLE's tied labels no longer follow the generator's creation order.
     permute_nodes: bool = False
+    #: Seed of that permutation; ``None`` means :data:`PERMUTATION_SEED` (Amendment 17b).
+    permutation_seed: Optional[int] = None
 
 
 #: Amendment 14: the in-degree column and its QoS-weighted version, and the strict set
@@ -654,6 +657,28 @@ _VARIANT_LIST = [
         permute_nodes=True,
     ),
     Variant(
+        variant_id="gl_proj_qos16_cap_perm18",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-P-QoS-perm18",
+        blurb="GAT-P-QoS-perm with permutation seed 18 (Amendment 17b)",
+        hidden_channels=288,
+        permute_nodes=True,
+        permutation_seed=18,
+    ),
+    Variant(
+        variant_id="gl_proj_qos16_cap_perm19",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-P-QoS-perm19",
+        blurb="GAT-P-QoS-perm with permutation seed 19 (Amendment 17b)",
+        hidden_channels=288,
+        permute_nodes=True,
+        permutation_seed=19,
+    ),
+    Variant(
         variant_id="gl_proj_qos16_cap_idyn_rate",
         family="dependency",
         substrate="projection",
@@ -855,6 +880,13 @@ def permute_nodes_for(variant_id: str, harness: str = "loso") -> bool:
     """Whether ``variant_id`` permutes node order before conversion (Amendment 17)."""
     variant = VARIANTS.get(resolve(variant_id, harness))
     return False if variant is None else variant.permute_nodes
+
+
+def permutation_seed_for(variant_id: str, harness: str = "loso") -> int:
+    """The node-order permutation seed of ``variant_id`` (Amendment 17b)."""
+    variant = VARIANTS.get(resolve(variant_id, harness))
+    seed = None if variant is None else variant.permutation_seed
+    return PERMUTATION_SEED if seed is None else seed
 
 
 def drop_features_for(variant_id: str, harness: str = "loso") -> Tuple[str, ...]:

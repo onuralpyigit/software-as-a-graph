@@ -1598,3 +1598,39 @@ Descriptive only, with no tests:
 answer. A failed arm is reported with its failure.
 
 **What is unchanged.** Every published arm, table value and tier.
+
+## Amendment 17b — node-order permutation: two more permutation seeds (2026-10-05, after F13 was seen)
+
+**Status when written.** The Amendment 17 sweep has run and been analysed. F13 triggered rule F13a:
+`GAT-P-QoS-perm` (permutation seed 17) scores 0.712 against 0.748 for `GAT-P-QoS` (Δ −0.035,
+p = 0.012, 3/12 folds). The drop is spread over most folds, not concentrated on ATM and AV, the two
+folds where creation order correlates most with the labels.
+
+**Why it exists.** The F13 arm changes two things at once: the order in which ListMLE breaks label
+ties, and which nodes the seeded 20% validation split draws (the split indexes nodes in input
+order). One permutation cannot say whether the published order is *favourable* (systematic) or
+merely *one draw* from an order-dependent spread. This amendment does not replace F13; F13a stands
+and is reported as registered.
+
+### Arms, fixed before any run
+
+| id | Label | Change | Comparator |
+|:---|:---|:---|:---|
+| `gl_proj_qos16_cap_perm18` | GAT-P-QoS-perm18 | as `gl_proj_qos16_cap_perm`, permutation seed 18 | `gl_proj_qos16_cap` |
+| `gl_proj_qos16_cap_perm19` | GAT-P-QoS-perm19 | as `gl_proj_qos16_cap_perm`, permutation seed 19 | `gl_proj_qos16_cap` |
+
+Same protocol as Amendment 17 (12 folds, five training seeds, CPU, one invocation with
+`gl_proj_qos16_cap` re-run as gate G0). No zero-shot.
+
+### Analysis and decision rule (descriptive, no new test family)
+
+Per fold, the published value is placed in the distribution of the three permuted values (seeds
+17, 18, 19). Reported: the mean over permutations, the spread across permutations, and the number
+of folds on which the published value exceeds all three.
+
+| Rule | Condition | What the text says |
+|:---|:---|:---|
+| P1 | Mean over the three permutations is below the published value by more than the mean per-fold spread across permutations | "The published node order is favourable for `GAT-P-QoS`"; the permuted mean is reported beside the published value, and the representation claims are restated against it. |
+| P2 | Otherwise | "Node order moves `GAT-P-QoS` by up to the measured spread; the published value lies within it"; the spread is reported as an additional source of variance. |
+
+**Stopping rule.** No further permutation seeds are run.
