@@ -1492,3 +1492,109 @@ Artifacts:
   - Hybrid-HGT-AP: 0.702
 
 **Operational deviation.** The first zero-shot launch failed at import because `PYTHONPATH` was unset. It was relaunched unchanged; no result existed before the relaunch.
+
+## Amendment 17 — round-12 referee arms: oracle-aligned features, learning on top of Eq. 7, and node-order leakage (2026-10-04, before any result)
+
+**Status when written.** None of the code for the arms below exists yet. Nothing has been trained
+or scored. What was seen before writing:
+- every published number;
+- the feature schema, which shows that `ap_c_score` and `ap_c_directed` are filled from the same
+  continuous value (`extract_structural_metrics_dict`), so the two "articulation" columns are one
+  duplicated column, not binary flags;
+- per-fold Spearman between Application creation index and the direct-dependent count: about 0 on
+  ten folds, −0.39 on ATM and +0.30 on AV.
+
+**Why it exists.** The round-12 report (`reviews/review_2026-10-04_round12.md`) asks for these:
+- **M3.** Every learner reads features that compute part of what `I*` computes. CDI (reachability
+  change on removal), FOC (subscriber blast radius), MPCI, reverse PageRank and the articulation
+  column survive the degree ablation of Amendment 14. Does the dependency-graph gain survive
+  without them?
+- **M4 / M1.** Does a learned model add anything *on top of* Eq. 7, the rate-weighted reference for
+  `I_dyn`? This is the most direct test of "learning beyond the aligned approximation".
+- **M5.** ListMLE orders tied labels by input order, which is the generator's creation order. Is
+  there any identifier-order leakage?
+
+The confirmation corpus, real-artifact extraction, live fault injection and a non-first-order
+oracle (also requested) are not run. They are recorded as limitations.
+
+### Arms, fixed before any run
+
+All GNN arms use LOSO over the twelve folds with five seeds {42, 123, 456, 789, 2024}, on CPU, with
+the published fixed configuration and the Application population. They run in one invocation
+together with their comparators (`make -f reproduce/Makefile rq-amendment17`).
+
+`MIN` = {`reverse_pagerank`, `in_degree_centrality`, `ap_c_score`, `qos_weight_in`, `mpci`,
+`fan_out_criticality`, `ap_c_directed`, `cdi`}, zeroed after normalisation (the Amendment 14
+mechanism), with input width and parameter count unchanged.
+
+| id | Label | Change against its comparator | Comparator |
+|:---|:---|:---|:---|
+| `gl_proj_qos16_cap_min` | GAT-P-QoS-min | `MIN` zeroed | `gl_proj_qos16_cap` |
+| `gl_full_qos16_cap_rev_min` | GAT-QoS-R-min | `MIN` zeroed | `gl_full_qos16_cap_rev` |
+| `gl_full_qos16_cap_min` | GAT-QoS-min | `MIN` zeroed | `gl_full_qos16_cap` |
+| `gin_proj_qos16_min` | GIN-P-QoS-min | `MIN` zeroed | `gin_proj_qos16` |
+| `gin_proj_qos16_const` | GIN-P-QoS-const | every node-feature column zeroed; only the per-type input projection's bias distinguishes types | `gin_proj_qos16` (descriptive) |
+| `gl_proj_qos16_cap_perm` | GAT-P-QoS-perm | node order within each type permuted (fixed seed 17) before conversion, so ListMLE ties no longer follow creation order | `gl_proj_qos16_cap` |
+| `gl_proj_qos16_cap_idyn_rate` | GAT-P-QoS→dyn+Eq7 | the `I_dyn`-trained GAT reading the rank-normalised Eq. 7 score as a prior and correcting its logit (the hybrid mechanism) | `gl_proj_qos16_cap_idyn`, Eq. 7 |
+
+A GAT with constant features is not run: softmax attention over identical inputs yields a
+per-type constant, so its ρ is undefined by construction.
+
+Tabular arms (no simulator, cached `I_dyn` labels; `reproduce/referee_round12.py f12`), with the
+Amendment 11 learner and seeds:
+
+| id | Label | Change | Comparator |
+|:---|:---|:---|:---|
+| `gbm_dyn_eq7` | GBM-P-QoS→dyn+Eq7 | the published S+Q design plus `pct(Eq. 7)` as one more column | Eq. 7 |
+| `gbm_dyn_resid` | GBM→dyn-resid | S+Q design trained on `pct(I_dyn) − pct(Eq. 7)`; prediction `pct(Eq. 7) + f(X)` | Eq. 7 |
+
+The following comparators are re-run in the same invocation: `gl_proj_qos16_cap`,
+`gl_full_qos16_cap`, `gl_full_qos16_cap_rev`, `gin_proj_qos16`, `gl_proj_qos16_cap_idyn`.
+
+**Gate G0.** Each learned comparator must reproduce its published per-seed ρ (max |Δ| < 1e-6). The
+S+Q tabular arm recomputed in `f12` must reproduce the published `gbm_dep_qos_dyn` mean (|Δ| < 1e-6).
+
+**Zero-shot.** The five `MIN`/const arms are trained on all twelve folds and scored on the five
+system models (`--save-predictions`).
+
+### Contrasts
+
+Each contrast uses a two-sided Wilcoxon over folds on the mean over seeds of per-seed ρ, with a
+bootstrap 95% CI (B = 2,000) and Holm correction within each family. Tier: registered secondary.
+No family joins the omnibus.
+
+- **F11 oracle-aligned features** (on `I*`):
+  - (a) GAT-P-QoS-min vs GAT-QoS-R-min;
+  - (b) GAT-P-QoS-min vs GAT-P-QoS;
+  - (c) GIN-P-QoS-min vs GAT-P-QoS-min.
+- **F12 learning on top of Eq. 7** (on `I_dyn`, full population):
+  - GBM-P-QoS→dyn+Eq7 vs Eq. 7;
+  - GBM→dyn-resid vs Eq. 7;
+  - GAT-P-QoS→dyn+Eq7 vs Eq. 7.
+- **F13 node order** (on `I*`, a gate, not Holm-corrected): GAT-P-QoS-perm vs GAT-P-QoS.
+
+Descriptive only, with no tests:
+- every new GNN arm scored on `I*`, `I_dyn-full` and `I_comp` from saved per-seed predictions, and ρ>0 on `I*`;
+- GIN-P-QoS-const against `InDeg`;
+- zero-shot means;
+- per-fold Spearman(creation index, `I*`) and (creation index, `I_dyn`);
+- partial ρ(·, `I*` | Eq. 6) for every learned row of Tables 5–6, from saved predictions;
+- Vargha–Delaney Â12 over folds for the 13 decision-bearing contrasts of the omnibus;
+- the number of Applications whose `InDeg` reference and in-degree feature disagree.
+
+### Decision rules
+
+| Rule | Condition | What the text says |
+|:---|:---|:---|
+| F11a | (a) Holm p < 0.05, Δ > 0 | "Without the oracle-aligned features, the dependency graph still beats the reverse-edge raw-graph control (Δ, p)." The representation claim stays. |
+| F11b | (a) not significant | "Once the oracle-aligned features are removed, the learned gain from the derived graph is not separated from the raw-graph control." The abstract, highlight 2 and §7.1 make the learned representation gain conditional on those features. |
+| F11c | Any outcome of (b), (c) | (b) is reported as what the oracle-aligned features contribute; (c) as an aggregator contrast. No aggregator claim is made unless (c) is significant. |
+| F12a | Any arm beats Eq. 7 at Holm p < 0.05 | Reported as the one regime in which learning added measurable value beyond the aligned approximation, in the abstract and §7.2. |
+| F12b | No arm beats Eq. 7 | "Learning on top of the rate-weighted reference did not improve on it." Reported in §6.1 and §7.2. |
+| F13a | p < 0.05 or \|mean Δ\| > 0.02 | Identifier-order leakage is flagged in §7.5 with its size; every ListMLE-trained row is qualified. |
+| F13b | Otherwise | "Permuting node order changes GAT-P-QoS by Δ (p): no evidence of identifier-order leakage." |
+
+**Stopping rule.** No arm is re-run with other widths, features or seeds in search of a different
+answer. A failed arm is reported with its failure.
+
+**What is unchanged.** Every published arm, table value and tier.
