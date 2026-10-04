@@ -1634,3 +1634,23 @@ of folds on which the published value exceeds all three.
 | P2 | Otherwise | "Node order moves `GAT-P-QoS` by up to the measured spread; the published value lies within it"; the spread is reported as an additional source of variance. |
 
 **Stopping rule.** No further permutation seeds are run.
+
+### Amendment 17 and 17b — results log and deviations (2026-10-05, after the arms ran)
+
+Artifacts: `results/loso_amendment17_cpu.json`, `results/loso_amendment17b_cpu.json`,
+`results/realworld_zeroshot_*_amendment17.json`, `data/benchmarks/referee_round12_{f12,amendment17,descriptive,perm}.json`.
+
+**Gate G0.** Passed for every comparator (max |Δ| = 0), the S+Q tabular arm and Eq. 7.
+
+**Results.** F11: GAT-P-QoS-min vs GAT-QoS-R-min +0.231 [+0.128, +0.340], 10/12, Holm 0.0068 —
+**rule F11a**. GAT-P-QoS-min vs GAT-P-QoS −0.138 (Holm 0.0044); GIN-P-QoS-min vs GAT-P-QoS-min
++0.115 (Holm 0.027, so an aggregator contrast is significant here). F12: +0.000 (Holm 0.97), −0.006
+(Holm 0.68), −0.018 (Holm 0.0029) against Eq. 7 — **rule F12b**. F13: −0.035 [−0.055, −0.014], 3/12,
+p = 0.012 — **rule F13a**. Amendment 17b: permutations 0.712 / 0.740 / 0.734, mean 0.729, gap +0.019
+below the mean spread 0.044 — **rule P2**.
+
+**Deviations.** (1) The first sweep launch was stopped before any arm completed and relaunched after
+the arm code was committed (artifacts record a dirty tree); nothing from it was kept. (2) Vargha–Delaney
+Â12 was not computed; the contrasts are fold-paired and "won" is reported as the paired effect size.
+(3) The F12 tabular arms are implemented in `reproduce/referee_round12.py`, not in
+`reproduce/idyn_rate_expansion.py`, so the Amendment 15 artifact is not rewritten.

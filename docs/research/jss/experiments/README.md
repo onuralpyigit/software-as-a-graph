@@ -43,6 +43,7 @@ root.
 | §4.4, §5.2, §6 | Dependency counts reported as references that restate I*, not as predictors (Amendment 13, reporting change, no new runs) | [amendment13-reference-demotion.md](amendment13-reference-demotion.md) | none | Supp. S26 |
 | §6.1–6.2, Tables 6 and 8 | Degree-free and GIN learners, w_in-held 2×2, GNN trained on I_dyn, nested selection, full-population I_dyn (Amendment 14) | [amendment14-round8.md](amendment14-round8.md) | `make -f reproduce/Makefile rq-amendment14 rq-referee-round8` | Supp. S38 |
 | §5.2, §6.1, Table 6 | Rate-weighted reference for I_dyn (Eq. 7) and input attribution of the learned approximation (Amendment 15, exploratory) | — | `make -f reproduce/Makefile rq-rate-expansion` | Supp. S39 |
+| §3.3, §6.1–6.2, Table `tab:a17`, §7.5 | Oracle-aligned features removed, learners started from Eq. 7, node-order permutations (Amendments 17 and 17b) | [amendment17-round12.md](amendment17-round12.md) | `make -f reproduce/Makefile rq-amendment17 rq-amendment17b` | — |
 | §5.3 | Registered plan, amendments, omnibus correction, repeatability | [repeatability-and-amendments.md](repeatability-and-amendments.md) | `make -f reproduce/Makefile omnibus` | Supp. S26 |
 
 Section, table and figure numbers are those of the compiled manuscript and supplement at submission.
