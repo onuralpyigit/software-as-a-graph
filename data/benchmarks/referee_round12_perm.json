@@ -1,0 +1,173 @@
+{
+  "gate_G0": {
+    "gl_proj_qos16_cap": {
+      "max_abs_diff": 0.0,
+      "passed": true
+    }
+  },
+  "published_mean": 0.7476769864282496,
+  "permutation_means": {
+    "17": 0.7123909174105626,
+    "18": 0.740077745269012,
+    "19": 0.7335860600197246
+  },
+  "permuted_mean": 0.728684907566433,
+  "gap": 0.01899207886181664,
+  "mean_spread": 0.04352353640432935,
+  "folds_published_above_all": 4,
+  "published_vs_permuted_mean": {
+    "delta": 0.018992078861816513,
+    "ci95": [
+      0.006556162310295554,
+      0.031872494861031594
+    ],
+    "won": 9,
+    "n": 12,
+    "p": 0.04248046875
+  },
+  "decision_rule": "P2",
+  "per_fold": {
+    "atm_system": {
+      "published": 0.6031280894768033,
+      "permuted": [
+        0.5769051290647684,
+        0.6141801748860641,
+        0.6308612727397931
+      ],
+      "mean": 0.607315525563542,
+      "spread": 0.05395614367502466,
+      "published_above_all": false
+    },
+    "av_system": {
+      "published": 0.7638419054268627,
+      "permuted": [
+        0.7757007477604297,
+        0.784105655403799,
+        0.7768653885459815
+      ],
+      "mean": 0.7788905972367367,
+      "spread": 0.008404907643369208,
+      "published_above_all": false
+    },
+    "enterprise_system": {
+      "published": 0.7384660746529251,
+      "permuted": [
+        0.6564255266614463,
+        0.7501630686429938,
+        0.6888967423704575
+      ],
+      "mean": 0.6984951125582993,
+      "spread": 0.09373754198154749,
+      "published_above_all": false
+    },
+    "financial_trading_system": {
+      "published": 0.8001996453691754,
+      "permuted": [
+        0.7736605072328065,
+        0.8022765706662842,
+        0.8003571649844057
+      ],
+      "mean": 0.7920980809611655,
+      "spread": 0.028616063433477668,
+      "published_above_all": false
+    },
+    "healthcare_system": {
+      "published": 0.8628833043164637,
+      "permuted": [
+        0.8392028284637728,
+        0.8720429202895594,
+        0.843990359922713
+      ],
+      "mean": 0.8517453695586816,
+      "spread": 0.03284009182578662,
+      "published_above_all": false
+    },
+    "hub_and_spoke_system": {
+      "published": 0.7582514375449876,
+      "permuted": [
+        0.6721193341295877,
+        0.7219558025569722,
+        0.7377692973464308
+      ],
+      "mean": 0.7106148113443301,
+      "spread": 0.06564996321684313,
+      "published_above_all": true
+    },
+    "industrial_scada_system": {
+      "published": 0.8335480526429337,
+      "permuted": [
+        0.7665347907217653,
+        0.7786626404629078,
+        0.8095343075182242
+      ],
+      "mean": 0.7849105795676324,
+      "spread": 0.04299951679645886,
+      "published_above_all": true
+    },
+    "iot_smart_city_system": {
+      "published": 0.7471903464351488,
+      "permuted": [
+        0.6949561519364175,
+        0.7332403822752908,
+        0.6953242564320877
+      ],
+      "mean": 0.707840263547932,
+      "spread": 0.03828423033887329,
+      "published_above_all": true
+    },
+    "logistics_fleet_system": {
+      "published": 0.7741095081191699,
+      "permuted": [
+        0.7455241686680961,
+        0.7572544839533941,
+        0.7798176285397556
+      ],
+      "mean": 0.7608654270537487,
+      "spread": 0.03429345987165944,
+      "published_above_all": false
+    },
+    "microservices_system": {
+      "published": 0.6488445219440877,
+      "permuted": [
+        0.5724096772684243,
+        0.622114174256952,
+        0.6215205695954648
+      ],
+      "mean": 0.6053481403736137,
+      "spread": 0.04970449698852775,
+      "published_above_all": true
+    },
+    "realtime_gaming_system": {
+      "published": 0.7949820382996833,
+      "permuted": [
+        0.8021899111996932,
+        0.8114059621943681,
+        0.8096134665075481
+      ],
+      "mean": 0.8077364466338697,
+      "spread": 0.00921605099467493,
+      "published_above_all": false
+    },
+    "telecom_ran_system": {
+      "published": 0.646678912910754,
+      "permuted": [
+        0.6730622358195433,
+        0.6335311076395587,
+        0.6084822657338341
+      ],
+      "mean": 0.6383585363976453,
+      "spread": 0.06457997008570915,
+      "published_above_all": false
+    }
+  },
+  "provenance": {
+    "commit": "070daf11633341eeb84017f6883f3e0e02b2ffa1",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/referee_round12.py",
+      "amendment": 17,
+      "experiment": "Amendment 17b node-order permutations"
+    }
+  }
+}
