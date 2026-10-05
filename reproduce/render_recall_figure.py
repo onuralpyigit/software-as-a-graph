@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "data" / "benchmarks" / "referee_round7_recall.json"
 #: Panel B reads the exhaustive I_dyn labels (``referee_round7.py recall --idyn-full``).
 SRC_IDYN = ROOT / "data" / "benchmarks" / "referee_round10_recall_idyn_full.json"
-OUT = ROOT / "docs" / "research" / "jss" / "latex" / "figures" / "Figure_6"
+OUT = ROOT / "docs" / "research" / "jss" / "latex" / "figures" / "Figure_5"
 
 INK, INK2, GRID = "#1F2937", "#475569", "#E5E7EB"
 #: Predictors in their Figure 5 colours (Okabe-Ito), solid with markers. Reference

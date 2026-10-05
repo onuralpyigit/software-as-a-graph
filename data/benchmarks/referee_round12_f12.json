@@ -1,0 +1,88 @@
+{
+  "gate_G0": {
+    "S+Q": {
+      "published": 0.7993143170104076,
+      "recomputed": 0.7993143170104076,
+      "abs_diff": 0.0,
+      "passed": true
+    },
+    "Eq7": {
+      "max_abs_diff": 0.0,
+      "passed": true
+    }
+  },
+  "per_fold": {
+    "S+Q": {
+      "atm_system": 0.7981538461538461,
+      "av_system": 0.7415159037689631,
+      "enterprise_system": 0.8235025673962294,
+      "financial_trading_system": 0.8793907968183584,
+      "healthcare_system": 0.8928012304393154,
+      "hub_and_spoke_system": 0.5896637734334448,
+      "industrial_scada_system": 0.7323806835367348,
+      "iot_smart_city_system": 0.8645010518173016,
+      "logistics_fleet_system": 0.8460108610832042,
+      "microservices_system": 0.8634673165316583,
+      "realtime_gaming_system": 0.762983299744328,
+      "telecom_ran_system": 0.7974004734015081
+    },
+    "S+Q+Eq7": {
+      "atm_system": 0.8806153846153846,
+      "av_system": 0.7617379893828601,
+      "enterprise_system": 0.8267127630221017,
+      "financial_trading_system": 0.8840171804957558,
+      "healthcare_system": 0.9042354975028812,
+      "hub_and_spoke_system": 0.6223995241797462,
+      "industrial_scada_system": 0.7532320475186948,
+      "iot_smart_city_system": 0.8983717585943761,
+      "logistics_fleet_system": 0.8802906973908383,
+      "microservices_system": 0.8906930513844685,
+      "realtime_gaming_system": 0.8294543980522328,
+      "telecom_ran_system": 0.8322693901934699
+    },
+    "resid-Eq7": {
+      "atm_system": 0.8873162393162393,
+      "av_system": 0.7448597587736001,
+      "enterprise_system": 0.8221188548016649,
+      "financial_trading_system": 0.8655616554404075,
+      "healthcare_system": 0.9104137155360561,
+      "hub_and_spoke_system": 0.6042972373328901,
+      "industrial_scada_system": 0.7518037320934378,
+      "iot_smart_city_system": 0.9111901135019587,
+      "logistics_fleet_system": 0.8649386805043708,
+      "microservices_system": 0.8709670781119909,
+      "realtime_gaming_system": 0.8343591968745223,
+      "telecom_ran_system": 0.8236553203251571
+    },
+    "Eq7": {
+      "atm_system": 0.8383918019525393,
+      "av_system": 0.7405118680936017,
+      "enterprise_system": 0.8559950418404285,
+      "financial_trading_system": 0.8465199275197154,
+      "healthcare_system": 0.8977144416301509,
+      "hub_and_spoke_system": 0.5980529756419644,
+      "industrial_scada_system": 0.7589010120716437,
+      "iot_smart_city_system": 0.9227141986810445,
+      "logistics_fleet_system": 0.8855679893402902,
+      "microservices_system": 0.9008084696768933,
+      "realtime_gaming_system": 0.8661677045743509,
+      "telecom_ran_system": 0.8497244064829936
+    }
+  },
+  "means": {
+    "S+Q": 0.7993143170104076,
+    "S+Q+Eq7": 0.8303358068610676,
+    "resid-Eq7": 0.8242901318843581,
+    "Eq7": 0.830089153125468
+  },
+  "provenance": {
+    "commit": "d7f0a33a779a17c79155a15a9de0114d9288e127",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/referee_round12.py",
+      "amendment": 17,
+      "experiment": "Amendment 17 F12 tabular arms"
+    }
+  }
+}

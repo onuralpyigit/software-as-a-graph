@@ -37,6 +37,12 @@ A14_IDS = [
     "gin_proj_qos16", "gin_proj_qos16_nodeg", "gin_proj_qos16_nodeg_strict",
     "gl_full_cap_win", "hgl_win", "gl_proj_qos16_cap_idyn", "gl_proj_qos16_cap_istar_app",
 ]
+#: Amendment 17 arms. They use the same switches, so they are held to the same invariants.
+A17_IDS = [
+    "gl_proj_qos16_cap_min", "gl_full_qos16_cap_rev_min", "gl_full_qos16_cap_min",
+    "gin_proj_qos16_min", "gin_proj_qos16_const", "gl_proj_qos16_cap_perm",
+    "gl_proj_qos16_cap_idyn_rate", "gl_proj_qos16_cap_perm18", "gl_proj_qos16_cap_perm19",
+]
 
 
 def _convert(**kw):
@@ -87,9 +93,10 @@ def test_structural_mask_keep_and_default():
 
 
 def test_registry_invariants():
-    for vid in A14_IDS:
+    for vid in A14_IDS + A17_IDS:
         v = R.VARIANTS[vid]
-        assert set(v.drop_node_features) <= set(BASE_METRIC_KEYS), vid
+        if v.drop_node_features != R.ALL_NODE_FEATURES:
+            assert set(v.drop_node_features) <= set(BASE_METRIC_KEYS), vid
         assert set(v.qos_exempt_node_features) <= set(BASE_METRIC_KEYS), vid
         if v.qos_exempt_node_features:
             assert not R.node_qos_for(vid, "loso"), vid
@@ -99,18 +106,51 @@ def test_registry_invariants():
             assert v.substrate == "projection" and v.aggregator == "gat", vid
     # Every reported arm keeps the defaults.
     for vid, v in R.VARIANTS.items():
-        if vid not in A14_IDS:
+        if vid not in A14_IDS + A17_IDS:
             assert (v.drop_node_features, v.qos_exempt_node_features, v.aggregator,
-                    v.label_source) == ((), (), "gat", "i_star"), vid
+                    v.label_source, v.permute_nodes, v.permutation_seed) == (
+                        (), (), "gat", "i_star", False, None), vid
 
 
 def test_new_arms_are_dispatched_and_swept():
     from cli.loso_evaluate import _HGT_VARIANTS, _HOMOGENEOUS_VARIANTS
     from reproduce.loso_all_variants import CONTROL_VARIANTS
 
-    for vid in A14_IDS:
+    for vid in A14_IDS + A17_IDS:
         assert vid in CONTROL_VARIANTS
         assert vid in (_HGT_VARIANTS if vid == "hgl_win" else _HOMOGENEOUS_VARIANTS)
+
+
+def test_oracle_aligned_set_is_base_and_contains_cdi_and_foc():
+    assert set(R.ORACLE_ALIGNED_FEATURES) <= set(BASE_METRIC_KEYS)
+    assert {"cdi", "fan_out_criticality", "in_degree_centrality"} <= set(R.ORACLE_ALIGNED_FEATURES)
+
+
+@pytest.mark.parametrize("rank_normalize", [False, True])
+def test_wildcard_drop_zeroes_every_column(rank_normalize):
+    out = _convert(rank_normalize_features=rank_normalize, drop_feature_keys=R.ALL_NODE_FEATURES)
+    for nt in out.node_types:
+        assert np.all(out[nt].x.numpy() == 0.0), nt
+
+
+def test_permuted_graph_keeps_content_and_changes_order():
+    from cli.loso_evaluate import _permuted_graph
+
+    g = _make_small_graph()
+    p = _permuted_graph(g, R.PERMUTATION_SEED)
+    assert set(p.nodes) == set(g.nodes) and list(p.nodes) != list(g.nodes)
+    assert all(p.nodes[n] == g.nodes[n] for n in g.nodes)
+    assert sorted(map(str, p.edges(data=True))) == sorted(map(str, g.edges(data=True)))
+    assert p.graph == g.graph
+
+
+def test_only_the_permutation_arm_permutes():
+    from cli.loso_evaluate import _variant_bundle
+
+    b = _bundle()
+    assert _variant_bundle(b, "gl_proj_qos16_cap", relabel=False).graph is b.graph
+    out = _variant_bundle(b, "gl_proj_qos16_cap_perm", relabel=False)
+    assert list(out.graph.nodes) != list(b.graph.nodes)
 
 
 def test_hgt_qos_flag_matches_the_retired_tuple():
@@ -202,3 +242,9 @@ def test_harness_does_not_import_simulation():
             assert not node.module.startswith("saag.simulation"), node.module
         if isinstance(node, ast.Import):
             assert not any(a.name.startswith("saag.simulation") for a in node.names)
+
+
+def test_permutation_seeds_differ():
+    seeds = {R.permutation_seed_for(v) for v in
+             ("gl_proj_qos16_cap_perm", "gl_proj_qos16_cap_perm18", "gl_proj_qos16_cap_perm19")}
+    assert seeds == {17, 18, 19}

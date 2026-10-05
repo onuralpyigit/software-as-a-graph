@@ -1313,7 +1313,10 @@ def check_contrasts_matched(rep: Report) -> None:
 
     loso = _load("loso_rq2_matched.json")
     sig = _load("loso_significance_rq2_matched.json")
+    # Round 12 moved the table to the supplement; read whichever document holds it.
     tex = _tex("sec7_results.tex")
+    if r"\label{tab:contrasts_matched}" not in tex:
+        tex = _supp()
     if loso is None or sig is None or r"\label{tab:contrasts_matched}" not in tex:
         rep.skipped.append("tab:contrasts_matched: artifacts or table absent")
         return
@@ -1548,8 +1551,8 @@ def check_engine_regimes(rep: Report) -> None:
     for pattern, truths in (
         (r"\\texttt\{GBM-Feat\}\) (?:achieve|reach) \$\\rho = ([\d.]+)\$ under LOSO, (?:level with|similar to) \\texttt\{GAT-QoS\} \(\$([\d.]+)\$\)",
          [(1, L["mean_rho"]["GBM-Feat"]), (2, L["mean_rho"]["GAT-QoS"])]),
-        (r"(?:typing added nothing measurable|adding typing made no measurable difference) \(main effect " + num + r", interaction " + num,
-         [(1, -0.014), (2, +0.001)]),
+        # Round 12: Section 7.2 no longer quotes the raw-graph typing effects (they live in the
+        # supplement's matched 2x2, checked by check_contrasts_matched).
     ):
         _quote(rep, "sec:8.2", sec8, pattern, truths)
     avg = _load("referee_round7_averaging.json")
@@ -2252,6 +2255,121 @@ def check_amendment16(rep: Report) -> None:
             (6, max(ti[k]["tost_t"]["equivalence_bound"] for k in ti))])
 
 
+def check_amendment17(rep: Report) -> None:
+    """Round 12 (Amendment 17/17b): Table tab:a17, the corrected-baseline row of tab:hybrid, and the
+    F11/F12/F13/17b and descriptive figures quoted in the text.
+
+    Rows of tab:a17 are matched by (arm, comparator) after normalising display labels; every
+    numeric cell is checked against referee_round12_amendment17.json.
+    """
+    a17 = _load("referee_round12_amendment17.json")
+    desc = _load("referee_round12_descriptive.json")
+    perm = _load("referee_round12_perm.json")
+    tex = _tex("sec7_results.tex")
+    if None in (a17, desc, perm) or r"\label{tab:a17}" not in tex:
+        rep.skipped.append("round 12: a referee_round12 artifact or tab:a17 absent")
+        return
+    summ, zs, dyn = a17["summary"], a17["zero_shot"], a17["summary"]["dyn_means"]
+    contrasts = {**a17["F11"], **a17["F12"], **a17["descriptive"],
+                 "GAT-P-QoS-perm vs GAT-P-QoS": a17["F13"]}
+
+    def _norm(cell: str) -> str:
+        cell = cell.split(" (")[0].replace(r"$\to$", "-").replace(r"\texttt{", "").replace("}", "")
+        return "Eq7" if cell.startswith(r"Eq.~\eqref{eq:rate-expansion") else cell
+
+    i = tex.index(r"\label{tab:a17}")
+    body = tex[tex.index(r"\toprule", i):tex.index(r"\bottomrule", i)]
+    seen = 0
+    for line in body.splitlines():
+        t = line.strip()
+        if "&" not in t or t.startswith((r"\multicolumn", "Arm &")):
+            continue
+        cells = _cells(t)
+        name, comp = _norm(cells[0]), _norm(cells[1])
+        c = contrasts[f"{name} vs {comp}"]
+        rho = dyn[name] if name in dyn else summ[name]["loso_i_star"]
+        checks = [(cells[2], rho), (cells[3], c["delta"])]
+        lo, hi = c["ci95"]
+        rep.checked += 1
+        if f"[{lo:+.3f}, {hi:+.3f}]" not in cells[3].replace("$", ""):
+            rep.findings.append(Finding("tab:a17", name, "ci95", cells[3], f"[{lo:+.3f}, {hi:+.3f}]"))
+        rep.checked += 1
+        if cells[4] != f"{c['won']}/12":
+            rep.findings.append(Finding("tab:a17", name, "won", cells[4], c["won"]))
+        if "---" not in cells[5]:
+            checks.append((cells[5], c["p_holm"] if "p_holm" in c else c["p"]))
+        if "---" not in cells[6]:
+            d_, c_ = cells[6].split("/")
+            checks += [(d_, summ[name]["i_dyn"]), (c_, summ[name]["i_comp"])]
+        if "---" not in cells[7]:
+            checks.append((cells[7], zs[name]["mean_rho"]))
+        seen += 1
+        for cell, truth in checks:
+            got = _num(cell)
+            rep.checked += 1
+            if got is None or abs(got - truth) > 0.0006:
+                rep.findings.append(Finding("tab:a17", f"{name} vs {comp}", "cell", got, round(truth, 4)))
+    rep.checked += 1
+    if seen != 10:
+        rep.findings.append(Finding("tab:a17", "rows", "count", seen, 10))
+
+    num = r"\$?([-+]?[\d.]+)\$?"
+    f11a = a17["F11"]["GAT-P-QoS-min vs GAT-QoS-R-min"]
+    for fname in ("sec1_introduction.tex", "sec7_results.tex"):
+        _quote(rep, f"{fname} F11", _tex(fname), r"reverse-edge control by \$\+([\d.]+)\$ \((?:10 of 12 folds, )?Holm \$p = ([\d.]+)\$",
+               [(1, f11a["delta"]), (2, f11a["p_holm"])])
+    _quote(rep, "sec:rq2 F11", tex,
+           r"\\texttt\{GAT-QoS\} to " + num + r", the reverse-edge control to " + num + r"\), whereas the dependency-graph GAT keeps " + num
+           + r".*?costs \\texttt\{GAT-P-QoS\} " + num + r".*?a sum-aggregation GNN on the dependency graph reaches " + num + r", " + num
+           + r" below \\texttt\{InDeg\} \((\d+) of 12 folds\)",
+           [(1, summ["GAT-QoS-min"]["loso_i_star"]), (2, summ["GAT-QoS-R-min"]["loso_i_star"]),
+            (3, summ["GAT-P-QoS-min"]["loso_i_star"]), (4, -a17["F11"]["GAT-P-QoS-min vs GAT-P-QoS"]["delta"]),
+            (5, summ["GIN-P-QoS-const"]["loso_i_star"]), (6, -a17["descriptive"]["GIN-P-QoS-const vs InDeg"]["delta"]),
+            (7, a17["descriptive"]["GIN-P-QoS-const vs InDeg"]["won"])])
+    f12 = a17["F12"]
+    gat_gain = a17["descriptive"]["GAT-P-QoS-dyn+Eq7 vs GAT-P-QoS-dyn (I_dyn)"]
+    _quote(rep, "sec:rq1 F12", tex,
+           r"the gradient-boosted approximation reaches " + num + r", the formula's value \(\$\+([\d.]+)\$, (\d+) of 12 folds, Holm \$p = ([\d.]+)\$\).*?"
+           r"it reaches " + num + r" \(" + num + r", Holm \$p = ([\d.]+)\$\).*?gains \$\+([\d.]+)\$ over the same GAT without it \((\d+) of 12 folds\)"
+           r" but still falls below the formula \(" + num + r", " + num + r", (\d+) of 12 folds, Holm \$p = ([\d.]+)\$\)",
+           [(1, dyn["GBM-P-QoS-dyn+Eq7"]), (2, abs(f12["GBM-P-QoS-dyn+Eq7 vs Eq7"]["delta"])),
+            (3, f12["GBM-P-QoS-dyn+Eq7 vs Eq7"]["won"]), (4, f12["GBM-P-QoS-dyn+Eq7 vs Eq7"]["p_holm"]),
+            (5, dyn["GBM-dyn-resid"]), (6, f12["GBM-dyn-resid vs Eq7"]["delta"]), (7, f12["GBM-dyn-resid vs Eq7"]["p_holm"]),
+            (8, gat_gain["delta"]), (9, gat_gain["won"]), (10, dyn["GAT-P-QoS-dyn+Eq7"]),
+            (11, f12["GAT-P-QoS-dyn+Eq7 vs Eq7"]["delta"]), (12, f12["GAT-P-QoS-dyn+Eq7 vs Eq7"]["won"]),
+            (13, f12["GAT-P-QoS-dyn+Eq7 vs Eq7"]["p_holm"])])
+    agg = a17["F11"]["GIN-P-QoS-min vs GAT-P-QoS-min"]
+    _quote(rep, "sec:rq2 F11c", tex,
+           r"sum aggregation beats attention on the dependency graph \(\$\+([\d.]+)\$, (\d+) of 12 folds, Holm \$p = ([\d.]+)\$\)",
+           [(1, agg["delta"]), (2, agg["won"]), (3, agg["p_holm"])])
+    _quote(rep, "sec1 F12", _tex("sec1_introduction.tex"),
+           r"leaves a graph attention network below it \(" + num + r"\)",
+           [(1, f12["GAT-P-QoS-dyn+Eq7 vs Eq7"]["delta"])])
+    # Node order (F13) and Amendment 17b.
+    f13 = a17["F13"]
+    _quote(rep, "sec:rq2 F13", tex,
+           r"\\texttt\{GAT-P-QoS-perm\}\) scores " + num + r" against " + num + r" \(" + num + r", (\d+) of 12 folds, \$p = ([\d.]+)\$",
+           [(1, summ["GAT-P-QoS-perm"]["loso_i_star"]), (2, summ["GAT-P-QoS"]["loso_i_star"]), (3, f13["delta"]),
+            (4, f13["won"]), (5, f13["p"])])
+    pm = perm["permutation_means"]
+    _quote(rep, "sec:rq2 17b", tex,
+           r"seeds 17, 18 and 19 give " + num + r", " + num + r" and " + num + r" \(mean " + num + r"\).*?per-fold spread across the three permutations averages " + num,
+           [(1, pm["17"]), (2, pm["18"]), (3, pm["19"]), (4, perm["permuted_mean"]), (5, perm["mean_spread"])])
+    # Descriptive: corrected baseline row and the feature-vs-reference count.
+    ap = desc["topo_qos_ap"]
+    _quote(rep, "tab:hybrid corrected row", tex,
+           r"corrected \(articulation term restored\) & " + num + r" \$\[([\d.]+), ([\d.]+)\]\$",
+           [(1, ap["mean"]), (2, ap["ci95"][0]), (3, ap["ci95"][1])])
+    fv = desc["indeg_feature_vs_reference"]
+    sp = [v["spearman"] for v in fv["per_fold"].values()]
+    rep.checked += 1
+    sec3 = _tex("sec3_sag_model.tex")
+    want = f"differ for {fv['n_differ']} of the {fv['n_apps']:,}".replace(",", "{,}")
+    if want not in sec3 or f"$\\rho = {min(sp):.2f}$--${max(sp):.2f}$" not in sec3:
+        rep.findings.append(Finding("sec:3.3", "InDeg feature vs reference", "quote", "see text",
+                                    f"{want}; rho {min(sp):.2f}-{max(sp):.2f}"))
+
+
 def check_cost_ll(rep: Report) -> None:
     """Table tab:cost-ll (round 8): like-for-like timings against referee_round8_cost.json."""
     d = _load("referee_round8_cost.json")
@@ -2575,6 +2693,7 @@ def main() -> int:
     check_round8(rep)
     check_cost_ll(rep)
     check_amendment16(rep)
+    check_amendment17(rep)
     check_rate_expansion(rep)
     check_learning_focus(rep, profile=args.profile)
 

@@ -69,10 +69,7 @@ Overlap@$K$             & Top-$K$ identification set overlap ($K = 0.20\,|V_{\te
 \end{tabular}
 \end{table}
 
-\section{Parameter Sensitivity of the Explanation Layer}
-\label{supp:params}
-
-\subsection{Heterogeneous Graph Transformer Message-Passing Formulation}
+\section{Heterogeneous Graph Transformer Message-Passing Formulation}
 \label{supp:hgt}
 
 For completeness, we record the layer-wise equations of the Heterogeneous Graph Transformer (HGT) \cite{hu2020hgt} implemented via PyTorch Geometric's \texttt{HGTConv} \cite{fey2019fast} and summarized in Section~\ref{M-sec:4.1} of the main manuscript. For source node $u$ and target node $v$ connected by meta-relation $\tau(e) = (\tau(u), \phi(e), \tau(v))$:
@@ -94,6 +91,9 @@ For completeness, we record the layer-wise equations of the Heterogeneous Graph 
     h_v^{(l)} = \text{LayerNorm}\left( h_v^{(l-1)} + \text{Dropout}\left(\sum_{u \in \mathcal{N}(v)} \text{Attn}(u, e, v) \cdot \text{Msg}(u, e, v)\right)\right)
     \end{equation}
 \end{enumerate}
+
+\section{Parameter Sensitivity of the Explanation Layer}
+\label{supp:params}
 
 \begin{table}[htbp]
 \centering
@@ -125,7 +125,7 @@ $\gamma$ (library fan-out) & not swept individually & $0.001$ & $0.001$ \\
 
 \noindent Three things follow. First, the parameter risk of the explanation layer is concentrated in two constants, both internal to the RM composite; the QoS-derived weights on which the framework's architectural story rests are not load-bearing for its output. Second, the topic-weight split $(\beta, \alpha, \psi) = (0.75, 0.15, 0.10)$ is a documented convention rather than a tuned parameter --- no choice within its simplex, including uniform weighting, would meaningfully change any result in this paper. Third, Dirichlet sampling over 100 draws of the whole weight vector confirms that the parameterization is stable as a whole: mean $\rho = 0.200$ (sd $0.010$, 90\% interval $[0.185, 0.218]$), with mean Kendall $\tau = 0.826$ and mean top-20\% Jaccard $0.739$ against the shipped ranking.
 
-\paragraph{The elicited weights are anti-predictive, and we keep them anyway}
+\paragraph{Direction of the shrinkage effect}
 The $\lambda$ row deserves separate comment because its direction is unfavorable. Rank correlation falls monotonically as the intra-dimension weights move from a uniform prior toward the raw AHP judgment ($0.319 \to 0.200$, Figure~\ref{fig:S1}): expert elicitation makes the ranking worse, by $0.119$. We retain $\lambda = 0.70$ regardless, and the reasoning should be explicit rather than assumed. RM is an attribution instrument, not a ranking model (Section~\ref{M-sec:6.2} of the main manuscript); its purpose is to say \emph{why} a component is fragile in auditable, standards-referenced terms, and rank correlation against a cascade oracle is not the quantity it is built to maximize. Tuning $\lambda$ toward zero would improve a number we do not claim at the cost of the traceability we do. What this sweep establishes is nonetheless a genuine limitation: we have evidence that the elicited weights produce worse rankings and none that they produce better attributions. Validating the attribution itself --- against practitioner judgment, or against the outcome of applying the repairs it recommends --- is outside this study and is the explanation layer's principal open question (Section~\ref{M-sec:limitations} of the main manuscript).
 
 \begin{figure}[htbp]
@@ -618,10 +618,10 @@ HGT-QoS & 0.473 & 0.713 & — \\
 \noindent\emph{Rendered by \path{reproduce/render_table.py} from}\\
 \path{results/loso_all_variants_v5.json} \emph{and} \path{results/realworld_zeroshot_v7.json}.
 
-\section{The \texorpdfstring{$2\times2$}{2x2} on a Variance-Stabilised Scale}
+\section{The \texorpdfstring{$2\times2$}{2x2} on a Variance-Stabilized Scale}
 \label{supp:fisherz}
 
-\noindent\textbf{Scope note.} This section analyzes the \emph{unmatched} $2\times2$ of Table~\ref{tab:contrasts} (Section~\ref{supp:naive-2x2}). The capacity- and channel-matched control (Table~\ref{M-tab:contrasts_matched} of the main manuscript) removes the interaction and the typing effect entirely, so these robustness checks establish only that the unmatched interaction is not a metric or seed artifact, not that it reflects typing.
+\noindent\textbf{Scope note.} This section analyzes the \emph{unmatched} $2\times2$ of Table~\ref{tab:contrasts} (Section~\ref{supp:naive-2x2}). The capacity- and channel-matched control (Table~\ref{tab:contrasts_matched} of the main manuscript) removes the interaction and the typing effect entirely, so these robustness checks establish only that the unmatched interaction is not a metric or seed artifact, not that it reflects typing.
 
 Spearman $\rho$ is bounded on $[-1, 1]$ and compresses toward either end. A
 difference of differences computed on it is therefore not scale-free: two
@@ -704,7 +704,7 @@ This table was moved out of the body because no comparison can be drawn down its
 \section{Results at a Glance}
 \label{supp:glance}
 
-The results-at-a-glance figure now appears in the main manuscript as Figure~\ref{M-fig:results}, generated from the same artifacts as Tables~\ref{M-tab:hybrid} and~\ref{M-tab:contrasts_matched} of the main manuscript (\path{reproduce/render_headline_figure.py}). It omits the typing $\times$ QoS interaction of the unmatched $2\times2$ (Table~\ref{tab:contrasts}), which the capacity-matched control shows to be an effect of capacity and channel width (Section~\ref{supp:naive-2x2}); oracle agreement is reported in Section~\ref{supp:convergent}.
+The results-at-a-glance figure now appears in the main manuscript as Figure~\ref{M-fig:results}, generated from the same artifacts as Tables~\ref{M-tab:hybrid} and~\ref{tab:contrasts_matched} of the main manuscript (\path{reproduce/render_headline_figure.py}). It omits the typing $\times$ QoS interaction of the unmatched $2\times2$ (Table~\ref{tab:contrasts}), which the capacity-matched control shows to be an effect of capacity and channel width (Section~\ref{supp:naive-2x2}); oracle agreement is reported in Section~\ref{supp:convergent}.
 
 \section{Illustrative Diagnostic Remediation Card}
 \label{supp:card}
@@ -749,7 +749,7 @@ where $\mathcal{L}_{\text{dimension}} = \frac{1}{\sum_{d} m_d} \sum_{d \in \{R, 
 \section{Seed-Aggregation Robustness of the \texorpdfstring{$2\times2$}{2x2}}
 \label{supp:seed-robust}
 
-\noindent\textbf{Scope note.} This section analyzes the \emph{unmatched} $2\times2$ of Table~\ref{tab:contrasts} (Section~\ref{supp:naive-2x2}). The capacity- and channel-matched control (Table~\ref{M-tab:contrasts_matched} of the main manuscript) removes the interaction and the typing effect entirely, so these robustness checks establish only that the unmatched interaction is not a metric or seed artifact, not that it reflects typing.
+\noindent\textbf{Scope note.} This section analyzes the \emph{unmatched} $2\times2$ of Table~\ref{tab:contrasts} (Section~\ref{supp:naive-2x2}). The capacity- and channel-matched control (Table~\ref{tab:contrasts_matched} of the main manuscript) removes the interaction and the typing effect entirely, so these robustness checks establish only that the unmatched interaction is not a metric or seed artifact, not that it reflects typing.
 
 \texttt{GAT-S}, the floor cell of the reported $2\times2$, has a median within-fold seed standard deviation of $0.298$, against $0.114$ (\texttt{HGT}), $0.024$ (\texttt{GAT-S-w}) and $0.052$ (\texttt{HGT-QoS}). If a few collapsed seeds pull its fold means down, both main effects and the interaction inherit that optimization failure. Table~\ref{tab:supp-seed-robust} re-forms each fold score from the per-seed results of the same twelve-fold artifact under three aggregations and recomputes the three orthogonal quantities, Holm-corrected across the three within each aggregation. No model is retrained (\path{reproduce/factorial_seed_robustness.py}; \path{results/factorial_seed_robustness_v5.json}).
 
@@ -860,7 +860,7 @@ Following ISO/IEC 25010:2023 and ISO/IEC 25019:2023, the layer profiles each com
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\linewidth]{figures/Figure_4}
+\includegraphics[width=\linewidth]{figures/Figure_S3}
 \caption{The proposed explanation layer (not evaluated). Rank-normalized graph metrics feed the ISO/IEC 25010 sub-characteristics Fault Tolerance, Availability and Maintainability (CR: coupling risk; CC: clustering coefficient), which combine into Reliability and the composite $Q(v)$. A component above the Tukey fence of $Q$ is flagged, and its $FT$/$A$/$M$ profile names the remediation class.}
 \label{fig:rm}
 \end{figure}
@@ -974,15 +974,45 @@ Between $21\%$ (Microservices) and $52\%$ (Healthcare) of each held-out Applicat
 
 \noindent The restriction costs every predictor roughly half its correlation, learned or not: retained fractions run from $49\%$ (RM) to $56\%$ (\texttt{HGT-QoS}) with no systematic separation between training-free and learned families, so roughly half of every predictor's full-population correlation reflects separating inert components from active ones. The method ordering is unchanged. No significance test is reported on this stratum, so it supports the full-population ordering descriptively and adds no new verdict.
 
-\section{The Unmatched (Naive) \texorpdfstring{$2\times2$}{2x2}}
-\label{supp:naive-2x2}
+\section{The Capacity-Matched \texorpdfstring{$2\times2$}{2x2} on the Raw Multigraph}
+\label{supp:matched-2x2}
 
-Table~\ref{tab:contrasts} is the $2\times2$ over relation typing and the QoS edge channel formed by the four learned arms of Table~\ref{tab:7}. The untyped arms there have $28{,}168$ parameters against $434{,}620$ for HGT and read a 1-dimensional edge channel against HGT-QoS's 16 dimensions. The capacity- and channel-matched control (Table~\ref{M-tab:contrasts_matched} of the main manuscript) removes both differences, and at matched capacity the same untyped design reaches $0.563$ rather than $0.317$. The $+0.234$ typing gain and $-0.199$ interaction below are therefore effects of capacity and channel width, and this table is not used for any claim about typing. Neither the Fisher-$z$ transform nor robust seed aggregation (Sections~S14 and~S21), which left the unmatched interaction intact, could detect this confound: both hold the four unmatched arms fixed.
+Table~\ref{tab:contrasts_matched} is the capacity- and channel-matched $2\times2$ over relation typing and the ``QoS'' inputs that Section~\ref{M-sec:rq2} of the main manuscript summarizes. It runs on the raw multigraph, where forward messages never reach Applications, so it compares per-node models and carries no information about relational message passing; Table~\ref{M-tab:a14} (F4) repeats it with $w_{\text{in}}$ held in both arms.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{\emph{Naive} $2 \times 2$ over relation typing (T) and the QoS edge channel (Q), unmatched in capacity ($15.4\times$) and edge-channel width; superseded for all typing claims by Table~\ref{M-tab:contrasts_matched} of the main manuscript. Cells are the four reported learned arms: GAT-S ($\neg$T$\neg$Q), HGT (T$\neg$Q), GAT-S-w ($\neg$TQ), HGT-QoS (TQ). \textbf{Holm correction is applied across the three orthogonal quantities in the upper block only}; the four simple effects below are algebraically determined by those three and are reported descriptively. Main effects average over the other factor’s levels; the typing effect reflects the joint transition to HGT and is confounded with capacity and channel width. \textbf{Won} counts folds with $\Delta > 0$; the interaction is \emph{negative} on all twelve. All quantities are post-hoc, and none were registered in advance. Fold overlap makes the reported $p$-values nominal (Section~\ref{M-sec:threats} of the main manuscript).}
+\caption{The $2\times2$ factorial design with capacity and edge-channel width matched: \texttt{GAT} ($\neg$T$\neg$Q, $437{,}496$ parameters), \texttt{HGT} (T$\neg$Q, $434{,}620$), \texttt{GAT-QoS} ($\neg$TQ, $429{,}992$), \texttt{HGT-QoS} (TQ, $434{,}620$). One CPU sweep, twelve LOSO folds, five seeds, Application population. Holm correction across the three orthogonal quantities. Cell means: $0.563$, $0.548$, $0.635$, $0.622$.}
+\label{tab:contrasts_matched}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llrccccl}
+\toprule
+\textbf{Quantity} & \textbf{Contrast} & \textbf{$\Delta\rho$} & \textbf{95\% CI} & \textbf{Won} & \textbf{$W$} & \textbf{$p$} & \textbf{$p_{\text{Holm}}$} \\
+\midrule
+\multicolumn{8}{l}{\textit{Three orthogonal quantities, Holm-corrected across these three}} \\
+\textbf{Typing (main effect)} & averaged over Q & $-0.014$ & $[-0.052, +0.023]$ & 4/12 & 29.0 & 0.470 & 0.940 \\
+\textbf{``QoS'' inputs (main effect)} & averaged over T & $\mathbf{+0.073}$ & $[+0.013, +0.120]$ & 10/12 & 13.0 & 0.043 & 0.127 \\
+\textbf{Typing $\times$ ``QoS'' interaction} & difference of differences & $+0.001$ & $[-0.050, +0.042]$ & 6/12 & 34.0 & 0.733 & 0.940 \\
+\midrule
+\multicolumn{8}{l}{\textit{Simple effects --- descriptive, not separately corrected}} \\
+\textbf{Typing, QoS absent} & HGT vs.\ GAT & $-0.015$ & $[-0.064, +0.033]$ & 5/12 & 31.0 & 0.569 & --- \\
+\textbf{Typing, QoS present} & HGT-QoS vs.\ GAT-QoS & $-0.013$ & $[-0.054, +0.026]$ & 4/12 & 27.0 & 0.380 & --- \\
+\textbf{``QoS'' inputs, typing absent} & GAT-QoS vs.\ GAT & $\mathbf{+0.072}$ & $[+0.028, +0.109]$ & 10/12 & 9.0 & 0.016 & --- \\
+\textbf{``QoS'' inputs, typing present} & HGT-QoS vs.\ HGT & $+0.073$ & $[-0.002, +0.136]$ & 10/12 & 19.0 & 0.129 & --- \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section{The Unmatched (Naive) \texorpdfstring{$2\times2$}{2x2}}
+\label{supp:naive-2x2}
+
+Table~\ref{tab:contrasts} is the $2\times2$ over relation typing and the QoS edge channel formed by the four learned arms of Table~\ref{tab:7}. The untyped arms there have $28{,}168$ parameters against $434{,}620$ for HGT and read a 1-dimensional edge channel against HGT-QoS's 16 dimensions. The capacity- and channel-matched control (Table~\ref{tab:contrasts_matched} of the main manuscript) removes both differences, and at matched capacity the same untyped design reaches $0.563$ rather than $0.317$. The $+0.234$ typing gain and $-0.199$ interaction below are therefore effects of capacity and channel width, and this table is not used for any claim about typing. Neither the Fisher-$z$ transform nor robust seed aggregation (Sections~S14 and~S21), which left the unmatched interaction intact, could detect this confound: both hold the four unmatched arms fixed.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{\emph{Naive} $2 \times 2$ over relation typing (T) and the QoS edge channel (Q), unmatched in capacity ($15.4\times$) and edge-channel width; superseded for all typing claims by Table~\ref{tab:contrasts_matched} of the main manuscript. Cells are the four reported learned arms: GAT-S ($\neg$T$\neg$Q), HGT (T$\neg$Q), GAT-S-w ($\neg$TQ), HGT-QoS (TQ). \textbf{Holm correction is applied across the three orthogonal quantities in the upper block only}; the four simple effects below are algebraically determined by those three and are reported descriptively. Main effects average over the other factor’s levels; the typing effect reflects the joint transition to HGT and is confounded with capacity and channel width. \textbf{Won} counts folds with $\Delta > 0$; the interaction is \emph{negative} on all twelve. All quantities are post-hoc, and none were registered in advance. Fold overlap makes the reported $p$-values nominal (Section~\ref{M-sec:threats} of the main manuscript).}
 \label{tab:contrasts}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{llrcccl}
@@ -1680,7 +1710,7 @@ Five system models & 0.863 & 0.357 & 0.489 & 0.938 & 0.938 \\
 
 
 
-\section{Amendment 12: Referee Analyses}
+\section{Amendment 12: Robustness Analyses}
 \label{supp:referee}
 
 This section backs the round-7 revision of the main manuscript. Everything in it is exploratory. Under Amendment~13, the R1 contrasts compare the \texttt{InDeg} reference with raw-graph rankers and carry no claim in the main text, and the learned rows include \texttt{GAT-P+InDeg}, which the main text omits because its prior is a reference. \path{reproduce/referee_round7.py} (\texttt{make -f reproduce/Makefile rq-referee-round7}) computes the analyses registered in Amendment~12, and \path{reproduce/render_referee_tables.py} renders the tables below from its artifacts. Four deviations from the registration are recorded in \path{docs/research/jss/PREREGISTRATION.md}:
@@ -1941,7 +1971,7 @@ Train-Ticket & 41 & 0.66 & 0.77 & 5 & 0.867 & 0.966 \\
 \end{table}
 
 
-\section{Round-8 Analyses (Amendment 14)}
+\section{Amendment 14: Degree-Feature, Aggregator and Queue-Flow Analyses}
 \label{supp:round8}
 
 Everything in this section was registered in Amendment~14 before its arms ran, except the $n = 30$ sensitivity check, which Amendment~11's rule R requires, and the descriptive tables. Artifacts: \path{data/benchmarks/referee_round8_*.json}, produced by \path{reproduce/referee_round8.py}.

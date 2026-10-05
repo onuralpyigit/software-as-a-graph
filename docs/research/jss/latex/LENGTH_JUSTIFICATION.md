@@ -13,7 +13,7 @@ length justification is required.
 
 The body maintains each headline result with the empirical evidence needed to inspect it (12 tables, 5 figures).
 Secondary analyses, derivations, and protocol details are organized into:
-- **Supplementary Material (S1–S40):** sensitivity sweeps, AHP pairwise comparison matrices and consistency proofs,
+- **Supplementary Material (S1–S42):** sensitivity sweeps, AHP pairwise comparison matrices and consistency proofs,
   corpus parameters and composition, the feature schema, anti-pattern and attention analyses, convergent validity,
   in-distribution results, active-stratum and bootstrap tables, the registered GPU LOSO sweep, gate-vs-oracle
   cost breakdowns, the full predictor taxonomy, per-fold hybrid results,
@@ -31,8 +31,8 @@ The manuscript body contains 5 figures and the supplementary material contains 3
 - **Body Figure 1** (Overview of SaG): `figures/Figure_1.pdf`
 - **Body Figure 2** (Running example: structural and derived graphs): `figures/Figure_2.pdf`
 - **Body Figure 3** (Ranking methods and evaluation): `figures/Figure_3.pdf`
-- **Body Figure 4** (Main Results under LOSO): `figures/Figure_5.pdf`
-- **Body Figure 5** (Critical Set Recall): `figures/Figure_6.pdf`
+- **Body Figure 4** (Main Results under LOSO): `figures/Figure_4.pdf`
+- **Body Figure 5** (Critical Set Recall): `figures/Figure_5.pdf`
 - **Supplementary Figure S1** (RM composite vs. AHP shrinkage): `figures/Figure_S1.pdf`
 - **Supplementary Figure S2** (Relational attention on the ATM case study): `figures/Figure_S2.pdf`
-- **Supplementary Figure S3** (Proposed explanation layer): `figures/Figure_4.pdf`
+- **Supplementary Figure S3** (Proposed explanation layer): `figures/Figure_S3.pdf`

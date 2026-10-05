@@ -181,7 +181,11 @@ def test_registry_routes_only_the_amendment9_arms_through_the_projection():
     arms |= {"gl_proj_qos16_cap_nodeg", "gl_proj_qos16_cap_nodeg_strict", "gin_proj_qos16",
              "gin_proj_qos16_nodeg", "gin_proj_qos16_nodeg_strict", "gl_proj_qos16_cap_idyn",
              "gl_proj_qos16_cap_istar_app"}
-    learned = {v for v in registry.VARIANTS if registry.learns_on_projection(v, "loso")}
+    # Amendment 17's projection arms.
+    arms |= {"gl_proj_qos16_cap_min", "gin_proj_qos16_min", "gin_proj_qos16_const",
+             "gl_proj_qos16_cap_perm", "gl_proj_qos16_cap_idyn_rate",
+             "gl_proj_qos16_cap_perm18", "gl_proj_qos16_cap_perm19"}
+    learned ={v for v in registry.VARIANTS if registry.learns_on_projection(v, "loso")}
     assert learned == arms
     assert registry.learns_on_projection("gl", "in_distribution")   # GAT-S-P
     assert not registry.learns_on_projection("topo_qos", "loso")    # routed by the harness itself
