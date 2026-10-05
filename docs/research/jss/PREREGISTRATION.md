@@ -1708,3 +1708,10 @@ In every case, the statements "declared rates and payload sizes … carried sign
 **Stopping rule.** No other overhead constant, utilization or label definition is tried in search of a different answer. A different overhead may be reported only as a separately registered sensitivity.
 
 **What is unchanged.** The published `I_dyn` labels, every published number, and every tier.
+
+### Amendment 18 — results log (2026-10-06): not run
+
+- **Not run, by the author's decision.** The round-13 revision is text-only. The `I_dyn-size` relabel (about 13 CPU-hours) and the `reproduce/referee_round13.py payload` analyses were never executed, so no rule of PA/PB/PC fired and no `I_dyn-size` number exists or is reported.
+- **Code kept.** The `payload_model="size"` option remains in `saag/simulation/message_flow_simulator.py`. The default `fixed` is unchanged and bit-identical to the published oracle, so no published label moves.
+- **The correction that does not depend on the arm was applied anyway.** As this amendment states for every case, the manuscript now says that the published `I_dyn` reads declared rates but not payload sizes (§4.3), and that the +0.097 attribution of Amendment 15 is rate signal (§6.1, §7.2, §7.3, Table 10).
+- **Status.** The arm stays registered and can be run later as written. The paper lists a payload-aware queue-flow oracle among its unrun extensions (§7.5).

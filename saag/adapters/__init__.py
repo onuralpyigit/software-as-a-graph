@@ -1,10 +1,10 @@
 """
 saag.adapters — importers for external architecture descriptions.
 
-The one real member is :mod:`saag.adapters.realworld_adapter`, which transcribes
-open-source repositories (ROS 2 launch graphs, Docker Compose / Kubernetes
-manifests, EdgeX and Home Assistant configurations) into the topology JSON the
-rest of the pipeline consumes.
+The one real member is :mod:`saag.adapters.realworld_adapter`, which encodes five
+hand-authored models of open-source systems (Autoware, EdgeX, Home Assistant,
+Online Boutique, Train-Ticket) as Python literals and emits the topology JSON the
+rest of the pipeline consumes. It parses no launch files or deployment manifests.
 
 This module used to also re-export ``Neo4jRepository``, ``create_repository`` and
 ``config`` under a docstring reading "Deprecated: use src.infrastructure" -- a
