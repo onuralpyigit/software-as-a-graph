@@ -80,14 +80,14 @@ where $\text{BT}_{w}$ is betweenness over edge distances $d(e) = 1/(w(e) + 10^{-
 \noindent\textbf{References.} Three training-free rankings restate the reachability oracle's propagation rule. The first is the post hoc first-order expansion of $I^*$ (Analytic $I^*$):
 \begin{equation}
 \label{eq:analytic_istar}
-\hat{I}^*_1(v) = \sum_{t \in \text{pub}(v)} \frac{|\text{sub}(t)|}{|\text{pub}(t)|}.
+\hat{I}^*_1(v) = \sum_{t \in \text{pub}(v)} \frac{|\text{sub}(t)|}{|\text{pub}(t)|},
 \end{equation}
-The second is \texttt{InDeg}$(v)$, the number of direct dependents on the \texttt{DEPENDS\_ON} graph (Remark~1), and the third \texttt{Reach}$(v)$, the number of transitive dependents normalized by $|V| - 1$. For the queue-flow simulator $I_{\text{dyn}}$, the corresponding reference weights each term of Eq.~\eqref{eq:analytic_istar} by the topic's declared publication frequency $r_t$:
+where $|\text{pub}(t)| \ge 1$ for all topics published by $v$. The second is \texttt{InDeg}$(v)$, the number of direct dependents on the \texttt{DEPENDS\_ON} graph (Remark~1), and the third \texttt{Reach}$(v)$, the number of transitive dependents normalized by $|V| - 1$. For the queue-flow simulator $I_{\text{dyn}}$, the corresponding reference weights each term of Eq.~\eqref{eq:analytic_istar} by the topic's declared publication frequency $r_t$:
 \begin{equation}
 \hat{I}^{\mathrm{rate}}_{\mathrm{dyn},1}(v) \;=\; \sum_{t \in \mathrm{pub}(v)} \frac{r_t}{|\mathrm{pub}(t)|}\,\lvert \mathrm{sub}(t) \rvert.
 \label{eq:rate-expansion}
 \end{equation}
-It is a first-order truncation of $I_{\text{dyn}}$, which reads the same rates, and was evaluated after the registered analyses (exploratory). References carry no contrast against \texttt{Topo-QoS}; the one exception is the exploratory paired comparison between Eq.~\eqref{eq:rate-expansion} and the learned queue-flow approximation (Section~\ref{sec:rq1}).
+Here, $r_t$ is the declared publication rate (msg/s) of topic $t$. It is a first-order truncation of $I_{\text{dyn}}$, which reads the same rates, and was evaluated after the registered analyses (exploratory). References carry no contrast against \texttt{Topo-QoS}; the one exception is the exploratory paired comparison between Eq.~\eqref{eq:rate-expansion} and the learned queue-flow approximation (Section~\ref{sec:rq1}).
 
 \subsection{Metrics, Protocols and Statistics}
 \label{sec:6.3}

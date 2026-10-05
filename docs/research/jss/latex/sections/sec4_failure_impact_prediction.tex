@@ -23,7 +23,7 @@ A composite head predicts the simulated cascade impact, with an auxiliary head $
 \label{eq:loss_active}
 \mathcal{L} = \text{MSE}(\hat{I}^*, I^*) + 0.5 \cdot \text{MSE}(\hat{a}_1, I^*_R) + 0.3 \cdot \mathcal{L}_{\text{rank}} + 0.1 \cdot \mathcal{L}_{\text{pairwise}},
 \end{equation}
-where $\mathcal{L}_{\text{rank}}$ is ListMLE \cite{xia2008listwise} over the permutation $\pi$ induced by the simulated labels,
+where $\mathcal{L}_{\text{rank}}$ is the Listwise Maximum Likelihood Estimation (ListMLE) loss \cite{xia2008listwise} over the permutation $\pi$ induced by the simulated labels,
 \begin{equation}
 \label{eq:listmle}
 \mathcal{L}_{\text{rank}} = -\frac{1}{N}\sum_{i=1}^N \Big( \hat{s}_{\pi_i} - \log \sum_{j=i}^N \exp(\hat{s}_{\pi_j}) \Big),
