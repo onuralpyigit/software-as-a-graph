@@ -24,6 +24,9 @@ system forward in time, modelling:
   • Pre/post-fault rates  – per-topic published counts tracked in publisher to
                            give accurate before/after delivery rates
                            [FIX: BUG-MFS-2]
+  • Payload (opt-in)      – payload_model="size" scales each message's service
+                           time by its topic's declared size (PAYLOAD_MODELS);
+                           the default ignores payload
 
 FIXES IN THIS VERSION
 ─────────────────────
@@ -200,6 +203,26 @@ REPLAY_DEADLINE_POLICIES: Tuple[str, ...] = ("original", "reset")
 #: Service-time distributions. See `ServiceStation.sample_service_time`.
 SERVICE_DISTRIBUTIONS: Tuple[str, ...] = ("exponential", "uniform", "deterministic")
 
+#: How a topic's declared payload `size` enters the engine.
+#:
+#: ``fixed``  every message costs the same service time and is counted as
+#:            `DEFAULT_PAYLOAD_BYTES`, whatever the topic declares. The engine's
+#:            historical behaviour, and the published I_dyn oracle.
+#: ``size``   a message of topic t costs service in proportion to
+#:            ``w_t = 1 + size_t / payload_overhead_bytes``, renormalised per
+#:            subscriber so its offered *work* is unchanged:
+#:            ``E[S_{s,t}] = E[S_s] * w_t / w_bar_s`` with ``w_bar_s`` the
+#:            rate-weighted mean of w over the subscriber's topics. A calibrated
+#:            subscriber therefore still sits at `target_utilization`; payload
+#:            redistributes its compute toward heavy topics, so silencing a heavy
+#:            publisher relieves more contention than silencing a light one.
+#:            Messages carry the topic's declared size.
+PAYLOAD_MODELS: Tuple[str, ...] = ("fixed", "size")
+
+#: Payload a message is counted as when the topic declares none (and under
+#: ``fixed``, for every message).
+DEFAULT_PAYLOAD_BYTES: int = 64
+
 
 def _extract_qos(data: Dict[str, Any], default_queue: int = 100) -> QoSProfile:
     """Resolve a QoSProfile from Topic-node attributes or relationship metadata.
@@ -315,8 +338,14 @@ class ServiceStation:
         self.busy_time = 0.0
         self.busy_time_pre = 0.0
         self.busy_time_post = 0.0
+        #: Per-topic multiplier on the mean service time (``payload_model="size"``).
+        #: Empty means every topic costs the same.
+        self.topic_scale: Dict[str, float] = {}
 
-    def sample_service_time(self, rng: random.Random) -> float:
+    def scale_for(self, topic_id: str) -> float:
+        return self.topic_scale.get(topic_id, 1.0)
+
+    def sample_service_time(self, rng: random.Random, scale: float = 1.0) -> float:
         """Draw one service time.
 
         Exponential by default. The engine's historical `U(0.8, 1.2)` jitter is
@@ -324,14 +353,18 @@ class ServiceStation:
         region where deadlines start to bind past rho > 0.9 -- where steady
         state is slow to reach and the measurement is hypersensitive to warm-up.
         Exponential is also the more honest model of application compute.
+
+        ``scale`` multiplies the mean (the message's payload weight under
+        ``payload_model="size"``); at 1.0 the draw is unchanged bit for bit.
         """
-        if self.service_time_s <= 0.0:
+        mean = self.service_time_s * scale
+        if mean <= 0.0:
             return 0.0
         if self.distribution == "exponential":
-            return rng.expovariate(1.0 / self.service_time_s)
+            return rng.expovariate(1.0 / mean)
         if self.distribution == "uniform":
-            return self.service_time_s * (0.8 + 0.4 * rng.random())
-        return self.service_time_s
+            return mean * (0.8 + 0.4 * rng.random())
+        return mean
 
     def record_service(self, service_time: float, window: Optional[str] = None) -> None:
         """Accumulate busy time, ignoring the pre-steady-state transient."""
@@ -771,6 +804,7 @@ def _publisher_process(
     processing_time_s: float = 0.0,
     use_poisson: bool = False,
     phase_offset_s: float = 0.0,
+    payload_size_bytes: int = DEFAULT_PAYLOAD_BYTES,
 ) -> Generator:
     """
     Publisher SimPy process.
@@ -845,6 +879,7 @@ def _publisher_process(
             topic_id=topic_id,
             publisher_id=app_id,
             created_at=emit_time,
+            payload_size_bytes=payload_size_bytes,
         )
         fanout.publish(msg, failed_nodes)
 
@@ -927,7 +962,7 @@ def _subscriber_process(
         if station is not None:
             with station.resource.request(priority=service_priority) as req:
                 yield req
-                service_time = station.sample_service_time(rng)
+                service_time = station.sample_service_time(rng, station.scale_for(topic_id))
                 if service_time > 0:
                     station.record_service(service_time, window=window)
                     yield env.timeout(service_time)
@@ -1150,6 +1185,13 @@ class MessageFlowSimulator:
         run-to-run variance grows faster than the signal (I_dyn's own
         test-retest falls from 0.93 at rho=0.65 to 0.89 at rho=0.8), and below
         it nothing is contended and no contract is reachable.
+    payload_model : str
+        How topic payload sizes enter the run; one of ``PAYLOAD_MODELS``.
+        Defaults to ``"fixed"`` (payload ignored), the published I_dyn oracle.
+    payload_overhead_bytes : float
+        Under ``"size"``, the payload whose service cost equals the per-message
+        overhead: a message of topic t costs ``1 + size_t / payload_overhead_bytes``
+        relative units. A declared, uncalibrated constant. Default 1024.
     """
 
     def __init__(
@@ -1172,6 +1214,8 @@ class MessageFlowSimulator:
         service_concurrency: int = 1,
         durability_replay_deadline: str = "original",
         durability_replay_delay_s: Optional[float] = None,
+        payload_model: str = "fixed",
+        payload_overhead_bytes: float = 1024.0,
     ) -> None:
         _require_simpy()
         if qos_mode not in QOS_MODES:
@@ -1188,6 +1232,14 @@ class MessageFlowSimulator:
                 f"service_distribution must be one of {SERVICE_DISTRIBUTIONS}, "
                 f"got {service_distribution!r}"
             )
+        if payload_model not in PAYLOAD_MODELS:
+            raise ValueError(
+                f"payload_model must be one of {PAYLOAD_MODELS}, got {payload_model!r}"
+            )
+        if not payload_overhead_bytes > 0:
+            raise ValueError(
+                f"payload_overhead_bytes must be positive, got {payload_overhead_bytes!r}"
+            )
         if target_utilization is not None and not 0.0 < target_utilization < 1.0:
             raise ValueError(
                 "target_utilization must lie strictly in (0, 1) -- at rho >= 1 "
@@ -1198,6 +1250,8 @@ class MessageFlowSimulator:
         self.utilization_mode = utilization_mode
         self.service_distribution = service_distribution
         self.service_concurrency = service_concurrency
+        self.payload_model = payload_model
+        self.payload_overhead_bytes = float(payload_overhead_bytes)
         if durability_replay_deadline not in REPLAY_DEADLINE_POLICIES:
             raise ValueError(
                 f"durability_replay_deadline must be one of "
@@ -1359,6 +1413,22 @@ class MessageFlowSimulator:
                     pass
         return self.default_publish_rate_hz
 
+    def topic_payload_bytes(self, topic_id: str) -> float:
+        """The topic's declared payload `size` in bytes, or `DEFAULT_PAYLOAD_BYTES`."""
+        node = self.graph.nodes[topic_id] if topic_id in self.graph.nodes else {}
+        size = node.get("size", node.get("message_size"))
+        try:
+            size = float(size)
+        except (TypeError, ValueError):
+            return float(DEFAULT_PAYLOAD_BYTES)
+        return size if size >= 0 else float(DEFAULT_PAYLOAD_BYTES)
+
+    def topic_work_weight(self, topic_id: str) -> float:
+        """Relative service cost of one message of this topic (see PAYLOAD_MODELS)."""
+        if self.payload_model == "fixed":
+            return 1.0
+        return 1.0 + self.topic_payload_bytes(topic_id) / self.payload_overhead_bytes
+
     def _build_service_stations(
         self,
         env: simpy.Environment,
@@ -1374,10 +1444,20 @@ class MessageFlowSimulator:
         An explicit per-node ``processing_time`` attribute still wins and is
         recorded as uncalibrated, so a scenario that deliberately models a slow
         component keeps doing so.
+
+        Under ``payload_model="size"`` each topic's messages cost
+        ``E[S_s] * w_t / w_bar_s``, where ``w_bar_s`` is the rate-weighted mean
+        weight of the subscriber's topics, so the station's offered work -- and
+        hence its calibrated utilization or declared mean -- is unchanged.
         """
         offered: Dict[str, float] = defaultdict(float)
+        work: Dict[str, float] = defaultdict(float)
+        topics_of: Dict[str, List[str]] = defaultdict(list)
         for src, tgt, _ in sub_edges:
-            offered[src] += self.topic_aggregate_rate(tgt)
+            rate = self.topic_aggregate_rate(tgt)
+            offered[src] += rate
+            work[src] += rate * self.topic_work_weight(tgt)
+            topics_of[src].append(tgt)
 
         rho = self.target_utilization
         global_load = None
@@ -1416,6 +1496,12 @@ class MessageFlowSimulator:
                 calibrated=calibrated,
                 measure_from=self.warmup_s,
             )
+            if self.payload_model != "fixed" and load > 0 and work[sub_id] > 0:
+                mean_weight = work[sub_id] / load
+                stations[sub_id].topic_scale = {
+                    tid: self.topic_work_weight(tid) / mean_weight
+                    for tid in topics_of[sub_id]
+                }
         return stations
 
     def _node_processing_times(self) -> Dict[str, float]:
@@ -1686,6 +1772,10 @@ class MessageFlowSimulator:
                 ),
                 use_poisson=str(topic_node.get("workload_type", "")).lower() == "poisson",
                 phase_offset_s=phase,
+                payload_size_bytes=(
+                    int(self.topic_payload_bytes(tgt)) if self.payload_model == "size"
+                    else DEFAULT_PAYLOAD_BYTES
+                ),
             ))
 
         for src, tgt, data in sub_edges:
@@ -1865,6 +1955,7 @@ class MessageFlowSimulator:
             total_deadline_violations=total_dl,
             total_queue_overflows=total_q_ovf,
             qos_mode=self.qos_mode,
+            payload_model=self.payload_model,
             target_utilization=self.target_utilization,
             utilization_mode=self.utilization_mode,
             service_distribution=self.service_distribution,

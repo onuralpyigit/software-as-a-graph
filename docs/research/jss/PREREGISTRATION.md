@@ -1654,3 +1654,57 @@ the arm code was committed (artifacts record a dirty tree); nothing from it was 
 Â12 was not computed; the contrasts are fold-paired and "won" is reported as the paired effect size.
 (3) The F12 tabular arms are implemented in `reproduce/referee_round12.py`, not in
 `reproduce/idyn_rate_expansion.py`, so the Amendment 15 artifact is not rewritten.
+
+## Amendment 18 — payload-aware queue-flow oracle (`I_dyn-size`) as a sensitivity arm (2026-10-05, before the relabel)
+
+**Status when written.**
+- **Payload was never read.** While answering the round-13 report (`reviews/review_2026-10-05_round13.md`), a code survey found that the queue-flow engine never reads a topic's declared payload `size`. Every message was 64 B, and service time did not depend on size. Declared rates *were* honoured (publisher frequency, rate-calibrated service, message-count label). So the manuscript's statements that `I_dyn` uses "declared rates, payload sizes", and that the "rate and payload columns" carry signal, describe payload signal that the oracle could not contain. The +0.097 attribution of Amendment 15 is rate signal only.
+- **What changed in code.** The engine now has an opt-in `payload_model="size"` (`saag/simulation/message_flow_simulator.py`, `PAYLOAD_MODELS`). The default, `fixed`, is bit-identical to the published oracle: `healthcare_system` and `atm_system` at seed 42 reproduce the published per-seed labels with max |Δ| = 0.
+- **What was seen before writing.** One smoke run of `healthcare_system` at seed 42 under `size`. Its Spearman with the published seed-42 labels was 0.761. Nothing else under `size` has been computed.
+
+**The model.**
+- A message of topic t costs service in proportion to w_t = 1 + size_t / 1024 B. The 1024 B is a declared, uncalibrated constant: the per-message overhead equals 1 KiB of payload.
+- The cost is renormalised per subscriber, E[S_{s,t}] = ρ · w_t / Σ_u λ_u w_u, so each subscriber's offered work, and hence its calibrated utilization (0.65), is unchanged.
+- Payload therefore redistributes a subscriber's compute toward heavy topics. The label definition (delivered-message-rate loss over surviving consumers) is unchanged.
+
+**Why it exists.**
+- It corrects the description of `I_dyn`.
+- It tests whether the queue-flow conclusions (Eq. 7 at 0.830; the learned approximation at 0.799; F12b) survive an oracle in which payload can matter.
+- Under `size`, the first-order message loss of a silenced publisher is still r_t·|sub|/|pub| per topic. Payload acts only through contention, which is not first-order. Eq. 7 therefore remains the order-1 reference under the criterion of §4.4. Any payload signal sits beyond it, which makes this the first arm in which an aligned first-order approximation is expected *not* to capture everything that the declared inputs determine.
+
+### Arm, fixed before any run
+
+| id | Label | Settings | Population |
+|:---|:---|:---|:---|
+| `idyn_size` | `I_dyn-size` | the published `IDYN_SETTINGS` (duration 60 s, `qos_mode="full"`, ρ = 0.65) plus `payload_model="size"`, overhead 1024 B; seeds {42, 123, 456, 789, 2024}; seed mean is the label | all Applications of the 12 folds (1,321) and of the 5 system models |
+
+Command: `python reproduce/oracle_robust_ltr.py labels --payload-model size --workers 20`. Output: `data/benchmarks/idyn_size_labels_jss13.json`.
+
+**Gate P0.** Under `payload_model="fixed"`, every seed of `healthcare_system` and `atm_system` must reproduce the published labels (max |Δ| = 0).
+
+### Analyses (`reproduce/referee_round13.py payload`)
+
+On the 12 folds, using `I_dyn-size` seed-mean labels. The statistics follow Amendment 17: Wilcoxon over folds, bootstrap 95% CI (B = 2,000), and Holm within the family. Tier: registered sensitivity, logged after the primary null. No contrast joins the omnibus.
+
+- **D1 (descriptive).**
+  - Per-fold Spearman between the `I_dyn-fixed` and `I_dyn-size` seed means.
+  - Label reliability of `I_dyn-size`, computed as in Amendment 15 (`label_reliability`).
+- **D2 (descriptive).** Every training-free row of Table 6 (Analytic `I*`, `InDeg`, `Reach`, Eq. 7, `Topo-QoS`) and every learned GNN row, scored on `I_dyn-size` from the saved per-seed predictions. Also scored: the work-weighted variant of Eq. 7, Σ_t r_t·w_t·|sub(t)|/|pub(t)|, a contention proxy that is **not** a reference.
+- **Family FP (contrasts on `I_dyn-size`).**
+  - (a) `GBM-P-QoS→dyn-size` against Eq. 7. This is the published S+Q design and learner (`oracle_robust_ltr.py`, `gbm_dep_qos_dyn`) retrained under LOSO on the `I_dyn-size` labels, with the same five seeds.
+  - (b) `GBM-P-QoS→dyn-size+Eq7` against Eq. 7. This is the S+Q design plus `pct(Eq. 7)`, as in F12.
+- **Attribution (descriptive).** `GBM-P-QoS→dyn-size` against the same model without the `PubBytes` column (rate × size), to see whether a declared-payload column now carries signal.
+
+### Decision rules
+
+| Rule | Condition | What the text says |
+|:---|:---|:---|
+| PA | min over folds of D1 ≥ 0.95, and \|ρ(Eq. 7, size) − 0.830\| < 0.02 | "Payload-scaled service leaves the `I_dyn` ordering essentially unchanged"; §4.3 is corrected and one supplement row is added. |
+| PB | Otherwise, and no FP arm beats Eq. 7 at Holm p < 0.05 | §4.3 is corrected. `I_dyn-size` results are reported beside `I_dyn` (Table 6 column or supplement). "Under payload-aware service the rate-weighted reference remains unbeaten (ρ)." |
+| PC | An FP arm beats Eq. 7 at Holm p < 0.05 | Reported in §6.1, §7.2 and the abstract as the regime in which learning adds measurable value beyond the aligned first-order approximation, because payload acts beyond first order. The claim "no learned model exceeds an aligned analytical ranking" is restricted to the payload-blind oracle. |
+
+In every case, the statements "declared rates and payload sizes … carried signal" are corrected to "declared rates" for the published oracle.
+
+**Stopping rule.** No other overhead constant, utilization or label definition is tried in search of a different answer. A different overhead may be reported only as a separately registered sensitivity.
+
+**What is unchanged.** The published `I_dyn` labels, every published number, and every tier.

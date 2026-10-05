@@ -234,3 +234,84 @@ def test_priority_is_confined_to_full_mode():
     lo = result.topic_stats["/lo"].total_dropped_deadline
 
     assert hi == pytest.approx(lo, rel=0.25), (hi, lo)
+
+
+# ── payload_model: declared payload size costs service, opt-in ───────────────
+
+def _sized_fan_in(sizes, frequency: float = 20.0, **topic_qos):
+    """One subscriber reading one topic per entry of `sizes` (bytes)."""
+    g = _fan_in(len(sizes), frequency=frequency, **topic_qos)
+    for i, size in enumerate(sizes):
+        g.nodes[f"/t{i}"]["size"] = size
+    return g
+
+
+def test_unknown_payload_model_is_rejected():
+    with pytest.raises(ValueError, match="payload_model"):
+        MessageFlowSimulator(graph=_fan_in(1), payload_model="bytes")
+    with pytest.raises(ValueError, match="payload_overhead_bytes"):
+        MessageFlowSimulator(graph=_fan_in(1), payload_model="size",
+                             payload_overhead_bytes=0.0)
+
+
+def test_fixed_payload_model_is_the_default_bit_for_bit():
+    """The published I_dyn oracle must not move: `fixed` is the historical engine."""
+    g = _sized_fan_in([64, 8192, 32768])
+    kw = dict(fault_node="Pub1", target_utilization=0.65)
+    default = _run(g, **kw)
+    fixed = _run(g, payload_model="fixed", **kw)
+
+    assert fixed.fault_event.delivery_rate_before == default.fault_event.delivery_rate_before
+    assert fixed.fault_event.delivery_rate_after == default.fault_event.delivery_rate_after
+    assert fixed.service_time_s == default.service_time_s
+    assert fixed.payload_model == "fixed"
+
+
+def test_size_payload_model_keeps_the_operating_point():
+    """Payload redistributes a subscriber's compute across its topics; it must
+    not change how busy the subscriber is."""
+    result = _run(_sized_fan_in([64, 8192, 32768]), target_utilization=0.65,
+                  payload_model="size")
+    assert list(result.measured_utilization.values())[0] == pytest.approx(0.65, abs=0.05)
+
+
+def test_size_payload_model_scales_service_by_declared_size():
+    import simpy
+
+    g = _sized_fan_in([0, 4096], frequency=30.0)
+    sim = MessageFlowSimulator(graph=g, payload_model="size", payload_overhead_bytes=1024.0)
+    sub_edges = sim._edges_by_type()["SUBSCRIBES_TO"]
+    station = sim._build_service_stations(
+        simpy.Environment(), sub_edges, sim._node_processing_times())["Sub"]
+
+    light, heavy = station.scale_for("/t0"), station.scale_for("/t1")
+    assert heavy / light == pytest.approx(5.0)       # (1 + 4096/1024) / (1 + 0)
+    assert (light + heavy) / 2 == pytest.approx(1.0)  # equal rates: mean scale is 1
+
+
+def test_messages_carry_their_topic_size_only_under_size():
+    g = _sized_fan_in([512, 4096])
+    for model, expected in (("fixed", {"/t0": 64, "/t1": 64}),
+                            ("size", {"/t0": 512, "/t1": 4096})):
+        result = _run(g, target_utilization=0.5, payload_model=model)
+        for tid, size in expected.items():
+            stats = result.topic_stats[tid]
+            assert stats.total_bytes_delivered == size * stats.total_delivered, (model, tid)
+
+
+def test_heavy_payload_misses_more_deadlines_under_size():
+    """Same rate, same deadline, FIFO service: under `size` the heavy topic's
+    longer service shows up as deadline misses; under `fixed` the two topics are
+    indistinguishable to the engine. Poisson arrivals, so the two topics do not
+    arrive in lock-step and one always queue behind the other."""
+    g = _sized_fan_in([0, 8192], frequency=60.0, deadline_ms=20.0)
+    for tid in ("/t0", "/t1"):
+        g.nodes[tid]["workload_type"] = "poisson"
+    sized = _run(g, target_utilization=0.5, qos_mode="contracts", payload_model="size")
+    light = sized.topic_stats["/t0"].total_dropped_deadline
+    heavy = sized.topic_stats["/t1"].total_dropped_deadline
+    assert heavy > 2 * light, (light, heavy)
+
+    fixed = _run(g, target_utilization=0.5, qos_mode="contracts", payload_model="fixed")
+    assert fixed.topic_stats["/t0"].total_dropped_deadline == pytest.approx(
+        fixed.topic_stats["/t1"].total_dropped_deadline, rel=0.25)

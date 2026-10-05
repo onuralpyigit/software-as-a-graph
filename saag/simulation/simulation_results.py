@@ -638,6 +638,8 @@ class MessageFlowResult:
     #: Recorded so a result file states its own ablation arm rather than relying
     #: on the caller to remember which one produced it.
     qos_mode: str = "legacy"
+    #: How topic payload sizes entered the run (see MessageFlowSimulator.PAYLOAD_MODELS).
+    payload_model: str = "fixed"
 
     # ── Operating point ──────────────────────────────────────────────────────
     #: Requested baseline utilization, or None when service times were not
@@ -683,6 +685,7 @@ class MessageFlowResult:
             "total_deadline_violations": self.total_deadline_violations,
             "total_queue_overflows": self.total_queue_overflows,
             "qos_mode": self.qos_mode,
+            "payload_model": self.payload_model,
             "target_utilization": self.target_utilization,
             "utilization_mode": self.utilization_mode,
             "service_distribution": self.service_distribution,
