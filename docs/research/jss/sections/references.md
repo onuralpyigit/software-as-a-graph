@@ -134,37 +134,37 @@
 
 [67] J. Humble, D. Farley, Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation, Addison-Wesley, 2010.
 
-[68] T. L. Saaty, The Analytic Hierarchy Process: Planning, Priority Setting, Resource Allocation, McGraw-Hill, 1980.
+[68] L. C. Freeman, A set of measures of centrality based on betweenness, Sociometry 40 (1) (1977) 35--41.
 
-[69] L. C. Freeman, A set of measures of centrality based on betweenness, Sociometry 40 (1) (1977) 35--41.
+[69] U. Brandes, A faster algorithm for betweenness centrality, Journal of Mathematical Sociology 25 (2) (2001) 163--177.
 
-[70] U. Brandes, A faster algorithm for betweenness centrality, Journal of Mathematical Sociology 25 (2) (2001) 163--177.
+[70] S. Brin, L. Page, The anatomy of a large-scale hypertextual web search engine, Computer Networks and ISDN Systems 30 (1--7) (1998) 107--117.
 
-[71] S. Brin, L. Page, The anatomy of a large-scale hypertextual web search engine, Computer Networks and ISDN Systems 30 (1--7) (1998) 107--117.
+[71] M. E. J. Newman, Networks: An Introduction, Oxford University Press, 2010.
 
-[72] M. E. J. Newman, Networks: An Introduction, Oxford University Press, 2010.
+[72] A. Varbella, K. Amara, M. El-Assady, B. Gjorgiev, G. Sansavini, PowerGraph: A power grid benchmark dataset for graph neural networks, in: Advances in Neural Information Processing Systems 37 (NeurIPS 2024), Datasets and Benchmarks Track, 2024, arXiv:2402.02827.
 
-[73] A. Varbella, K. Amara, M. El-Assady, B. Gjorgiev, G. Sansavini, PowerGraph: A power grid benchmark dataset for graph neural networks, in: Advances in Neural Information Processing Systems 37 (NeurIPS 2024), Datasets and Benchmarks Track, 2024, arXiv:2402.02827.
+[73] S. K. Maurya, X. Liu, T. Murata, Graph neural networks for fast node ranking approximation, ACM Transactions on Knowledge Discovery from Data 15 (5) (2021) 78:1--78:32. [doi:10.1145/3446217](https://doi.org/10.1145/3446217).
 
-[74] S. K. Maurya, X. Liu, T. Murata, Graph neural networks for fast node ranking approximation, ACM Transactions on Knowledge Discovery from Data 15 (5) (2021) 78:1--78:32. [doi:10.1145/3446217](https://doi.org/10.1145/3446217).
+[74] N. Park, A. Kan, X. L. Dong, T. Zhao, C. Faloutsos, Estimating node importance in knowledge graphs using graph neural networks, in: Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining (KDD '19), ACM, 2019, pp. 596--606. [doi:10.1145/3292500.3330855](https://doi.org/10.1145/3292500.3330855).
 
-[75] N. Park, A. Kan, X. L. Dong, T. Zhao, C. Faloutsos, Estimating node importance in knowledge graphs using graph neural networks, in: Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining (KDD '19), ACM, 2019, pp. 596--606. [doi:10.1145/3292500.3330855](https://doi.org/10.1145/3292500.3330855).
+[75] P. Velickovi\'c, G. Cucurull, A. Casanova, A. Romero, P. Li\`o, Y. Bengio, Graph attention networks, in: Proc. Int. Conf. on Learning Representations (ICLR), 2018.
 
-[76] P. Velickovi\'c, G. Cucurull, A. Casanova, A. Romero, P. Li\`o, Y. Bengio, Graph attention networks, in: Proc. Int. Conf. on Learning Representations (ICLR), 2018.
+[76] K. Xu, W. Hu, J. Leskovec, S. Jegelka, How powerful are graph neural networks?, in: International Conference on Learning Representations (ICLR), 2019.
 
-[77] K. Xu, W. Hu, J. Leskovec, S. Jegelka, How powerful are graph neural networks?, in: International Conference on Learning Representations (ICLR), 2019.
+[77] G. Corso, L. Cavalleri, D. Beaini, P. Li\`o, P. Velickovi\'c, Principal neighbourhood aggregation for graph nets, in: Advances in Neural Information Processing Systems (NeurIPS), Vol. 33, 2020, pp. 13260--13271.
 
-[78] G. Corso, L. Cavalleri, D. Beaini, P. Li\`o, P. Velickovi\'c, Principal neighbourhood aggregation for graph nets, in: Advances in Neural Information Processing Systems (NeurIPS), Vol. 33, 2020, pp. 13260--13271.
+[78] Z. Chen, L. Chen, S. Villar, J. Bruna, Can graph neural networks count substructures?, in: Advances in Neural Information Processing Systems (NeurIPS), Vol. 33, 2020, pp. 10383--10395.
 
-[79] Z. Chen, L. Chen, S. Villar, J. Bruna, Can graph neural networks count substructures?, in: Advances in Neural Information Processing Systems (NeurIPS), Vol. 33, 2020, pp. 10383--10395.
+[79] Z. Hu, Y. Dong, K. Wang, Y. Sun, Heterogeneous graph transformer, in: Proc. The Web Conference (WWW), 2020, pp. 2704--2710. [doi:10.1145/3366423.3380027](https://doi.org/10.1145/3366423.3380027).
 
-[80] Z. Hu, Y. Dong, K. Wang, Y. Sun, Heterogeneous graph transformer, in: Proc. The Web Conference (WWW), 2020, pp. 2704--2710. [doi:10.1145/3366423.3380027](https://doi.org/10.1145/3366423.3380027).
+[80] Q. Lv, M. Ding, Q. Liu, Y. Chen, W. Feng, S. He, C. Zhou, J. Jiang, Y. Dong, J. Tang, Are we really making much progress? Revisiting, benchmarking, and refining heterogeneous graph neural networks, in: Proc. 27th ACM SIGKDD Conf. on Knowledge Discovery and Data Mining (KDD), 2021, pp. 1150--1160. [doi:10.1145/3447548.3467350](https://doi.org/10.1145/3447548.3467350).
 
-[81] Q. Lv, M. Ding, Q. Liu, Y. Chen, W. Feng, S. He, C. Zhou, J. Jiang, Y. Dong, J. Tang, Are we really making much progress? Revisiting, benchmarking, and refining heterogeneous graph neural networks, in: Proc. 27th ACM SIGKDD Conf. on Knowledge Discovery and Data Mining (KDD), 2021, pp. 1150--1160. [doi:10.1145/3447548.3467350](https://doi.org/10.1145/3447548.3467350).
+[81] O. Shchur, M. Mumme, A. Bojchevski, S. G\"unnemann, Pitfalls of graph neural network evaluation, arXiv preprint arXiv:1811.05868 [preprint] (2018). [doi:10.48550/arXiv.1811.05868](https://doi.org/10.48550/arXiv.1811.05868).
 
-[82] O. Shchur, M. Mumme, A. Bojchevski, S. G\"unnemann, Pitfalls of graph neural network evaluation, arXiv preprint arXiv:1811.05868 [preprint] (2018). [doi:10.48550/arXiv.1811.05868](https://doi.org/10.48550/arXiv.1811.05868).
+[82] Q. Huang, H. He, A. Singh, S.-N. Lim, A. R. Benson, Combining label propagation and simple models out-performs graph neural networks, in: Proc. Int. Conf. on Learning Representations (ICLR), 2021.
 
-[83] Q. Huang, H. He, A. Singh, S.-N. Lim, A. R. Benson, Combining label propagation and simple models out-performs graph neural networks, in: Proc. Int. Conf. on Learning Representations (ICLR), 2021.
+[83] T. L. Saaty, The Analytic Hierarchy Process: Planning, Priority Setting, Resource Allocation, McGraw-Hill, 1980.
 
 [84] J. Pearl, Probabilistic Reasoning in Intelligent Systems: Networks of Plausible Inference, Morgan Kaufmann, 1988.
 

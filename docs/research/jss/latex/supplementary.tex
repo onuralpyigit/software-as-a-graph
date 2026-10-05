@@ -913,7 +913,7 @@ A13 & 2026-09-26 & \emph{After} all results & Reclassification: \texttt{InDeg}, 
 Deviation & 2026-09-26 & \emph{After} all results & The plan's selection rule was not applied to any published learned result; recorded with status tiers & None & Disclosed (main \S\ref{M-sec:4.2}, \S\ref{M-sec:6.3}); applied as arm N of A14 \\
 A14 & 2026-09-26 & Before any result & Round-8 arms: degree-free learners, GIN sum aggregation, the $2\times2$ with $w_{\text{in}}$ held, a learned GAT approximation of $I_{\text{dyn}}$, nested selection (arm N); F7 hybrid attribution; TOST at $\pm 0.05$ (margin not blind; see text); decision rules F1a--F6b & 3 + 3 + 3 + 3 + 3 + 4, Holm within & F1a, F2b, F3b, F4b, F5b, F6: see Section~\ref{supp:round8} (main \S\ref{M-sec:rq1}--\ref{M-sec:rq2}) \\
 A15 & 2026-09-29 & \emph{After} all results & Post hoc, exploratory: the rate-weighted first-order expansion of $I_{\text{dyn}}$ (main Eq.~\eqref{M-eq:rate-expansion}) as that oracle's reference, and the input attribution of the learned $I_{\text{dyn}}$ approximation (rate and payload vs QoS-derived columns); no registered arm run, dropped or changed & None & Reference $\rho = 0.830$ on $I_{\text{dyn}}$, $+0.031$ over the learned approximation (10/12); the A11 Family C gain is carried by rate and payload ($+0.097$), not QoS policies ($-0.005$) (main \S\ref{M-sec:6.2}, \S\ref{M-sec:rq1}; Section~\ref{supp:advisor-v6}) \\
-A16 & 2026-09-30 & Before any result & Round-11 arms: a reverse-edge raw-graph GAT (\texttt{GAT-QoS-R}) as the direction control for \texttt{GAT-P-QoS}; the two hybrids retrained with the corrected (articulation-restored) prior and with an \texttt{InDeg} prior; decision rules F8a--F10 & 2 + 4 + 2, Holm within & F8a: \texttt{GAT-P-QoS} beats the control by $+0.072$ (Holm $p = 0.014$), direction alone $+0.041$ (n.s.); F9a with F9c false: the corrected-prior hybrids beat the corrected baseline ($+0.136$, $+0.107$) but not their base learners; F10: the \texttt{InDeg}-prior learners reproduce \texttt{InDeg} within $\pm 0.012$ (main Table~\ref{M-tab:a16}) \\
+A16 & 2026-09-30 & Before any result & Round-11 arms: a reverse-edge raw-graph GAT (\texttt{GAT-QoS-R}) as the direction control for \texttt{GAT-P-QoS}; the two hybrids retrained with the corrected (articulation-restored) prior and with an \texttt{InDeg} prior; decision rules F8a--F10 & 2 + 4 + 2, Holm within & F8a: \texttt{GAT-P-QoS} beats the control by $+0.072$ (Holm $p = 0.014$), direction alone $+0.041$ (n.s.); F9a with F9c false: the corrected-prior hybrids beat the corrected baseline ($+0.136$, $+0.107$) but not their base learners; F10: the \texttt{InDeg}-prior learners reproduce \texttt{InDeg} within $\pm 0.012$ (main Table~\ref{tab:a16}) \\
 Reporting & 2026-09-27 & 2026-09-27 & Training-free baselines consolidated to Section~\ref{supp:baselines}; no analysis, contrast or number changed & None & Reporting only (Section~\ref{supp:baselines}) \\
 \bottomrule
 \end{tabular}
@@ -977,7 +977,7 @@ Between $21\%$ (Microservices) and $52\%$ (Healthcare) of each held-out Applicat
 \section{The Capacity-Matched \texorpdfstring{$2\times2$}{2x2} on the Raw Multigraph}
 \label{supp:matched-2x2}
 
-Table~\ref{tab:contrasts_matched} is the capacity- and channel-matched $2\times2$ over relation typing and the ``QoS'' inputs that Section~\ref{M-sec:rq2} of the main manuscript summarizes. It runs on the raw multigraph, where forward messages never reach Applications, so it compares per-node models and carries no information about relational message passing; Table~\ref{M-tab:a14} (F4) repeats it with $w_{\text{in}}$ held in both arms.
+Table~\ref{tab:contrasts_matched} is the capacity- and channel-matched $2\times2$ over relation typing and the ``QoS'' inputs that Section~\ref{M-sec:rq2} of the main manuscript summarizes. It runs on the raw multigraph, where forward messages never reach Applications, so it compares per-node models and carries no information about relational message passing; Table~\ref{tab:a14} (F4) repeats it with $w_{\text{in}}$ held in both arms.
 
 \begin{table}[htbp]
 \centering
@@ -1453,6 +1453,109 @@ This section backs the round-7 revision of the main manuscript. Everything in it
 \input{supp_round8.tex}
 
 \input{supp_advisor_v6.tex}
+
+\section{Control Arms (Amendments 14, 16 and 17)}
+\label{supp:controls}
+
+Main Table~\ref{M-tab:controls} is a digest of the three tables below, which give every registered control arm with its $I_{\text{dyn}}$, $I_{\text{comp}}$ and zero-shot values. Each table was produced in one CPU invocation in which every comparator was re-run and reproduced its published per-seed $\rho$. Section~\ref{M-sec:rq2} of the main manuscript interprets them.
+
+\noindent\textbf{Notes moved from the main text.}
+\begin{itemize}
+    \item \textbf{Degree features (F1).} Also removing the three centralities most correlated with in-degree (PageRank, closeness and eigenvector centrality) lowers \texttt{GAT-P-QoS} by $0.161$; the GINE network of the same size keeps $0.711$ without those columns. The aggregator contrasts of F2 are not significant after Holm correction ($+0.108$ and $+0.124$, $p_{\text{Holm}} = 0.157$).
+    \item \textbf{Hybrid priors (F9, F10).} Retrained with the articulation defect corrected, Hybrid-GAT-AP reaches $0.669$ ($+0.136$, Holm $p = 0.0059$) and Hybrid-HGT-AP $0.640$ ($+0.107$, Holm $p = 0.0073$), each on 11 of 12 folds, and again neither differs from its base learner ($+0.034$ and $+0.018$, Holm $p = 0.94$). Given \texttt{InDeg} as their prior, \texttt{GAT-QoS+InDeg} ($0.763$) and \texttt{HGT-QoS+InDeg} ($0.759$) gain $+0.128$ and $+0.137$ over their base learners (Holm $p = 0.0049$) and land within $\pm 0.012$ of \texttt{InDeg} itself (equivalent at $\pm 0.05$, TOST $p < 0.001$).
+    \item \textbf{Learned queue-flow approximation.} The GAT trained on $I_{\text{dyn}}$ labels ($0.598$) falls below the unweighted first-order expansion ($-0.108$, Holm $p = 0.014$) and is no better than the same GNN trained on $I^*$ labels restricted to Applications, a label-support control run in the same sweep ($-0.008$).
+    \item \textbf{Node order (F13).} Creation order correlates only weakly with the labels ($\rho = -0.20$ to $+0.29$ per fold), and each permutation also changes which nodes the seeded validation split draws, so the spread across permutations mixes tie order and validation draw. Differences such as the $-0.016$ between \texttt{GIN-P-QoS} and \texttt{GAT-P-QoS} lie within it.
+    \item \textbf{Nested selection.} On the three folds where the nested harness chose the published hyperparameters it does not reproduce the published scores (differences up to $0.10$), because it trains on one scenario fewer and stops on a held-out scenario.
+\end{itemize}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Degree and aggregator arms: twelve LOSO folds, five seeds, one CPU invocation with every comparator re-run to an exact match, Application population. $\Delta\rho$ paired by fold with a bootstrap 95\% CI; Holm within each registered family (F1: degree features; F2: aggregator; F4: the $2\times2$ with $w_{\text{in}}$ held). $-$deg: \texttt{in\_degree} and $w_{\text{in}}$ zeroed; $-$deg$^*$: also PageRank, closeness and eigenvector centrality. Zero-shot: mean $\rho$ on the five system models. Registered secondary.}
+\label{tab:a14}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llcccccc}
+\toprule
+Arm & Comparator & LOSO $\rho$ ($I^*$) & $\Delta\rho$ [95\% CI] & Won & $p_{\text{Holm}}$ & $I_{\text{dyn}}$ / $I_{\text{comp}}$ & Zero-shot \\
+\midrule
+\multicolumn{8}{l}{\textit{F1: removing the degree features}} \\
+GAT-P-QoS$-$deg & GAT-P-QoS ($0.748$) & 0.612 & $-0.136$ $[-0.205, -0.072]$ & 1/12 & 0.0049 & 0.485 / 0.156 & 0.821 \\
+GAT-P-QoS$-$deg$^*$ & GAT-P-QoS & 0.587 & $-0.161$ $[-0.252, -0.080]$ & 1/12 & 0.0049 & 0.462 / 0.138 & 0.654 \\
+GAT-QoS$-$deg & GAT-QoS ($0.635$) & 0.365 & $-0.270$ $[-0.344, -0.199]$ & 0/12 & 0.0015 & 0.295 / $-0.047$ & 0.810 \\
+\midrule
+\multicolumn{8}{l}{\textit{F2: sum aggregation (Graph Isomorphism Network with Edge features --- GINE, 434{,}123 parameters) instead of softmax attention}} \\
+GIN-P-QoS & GAT-P-QoS & 0.732 & $-0.016$ $[-0.055, +0.017]$ & 7/12 & 0.910 & 0.606 / 0.407 & 0.806 \\
+GIN-P-QoS$-$deg & GAT-P-QoS$-$deg & 0.721 & $+0.108$ $[+0.027, +0.197]$ & 8/12 & 0.157 & 0.602 / 0.428 & 0.810 \\
+GIN-P-QoS$-$deg$^*$ & GAT-P-QoS$-$deg$^*$ & 0.711 & $+0.124$ $[+0.031, +0.230]$ & 9/12 & 0.157 & 0.589 / 0.438 & 0.776 \\
+\midrule
+\multicolumn{8}{l}{\textit{F4: matched $2\times2$ with $w_{\text{in}}$ held (cells GAT+$w_{\text{in}}$ $0.628$, HGT+$w_{\text{in}}$ $0.569$, GAT-QoS $0.635$, HGT-QoS $0.622$)}} \\
+Typing (main effect) & averaged over Q & --- & $-0.036$ $[-0.079, +0.004]$ & 2/12 & 0.330 & --- & --- \\
+``QoS'' inputs (main effect) & averaged over T & --- & $+0.030$ $[-0.023, +0.085]$ & 9/12 & 0.330 & --- & --- \\
+Interaction & difference of differences & --- & $+0.046$ $[-0.009, +0.101]$ & 9/12 & 0.330 & --- & --- \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Direction and prior controls: twelve LOSO folds, five seeds, one CPU invocation, Application population; $\Delta\rho$ paired by fold with a bootstrap 95\% CI, Holm within each registered family (F8: direction; F9: corrected prior; F10: \texttt{InDeg} prior). \texttt{GAT-QoS-R}: \texttt{GAT-QoS} with every raw-graph edge also passed in reverse (shared weights, $429{,}992$ parameters). \texttt{-AP}: prior with the articulation term restored; Topo-QoS-AP is the corrected baseline. Re-run comparators reproduce their published per-seed $\rho$ exactly, except Hybrid-HGT (within $1.2\times10^{-4}$; not a comparator here). Zero-shot: mean $\rho$ on the five system models. Registered secondary.}
+\label{tab:a16}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llcccccc}
+\toprule
+Arm & Comparator & LOSO $\rho$ ($I^*$) & $\Delta\rho$ [95\% CI] & Won & $p_{\text{Holm}}$ & $I_{\text{dyn}}$ / $I_{\text{comp}}$ & Zero-shot \\
+\midrule
+\multicolumn{8}{l}{\textit{F8: edge direction versus dependency semantics}} \\
+GAT-QoS-R & GAT-QoS ($0.635$) & 0.676 & $+0.041$ $[+0.000, +0.087]$ & 10/12 & 0.064 & 0.547 / 0.299 & 0.744 \\
+GAT-P-QoS & GAT-QoS-R & 0.748 & $+0.072$ $[+0.034, +0.113]$ & 10/12 & 0.014 & 0.597 / 0.280 & --- \\
+\midrule
+\multicolumn{8}{l}{\textit{F9: hybrids with the corrected prior}} \\
+Hybrid-GAT-AP & Topo-QoS-AP ($0.533$) & 0.669 & $+0.136$ $[+0.076, +0.198]$ & 11/12 & 0.0059 & 0.577 / 0.561 & 0.668 \\
+Hybrid-HGT-AP & Topo-QoS-AP & 0.640 & $+0.107$ $[+0.060, +0.153]$ & 11/12 & 0.0073 & 0.552 / 0.553 & 0.702 \\
+Hybrid-GAT-AP & GAT-QoS & 0.669 & $+0.034$ $[-0.047, +0.118]$ & 7/12 & 0.940 & --- & --- \\
+Hybrid-HGT-AP & HGT-QoS ($0.622$) & 0.640 & $+0.018$ $[-0.067, +0.100]$ & 8/12 & 0.940 & --- & --- \\
+\midrule
+\multicolumn{8}{l}{\textit{F10: hybrids with the \texttt{InDeg} prior (within $\pm 0.012$ of \texttt{InDeg}, $0.764$)}} \\
+GAT-QoS+InDeg & GAT-QoS & 0.763 & $+0.128$ $[+0.063, +0.204]$ & 11/12 & 0.0049 & 0.657 / 0.563 & --- \\
+HGT-QoS+InDeg & HGT-QoS & 0.759 & $+0.137$ $[+0.074, +0.211]$ & 10/12 & 0.0049 & 0.657 / 0.589 & --- \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Oracle-aligned-feature, learning-on-Eq.~\eqref{M-eq:rate-expansion} and node-order controls: twelve LOSO folds, five seeds, one CPU invocation with every comparator re-run to an exact match, Application population. $\Delta\rho$ is paired by fold against the comparator named, with a bootstrap 95\% CI; Holm within each registered family (F11: oracle-aligned features; F12: learners started from Eq.~\eqref{M-eq:rate-expansion}). \texttt{-min}: in-degree, $w_{\text{in}}$, reverse PageRank, the articulation score, multi-path coupling, fan-out criticality and CDI zeroed; \texttt{-const}: every node feature zeroed. The F12 rows report $\rho$ on $I_{\text{dyn}}$ and are trained on its labels; all other rows report $\rho$ on $I^*$. F13 is a registered gate with a nominal $p$. $I_{\text{dyn}}$ / $I_{\text{comp}}$: per-seed means from saved predictions. Zero-shot: mean $\rho$ on the five system models (--- where not run). Registered secondary.}
+\label{tab:a17}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llcccccc}
+\toprule
+Arm & Comparator & $\rho$ & $\Delta\rho$ [95\% CI] & Won & $p_{\text{Holm}}$ & $I_{\text{dyn}}$ / $I_{\text{comp}}$ & Zero-shot \\
+\midrule
+\multicolumn{8}{l}{\textit{F11: every oracle-aligned feature removed (registered)}} \\
+GAT-P-QoS-min & GAT-QoS-R-min ($0.378$) & 0.610 & $+0.231$ $[+0.128, +0.340]$ & 10/12 & 0.0068 & 0.479 / 0.149 & 0.839 \\
+GAT-P-QoS-min & GAT-P-QoS ($0.748$) & 0.610 & $-0.138$ $[-0.208, -0.072]$ & 1/12 & 0.0044 & --- & --- \\
+GIN-P-QoS-min & GAT-P-QoS-min & 0.724 & $+0.115$ $[+0.038, +0.199]$ & 9/12 & 0.027 & 0.606 / 0.423 & 0.802 \\
+\midrule
+\multicolumn{8}{l}{\textit{Descriptive (no test)}} \\
+GAT-QoS-R-min & GAT-QoS-R ($0.676$) & 0.378 & $-0.298$ $[-0.387, -0.222]$ & 0/12 & --- & 0.291 / 0.319 & 0.708 \\
+GAT-QoS-min & GAT-QoS ($0.635$) & 0.369 & $-0.266$ $[-0.334, -0.201]$ & 0/12 & --- & 0.294 / $-0.049$ & 0.794 \\
+GIN-P-QoS-const & \texttt{InDeg} ($0.764$) & 0.719 & $-0.045$ $[-0.069, -0.024]$ & 1/12 & --- & 0.606 / 0.447 & 0.858 \\
+\midrule
+\multicolumn{8}{l}{\textit{F12: learners started from Eq.~\eqref{M-eq:rate-expansion}, scored on $I_{\text{dyn}}$ (registered)}} \\
+GBM-P-QoS$\to$dyn+Eq7 & Eq.~\eqref{M-eq:rate-expansion} ($0.830$) & 0.830 & $+0.000$ $[-0.013, +0.015]$ & 5/12 & 0.970 & --- & --- \\
+GBM$\to$dyn-resid & Eq.~\eqref{M-eq:rate-expansion} & 0.824 & $-0.006$ $[-0.019, +0.008]$ & 5/12 & 0.679 & --- & --- \\
+GAT-P-QoS$\to$dyn+Eq7 & Eq.~\eqref{M-eq:rate-expansion} & 0.812 & $-0.018$ $[-0.025, -0.012]$ & 1/12 & 0.0029 & --- & --- \\
+\midrule
+\multicolumn{8}{l}{\textit{F13: node order permuted before training (registered gate; nominal $p$)}} \\
+GAT-P-QoS-perm & GAT-P-QoS & 0.712 & $-0.035$ $[-0.055, -0.014]$ & 3/12 & (0.012) & 0.578 / 0.227 & --- \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
 
 \section{Training-Free Baselines}
 \label{supp:baselines}

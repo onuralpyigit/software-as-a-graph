@@ -76,11 +76,11 @@ the layout JSS's "<36 pages single-column" guidance reads naturally against.
 
 | Class options | Pages | Note |
 |---|---:|---|
-| **`[preprint,3p]`** | **35** | **current setting** |
+| **`[preprint,3p]`** | **24** | **current setting** |
 | `[preprint,review,3p]` | — | 1.5-spaced reviewing copy; add `review` back if the editor asks for one |
 | `[preprint]` | — | Elsevier's generic preprint layout (larger type/margins) |
 
-Of the 35 pages, the reference list is the last 3. `LENGTH_JUSTIFICATION.md` records what was moved
+Of the 24 pages, the reference list is the last 3. `LENGTH_JUSTIFICATION.md` records what was moved
 to the supplement and to the public experiment pages ([`../experiments/`](../experiments/README.md))
 when the body was condensed.
 
@@ -89,7 +89,7 @@ when the body was condensed.
 
 ## Supplementary material
 
-`supplementary.tex` (25 pages, Sections S1--S30) carries the material moved out of the body during condensation. S1--S8 are:
+`supplementary.tex` (46 pages, Sections S1--S43) carries the material moved out of the body during condensation. S1--S8 are:
 
 | § | Content |
 |---|---|
