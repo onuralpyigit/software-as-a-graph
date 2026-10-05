@@ -6,7 +6,7 @@ Figure~\ref{fig:1} shows the SaG framework. The front end reads Architecture-as-
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.70\linewidth]{figures/Figure_1}
-\caption{End-to-end architecture of the SaG framework. The ranking pathway runs down the center: manifest ingestion, typed structural multigraph ($G_{\text{structural}}$), \texttt{DEPENDS\_ON} logical dependency projection ($G_{\text{analysis}}$) with typed node properties, the ranking methods (analytical, hybrid, and learned; Figure~\ref{fig:engines}), and the ranked critical set. The dashed edge marks the simulation oracles, which operate strictly on $G_{\text{structural}}$, provide training and evaluation labels offline, and do not participate in inference. The explanation layer is a proposal outside this study (Supplementary Section~\ref{supp:explanation}).}
+\caption{End-to-end architecture of the SaG framework. The ranking pathway runs down the center: manifest ingestion, typed structural multigraph ($G_{\text{structural}}$), \texttt{DEPENDS\_ON} logical dependency projection ($G_{\text{analysis}}$) with typed node properties, the ranking methods (analytical, hybrid, and learned; Figure~\ref{fig:engines}), and the ranked critical set. The dashed edge marks the simulation oracles, which operate strictly on $G_{\text{structural}}$, provide training and evaluation labels offline, and do not participate in inference. The explanation layer is a conceptual proposal outside the empirical evaluation of this study (Supplementary Section~\ref{supp:explanation}).}
 \label{fig:1}
 \end{figure}
 
@@ -63,7 +63,7 @@ Structural edges do not show how failures spread: a subscriber depends on a publ
 \begin{table}[htbp]
 \centering
 \small
-\caption{The \texttt{DEPENDS\_ON} logical dependency projection rules. $^\dagger$Defined for completeness; not exercised by the Application-level evaluation.}
+\caption{The \texttt{DEPENDS\_ON} logical dependency projection rules. Rules~1 and~5 define the operational Application--Library projection evaluated in this study; $^\dagger$rules define broader infrastructure relations formalized for system-level completeness but unexercised by the Application-level evaluation.}
 \label{tab:2}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{clll}
@@ -81,14 +81,14 @@ Structural edges do not show how failures spread: a subscriber depends on a publ
 }
 \end{table}
 
-Rules~1 and~2 combine the topics $T$ connecting a pair by probabilistic union \cite{pearl1988probabilistic}, so multiple failure paths strengthen the connection; Rule~5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ \cite{hardy1952inequalities}. Rule~1 captures sequential cascades (a failed publisher starves its subscribers) and Rule~5 simultaneous blasts (a crashed library fails every Application using it); neither is stated explicitly in a manifest. Rules~2, 3, 4 and~6 are not used in the Application-level evaluation.
+Rules~1 and~2 combine the topics $T$ connecting a pair by probabilistic union \cite{pearl1988probabilistic}, so multiple failure paths strengthen the connection; Rule~5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ \cite{hardy1952inequalities}. Rule~1 captures sequential cascades (a failed publisher starves its subscribers) and Rule~5 simultaneous blasts (a crashed library fails every Application using it); neither is stated explicitly in a manifest. Rules~2, 3, 4 and~6 are formalized for architectural completeness across host and broker tiers, but are not exercised in the present Application-level evaluation.
 
 \noindent\textbf{Remark 1 (the dependency count is a typed two-hop count).} Let $G_{\text{flow}}$ be the Application--Library projection (Rules~1 and~5) and $v$ an Application. By construction,
 \begin{equation}
 \label{eq:indeg}
 \texttt{InDeg}(v) \;=\; \bigl|\{\,u \neq v : \exists t \in V_{\text{topic}},\; (v, t) \in \texttt{PUBLISHES\_TO} \wedge (u, t) \in \texttt{SUBSCRIBES\_TO}\,\}\bigr|,
 \end{equation}
-because Rule~5 edges end at Libraries, so every edge into an Application is a Rule~1 edge, and parallel topics between a pair collapse into one edge. The right side is publish--subscribe afferent coupling \cite{martin2003agile,rud2006ais}, a typed two-hop query on the raw multigraph; the projection defines which query to use (the equality holds exactly on all seventeen corpus graphs). The derivation adds value beyond this count: including Rule~5 raises the agreement of transitive reach with $I^*$ by $+0.058$ (9 of 12 folds, Holm $p = 0.0068$; Section~\ref{sec:rq1}). Because $I^*$'s first propagation wave matches this set (Section~\ref{sec:4.4}), \texttt{InDeg} and its transitive version \texttt{Reach} are reported as references, not predictors. The in-degree \emph{feature} the learners receive also follows \texttt{USES} links; the two differ for 940 of the 1{,}321 Applications, with per-fold rank agreement $\rho = 0.55$--$1.00$ (Supplementary Section~\ref{supp:features}).
+because Rule~5 edges end at Libraries, so every edge into an Application is a Rule~1 edge, and parallel topics between a pair collapse into one edge. The right side is publish--subscribe afferent coupling \cite{martin2003agile,rud2006ais}, a typed two-hop query on the raw multigraph; the projection defines which query to use (the equality holds exactly on all seventeen corpus graphs). The derivation adds value beyond this count: including Rule~5 raises the agreement of transitive reach with $I^*$ by $+0.058$ (9 of 12 folds, Holm $p = 0.0068$; Section~\ref{sec:rq1}). Because $I^*$'s first propagation wave matches this set (Section~\ref{sec:4.4}), \texttt{InDeg} and its transitive version \texttt{Reach} serve as both established structural baselines and first-order analytical references. The in-degree \emph{feature} the learners receive also follows \texttt{USES} links; the two differ for 940 of the 1{,}321 Applications, with per-fold rank agreement $\rho = 0.55$--$1.00$ (Supplementary Section~\ref{supp:features}).
 
 \begin{figure}[htbp]
 \centering
