@@ -123,6 +123,17 @@ def _supp() -> str:
     return (LATEX / "supplementary.tex").read_text()
 
 
+def _table_source(label: str) -> str:
+    """Section 7, or the supplement once the table carrying ``label`` moved there.
+
+    The round-13 condensation moved Tables tab:a14/a16/a17 to the supplement
+    (Supplementary Section supp:controls) and left a digest, tab:controls, in
+    Section 7; the table checks follow the table, the prose quotes stay on Section 7.
+    """
+    sec7 = _tex("sec7_results.tex")
+    return sec7 if label in sec7 else _supp()
+
+
 def _rows(tex: str, start_marker: str, end_marker: str = r"\bottomrule",
           after_label: Optional[str] = None) -> List[str]:
     """Return the LaTeX row strings of one table body.
@@ -1549,12 +1560,13 @@ def check_engine_regimes(rep: Report) -> None:
            [(1, rpc_lo), (2, rpc_hi), (3, zs["Topo"]["realworld_cloud_microservices"]["rho"]),
             (4, rpc_pos_lo), (5, rpc_pos_hi)])
     for pattern, truths in (
-        (r"\\texttt\{GBM-Feat\}\) (?:achieve|reach) \$\\rho = ([\d.]+)\$ under LOSO, (?:level with|similar to) \\texttt\{GAT-QoS\} \(\$([\d.]+)\$\)",
+        (r"\\texttt\{GBM-Feat\}\) (?:achieves?|reach(?:es)?) \$\\rho = ([\d.]+)\$ under LOSO, (?:level with|similar to) \\texttt\{GAT-QoS\} \(\$([\d.]+)\$\)",
          [(1, L["mean_rho"]["GBM-Feat"]), (2, L["mean_rho"]["GAT-QoS"])]),
         # Round 12: Section 7.2 no longer quotes the raw-graph typing effects (they live in the
         # supplement's matched 2x2, checked by check_contrasts_matched).
     ):
-        _quote(rep, "sec:8.2", sec8, pattern, truths)
+        # Round 13: the GBM-Feat result is stated once, in Section 7.2; 8.2 refers to it.
+        _quote(rep, "sec:rq2", _tex("sec7_results.tex"), pattern, truths)
     avg = _load("referee_round7_averaging.json")
     if avg is not None:
         sp = avg["seed_spread"]
@@ -2114,14 +2126,15 @@ def check_round8(rep: Report) -> None:
     tost = _load("referee_round8_tost.json")
     nest = _load("referee_round8_nested.json")
     tex = _tex("sec7_results.tex")
-    if None in (a14, sig, hyb, tost, nest) or r"\label{tab:a14}" not in tex:
+    if None in (a14, sig, hyb, tost, nest) or r"\label{tab:a14}" not in _table_source(r"\label{tab:a14}"):
         rep.skipped.append("round 8: an Amendment 14 artifact or tab:a14 absent")
         return
     fam = {**a14["F1"], **a14["F2"]}
     summ, zs = a14["summary"], a14["zero_shot"]
     fact = {r["quantity"]: r for r in sig["factorial"]}
-    i = tex.index(r"\label{tab:a14}")
-    body = tex[tex.index(r"\toprule", i):tex.index(r"\bottomrule", i)]
+    ttex = _table_source(r"\label{tab:a14}")
+    i = ttex.index(r"\label{tab:a14}")
+    body = ttex[ttex.index(r"\toprule", i):ttex.index(r"\bottomrule", i)]
     seen = 0
     for line in body.splitlines():
         t = line.strip()
@@ -2170,7 +2183,7 @@ def check_round8(rep: Report) -> None:
             (3, f7["Hybrid-GAT vs Topo-Mult"]["p_holm"])])
     F = nest["F6"]
     _quote(rep, "sec:rq2", tex,
-           r"it (?:moves|changes) \\texttt\{HGT-QoS\} from \$([\d.]+)\$ to \$([\d.]+)\$ \(\$\+([\d.]+)\$\) and \\texttt\{GAT-P-QoS\} from \$([\d.]+)\$ to \$([\d.]+)\$ \(\$-([\d.]+)\$\), neither(?: of which is)? significant \(Holm \$p = ([\d.]+)\$\)[;.]\s*[Nn]ested \\texttt\{HGT-QoS\} (?:against|versus) \\texttt\{Topo-QoS\} is \$\+([\d.]+)\$ on 9 of 12 folds, still not significant \(Holm \$p = ([\d.]+)\$",
+           r"(?:it )?(?:moves|changes) \\texttt\{HGT-QoS\} from \$([\d.]+)\$ to \$([\d.]+)\$ \(\$\+([\d.]+)\$\) and \\texttt\{GAT-P-QoS\} from \$([\d.]+)\$ to \$([\d.]+)\$ \(\$-([\d.]+)\$\), neither(?: of which is)? significant \(Holm \$p = ([\d.]+)\$\)[;.]\s*[Nn]ested \\texttt\{HGT-QoS\} (?:against|versus) \\texttt\{Topo-QoS\} is \$\+([\d.]+)\$ on 9 of 12 folds, still not significant \(Holm \$p = ([\d.]+)\$",
            [(1, nest["summary"]["HGT-QoS"]["fixed"]), (2, nest["summary"]["HGT-QoS"]["nested"]),
             (3, F["nested HGT-QoS vs fixed HGT-QoS"]["delta"]), (4, nest["summary"]["GAT-P-QoS"]["fixed"]),
             (5, nest["summary"]["GAT-P-QoS"]["nested"]), (6, -F["nested GAT-P-QoS vs fixed GAT-P-QoS"]["delta"]),
@@ -2192,13 +2205,14 @@ def check_amendment16(rep: Report) -> None:
     """
     a16 = _load("referee_round11_amendment16.json")
     tex = _tex("sec7_results.tex")
-    if a16 is None or r"\label{tab:a16}" not in tex:
+    if a16 is None or r"\label{tab:a16}" not in _table_source(r"\label{tab:a16}"):
         rep.skipped.append("round 11: referee_round11_amendment16.json or tab:a16 absent")
         return
     fam = {**a16["F8"], **a16["F9"], **a16["F10"]}
     summ, zs = a16["summary"], a16["zero_shot"]
-    i = tex.index(r"\label{tab:a16}")
-    body = tex[tex.index(r"\toprule", i):tex.index(r"\bottomrule", i)]
+    ttex = _table_source(r"\label{tab:a16}")
+    i = ttex.index(r"\label{tab:a16}")
+    body = ttex[ttex.index(r"\toprule", i):ttex.index(r"\bottomrule", i)]
     seen = 0
     for line in body.splitlines():
         t = line.strip()
@@ -2240,14 +2254,14 @@ def check_amendment16(rep: Report) -> None:
             (5, f8b["ci95"][0]), (6, f8b["ci95"][1]), (7, f8b["p_holm"])])
     g, h = a16["F9"]["Hybrid-GAT-AP vs Topo-QoS-AP"], a16["F9"]["Hybrid-HGT-AP vs Topo-QoS-AP"]
     gb, hb = a16["F9"]["Hybrid-GAT-AP vs GAT-QoS"], a16["F9"]["Hybrid-HGT-AP vs HGT-QoS"]
-    _quote(rep, "sec:rq1 corrected-prior hybrids", tex,
+    _quote(rep, "supp:controls corrected-prior hybrids", _supp(),
            r"Hybrid-GAT-AP reaches " + num + r" \(\$\+([\d.]+)\$, Holm \$p = ([\d.]+)\$\) and Hybrid-HGT-AP " + num
            + r" \(\$\+([\d.]+)\$, Holm \$p = ([\d.]+)\$\), each on 11 of 12 folds, and again neither differs from its base learner \(\$\+([\d.]+)\$ and \$\+([\d.]+)\$, Holm \$p = ([\d.]+)\$\)",
            [(1, summ["Hybrid-GAT-AP"]["loso_i_star"]), (2, g["delta"]), (3, g["p_holm"]),
             (4, summ["Hybrid-HGT-AP"]["loso_i_star"]), (5, h["delta"]), (6, h["p_holm"]),
             (7, gb["delta"]), (8, hb["delta"]), (9, gb["p_holm"])])
     ti = a16["to_indeg"]
-    _quote(rep, "sec:rq1 InDeg prior", tex,
+    _quote(rep, "supp:controls InDeg prior", _supp(),
            r"\\texttt\{GAT-QoS\+InDeg\} \(" + num + r"\) and \\texttt\{HGT-QoS\+InDeg\} \(" + num + r"\) gain \$\+([\d.]+)\$ and \$\+([\d.]+)\$ over their base learners \(Holm \$p = ([\d.]+)\$\) and land within \$\\pm ([\d.]+)\$",
            [(1, summ["GAT-QoS+InDeg"]["loso_i_star"]), (2, summ["HGT-QoS+InDeg"]["loso_i_star"]),
             (3, a16["F10"]["GAT-QoS+InDeg vs GAT-QoS"]["delta"]), (4, a16["F10"]["HGT-QoS+InDeg vs HGT-QoS"]["delta"]),
@@ -2266,7 +2280,7 @@ def check_amendment17(rep: Report) -> None:
     desc = _load("referee_round12_descriptive.json")
     perm = _load("referee_round12_perm.json")
     tex = _tex("sec7_results.tex")
-    if None in (a17, desc, perm) or r"\label{tab:a17}" not in tex:
+    if None in (a17, desc, perm) or r"\label{tab:a17}" not in _table_source(r"\label{tab:a17}"):
         rep.skipped.append("round 12: a referee_round12 artifact or tab:a17 absent")
         return
     summ, zs, dyn = a17["summary"], a17["zero_shot"], a17["summary"]["dyn_means"]
@@ -2275,10 +2289,12 @@ def check_amendment17(rep: Report) -> None:
 
     def _norm(cell: str) -> str:
         cell = cell.split(" (")[0].replace(r"$\to$", "-").replace(r"\texttt{", "").replace("}", "")
-        return "Eq7" if cell.startswith(r"Eq.~\eqref{eq:rate-expansion") else cell
+        # The supplement's copy cross-references the body equation as M-eq:... (xr-hyper).
+        return "Eq7" if cell.startswith((r"Eq.~\eqref{eq:rate-expansion", r"Eq.~\eqref{M-eq:rate-expansion")) else cell
 
-    i = tex.index(r"\label{tab:a17}")
-    body = tex[tex.index(r"\toprule", i):tex.index(r"\bottomrule", i)]
+    ttex = _table_source(r"\label{tab:a17}")
+    i = ttex.index(r"\label{tab:a17}")
+    body = ttex[ttex.index(r"\toprule", i):ttex.index(r"\bottomrule", i)]
     seen = 0
     for line in body.splitlines():
         t = line.strip()
@@ -2368,6 +2384,38 @@ def check_amendment17(rep: Report) -> None:
     if want not in sec3 or f"$\\rho = {min(sp):.2f}$--${max(sp):.2f}$" not in sec3:
         rep.findings.append(Finding("sec:3.3", "InDeg feature vs reference", "quote", "see text",
                                     f"{want}; rho {min(sp):.2f}-{max(sp):.2f}"))
+
+
+def check_controls_digest(rep: Report) -> None:
+    """Round 13: Table tab:controls, the Section 7.2 digest of tab:a14/a16/a17.
+
+    The full tables (checked cell by cell against their artifacts by check_round8,
+    check_amendment16 and check_amendment17) live in the supplement. Each digest row
+    must repeat the first six cells (arm, comparator, rho, delta [CI], won, p_Holm)
+    of exactly one full-table row, so the digest cannot drift from what was verified.
+    """
+    sec7 = _tex("sec7_results.tex")
+    if r"\label{tab:controls}" not in sec7:
+        rep.skipped.append("tab:controls absent from sec7_results.tex")
+        return
+
+    def body(tex: str, label: str) -> List[List[str]]:
+        i = tex.index(label)
+        rows = []
+        for line in tex[tex.index(r"\toprule", i):tex.index(r"\bottomrule", i)].splitlines():
+            t = line.strip()
+            if "&" in t and not t.startswith((r"\multicolumn", "Arm &")):
+                rows.append(_cells(t.replace("{M-eq:", "{eq:")))
+        return rows
+
+    full = [r[:6] for lab in ("tab:a14", "tab:a16", "tab:a17")
+            for r in body(_table_source(rf"\label{{{lab}}}"), rf"\label{{{lab}}}")]
+    for cells in body(sec7, r"\label{tab:controls}"):
+        rep.checked += 1
+        n = sum(1 for r in full if r == cells[:6])
+        if n != 1:
+            rep.findings.append(Finding("tab:controls", " vs ".join(cells[:2])[:40], "row",
+                                        f"{n} matching full-table rows", 1))
 
 
 def check_cost_ll(rep: Report) -> None:
@@ -2516,9 +2564,6 @@ def check_rate_expansion(rep: Report) -> None:
            + r" \$\[([-+\d.]+), ([-+\d.]+)\]\$ on (\d+) of 12 folds \(nominal Holm \$p = ([\d.]+)\$",
            [(1, rate["i_dyn"]["mean"]), (2, rate["i_dyn"]["ci95"][0]), (3, rate["i_dyn"]["ci95"][1]),
             (4, c["delta"]), (5, c["ci95"][0]), (6, c["ci95"][1]), (7, c["won"]), (8, c["p_holm"])])
-    _quote(rep, "sec:rq1 summary Eq. 7", sec7,
-           r"exceeds the learned approximation \(" + num + r", (\d+) of 12 folds; exploratory\)",
-           [(1, c["delta"]), (2, c["won"])])
     # Section 4.3: I_dyn label reliability, its sqrt(r) ceiling, and the claim that no Table 6
     # ranker exceeds even r.
     rel = a15.get("label_reliability")
@@ -2694,6 +2739,7 @@ def main() -> int:
     check_cost_ll(rep)
     check_amendment16(rep)
     check_amendment17(rep)
+    check_controls_digest(rep)
     check_rate_expansion(rep)
     check_learning_focus(rep, profile=args.profile)
 
