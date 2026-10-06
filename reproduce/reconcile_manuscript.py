@@ -2449,8 +2449,47 @@ def check_amendment19(rep: Report) -> None:
 
 
 def check_amendment19_prose(rep: Report, a19: Dict[str, Any], lc: Dict[str, Any]) -> None:
-    """Amendment 19 figures quoted in the main text (filled in with the text)."""
-    return None
+    """Amendment 19 figures quoted in Sections 1 and 6."""
+    s, f14, f15, f16 = a19["summary"], a19["F14"], a19["F15"], a19["F16"]
+    d14, d15 = a19["descriptive"]["F14"], a19["descriptive"]["F15"]
+    dyn = s["dyn_means"]
+    num = r"\$?([-+]?[\d.]+)\$?"
+    tex, sec1 = _tex("sec7_results.tex"), _tex("sec1_introduction.tex")
+    fmin = f14["GIN-P-QoS-min vs GIN-QoS-R-min"]
+    _quote(rep, "sec1 F14", sec1,
+           r"the dependency graph still wins by \$\+([\d.]+)\$ \((\d+) of 12 folds, Holm \$p = ([\d.]+)\$",
+           [(1, fmin["delta"]), (2, fmin["won"]), (3, fmin["p_holm"])])
+    ffull, fconst = f14["GIN-P-QoS vs GIN-QoS-R"], f14["GIN-P-QoS-const vs GIN-QoS-R-const"]
+    _quote(rep, "sec:rq2 F14", tex,
+           r"\(\\texttt\{GIN-QoS-R\}; Table~\\ref\{tab:controls\}\) reaches " + num
+           + r", level with its attention counterpart \(" + num + r"\).*?recovers \$(\d+)\\%\$ of the gap.*?\(\$([\d.]+)\$ against \$([\d.]+)\$\)"
+           + r".*?by \$\+([\d.]+)\$ without the oracle-aligned features \((\d+) of 12 folds, Holm \$p = ([\d.]+)\$\), by \$\+([\d.]+)\$ with them \(Holm \$p = ([\d.]+)\$\), and by \$\+([\d.]+)\$.*?reaches \$([\d.]+)\$ against",
+           [(1, s["GIN-QoS-R"]["loso_i_star"]), (2, d14["GIN-QoS-R vs GAT-QoS-R"]["delta"]),
+            (3, 100 * d14["share_of_min_gap_closed"]), (4, s["GIN-QoS-R-min"]["loso_i_star"]),
+            (5, s["GAT-QoS-R-min"]["loso_i_star"]), (6, fmin["delta"]), (7, fmin["won"]), (8, fmin["p_holm"]),
+            (9, ffull["delta"]), (10, ffull["p_holm"]), (11, fconst["delta"]), (12, s["GIN-QoS-R-const"]["loso_i_star"])])
+    best = f15["GIN-P-QoS-dyn+rate-e vs Eq7"]
+    _quote(rep, "sec:rq1 F15", tex,
+           r"it improves on that \(\$\+([\d.]+)\$, (\d+) of 12 folds\).*?reaches \$([\d.]+)\$ \(\$\+([\d.]+)\$, (\d+) of 12 folds;"
+           + r".*?\(\$-([\d.]+)\$ for the best\).*?\(\$-([\d.]+)\$, Holm \$p = ([\d.]+)\$",
+           [(1, d15["GAT-P-QoS-dyn+rate-e vs GAT-P-QoS-dyn"]["delta"]), (2, d15["GAT-P-QoS-dyn+rate-e vs GAT-P-QoS-dyn"]["won"]),
+            (3, dyn["GIN-P-QoS-dyn+rate-e"]), (4, d15["GIN-P-QoS-dyn+rate-e vs GAT-P-QoS-dyn"]["delta"]),
+            (5, d15["GIN-P-QoS-dyn+rate-e vs GAT-P-QoS-dyn"]["won"]),
+            (6, -d15["GIN-P-QoS-dyn+rate-e vs GBM-P-QoS-dyn"]["delta"]), (7, -best["delta"]), (8, best["p_holm"])])
+    t1, t2 = f16["GAT-P-QoS-tie vs GAT-P-QoS"], f16["GAT-P-QoS-tie vs GAT-QoS-R-tie"]
+    _quote(rep, "sec:rq2 F16", tex,
+           r"is unchanged \(\$([\d.]+)\$, " + num + r", Holm \$p = ([\d.]+)\$\), still exceeds the equally trained reverse-edge control \(\$\+([\d.]+)\$, Holm \$p = ([\d.]+)\$\), and three node-order permutations still spread by \$([\d.]+)\$",
+           [(1, s["GAT-P-QoS-tie"]["loso_i_star"]), (2, t1["delta"]), (3, t1["p_holm"]), (4, t2["delta"]),
+            (5, t2["p_holm"]), (6, a19["descriptive"]["F16"]["tie_perm_mean_spread"])])
+    m, g = lc["means"], lc["descriptive"]
+    _quote(rep, "sec:rq2 LC", tex,
+           r"rises from \$([\d.]+)\$ at \$K = 1\$ to \$([\d.]+)\$ at \$K = 4\$ and \$([\d.]+)\$ at \$K = 11\$ \(\$\+([\d.]+)\$ from four to eleven, Holm \$p = ([\d.]+)\$\), narrowing its gap to the direct-dependent count from \$([\d.]+)\$ to \$([\d.]+)\$, and \\texttt\{GIN-P-QoS\} rises from \$([\d.]+)\$ to \$([\d.]+)\$",
+           [(1, m["GAT-P-QoS"]["1"]["mean"]), (2, m["GAT-P-QoS"]["4"]["mean"]), (3, m["GAT-P-QoS"]["11"]["mean"]),
+            (4, lc["LC"]["GAT-P-QoS K11 vs K4"]["delta"]), (5, lc["LC"]["GAT-P-QoS K11 vs K4"]["p_holm"]),
+            (6, -g["GAT-P-QoS"]["gap_to_indeg"]["1"]["delta"]), (7, -g["GAT-P-QoS"]["gap_to_indeg"]["11"]["delta"]),
+            (8, m["GIN-P-QoS"]["1"]["mean"]), (9, m["GIN-P-QoS"]["11"]["mean"])])
+    _quote(rep, "sec1 LC", sec1, r"the gap narrowed from \$([\d.]+)\$ to \$([\d.]+)\$",
+           [(1, -g["GAT-P-QoS"]["gap_to_indeg"]["1"]["delta"]), (2, -g["GAT-P-QoS"]["gap_to_indeg"]["11"]["delta"])])
 
 
 def check_cost_ll(rep: Report) -> None:

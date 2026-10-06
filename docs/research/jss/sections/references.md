@@ -120,7 +120,7 @@
 
 [60] V. Bushong, D. Das, A. Al Maruf, T. Cerny, Using static analysis to address microservice architecture reconstruction, in: 2021 36th IEEE/ACM International Conference on Automated Software Engineering (ASE), IEEE, 2021. [doi:10.1109/ASE51524.2021.9678749](https://doi.org/10.1109/ASE51524.2021.9678749).
 
-[61] A. Walker, D. Jin, R. Kazman, MicroART: Architectural reconstruction of microservices, in: Proceedings of the IEEE International Conference on Software Architecture Companion (ICSA-C), 2020, pp. 81--84. [doi:10.1109/ICSA-C50368.2020.00023](https://doi.org/10.1109/ICSA-C50368.2020.00023).
+[61] G. Granchelli, M. Cardarelli, P. Di Francesco, I. Malavolta, L. Iovino, A. Di Salle, MicroART: A software architecture recovery tool for maintaining microservice-based systems, in: Proceedings of the IEEE International Conference on Software Architecture Workshops (ICSAW), 2017, pp. 298--302. [doi:10.1109/ICSAW.2017.9](https://doi.org/10.1109/ICSAW.2017.9).
 
 [62] A. Santos, A. Cunha, N. Macedo, Static-time extraction and analysis of the ROS computation graph, in: 2019 Third IEEE International Conference on Robotic Computing (IRC), IEEE, 2019. [doi:10.1109/IRC.2019.00018](https://doi.org/10.1109/IRC.2019.00018).
 

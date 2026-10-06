@@ -7,11 +7,11 @@ justified."*
 
 ---
 
-The manuscript runs to **27 single-column pages** in the `elsarticle` preprint class, including all
+The manuscript runs to **30 single-column pages** in the `elsarticle` preprint class, including all
 declarations and the reference list (100 entries), well within the recommended limit of 36 pages. No special
 length justification is required.
 
-The body maintains each headline result with the empirical evidence needed to inspect it (10 tables, 5 figures).
+The body maintains each headline result with the empirical evidence needed to inspect it (11 tables, 6 figures).
 Secondary analyses, derivations, and protocol details are organized into:
 - **Supplementary Material (S1–S43):** sensitivity sweeps, AHP pairwise comparison matrices and consistency proofs,
   corpus parameters and composition, the feature schema, anti-pattern and attention analyses, convergent validity,
@@ -27,12 +27,13 @@ Every table value across both documents is mechanically reconciled against the a
 
 ### Production Note: Figure File Mapping
 
-The manuscript body contains 5 figures and the supplementary material contains 3 figures. For Elsevier production typesetters, the mapping between logical document numbers and graphics files is as follows:
+The manuscript body contains 6 figures and the supplementary material contains 3 figures. For Elsevier production typesetters, the mapping between logical document numbers and graphics files is as follows:
 - **Body Figure 1** (Overview of SaG): `figures/Figure_1.pdf`
 - **Body Figure 2** (Running example: structural and derived graphs): `figures/Figure_2.pdf`
 - **Body Figure 3** (Ranking methods and evaluation): `figures/Figure_3.pdf`
 - **Body Figure 4** (Main Results under LOSO): `figures/Figure_4.pdf`
 - **Body Figure 5** (Critical Set Recall): `figures/Figure_5.pdf`
+- **Body Figure 6** (Learning curve over training architectures): `figures/Figure_6.pdf`
 - **Supplementary Figure S1** (RM composite vs. AHP shrinkage): `figures/Figure_S1.pdf`
 - **Supplementary Figure S2** (Relational attention on the ATM case study): `figures/Figure_S2.pdf`
 - **Supplementary Figure S3** (Proposed explanation layer): `figures/Figure_S3.pdf`

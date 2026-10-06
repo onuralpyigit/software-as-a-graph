@@ -46,21 +46,20 @@ def main() -> None:
     x = [int(k) for k in KS]
     indeg = d["indeg_mean"]
     ax.axhline(indeg, color=INK2, lw=1.2, ls=(0, (4, 2)), zorder=1)
-    ax.text(11.4, indeg, "afferent coupling\n(InDeg, ref.)", va="center", ha="left",
+    ax.text(1.0, indeg + 0.006, "afferent coupling (InDeg, reference)", va="bottom", ha="left",
             color=INK2, fontsize=6.5)
     for name, colour, marker in SERIES:
         m = d["means"][name]
         y = [m[k]["mean"] for k in KS]
         lo = [m[k]["ci95"][0] for k in KS]
         hi = [m[k]["ci95"][1] for k in KS]
-        ax.fill_between(x, lo, hi, color=colour, alpha=0.12, lw=0, zorder=2)
+        ax.fill_between(x, lo, hi, color=colour, alpha=0.08, lw=0, zorder=2)
         ax.plot(x, y, color=colour, lw=2, marker=marker, ms=4.5, zorder=3,
                 markeredgecolor="white", markeredgewidth=0.8, label=name)
-        ax.text(11.4, y[-1], name, va="center", ha="left", color=INK, fontsize=6.5)
     ax.set_xscale("log", base=2)
     ax.set_xticks(x)
     ax.set_xticklabels(KS)
-    ax.set_xlim(0.85, 11.3)
+    ax.set_xlim(0.85, 12.5)
     ax.set_xlabel("Training scenarios per fold, $K$")
     ax.set_ylabel("LOSO Spearman $\\rho$ against $I^*$")
     ax.grid(axis="y", color=GRID, lw=0.6)
