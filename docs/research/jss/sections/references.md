@@ -198,4 +198,4 @@
 
 [99] \.I. O. Yigit, F. Buzluca, [dataset] software-as-a-graph: Replication package (datasets, generator configurations, simulation harnesses, model checkpoints, and analysis scripts), <https://doi.org/10.5281/zenodo.23045204> (2026). [doi:10.5281/zenodo.23045204](https://doi.org/10.5281/zenodo.23045204).
 
-[100] \.I. O. Yigit, F. Buzluca, Software-as-a-graph [software], GitHub, <https://github.com/onuralpyigit/software-as-a-graph/tree/45c870456f372ffe553fe55f579dcc986a0b6eba> (accessed 6 October 2026) (2026).
+[100] \.I. O. Yigit, F. Buzluca, Software-as-a-graph [software], GitHub, <https://github.com/onuralpyigit/software-as-a-graph/tree/56d9bff8ae9583ee9df1d270f0650a3a7c3239e8> (accessed 6 October 2026) (2026).
