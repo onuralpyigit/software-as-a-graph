@@ -110,92 +110,98 @@
 
 [55] R. Geirhos, J.-H. Jacobsen, C. Michaelis, R. Zemel, W. Brendel, M. Bethge, F. A. Wichmann, Shortcut learning in deep neural networks, Nature Machine Intelligence 2 (11) (2020) 665--673. [doi:10.1038/s42256-020-00257-z](https://doi.org/10.1038/s42256-020-00257-z).
 
-[56] T. J. McCabe, A complexity measure, IEEE Transactions on Software Engineering SE-2 (4) (1976) 308--320.
+[56] S. Kapoor, A. Narayanan, Leakage and the reproducibility crisis in machine-learning-based science, Patterns 4 (9) (2023) 100804. [doi:10.1016/j.patter.2023.100804](https://doi.org/10.1016/j.patter.2023.100804).
 
-[57] N. Nagappan, T. Ball, Static analysis tools as early indicators of pre-release defect density, in: Proc. 27th Int. Conf. on Software Engineering (ICSE), 2005, pp. 580--586.
+[57] T. J. McCabe, A complexity measure, IEEE Transactions on Software Engineering SE-2 (4) (1976) 308--320.
 
-[58] T. Zimmermann, R. Premraj, A. Zeller, Predicting defects for Eclipse, in: Proc. 3rd Int. Workshop on Predictor Models in Software Engineering (PROMISE), 2007.
+[58] N. Nagappan, T. Ball, Static analysis tools as early indicators of pre-release defect density, in: Proc. 27th Int. Conf. on Software Engineering (ICSE), 2005, pp. 580--586.
 
-[59] V. Bushong, D. Das, A. Al Maruf, T. Cerny, Using static analysis to address microservice architecture reconstruction, in: 2021 36th IEEE/ACM International Conference on Automated Software Engineering (ASE), IEEE, 2021. [doi:10.1109/ASE51524.2021.9678749](https://doi.org/10.1109/ASE51524.2021.9678749).
+[59] T. Zimmermann, R. Premraj, A. Zeller, Predicting defects for Eclipse, in: Proc. 3rd Int. Workshop on Predictor Models in Software Engineering (PROMISE), 2007.
 
-[60] A. Santos, A. Cunha, N. Macedo, Static-time extraction and analysis of the ROS computation graph, in: 2019 Third IEEE International Conference on Robotic Computing (IRC), IEEE, 2019. [doi:10.1109/IRC.2019.00018](https://doi.org/10.1109/IRC.2019.00018).
+[60] V. Bushong, D. Das, A. Al Maruf, T. Cerny, Using static analysis to address microservice architecture reconstruction, in: 2021 36th IEEE/ACM International Conference on Automated Software Engineering (ASE), IEEE, 2021. [doi:10.1109/ASE51524.2021.9678749](https://doi.org/10.1109/ASE51524.2021.9678749).
 
-[61] C. S. Timperley, T. D\"urschmid, B. Schmerl, D. Garlan, C. Le Goues, ROSDiscover: Statically detecting run-time architecture misconfigurations in robotics systems, in: 2022 IEEE 19th International Conference on Software Architecture (ICSA), 2022, pp. 112--123. [doi:10.1109/ICSA53651.2022.00019](https://doi.org/10.1109/ICSA53651.2022.00019).
+[61] A. Walker, D. Jin, R. Kazman, MicroART: Architectural reconstruction of microservices, in: Proceedings of the IEEE International Conference on Software Architecture Companion (ICSA-C), 2020, pp. 81--84. [doi:10.1109/ICSA-C50368.2020.00023](https://doi.org/10.1109/ICSA-C50368.2020.00023).
 
-[62] R. C. Martin, Agile Software Development: Principles, Patterns, and Practices, Prentice Hall, 2003.
+[62] A. Santos, A. Cunha, N. Macedo, Static-time extraction and analysis of the ROS computation graph, in: 2019 Third IEEE International Conference on Robotic Computing (IRC), IEEE, 2019. [doi:10.1109/IRC.2019.00018](https://doi.org/10.1109/IRC.2019.00018).
 
-[63] D. Rud, A. Schmietendorf, R. R. Dumke, Product metrics for service-oriented infrastructures, in: Applied Software Measurement: Proceedings of the International Workshop on Software Metrics and DASMA Software Metrik Kongress (IWSM/MetriKon 2006), Shaker Verlag, Aachen, Germany, 2006, pp. 161--174.
+[63] C. S. Timperley, T. D\"urschmid, B. Schmerl, D. Garlan, C. Le Goues, ROSDiscover: Statically detecting run-time architecture misconfigurations in robotics systems, in: 2022 IEEE 19th International Conference on Software Architecture (ICSA), 2022, pp. 112--123. [doi:10.1109/ICSA53651.2022.00019](https://doi.org/10.1109/ICSA53651.2022.00019).
 
-[64] J. Bogner, S. Wagner, A. Zimmermann, Automatically measuring the maintainability of service- and microservice-based systems: A literature review, in: Proceedings of the 27th International Workshop on Software Measurement and 12th International Conference on Software Process and Product Measurement (IWSM Mensura '17), ACM, 2017, pp. 107--115. [doi:10.1145/3143434.3143443](https://doi.org/10.1145/3143434.3143443).
+[64] R. C. Martin, Agile Software Development: Principles, Patterns, and Practices, Prentice Hall, 2003.
 
-[65] J. Garcia, D. Popescu, G. Edwards, N. Medvidovic, Toward a catalogue of architectural bad smells, in: Proc. 5th Int. Conf. on the Quality of Software Architectures (QoSA), LNCS 5581, 2009, pp. 146--162.
+[65] D. Rud, A. Schmietendorf, R. R. Dumke, Product metrics for service-oriented infrastructures, in: Applied Software Measurement: Proceedings of the International Workshop on Software Metrics and DASMA Software Metrik Kongress (IWSM/MetriKon 2006), Shaker Verlag, Aachen, Germany, 2006, pp. 161--174.
 
-[66] D. Taibi, V. Lenarduzzi, On the definition of microservice bad smells, IEEE Software 35 (3) (2018) 56--62.
+[66] J. Bogner, S. Wagner, A. Zimmermann, Automatically measuring the maintainability of service- and microservice-based systems: A literature review, in: Proceedings of the 27th International Workshop on Software Measurement and 12th International Conference on Software Process and Product Measurement (IWSM Mensura '17), ACM, 2017, pp. 107--115. [doi:10.1145/3143434.3143443](https://doi.org/10.1145/3143434.3143443).
 
-[67] Z. Li, P. Avgeriou, P. Liang, A systematic mapping study on technical debt and its management, Journal of Systems and Software 101 (2015) 193--220.
+[67] J. Garcia, D. Popescu, G. Edwards, N. Medvidovic, Toward a catalogue of architectural bad smells, in: Proc. 5th Int. Conf. on the Quality of Software Architectures (QoSA), LNCS 5581, 2009, pp. 146--162.
 
-[68] J. Humble, D. Farley, Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation, Addison-Wesley, 2010.
+[68] D. Taibi, V. Lenarduzzi, On the definition of microservice bad smells, IEEE Software 35 (3) (2018) 56--62.
 
-[69] L. C. Freeman, A set of measures of centrality based on betweenness, Sociometry 40 (1) (1977) 35--41.
+[69] Z. Li, P. Avgeriou, P. Liang, A systematic mapping study on technical debt and its management, Journal of Systems and Software 101 (2015) 193--220.
 
-[70] U. Brandes, A faster algorithm for betweenness centrality, Journal of Mathematical Sociology 25 (2) (2001) 163--177.
+[70] J. Humble, D. Farley, Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation, Addison-Wesley, 2010.
 
-[71] S. Brin, L. Page, The anatomy of a large-scale hypertextual web search engine, Computer Networks and ISDN Systems 30 (1--7) (1998) 107--117.
+[71] L. C. Freeman, A set of measures of centrality based on betweenness, Sociometry 40 (1) (1977) 35--41.
 
-[72] M. E. J. Newman, Networks: An Introduction, Oxford University Press, 2010.
+[72] U. Brandes, A faster algorithm for betweenness centrality, Journal of Mathematical Sociology 25 (2) (2001) 163--177.
 
-[73] R. Albert, H. Jeong, A.-L. Barab\'asi, Error and attack tolerance of complex networks, Nature 406 (2000) 378--382. [doi:10.1038/35019019](https://doi.org/10.1038/35019019).
+[73] S. Brin, L. Page, The anatomy of a large-scale hypertextual web search engine, Computer Networks and ISDN Systems 30 (1--7) (1998) 107--117.
 
-[74] A. Varbella, K. Amara, M. El-Assady, B. Gjorgiev, G. Sansavini, PowerGraph: A power grid benchmark dataset for graph neural networks, in: Advances in Neural Information Processing Systems 37 (NeurIPS 2024), Datasets and Benchmarks Track, 2024, arXiv:2402.02827.
+[74] M. E. J. Newman, Networks: An Introduction, Oxford University Press, 2010.
 
-[75] S. K. Maurya, X. Liu, T. Murata, Graph neural networks for fast node ranking approximation, ACM Transactions on Knowledge Discovery from Data 15 (5) (2021) 78:1--78:32. [doi:10.1145/3446217](https://doi.org/10.1145/3446217).
+[75] R. Albert, H. Jeong, A.-L. Barab\'asi, Error and attack tolerance of complex networks, Nature 406 (2000) 378--382. [doi:10.1038/35019019](https://doi.org/10.1038/35019019).
 
-[76] N. Park, A. Kan, X. L. Dong, T. Zhao, C. Faloutsos, Estimating node importance in knowledge graphs using graph neural networks, in: Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining (KDD '19), ACM, 2019, pp. 596--606. [doi:10.1145/3292500.3330855](https://doi.org/10.1145/3292500.3330855).
+[76] A. Varbella, K. Amara, M. El-Assady, B. Gjorgiev, G. Sansavini, PowerGraph: A power grid benchmark dataset for graph neural networks, in: Advances in Neural Information Processing Systems 37 (NeurIPS 2024), Datasets and Benchmarks Track, 2024, arXiv:2402.02827.
 
-[77] P. Velickovi\'c, G. Cucurull, A. Casanova, A. Romero, P. Li\`o, Y. Bengio, Graph attention networks, in: Proc. Int. Conf. on Learning Representations (ICLR), 2018.
+[77] S. K. Maurya, X. Liu, T. Murata, Graph neural networks for fast node ranking approximation, ACM Transactions on Knowledge Discovery from Data 15 (5) (2021) 78:1--78:32. [doi:10.1145/3446217](https://doi.org/10.1145/3446217).
 
-[78] K. Xu, W. Hu, J. Leskovec, S. Jegelka, How powerful are graph neural networks?, in: International Conference on Learning Representations (ICLR), 2019.
+[78] N. Park, A. Kan, X. L. Dong, T. Zhao, C. Faloutsos, Estimating node importance in knowledge graphs using graph neural networks, in: Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining (KDD '19), ACM, 2019, pp. 596--606. [doi:10.1145/3292500.3330855](https://doi.org/10.1145/3292500.3330855).
 
-[79] G. Corso, L. Cavalleri, D. Beaini, P. Li\`o, P. Velickovi\'c, Principal neighbourhood aggregation for graph nets, in: Advances in Neural Information Processing Systems (NeurIPS), Vol. 33, 2020, pp. 13260--13271.
+[79] P. Velickovi\'c, G. Cucurull, A. Casanova, A. Romero, P. Li\`o, Y. Bengio, Graph attention networks, in: Proc. Int. Conf. on Learning Representations (ICLR), 2018.
 
-[80] Z. Chen, L. Chen, S. Villar, J. Bruna, Can graph neural networks count substructures?, in: Advances in Neural Information Processing Systems (NeurIPS), Vol. 33, 2020, pp. 10383--10395.
+[80] K. Xu, W. Hu, J. Leskovec, S. Jegelka, How powerful are graph neural networks?, in: International Conference on Learning Representations (ICLR), 2019.
 
-[81] Z. Hu, Y. Dong, K. Wang, Y. Sun, Heterogeneous graph transformer, in: Proc. The Web Conference (WWW), 2020, pp. 2704--2710. [doi:10.1145/3366423.3380027](https://doi.org/10.1145/3366423.3380027).
+[81] G. Corso, L. Cavalleri, D. Beaini, P. Li\`o, P. Velickovi\'c, Principal neighbourhood aggregation for graph nets, in: Advances in Neural Information Processing Systems (NeurIPS), Vol. 33, 2020, pp. 13260--13271.
 
-[82] Q. Lv, M. Ding, Q. Liu, Y. Chen, W. Feng, S. He, C. Zhou, J. Jiang, Y. Dong, J. Tang, Are we really making much progress? Revisiting, benchmarking, and refining heterogeneous graph neural networks, in: Proc. 27th ACM SIGKDD Conf. on Knowledge Discovery and Data Mining (KDD), 2021, pp. 1150--1160. [doi:10.1145/3447548.3467350](https://doi.org/10.1145/3447548.3467350).
+[82] Z. Chen, L. Chen, S. Villar, J. Bruna, Can graph neural networks count substructures?, in: Advances in Neural Information Processing Systems (NeurIPS), Vol. 33, 2020, pp. 10383--10395.
 
-[83] O. Shchur, M. Mumme, A. Bojchevski, S. G\"unnemann, Pitfalls of graph neural network evaluation, arXiv preprint arXiv:1811.05868 [preprint] (2018). [doi:10.48550/arXiv.1811.05868](https://doi.org/10.48550/arXiv.1811.05868).
+[83] Z. Hu, Y. Dong, K. Wang, Y. Sun, Heterogeneous graph transformer, in: Proc. The Web Conference (WWW), 2020, pp. 2704--2710. [doi:10.1145/3366423.3380027](https://doi.org/10.1145/3366423.3380027).
 
-[84] Q. Huang, H. He, A. Singh, S.-N. Lim, A. R. Benson, Combining label propagation and simple models out-performs graph neural networks, in: Proc. Int. Conf. on Learning Representations (ICLR), 2021.
+[84] Q. Lv, M. Ding, Q. Liu, Y. Chen, W. Feng, S. He, C. Zhou, J. Jiang, Y. Dong, J. Tang, Are we really making much progress? Revisiting, benchmarking, and refining heterogeneous graph neural networks, in: Proc. 27th ACM SIGKDD Conf. on Knowledge Discovery and Data Mining (KDD), 2021, pp. 1150--1160. [doi:10.1145/3447548.3467350](https://doi.org/10.1145/3447548.3467350).
 
-[85] H. Ha, H. Zhang, DeepPerf: Performance prediction for configurable software with deep sparse neural network, in: Proceedings of the 41st International Conference on Software Engineering (ICSE), 2019, pp. 1095--1106. [doi:10.1109/ICSE.2019.00113](https://doi.org/10.1109/ICSE.2019.00113).
+[85] O. Shchur, M. Mumme, A. Bojchevski, S. G\"unnemann, Pitfalls of graph neural network evaluation, arXiv preprint arXiv:1811.05868 [preprint] (2018). [doi:10.48550/arXiv.1811.05868](https://doi.org/10.48550/arXiv.1811.05868).
 
-[86] D. Didona, F. Quaglia, P. Romano, E. Torre, Enhancing performance prediction robustness by combining analytical modeling and machine learning, in: Proceedings of the 6th ACM/SPEC International Conference on Performance Engineering (ICPE), 2015, pp. 145--156. [doi:10.1145/2668930.2688047](https://doi.org/10.1145/2668930.2688047).
+[86] Q. Huang, H. He, A. Singh, S.-N. Lim, A. R. Benson, Combining label propagation and simple models out-performs graph neural networks, in: Proc. Int. Conf. on Learning Representations (ICLR), 2021.
 
-[87] W. Fu, T. Menzies, Easy over hard: A case study on deep learning, in: Proceedings of the 2017 11th Joint Meeting on Foundations of Software Engineering (ESEC/FSE), 2017, pp. 49--60. [doi:10.1145/3106237.3106256](https://doi.org/10.1145/3106237.3106256).
+[87] H. Ha, H. Zhang, DeepPerf: Performance prediction for configurable software with deep sparse neural network, in: Proceedings of the 41st International Conference on Software Engineering (ICSE), 2019, pp. 1095--1106. [doi:10.1109/ICSE.2019.00113](https://doi.org/10.1109/ICSE.2019.00113).
 
-[88] S. Majumder, N. Balaji, K. Brey, W. Fu, T. Menzies, 500+ times faster than deep learning: A case study exploring faster methods for text mining StackOverflow, in: Proceedings of the 15th International Conference on Mining Software Repositories (MSR), 2018, pp. 554--563. [doi:10.1145/3196398.3196424](https://doi.org/10.1145/3196398.3196424).
+[88] J. P. C. Kleijnen, Design and Analysis of Simulation Experiments, 2nd Edition, Springer, 2015. [doi:10.1007/978-3-319-18087-8](https://doi.org/10.1007/978-3-319-18087-8).
 
-[89] T. L. Saaty, The Analytic Hierarchy Process: Planning, Priority Setting, Resource Allocation, McGraw-Hill, 1980.
+[89] D. Didona, F. Quaglia, P. Romano, E. Torre, Enhancing performance prediction robustness by combining analytical modeling and machine learning, in: Proceedings of the 6th ACM/SPEC International Conference on Performance Engineering (ICPE), 2015, pp. 145--156. [doi:10.1145/2668930.2688047](https://doi.org/10.1145/2668930.2688047).
 
-[90] J. Pearl, Probabilistic Reasoning in Intelligent Systems: Networks of Plausible Inference, Morgan Kaufmann, 1988.
+[90] W. Fu, T. Menzies, Easy over hard: A case study on deep learning, in: Proceedings of the 2017 11th Joint Meeting on Foundations of Software Engineering (ESEC/FSE), 2017, pp. 49--60. [doi:10.1145/3106237.3106256](https://doi.org/10.1145/3106237.3106256).
 
-[91] G. H. Hardy, J. E. Littlewood, G. P\'olya, Inequalities, 2nd Edition, Cambridge University Press, 1952.
+[91] S. Majumder, N. Balaji, K. Brey, W. Fu, T. Menzies, 500+ times faster than deep learning: A case study exploring faster methods for text mining StackOverflow, in: Proceedings of the 15th International Conference on Mining Software Repositories (MSR), 2018, pp. 554--563. [doi:10.1145/3196398.3196424](https://doi.org/10.1145/3196398.3196424).
 
-[92] M. Fey, J. E. Lenssen, Fast graph representation learning with PyTorch geometric, in: ICLR Workshop on Representation Learning on Graphs and Manifolds, 2019.
+[92] T. L. Saaty, The Analytic Hierarchy Process: Planning, Priority Setting, Resource Allocation, McGraw-Hill, 1980.
 
-[93] F. Xia, T.-Y. Liu, J. Wang, W.-S. Zhang, H. Li, Listwise approach to learning to rank: Theory and algorithm, in: Proc. 25th Int. Conf. on Machine Learning (ICML), 2008, pp. 1192--1199.
+[93] J. Pearl, Probabilistic Reasoning in Intelligent Systems: Networks of Plausible Inference, Morgan Kaufmann, 1988.
 
-[94] Team SimPy, Simpy: Discrete event simulation for Python [software], Version 4.1.1, <https://pypi.org/project/simpy/4.1.1/> (accessed 9 September 2026) (2023).
+[94] G. H. Hardy, J. E. Littlewood, G. P\'olya, Inequalities, 2nd Edition, Cambridge University Press, 1952.
 
-[95] B. Efron, R. J. Tibshirani, An Introduction to the Bootstrap, Chapman \& Hall, 1993.
+[95] M. Fey, J. E. Lenssen, Fast graph representation learning with PyTorch geometric, in: ICLR Workshop on Representation Learning on Graphs and Manifolds, 2019.
 
-[96] F. Wilcoxon, Individual comparisons by ranking methods, Biometrics Bulletin 1 (6) (1945) 80--83.
+[96] F. Xia, T.-Y. Liu, J. Wang, W.-S. Zhang, H. Li, Listwise approach to learning to rank: Theory and algorithm, in: Proc. 25th Int. Conf. on Machine Learning (ICML), 2008, pp. 1192--1199.
 
-[97] A. Arcuri, L. Briand, A practical guide for using statistical tests to assess randomized algorithms in software engineering, in: Proc. 33rd Int. Conf. on Software Engineering (ICSE), 2011, pp. 1--10. [doi:10.1145/1985793.1985795](https://doi.org/10.1145/1985793.1985795).
+[97] Team SimPy, Simpy: Discrete event simulation for Python [software], Version 4.1.1, <https://pypi.org/project/simpy/4.1.1/> (accessed 9 September 2026) (2023).
 
-[98] C. Nadeau, Y. Bengio, Inference for the generalization error, Machine Learning 52 (2003) 239--281. [doi:10.1023/A:1024068626366](https://doi.org/10.1023/A:1024068626366).
+[98] B. Efron, R. J. Tibshirani, An Introduction to the Bootstrap, Chapman \& Hall, 1993.
 
-[99] \.I. O. Yigit, F. Buzluca, [dataset] software-as-a-graph: Replication package (datasets, generator configurations, simulation harnesses, model checkpoints, and analysis scripts), <https://doi.org/10.5281/zenodo.23045204> (2026). [doi:10.5281/zenodo.23045204](https://doi.org/10.5281/zenodo.23045204).
+[99] F. Wilcoxon, Individual comparisons by ranking methods, Biometrics Bulletin 1 (6) (1945) 80--83.
 
-[100] \.I. O. Yigit, F. Buzluca, Software-as-a-graph [software], GitHub, <https://github.com/onuralpyigit/software-as-a-graph/tree/56d9bff8ae9583ee9df1d270f0650a3a7c3239e8> (accessed 6 October 2026) (2026).
+[100] A. Arcuri, L. Briand, A practical guide for using statistical tests to assess randomized algorithms in software engineering, in: Proc. 33rd Int. Conf. on Software Engineering (ICSE), 2011, pp. 1--10. [doi:10.1145/1985793.1985795](https://doi.org/10.1145/1985793.1985795).
+
+[101] C. Nadeau, Y. Bengio, Inference for the generalization error, Machine Learning 52 (2003) 239--281. [doi:10.1023/A:1024068626366](https://doi.org/10.1023/A:1024068626366).
+
+[102] \.I. O. Yigit, F. Buzluca, [dataset] software-as-a-graph: Replication package (datasets, generator configurations, simulation harnesses, model checkpoints, and analysis scripts), <https://doi.org/10.5281/zenodo.23045204> (2026). [doi:10.5281/zenodo.23045204](https://doi.org/10.5281/zenodo.23045204).
+
+[103] \.I. O. Yigit, F. Buzluca, Software-as-a-graph [software], GitHub, <https://github.com/onuralpyigit/software-as-a-graph/tree/56d9bff8ae9583ee9df1d270f0650a3a7c3239e8> (accessed 6 October 2026) (2026).

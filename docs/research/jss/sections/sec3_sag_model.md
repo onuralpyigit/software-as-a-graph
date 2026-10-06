@@ -15,23 +15,25 @@ A distributed system is described as a typed, weighted, directed multigraph $$\t
 
 **Table 1.** Entity types and structural edge types in the SaG model.
 
-| **Entity Type ($\mathcal{T}_V$)**      | **Architectural Role**                        | **Concrete System Examples**                   |
-|:---------------------------------------|:----------------------------------------------|:-----------------------------------------------|
-| **Application** ($V_{\text{app}}$)     | Process producing/consuming messages          | ROS 2 node, Kafka microservice, MQTT client    |
-| **Broker** ($V_{\text{broker}}$)       | Message routing and queuing intermediary      | RabbitMQ exchange, Mosquitto, EMQX broker      |
-| **Topic** ($V_{\text{topic}}$)         | Named logical communication channel           | `/sensor/lidar`, `orders.payment.completed`    |
-| **Execution Host** ($V_{\text{host}}$) | Physical or virtualized execution environment | Bare-metal server, Kubernetes worker, Cloud VM |
-| **Library** ($V_{\text{lib}}$)         | Shared software package or runtime dependency | Kafka client, OpenCV, Protobuf runtime         |
-| **Structural Edge ($\mathcal{T}_E$)**  | **Direction**                                 | **Semantic Meaning**                           |
-| `PUBLISHES_TO` / `SUBSCRIBES_TO`       | App/Library $\to$ Topic                       | Component publishes to / consumes from topic   |
-| `ROUTES`                               | Broker $\to$ Topic                            | Broker manages and routes topic traffic        |
-| `RUNS_ON`                              | App/Broker $\to$ Host                         | Process is hosted on host                      |
-| `CONNECTS_TO`                          | Host $\to$ Host                               | Network link between hosts                     |
-| `USES`                                 | App $\to$ Library                             | Application links to shared library            |
+| **Panel A: Entity Types ($\mathcal{T}_V$)**          |                                               |                                                |
+|:-----------------------------------------------------|:----------------------------------------------|:-----------------------------------------------|
+| **Entity Type**                                      | **Architectural Role**                        | **Concrete System Examples**                   |
+| **Application** ($V_{\text{app}}$)                   | Process producing/consuming messages          | ROS 2 node, Kafka microservice, MQTT client    |
+| **Broker** ($V_{\text{broker}}$)                     | Message routing and queuing intermediary      | RabbitMQ exchange, Mosquitto, EMQX broker      |
+| **Topic** ($V_{\text{topic}}$)                       | Named logical communication channel           | `/sensor/lidar`, `orders.payment.completed`    |
+| **Execution Host** ($V_{\text{host}}$)               | Physical or virtualized execution environment | Bare-metal server, Kubernetes worker, Cloud VM |
+| **Library** ($V_{\text{lib}}$)                       | Shared software package or runtime dependency | Kafka client, OpenCV, Protobuf runtime         |
+| **Panel B: Structural Edge Types ($\mathcal{T}_E$)** |                                               |                                                |
+| **Structural Edge**                                  | **Direction**                                 | **Semantic Meaning**                           |
+| `PUBLISHES_TO` / `SUBSCRIBES_TO`                     | App/Library $\to$ Topic                       | Component publishes to / consumes from topic   |
+| `ROUTES`                                             | Broker $\to$ Topic                            | Broker manages and routes topic traffic        |
+| `RUNS_ON`                                            | App/Broker $\to$ Host                         | Process is hosted on host                      |
+| `CONNECTS_TO`                                        | Host $\to$ Host                               | Network link between hosts                     |
+| `USES`                                               | App $\to$ Library                             | Application links to shared library            |
 
 ## 3.2 Quality-of-Service Link Weighting
 
-A `RELIABLE` topic with `TRANSIENT_LOCAL` durability couples services more strongly than a `BEST_EFFORT` telemetry stream. Each topic $t$ therefore has a weight $w(t) \in (0, 1]$ combining its QoS policies (reliability, durability, priority) with payload size and publication frequency. The policy weights come from an Analytic Hierarchy Process (AHP) [89] pairwise-comparison matrix defined independently of any target vector ($CR = 0.016$; Supplementary §S6). Declared QoS policies turned out to carry no measurable signal on either the reachability or the queue-flow simulator (§§6.1 and 6.2); for $I^*$ this is largely fixed by design, because it barely reads QoS (§4.3). The dependency counts reported in this paper are unweighted.
+A `RELIABLE` topic with `TRANSIENT_LOCAL` durability couples services more strongly than a `BEST_EFFORT` telemetry stream. Each topic $t$ therefore has a weight $w(t) \in (0, 1]$ combining its QoS policies (reliability, durability, priority) with payload size and publication frequency. The policy weights come from an Analytic Hierarchy Process (AHP) [92] pairwise-comparison matrix defined independently of any target vector ($CR = 0.016$; Supplementary §S6). Declared QoS policies turned out to carry no measurable signal on either the reachability or the queue-flow simulator (§§6.1 and 6.2); for $I^*$ this is largely fixed by design, because it barely reads QoS (§4.3). The dependency counts reported in this paper are unweighted.
 
 ## 3.3 Logical Dependency Projection (`DEPENDS_ON`)
 
@@ -48,10 +50,10 @@ Structural edges do not show how failures spread: a subscriber depends on a publ
 |      **5**      | `app_to_lib`            | Application $\to$ Shared Library it `USES`                                  | $H(w_V(\text{app}), w_V(\text{lib}))$                                    |
 | **6**$^\dagger$ | `broker_to_broker`      | Broker $\leftrightarrow$ Broker (shared fault-domain colocation, symmetric) | $w_V(\text{host})$                                                       |
 
-Rules 1 and 2 combine the topics $T$ connecting a pair by probabilistic union [90], so multiple failure paths strengthen the connection; Rule 5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ [91]. Rule 1 captures sequential cascades (a failed publisher starves its subscribers) and Rule 5 simultaneous blasts (a crashed library fails every Application using it); neither is stated explicitly in a manifest. Rules 2, 3, 4 and 6 are formalized for architectural completeness across host and broker tiers, but are not exercised in the present Application-level evaluation.
+Rules 1 and 2 combine the topics $T$ connecting a pair by probabilistic union [93], so multiple failure paths strengthen the connection; Rule 5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ [94]. Rule 1 captures sequential cascades (a failed publisher starves its subscribers) and Rule 5 simultaneous blasts (a crashed library fails every Application using it); neither is stated explicitly in a manifest. Rules 2, 3, 4 and 6 are formalized for architectural completeness across host and broker tiers, but are not exercised in the present Application-level evaluation.
 
 **Remark 1 (the dependency count is a typed two-hop count).** Let $G_{\text{flow}}$ be the Application–Library projection (Rules 1 and 5) and $v$ an Application. By construction, $$\tag{2}
-\texttt{InDeg}(v) \;=\; \bigl|\{\,u \neq v : \exists t \in V_{\text{topic}},\; (v, t) \in \texttt{PUBLISHES\_TO} \wedge (u, t) \in \texttt{SUBSCRIBES\_TO}\,\}\bigr|,$$ because Rule 5 edges end at Libraries, so every edge into an Application is a Rule 1 edge, and parallel topics between a pair collapse into one edge. The right side is publish–subscribe afferent coupling [62, 63], a typed two-hop query on the raw multigraph; the projection defines which query to use (the equality holds exactly on all seventeen corpus graphs). The derivation adds value beyond this count: including Rule 5 raises the agreement of transitive reach with $I^*$ by $+0.058$ (9 of 12 folds, Holm $p = 0.0068$; §6.1). Because $I^*$’s first propagation wave matches this set (§4.4), `InDeg` and its transitive version `Reach` serve as both established structural baselines and first-order analytical references. The in-degree *feature* the learners receive also follows `USES` links; the two differ for 940 of the 1,321 Applications, with per-fold rank agreement $\rho = 0.55$–$1.00$ (Supplementary §S13).
+\texttt{InDeg}(v) \;=\; \bigl|\{\,u \neq v : \exists t \in V_{\text{topic}},\; (v, t) \in \texttt{PUBLISHES\_TO} \wedge (u, t) \in \texttt{SUBSCRIBES\_TO}\,\}\bigr|,$$ because Rule 5 edges end at Libraries, so every edge into an Application is a Rule 1 edge, and parallel topics between a pair collapse into one edge. The right side is publish–subscribe afferent coupling [64, 65], a typed two-hop query on the raw multigraph; the projection defines which query to use (the equality holds exactly on all seventeen corpus graphs). The derivation adds value beyond this count: including Rule 5 raises the agreement of transitive reach with $I^*$ by $+0.058$ (9 of 12 folds, Holm $p = 0.0068$; §6.1). Because $I^*$’s first propagation wave matches this set (§4.4), `InDeg` and its transitive version `Reach` serve as both established structural baselines and first-order analytical references. The in-degree *feature* the learners receive is computed across all incoming edges on $G_{\text{analysis}}$ (including incoming library links) and normalized by graph size, whereas the `InDeg` reference counts raw incoming Rule 1 publisher-subscriber edges between Applications; the two differ for 940 of the 1,321 Applications, with per-fold rank agreement $\rho = 0.55$–$1.00$ (Supplementary §S13).
 
 ![Figure 2](../latex/figures/Figure_2.png)
 

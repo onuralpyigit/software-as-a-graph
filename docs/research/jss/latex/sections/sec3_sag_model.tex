@@ -30,7 +30,9 @@ where $V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lll}
 \toprule
-\textbf{Entity Type ($\mathcal{T}_V$)} & \textbf{Architectural Role} & \textbf{Concrete System Examples} \\
+\multicolumn{3}{l}{\textbf{Panel A: Entity Types ($\mathcal{T}_V$)}} \\
+\midrule
+\textbf{Entity Type} & \textbf{Architectural Role} & \textbf{Concrete System Examples} \\
 \midrule
 \textbf{Application} ($V_{\text{app}}$) & Process producing/consuming messages & ROS~2 node, Kafka microservice, MQTT client \\
 \textbf{Broker} ($V_{\text{broker}}$) & Message routing and queuing intermediary & RabbitMQ exchange, Mosquitto, EMQX broker \\
@@ -38,7 +40,9 @@ where $V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\
 \textbf{Execution Host} ($V_{\text{host}}$) & Physical or virtualized execution environment & Bare-metal server, Kubernetes worker, Cloud VM \\
 \textbf{Library} ($V_{\text{lib}}$) & Shared software package or runtime dependency & Kafka client, OpenCV, Protobuf runtime \\
 \midrule
-\textbf{Structural Edge ($\mathcal{T}_E$)} & \textbf{Direction} & \textbf{Semantic Meaning} \\
+\multicolumn{3}{l}{\textbf{Panel B: Structural Edge Types ($\mathcal{T}_E$)}} \\
+\midrule
+\textbf{Structural Edge} & \textbf{Direction} & \textbf{Semantic Meaning} \\
 \midrule
 \texttt{PUBLISHES\_TO} / \texttt{SUBSCRIBES\_TO} & App/Library $\to$ Topic & Component publishes to / consumes from topic \\
 \texttt{ROUTES} & Broker $\to$ Topic & Broker manages and routes topic traffic \\
@@ -88,7 +92,7 @@ Rules~1 and~2 combine the topics $T$ connecting a pair by probabilistic union \c
 \label{eq:indeg}
 \texttt{InDeg}(v) \;=\; \bigl|\{\,u \neq v : \exists t \in V_{\text{topic}},\; (v, t) \in \texttt{PUBLISHES\_TO} \wedge (u, t) \in \texttt{SUBSCRIBES\_TO}\,\}\bigr|,
 \end{equation}
-because Rule~5 edges end at Libraries, so every edge into an Application is a Rule~1 edge, and parallel topics between a pair collapse into one edge. The right side is publish--subscribe afferent coupling \cite{martin2003agile,rud2006ais}, a typed two-hop query on the raw multigraph; the projection defines which query to use (the equality holds exactly on all seventeen corpus graphs). The derivation adds value beyond this count: including Rule~5 raises the agreement of transitive reach with $I^*$ by $+0.058$ (9 of 12 folds, Holm $p = 0.0068$; Section~\ref{sec:rq1}). Because $I^*$'s first propagation wave matches this set (Section~\ref{sec:4.4}), \texttt{InDeg} and its transitive version \texttt{Reach} serve as both established structural baselines and first-order analytical references. The in-degree \emph{feature} the learners receive also follows \texttt{USES} links; the two differ for 940 of the 1{,}321 Applications, with per-fold rank agreement $\rho = 0.55$--$1.00$ (Supplementary Section~\ref{supp:features}).
+because Rule~5 edges end at Libraries, so every edge into an Application is a Rule~1 edge, and parallel topics between a pair collapse into one edge. The right side is publish--subscribe afferent coupling \cite{martin2003agile,rud2006ais}, a typed two-hop query on the raw multigraph; the projection defines which query to use (the equality holds exactly on all seventeen corpus graphs). The derivation adds value beyond this count: including Rule~5 raises the agreement of transitive reach with $I^*$ by $+0.058$ (9 of 12 folds, Holm $p = 0.0068$; Section~\ref{sec:rq1}). Because $I^*$'s first propagation wave matches this set (Section~\ref{sec:4.4}), \texttt{InDeg} and its transitive version \texttt{Reach} serve as both established structural baselines and first-order analytical references. The in-degree \emph{feature} the learners receive is computed across all incoming edges on $G_{\text{analysis}}$ (including incoming library links) and normalized by graph size, whereas the \texttt{InDeg} reference counts raw incoming Rule~1 publisher-subscriber edges between Applications; the two differ for 940 of the 1{,}321 Applications, with per-fold rank agreement $\rho = 0.55$--$1.00$ (Supplementary Section~\ref{supp:features}).
 
 \begin{figure}[htbp]
 \centering
