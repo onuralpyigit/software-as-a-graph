@@ -16,7 +16,7 @@ The corpus includes 2,812 components from seventeen architectures (Table 3). Twe
 
 The five open-source system models (Autoware.universe on ROS 2, EdgeX Foundry, Home Assistant, and meshes based on Online Boutique and Train-Ticket) were each hand-authored by the first author from public architectural documentation, not extracted from source code or manifests, and no second modeler re-derived any of them. Brokers, QoS profiles, code metrics and host specifications are partly assumed. Online Boutique and Train-Ticket are RPC systems re-expressed as event-driven publish–subscribe meshes: synchronous calls become one-way event, command or request topics on assumed brokers, with no reply topics, so the models drop request–reply coupling, timeouts, thread-pool exhaustion and synchronous backpressure (Supplementary §S15). No topology in this study therefore comes from a real deployment manifest, and RQ3 tests transfer to stylized single-modeler models, not to production systems.
 
-All datasets, harnesses, checkpoints and result artifacts are on Zenodo (see Data Availability), and the public repository documents each experiment’s protocol, hyperparameters, `make` target and artifacts (<https://github.com/onuralpyigit/software-as-a-graph/tree/45c870456f372ffe553fe55f579dcc986a0b6eba/docs/research/jss/experiments>).
+All datasets, harnesses, checkpoints and result artifacts are on Zenodo (see Data Availability), and the public repository documents each experiment’s protocol, hyperparameters, `make` target and artifacts (<https://github.com/onuralpyigit/software-as-a-graph/tree/56d9bff8ae9583ee9df1d270f0650a3a7c3239e8/docs/research/jss/experiments>).
 
 ## 5.2 Rankers and References
 
