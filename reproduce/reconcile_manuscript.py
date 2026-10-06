@@ -1805,9 +1805,9 @@ def check_dependency_graph(rep: Report) -> None:
         a15 = _load("idyn_rate_expansion.json") or {}
         _quote(rep, "abstract", _tex("abstract.tex"),
                r"reaches Spearman's \$\\rho = ([\d.]+)\$.*?"
-               r"counting direct dependents \(\$\\rho = ([\d.]+)\$[;)].*?"
+               r"[Cc]ounting direct dependents \(\$\\rho = ([\d.]+)\$[;)].*?"
                r"rate-weighted first-order approximation reaches \$\\rho = ([\d.]+)\$.*?"
-               r"trained on simulator labels \(\$\\rho = ([\d.]+)\$[;)]",
+               r"trained on (?:simulator|its) labels \(\$\\rho = ([\d.]+)\$[;)]",
                [(1, means["gl_proj_qos16_cap"]["loso_mean_rho"]), (2, tf["summary"]["InDeg"]["loso_mean_rho"]),
                 (3, a15["summary"]["loso"]["Rate-I_dyn"]["i_dyn"]["mean"]),
                 (4, arms["gbm_dep_qos_dyn"]["i_dyn"])])
