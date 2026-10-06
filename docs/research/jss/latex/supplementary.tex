@@ -69,6 +69,36 @@ Overlap@$K$             & Top-$K$ identification set overlap ($K = 0.20\,|V_{\te
 \end{tabular}
 \end{table}
 
+\section{Entity Weights and the Infrastructure Dependency Rules}
+\label{supp:weights}
+
+\noindent\textbf{Entity weights.} An Application's $w_V$ is the power mean ($p = 3$) of the QoS weights $w(t)$ of its topics. A Library $\ell$ takes the largest weight among its topics $T(\ell)$ and consuming Applications $C(\ell)$, amplified by its fan-out:
+\begin{equation*}
+w_V(\ell) = \min\Bigl(1,\; \max\bigl(\{w(t)\}_{t \in T(\ell)} \cup \{w_V(a)\}_{a \in C(\ell)}\bigr) \cdot \bigl(1 + 0.15 \log_2(1 + |C(\ell)|)\bigr)\Bigr).
+\end{equation*}
+These weights enter the QoS-weighted node features and the Rule~5 edge weight. The dependency counts reported in the main text are unweighted, and declared QoS policies carried no measurable signal on either the reachability or the queue-flow simulator (main text, Section~\ref{M-sec:3.2}).
+
+\noindent\textbf{Infrastructure rules.} Table~\ref{tab:supp-rules} lists the four \texttt{DEPENDS\_ON} rules for brokers and hosts that complete the derivation for system-level analysis. None is exercised by the Application-level evaluation of the main text, which ranks Applications on the Rules~1 and~5 projection; evaluating them by ranking Brokers and Hosts is future work (main text, Section~\ref{M-sec:limitations}). Rule~2 combines the topics a component shares with a broker by probabilistic union, as Rule~1 does.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Infrastructure \texttt{DEPENDS\_ON} rules (not evaluated).}
+\label{tab:supp-rules}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{clll}
+\toprule
+\textbf{Rule} & \textbf{Dependency Category} & \textbf{Structural Pattern ($\text{Dependent} \to \text{Dependency}$)} & \textbf{Derived Weight ($w$)} \\
+\midrule
+\textbf{2} & \texttt{app\_to\_broker} & Publisher/Subscriber $\to$ Broker routing its topics & $1 - \prod_{t \in T}(1 - w(t))$ \\
+\textbf{3} & \texttt{host\_to\_host} & Host $\to$ Host (lifted from inter-host app dependencies) & $\max_{u \in \text{hosted}(h_1), v \in \text{hosted}(h_2)} w_E(u \to v)$ \\
+\textbf{4} & \texttt{host\_to\_broker} & Host $\to$ Broker (lifted from hosted app dependencies) & $\max_{u \in \text{hosted}(h)} w_E(u \to b)$ \\
+\textbf{6} & \texttt{broker\_to\_broker} & Broker $\leftrightarrow$ Broker (shared fault-domain colocation, symmetric) & $w_V(\text{host})$ \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
 \section{Heterogeneous Graph Transformer Message-Passing Formulation}
 \label{supp:hgt}
 
