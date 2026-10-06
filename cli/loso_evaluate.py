@@ -165,6 +165,12 @@ _HOMOGENEOUS_VARIANTS = (
     "gl_proj_qos16_cap_idyn_rate",
     # Amendment 17b: two more node-order permutation seeds.
     "gl_proj_qos16_cap_perm18", "gl_proj_qos16_cap_perm19",
+    # Amendment 19: sum aggregation on the raw multigraph, rate-fed I_dyn arms,
+    # the tie-aware listwise loss and the small-capacity arm.
+    "gin_full_qos16_rev", "gin_full_qos16_rev_min", "gin_full_qos16_rev_const",
+    "gl_proj_qos16_cap_idyn_r", "gl_proj_qos16_cap_idyn_re", "gin_proj_qos16_idyn_re",
+    "gl_proj_qos16_cap_tie", "gl_full_qos16_cap_rev_tie", "gl_proj_qos16_cap_tie_perm",
+    "gl_proj_qos16_cap_tie_perm18", "gl_proj_qos16_cap_tie_perm19", "gl_proj_qos16_s",
 )
 _HGT_VARIANTS = (
     "hgl", "hgl_qos", "hgl_qos_uni", "hgl_qos_prior", "topology_rm", "hgl_proj_qos",
@@ -211,6 +217,9 @@ class ScenarioBundle:
     #: QoS is off. Set per variant by ``_variant_bundle``; empty for every reported arm.
     drop_features: Tuple[str, ...] = ()
     qos_exempt: Tuple[str, ...] = ()
+    #: Amendment 19: declared-rate inputs (``"none"``, ``"node"``, ``"node_edge"``),
+    #: set by ``_variant_bundle`` together with the columns it adds.
+    rate_inputs: str = "none"
 
 
 @dataclass
@@ -544,7 +553,47 @@ def _variant_bundle(
     source = _registry.label_source_for(variant)
     if relabel and source != "i_star":
         b = replace(b, simulation=_external_labels(source, b))
+    rate = _registry.rate_inputs_for(variant)
+    if rate != "none":
+        b = _with_rates(b, rate)
     return b
+
+
+_RATE_CACHE: Dict[str, Tuple[Dict[str, float], Dict[Tuple[str, str], float]]] = {}
+
+
+def _with_rates(bundle: ScenarioBundle, rate: str) -> ScenarioBundle:
+    """``bundle`` carrying Amendment 19's declared-rate inputs.
+
+    Every node gets a ``pub_rate`` metric (0.0 for nodes that publish nothing and
+    for Libraries); with ``"node_edge"`` every edge also gets ``rate_share``, its
+    max-normalised share of Eq. 7 (0.0 for Rule-5 edges). Copies, never mutates:
+    the bundle's graph and metrics are shared with every other variant.
+    """
+    from reproduce.main_table import rate_inputs
+
+    key = f"{bundle.cache_dir}::{bundle.scenario_id}"
+    if key not in _RATE_CACHE:
+        _RATE_CACHE[key] = rate_inputs(bundle.scenario_id, cache_dir=bundle.cache_dir)
+    pub_rate, share = _RATE_CACHE[key]
+    sm = {nid: dict(vals) for nid, vals in bundle.structural.items()}
+    for nid, r in pub_rate.items():
+        sm.setdefault(nid, {})["pub_rate"] = r
+    graph = bundle.graph
+    if rate == "node_edge":
+        graph = graph.copy()
+        for u, v, attrs in graph.edges(data=True):
+            attrs["rate_share"] = share.get((str(u), str(v)), 0.0)
+    return replace(bundle, structural=sm, graph=graph, rate_inputs=rate)
+
+
+def _extra_keys(bundle: ScenarioBundle) -> Dict[str, Tuple[str, ...]]:
+    """``networkx_to_hetero_data`` keyword arguments for the bundle's rate inputs."""
+    rate = getattr(bundle, "rate_inputs", "none")
+    return {
+        "extra_node_keys": () if rate == "none" else ("pub_rate",),
+        "extra_edge_keys": ("rate_share",) if rate == "node_edge" else (),
+    }
 
 
 def _dependency_bundle(bundle: Optional[ScenarioBundle]) -> Optional[ScenarioBundle]:
@@ -608,6 +657,7 @@ def _build_training_hetero(
         append_prior=bool(append_prior),
         drop_feature_keys=getattr(bundle, "drop_features", ()),
         qos_exempt_keys=getattr(bundle, "qos_exempt", ()),
+        **_extra_keys(bundle),
     ).hetero_data
 
 
@@ -701,6 +751,7 @@ def run_one_fold(
     device: Optional[str] = "auto",
     resume: bool = False,
     cache_dir: Optional[Path] = None,
+    train_subset: Optional[Tuple[int, int]] = None,
 ) -> FoldResult:
     """
     One LOSO fold: train on N-1 scenarios with multi-seed, predict on held-out.
@@ -725,7 +776,8 @@ def run_one_fold(
     else:
         target_device = torch.device("cpu")
     target_device = _resolve_device(device)
-    plan = _plan_fold(bundles, holdout_idx, layers, auto_layers, inner_val, workdir)
+    plan = _plan_fold(bundles, holdout_idx, layers, auto_layers, inner_val, workdir,
+                      train_subset=train_subset)
     cfg = _seed_cfg(
         layer=layer, epochs=epochs, lr=lr, hidden=hidden, heads=heads,
         layers=layers, dropout=dropout, mode=mode, variant=variant,
@@ -788,10 +840,18 @@ def _plan_fold(
     auto_layers: bool,
     inner_val: str,
     workdir: Path,
+    train_subset: Optional[Tuple[int, int]] = None,
 ) -> _FoldPlan:
-    """Resolve holdout/primary/inductive/val membership and depth for one fold."""
+    """Resolve holdout/primary/inductive/val membership and depth for one fold.
+
+    ``train_subset`` = ``(K, draw)`` keeps K of the training scenarios (Amendment
+    19's learning curve): the first K of a permutation seeded by the draw and the
+    holdout, so subsets are nested in K. ``None`` keeps every training scenario.
+    """
     holdout = bundles[holdout_idx]
     train_set = [b for i, b in enumerate(bundles) if i != holdout_idx]
+    if train_subset is not None and train_subset[0] < len(train_set):
+        train_set = _train_subset(train_set, holdout.scenario_id, *train_subset)
     train_ids = [b.scenario_id for b in train_set]
 
     assert holdout.scenario_id not in train_ids, (
@@ -842,6 +902,22 @@ def _plan_fold(
         effective_layers=effective_layers, fold_dir=fold_dir,
     )
 
+
+
+def _train_subset(
+    train_set: List[ScenarioBundle], holdout_id: str, k: int, draw: int,
+) -> List[ScenarioBundle]:
+    """The first ``k`` training scenarios of a seeded permutation (Amendment 19).
+
+    The seed hashes the draw and the holdout with SHA-256, so it is the same in
+    every process (``hash()`` is salted) and the subsets are nested in ``k``.
+    """
+    if k < 1:
+        raise ValueError(f"--max-train must be at least 1, got {k}")
+    seed = int(hashlib.sha256(f"a19:{draw}:{holdout_id}".encode()).hexdigest()[:8], 16)
+    ids = sorted(b.scenario_id for b in train_set)
+    keep = {ids[i] for i in np.random.default_rng(seed).permutation(len(ids))[:k]}
+    return [b for b in train_set if b.scenario_id in keep]
 
 
 #: Keys of one fit's configuration. Collected in one place so the fingerprint and
@@ -1092,6 +1168,7 @@ def _run_seed(
                 append_prior=bool(use_prior),
                 drop_feature_keys=primary.drop_features,
                 qos_exempt_keys=primary.qos_exempt,
+                **_extra_keys(primary),
             )
             data = conv.hetero_data
             if graft_edges:
@@ -1149,7 +1226,8 @@ def _run_seed(
                                    num_heads=heads,
                                    num_layers=layers, dropout=dropout,
                                    edge_dim=edge_dim, topo_prior=bool(use_prior),
-                                   reverse_edges=_registry.reverse_edges_for(variant))
+                                   reverse_edges=_registry.reverse_edges_for(variant),
+                                   extra_node_cols=len(_extra_keys(primary)["extra_node_keys"]))
             model.to(target_device)
             best_path = ckpt_dir / "best_model.pt"
             if best_path.exists():
@@ -1168,7 +1246,8 @@ def _run_seed(
                                      # maintainability head is regressed
                                      # toward a fabricated zero, which the
                                      # HGT branch has never done.
-                                     dimension_mask=conv.dimension_mask)
+                                     dimension_mask=conv.dimension_mask,
+                                     ranking_loss=_registry.ranking_loss_for(variant))
                 trainer.train(
                     training_input,
                     primary_data=data if inductive_data else None,
@@ -1183,6 +1262,7 @@ def _run_seed(
                 append_prior=bool(use_prior),
                 drop_feature_keys=holdout.drop_features,
                 qos_exempt_keys=holdout.qos_exempt,
+                **_extra_keys(holdout),
             )
             data_h = conv_h.hetero_data
             if graft_edges:
@@ -1596,9 +1676,9 @@ def _worker_init(cache_dir: str, skip: List[str], expected_ids: List[str],
 
 def _worker_seed(job: Tuple) -> Tuple[int, int, Optional[Dict[str, Any]], Optional[str], bool]:
     (k, seed, cfg, workdir, layers, auto_layers, inner_val,
-     device_str, resume, cache_dir) = job
+     device_str, resume, cache_dir, train_subset) = job
     plan = _plan_fold(_WORKER_STATE["bundles"], k, layers, auto_layers,
-                      inner_val, Path(workdir))
+                      inner_val, Path(workdir), train_subset=train_subset)
     errors: List[str] = []
     info: Dict[str, Any] = {}
     m = _seed_metrics(
@@ -1613,6 +1693,7 @@ def _run_folds_parallel(
     target_device: torch.device, workdir: Path, jobs: int, resume: bool,
     cache_dir: Optional[Path], skip: List[str], torch_threads: int,
     expected_ids: List[str], auto_layers: bool, inner_val: str,
+    train_subset: Optional[Tuple[int, int]] = None,
 ) -> Dict[str, List[Dict[str, Any]]]:
     """Dispatch every (fold, seed) fit to a process pool.
 
@@ -1632,7 +1713,7 @@ def _run_folds_parallel(
 
     queue = [
         (k, seed, cfg, str(workdir), cfg["layers"], auto_layers, inner_val,
-         str(target_device), resume, str(cache_dir))
+         str(target_device), resume, str(cache_dir), train_subset)
         for k in range(len(plans)) for seed in seeds
     ]
     logger.info("Dispatching %d fits (%d folds x %d seeds) across %d workers.",
@@ -1710,6 +1791,7 @@ def run_loso(
     skip: Optional[List[str]] = None,
     torch_threads: int = 1,
     preflight: bool = True,
+    train_subset: Optional[Tuple[int, int]] = None,
 ) -> LOSOReport:
     """Run leave-one-scenario-out across all loaded bundles.
 
@@ -1744,7 +1826,8 @@ def run_loso(
     )
     target_device = _resolve_device(device)
     plans = [
-        _plan_fold(bundles, k, layers, auto_layers, inner_val, workdir)
+        _plan_fold(bundles, k, layers, auto_layers, inner_val, workdir,
+                   train_subset=train_subset)
         for k in range(len(bundles))
     ]
 
@@ -1763,7 +1846,7 @@ def run_loso(
             plans, seeds, cfg, target_device, workdir=workdir, jobs=jobs,
             resume=resume, cache_dir=cache_dir, skip=skip or [],
             torch_threads=torch_threads, expected_ids=[b.scenario_id for b in bundles],
-            auto_layers=auto_layers, inner_val=inner_val,
+            auto_layers=auto_layers, inner_val=inner_val, train_subset=train_subset,
         )
     else:
         per_fold = _run_folds_serial(
@@ -2061,6 +2144,11 @@ def parse_args() -> argparse.Namespace:
                    help="Comma-separated training seeds")
     p.add_argument("--skip", default="",
                    help="Comma-separated scenario id substrings to skip")
+    p.add_argument("--max-train", type=int, default=None,
+                   help="Train each fold on this many of its training scenarios "
+                        "(Amendment 19 learning curve); default: all of them")
+    p.add_argument("--subset-seed", type=int, default=0,
+                   help="Which seeded subset --max-train draws (nested in K)")
     p.add_argument("--mode", default="gnn", choices=["gnn", "rm"],
                    help="Prediction mode for evaluation (default: gnn)")
     p.add_argument(
@@ -2257,6 +2345,8 @@ def main() -> int:
         skip=skip,
         torch_threads=args.torch_threads,
         preflight=args.preflight,
+        train_subset=(None if args.max_train is None
+                      else (args.max_train, args.subset_seed)),
     )
     elapsed = time.time() - t0
     logger.info("LOSO complete in %.1f s.", elapsed)

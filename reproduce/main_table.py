@@ -128,6 +128,11 @@ CONTROL_VARIANTS = [
     "gl_full_qos16_cap_rev",    # GAT-QoS-R: GAT-QoS with every edge also passed in reverse
     "gl_full_qos16_cap_rev_min",  # GAT-QoS-R-min: oracle-aligned features zeroed (Amendment 17)
     "gl_full_qos16_cap_min",      # GAT-QoS-min: oracle-aligned features zeroed (Amendment 17)
+    # Amendment 19 controls, LOSO/zero-shot only
+    "gin_full_qos16_rev",         # GIN-QoS-R: sum aggregation, every edge also reversed
+    "gin_full_qos16_rev_min",     # GIN-QoS-R-min: oracle-aligned features zeroed
+    "gin_full_qos16_rev_const",   # GIN-QoS-R-const: every node feature zeroed
+    "gl_full_qos16_cap_rev_tie",  # GAT-QoS-R-tie: tie-aware listwise loss
 ]
 
 DEFAULT_SEEDS = [42, 123, 456, 789, 2024]
@@ -987,6 +992,29 @@ def rate_idyn_prior(scenario: str, cache_dir: Optional[Path] = None) -> Dict[str
     cache_topo = cache_dir / "topology.json"
     path = cache_topo if cache_topo.exists() else SCENARIOS_DIR / f"{scenario}.json"
     return _rank_normalise(closed_forms(json.loads(path.read_text()))["Rate-I_dyn"])
+
+
+def rate_inputs(
+    scenario: str, cache_dir: Optional[Path] = None,
+) -> Tuple[Dict[str, float], Dict[Tuple[str, str], float]]:
+    """Amendment 19 rate inputs: ``(pub_rate, rate_share)``.
+
+    ``pub_rate`` is each Application's summed declared publication rate (the
+    ``PubRate`` column the gradient-boosted queue-flow approximation reads),
+    rank-normalised as :func:`rate_idyn_prior`. ``rate_share`` is each Rule-1
+    edge's share of Eq. 7, divided by the scenario's largest share so it lies in
+    [0, 1]. Topology source as in :func:`indeg_prior`.
+    """
+    from reproduce.idyn_rate_expansion import closed_forms, rate_edge_shares
+
+    cache_dir = Path(cache_dir) if cache_dir is not None else _find_cache_dir(scenario)
+    cache_topo = cache_dir / "topology.json"
+    path = cache_topo if cache_topo.exists() else SCENARIOS_DIR / f"{scenario}.json"
+    topo = json.loads(path.read_text())
+    shares = rate_edge_shares(topo)
+    top = max(shares.values(), default=0.0)
+    scaled = {e: (s / top if top > 0 else 0.0) for e, s in shares.items()}
+    return _rank_normalise(closed_forms(topo)["PubRate"]), scaled
 
 
 def indeg_prior(scenario: str, cache_dir: Optional[Path] = None) -> Dict[str, float]:

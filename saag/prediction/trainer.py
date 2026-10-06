@@ -178,6 +178,7 @@ class GNNTrainer:
         pairwise_ranking_weight: float = 0.1,
         edge_loss_weight: float = 0.3,
         dimension_mask: Optional[List[bool]] = None,
+        ranking_loss: str = "listmle",
     ):
         self.model = model
         self.checkpoint_dir = Path(checkpoint_dir)
@@ -206,6 +207,7 @@ class GNNTrainer:
             rm_consistency_weight=rm_consistency_weight,
             ranking_weight=ranking_weight,
             pairwise_ranking_weight=pairwise_ranking_weight,
+            ranking_loss=ranking_loss,
         )
         self.device = next(model.parameters()).device
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)

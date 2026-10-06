@@ -128,6 +128,31 @@ def closed_forms(topo: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
     return out
 
 
+def rate_edge_shares(topo: Dict[str, Any]) -> Dict[Tuple[str, str], float]:
+    """Each Rule-1 edge's share of Eq. 7 (Amendment 19).
+
+    For subscriber ``u`` depending on publisher ``v``, the sum over topics ``t``
+    that ``v`` publishes and ``u`` subscribes to of ``r_t / |pub(t)|``. Summed over
+    ``v``'s dependents this is ``v``'s Eq. 7 score, less any topic ``v`` subscribes
+    to itself (no self-edge is derived).
+    """
+    pubs: Dict[str, set] = {}
+    subs: Dict[str, set] = {}
+    for a, t in _edges(topo, "publishes_to"):
+        pubs.setdefault(t, set()).add(a)
+    for a, t in _edges(topo, "subscribes_to"):
+        subs.setdefault(t, set()).add(a)
+    topics = {str(t["id"]): t for t in topo.get("topics", [])}
+    out: Dict[Tuple[str, str], float] = {}
+    for t, p in pubs.items():
+        r = float(topics.get(t, {}).get("frequency", 0.0) or 0.0)
+        for v in p:
+            for u in subs.get(t, ()):
+                if u != v:
+                    out[(u, v)] = out.get((u, v), 0.0) + r / len(p)
+    return out
+
+
 def _timed_rate(topo: Dict[str, Any], repeats: int = 5) -> float:
     """Best-of-*repeats* wall-clock (s) to compute every closed form from the parsed manifest."""
     best = float("inf")

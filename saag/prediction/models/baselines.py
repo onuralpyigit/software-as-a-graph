@@ -95,6 +95,7 @@ class _HomoGATBase(nn.Module):
         edge_dim: Optional[int],  # None → no edge features
         topo_prior: bool = False,
         reverse_edges: bool = False,
+        extra_node_cols: int = 0,
     ):
         super().__init__()
         self._require_pyg()
@@ -108,7 +109,9 @@ class _HomoGATBase(nn.Module):
         #: column carries the rank-normalised Topo-QoS score and the composite
         #: head learns a correction on its logit, exactly as in the HGT hybrid.
         self.topo_prior = topo_prior
-        extra = 1 if topo_prior else 0
+        #: Amendment 19: input columns appended after the base features (the
+        #: declared-rate column of the rate-fed queue-flow arms). Before the prior.
+        extra = (1 if topo_prior else 0) + extra_node_cols
 
         self.node_types = list(node_type_dims.keys())
         self.hidden_channels = hidden_channels
@@ -294,7 +297,8 @@ class HomogeneousGAT_Unweighted(_HomoGATBase):
     ):
         dims = node_type_dims or NODE_TYPE_TO_DIM
         super().__init__(dims, hidden_channels, num_heads, num_layers, dropout, edge_dim=None,
-                         reverse_edges=kwargs.get("reverse_edges", False))
+                         reverse_edges=kwargs.get("reverse_edges", False),
+                         extra_node_cols=kwargs.get("extra_node_cols", 0))
 
     def forward(
         self,
@@ -350,6 +354,7 @@ class HomogeneousGAT_ScalarWeighted(_HomoGATBase):
         super().__init__(
             dims, hidden_channels, num_heads, num_layers, dropout, edge_dim=edge_dim,
             topo_prior=topo_prior, reverse_edges=kwargs.get("reverse_edges", False),
+            extra_node_cols=kwargs.get("extra_node_cols", 0),
         )
 
     def _build_homo_edge_attr(
@@ -437,6 +442,7 @@ def build_baseline(
     edge_dim: Optional[int] = None,
     topo_prior: bool = False,
     reverse_edges: bool = False,
+    extra_node_cols: int = 0,
 ) -> nn.Module:
     """Instantiate a baseline model by variant name.
 
@@ -455,6 +461,8 @@ def build_baseline(
     reverse_edges:
         Also pass messages against every edge (Amendment 16). Shares weights,
         so the parameter count is unchanged.
+    extra_node_cols:
+        Input columns appended to every node type's features (Amendment 19).
     """
     kwargs = dict(
         node_type_dims=node_type_dims or NODE_TYPE_TO_DIM,
@@ -463,6 +471,7 @@ def build_baseline(
         num_layers=num_layers,
         dropout=dropout,
         reverse_edges=reverse_edges,
+        extra_node_cols=extra_node_cols,
     )
     if variant == "homo_unweighted":
         return HomogeneousGAT_Unweighted(**kwargs)
