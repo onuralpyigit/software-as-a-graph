@@ -45,9 +45,9 @@ paired measurement session at one commit and corpus digest.
 - **Training cost** (one-off per model version, CPU, 60 fits per arm): 0.6 h `GAT-S`, 0.9 h
   `GAT-S-w`, 1.4 h `HGT`, 4.9 h `HGT-QoS`, 7.7 CPU-hours in all. The GPU sweep behind Supplement Table S29 did
   not record per-fit durations.
-- **Energy bound.** At 28 W base SoC power, one gate pass over the twelve scenarios costs ≤ 3.0 kJ
+- **Energy estimate.** At 28 W base SoC power, one gate pass over the twelve scenarios costs about 3.0 kJ
   (0.83 Wh), and training the four arms once costs about 0.78 MJ (0.22 kWh).
-  - Both figures are upper bounds from wall-clock time, not RAPL/NVML measurements.
+  - Both figures are nameplate estimates from wall-clock time, not RAPL/NVML measurements, and not a bound in either direction: single-threaded work may draw less than base power, turbo frequencies more.
   - SaG's sustainability case is avoided staging infrastructure, not CPU time.
 - **Not implemented.** Incremental re-scoring of only the $k$-hop neighbourhood of a change. Table 11
   times full recomputation.

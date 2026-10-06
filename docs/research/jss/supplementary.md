@@ -284,6 +284,24 @@ The consequence is specific. On Microservices, $I_{\text{dyn}}$ agrees with *its
 
 **Four Golden Signals Telemetry & Dynamic Contention Relief.** In addition to the scalar delivery rate drop $I_{\text{dyn}}(v)$, each discrete-event execution logs Google SRE’s Four Golden Signals (latency, traffic, errors, saturation) windowed across pre-fault ($t < t_{\text{fault}}$) and post-fault ($t > t_{\text{fault}}$) intervals. The queue-level decomposition shows that end-to-end message traversal latency $t_{\text{e2e}}$ is driven by buffer waiting delay under contention ($\rho_{\text{util}} = 0.65$), whereas CPU service processing remains stationary. When a high-throughput publisher fails, surviving subscriber buffers rapidly drain, yielding a pronounced negative correlation between delivery drop $I_{\text{dyn}}$ and tail latency delta ($\rho = -0.499$) as well as deadline violations ($\rho = -0.418$). Preserving the Four Golden Signals as first-class, structured telemetry avoids an additive cancellation trap and equips operators with comprehensive diagnostics alongside the convergent-validity ranking probe.
 
+## The Reachability Oracle $I^*$ in Pseudocode
+
+The procedure below is `FaultInjector._cascade` in `saag/simulation/fault_injector.py`, with its default parameters (propagation threshold $\tau = 0.2$, depth-damping step $0.15$, floor $0.25$, no depth limit). For one injected component $v$ and one seed:
+
+1.  Set $F \leftarrow \{v\}$ (if $v$ is a Host, add every component that runs on it) and the frontier to $F$.
+
+2.  Repeat for waves $k = 0, 1, \dots$ while the frontier is non-empty or a topic newly loses feed:
+
+    1.  *Library blast.* Every component with a `DEPENDS_ON` edge to a failed Library joins $F$ and the next frontier.
+
+    2.  *Topic loss.* For each topic $t$, $L(t) = \max(\text{rate share of failed publishers},\ \text{share of failed routing brokers})$, multiplied by the QoS ladder factor ($\times 1.2$ for `RELIABLE`; $\times 1.15$ for high and $\times 1.05$ for medium transport priority) and clamped to $[0, 1]$; a failed topic has $L(t) = 1$.
+
+    3.  *Subscriber failure.* For each live subscriber $s$ (in identifier order), $\ell(s)$ is the mean of $L(t)$ over its feeds. If $\ell(s) \ge \tau$, $s$ fails with probability $\min(1, \ell(s)/\tau) \cdot \max(0.25, 1 - 0.15k)$, drawn from the seeded generator; failed subscribers join $F$ and the next frontier.
+
+3.  Recompute $L(t)$ and $\ell(s)$ for the final $F$; the seed’s impact is the mean of $\ell(s)$ over all subscribers.
+
+$I^*(v)$ is the mean of the per-seed impacts over seeds $\{42, 123, 456, 789, 2024\}$. In the first wave the failure probability is one whenever $\ell(s) \ge \tau$, so the seeds act only on later waves. Subscribers, publishers and feeds are iterated in sorted order so that the result does not depend on the Python hash seed.
+
 # In-Distribution Significance Tests
 
 Paired tests over the twelve in-distribution scenarios of Table <a href="#tab:supp-indist-cells" data-reference-type="ref" data-reference="tab:supp-indist-cells">17</a>. They are reported here rather than in the body because Section <a href="#supp:taxonomy" data-reference-type="ref" data-reference="supp:taxonomy">[supp:taxonomy]</a> declines to read the in-distribution typed–untyped contrast as evidence about typing: the typed pair consumes the native multigraph while the homogeneous pair consumes the Application–Library projection, so the margin mixes typed message passing with multi-entity visibility. The tests are given for completeness, not as support for a claim.
@@ -372,6 +390,8 @@ Which corpus subset backs each analysis. Figures from different rows are not dir
 # Per-Scenario Corpus Composition
 
 Entity and edge counts for every scenario, read from the committed topology files rather than from the generator configurations. Continuous integration asserts that each dataset regenerates byte-identically from its configuration and that these counts match what is on disk.
+
+**How the two RPC systems were modeled.** The five open-source system models are encoded by hand in `saag/adapters/realworld_adapter.py`; no importer reads launch files or deployment manifests. Online Boutique and Train-Ticket communicate by synchronous RPC (gRPC and REST, respectively), and their models re-express them as event-driven publish–subscribe meshes rather than decomposing each call into a request and a reply. The Online Boutique model has 22 Applications and 20 event topics on four brokers (Kafka, RabbitMQ, Redis and NATS), none of which the reference deployment uses; the original has about eleven gRPC services and no broker. The Train-Ticket model has 41 Applications and 30 topics on three brokers, one of which is the Eureka service-discovery server modeled as a broker; three topics carry requests or commands and none carries replies. Neither model therefore keeps request–reply coupling, timeouts, thread-pool exhaustion or synchronous backpressure, and failures propagate in them only along the declared publish–subscribe paths.
 
 <div id="tab:supp-corpus">
 
@@ -641,7 +661,7 @@ The analysis plan (Section <a href="#M-sec:6.3" data-reference-type="ref" data-r
 | Intermediate                          | ESB, Telecom RAN, Financial Trading, Industrial SCADA    | Dependency-graph learner | `Topo-QoS` $0.561$; `HGT-QoS` $0.589$, `GAT-QoS` $0.660$; Hybrid-HGT $0.681$, Hybrid-GAT $0.697$, both 4/4 folds.                                                                                                                              | `InDeg` $0.742$, `GAT-P-QoS` $0.760$.                  |
 | Closed-form ranks well                | Logistics Fleet, AV System, Enterprise, Real-Time Gaming | Hybrid engine            | `Topo-QoS` $0.775$; `HGT-QoS` $0.672$ (1/4 folds), `GAT-QoS` $0.620$ (0/4); hybrids $0.786$ / $0.798$.                                                                                                                                         | `InDeg` $0.858$, `GAT-P-QoS` $0.768$.                  |
 | Unlike the corpus, originally pub-sub | Autoware, EdgeX, Home Assistant                          | Learned engine           | Learned $0.716$–$0.927$ vs. baseline $0.289$–$0.534$; learned $\rho_{>0}$ $0.183$–$0.833$ where baseline is negative.                                                                                                                          | `Reach` $0.836$–$0.997$; $\rho_{>0}$ $0.674$–$0.971$.  |
-| Unlike the corpus, originally RPC     | Online Boutique, Train-Ticket models                     | Mixed                    | Learned $0.710$–$0.810$, but application-layer baseline $0.891$ on Online Boutique (Supplementary Section <a href="#supp:baselines" data-reference-type="ref" data-reference="supp:baselines">33</a>); learned $\rho_{>0}$ $-0.19$ to $+0.16$. | `Reach` $0.966$–$0.998$; $\rho_{>0}$ $0.813$–$0.976$.  |
+| Unlike the corpus, originally RPC     | Online Boutique, Train-Ticket models                     | Mixed                    | Learned $0.710$–$0.810$, but application-layer baseline $0.891$ on Online Boutique (Supplementary Section <a href="#supp:baselines" data-reference-type="ref" data-reference="supp:baselines">34</a>); learned $\rho_{>0}$ $-0.19$ to $+0.16$. | `Reach` $0.966$–$0.998$; $\rho_{>0}$ $0.813$–$0.976$.  |
 
 The analysis plan, its sixteen amendments and one recorded deviation. Status tier (main §<a href="#M-sec:6.3" data-reference-type="ref" data-reference="M-sec:6.3">[M-sec:6.3]</a>): the plan is confirmatory; amendments written before any result of their own arms are registered secondary; the rest are exploratory. “Before” means no outcome of the analysis the entry governs existed when it was committed. Contrast counts are the decision-bearing contrasts the entry registered; the exploratory analyses it added are not counted.
 
@@ -1340,6 +1360,8 @@ Amendment 15 is post hoc and exploratory: it was recorded after every other resu
 
 **Input attribution.** The same table retrains Amendment 11’s gradient-boosted learner (same seeds, LOSO protocol and $I_{\text{dyn}}$ labels) on the structural feature set S alone, on S plus the declared rate and rate$\times$payload columns, and on S plus the seven QoS-derived columns: three $w(t)$-weighted scores (`Topo-QoS`, `Reach-QoS`, QoS-weighted in-degree), in which declared size and rate enter log-compressed at a quarter of $w(t)$, and four pure policy shares (reliable, durable and deadline shares, maximum priority). Table <a href="#tab:a15-contrasts" data-reference-type="ref" data-reference="tab:a15-contrasts">56</a> gives the paired contrasts.
 
+**Payload is not read by the oracle.** The published $I_{\text{dyn}}$ engine gives every message the same size, so declared payload never affects its labels (main Section <a href="#M-sec:4.3" data-reference-type="ref" data-reference="M-sec:4.3">[M-sec:4.3]</a>). The rate$\times$payload column can therefore carry signal only through its rate factor, and the gain of the “S + rate, payload” arm is rate signal. Consistently, the payload-weighted closed form ($r_t B_t$) scores below Eq. <a href="#M-eq:rate-expansion" data-reference-type="eqref" data-reference="M-eq:rate-expansion">[M-eq:rate-expansion]</a> on all twelve folds (mean $0.748$ against $0.830$). A payload-aware variant of the oracle is registered as Amendment 18 but was not run.
+
 <div id="tab:a15-folds">
 
 |                   |                                                                                                                               |                                                                                                                               |           |       |                                                              |       |                   |                 |
@@ -1396,6 +1418,86 @@ Amendment 15 contrasts on $I_{\text{dyn}}$, twelve LOSO folds. Two-sided Wilcoxo
 
 The rate-weighted expansion keeps a partial correlation of $0.578$ with $I_{\text{dyn}}$ after the rank of $I^*$ is removed, against $0.318$ for the unweighted expansion: the rate term is exactly the part of $I_{\text{dyn}}$ that $I^*$ does not contain. On the other oracles it scores $0.756$ ($I^*$) and $0.551$ ($I_{\text{comp}}$).
 
+# Control Arms (Amendments 14, 16 and 17)
+
+Main Table <a href="#M-tab:controls" data-reference-type="ref" data-reference="M-tab:controls">[M-tab:controls]</a> is a digest of the three tables below, which give every registered control arm with its $I_{\text{dyn}}$, $I_{\text{comp}}$ and zero-shot values. Each table was produced in one CPU invocation in which every comparator was re-run and reproduced its published per-seed $\rho$. Section <a href="#M-sec:rq2" data-reference-type="ref" data-reference="M-sec:rq2">[M-sec:rq2]</a> of the main manuscript interprets them.
+
+**Notes moved from the main text.**
+
+-   **Degree features (F1).** Also removing the three centralities most correlated with in-degree (PageRank, closeness and eigenvector centrality) lowers `GAT-P-QoS` by $0.161$; the GINE network of the same size keeps $0.711$ without those columns. The aggregator contrasts of F2 are not significant after Holm correction ($+0.108$ and $+0.124$, $p_{\text{Holm}} = 0.157$).
+
+-   **Hybrid priors (F9, F10).** Retrained with the articulation defect corrected, Hybrid-GAT-AP reaches $0.669$ ($+0.136$, Holm $p = 0.0059$) and Hybrid-HGT-AP $0.640$ ($+0.107$, Holm $p = 0.0073$), each on 11 of 12 folds, and again neither differs from its base learner ($+0.034$ and $+0.018$, Holm $p = 0.94$). Given `InDeg` as their prior, `GAT-QoS+InDeg` ($0.763$) and `HGT-QoS+InDeg` ($0.759$) gain $+0.128$ and $+0.137$ over their base learners (Holm $p = 0.0049$) and land within $\pm 0.012$ of `InDeg` itself (equivalent at $\pm 0.05$, TOST $p < 0.001$).
+
+-   **Learned queue-flow approximation.** The GAT trained on $I_{\text{dyn}}$ labels ($0.598$) falls below the unweighted first-order expansion ($-0.108$, Holm $p = 0.014$) and is no better than the same GNN trained on $I^*$ labels restricted to Applications, a label-support control run in the same sweep ($-0.008$).
+
+-   **Node order (F13).** Creation order correlates only weakly with the labels ($\rho = -0.20$ to $+0.29$ per fold), and each permutation also changes which nodes the seeded validation split draws, so the spread across permutations mixes tie order and validation draw. Differences such as the $-0.016$ between `GIN-P-QoS` and `GAT-P-QoS` lie within it.
+
+-   **Nested selection.** On the three folds where the nested harness chose the published hyperparameters it does not reproduce the published scores (differences up to $0.10$), because it trains on one scenario fewer and stops on a held-out scenario.
+
+<div id="tab:a14">
+
+| Arm                                                                                                                                                   | Comparator                | LOSO $\rho$ ($I^*$) |   $\Delta\rho$ [95% CI]   | Won  | $p_{\text{Holm}}$ | $I_{\text{dyn}}$ / $I_{\text{comp}}$ | Zero-shot |
+|:------------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------|:-------------------:|:---------------------------:|:----:|:-----------------:|:------------------------------------:|:---------:|
+| *F1: removing the degree features*                                                                                                                    |                           |                     |                             |      |                   |                                      |           |
+| GAT-P-QoS$-$deg                                                                                                                                       | GAT-P-QoS ($0.748$)       |        0.612        | $-0.136$ $[-0.205, -0.072]$ | 1/12 |      0.0049       |            0.485 / 0.156             |   0.821   |
+| GAT-P-QoS$-$deg$^*$                                                                                                                                   | GAT-P-QoS                 |        0.587        | $-0.161$ $[-0.252, -0.080]$ | 1/12 |      0.0049       |            0.462 / 0.138             |   0.654   |
+| GAT-QoS$-$deg                                                                                                                                         | GAT-QoS ($0.635$)         |        0.365        | $-0.270$ $[-0.344, -0.199]$ | 0/12 |      0.0015       |           0.295 / $-0.047$           |   0.810   |
+| *F2: sum aggregation (Graph Isomorphism Network with Edge features — GINE, 434,123 parameters) instead of softmax attention*                          |                           |                     |                             |      |                   |                                      |           |
+| GIN-P-QoS                                                                                                                                             | GAT-P-QoS                 |        0.732        | $-0.016$ $[-0.055, +0.017]$ | 7/12 |       0.910       |            0.606 / 0.407             |   0.806   |
+| GIN-P-QoS$-$deg                                                                                                                                       | GAT-P-QoS$-$deg           |        0.721        | $+0.108$ $[+0.027, +0.197]$ | 8/12 |       0.157       |            0.602 / 0.428             |   0.810   |
+| GIN-P-QoS$-$deg$^*$                                                                                                                                   | GAT-P-QoS$-$deg$^*$       |        0.711        | $+0.124$ $[+0.031, +0.230]$ | 9/12 |       0.157       |            0.589 / 0.438             |   0.776   |
+| *F4: matched $2\times2$ with $w_{\text{in}}$ held (cells GAT+$w_{\text{in}}$ $0.628$, HGT+$w_{\text{in}}$ $0.569$, GAT-QoS $0.635$, HGT-QoS $0.622$)* |                           |                     |                             |      |                   |                                      |           |
+| Typing (main effect)                                                                                                                                  | averaged over Q           |          —          | $-0.036$ $[-0.079, +0.004]$ | 2/12 |       0.330       |                  —                   |     —     |
+| “QoS” inputs (main effect)                                                                                                                            | averaged over T           |          —          | $+0.030$ $[-0.023, +0.085]$ | 9/12 |       0.330       |                  —                   |     —     |
+| Interaction                                                                                                                                           | difference of differences |          —          | $+0.046$ $[-0.009, +0.101]$ | 9/12 |       0.330       |                  —                   |     —     |
+
+Degree and aggregator arms: twelve LOSO folds, five seeds, one CPU invocation with every comparator re-run to an exact match, Application population. $\Delta\rho$ paired by fold with a bootstrap 95% CI; Holm within each registered family (F1: degree features; F2: aggregator; F4: the $2\times2$ with $w_{\text{in}}$ held). $-$deg: `in_degree` and $w_{\text{in}}$ zeroed; $-$deg$^*$: also PageRank, closeness and eigenvector centrality. Zero-shot: mean $\rho$ on the five system models. Registered secondary.
+
+</div>
+
+<div id="tab:a16">
+
+| Arm                                                                            | Comparator            | LOSO $\rho$ ($I^*$) |   $\Delta\rho$ [95% CI]   |  Won  | $p_{\text{Holm}}$ | $I_{\text{dyn}}$ / $I_{\text{comp}}$ | Zero-shot |
+|:-------------------------------------------------------------------------------|:----------------------|:-------------------:|:---------------------------:|:-----:|:-----------------:|:------------------------------------:|:---------:|
+| *F8: edge direction versus dependency semantics*                               |                       |                     |                             |       |                   |                                      |           |
+| GAT-QoS-R                                                                      | GAT-QoS ($0.635$)     |        0.676        | $+0.041$ $[+0.000, +0.087]$ | 10/12 |       0.064       |            0.547 / 0.299             |   0.744   |
+| GAT-P-QoS                                                                      | GAT-QoS-R             |        0.748        | $+0.072$ $[+0.034, +0.113]$ | 10/12 |       0.014       |            0.597 / 0.280             |     —     |
+| *F9: hybrids with the corrected prior*                                         |                       |                     |                             |       |                   |                                      |           |
+| Hybrid-GAT-AP                                                                  | Topo-QoS-AP ($0.533$) |        0.669        | $+0.136$ $[+0.076, +0.198]$ | 11/12 |      0.0059       |            0.577 / 0.561             |   0.668   |
+| Hybrid-HGT-AP                                                                  | Topo-QoS-AP           |        0.640        | $+0.107$ $[+0.060, +0.153]$ | 11/12 |      0.0073       |            0.552 / 0.553             |   0.702   |
+| Hybrid-GAT-AP                                                                  | GAT-QoS               |        0.669        | $+0.034$ $[-0.047, +0.118]$ | 7/12  |       0.940       |                  —                   |     —     |
+| Hybrid-HGT-AP                                                                  | HGT-QoS ($0.622$)     |        0.640        | $+0.018$ $[-0.067, +0.100]$ | 8/12  |       0.940       |                  —                   |     —     |
+| *F10: hybrids with the `InDeg` prior (within $\pm 0.012$ of `InDeg`, $0.764$)* |                       |                     |                             |       |                   |                                      |           |
+| GAT-QoS+InDeg                                                                  | GAT-QoS               |        0.763        | $+0.128$ $[+0.063, +0.204]$ | 11/12 |      0.0049       |            0.657 / 0.563             |     —     |
+| HGT-QoS+InDeg                                                                  | HGT-QoS               |        0.759        | $+0.137$ $[+0.074, +0.211]$ | 10/12 |      0.0049       |            0.657 / 0.589             |     —     |
+
+Direction and prior controls: twelve LOSO folds, five seeds, one CPU invocation, Application population; $\Delta\rho$ paired by fold with a bootstrap 95% CI, Holm within each registered family (F8: direction; F9: corrected prior; F10: `InDeg` prior). `GAT-QoS-R`: `GAT-QoS` with every raw-graph edge also passed in reverse (shared weights, $429{,}992$ parameters). `-AP`: prior with the articulation term restored; Topo-QoS-AP is the corrected baseline. Re-run comparators reproduce their published per-seed $\rho$ exactly, except Hybrid-HGT (within $1.2\times10^{-4}$; not a comparator here). Zero-shot: mean $\rho$ on the five system models. Registered secondary.
+
+</div>
+
+<div id="tab:a17">
+
+| Arm                                                                                                                                                                                                 | Comparator                                                                                                                              | $\rho$ |   $\Delta\rho$ [95% CI]   |  Won  | $p_{\text{Holm}}$ | $I_{\text{dyn}}$ / $I_{\text{comp}}$ | Zero-shot |
+|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------|:------:|:---------------------------:|:-----:|:-----------------:|:------------------------------------:|:---------:|
+| *F11: every oracle-aligned feature removed (registered)*                                                                                                                                            |                                                                                                                                         |        |                             |       |                   |                                      |           |
+| GAT-P-QoS-min                                                                                                                                                                                       | GAT-QoS-R-min ($0.378$)                                                                                                                 | 0.610  | $+0.231$ $[+0.128, +0.340]$ | 10/12 |      0.0068       |            0.479 / 0.149             |   0.839   |
+| GAT-P-QoS-min                                                                                                                                                                                       | GAT-P-QoS ($0.748$)                                                                                                                     | 0.610  | $-0.138$ $[-0.208, -0.072]$ | 1/12  |      0.0044       |                  —                   |     —     |
+| GIN-P-QoS-min                                                                                                                                                                                       | GAT-P-QoS-min                                                                                                                           | 0.724  | $+0.115$ $[+0.038, +0.199]$ | 9/12  |       0.027       |            0.606 / 0.423             |   0.802   |
+| *Descriptive (no test)*                                                                                                                                                                             |                                                                                                                                         |        |                             |       |                   |                                      |           |
+| GAT-QoS-R-min                                                                                                                                                                                       | GAT-QoS-R ($0.676$)                                                                                                                     | 0.378  | $-0.298$ $[-0.387, -0.222]$ | 0/12  |         —         |            0.291 / 0.319             |   0.708   |
+| GAT-QoS-min                                                                                                                                                                                         | GAT-QoS ($0.635$)                                                                                                                       | 0.369  | $-0.266$ $[-0.334, -0.201]$ | 0/12  |         —         |           0.294 / $-0.049$           |   0.794   |
+| GIN-P-QoS-const                                                                                                                                                                                     | `InDeg` ($0.764$)                                                                                                                       | 0.719  | $-0.045$ $[-0.069, -0.024]$ | 1/12  |         —         |            0.606 / 0.447             |   0.858   |
+| *F12: learners started from Eq. <a href="#M-eq:rate-expansion" data-reference-type="eqref" data-reference="M-eq:rate-expansion">[M-eq:rate-expansion]</a>, scored on $I_{\text{dyn}}$ (registered)* |                                                                                                                                         |        |                             |       |                   |                                      |           |
+| GBM-P-QoS$\to$dyn+Eq7                                                                                                                                                                               | Eq. <a href="#M-eq:rate-expansion" data-reference-type="eqref" data-reference="M-eq:rate-expansion">[M-eq:rate-expansion]</a> ($0.830$) | 0.830  | $+0.000$ $[-0.013, +0.015]$ | 5/12  |       0.970       |                  —                   |     —     |
+| GBM$\to$dyn-resid                                                                                                                                                                                   | Eq. <a href="#M-eq:rate-expansion" data-reference-type="eqref" data-reference="M-eq:rate-expansion">[M-eq:rate-expansion]</a>           | 0.824  | $-0.006$ $[-0.019, +0.008]$ | 5/12  |       0.679       |                  —                   |     —     |
+| GAT-P-QoS$\to$dyn+Eq7                                                                                                                                                                               | Eq. <a href="#M-eq:rate-expansion" data-reference-type="eqref" data-reference="M-eq:rate-expansion">[M-eq:rate-expansion]</a>           | 0.812  | $-0.018$ $[-0.025, -0.012]$ | 1/12  |      0.0029       |                  —                   |     —     |
+| *F13: node order permuted before training (registered gate; nominal $p$)*                                                                                                                           |                                                                                                                                         |        |                             |       |                   |                                      |           |
+| GAT-P-QoS-perm                                                                                                                                                                                      | GAT-P-QoS                                                                                                                               | 0.712  | $-0.035$ $[-0.055, -0.014]$ | 3/12  |      (0.012)      |            0.578 / 0.227             |     —     |
+
+Oracle-aligned-feature, learning-on-Eq. <a href="#M-eq:rate-expansion" data-reference-type="eqref" data-reference="M-eq:rate-expansion">[M-eq:rate-expansion]</a> and node-order controls: twelve LOSO folds, five seeds, one CPU invocation with every comparator re-run to an exact match, Application population. $\Delta\rho$ is paired by fold against the comparator named, with a bootstrap 95% CI; Holm within each registered family (F11: oracle-aligned features; F12: learners started from Eq. <a href="#M-eq:rate-expansion" data-reference-type="eqref" data-reference="M-eq:rate-expansion">[M-eq:rate-expansion]</a>). `-min`: in-degree, $w_{\text{in}}$, reverse PageRank, the articulation score, multi-path coupling, fan-out criticality and CDI zeroed; `-const`: every node feature zeroed. The F12 rows report $\rho$ on $I_{\text{dyn}}$ and are trained on its labels; all other rows report $\rho$ on $I^*$. F13 is a registered gate with a nominal $p$. $I_{\text{dyn}}$ / $I_{\text{comp}}$: per-seed means from saved predictions. Zero-shot: mean $\rho$ on the five system models (— where not run). Registered secondary.
+
+</div>
+
 # Training-Free Baselines
 
 This section consolidates the non-registered training-free baselines and controls moved out of the main manuscript. The main manuscript retains `Topo-QoS` as its sole training-free baseline, because it forms one side of the registered primary contrast and acts as the prior inside both hybrid engines.
@@ -1407,7 +1509,7 @@ The unweighted topological baseline `Topo` is evaluated strictly on the raw appl
 
 #### Performance on Synthetic Architectures
 
-Table <a href="#tab:supp-moved-baselines" data-reference-type="ref" data-reference="tab:supp-moved-baselines">57</a> reports the performance of `Degree-raw`, `RevPR-raw`, `Topo`, and the raw-multigraph reference rankings (`Pubs-raw`, `Reach-R1`) across the twelve synthetic LOSO folds.
+Table <a href="#tab:supp-moved-baselines" data-reference-type="ref" data-reference="tab:supp-moved-baselines">60</a> reports the performance of `Degree-raw`, `RevPR-raw`, `Topo`, and the raw-multigraph reference rankings (`Pubs-raw`, `Reach-R1`) across the twelve synthetic LOSO folds.
 
 <div id="tab:supp-moved-baselines">
 
@@ -1434,7 +1536,7 @@ Against the two stronger training-free controls of Amendment 7 (Amendment 14, F7
 
 #### Degree-raw and Supplemental Predictors Across Simulation Oracles
 
-Table <a href="#tab:supp-moved-oracles" data-reference-type="ref" data-reference="tab:supp-moved-oracles">58</a> reports supplemental predictors and baselines across the three simulation oracles. On the multi-criteria oracle $I_{\text{comp}}$, raw total degree reaches $\rho = 0.719$, exceeding every learned engine without a prior.
+Table <a href="#tab:supp-moved-oracles" data-reference-type="ref" data-reference="tab:supp-moved-oracles">61</a> reports supplemental predictors and baselines across the three simulation oracles. On the multi-criteria oracle $I_{\text{comp}}$, raw total degree reaches $\rho = 0.719$, exceeding every learned engine without a prior.
 
 <div id="tab:supp-moved-oracles">
 
@@ -1450,7 +1552,7 @@ Supplemental predictors and baselines against three simulation oracles, twelve L
 
 #### Topo on Open-Source System Models
 
-Table <a href="#tab:supp-moved-systems" data-reference-type="ref" data-reference="tab:supp-moved-systems">59</a> reports the zero-shot performance of unweighted `Topo` on the five hand-authored open-source system models.
+Table <a href="#tab:supp-moved-systems" data-reference-type="ref" data-reference="tab:supp-moved-systems">62</a> reports the zero-shot performance of unweighted `Topo` on the five hand-authored open-source system models.
 
 <div id="tab:supp-moved-systems">
 

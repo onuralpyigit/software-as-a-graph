@@ -72,11 +72,17 @@ RESULTS = ROOT / "results"
 IDYN_N30_CACHE = RESULTS / "idyn_scenario_cache_jss12.json"
 IDYN_FULL_CACHE = RESULTS / "idyn_full_labels_cache.json"
 IDYN_PARTIAL_CACHE = RESULTS / "idyn_full_labels_partial.json"
+IDYN_SIZE_CACHE = RESULTS / "idyn_size_labels_cache.json"
+IDYN_SIZE_PARTIAL_CACHE = RESULTS / "idyn_size_labels_partial.json"
 ICOMP_SYSTEMS_CACHE = RESULTS / "icomp_systems_labels_cache.json"
 PUBLISHED_ORACLE_EVAL = DATA_BENCHMARKS / "independent_oracle_evaluation.json"
 
 #: Published I_dyn settings (reproduce/independent_oracle_evaluation.py).
 IDYN_SETTINGS = {"duration": 60.0, "qos_mode": "full", "target_utilization": 0.65}
+#: Amendment 18 sensitivity arm: the same oracle with payload-scaled service
+#: (MessageFlowSimulator.PAYLOAD_MODELS). Kept apart from IDYN_SETTINGS so the
+#: published labels' cache key -- which every I_dyn consumer checks -- is unchanged.
+IDYN_SIZE_SETTINGS = {**IDYN_SETTINGS, "payload_model": "size"}
 ORACLES = ("i_star", "i_dyn", "i_comp")
 TRAIN_ORACLES = ("i_star", "i_dyn")
 COMPARATORS = ("Analytic-I*", "InDeg", "Reach", "Topo-QoS")
@@ -214,12 +220,13 @@ def comparator_scores(topo: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
 
 # ── labels ────────────────────────────────────────────────────────────────────
 
-def _idyn_job(job: Tuple[str, int]) -> Tuple[str, int, Dict[str, float], float]:
+def _idyn_job(job: Tuple[Any, ...]) -> Tuple[str, int, Dict[str, float], float]:
     from reproduce.convergent_validity import _message_flow_labels
-    name, seed = job
+    name, seed, *rest = job
+    settings = rest[0] if rest else IDYN_SETTINGS
     t0 = time.perf_counter()
     labels = _message_flow_labels(name, seed=seed, only=app_ids(_topology(name)),
-                                  **IDYN_SETTINGS)
+                                  **settings)
     return name, seed, labels, time.perf_counter() - t0
 
 
@@ -228,23 +235,26 @@ def _icomp_job(name: str) -> Tuple[str, Dict[str, float]]:
     return name, _failure_simulator_labels(name, qos=True, layer="Application")
 
 
-def _cache_key() -> Dict[str, Any]:
-    return {"corpus_digest": corpus_digest(), "seeds": SEEDS, **IDYN_SETTINGS}
+def _cache_key(settings: Dict[str, Any] = IDYN_SETTINGS) -> Dict[str, Any]:
+    return {"corpus_digest": corpus_digest(), "seeds": SEEDS, **settings}
 
 
-def idyn_full_labels(names: List[str], workers: int) -> Dict[str, Any]:
-    """I_dyn-full per scenario: per-seed labels, the seed mean and the wall-clock."""
-    key = _cache_key()
-    if IDYN_FULL_CACHE.exists():
-        cached = json.loads(IDYN_FULL_CACHE.read_text())
+def idyn_full_labels(names: List[str], workers: int,
+                     settings: Dict[str, Any] = IDYN_SETTINGS,
+                     cache: Path = IDYN_FULL_CACHE,
+                     partial: Path = IDYN_PARTIAL_CACHE) -> Dict[str, Any]:
+    """I_dyn-full per scenario: per-seed labels, the seed mean and the per-job seconds."""
+    key = _cache_key(settings)
+    if cache.exists():
+        cached = json.loads(cache.read_text())
         if cached.get("key") == key and set(names) <= set(cached["labels"]):
-            print(f"loaded I_dyn-full from {IDYN_FULL_CACHE}")
+            print(f"loaded I_dyn-full from {cache}")
             return cached["labels"]
     out: Dict[str, Any] = {n: {"per_seed": {}, "seconds": {}} for n in names}
     # Each finished (scenario, seed) job is checkpointed, so a crashed or
     # OOM-killed run resumes instead of repeating hours of simulation.
-    if IDYN_PARTIAL_CACHE.exists():
-        part = json.loads(IDYN_PARTIAL_CACHE.read_text())
+    if partial.exists():
+        part = json.loads(partial.read_text())
         if part.get("key") == key:
             for n, block in part["labels"].items():
                 if n in out:
@@ -253,12 +263,12 @@ def idyn_full_labels(names: List[str], workers: int) -> Dict[str, Any]:
     print(f"I_dyn-full: {len(jobs)} (scenario, seed) jobs on {workers} workers")
     RESULTS.mkdir(exist_ok=True)
     with ProcessPoolExecutor(max_workers=workers, max_tasks_per_child=1) as ex:
-        futures = [ex.submit(_idyn_job, j) for j in jobs]
+        futures = [ex.submit(_idyn_job, (*j, settings)) for j in jobs]
         for fut in as_completed(futures):
             name, seed, labels, secs = fut.result()
             out[name]["per_seed"][str(seed)] = labels
             out[name]["seconds"][str(seed)] = round(secs, 2)
-            IDYN_PARTIAL_CACHE.write_text(json.dumps({"key": key, "labels": out}))
+            partial.write_text(json.dumps({"key": key, "labels": out}))
             print(f"  {name} seed {seed}: {len(labels)} apps in {secs:.0f}s", flush=True)
     for name, block in out.items():
         # A component the engine cannot observe is omitted, not scored 0.0; the
@@ -269,7 +279,7 @@ def idyn_full_labels(names: List[str], workers: int) -> Dict[str, Any]:
                                            if v in block["per_seed"][s]]))
                          for v in nodes}
     RESULTS.mkdir(exist_ok=True)
-    IDYN_FULL_CACHE.write_text(json.dumps({"key": key, "labels": out}))
+    cache.write_text(json.dumps({"key": key, "labels": out}))
     return out
 
 
@@ -508,7 +518,23 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("stage", choices=["labels", "all"])
     ap.add_argument("--workers", type=int, default=os.cpu_count() or 4)
+    ap.add_argument("--payload-model", choices=["fixed", "size"], default="fixed",
+                    help="'size': label I_dyn with payload-scaled service (Amendment 18 "
+                         "sensitivity arm) instead of the published oracle; labels stage only")
     args = ap.parse_args()
+
+    if args.payload_model == "size":
+        if args.stage != "labels":
+            ap.error("--payload-model size supports the labels stage only")
+        names = list(FOLDS) + list(SYSTEMS)
+        idyn = idyn_full_labels(names, args.workers, IDYN_SIZE_SETTINGS,
+                                IDYN_SIZE_CACHE, IDYN_SIZE_PARTIAL_CACHE)
+        prov = stamp(script="reproduce/oracle_robust_ltr.py", amendment=18, seeds=SEEDS,
+                     idyn=IDYN_SIZE_SETTINGS)
+        DATA_BENCHMARKS.mkdir(parents=True, exist_ok=True)
+        _write(DATA_BENCHMARKS / "idyn_size_labels_jss13.json",
+               {"settings": IDYN_SIZE_SETTINGS, "seeds": SEEDS, "labels": idyn}, prov)
+        return 0
 
     prov = stamp(script="reproduce/oracle_robust_ltr.py", amendment=11, seeds=SEEDS,
                  idyn=IDYN_SETTINGS, learner="GradientBoostingRegressor (tab_gbm defaults)",

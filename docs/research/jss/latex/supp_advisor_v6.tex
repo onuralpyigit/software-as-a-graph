@@ -7,6 +7,8 @@ Amendment~15 is post hoc and exploratory: it was recorded after every other resu
 
 \noindent\textbf{Input attribution.} The same table retrains Amendment~11's gradient-boosted learner (same seeds, LOSO protocol and $I_{\text{dyn}}$ labels) on the structural feature set S alone, on S plus the declared rate and rate$\times$payload columns, and on S plus the seven QoS-derived columns: three $w(t)$-weighted scores (\texttt{Topo-QoS}, \texttt{Reach-QoS}, QoS-weighted in-degree), in which declared size and rate enter log-compressed at a quarter of $w(t)$, and four pure policy shares (reliable, durable and deadline shares, maximum priority). Table~\ref{tab:a15-contrasts} gives the paired contrasts.
 
+\noindent\textbf{Payload is not read by the oracle.} The published $I_{\text{dyn}}$ engine gives every message the same size, so declared payload never affects its labels (main Section~\ref{M-sec:4.3}). The rate$\times$payload column can therefore carry signal only through its rate factor, and the gain of the ``S + rate, payload'' arm is rate signal. Consistently, the payload-weighted closed form ($r_t B_t$) scores below Eq.~\eqref{M-eq:rate-expansion} on all twelve folds (mean $0.748$ against $0.830$). A payload-aware variant of the oracle is registered as Amendment~18 but was not run.
+
 \begin{table}[htbp]
 \centering
 \scriptsize

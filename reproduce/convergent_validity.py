@@ -165,6 +165,7 @@ def _message_flow_labels(
     target_utilization: Optional[float] = 0.65,
     return_signals: bool = False,
     only: Optional[Iterable[str]] = None,
+    payload_model: str = "fixed",
 ) -> Dict[str, float] | tuple[Dict[str, float], Optional[Dict[str, Any]]]:
     """I_dyn(v) — the delivery-rate loss surviving consumers actually suffer.
 
@@ -175,6 +176,7 @@ def _message_flow_labels(
 
     ``only`` restricts the candidates to those ids (e.g. the Application
     population) before ``max_candidates`` is applied; candidate order is kept.
+    ``payload_model`` is passed to the engine (``"fixed"``: the published oracle).
     """
     from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
     from saag.simulation.message_flow_simulator import MessageFlowSimulator
@@ -184,7 +186,7 @@ def _message_flow_labels(
 
     probe = MessageFlowSimulator(
         graph=graph, duration=duration, seed=seed, qos_mode=qos_mode,
-        target_utilization=target_utilization,
+        target_utilization=target_utilization, payload_model=payload_model,
     ).run()
     candidates = list(probe.labeled_node_ids)
     if only is not None:
@@ -203,6 +205,7 @@ def _message_flow_labels(
             seed=seed,
             qos_mode=qos_mode,
             target_utilization=target_utilization,
+            payload_model=payload_model,
         ).run()
         event = result.fault_event
         if event is None:
