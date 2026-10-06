@@ -26,4 +26,14 @@ Run the LOSO sweeps from the main checkout, from a clean tree: the artifacts rec
 
 ## Results
 
-Pending.
+Artifacts: `data/benchmarks/referee_round14_{amendment19,lc,descriptive}.json` (commit `48c196fb`, clean); Supplementary Tables `tab:a19` and `tab:a19lc`; Figure 6. All nine re-run comparators reproduced exactly (G0).
+
+| Family | Result | Rule |
+|---|---|---|
+| F14 | Under sum aggregation the dependency graph still beats the raw multigraph with reverse edges: +0.239 without oracle-aligned features (12/12, Holm 0.0015), +0.064 with them, +0.289 with no node features | F14a |
+| F15 | Rate-fed GNNs improve on the rate-blind one (best 0.665, +0.067) but stay below GBM (0.799) and Eq. 7 (0.830; −0.165, Holm 0.0015) | F15b (second condition) |
+| F16 | Tie-aware loss leaves GAT-P-QoS unchanged (0.747) and the direction-controlled gain intact (+0.069, Holm 0.019); permutation spread 0.047 | F16 holds; S2 |
+| LC | GAT-P-QoS 0.605 → 0.670 → 0.748 for K = 1, 4, 11; gap to InDeg 0.160 → 0.017; GAT-QoS flat from K = 4 | LC-c overall |
+| small | GAT-S-P-QoS 0.638 (−0.110) | — |
+
+The main-sweep artifact was re-stamped from a clean worktree after a concurrent edit dirtied the checkout (see the results log in `PREREGISTRATION.md`).

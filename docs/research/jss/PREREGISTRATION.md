@@ -1842,3 +1842,31 @@ K = 1 is reported but is not used by any rule.
 - Every published arm, table value and tier.
 - The published arms keep ListMLE.
 - The new options default to the published behaviour (`tests/test_amendment19.py`).
+
+### Amendment 19 — results log (2026-10-07)
+
+- **Gate G0 passed.** All nine re-run comparators reproduced their published per-seed ρ exactly (max |Δ| = 0.0).
+- **Deviation 1 (provenance only).** During the main sweep, another session re-rendered `docs/research/jss/manuscript.md` in the main checkout, a generated-file change that does not touch any code. The sweep artifact was therefore stamped `dirty`. The sweep was re-stamped from a clean detached worktree at the registered commit `48c196fb`:
+  - `loso_all_variants.py --resume` reused every fingerprinted fit (the fingerprints include the code digest), and its per-seed ρ is identical to the first write (max |Δ| = 0);
+  - the three zero-shot arms were re-run from scratch.
+
+  The learning curve and the analysis ran in that worktree. Every Amendment 19 artifact records `dirty: false` and commit `48c196fb`.
+- **Deviation 2 (none in substance).** The analyses ran exactly as registered (`referee_round14.py amendment19 lc descriptive`, one process).
+
+**Rules that fired**
+
+| Rule | Result |
+|:---|:---|
+| **F14a** | GIN-P-QoS-min vs GIN-QoS-R-min: +0.239 [+0.151, +0.335], 12/12 folds, Holm p = 0.0015. Also GIN-P-QoS vs GIN-QoS-R +0.064 (Holm 0.0049), and GIN-P-QoS-const vs GIN-QoS-R-const +0.289 (Holm 0.0020). GIN-QoS-R reaches 0.668, level with GAT-QoS-R (−0.008). The share of the F11a gap closed by sum aggregation on the raw graph is s = 0.46. |
+| **F15b** | No rate-fed arm beats Eq. 7. GIN-P-QoS→dyn+rate-e reaches 0.665: −0.165 against Eq. 7 (Holm 0.0015) and −0.134 against GBM-P-QoS→dyn. The rule fired on its second condition: the best arm lies significantly above the rate-blind GAT-P-QoS→dyn (+0.067, unadjusted p = 0.021). Its first condition, within 0.02 of GBM-P-QoS→dyn, failed. The registered wording "closes the input gap" is therefore reported only together with the remaining 0.134 gap to the tabular approximation. |
+| **F16** | GAT-P-QoS-tie vs GAT-QoS-R-tie: +0.069, Holm p = 0.019. The direction-controlled gain holds under a tie-aware loss. GAT-P-QoS-tie vs GAT-P-QoS: −0.001 (Holm 0.97). |
+| **S2** | The mean per-fold spread across the three tie-loss permutations is 0.047, against 0.044 under ListMLE. Node-order variance does not come mainly from tie order. |
+| **LC-c (overall)** | GAT-P-QoS: LC-c. Δ(11−4) = +0.078, Holm 0.015; Δ(11−8) = +0.015 [+0.003, +0.028]. GIN-P-QoS: LC-c. Δ(11−4) = +0.027, Holm 0.024; Δ(11−8) = +0.001. GAT-QoS: LC-a, flat from K = 4. GAT-P-QoS's gap to `InDeg` narrows from 0.160 (K = 1) to 0.017 (K = 11). |
+
+**Descriptive**
+
+- **Small-capacity arm.** GAT-S-P-QoS (width 64) reaches 0.638, −0.110 against GAT-P-QoS on 12/12 folds.
+- **Nested protocol.** GAT-P-QoS under the nested protocol is −0.071 [−0.143, −0.002] against `InDeg` (p = 0.11).
+- **Mixed effects.** All models converged. The estimates match the paired tests: +0.072, +0.231, +0.239, +0.069, and −0.017 (p = 0.62).
+- **`I_dyn` headroom.** For Eq. 7 it is 0.047–0.291 per fold (mean 0.132).
+- **Zero-shot.** GIN-QoS-R 0.766, -min 0.725, -const 0.399.

@@ -1,0 +1,138 @@
+{
+  "nested_gat_p_qos_vs_indeg": {
+    "delta": -0.07098544528453189,
+    "ci95": [
+      -0.143019490747366,
+      -0.002057073480294914
+    ],
+    "won": 3,
+    "n": 12,
+    "p": 0.10986328125
+  },
+  "nested_gat_p_qos_mean": 0.6932478880488014,
+  "mixed_effects": {
+    "F8b GAT-P-QoS vs GAT-QoS-R": {
+      "beta": 0.07153158245216427,
+      "se": 0.02131045057119418,
+      "p": 0.0007889480721091497,
+      "ci95": [
+        0.029763866838302656,
+        0.1132992980660259
+      ],
+      "converged": true,
+      "warnings": [
+        "The MLE may be on the boundary of the parameter space."
+      ]
+    },
+    "F11a GAT-P-QoS-min vs GAT-QoS-R-min": {
+      "beta": 0.23149818069335315,
+      "se": 0.05687270167623242,
+      "p": 4.691996018240974e-05,
+      "ci95": [
+        0.12002973370444685,
+        0.34296662768225944
+      ],
+      "converged": true,
+      "warnings": []
+    },
+    "F14a GIN-P-QoS-min vs GIN-QoS-R-min": {
+      "beta": 0.23934522405099773,
+      "se": 0.04893424997254219,
+      "p": 1.0024366362429683e-06,
+      "ci95": [
+        0.1434358564943349,
+        0.3352545916076606
+      ],
+      "converged": true,
+      "warnings": []
+    },
+    "F16b GAT-P-QoS-tie vs GAT-QoS-R-tie": {
+      "beta": 0.06937775846803748,
+      "se": 0.022799049540112994,
+      "p": 0.002342237736166273,
+      "ci95": [
+        0.02469244248767153,
+        0.11406307444840344
+      ],
+      "converged": true,
+      "warnings": [
+        "The MLE may be on the boundary of the parameter space."
+      ]
+    },
+    "GAT-P-QoS vs InDeg": {
+      "beta": -0.01655634690507342,
+      "se": 0.033041094925720924,
+      "p": 0.6163123710999332,
+      "ci95": [
+        -0.08131570296925555,
+        0.04820300915910872
+      ],
+      "converged": true,
+      "warnings": []
+    }
+  },
+  "idyn_headroom": {
+    "Eq7": {
+      "per_fold": {
+        "atm_system": 0.157854515800402,
+        "av_system": 0.229479463969267,
+        "enterprise_system": 0.08492842455840699,
+        "financial_trading_system": 0.1437528755768851,
+        "healthcare_system": 0.08540302921464682,
+        "hub_and_spoke_system": 0.29134073382697534,
+        "industrial_scada_system": 0.13867309812750117,
+        "iot_smart_city_system": 0.046715610644776584,
+        "logistics_fleet_system": 0.09581057003094517,
+        "microservices_system": 0.07084383670233996,
+        "realtime_gaming_system": 0.10003910939332838,
+        "telecom_ran_system": 0.13429375646394925
+      },
+      "mean": 0.13159458535911864,
+      "min": 0.046715610644776584,
+      "max": 0.29134073382697534
+    },
+    "GBM-P-QoS-dyn": {
+      "per_fold": {
+        "atm_system": 0.19809247159909515,
+        "av_system": 0.22847542829390555,
+        "enterprise_system": 0.1174208990026061,
+        "financial_trading_system": 0.11088200627824207,
+        "healthcare_system": 0.09031624040548236,
+        "hub_and_spoke_system": 0.2997299360354949,
+        "industrial_scada_system": 0.1651934266624101,
+        "iot_smart_city_system": 0.10492875750851949,
+        "logistics_fleet_system": 0.1353676982880312,
+        "microservices_system": 0.10818498984757496,
+        "realtime_gaming_system": 0.20322351422335128,
+        "telecom_ran_system": 0.18661768954543478
+      },
+      "mean": 0.16236942147417902,
+      "min": 0.09031624040548236,
+      "max": 0.2997299360354949
+    }
+  },
+  "label_reliability_seed_mean": {
+    "atm_system": 0.9925067256362945,
+    "av_system": 0.9408831842770985,
+    "enterprise_system": 0.8853369696200005,
+    "financial_trading_system": 0.9806402245527984,
+    "healthcare_system": 0.9665199614802716,
+    "hub_and_spoke_system": 0.7910211704429206,
+    "industrial_scada_system": 0.8056392832997866,
+    "iot_smart_city_system": 0.9397941552094978,
+    "logistics_fleet_system": 0.9631038767935615,
+    "microservices_system": 0.9441082044920833,
+    "realtime_gaming_system": 0.9335556073575736,
+    "telecom_ran_system": 0.9682917450094763
+  },
+  "provenance": {
+    "commit": "48c196fb4f09ab75a10c878a68be5a8563b87c9a",
+    "dirty": false,
+    "corpus_digest": "3afa81f0cddc96003c8d489e667b7a140ff110622e01d131714c52349c6b5acb",
+    "config": {
+      "script": "reproduce/referee_round14.py",
+      "amendment": 19,
+      "experiment": "Amendment 19 descriptive analyses"
+    }
+  }
+}
