@@ -1503,10 +1503,10 @@ This section backs the round-7 revision of the main manuscript. Everything in it
 
 \input{supp_advisor_v6.tex}
 
-\section{Control Arms (Amendments 14, 16 and 17)}
+\section{Control Arms (Amendments 14, 16, 17 and 19)}
 \label{supp:controls}
 
-Main Table~\ref{M-tab:controls} is a digest of the three tables below, which give every registered control arm with its $I_{\text{dyn}}$, $I_{\text{comp}}$ and zero-shot values. Each table was produced in one CPU invocation in which every comparator was re-run and reproduced its published per-seed $\rho$. Section~\ref{M-sec:rq2} of the main manuscript interprets them.
+Main Table~\ref{M-tab:controls} is a digest of the tables below, which give every registered control arm with its $I_{\text{dyn}}$, $I_{\text{comp}}$ and zero-shot values. Each table was produced in one CPU invocation in which every comparator was re-run and reproduced its published per-seed $\rho$. Section~\ref{M-sec:rq2} of the main manuscript interprets them.
 
 \noindent\textbf{Notes moved from the main text.}
 \begin{itemize}
@@ -1514,7 +1514,10 @@ Main Table~\ref{M-tab:controls} is a digest of the three tables below, which giv
     \item \textbf{Hybrid priors (F9, F10).} Retrained with the articulation defect corrected, Hybrid-GAT-AP reaches $0.669$ ($+0.136$, Holm $p = 0.0059$) and Hybrid-HGT-AP $0.640$ ($+0.107$, Holm $p = 0.0073$), each on 11 of 12 folds, and again neither differs from its base learner ($+0.034$ and $+0.018$, Holm $p = 0.94$). Given \texttt{InDeg} as their prior, \texttt{GAT-QoS+InDeg} ($0.763$) and \texttt{HGT-QoS+InDeg} ($0.759$) gain $+0.128$ and $+0.137$ over their base learners (Holm $p = 0.0049$) and land within $\pm 0.012$ of \texttt{InDeg} itself (equivalent at $\pm 0.05$, TOST $p < 0.001$).
     \item \textbf{Learned queue-flow approximation.} The GAT trained on $I_{\text{dyn}}$ labels ($0.598$) falls below the unweighted first-order expansion ($-0.108$, Holm $p = 0.014$) and is no better than the same GNN trained on $I^*$ labels restricted to Applications, a label-support control run in the same sweep ($-0.008$).
     \item \textbf{Node order (F13).} Creation order correlates only weakly with the labels ($\rho = -0.20$ to $+0.29$ per fold), and each permutation also changes which nodes the seeded validation split draws, so the spread across permutations mixes tie order and validation draw. Differences such as the $-0.016$ between \texttt{GIN-P-QoS} and \texttt{GAT-P-QoS} lie within it.
-    \item \textbf{Nested selection.} On the three folds where the nested harness chose the published hyperparameters it does not reproduce the published scores (differences up to $0.10$), because it trains on one scenario fewer and stops on a held-out scenario.
+    \item \textbf{Nested selection.} On the three folds where the nested harness chose the published hyperparameters it does not reproduce the published scores (differences up to $0.10$), because it trains on one scenario fewer and stops on a held-out scenario. Under that protocol \texttt{GAT-P-QoS} ($0.693$) falls $0.071$ $[0.002, 0.143]$ below \texttt{InDeg} on 9 of 12 folds ($p = 0.11$).
+    \item \textbf{Mixed effects (Amendment 19).} A linear mixed model of per-seed $\rho$ on the arm, with fold as group, a random arm slope and seeds as residual, gives the same estimates as the paired fold-level tests: $+0.072$ ($p < 0.001$) for \texttt{GAT-P-QoS} against \texttt{GAT-QoS-R}, $+0.231$ and $+0.239$ ($p < 0.001$) for the dependency graph against the reverse-edge controls without oracle-aligned features under attention and under sum aggregation, $+0.069$ ($p = 0.002$) under the tie-aware loss, and $-0.017$ ($p = 0.62$) for \texttt{GAT-P-QoS} against \texttt{InDeg}. All models converged.
+    \item \textbf{Tie-aware loss and node order (Amendment 19).} With tied labels as groups, the three node-order permutations of \texttt{GAT-P-QoS-tie} give $0.711$, $0.741$ and $0.738$, a mean per-fold spread of $0.047$ against $0.044$ under ListMLE, so the order dependence does not come mainly from tie order (rule S2).
+    \item \textbf{Capacity (Amendment 19).} At width 64 (31{,}048 parameters), \texttt{GAT-S-P-QoS} reaches $0.638$, $0.110$ below \texttt{GAT-P-QoS} on every fold: the published width is not over-parameterized for this task.
 \end{itemize}
 
 \begin{table}[htbp]
@@ -1605,6 +1608,8 @@ GAT-P-QoS-perm & GAT-P-QoS & 0.712 & $-0.035$ $[-0.055, -0.014]$ & 3/12 & (0.012
 \end{tabular}%
 }
 \end{table}
+
+\input{supp_amendment19.tex}
 
 \section{Training-Free Baselines}
 \label{supp:baselines}
