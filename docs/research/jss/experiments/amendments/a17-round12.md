@@ -1,11 +1,15 @@
 # Amendment 17 (and 17b): round-12 referee controls
 
-**Paper:** §3.3 (in-degree feature vs. `InDeg`), §3.5 (oracle-aligned features), §4.2 (tie order),
-§6.1 (learning on top of Eq. 7), §6.2 (Table `tab:a17`), §7.2, §7.5.
-**Registered:** [`PREREGISTRATION.md`](../PREREGISTRATION.md), Amendment 17 (committed at `b8710f75` before
-any arm ran) and Amendment 17b (committed before its two arms ran, after F13 was seen).
-**Review:** [review_2026-10-04_round12.md](../reviews/review_2026-10-04_round12.md); response:
-[response_round12.md](../reviews/response_round12.md).
+**Paper:** §3.3 (in-degree feature vs `InDeg`), §3.5 (`sec:3.5`, oracle-aligned features), §4.2 (tie
+order), §6.1 (`sec:rq1`, "Learning on top of the rate-weighted reference"), §6.2 (`sec:rq2`, Table 7
+`tab:controls`: F11–F13), §7.2, §7.5.
+**Supplement:** §S42 (`supp:controls`, Table S71 `tab:a17`), §S27 (row A17).
+**Status:** registered secondary. Amendment 17 was committed at `b8710f75`, before any arm ran.
+Amendment 17b was committed before its two arms ran, but after F13 had been seen.
+**Registration:** [`../../PREREGISTRATION.md`](../../PREREGISTRATION.md), Amendments 17 and 17b and
+their results log.
+**Review:** [review_2026-10-04_round12.md](../../reviews/review_2026-10-04_round12.md); response:
+[response_round12.md](../../reviews/response_round12.md).
 
 ## Reproduce
 
@@ -41,7 +45,7 @@ reconciler refuses dirty artifacts.
 | `data/benchmarks/referee_round12_descriptive.json` | creation-index check, partial ρ given Eq. 6, feature vs. reference, corrected baseline |
 | `data/benchmarks/referee_round12_perm.json` | Amendment 17b |
 
-## Results
+## Outcome
 
 **Gate G0.** Every re-run comparator reproduces its published per-seed ρ exactly (max |Δ| = 0):
 `gl_proj_qos16_cap`, `gl_full_qos16_cap`, `gl_full_qos16_cap_rev`, `gin_proj_qos16`,

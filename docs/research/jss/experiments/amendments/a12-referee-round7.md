@@ -1,9 +1,15 @@
-# Amendment 12: round-7 referee analyses (exploratory)
+# Amendment 12: round-7 referee analyses
 
-Answers the round-7 referee report
-([../reviews/review_2026-09-26_round7.md](../reviews/review_2026-09-26_round7.md)). It was registered in
-[PREREGISTRATION.md](../PREREGISTRATION.md) (Amendment 12) before its arms ran. Its deviations are logged
-directly below the registration.
+**Paper:** §3.3 (Remark 1), §6.1 (`sec:rq1`: raw-graph rankers in "The reference level"; Table 6
+`tab:independent_oracles`: learned rankers on every oracle; Figure 5 `fig:recall`), §6.3 (one-harness
+zero-shot), §6.4 (`sec:rq4`: counting cost by size).
+**Supplement:** §S39 (`supp:referee`), §S27 (row A12).
+**Status:** mixed per arm. R1 registered 12 contrasts (Holm within). The rest are exploratory or
+descriptive. Amendment 13 later classified R1's rankers as references.
+**Registration:** [`../../PREREGISTRATION.md`](../../PREREGISTRATION.md), Amendment 12 (commit
+`8a30eab2`), written before its arms ran; its deviations are logged directly below it.
+**Review:** [review_2026-09-26_round7.md](../../reviews/review_2026-09-26_round7.md); response:
+[response_round7.md](../../reviews/response_round7.md).
 
 ## What it asks
 
@@ -13,7 +19,7 @@ directly below the registration.
 | R2 | Does any ranker carry `I_dyn` signal beyond `I*`? Partial Spearman ρ given `I*` and given the first-order expansion (M3) | `referee_round7_partial.json` |
 | R3 | Are the learned engines any better on the other oracles? Saved predictions re-scored (M3v) | `referee_round7_learned_oracles.json` |
 | R4 | How much must be flagged to catch the critical set? Tie-aware recall@k (M10) | `referee_round7_recall.json` |
-| R5 | Table 9 on one harness, and how the system models differ structurally (M9) | `referee_round7_zeroshot.json` |
+| R5 | The zero-shot table (now Table 8) on one harness, and how the system models differ structurally (M9) | `referee_round7_zeroshot.json` |
 | R6 | What does counting cost, by size, against one `I*` pass? (M6) | `referee_round7_latency.json` |
 | — | Fisher-z and size-weighted means; seed spread of the learned engines (minor 6, M11; descriptive) | `referee_round7_averaging.json` |
 
@@ -21,8 +27,8 @@ directly below the registration.
 
 ```bash
 make -f reproduce/Makefile rq-referee-round7            # R1–R6 and averaging
-PYTHONPATH=. python reproduce/render_referee_tables.py  # Supplementary S-referee tables
-PYTHONPATH=. python reproduce/render_recall_figure.py   # manuscript Figure 6
+PYTHONPATH=. python reproduce/render_referee_tables.py  # supplement §S39 tables
+PYTHONPATH=. python reproduce/render_recall_figure.py   # manuscript Figure 5
 ```
 
 The script runs on CPU and trains nothing. R1–R5 take a few minutes. R6 takes about an hour,
@@ -30,18 +36,22 @@ because `I*` labelling time grows roughly quadratically with size.
 
 ## Deviations (logged in PREREGISTRATION.md)
 
-1. **`I_dyn` is the published n = 30 lexical sample.** Amendment 11's full-population labelling was
-   stopped before it wrote any labels. The lexical-sample limitation therefore stands.
+1. **`I_dyn` is the published n = 30 lexical sample.** Amendment 11's full-population labelling had
+   been stopped before it wrote any labels. *Since resolved:* Amendment 11 completed later
+   ([page](a11-oracle-robust.md)), Amendment 14 re-ran R2 and R3 on the full population, and the n = 30
+   values remain only as a sensitivity check (§S40, Table S63).
 2. **Gate G3 fails by construction.** The saved learned predictions are seed ensembles, so R3 reports
    seed-ensemble ρ. The per-seed logs reproduce every published mean.
 3. **R6 does not time `I*` at 10,000 components.** It times `I*` once at 5,000.
 4. **Population defect.** `subscriber_count_raw` and `pubs_raw` emit only publishers, and the metric code
    scores only emitted nodes. Fixed by zero-filling, which also corrects Amendment 10's Pubs-raw arm
-   (see [amendment10-derivation.md](amendment10-derivation.md)).
+   (see [a10-derivation.md](a10-derivation.md)).
 
-## Headline outcomes
+## Outcome
 
-The manuscript tables carry the numbers; see Tables 6 and 7, Figure 6 and Supplementary S-referee.
+Values below are on the n = 30 $I_\text{dyn}$ sample, as run. Table 6 now reports the full-population
+re-analysis (Amendment 14), in which `InDeg`'s partial ρ beyond $I^*$ is 0.272 [0.188, 0.366] and
+`Reach`'s is 0.117.
 
 - **R1.** `InDeg` equals the raw two-hop subscriber count on every graph. Untyped raw metrics fail on
   `I*` (degree 0.199, reverse PageRank 0.089, PageRank constant). Topics published comes within 0.033

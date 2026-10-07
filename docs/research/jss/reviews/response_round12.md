@@ -13,7 +13,7 @@ more node-order permutations) before running it.
 | Sweep targets | `make -f reproduce/Makefile rq-amendment17 rq-amendment17b` |
 | Analysis script | [reproduce/referee_round12.py](../../../../reproduce/referee_round12.py) |
 | Artifacts | `data/benchmarks/referee_round12_{f12,amendment17,descriptive,perm}.json` |
-| Experiment page | [amendment17-round12.md](../experiments/amendment17-round12.md) |
+| Experiment page | [amendments/a17-round12.md](../experiments/amendments/a17-round12.md) |
 | New table | main Table `tab:a17`; the matched 2×2 moved to Supplementary `tab:contrasts_matched` |
 
 We thank the referee. The four experiments came out as follows:
