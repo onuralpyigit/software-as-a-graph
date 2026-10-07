@@ -4,7 +4,7 @@ Figure 1 shows the SaG framework. The front end reads a declared architecture mo
 
 ![Figure 1](../latex/figures/Figure_1.png)
 
-*Figure 1. End-to-end architecture of the SaG framework. The ranking pathway runs down the center: architecture-model ingestion, typed structural multigraph (Gstructural), DEPENDS_ON logical dependency projection (Ganalysis) with typed node properties, the ranking methods (analytical, hybrid, and learned; Figure 3), and the ranked critical set. The dashed edge marks the simulation oracles, which operate strictly on Gstructural, provide training and evaluation labels offline, and do not participate in inference.*
+*Figure 1. End-to-end architecture of the SaG framework. The ranking pathway runs down the center: architecture-model ingestion, typed structural multigraph (Gstructural), DEPENDS_ON logical dependency projection (Ganalysis) with typed node properties, the ranking methods (analytical, hybrid, and learned; Figure 3), and the ranked critical set. The dashed edge marks the simulation oracles, which operate strictly on Gstructural, provide training and evaluation labels offline, and do not participate in inference. The explanation layer branches off the analysis graph with the same features and no shared parameters; it is a conceptual proposal outside the empirical evaluation of this study (Supplementary §S27).*
 
 ## 3.1 Multigraph Definition
 

@@ -1,10 +1,5 @@
 // Figure 1: End-to-End Software-as-a-Graph (SaG) Architecture
 //
-// ROUND 14: the explanation-layer branch (cluster_a: quality attribution,
-// root-cause profile, remediation; the triage and counterfactual edges) was
-// removed because the study does not evaluate it. Header notes below that
-// describe the branch are kept as history.
-//
 // Render: dot -Tpdf figure1_pipeline.dot -o ../Figure_1.pdf
 //         dot -Tpng -Gdpi=300 figure1_pipeline.dot -o ../Figure_1.png
 //
@@ -171,6 +166,51 @@ digraph Figure1 {
     fillcolor="#FFEDD5", color="#C2410C"
   ];
 
+  // ── The branch: explanation layer, right of the centre line ───────────────
+  subgraph cluster_a {
+    label = "EXPLANATION LAYER";
+    fontname = "Helvetica-Bold";
+    fontsize = 10.5;
+    fontcolor = "#14532D";
+    style = "dashed,rounded";
+    color = "#15803D";
+    penwidth = 1.4;
+    margin = 10;
+
+    rm [
+      label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
+        <tr><td><b>Explainable Quality Attribution</b></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• Reliability = <i>r</i><sub>FT</sub>&#183;FT + (1&#8722;<i>r</i><sub>FT</sub>)&#183;A</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">&#160;&#160;&#8226; Fault Tolerance: cascade depth</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">&#160;&#160;&#8226; Availability: SPOF / articulation</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• Maintainability: coupling + SCA</font></td></tr>
+      </table>>,
+      fillcolor="#DCFCE7", color="#15803D"
+    ];
+
+    diag [
+      label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
+        <tr><td><b>Root-Cause Diagnostic Profile</b></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• SPOF exposure (high <i>A</i>)</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• Cascade hub (high <i>FT</i>)</font></td></tr>
+      </table>>,
+      fillcolor="#ECFDF5", color="#15803D"
+    ];
+
+    remediate [
+      label=<<table border="0" cellborder="0" cellpadding="2" cellspacing="0">
+        <tr><td><b>Remediation Guidance</b></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• Replication (DevOps/SRE)</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• Circuit breakers (architect)</font></td></tr>
+        <tr><td align="left"><font point-size="9.5" color="#14532D">• Refactoring (developers)</font></td></tr>
+      </table>>,
+      fillcolor="#F0FDF4", color="#166534"
+    ];
+
+    rm -> diag;
+    diag -> remediate;
+  }
+
   // ── Centre-line flow (heavy, straight) ────────────────────────────────────
   manifest -> graph_s [label=" Ingestion", penwidth=2.2, weight=100];
   graph_s -> graph_a  [label=" Typed projection\l &amp; QoS weights\l", penwidth=2.2, weight=100];
@@ -181,6 +221,14 @@ digraph Figure1 {
   topk -> oracle [
     label=" Evaluated against\l simulated labels\l",
     style="dashed", color="#C2410C", fontcolor="#9A3412", penwidth=1.6, weight=100
+  ];
+
+  // ── Branch off the centre line into the explanation layer ─────────────────
+  // Same typed node features (§3.4), no shared parameters (§4.4).
+  graph_a -> rm [
+    lhead=cluster_a,
+    label=" Branch: same\l features, no\l shared parameters\l",
+    style="dashed", color="#15803D", fontcolor="#166534", penwidth=1.3, weight=1
   ];
 
   // Independence guarantee: the oracle never sees G_analysis (§4.4) — it runs on
@@ -194,4 +242,26 @@ digraph Figure1 {
   wp4 -> oracle [arrowhead=normal];
   edge [style="solid", color="#334155", fontcolor="#334155", penwidth=1.3, arrowhead=normal, weight=1];
 
+  // Triage, not a data dependency: the architect applies the explanation to
+  // whatever the centre line ranked. The label is an HTML table purely for its
+  // white backing and padding: dot parks it in the narrow gap between the two
+  // clusters, where a plain-text label lands on top of a cluster border.
+  topk -> diag [
+    label=<<table border="0" cellborder="0" cellpadding="1" cellspacing="0" bgcolor="white"><tr><td><font point-size="9" color="#5B21B6">Triage</font></td></tr></table>>,
+    style="dashed", color="#6D28D9", fontcolor="#5B21B6", penwidth=1.1,
+    constraint=false
+  ];
+
+  // Prescribe's per-edit acceptance filter re-simulates each candidate on its
+  // own mutated copy of G_structural before accepting it (counterfactual verification) — a
+  // closed loop back into the centre line's front end, not a second call into
+  // the oracle. headlabel (not label, not xlabel): an inline label widens the
+  // canvas, and an xlabel lands on top of the diag -> remediate arrow.
+  remediate -> graph_s [
+    headlabel="Counterfactual\lre-simulation\l",
+    labeldistance=5.5, labelangle=-28, labelfontsize=9, labelfontcolor="#166534",
+    labelfontname="Helvetica",
+    style="dashed", color="#166534", fontcolor="#166534", penwidth=1.1,
+    constraint=false
+  ];
 }

@@ -182,7 +182,7 @@ Figure~\ref{fig:1} shows the SaG framework. The front end reads a declared archi
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.52\linewidth]{figures/Figure_1}
-\caption{End-to-end architecture of the SaG framework. The ranking pathway runs down the center: architecture-model ingestion, typed structural multigraph ($G_{\text{structural}}$), \texttt{DEPENDS\_ON} logical dependency projection ($G_{\text{analysis}}$) with typed node properties, the ranking methods (analytical, hybrid, and learned; Figure~\ref{fig:engines}), and the ranked critical set. The dashed edge marks the simulation oracles, which operate strictly on $G_{\text{structural}}$, provide training and evaluation labels offline, and do not participate in inference.}
+\caption{End-to-end architecture of the SaG framework. The ranking pathway runs down the center: architecture-model ingestion, typed structural multigraph ($G_{\text{structural}}$), \texttt{DEPENDS\_ON} logical dependency projection ($G_{\text{analysis}}$) with typed node properties, the ranking methods (analytical, hybrid, and learned; Figure~\ref{fig:engines}), and the ranked critical set. The dashed edge marks the simulation oracles, which operate strictly on $G_{\text{structural}}$, provide training and evaluation labels offline, and do not participate in inference. The explanation layer branches off the analysis graph with the same features and no shared parameters; it is a conceptual proposal outside the empirical evaluation of this study (Supplementary Section~\ref{supp:explanation}).}
 \label{fig:1}
 \end{figure}
 
