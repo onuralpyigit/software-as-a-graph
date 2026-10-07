@@ -1,10 +1,15 @@
 # RQ3 — Zero-shot transfer to five open-source system models
 
-> **Amendment 7 update.** Scored on the same models and oracle settings, the training-free dependency counts reach Reach 0.938 and InDeg 0.863, with no training. Part of why every ranker scores higher here than under LOSO is label structure: 51% of system-model Applications are inert, against 31% in the folds. See [amendment7-training-free.md](amendment7-training-free.md).
-
-**Paper:** §7.3, Table 10 (and the transfer columns of Table 7). **Extended results:** Supplement
-S27 (bootstrap intervals and active stratum), S15 (PR-AUC, F1@τ, nDCG), S7 (explanation layer on
-the same models), S29 (2-layer configuration).
+**Paper:** §6.3 (`sec:rq3`), Table 8 (`tab:system_models_transfer`); corpus in §5.1 (`sec:6.1`); the
+single-modeler threat in §7.4 (`sec:threats`).
+**Supplement:** §S31 (`supp:transfer-active`: bootstrap intervals and active stratum), §S17
+(`supp:identification`: PR-AUC, F1@τ, nDCG), §S9 (`supp:rq4`: explanation layer on the same models),
+§S34 (`supp:taxonomy`: the 2-layer configuration), Table S74 (`tab:supp-moved-systems`: unweighted
+`Topo`).
+**Status:** descriptive. Five systems are too few for inference; the intervals are percentile
+bootstraps over systems. This is the plan's RQ4.
+**Registration:** [`../PREREGISTRATION.md`](../PREREGISTRATION.md), the plan (RQ4) and Amendment 4
+(the common 3-layer, 300-epoch protocol).
 
 ## The five system models
 
@@ -44,33 +49,42 @@ PYTHONPATH=. python reproduce/realworld_zeroshot.py --variant hgl_qos --layers 3
 
 `--variant` also accepts `hgl`, `hgl_qos_prior`, `gl_full_qos16_cap` and `gl_qos16_prior` (see
 `--help`). The published artifacts are:
-- `realworld_zeroshot_v7.json` (`HGT-QoS`, Table 10);
-- `realworld_zeroshot_*_cpu.json` (the CPU rows of Table 7 and the `GAT-QoS` column of Table 10);
-- `realworld_zeroshot_{gl_full_cap,tab_gbm}_attribution.json` (the `GAT` and `GBM-Feat` columns of Table 10;
-  [rq2-attribution-controls.md](rq2-attribution-controls.md)).
+- `realworld_zeroshot_{hgl_qos,hgl_qos_prior,gl_full_qos16_cap,gl_qos16_prior}_cpu.json`: the
+  `HGT-QoS`, Hybrid-HGT, `GAT-QoS` and Hybrid-GAT rows of Table 8, and the `Topo-QoS` row (from the
+  `hgl_qos` artifact's bootstrap block);
+- `realworld_zeroshot_gl_proj_qos16_cap_dependency_graph.json`: the `GAT-P-QoS` row
+  ([A9](amendments/a09-dependency-graph-learning.md));
+- `tf_baselines.json`: the `InDeg` and `Reach` reference rows ([A7](amendments/a07-training-free.md)).
+
+Zero-shot results of the control arms are on their amendment pages: [A8](amendments/a08-attribution-controls.md)
+(`GAT`, `GBM-Feat`), [A14](amendments/a14-round8.md), [A16](amendments/a16-direction-control.md)
+(`GAT-QoS-R`, AP hybrids) and [A17](amendments/a17-round12.md).
 
 ## Headline result
 
-Learned engines rank zero-shot at ρ = 0.760 (`HGT-QoS`) and 0.805 (`GAT-QoS`), against
-0.511–0.526 for every training-free score. Plain `GAT`, with no QoS input and no message passing
-at Applications, transfers best (0.831), and gradient boosting on the same features reaches 0.757,
-so most of the margin is learning on SaG's per-component features. Learned models raise top-K
-overlap from 0.248 to 0.40–0.55. On the active stratum
-(components with $I^* > 0$), every interval spans zero at five systems, so that comparison is
-unresolved.
+- **Learned rankers transfer better than the training-free baseline.** `GAT-P-QoS` reaches ρ = 0.806
+  and `GAT-QoS` 0.805, against 0.526 for `Topo-QoS`.
+- **The references rank higher still.** `Reach` reaches 0.938 and `InDeg` 0.863. The models are
+  structurally easy for `Reach`: 51% of their Applications are inert, against 31% in the folds, and
+  their fan-in is more concentrated (Gini 0.65 vs 0.50).
+- **Active stratum.** On components with $I^* > 0$, every predictor is weak: learned rankers score
+  0.185–0.342 and the baseline is negative. `Reach` keeps 0.871.
+- **The baseline prior costs transfer.** Both hybrids fall below their base learners (0.695 and 0.662
+  against 0.760 and 0.805), and the same holds with the corrected prior (0.702 and 0.668).
 
-## Notes cut from the paper
+## Notes
 
 - **Configuration sensitivity.** An earlier configuration used 2 layers and 150 epochs, chosen
   because these meshes are small ($|V_\text{app}| \le 41$). That choice appealed to a property of
   the test systems, so it is not reported as primary. It is uniformly slightly stronger and changes
-  no conclusion (Supplement S29).
-- **The 3–2 split.** $\rho_{>0}$ is positive on the three pub-sub-derived models and non-positive on
-  the two RPC-derived ones.
+  no conclusion (§S34).
+- **The 3–2 split.** The raw-multigraph learned rankers lead on the three models of originally
+  pub-sub systems. On the two originally RPC systems, their $\rho_{>0}$ is only −0.19 to +0.16
+  (§S36, Table S38 `tab:supp-regimes-zs`).
   - Both RPC-derived models are encoded as pub-sub graphs and labelled by the same
     forward-reachability oracle, so the split cannot be attributed to call-tree semantics.
   - Testing that needs synchronous edges in the schema and a backward-propagating oracle.
-- **Second-modeler check (open).** No second modeler has re-derived any model.
+- **Second-modeler check (open).** No second modeler has re-derived any model (§7.4).
   [`reproduce/model_agreement.py`](../../../../reproduce/model_agreement.py) implements the
   re-modeling protocol: the second modeler gets the sources but not the original, and renames go
   only through an alias file. It also computes per-type entity and per-relation edge Jaccard, and is

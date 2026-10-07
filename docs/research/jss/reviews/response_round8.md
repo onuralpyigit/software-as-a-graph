@@ -8,7 +8,7 @@ New runs are **Amendment 14** in [PREREGISTRATION.md](../PREREGISTRATION.md). It
 (`714e70fc`) before any of its arms ran, together with a **deviation record** for the plan's
 selection rule and one **status-tier rule** that replaces the earlier mixed use of "confirmatory".
 The analysis script is [reproduce/referee_round8.py](../../../../reproduce/referee_round8.py); the
-experiment page is [amendment14-round8.md](../experiments/amendment14-round8.md).
+experiment page is [amendments/a14-round8.md](../experiments/amendments/a14-round8.md).
 
 We thank both referees. Several comments changed conclusions, not just wording:
 - **Tiers (R1 M4, M5).** Only the original plan is confirmatory now. The matched 2×2 and the hybrids

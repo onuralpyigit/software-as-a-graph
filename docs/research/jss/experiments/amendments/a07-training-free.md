@@ -1,14 +1,21 @@
 # Amendment 7: dependency counts and QoS-attribution controls
 
-**Paper:** §7.1 (Table 7 `InDeg` / `Reach` rows; "Where the closed-form gain comes from"), §7.3,
-§7.4, §8.1; Figure 5; Supplementary S32 (Tables S34–S39).
-**Registered:** [`PREREGISTRATION.md`](../PREREGISTRATION.md), Amendment 7 (2026-09-25), before any
-of these numbers existed. Decision rules R1, R2 and R2′ all applied.
+**Paper:** §4.4 (`sec:4.4`, the references), §6.1 (`sec:rq1`, Table 5 reference block: `InDeg`,
+`Reach`), §6.2 (`sec:rq2`, the closed-form QoS controls), §6.3 (Table 8 reference block), §6.4
+(count cost), Figure 4.
+**Supplement:** §S37 (`supp:amendment7`), §S43 (`supp:baselines`).
+**Status:** registered secondary. Written 2026-09-25, before any of these numbers existed. Amendment
+13 later reclassified `InDeg` and `Reach` as references that restate $I^*$'s rule, so their contrasts
+no longer carry claim status in the main text ([A13](a13-reference-demotion.md)).
+**Registration:** [`../../PREREGISTRATION.md`](../../PREREGISTRATION.md), Amendment 7 (commit
+`4878cf28`). Decision rules R1, R2 and R2′ all applied. R3 (report every arm) was discharged by the
+dependency-graph revision ([A9](a09-dependency-graph-learning.md)).
 
 ## What it asks
 
 1. Does a training-free count on SaG's dependency projection already match the learned engines?
-   The primary oracle is a cascade over the same dependency rules the projection encodes.
+   The primary oracle is a cascade over the same dependency rules the projection encodes, which is
+   why Amendment 13 later reported these counts as references.
 2. Is the Topo → Topo-QoS gain (0.349 → 0.553) produced by the declared QoS contracts, or by the
    projection itself?
 3. How much of every correlation is only the separation of inert components (I* = 0)?
@@ -40,7 +47,6 @@ PYTHONPATH=. python reproduce/training_free_suite.py qos-indep
 PYTHONPATH=. python reproduce/training_free_suite.py substrate     # what the registered Topo measured
 PYTHONPATH=. python reproduce/training_free_suite.py cost
 PYTHONPATH=. python reproduce/render_amendment7_tables.py          # latex/supp_amendment7.tex
-PYTHONPATH=. python reproduce/render_amendment7_figure.py          # latex/figures/Figure_5.{pdf,png}
 ```
 
 **Before scoring anything new,** the harness regenerates I* with the published settings. It then
@@ -48,11 +54,14 @@ reproduces every published per-fold Topo-QoS value to three decimals
 (`results/tf_reproduction_gate.json`). It re-executes itself with `PYTHONHASHSEED=0`, because the CDI
 sample breaks degree ties in set-iteration order.
 
+`reproduce/render_amendment7_figure.py` renders this amendment's original figure. That figure is no
+longer in the paper, and the script still writes `latex/figures/Figure_5`, which is now the recall
+figure (`reproduce/render_recall_figure.py`). Do not run it against the current manuscript.
+
 ## Artifacts
 
-These files are committed in `results/`, unlike the rest of the bundle:
+Tracked in git under `results/`, unlike most of the bundle:
 - `tf_reproduction_gate.json`
-- `tf_baselines.json`
 - `qos_attribution_controls.json`
 - `qos_indep_corpus.json`
 - `topo_substrate_check.json`
@@ -60,7 +69,10 @@ These files are committed in `results/`, unlike the rest of the bundle:
 - `system_model_descriptives.json`
 - `dependency_count_cost.json`
 
-## Headline values
+`tf_baselines.json`, which Table 5 and Table 8 read for `InDeg` and `Reach`, is not tracked. It
+ships in the Zenodo bundle and regenerates with `training_free_suite.py all`.
+
+## Outcome
 
 - **InDeg** ranks at LOSO ρ 0.764 and beats Topo-QoS on 12/12 folds.
 - **Reach** ranks at 0.732, and **Reach-QoS** at 0.714.
@@ -71,4 +83,4 @@ These files are committed in `results/`, unlike the rest of the bundle:
   - On the QoS-independent corpus, QoS weighting changes the score by −0.035.
 - **Inert-vs-active rule:** 94% balanced accuracy.
 
-The full per-fold results are in Supplementary Tables S34–S39.
+The full per-fold results are in §S37 (`supp:amendment7`).
