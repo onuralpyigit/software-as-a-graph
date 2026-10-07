@@ -1,8 +1,17 @@
 # Amendment 19: round-14 referee controls
 
-**Paper:** §4.2 (tie order), §6.1 (rate-fed queue-flow GNNs), §6.2 (aggregator control, tie-aware loss, learning curve), §7.2, §7.4, §7.5.
-**Registered:** [`PREREGISTRATION.md`](../PREREGISTRATION.md), Amendment 19, committed with its code before any arm ran.
-**Review:** [review_2026-10-06_round14.md](../reviews/review_2026-10-06_round14.md).
+> **Not yet on `main`.** This amendment, its code, its artifacts and the manuscript revision that
+> reports it are on branch `jss-revision-round14` (`b3be1c4a`). The paper references below use that
+> branch's numbering, and the `make` targets exist only there. This page was copied from the branch
+> so that the amendment log is complete. When the branch merges, keep this file and drop the branch's
+> `experiments/amendment19-round14.md`.
+
+**Paper (round-14 branch):** §4.2 (tie order), §6.1 (rate-fed queue-flow GNNs), §6.2 (aggregator
+control, tie-aware loss, learning curve), §7.2, §7.4, §7.5.
+**Supplement (round-14 branch):** Tables `tab:a19` and `tab:a19lc`; Figure 6.
+**Status:** registered secondary. Committed with its code before any arm ran.
+**Registration:** [`PREREGISTRATION.md` on the round-14 branch](https://github.com/onuralpyigit/software-as-a-graph/blob/jss-revision-round14/docs/research/jss/PREREGISTRATION.md), Amendment 19.
+**Review:** [review_2026-10-06_round14.md (round-14 branch)](https://github.com/onuralpyigit/software-as-a-graph/blob/jss-revision-round14/docs/research/jss/reviews/review_2026-10-06_round14.md).
 
 ## Reproduce
 
@@ -24,7 +33,7 @@ Run the LOSO sweeps from the main checkout, from a clean tree: the artifacts rec
 | small | `GAT-S-P-QoS` | GAT-P-QoS at width 64 |
 | LC | `GAT-P-QoS`, `GIN-P-QoS`, `GAT-QoS` | trained on K ∈ {1, 2, 4, 8} of the fold's eleven training scenarios (three nested draws) |
 
-## Results
+## Outcome
 
 Artifacts: `data/benchmarks/referee_round14_{amendment19,lc,descriptive}.json` (commit `48c196fb`, clean); Supplementary Tables `tab:a19` and `tab:a19lc`; Figure 6. All nine re-run comparators reproduced exactly (G0).
 
