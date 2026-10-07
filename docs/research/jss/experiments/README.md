@@ -86,7 +86,7 @@ provenance. Every `make` target writes into `results/` or `data/benchmarks/` whe
 repository root.
 
 **The published link.** The manuscript's experiment-pages URL (`\sagexperimentsurl`) is pinned to
-commit `56d9bff8`, so it shows these pages as they were at that revision.
+commit `655489fb` (the 2026-10-08 revision), so it shows these pages as they were at that revision.
 
 ## Predictor names
 
