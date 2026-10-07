@@ -87,8 +87,8 @@ Both gates pass (max |Δ| = 0).
 | C (QoS attribution) | Q added, on $I^*$ | −0.003 | 6/12 | 0.62 | |
 | C | Q added, on $I_\text{dyn}$ | +0.095 [+0.050, +0.139] | 9/12 | 0.014 | **C** |
 
-The artifact gives B1 as +0.0935. The paper and the supplement print +0.094; rounded to three
-decimals it is +0.093.
+The artifact gives B1 as +0.0935, which rounds to +0.093. The paper and supplement printed +0.094
+until this was corrected.
 
 - **A″.** Learning a combination of dependency signals adds no robustness across oracles. It is worse
   in the worst case than the first-order expansion alone.
