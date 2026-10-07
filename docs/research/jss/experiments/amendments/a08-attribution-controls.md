@@ -2,7 +2,7 @@
 
 **Paper:** §3.4 (`sec:3.4`, dual graph views: what each ranker can see), §6.2 (`sec:rq2`, "Message passing, node order and the
 selection rule"), §7.1.
-**Supplement:** §S27 (`supp:amendments`, amendment log row A8).
+**Supplement:** §S28 (`supp:amendments`, amendment log row A8).
 **Status:** exploratory. Post hoc: written 2026-09-26, after every run below existed. It registers
 no contrast and changes no registered conclusion. `GBM-Feat` itself was declared post hoc in
 Amendment 3 and first run here.

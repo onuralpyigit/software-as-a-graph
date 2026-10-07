@@ -1,10 +1,10 @@
 # RQ1 — Ranking accuracy
 
-**Paper:** §6.1 (`sec:rq1`); Table 5 (`tab:hybrid`), Table 6 (`tab:independent_oracles`), Figure 4
+**Paper:** §6.1 (`sec:rq1`); Table 6 (`tab:hybrid`), Table 7 (`tab:independent_oracles`), Figure 4
 (`fig:results`), Figure 5 (`fig:recall`). Rankers: §5.2, Table 4 (`tab:predictor_taxonomy`).
-**Supplement:** §S25 (`supp:hybrid-folds`, per-fold hybrids), §S28 (`supp:loso-active`, active
-stratum), §S24 (`supp:ap-sensitivity`, articulation term restored), §S35 (`supp:loso-gpu`, the
-registered GPU sweep), §S36 (`supp:regimes`, engine regimes), §S43 (`supp:baselines`, further
+**Supplement:** §S26 (`supp:hybrid-folds`, per-fold hybrids), §S29 (`supp:loso-active`, active
+stratum), §S25 (`supp:ap-sensitivity`, articulation term restored), §S36 (`supp:loso-gpu`, the
+registered GPU sweep), §S37 (`supp:regimes`, engine regimes), §S44 (`supp:baselines`, further
 training-free baselines).
 **Status:** the plan's two co-primary contrasts are confirmatory (both null). The hybrids
 (Amendments 5–6) are registered secondary. Every dependency-graph learner, reference and
@@ -15,7 +15,7 @@ the rows contributed by later amendments are listed under [Where each row comes 
 ## Question
 
 How accurately do analytical, hybrid and learned rankers order Applications by simulated cascade
-impact on architectures they have never seen? The primary oracle is $I^*$. Table 6 adds the
+impact on architectures they have never seen? The primary oracle is $I^*$. Table 7 adds the
 queue-flow oracle $I_\text{dyn}$ and the multi-criteria oracle $I_\text{comp}$
 ([oracles-and-sensitivity.md](oracles-and-sensitivity.md)).
 
@@ -25,9 +25,9 @@ queue-flow oracle $I_\text{dyn}$ and the multi-criteria oracle $I_\text{comp}$
   and scores the twelfth zero-shot.
 - **Evaluation set.** Applications only, 26–300 per fold (1,321 in all), with
   $K = \mathrm{round}(0.2\,|V_\text{app}|)$, so $K$ runs from 5 to 60.
-- **Seeds.** $\{42, 123, 456, 789, 2024\}$. The fold score is the mean of per-seed ρ. Table 6's GNN
+- **Seeds.** $\{42, 123, 456, 789, 2024\}$. The fold score is the mean of per-seed ρ. Table 7's GNN
   rows instead score the mean of the five seeds' predictions (a seed ensemble), so they read higher
-  than Table 5 (`GAT-P-QoS` 0.772 vs 0.748).
+  than Table 6 (`GAT-P-QoS` 0.772 vs 0.748).
 - **Learned arms.** One fixed configuration, not tuned on any evaluation split: 3 layers, inner-split
   early stopping (patience 30, up to 300 epochs), AdamW (lr $3\times10^{-4}$, weight decay
   $10^{-4}$), cosine warm restarts ($T_0 = 75$, $T_\text{mult} = 2$, $\eta_\text{min} =
@@ -68,15 +68,15 @@ make -f reproduce/Makefile rq-hybrid             # Topo-QoS, HGT-QoS, Hybrid-HGT
 make -f reproduce/Makefile rq-hybrid-gat         # GAT-QoS, Hybrid-GAT (one CPU sweep)
 make -f reproduce/Makefile rq-dependency-graph   # GAT-P-QoS, HGT-P-QoS (Amendment 9)
 PYTHONPATH=. python reproduce/training_free_suite.py all   # InDeg, Reach (Amendment 7)
-make -f reproduce/Makefile rq-referee-round8     # Table 6: full-population I_dyn, partial ρ
-make -f reproduce/Makefile rq-oracle-robust      # Table 6: GBM-P-QoS→dyn (Amendment 11; ~13 CPU-h of labels)
-make -f reproduce/Makefile rq-rate-expansion     # Table 6: rate-weighted reference (Amendment 15)
+make -f reproduce/Makefile rq-referee-round8     # Table 7: full-population I_dyn, partial ρ
+make -f reproduce/Makefile rq-oracle-robust      # Table 7: GBM-P-QoS→dyn (Amendment 11; ~13 CPU-h of labels)
+make -f reproduce/Makefile rq-rate-expansion     # Table 7: rate-weighted reference (Amendment 15)
 make -f reproduce/Makefile omnibus               # all thirteen registered contrasts under one Holm
-make -f reproduce/Makefile table4                # the registered GPU sweep (Supplement §S35)
+make -f reproduce/Makefile table4                # the registered GPU sweep (Supplement §S36)
 ```
 
 All main-text learned rows come from CPU sweeps (`--device cpu --torch-threads 1`) with their
-comparators in the same invocation. They are never mixed with the GPU rows of §S35: `HGT-QoS` is
+comparators in the same invocation. They are never mixed with the GPU rows of §S36: `HGT-QoS` is
 0.622 on CPU and 0.638 on GPU. See [repeatability-and-amendments.md](repeatability-and-amendments.md).
 
 ## Where each row comes from
@@ -85,22 +85,22 @@ comparators in the same invocation. They are never mixed with the GPU rows of §
 
 | Table rows | Artifact | Amendment page |
 |---|---|---|
-| Table 5: `Topo-QoS`, `HGT-QoS`, Hybrid-HGT | `loso_hybrid_cpu.json`, `loso_significance_hybrid_cpu.json` | this page |
-| Table 5: `GAT-QoS`, Hybrid-GAT | `loso_hybrid_gat_cpu.json`, `loso_significance_hybrid_gat_cpu.json` | this page |
-| Table 5: `GAT-P-QoS`, `HGT-P-QoS` | `loso_dependency_graph_cpu.json` | [A9](amendments/a09-dependency-graph-learning.md) |
-| Table 5: `InDeg`, `Reach` (references) | `tf_baselines.json` | [A7](amendments/a07-training-free.md), [A13](amendments/a13-reference-demotion.md) |
-| Table 5: `Topo-QoS` corrected | `data/benchmarks/topo_ap_sensitivity.json` | [A16](amendments/a16-direction-control.md), [A17](amendments/a17-round12.md) |
-| Table 6: every ranker on `I*`, `I_dyn`, `I_comp`, partial ρ | `data/benchmarks/referee_round8_table7.json` | [A12](amendments/a12-referee-round7.md), [A14](amendments/a14-round8.md) |
-| Table 6: `GBM-P-QoS→dyn` | `data/benchmarks/oracle_robust_ltr.json` | [A11](amendments/a11-oracle-robust.md) |
-| Table 6: `GAT-P-QoS→dyn` | `data/benchmarks/referee_round8_amendment14.json` | [A14](amendments/a14-round8.md) |
-| Table 6: rate-weighted reference (Eq. 7) | `data/benchmarks/idyn_rate_expansion.json` | [A15](amendments/a15-rate-expansion.md) |
-| Figure 4 | rendered by `reproduce/render_headline_figure.py` from the Table 5 artifacts, the zero-shot artifacts and `loso_rq2_matched.json` | — |
+| Table 6: `Topo-QoS`, `HGT-QoS`, Hybrid-HGT | `loso_hybrid_cpu.json`, `loso_significance_hybrid_cpu.json` | this page |
+| Table 6: `GAT-QoS`, Hybrid-GAT | `loso_hybrid_gat_cpu.json`, `loso_significance_hybrid_gat_cpu.json` | this page |
+| Table 6: `GAT-P-QoS`, `HGT-P-QoS` | `loso_dependency_graph_cpu.json` | [A9](amendments/a09-dependency-graph-learning.md) |
+| Table 6: `InDeg`, `Reach` (references) | `tf_baselines.json` | [A7](amendments/a07-training-free.md), [A13](amendments/a13-reference-demotion.md) |
+| Table 6: `Topo-QoS` corrected | `data/benchmarks/topo_ap_sensitivity.json` | [A16](amendments/a16-direction-control.md), [A17](amendments/a17-round12.md) |
+| Table 7: every ranker on `I*`, `I_dyn`, `I_comp`, partial ρ | `data/benchmarks/referee_round8_table7.json` | [A12](amendments/a12-referee-round7.md), [A14](amendments/a14-round8.md) |
+| Table 7: `GBM-P-QoS→dyn` | `data/benchmarks/oracle_robust_ltr.json` | [A11](amendments/a11-oracle-robust.md) |
+| Table 7: `GAT-P-QoS→dyn` | `data/benchmarks/referee_round8_amendment14.json` | [A14](amendments/a14-round8.md) |
+| Table 7: rate-weighted reference (Eq. 7) | `data/benchmarks/idyn_rate_expansion.json` | [A15](amendments/a15-rate-expansion.md) |
+| Figure 4 | rendered by `reproduce/render_headline_figure.py` from the Table 6 artifacts, the zero-shot artifacts and `loso_rq2_matched.json` | — |
 | Figure 5 (recall) | `data/benchmarks/referee_round7_recall.json` ($I^*$), `referee_round10_recall_idyn_full.json` ($I_\text{dyn}$); `reproduce/render_recall_figure.py` | [A12](amendments/a12-referee-round7.md) |
 
 ## Headline result
 
 - **Registered primary: null.** `HGT-QoS` vs `Topo-QoS` is +0.085 (9/12 folds, Holm p = 0.303) in
-  the registered sweep (§S35), and `HGT` vs `Topo-QoS` is null as well.
+  the registered sweep (§S36), and `HGT` vs `Topo-QoS` is null as well.
 - **Hybrids beat the baseline, not their base learners.** Hybrid-HGT +0.103 and Hybrid-GAT +0.130
   over `Topo-QoS` (11/12 folds; family Holm p = 0.0068 and 0.0029; omnibus p = 0.041 and 0.019).
   Neither differs from its base learner (+0.035, p = 0.73; +0.048, p = 0.30), and the same holds with
@@ -123,11 +123,11 @@ comparators in the same invocation. They are never mixed with the GPU rows of §
   0.811–1.000. Top-K sets are noisier (cross-seed Jaccard down to 0.370 on Logistics Fleet), which is
   why Overlap@K margins are less stable than ρ margins. Artifact: `label_stability.json`
   (`reproduce/label_stability_check.py`).
-- **In-distribution results** (60/20/20 node splits) are in §S19 (`supp:indist-table`) and §S12.
+- **In-distribution results** (60/20/20 node splits) are in §S20 (`supp:indist-table`) and §S13.
   They are not compared across model families, because the small GATs read the dependency graph
   while HGT reads the raw multigraph.
 - **Engine regimes.** `make -f reproduce/Makefile jss-regimes` (`reproduce/engine_regimes.py`,
   artifact `engine_regimes.json`) correlates per-fold gains with fold descriptors. It is post hoc
   and trains nothing. Across 96 descriptor–gain correlations, none survives Benjamini–Hochberg
-  correction (smallest q = 0.32), so each row of §S36 is a hypothesis, not a finding. The full table
-  is `tab:regimes` (Table S34).
+  correction (smallest q = 0.32), so each row of §S37 is a hypothesis, not a finding. The full table
+  is `tab:regimes` (Table S35).

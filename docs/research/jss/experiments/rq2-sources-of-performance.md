@@ -1,10 +1,10 @@
 # RQ2 — Sources of predictive performance
 
-**Paper:** §6.2 (`sec:rq2`), Table 7 (`tab:controls`, a digest of the control families); Figure 4C;
+**Paper:** §6.2 (`sec:rq2`), Table 8 (`tab:controls`, a digest of the control families); Figure 4C;
 discussion in §7.1 (`sec:representation`).
-**Supplement:** §S29 (`supp:matched-2x2`, Table S25 `tab:contrasts_matched`), §S30
-(`supp:naive-2x2`), §S18 (`supp:fisherz`), §S23 (`supp:seed-robust`), §S38 (`supp:amendment9`),
-§S40 (`supp:round8`), §S42 (`supp:controls`: Tables S69–S71, `tab:a14`, `tab:a16`, `tab:a17`).
+**Supplement:** §S30 (`supp:matched-2x2`, Table S26 `tab:contrasts_matched`), §S31
+(`supp:naive-2x2`), §S19 (`supp:fisherz`), §S24 (`supp:seed-robust`), §S39 (`supp:amendment9`),
+§S41 (`supp:round8`), §S43 (`supp:controls`: Tables S70–S72, `tab:a14`, `tab:a16`, `tab:a17`).
 **Status:** the matched 2×2 is registered secondary (Amendment 2). The control families F1–F13 are
 registered secondary (Amendments 14, 16, 17, each written before its arms ran). The attribution
 controls (Amendment 8) are exploratory.
@@ -45,11 +45,11 @@ amendment pages.
 
 ## The capacity- and channel-matched 2×2 (Amendment 2)
 
-The four learned arms of the registered GPU sweep (§S35) cross relation typing (T) with the QoS
+The four learned arms of the registered GPU sweep (§S36) cross relation typing (T) with the QoS
 channel (Q), but they are unmatched in two ways. The small untyped GATs have 28,168 parameters
 against HGT's 434,620 (15.4×). And `GAT-S-w` reads a scalar edge weight, while `HGT-QoS` reads the
 16-D vector. The unmatched 2×2 therefore credited typing with +0.234 when QoS was absent, plus a
-strongly negative interaction (§S30). Amendment 2 registered controls that remove both differences
+strongly negative interaction (§S31). Amendment 2 registered controls that remove both differences
 before any control result existed.
 
 | Cell | Arm (variant id) | Parameters | Edge channel |

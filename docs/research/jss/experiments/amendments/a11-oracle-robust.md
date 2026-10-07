@@ -1,9 +1,9 @@
 # Amendment 11: full-population queue-flow labels and a learned combination of dependency signals
 
 **Paper:** §4.3 (`sec:4.3`, the full-population $I_\text{dyn}$ label), §5.2 (`tab:predictor_taxonomy`,
-"Learned approximations of $I_\text{dyn}$"), §6.1 (`sec:rq1`, Table 6 `tab:independent_oracles`:
+"Learned approximations of $I_\text{dyn}$"), §6.1 (`sec:rq1`, Table 7 `tab:independent_oracles`:
 `GBM-P-QoS→dyn` row and every $I_\text{dyn}$ column), §6.4 (labeling cost).
-**Supplement:** §S27 (`supp:amendments`, row A11), §S40 (`supp:round8`, Table S63 `tab:r8-n30`: the
+**Supplement:** §S28 (`supp:amendments`, row A11), §S41 (`supp:round8`, Table S64 `tab:r8-n30`: the
 earlier n = 30 sample as a sensitivity check).
 **Status:** registered secondary. Written 2026-09-26, before any learned arm existed. The
 training-free comparators had already been published, so the choice of comparators is not
@@ -98,8 +98,8 @@ until this was corrected.
 - **C.** The Q columns help on $I_\text{dyn}$ only. Amendment 15 attributes the whole gain to the
   declared rate column. Amendment 18 found that the oracle never reads payload, so it is rate signal.
 - **Z.** The best arm's zero-shot mean on $I^*$ (0.777) is below `Reach` (0.938).
-- **R.** The full-population $I_\text{dyn}$ values replace the n = 30 sample in Table 6. The sample
-  stays in §S40 as a sensitivity check.
+- **R.** The full-population $I_\text{dyn}$ values replace the n = 30 sample in Table 7. The sample
+  stays in §S41 as a sensitivity check.
 
 ## Superseded wording
 

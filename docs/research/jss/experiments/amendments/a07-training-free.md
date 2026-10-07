@@ -1,9 +1,9 @@
 # Amendment 7: dependency counts and QoS-attribution controls
 
-**Paper:** §4.4 (`sec:4.4`, the references), §6.1 (`sec:rq1`, Table 5 reference block: `InDeg`,
-`Reach`), §6.2 (`sec:rq2`, the closed-form QoS controls), §6.3 (Table 8 reference block), §6.4
+**Paper:** §4.4 (`sec:4.4`, the references), §6.1 (`sec:rq1`, Table 6 reference block: `InDeg`,
+`Reach`), §6.2 (`sec:rq2`, the closed-form QoS controls), §6.3 (Table 9 reference block), §6.4
 (count cost), Figure 4.
-**Supplement:** §S37 (`supp:amendment7`), §S43 (`supp:baselines`).
+**Supplement:** §S38 (`supp:amendment7`), §S44 (`supp:baselines`).
 **Status:** registered secondary. Written 2026-09-25, before any of these numbers existed. Amendment
 13 later reclassified `InDeg` and `Reach` as references that restate $I^*$'s rule, so their contrasts
 no longer carry claim status in the main text ([A13](a13-reference-demotion.md)).
@@ -69,7 +69,7 @@ Tracked in git under `results/`, unlike most of the bundle:
 - `system_model_descriptives.json`
 - `dependency_count_cost.json`
 
-`tf_baselines.json`, which Table 5 and Table 8 read for `InDeg` and `Reach`, is not tracked. It
+`tf_baselines.json`, which Table 6 and Table 9 read for `InDeg` and `Reach`, is not tracked. It
 ships in the Zenodo bundle and regenerates with `training_free_suite.py all`.
 
 ## Outcome
@@ -83,4 +83,4 @@ ships in the Zenodo bundle and regenerates with `training_free_suite.py all`.
   - On the QoS-independent corpus, QoS weighting changes the score by −0.035.
 - **Inert-vs-active rule:** 94% balanced accuracy.
 
-The full per-fold results are in §S37 (`supp:amendment7`).
+The full per-fold results are in §S38 (`supp:amendment7`).

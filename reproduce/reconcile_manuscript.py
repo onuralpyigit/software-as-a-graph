@@ -1227,6 +1227,18 @@ def check_system_models_transfer(rep: Report) -> None:
         "Hybrid-GAT": (rw["gl_qos16_prior"]["mean_rho_across_systems"], float(np.mean([x["mean_pr_auc"] for x in rw["gl_qos16_prior"]["per_system"].values()]))),
         "GAT-P-QoS": (z_proj["mean_rho_across_systems"], float(np.mean([x["mean_pr_auc"] for x in z_proj["per_system"].values()]))),
     }
+    # Per-system rho behind the body table's [min, max] brackets (five systems,
+    # too few for a bootstrap interval to mean anything).
+    per_system = {
+        "Reach": [s["Reach"]["rho"] for s in tf["per_system"].values()],
+        "InDeg": [s["InDeg"]["rho"] for s in tf["per_system"].values()],
+        "Topo-QoS": [x["rho"] for x in ref["references"]["Topo-QoS"].values()],
+        "HGT-QoS": [x["mean_rho"] for x in rw["hgl_qos"]["per_system"].values()],
+        "GAT-QoS": [x["mean_rho"] for x in rw["gl_full_qos16_cap"]["per_system"].values()],
+        "Hybrid-HGT": [x["mean_rho"] for x in rw["hgl_qos_prior"]["per_system"].values()],
+        "Hybrid-GAT": [x["mean_rho"] for x in rw["gl_qos16_prior"]["per_system"].values()],
+        "GAT-P-QoS": [x["mean_rho"] for x in z_proj["per_system"].values()],
+    }
     sources = [
         ("tab:system_models_transfer", _rows(tex, r"\midrule", after_label=r"\label{tab:system_models_transfer}")),
         ("tab:supp-moved-systems", _rows(_supp(), r"\midrule", after_label=r"\label{tab:supp-moved-systems}")),
@@ -1245,6 +1257,15 @@ def check_system_models_transfer(rep: Report) -> None:
                 rep.checked += 1
                 if got_prauc is None or abs(got_prauc - prauc_truth) > 0.001:
                     rep.findings.append(Finding(tab_name, name, "pr_auc", got_prauc, round(prauc_truth, 4)))
+                if tab_name != "tab:system_models_transfer":
+                    continue
+                bracket = re.search(r"\[\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\]", cells[2])
+                for i, (field, truth) in enumerate((("min_rho", min(per_system[name])),
+                                                    ("max_rho", max(per_system[name])))):
+                    got = float(bracket.group(i + 1)) if bracket else None
+                    rep.checked += 1
+                    if got is None or abs(got - truth) > 0.001:
+                        rep.findings.append(Finding(tab_name, name, field, got, round(truth, 4)))
 
 
 #: Rankings that restate I*'s propagation rule (Proposition 1). Amendment 13 reports

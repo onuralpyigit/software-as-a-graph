@@ -15,7 +15,7 @@ The revision combines four new, cheap experiment families (Amendment 19) with ta
 - **Title.** The advisor's title is kept, and the scope statement is sharpened instead.
 - **Structure.** The Abstract, Introduction and Conclusion keep the advisor-v9 structure.
 
-We thank the referee. Five results came out of the new runs (Amendment 19; [experiment page](../experiments/amendment19-round14.md)).
+We thank the referee. Five results came out of the new runs (Amendment 19; [experiment page](../experiments/amendments/a19-round14.md)).
 
 - **Aggregator (M3, F14a).** The representation claim survives a sum-aggregation control.
   - On the raw multigraph with every edge reversed, a GINE network reaches 0.668, level with its attention counterpart.
