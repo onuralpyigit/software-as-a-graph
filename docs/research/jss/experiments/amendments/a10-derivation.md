@@ -2,7 +2,7 @@
 
 **Paper:** §3.3 (`sec:3.3`, Remark 1: `InDeg` equals the raw two-hop subscriber count), §6.1
 (`sec:rq1`, "The reference level": Rule 5 adds 0.058 to `Reach`).
-**Supplement:** §S38 (`supp:amendment9`, Table S49 `tab:a10-derivation`), §S27 (row A10).
+**Supplement:** §S39 (`supp:amendment9`, Table S50 `tab:a10-derivation`), §S28 (row A10).
 **Status:** registered secondary (exploratory family of three contrasts, decision rules E1–E3),
 written before any of its numbers existed. Amendment 13 later classified every arm here as a
 reference, so in the main text these contrasts are descriptive comparisons, not claims.
@@ -63,7 +63,7 @@ Registered contrasts, Holm across the three:
   counts, yet merely counting the topics a component publishes comes within 0.033 of it. The typed
   query, not the derived graph as such, is what makes the count predictive (Remark 1 in §3.3).
 - **E2 applies.** The derived library rule adds to transitive reach.
-- **E3 applies.** Every arm is reported in Table S49.
+- **E3 applies.** Every arm is reported in Table S50.
 
 **Checks.**
 - The identity holds with max |Δ| = 0 on all seventeen graphs.
@@ -74,7 +74,7 @@ On the five system models none of the Libraries publishes or subscribes, so `Rea
 
 ## Artifact
 
-`results/derivation_ablation.json`, tracked in git. Table S49 is rendered from it by `reproduce/render_amendment9_tables.py` and checked byte for byte by
+`results/derivation_ablation.json`, tracked in git. Table S50 is rendered from it by `reproduce/render_amendment9_tables.py` and checked byte for byte by
 `reproduce/reconcile_manuscript.py`.
 
 **Correction (2026-09-26, round-7 revision).** The published run scored `Pubs-raw` on publishers
@@ -82,5 +82,5 @@ only. `pubs_raw` emits a score only for components that publish, and the shared 
 scores only the nodes a ranker emits, so every non-publisher (true count 0) dropped out of the
 population. `_derivation_set` now zero-fills every Application. With the fix, `Pubs-raw` rises
 from 0.431 to 0.731 and the `InDeg` margin falls from +0.334 to +0.033. The artifact
-`derivation_ablation.json` is regenerated, and Table S49 is re-rendered from it. Amendment 12 found
+`derivation_ablation.json` is regenerated, and Table S50 is re-rendered from it. Amendment 12 found
 the defect (PREREGISTRATION.md, Amendment 12, deviation 5; [page](a12-referee-round7.md)).

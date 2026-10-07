@@ -2,7 +2,7 @@
 
 **Paper:** §5.3 (`sec:6.3`, statistics, registration and status tiers), §7.4 (`sec:threats`,
 internal and conclusion validity).
-**Supplement:** §S27 (`supp:amendments`: amendment log Table S22, omnibus Holm Table S23).
+**Supplement:** §S28 (`supp:amendments`: amendment log Table S23, omnibus Holm Table S24).
 **Full text:** [`../PREREGISTRATION.md`](../PREREGISTRATION.md).
 
 ## Registered, not pre-registered
@@ -25,7 +25,7 @@ does not show that the question was asked without any prior estimate.
 ## Amendment log
 
 "Before" means no outcome of the analysis the entry governs existed when it was committed. Contrast
-counts are the decision-bearing contrasts the entry registered. Dates and outcomes match Table S22.
+counts are the decision-bearing contrasts the entry registered. Dates and outcomes match Table S23.
 
 | Entry | Date | Written | What it did | Contrasts | Page |
 |---|---|---|---|---|---|
@@ -50,9 +50,9 @@ counts are the decision-bearing contrasts the entry registered. Dates and outcom
 | A17 | 2026-10-04 | before any result | oracle-aligned features removed; learning on top of Eq. 7; node-order permutation | see page | [a17](amendments/a17-round12.md) |
 | A17b | 2026-10-05 | after F13 was seen | two more permutation seeds | — | [a17](amendments/a17-round12.md) |
 | A18 | 2026-10-05 | before the relabel | payload-aware $I_\text{dyn}$; **not run** | — | [a18](amendments/a18-payload-oracle.md) |
-| A19 | 2026-10-06 | before any result | round-14 controls; on branch `jss-revision-round14`, not yet on `main` | see page | [a19](amendments/a19-round14.md) |
+| A19 | 2026-10-06 | before any result | round-14 controls: aggregator, rate-fed GNNs, tie-aware loss, learning curve | see page | [a19](amendments/a19-round14.md) |
 
-Table S22 on `main` lists the plan through A16 and the deviation. A17 and A18 are recorded in
+Table S23 on `main` lists the plan through A16 and the deviation. A17 and A18 are recorded in
 `PREREGISTRATION.md`, and A19 on its branch.
 
 ## Omnibus correction
@@ -61,7 +61,7 @@ Each registration Holm-corrects only its own contrasts. The sequence is adaptive
 followed Amendment 2's result, so correcting within each family does not bound the error accumulated
 across the sequence. `make -f reproduce/Makefile omnibus` (`reproduce/omnibus_holm.py`) pools all
 thirteen registered contrasts of the plan, A2, A5 and A6 under one Holm correction
-(`omnibus_registered_holm.json`, Table S23). Both hybrid primaries survive it (p_omni 0.041 and
+(`omnibus_registered_holm.json`, Table S24). Both hybrid primaries survive it (p_omni 0.041 and
 0.019); no other contrast reaches α = 0.05. Later families (A7 onward) are corrected within
 themselves and do not join the omnibus.
 

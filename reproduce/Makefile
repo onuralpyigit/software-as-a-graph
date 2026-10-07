@@ -59,7 +59,7 @@ ORACLE_ROBUST_WORKERS ?= 8
         passive-strata \
         topic-weight-sensitivity weight-global-sensitivity inference-latency rq-referee-round7 \
         figure4 figure5 jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 jss-fig6 jss-graphical-abstract \
-        jss-figures jss-figS1 jss-figS2 jss-tables rq-amendment16 rq-amendment17 rq-amendment17b all bundle package-zenodo smoke-test clean clean-all
+        jss-figures jss-figS1 jss-figS2 jss-tables rq-amendment16 rq-amendment17 rq-amendment17b rq-amendment19 rq-amendment19-lc rq-amendment19-analysis jss-fig-lc all bundle package-zenodo smoke-test clean clean-all
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 0. Environment
@@ -387,6 +387,51 @@ rq-amendment17b:
 	    --output $(RESULTS_DIR)/loso_amendment17b_cpu.json
 	OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=. $(PYTHON) reproduce/referee_round12.py perm
 
+# Amendment 19 (round-14 referee): sum aggregation on the raw multigraph with reverse
+# edges, rate-fed I_dyn GNNs, the tie-aware listwise loss, a small-capacity arm, and a
+# learning curve over K training scenarios. CPU, every comparator re-run beside its arms.
+A19_ZS_ARMS     = gin_full_qos16_rev gin_full_qos16_rev_min gin_full_qos16_rev_const
+A19_ARMS        = $(A19_ZS_ARMS) gl_proj_qos16_cap_idyn_r gl_proj_qos16_cap_idyn_re \
+                  gin_proj_qos16_idyn_re gl_proj_qos16_cap_tie gl_full_qos16_cap_rev_tie \
+                  gl_proj_qos16_cap_tie_perm gl_proj_qos16_cap_tie_perm18 \
+                  gl_proj_qos16_cap_tie_perm19 gl_proj_qos16_s
+A19_COMPARATORS = gl_proj_qos16_cap gl_full_qos16_cap gl_full_qos16_cap_rev gin_proj_qos16 \
+                  gl_proj_qos16_cap_idyn gl_proj_qos16_cap_min gl_full_qos16_cap_rev_min \
+                  gin_proj_qos16_min gin_proj_qos16_const
+A19_LC_LEARNERS = gl_proj_qos16_cap gin_proj_qos16 gl_full_qos16_cap
+A19_LC_K        = 1 2 4 8
+A19_LC_DRAWS    = 1 2 3
+rq-amendment19:
+	$(PYTHON) reproduce/loso_all_variants.py \
+	    --variants $(A19_COMPARATORS) $(A19_ARMS) \
+	    --cache-dir $(OUTPUT_DIR)/loso_cache \
+	    --epochs $(EPOCHS) --seeds $(SEEDS) --device cpu \
+	    --jobs $(HYBRID_JOBS) --torch-threads 1 \
+	    --output-base $(OUTPUT_DIR)/loso_cpu_amendment19 \
+	    --output $(RESULTS_DIR)/loso_amendment19_cpu.json
+	for v in $(A19_ZS_ARMS); do \
+	    OMP_NUM_THREADS=4 PYTHONPATH=. $(PYTHON) reproduce/realworld_zeroshot.py --variant $$v --layers 3 --epochs $(EPOCHS) \
+	        --device cpu --workdir $(OUTPUT_DIR)/realworld_zeroshot_amendment19 --save-predictions \
+	        --output $(RESULTS_DIR)/realworld_zeroshot_$${v}_amendment19.json || exit 1; \
+	done
+
+# Each (K, draw) gets its own output base: a fold directory holding another run's
+# checkpoint would be reused rather than retrained.
+rq-amendment19-lc:
+	for k in $(A19_LC_K); do for d in $(A19_LC_DRAWS); do \
+	    $(PYTHON) reproduce/loso_all_variants.py \
+	        --variants $(A19_LC_LEARNERS) \
+	        --cache-dir $(OUTPUT_DIR)/loso_cache \
+	        --epochs $(EPOCHS) --seeds $(SEEDS) --device cpu \
+	        --jobs $(HYBRID_JOBS) --torch-threads 1 \
+	        --max-train $$k --subset-seed $$d \
+	        --output-base $(OUTPUT_DIR)/loso_cpu_amendment19_lc/K$${k}_d$${d} \
+	        --output $(RESULTS_DIR)/loso_amendment19_lc_K$${k}_d$${d}_cpu.json || exit 1; \
+	done; done
+
+rq-amendment19-analysis:
+	OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=. $(PYTHON) reproduce/referee_round14.py amendment19 lc descriptive
+
 # Round-8 re-analysis of existing artifacts, no training (Amendment 14, F3/F7 and
 # descriptive analyses). Minutes.
 rq-referee-round8:
@@ -607,7 +652,10 @@ jss-fig6:
 jss-graphical-abstract:
 	PYTHONPATH=. $(PYTHON) reproduce/render_graphical_abstract.py
 
-jss-figures: jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 jss-fig6 jss-figS1 jss-figS2 jss-graphical-abstract
+jss-fig-lc:
+	PYTHONPATH=. $(PYTHON) reproduce/render_learning_curve_figure.py
+
+jss-figures: jss-fig1 jss-fig2 jss-fig3 jss-fig4 jss-fig5 jss-fig6 jss-fig-lc jss-figS1 jss-figS2 jss-graphical-abstract
 	@echo "✓ All JSS figures ready (6 in the manuscript, 2 supplementary, graphical abstract)."
 
 # ─────────────────────────────────────────────────────────────────────────────

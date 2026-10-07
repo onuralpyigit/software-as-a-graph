@@ -1,8 +1,8 @@
 # Amendment 9: graph learning on the dependency graph
 
-**Paper:** §3.4 (`sec:3.4`, dual graph views), §6.1 (`sec:rq1`, Table 5: `GAT-P-QoS` and `HGT-P-QoS`
-rows), §6.2 (`sec:rq2`), §6.3 (Table 8: `GAT-P-QoS`), §7.1 (`sec:representation`), Figure 4.
-**Supplement:** §S38 (`supp:amendment9`: per-fold LOSO, zero-shot and contrast tables), §S27 (row A9).
+**Paper:** §3.4 (`sec:3.4`, dual graph views), §6.1 (`sec:rq1`, Table 6: `GAT-P-QoS` and `HGT-P-QoS`
+rows), §6.2 (`sec:rq2`), §6.3 (Table 9: `GAT-P-QoS`), §7.1 (`sec:representation`), Figure 4.
+**Supplement:** §S39 (`supp:amendment9`: per-fold LOSO, zero-shot and contrast tables), §S28 (row A9).
 **Status:** registered secondary. Written 2026-09-26, before any learned arm's number existed. The
 comparators (`InDeg`, `Reach`) had already been published by Amendment 7.
 **Registration:** [`../../PREREGISTRATION.md`](../../PREREGISTRATION.md), Amendment 9 (commit
@@ -71,7 +71,7 @@ Checks recorded in `dependency_graph_contrasts.json`:
 ## Outcome
 
 LOSO means: `GAT-P` 0.653, `GAT-P-QoS` 0.748, `GAT-P+InDeg` 0.758, `HGT-P-QoS` 0.514. Zero-shot
-means: 0.830, 0.806, 0.792, 0.746. Per-fold and per-system values are in §S38.
+means: 0.830, 0.806, 0.792, 0.746. Per-fold and per-system values are in §S39.
 
 The registered contrasts (Holm across 12) that the decision rules read:
 
@@ -86,7 +86,7 @@ The registered contrasts (Holm across 12) that the decision rules read:
 | `HGT-P-QoS` vs `InDeg` | −0.250 | [−0.377, −0.143] | 0/12 | 0.006 |
 | `HGT-P-QoS` vs `HGT-QoS` | −0.107 | [−0.238, +0.014] | 4/12 | 0.881 |
 
-The other four registered contrasts (each arm vs `Reach`) are in §S38.
+The other four registered contrasts (each arm vs `Reach`) are in §S39.
 
 | Rule | Outcome |
 |---|---|

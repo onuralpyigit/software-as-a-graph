@@ -635,8 +635,16 @@ def networkx_to_hetero_data(
     append_prior: bool = False,
     drop_feature_keys: Sequence[str] = (),
     qos_exempt_keys: Sequence[str] = (),
+    extra_node_keys: Sequence[str] = (),
+    extra_edge_keys: Sequence[str] = (),
 ) -> GraphConversionResult:
     """Convert a NetworkX DiGraph to a PyG HeteroData object.
+
+    ``extra_node_keys`` appends one column per key to every node type, read from
+    ``structural_metrics[node][key]`` (0.0 when absent), after rank normalisation
+    and before the prior column; ``extra_edge_keys`` appends one column per key to
+    every edge row, read from the edge attribute (0.0 when absent). Both are empty
+    by default, which leaves the output unchanged (Amendment 19's rate-fed arms).
 
     ``drop_feature_keys`` zeroes those base columns for every node type after
     rank normalisation, keeping the input width (Amendment 14's degree-free
@@ -808,6 +816,14 @@ def networkx_to_hetero_data(
             if drop_all or key in drop_feature_keys:
                 feat_matrix[:, col] = 0.0
 
+        if extra_node_keys:
+            extra_cols = np.array(
+                [[float((structural_metrics or {}).get(name, {}).get(key, 0.0))
+                  for key in extra_node_keys] for name in nodes],
+                dtype=np.float32,
+            ).reshape(n, len(extra_node_keys))
+            feat_matrix = np.concatenate([feat_matrix, extra_cols], axis=1)
+
         if append_prior:
             prior_col = np.array(
                 [[float((structural_metrics or {}).get(name, {}).get("topo_prior", 0.0))]
@@ -891,7 +907,8 @@ def networkx_to_hetero_data(
         hetero_flag = _hetero_flags.get((src, dst), 0.0)
         qos_dims = _extract_qos_edge_features(attrs, edge_type, hetero_flag, qos_enabled=qos_enabled)
 
-        rel_edges[rel_key][2].append([weight, path_count_norm] + type_onehot + qos_dims)
+        extra_dims = [float(attrs.get(key, 0.0)) for key in extra_edge_keys]
+        rel_edges[rel_key][2].append([weight, path_count_norm] + type_onehot + qos_dims + extra_dims)
 
     n_edge_labelled = 0
     for (src_type, edge_type, dst_type), (srcs, dsts, feats) in rel_edges.items():

@@ -247,6 +247,9 @@ def train_once_homogeneous(
     if val_bundle is not None:
         inductives = [b for b in inductives if b.scenario_id != val_bundle.scenario_id]
 
+    if _registry.rate_inputs_for(variant) != "none":
+        # The system models carry no queue-flow labels to score a rate-fed arm on.
+        raise ValueError(f"{variant}: rate-fed arms are not run zero-shot (Amendment 19)")
     edge_dim = _registry.edge_dim(variant, "loso")
     use_qos = _registry.node_qos_for(variant, "loso")
     graft_edges = edge_dim is not None and not use_qos
@@ -295,6 +298,7 @@ def train_once_homogeneous(
     trainer = GNNTrainer(
         model=model, checkpoint_dir=str(ckpt_dir), lr=3e-4, num_epochs=epochs,
         patience=min(60, epochs), dimension_mask=conv.dimension_mask,
+        ranking_loss=_registry.ranking_loss_for(variant),
     )
     trainer.train(
         _PyGDataLoader([data] + inductive_data, batch_size=1, shuffle=True),

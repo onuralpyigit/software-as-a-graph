@@ -1,10 +1,10 @@
 # RQ3 — Zero-shot transfer to five open-source system models
 
-**Paper:** §6.3 (`sec:rq3`), Table 8 (`tab:system_models_transfer`); corpus in §5.1 (`sec:6.1`); the
+**Paper:** §6.3 (`sec:rq3`), Table 9 (`tab:system_models_transfer`); corpus in §5.1 (`sec:6.1`); the
 single-modeler threat in §7.4 (`sec:threats`).
-**Supplement:** §S31 (`supp:transfer-active`: bootstrap intervals and active stratum), §S17
-(`supp:identification`: PR-AUC, F1@τ, nDCG), §S9 (`supp:rq4`: explanation layer on the same models),
-§S34 (`supp:taxonomy`: the 2-layer configuration), Table S74 (`tab:supp-moved-systems`: unweighted
+**Supplement:** §S32 (`supp:transfer-active`: bootstrap intervals and active stratum), §S18
+(`supp:identification`: PR-AUC, F1@τ, nDCG), §S10 (`supp:rq4`: explanation layer on the same models),
+§S35 (`supp:taxonomy`: the 2-layer configuration), Table S77 (`tab:supp-moved-systems`: unweighted
 `Topo`).
 **Status:** descriptive. Five systems are too few for inference; the intervals are percentile
 bootstraps over systems. This is the plan's RQ4.
@@ -50,7 +50,7 @@ PYTHONPATH=. python reproduce/realworld_zeroshot.py --variant hgl_qos --layers 3
 `--variant` also accepts `hgl`, `hgl_qos_prior`, `gl_full_qos16_cap` and `gl_qos16_prior` (see
 `--help`). The published artifacts are:
 - `realworld_zeroshot_{hgl_qos,hgl_qos_prior,gl_full_qos16_cap,gl_qos16_prior}_cpu.json`: the
-  `HGT-QoS`, Hybrid-HGT, `GAT-QoS` and Hybrid-GAT rows of Table 8, and the `Topo-QoS` row (from the
+  `HGT-QoS`, Hybrid-HGT, `GAT-QoS` and Hybrid-GAT rows of Table 9, and the `Topo-QoS` row (from the
   `hgl_qos` artifact's bootstrap block);
 - `realworld_zeroshot_gl_proj_qos16_cap_dependency_graph.json`: the `GAT-P-QoS` row
   ([A9](amendments/a09-dependency-graph-learning.md));
@@ -77,10 +77,10 @@ Zero-shot results of the control arms are on their amendment pages: [A8](amendme
 - **Configuration sensitivity.** An earlier configuration used 2 layers and 150 epochs, chosen
   because these meshes are small ($|V_\text{app}| \le 41$). That choice appealed to a property of
   the test systems, so it is not reported as primary. It is uniformly slightly stronger and changes
-  no conclusion (§S34).
+  no conclusion (§S35).
 - **The 3–2 split.** The raw-multigraph learned rankers lead on the three models of originally
   pub-sub systems. On the two originally RPC systems, their $\rho_{>0}$ is only −0.19 to +0.16
-  (§S36, Table S38 `tab:supp-regimes-zs`).
+  (§S37, Table S39 `tab:supp-regimes-zs`).
   - Both RPC-derived models are encoded as pub-sub graphs and labelled by the same
     forward-reachability oracle, so the split cannot be attributed to call-tree semantics.
   - Testing that needs synchronous edges in the schema and a backward-propagating oracle.

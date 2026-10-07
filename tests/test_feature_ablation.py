@@ -43,6 +43,13 @@ A17_IDS = [
     "gin_proj_qos16_min", "gin_proj_qos16_const", "gl_proj_qos16_cap_perm",
     "gl_proj_qos16_cap_idyn_rate", "gl_proj_qos16_cap_perm18", "gl_proj_qos16_cap_perm19",
 ]
+#: Amendment 19 arms; their own invariants live in tests/test_amendment19.py.
+A19_IDS = [
+    "gin_full_qos16_rev", "gin_full_qos16_rev_min", "gin_full_qos16_rev_const",
+    "gl_proj_qos16_cap_idyn_r", "gl_proj_qos16_cap_idyn_re", "gin_proj_qos16_idyn_re",
+    "gl_proj_qos16_cap_tie", "gl_full_qos16_cap_rev_tie", "gl_proj_qos16_cap_tie_perm",
+    "gl_proj_qos16_cap_tie_perm18", "gl_proj_qos16_cap_tie_perm19", "gl_proj_qos16_s",
+]
 
 
 def _convert(**kw):
@@ -106,10 +113,11 @@ def test_registry_invariants():
             assert v.substrate == "projection" and v.aggregator == "gat", vid
     # Every reported arm keeps the defaults.
     for vid, v in R.VARIANTS.items():
-        if vid not in A14_IDS + A17_IDS:
+        if vid not in A14_IDS + A17_IDS + A19_IDS:
             assert (v.drop_node_features, v.qos_exempt_node_features, v.aggregator,
-                    v.label_source, v.permute_nodes, v.permutation_seed) == (
-                        (), (), "gat", "i_star", False, None), vid
+                    v.label_source, v.permute_nodes, v.permutation_seed,
+                    v.rate_inputs, v.ranking_loss) == (
+                        (), (), "gat", "i_star", False, None, "none", "listmle"), vid
 
 
 def test_new_arms_are_dispatched_and_swept():

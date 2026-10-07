@@ -1,12 +1,12 @@
 \section{The Software-as-a-Graph (SaG) Architectural Model}
 \label{sec:3}
 
-Figure~\ref{fig:1} shows the SaG framework. The front end reads Architecture-as-Code manifests, builds a typed multigraph, derives a logical dependency layer that makes failure paths explicit, and extracts typed node properties, so that analytical, hybrid and learned rankings are computed from the same representation and can be compared under identical dependency information.
+Figure~\ref{fig:1} shows the SaG framework. The front end reads a declared architecture model (the components, topics, hosts and library links that Architecture-as-Code manifests declare; the models evaluated here are generated or hand-authored, and no manifest importer is evaluated), builds a typed multigraph, derives a logical dependency layer that makes failure paths explicit, and extracts typed node properties, so that analytical, hybrid and learned rankings are computed from the same representation and can be compared under identical dependency information.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.70\linewidth]{figures/Figure_1}
-\caption{End-to-end architecture of the SaG framework. The ranking pathway runs down the center: manifest ingestion, typed structural multigraph ($G_{\text{structural}}$), \texttt{DEPENDS\_ON} logical dependency projection ($G_{\text{analysis}}$) with typed node properties, the ranking methods (analytical, hybrid, and learned; Figure~\ref{fig:engines}), and the ranked critical set. The dashed edge marks the simulation oracles, which operate strictly on $G_{\text{structural}}$, provide training and evaluation labels offline, and do not participate in inference. The explanation layer is a conceptual proposal outside the empirical evaluation of this study (Supplementary Section~\ref{supp:explanation}).}
+\includegraphics[width=0.52\linewidth]{figures/Figure_1}
+\caption{End-to-end architecture of the SaG framework. The ranking pathway runs down the center: architecture-model ingestion, typed structural multigraph ($G_{\text{structural}}$), \texttt{DEPENDS\_ON} logical dependency projection ($G_{\text{analysis}}$) with typed node properties, the ranking methods (analytical, hybrid, and learned; Figure~\ref{fig:engines}), and the ranked critical set. The dashed edge marks the simulation oracles, which operate strictly on $G_{\text{structural}}$, provide training and evaluation labels offline, and do not participate in inference.}
 \label{fig:1}
 \end{figure}
 
@@ -18,7 +18,7 @@ A distributed system is described as a typed, weighted, directed multigraph
 \label{eq:sag_multigraph}
 \mathcal{G} = (V, E, \tau_V, \tau_E, w_V, w_E),
 \end{equation}
-where $V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\text{host}} \cup V_{\text{lib}}$ holds the five entity types of Table~\ref{tab:1}, $\tau_V$ and $\tau_E$ assign entity and relation types, and $w_V, w_E \in (0, 1]$ weight entity criticality and connection strength. An Application's $w_V$ is the power mean ($p = 3$) of the QoS weights $w(t)$ (Section~\ref{sec:3.2}) of its topics. A Library $\ell$ takes the largest weight among its topics $T(\ell)$ and consuming Applications $C(\ell)$, amplified by its fan-out: $w_V(\ell) = \min\bigl(1,\; \max(\{w(t)\}_{t \in T(\ell)} \cup \{w_V(a)\}_{a \in C(\ell)}) \cdot (1 + 0.15 \log_2(1 + |C(\ell)|))\bigr)$. The power-mean exponent $p = 3$ and library scaling constant $0.15$ are smoothing conventions whose downstream rank influence is negligible ($\mu^* \le 0.005$; Supplementary Table~\ref{tab:S1}). The raw multigraph is $G_{\text{structural}}$; the analysis graph $G_{\text{analysis}}$ adds the derived \texttt{DEPENDS\_ON} edges (Section~\ref{sec:3.3}) and the node properties computed from them (Section~\ref{sec:3.5}). Supplementary Section~\ref{supp:notation} lists the notation.
+where $V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\text{host}} \cup V_{\text{lib}}$ holds the five entity types of Table~\ref{tab:1}, $\tau_V$ and $\tau_E$ assign entity and relation types, and $w_V, w_E \in (0, 1]$ weight entity criticality and connection strength; an entity's $w_V$ aggregates the QoS weights $w(t)$ (Section~\ref{sec:3.2}) of its topics (Supplementary Section~\ref{supp:weights}). The raw multigraph is $G_{\text{structural}}$; the analysis graph $G_{\text{analysis}}$ adds the derived \texttt{DEPENDS\_ON} edges (Section~\ref{sec:3.3}) and the node properties computed from them (Section~\ref{sec:3.5}). Supplementary Section~\ref{supp:notation} lists the notation.
 
 \noindent\textbf{Scope.} The evaluation ranks \emph{Applications} only: microservice containers, service agents or communicating processes, the developer-authored code that changes in CI/CD. Brokers, Topics, Hosts and Libraries are modeled because failures propagate through them, but ranking them is a provisioning question rather than a commit-time one (Section~\ref{sec:limitations}).
 
@@ -30,7 +30,9 @@ where $V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lll}
 \toprule
-\textbf{Entity Type ($\mathcal{T}_V$)} & \textbf{Architectural Role} & \textbf{Concrete System Examples} \\
+\multicolumn{3}{l}{\textbf{Panel A: Entity Types ($\mathcal{T}_V$)}} \\
+\midrule
+\textbf{Entity Type} & \textbf{Architectural Role} & \textbf{Concrete System Examples} \\
 \midrule
 \textbf{Application} ($V_{\text{app}}$) & Process producing/consuming messages & ROS~2 node, Kafka microservice, MQTT client \\
 \textbf{Broker} ($V_{\text{broker}}$) & Message routing and queuing intermediary & RabbitMQ exchange, Mosquitto, EMQX broker \\
@@ -38,7 +40,9 @@ where $V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\
 \textbf{Execution Host} ($V_{\text{host}}$) & Physical or virtualized execution environment & Bare-metal server, Kubernetes worker, Cloud VM \\
 \textbf{Library} ($V_{\text{lib}}$) & Shared software package or runtime dependency & Kafka client, OpenCV, Protobuf runtime \\
 \midrule
-\textbf{Structural Edge ($\mathcal{T}_E$)} & \textbf{Direction} & \textbf{Semantic Meaning} \\
+\multicolumn{3}{l}{\textbf{Panel B: Structural Edge Types ($\mathcal{T}_E$)}} \\
+\midrule
+\textbf{Structural Edge} & \textbf{Direction} & \textbf{Semantic Meaning} \\
 \midrule
 \texttt{PUBLISHES\_TO} / \texttt{SUBSCRIBES\_TO} & App/Library $\to$ Topic & Component publishes to / consumes from topic \\
 \texttt{ROUTES} & Broker $\to$ Topic & Broker manages and routes topic traffic \\
@@ -53,7 +57,7 @@ where $V = V_{\text{app}} \cup V_{\text{broker}} \cup V_{\text{topic}} \cup V_{\
 \subsection{Quality-of-Service Link Weighting}
 \label{sec:3.2}
 
-A \texttt{RELIABLE} topic with \texttt{TRANSIENT\_LOCAL} durability couples services more strongly than a \texttt{BEST\_EFFORT} telemetry stream. Each topic $t$ therefore has a weight $w(t) \in (0, 1]$ combining its QoS policies (reliability, durability, priority) with payload size and publication frequency. The policy weights come from an Analytic Hierarchy Process (AHP) \cite{saaty1980ahp} pairwise-comparison matrix defined independently of any target vector ($CR = 0.016$; Supplementary Section~\ref{supp:ahp}). Declared QoS policies turned out to carry no measurable signal on either the reachability or the queue-flow simulator (Sections~\ref{sec:rq1} and~\ref{sec:rq2}); for $I^*$ this is largely fixed by design, because it barely reads QoS (Section~\ref{sec:4.3}). The dependency counts reported in this paper are unweighted.
+A \texttt{RELIABLE} topic with \texttt{TRANSIENT\_LOCAL} durability couples services more strongly than a \texttt{BEST\_EFFORT} telemetry stream. Each topic $t$ therefore has a weight $w(t) \in (0, 1]$ combining its QoS policies (reliability, durability, priority) with payload size and publication frequency, with policy weights from an Analytic Hierarchy Process (AHP) \cite{saaty1980ahp} matrix (Supplementary Section~\ref{supp:ahp}). Declared QoS policies turned out to carry no measurable signal on either the reachability or the queue-flow simulator (Sections~\ref{sec:rq1} and~\ref{sec:rq2}); for $I^*$ this is largely fixed by design, because it barely reads QoS (Section~\ref{sec:4.3}). The dependency counts reported in this paper are unweighted.
 
 \subsection{Logical Dependency Projection (\texttt{DEPENDS\_ON})}
 \label{sec:3.3}
@@ -63,7 +67,7 @@ Structural edges do not show how failures spread: a subscriber depends on a publ
 \begin{table}[htbp]
 \centering
 \small
-\caption{The \texttt{DEPENDS\_ON} logical dependency projection rules. Rules~1 and~5 define the operational Application--Library projection evaluated in this study; $^\dagger$rules define broader infrastructure relations formalized for system-level completeness but unexercised by the Application-level evaluation.}
+\caption{The \texttt{DEPENDS\_ON} rules of the Application--Library projection evaluated in this study. Four infrastructure rules (Rules~2--4 and~6, for brokers and hosts) are formalized in Supplementary Section~\ref{supp:weights} but are not exercised by the Application-level evaluation.}
 \label{tab:2}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{clll}
@@ -71,24 +75,20 @@ Structural edges do not show how failures spread: a subscriber depends on a publ
 \textbf{Rule} & \textbf{Dependency Category} & \textbf{Structural Pattern ($\text{Dependent} \to \text{Dependency}$)} & \textbf{Derived Weight ($w$)} \\
 \midrule
 \textbf{1} & \texttt{app\_to\_app} & Subscriber $\to$ Publisher (via shared Topic) & $1 - \prod_{t \in T}(1 - w(t))$ \\
-\textbf{2}$^\dagger$ & \texttt{app\_to\_broker} & Publisher/Subscriber $\to$ Broker routing its topics & $1 - \prod_{t \in T}(1 - w(t))$ \\
-\textbf{3}$^\dagger$ & \texttt{host\_to\_host} & Host $\to$ Host (lifted from inter-host app dependencies) & $\max_{u \in \text{hosted}(h_1), v \in \text{hosted}(h_2)} w_E(u \to v)$ \\
-\textbf{4}$^\dagger$ & \texttt{host\_to\_broker} & Host $\to$ Broker (lifted from hosted app dependencies) & $\max_{u \in \text{hosted}(h)} w_E(u \to b)$ \\
 \textbf{5} & \texttt{app\_to\_lib} & Application $\to$ Shared Library it \texttt{USES} & $H(w_V(\text{app}), w_V(\text{lib}))$ \\
-\textbf{6}$^\dagger$ & \texttt{broker\_to\_broker} & Broker $\leftrightarrow$ Broker (shared fault-domain colocation, symmetric) & $w_V(\text{host})$ \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-Rules~1 and~2 combine the topics $T$ connecting a pair by probabilistic union \cite{pearl1988probabilistic}, so multiple failure paths strengthen the connection; Rule~5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ \cite{hardy1952inequalities}. Rule~1 captures sequential cascades (a failed publisher starves its subscribers) and Rule~5 simultaneous blasts (a crashed library fails every Application using it); neither is stated explicitly in a manifest. Rules~2, 3, 4 and~6 are formalized for architectural completeness across host and broker tiers, but are not exercised in the present Application-level evaluation.
+Rule~1 combines the topics $T$ connecting a pair by probabilistic union \cite{pearl1988probabilistic}, so multiple failure paths strengthen the connection; Rule~5 uses the harmonic mean $H(x, y) = 2xy/(x+y)$ \cite{hardy1952inequalities}. Rule~1 captures sequential cascades (a failed publisher starves its subscribers) and Rule~5 simultaneous blasts (a crashed library fails every Application using it); neither is stated explicitly in a manifest.
 
 \noindent\textbf{Remark 1 (the dependency count is a typed two-hop count).} Let $G_{\text{flow}}$ be the Application--Library projection (Rules~1 and~5) and $v$ an Application. By construction,
 \begin{equation}
 \label{eq:indeg}
 \texttt{InDeg}(v) \;=\; \bigl|\{\,u \neq v : \exists t \in V_{\text{topic}},\; (v, t) \in \texttt{PUBLISHES\_TO} \wedge (u, t) \in \texttt{SUBSCRIBES\_TO}\,\}\bigr|,
 \end{equation}
-because Rule~5 edges end at Libraries, so every edge into an Application is a Rule~1 edge, and parallel topics between a pair collapse into one edge. The right side is publish--subscribe afferent coupling \cite{martin2003agile,rud2006ais}, a typed two-hop query on the raw multigraph; the projection defines which query to use (the equality holds exactly on all seventeen corpus graphs). The derivation adds value beyond this count: including Rule~5 raises the agreement of transitive reach with $I^*$ by $+0.058$ (9 of 12 folds, Holm $p = 0.0068$; Section~\ref{sec:rq1}). Because $I^*$'s first propagation wave matches this set (Section~\ref{sec:4.4}), \texttt{InDeg} and its transitive version \texttt{Reach} serve as both established structural baselines and first-order analytical references. The in-degree \emph{feature} the learners receive also follows \texttt{USES} links; the two differ for 940 of the 1{,}321 Applications, with per-fold rank agreement $\rho = 0.55$--$1.00$ (Supplementary Section~\ref{supp:features}).
+because Rule~5 edges end at Libraries, so every edge into an Application is a Rule~1 edge, and parallel topics between a pair collapse into one edge. The right side is publish--subscribe afferent coupling \cite{martin2003agile,rud2006ais}, a typed two-hop query on the raw multigraph; the projection defines which query to use (the equality holds exactly on all seventeen corpus graphs). The derivation adds value beyond this count: including Rule~5 raises the agreement of transitive reach with $I^*$ by $+0.058$ (9 of 12 folds, Holm $p = 0.0068$; Section~\ref{sec:rq1}). Because $I^*$'s first propagation wave matches this set (Section~\ref{sec:4.4}), \texttt{InDeg} and its transitive version \texttt{Reach} serve as both established structural baselines and first-order analytical references. The in-degree \emph{feature} the learners receive is the normalized in-degree on the full \texttt{DEPENDS\_ON} graph, where Rule~1 is also applied through \texttt{USES} chains of up to three hops (an Application inherits the publications and subscriptions of the Libraries it uses) and Libraries can be dependents; the \texttt{InDeg} reference counts direct subscriptions only. The two differ for 940 of the 1{,}321 Applications, with per-fold rank agreement $\rho = 0.55$--$1.00$ (Supplementary Section~\ref{supp:features}).
 
 \begin{figure}[htbp]
 \centering
@@ -105,4 +105,4 @@ The \textbf{structural graph} $G_{\text{structural}}$ is the raw deployment topo
 \subsection{Typed Node Feature Encoding}
 \label{sec:3.5}
 
-All five entity types share 18 normalized metrics computed on $G_{\text{analysis}}$, including PageRank, reverse PageRank, betweenness, closeness, in- and out-degree, an articulation score, QoS and dependency weights, multi-path coupling, fan-out criticality and the Connectivity Degradation Index (CDI); type-specific blocks extend the vector to 19--25 dimensions (Applications and Libraries add a code-quality penalty and its four static-code inputs). The full schema is in Supplementary Section~\ref{supp:features}. Four centralities use QoS-weighted edges, so the QoS-off condition is not entirely free of QoS. Several features compute part of what the reachability simulator computes: in-degree and its QoS-weighted version $w_{\text{in}}$ are close to \texttt{InDeg}, CDI is a removal-and-reachability computation, and multi-path coupling, reverse PageRank, fan-out criticality and the articulation score are also aligned with it. Every published learner reads these \emph{oracle-aligned} features and so inherits part of the oracle's circularity; Section~\ref{sec:rq2} reports learners with all of them removed.
+All five entity types share 18 normalized metrics computed on $G_{\text{analysis}}$, including PageRank, reverse PageRank, betweenness, closeness, in- and out-degree, an articulation score, QoS and dependency weights, multi-path coupling, fan-out criticality and the Connectivity Degradation Index (CDI); type-specific blocks extend the vector to 19--25 dimensions (Applications and Libraries add a code-quality penalty and its four static-code inputs). The full schema is in Supplementary Section~\ref{supp:features}. Four centralities use QoS-weighted edges, so the QoS-off condition is not entirely free of QoS. Several features compute part of what the reachability simulator computes: in-degree and its QoS-weighted version $w_{\text{in}}$ are rank-correlated with \texttt{InDeg}, CDI is a removal-and-reachability computation, and multi-path coupling, reverse PageRank, fan-out criticality and the articulation score are also aligned with it. Every published learner reads these \emph{oracle-aligned} features and so inherits part of the oracle's circularity; Section~\ref{sec:rq2} reports learners with all of them removed.

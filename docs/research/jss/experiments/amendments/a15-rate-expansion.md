@@ -1,9 +1,9 @@
 # Amendment 15: the rate-weighted reference for $I_\text{dyn}$ (Eq. 7)
 
 **Paper:** §5.2 (`sec:6.2`, Eq. 7 `eq:rate-expansion` and the reference block of
-`tab:predictor_taxonomy`), §6.1 (`sec:rq1`, Table 6 `tab:independent_oracles`: the "Rate-weighted"
+`tab:predictor_taxonomy`), §6.1 (`sec:rq1`, Table 7 `tab:independent_oracles`: the "Rate-weighted"
 row; "What declared rates add on the queue-flow oracle"), §6.4 (cost), §7.3 (`tab:guidance`), Figure 5B.
-**Supplement:** §S41 (`supp:advisor-v6`; Tables S66–S68: `tab:a15-folds`, `tab:a15-zeroshot`,
+**Supplement:** §S42 (`supp:advisor-v6`; Tables S67–S69: `tab:a15-folds`, `tab:a15-zeroshot`,
 `tab:a15-contrasts`).
 **Status:** exploratory. Post hoc: written 2026-09-29, after every Amendment 11 result was
 published. The headline value (ρ = 0.830) was first computed ad hoc during the manuscript revision,
@@ -45,7 +45,7 @@ It runs no simulator: it reads the Amendment 11 label caches.
 ## Artifact
 
 `data/benchmarks/idyn_rate_expansion.json`. It is checked by
-`reconcile_manuscript.py::check_rate_expansion`, which covers Table 6's Eq. 7 row, all three
+`reconcile_manuscript.py::check_rate_expansion`, which covers Table 7's Eq. 7 row, all three
 supplement tables and the gates.
 
 ## Outcome

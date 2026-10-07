@@ -28,10 +28,10 @@ it was written before or after its results) and **Registration**.
 
 | Paper | Page | Main commands |
 |---|---|---|
-| §6.1, Tables 5–6, Figs. 4–5 | [RQ1: ranking accuracy](rq1-ranking-accuracy.md) (registered primary, hybrids, references, three oracles) | `make -f reproduce/Makefile rq-hybrid rq-hybrid-gat rq-dependency-graph rq-referee-round8` |
-| §6.2, Table 7 | [RQ2: sources of predictive performance](rq2-sources-of-performance.md) (matched 2×2 and every control family) | `make -f reproduce/Makefile rq2-matched` plus the amendment targets |
-| §6.3, Table 8 | [RQ3: zero-shot transfer](rq3-zero-shot-transfer.md) | `python reproduce/realworld_zeroshot.py` |
-| §6.4, Table 9 | [RQ4: cost](rq4-cost.md) | `make -f reproduce/Makefile rq-cost-reconcile` |
+| §6.1, Tables 6–7, Figs. 4–5 | [RQ1: ranking accuracy](rq1-ranking-accuracy.md) (registered primary, hybrids, references, three oracles) | `make -f reproduce/Makefile rq-hybrid rq-hybrid-gat rq-dependency-graph rq-referee-round8` |
+| §6.2, Table 8 | [RQ2: sources of predictive performance](rq2-sources-of-performance.md) (matched 2×2 and every control family) | `make -f reproduce/Makefile rq2-matched` plus the amendment targets |
+| §6.3, Table 9 | [RQ3: zero-shot transfer](rq3-zero-shot-transfer.md) | `python reproduce/realworld_zeroshot.py` |
+| §6.4, Table 10 | [RQ4: cost](rq4-cost.md) | `make -f reproduce/Makefile rq-cost-reconcile` |
 | §4.3–4.4, §7.4 | [Oracles and sensitivity](oracles-and-sensitivity.md) | `make -f reproduce/Makefile convergent-validity` |
 | §5.3, §7.4 | [Registration, amendments, repeatability](repeatability-and-amendments.md) | `make -f reproduce/Makefile omnibus` |
 
@@ -39,19 +39,19 @@ it was written before or after its results) and **Registration**.
 
 | Amendment | Status | Question | Page | Command | Supplement |
 |---|---|---|---|---|---|
-| A7 | registered secondary | Do dependency counts match the learned rankers? Is the `Topo-QoS` gain QoS content? | [a07](amendments/a07-training-free.md) | `python reproduce/training_free_suite.py all` | §S37 |
-| A8 | exploratory (post hoc) | QoS node columns vs edge channel; gradient boosting vs GNN on the raw multigraph | [a08](amendments/a08-attribution-controls.md) | `make -f reproduce/Makefile rq-attribution` | §S27 |
-| A9 | registered secondary | The same learners on the dependency graph | [a09](amendments/a09-dependency-graph-learning.md) | `make -f reproduce/Makefile rq-dependency-graph` | §S38 |
-| A10 | registered secondary | What the derivation adds beyond raw-graph counts | [a10](amendments/a10-derivation.md) | `python reproduce/training_free_suite.py derivation` | §S38 |
-| A11 | registered secondary | Full-population $I_\text{dyn}$; learned combination of dependency signals across oracles | [a11](amendments/a11-oracle-robust.md) | `make -f reproduce/Makefile rq-oracle-robust` | §S27, §S40 |
-| A12 | mixed | Round-7 referee analyses: raw-graph rankers, partial ρ, recall, latency | [a12](amendments/a12-referee-round7.md) | `make -f reproduce/Makefile rq-referee-round7` | §S39 |
-| A13 | reporting deviation (post hoc) | Counts reclassified as references; no run | [a13](amendments/a13-reference-demotion.md) | none | §S27 |
-| A14 | registered secondary | Degree features, GIN, $w_\text{in}$-held 2×2, $I_\text{dyn}$-trained GNN, nested selection, like-for-like cost | [a14](amendments/a14-round8.md) | `make -f reproduce/Makefile rq-amendment14 rq-referee-round8` | §S40, §S42 |
-| A15 | exploratory (post hoc) | Rate-weighted reference for $I_\text{dyn}$ (Eq. 7); input attribution | [a15](amendments/a15-rate-expansion.md) | `make -f reproduce/Makefile rq-rate-expansion` | §S41 |
-| A16 | registered secondary | Reverse-edge direction control; corrected-prior hybrids | [a16](amendments/a16-direction-control.md) | `make -f reproduce/Makefile rq-amendment16` | §S42 |
-| A17, 17b | registered secondary | Oracle-aligned features removed; learning on top of Eq. 7; node-order permutation | [a17](amendments/a17-round12.md) | `make -f reproduce/Makefile rq-amendment17 rq-amendment17b` | §S42 |
+| A7 | registered secondary | Do dependency counts match the learned rankers? Is the `Topo-QoS` gain QoS content? | [a07](amendments/a07-training-free.md) | `python reproduce/training_free_suite.py all` | §S38 |
+| A8 | exploratory (post hoc) | QoS node columns vs edge channel; gradient boosting vs GNN on the raw multigraph | [a08](amendments/a08-attribution-controls.md) | `make -f reproduce/Makefile rq-attribution` | §S28 |
+| A9 | registered secondary | The same learners on the dependency graph | [a09](amendments/a09-dependency-graph-learning.md) | `make -f reproduce/Makefile rq-dependency-graph` | §S39 |
+| A10 | registered secondary | What the derivation adds beyond raw-graph counts | [a10](amendments/a10-derivation.md) | `python reproduce/training_free_suite.py derivation` | §S39 |
+| A11 | registered secondary | Full-population $I_\text{dyn}$; learned combination of dependency signals across oracles | [a11](amendments/a11-oracle-robust.md) | `make -f reproduce/Makefile rq-oracle-robust` | §S28, §S41 |
+| A12 | mixed | Round-7 referee analyses: raw-graph rankers, partial ρ, recall, latency | [a12](amendments/a12-referee-round7.md) | `make -f reproduce/Makefile rq-referee-round7` | §S40 |
+| A13 | reporting deviation (post hoc) | Counts reclassified as references; no run | [a13](amendments/a13-reference-demotion.md) | none | §S28 |
+| A14 | registered secondary | Degree features, GIN, $w_\text{in}$-held 2×2, $I_\text{dyn}$-trained GNN, nested selection, like-for-like cost | [a14](amendments/a14-round8.md) | `make -f reproduce/Makefile rq-amendment14 rq-referee-round8` | §S41, §S43 |
+| A15 | exploratory (post hoc) | Rate-weighted reference for $I_\text{dyn}$ (Eq. 7); input attribution | [a15](amendments/a15-rate-expansion.md) | `make -f reproduce/Makefile rq-rate-expansion` | §S42 |
+| A16 | registered secondary | Reverse-edge direction control; corrected-prior hybrids | [a16](amendments/a16-direction-control.md) | `make -f reproduce/Makefile rq-amendment16` | §S43 |
+| A17, 17b | registered secondary | Oracle-aligned features removed; learning on top of Eq. 7; node-order permutation | [a17](amendments/a17-round12.md) | `make -f reproduce/Makefile rq-amendment17 rq-amendment17b` | §S43 |
 | A18 | registered, **not run** | Payload-aware queue-flow oracle | [a18](amendments/a18-payload-oracle.md) | not executed | — |
-| A19 | registered secondary; **on branch `jss-revision-round14`** | Sum aggregation on the raw multigraph, rate-fed GNNs, tie-aware loss, learning curve | [a19](amendments/a19-round14.md) | on that branch only | on that branch |
+| A19 | registered secondary | Sum aggregation on the raw multigraph, rate-fed GNNs, tie-aware loss, learning curve | [a19](amendments/a19-round14.md) | `make -f reproduce/Makefile rq-amendment19 rq-amendment19-lc rq-amendment19-analysis` | §S43 |
 
 ## Conventions
 
@@ -66,7 +66,7 @@ sources, `PREREGISTRATION.md` or the named artifact. Where a page and the paper 
 and its artifact are authoritative.
 
 **Section and table numbers.** Numbers are those of the compiled manuscript and supplement on
-`main` (`latex/manuscript.aux`, `latex/supplementary.aux`, checked 2026-10-07). Each is given with
+`main` (`latex/manuscript.aux`, `latex/supplementary.aux`, checked 2026-10-08 after the round-14 and 2026-10-08 revisions). Each is given with
 its LaTeX label (`tab:hybrid`, `supp:controls`, …), because labels survive renumbering. To re-check
 after a rebuild:
 
@@ -75,7 +75,7 @@ grep -oE '\\newlabel\{(sec|tab|fig|supp)[^}@]*\}\{\{[^}]*\}' docs/research/jss/l
 ```
 
 The supplement numbers sections and tables with the same S prefix. These pages write sections as
-"§S41" and tables as "Table S66".
+"§S42" and tables as "Table S67".
 
 **Where the artifacts live.** Most of `results/` is not tracked in git. The Amendment 7, 9 and 10
 artifacts are tracked (see their pages), and later artifacts are tracked under `data/benchmarks/`.
@@ -86,7 +86,7 @@ provenance. Every `make` target writes into `results/` or `data/benchmarks/` whe
 repository root.
 
 **The published link.** The manuscript's experiment-pages URL (`\sagexperimentsurl`) is pinned to
-commit `56d9bff8`, so it shows these pages as they were at that revision.
+commit `655489fb` (the 2026-10-08 revision), so it shows these pages as they were at that revision.
 
 ## Predictor names
 
@@ -112,7 +112,7 @@ Unsuffixed `GAT` and `GAT-QoS` are matched to HGT's parameter budget.
 
 The registered plan and the early result artifacts use the original labels. The map below mirrors
 `LEGACY_LABELS` in [`saag/evaluation/variant_registry.py`](../../../../saag/evaluation/variant_registry.py)
-and Table S32 (`tab:supp-names`). Internal variant ids never changed.
+and Table S33 (`tab:supp-names`). Internal variant ids never changed.
 
 | Current | Original label | Variant id |
 |---|---|---|

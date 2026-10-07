@@ -79,6 +79,12 @@ CONTROL_VARIANTS = [
     "gl_proj_qos16_cap_idyn_rate",
     # Amendment 17b: two more node-order permutation seeds.
     "gl_proj_qos16_cap_perm18", "gl_proj_qos16_cap_perm19",
+    # Amendment 19: sum aggregation on the raw multigraph, rate-fed I_dyn arms,
+    # the tie-aware listwise loss and the small-capacity arm.
+    "gin_full_qos16_rev", "gin_full_qos16_rev_min", "gin_full_qos16_rev_const",
+    "gl_proj_qos16_cap_idyn_r", "gl_proj_qos16_cap_idyn_re", "gin_proj_qos16_idyn_re",
+    "gl_proj_qos16_cap_tie", "gl_full_qos16_cap_rev_tie", "gl_proj_qos16_cap_tie_perm",
+    "gl_proj_qos16_cap_tie_perm18", "gl_proj_qos16_cap_tie_perm19", "gl_proj_qos16_s",
 ]
 #: The comparator every reported Δρ is measured against, re-exported from the
 #: registry that owns it so this harness, the k-fold harness, the significance
@@ -255,6 +261,9 @@ def _extra_args(args) -> List[str]:
     extra += ["--jobs", str(args.jobs), "--torch-threads", str(args.torch_threads)]
     if not args.preflight:
         extra.append("--no-preflight")
+    # Amendment 19's learning curve; absent from every other sweep's command line.
+    if getattr(args, "max_train", None) is not None:
+        extra += ["--max-train", str(args.max_train), "--subset-seed", str(args.subset_seed)]
     return extra
 
 
@@ -419,6 +428,11 @@ def parse_args():
                         "corpus entirely, forwarded to cli/loso_evaluate.py. A "
                         "skipped scenario is neither a fold nor a training graph, "
                         "so this measures the corpus without it — not a holdout.")
+    p.add_argument("--max-train", type=int, default=None,
+                   help="Train each fold on this many of its training scenarios "
+                        "(Amendment 19 learning curve), forwarded to cli/loso_evaluate.py")
+    p.add_argument("--subset-seed", type=int, default=0,
+                   help="Which nested subset --max-train draws")
     p.add_argument("--rank-normalize-features", action="store_true",
                    help="Forwarded to cli/loso_evaluate.py.")
     p.add_argument("--rank-normalize-labels", action="store_true",
@@ -530,6 +544,7 @@ def main():
             # different devices non-comparable, and nothing else on disk
             # distinguishes them.
             device=getattr(args, "device", None),
+            max_train=args.max_train, subset_seed=args.subset_seed,
         ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

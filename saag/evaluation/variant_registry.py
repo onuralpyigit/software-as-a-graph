@@ -92,6 +92,8 @@ __all__ = [
     "permute_nodes_for",
     "permutation_seed_for",
     "PERMUTATION_SEED",
+    "rate_inputs_for",
+    "ranking_loss_for",
 ]
 
 
@@ -147,6 +149,13 @@ class Variant:
     permute_nodes: bool = False
     #: Seed of that permutation; ``None`` means :data:`PERMUTATION_SEED` (Amendment 17b).
     permutation_seed: Optional[int] = None
+    #: Declared publication rates as inputs (Amendment 19): ``"none"``, ``"node"``
+    #: (one node column, the rank-normalised sum of the rates a node publishes) or
+    #: ``"node_edge"`` (also a 17th edge column, the rate share of each Rule-1 edge).
+    rate_inputs: str = "none"
+    #: Listwise term of the loss: ``"listmle"`` (every reported arm) or
+    #: ``"listmle_ties"``, which treats tied labels as groups (Amendment 19).
+    ranking_loss: str = "listmle"
 
 
 #: Amendment 14: the in-degree column and its QoS-weighted version, and the strict set
@@ -689,9 +698,156 @@ _VARIANT_LIST = [
         label_source="idyn_full",
         prior="rate_idyn",
     ),
+    # Amendment 19 (round-14 referee): is the dependency-graph gain an attention
+    # artefact, can a rate-fed GNN approximate I_dyn, does a tie-aware listwise loss
+    # remove the node-order variance, and how small can a learner be?
+    Variant(
+        variant_id="gin_full_qos16_rev",
+        family="control",
+        substrate="native",
+        qos="full16",
+        label="GIN-QoS-R",
+        blurb="GINE (sum aggregation, 228 channels) on the raw multigraph with every "
+              "edge also passed in reverse; the aggregator control for GIN-P-QoS",
+        hidden_channels=228,
+        control_for="aggregator",
+        aggregator="gin",
+        reverse_edges=True,
+    ),
+    Variant(
+        variant_id="gin_full_qos16_rev_min",
+        family="control",
+        substrate="native",
+        qos="full16",
+        label="GIN-QoS-R-min",
+        blurb="GIN-QoS-R with every oracle-aligned feature column zeroed",
+        hidden_channels=228,
+        control_for="aggregator",
+        aggregator="gin",
+        reverse_edges=True,
+        drop_node_features=ORACLE_ALIGNED_FEATURES,
+    ),
+    Variant(
+        variant_id="gin_full_qos16_rev_const",
+        family="control",
+        substrate="native",
+        qos="full16",
+        label="GIN-QoS-R-const",
+        blurb="GIN-QoS-R with every node-feature column zeroed (structure only)",
+        hidden_channels=228,
+        control_for="aggregator",
+        aggregator="gin",
+        reverse_edges=True,
+        drop_node_features=ALL_NODE_FEATURES,
+    ),
+    Variant(
+        variant_id="gl_proj_qos16_cap_idyn_r",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-P-QoS-dyn+rate",
+        blurb="GAT-P-QoS-dyn reading each node's summed declared publication rate",
+        hidden_channels=288,
+        label_source="idyn_full",
+        rate_inputs="node",
+    ),
+    Variant(
+        variant_id="gl_proj_qos16_cap_idyn_re",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-P-QoS-dyn+rate-e",
+        blurb="GAT-P-QoS-dyn+rate with each Rule-1 edge's rate share as a 17th edge column",
+        hidden_channels=288,
+        label_source="idyn_full",
+        rate_inputs="node_edge",
+    ),
+    Variant(
+        variant_id="gin_proj_qos16_idyn_re",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GIN-P-QoS-dyn+rate-e",
+        blurb="GIN-P-QoS trained on I_dyn with node and edge rate inputs; sum "
+              "aggregation over the edge rate shares can represent Eq. 7",
+        hidden_channels=228,
+        aggregator="gin",
+        label_source="idyn_full",
+        rate_inputs="node_edge",
+    ),
+    Variant(
+        variant_id="gl_proj_qos16_cap_tie",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-P-QoS-tie",
+        blurb="GAT-P-QoS trained with the tie-aware listwise loss",
+        hidden_channels=288,
+        ranking_loss="listmle_ties",
+    ),
+    Variant(
+        variant_id="gl_full_qos16_cap_rev_tie",
+        family="control",
+        substrate="native",
+        qos="full16",
+        label="GAT-QoS-R-tie",
+        blurb="GAT-QoS-R trained with the tie-aware listwise loss",
+        hidden_channels=288,
+        control_for="directionality",
+        reverse_edges=True,
+        ranking_loss="listmle_ties",
+    ),
+    Variant(
+        variant_id="gl_proj_qos16_cap_tie_perm",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-P-QoS-tie-perm",
+        blurb="GAT-P-QoS-tie with node order permuted (seed 17)",
+        hidden_channels=288,
+        ranking_loss="listmle_ties",
+        permute_nodes=True,
+    ),
+    Variant(
+        variant_id="gl_proj_qos16_cap_tie_perm18",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-P-QoS-tie-perm18",
+        blurb="GAT-P-QoS-tie with node order permuted (seed 18)",
+        hidden_channels=288,
+        ranking_loss="listmle_ties",
+        permute_nodes=True,
+        permutation_seed=18,
+    ),
+    Variant(
+        variant_id="gl_proj_qos16_cap_tie_perm19",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-P-QoS-tie-perm19",
+        blurb="GAT-P-QoS-tie with node order permuted (seed 19)",
+        hidden_channels=288,
+        ranking_loss="listmle_ties",
+        permute_nodes=True,
+        permutation_seed=19,
+    ),
+    Variant(
+        variant_id="gl_proj_qos16_s",
+        family="dependency",
+        substrate="projection",
+        qos="full16",
+        label="GAT-S-P-QoS",
+        blurb="GAT-P-QoS at width 64 (the small-capacity arm of Amendment 19)",
+        hidden_channels=64,
+    ),
 ]
 
 VARIANTS: Dict[str, Variant] = {v.variant_id: v for v in _VARIANT_LIST}
+
+# The prior column must stay last in the input for ``_prior_logit``; the rate
+# column is appended before it, so the two are never combined.
+assert all(v.rate_inputs == "none" or v.prior is None for v in _VARIANT_LIST)
 
 #: Earlier display labels -> current ones. Result artifacts written before the
 #: 2026-09-24 relabelling embed the earlier strings (``label``, ``contrast``,
@@ -803,9 +959,12 @@ def edge_dim(variant_id: str, harness: str = "in_distribution") -> Optional[int]
     """GATConv ``edge_dim`` for ``variant_id``, or ``None`` for no edge channel.
 
     ``None`` also selects the ``"homo_unweighted"`` baseline class, so callers
-    can branch on this one value instead of re-listing variant ids.
+    can branch on this one value instead of re-listing variant ids. A
+    ``rate_inputs="node_edge"`` arm reads one column more (Amendment 19).
     """
-    return _EDGE_DIM_BY_QOS[_lookup(variant_id, harness).qos]
+    variant = _lookup(variant_id, harness)
+    dim = _EDGE_DIM_BY_QOS[variant.qos]
+    return dim + 1 if dim is not None and variant.rate_inputs == "node_edge" else dim
 
 
 def node_qos_for(variant_id: str, harness: str = "in_distribution") -> bool:
@@ -905,6 +1064,18 @@ def label_source_for(variant_id: str, harness: str = "loso") -> str:
     """Training-label source for ``variant_id`` (``"i_star"`` for every reported arm)."""
     variant = VARIANTS.get(resolve(variant_id, harness), None)
     return "i_star" if variant is None else variant.label_source
+
+
+def rate_inputs_for(variant_id: str, harness: str = "loso") -> str:
+    """Declared-rate inputs of ``variant_id`` (``"none"`` for every reported arm)."""
+    variant = VARIANTS.get(resolve(variant_id, harness), None)
+    return "none" if variant is None else variant.rate_inputs
+
+
+def ranking_loss_for(variant_id: str, harness: str = "loso") -> str:
+    """Listwise loss of ``variant_id`` (``"listmle"`` for every reported arm)."""
+    variant = VARIANTS.get(resolve(variant_id, harness), None)
+    return "listmle" if variant is None else variant.ranking_loss
 
 
 def baseline_name_for(variant_id: str, harness: str = "loso") -> str:

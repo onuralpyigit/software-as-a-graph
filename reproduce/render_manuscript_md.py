@@ -197,6 +197,8 @@ def postprocess_markdown(body: str, labels: dict) -> str:
         cap = re.search(r"<figcaption[^>]*>(.*?)</figcaption>", block, re.S)
         cap = re.sub(r"<[^>]+>", "", cap.group(1)) if cap else ""
         cap = re.sub(r"\s+", " ", cap).strip()
+        # pandoc spaces the thousands separator of math like $1{,}321$.
+        cap = re.sub(r"(\d), (\d{3})\b", r"\1,\2", cap)
         # Relative to sections/; build_manuscript rebases it for manuscript.md.
         return f"![Figure {num}](../latex/{src}.png)\n\n*Figure {num}. {cap}*"
 

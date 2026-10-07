@@ -1,9 +1,9 @@
 # Amendment 13: dependency counts reclassified as references
 
 **Paper:** §1, §3.3 (Remark 1), §4.4 (`sec:4.4`, the reference criterion), §5.2 (`sec:6.2`,
-"References"), §6.1–6.3 (the reference blocks of Tables 5, 6 and 8: `tab:hybrid`,
+"References"), §6.1–6.3 (the reference blocks of Tables 6, 7 and 9: `tab:hybrid`,
 `tab:independent_oracles`, `tab:system_models_transfer`), §7.3 (`tab:guidance`), §7.4.
-**Supplement:** §S27 (row A13); `GAT-P+InDeg` is reported in §S38.
+**Supplement:** §S28 (row A13); `GAT-P+InDeg` is reported in §S39.
 **Status:** reporting deviation, written *after* all results existed. No arm was run, re-run, dropped
 or added, and no number changed.
 **Registration:** [`../../PREREGISTRATION.md`](../../PREREGISTRATION.md), Amendment 13 (commit
@@ -23,7 +23,7 @@ labelling simulator:
 - `Reach` counts the transitive dependents a reachability cascade can visit, and it keeps no `I_dyn`
   signal beyond `I*` (partial ρ 0.058, CI includes 0; Amendment 12, R2, on the n = 30 sample). On the
   full population (Amendment 14) it keeps 0.117 [0.055, 0.184], which excludes zero but is the
-  smallest of the four references in Table 6.
+  smallest of the four references in Table 7.
 
 A ranker that restates the oracle's rule measures how much of the oracle is that rule, not predictive
 skill.
@@ -82,5 +82,5 @@ the reference rows' contrast cells read `---`. Mutation-tested:
 
 - **A learner without the in-degree and `w_in` columns.** Run by Amendment 14 (F1, F2) and
   Amendment 17 (F11).
-- **The learned rankers' partial correlation with `I_dyn` beyond `I*`.** Reported in Table 6 since
+- **The learned rankers' partial correlation with `I_dyn` beyond `I*`.** Reported in Table 7 since
   Amendment 14.

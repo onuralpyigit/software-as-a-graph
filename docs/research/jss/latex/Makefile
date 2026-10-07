@@ -26,7 +26,7 @@ export TEXINPUTS BSTINPUTS
 all: $(MAIN).pdf
 
 $(MAIN).pdf: $(MAIN).tex sections/*.tex refs.bib figures/Figure_1.pdf figures/Figure_2.pdf \
-             figures/Figure_3.pdf figures/Figure_4.pdf figures/Figure_5.pdf
+             figures/Figure_3.pdf figures/Figure_4.pdf figures/Figure_5.pdf figures/Figure_6.pdf
 	$(PDFLATEX) -interaction=nonstopmode $(MAIN).tex
 	$(BIBTEX) $(MAIN)
 	@# The two documents cross-reference each other through xr-hyper

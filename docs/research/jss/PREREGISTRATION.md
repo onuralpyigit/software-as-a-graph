@@ -1715,3 +1715,158 @@ In every case, the statements "declared rates and payload sizes … carried sign
 - **Code kept.** The `payload_model="size"` option remains in `saag/simulation/message_flow_simulator.py`. The default `fixed` is unchanged and bit-identical to the published oracle, so no published label moves.
 - **The correction that does not depend on the arm was applied anyway.** As this amendment states for every case, the manuscript now says that the published `I_dyn` reads declared rates but not payload sizes (§4.3), and that the +0.097 attribution of Amendment 15 is rate signal (§6.1, §7.2, §7.3, Table 10).
 - **Status.** The arm stays registered and can be run later as written. The paper lists a payload-aware queue-flow oracle among its unrun extensions (§7.5).
+
+## Amendment 19 — round-14 referee arms: sum aggregation on the raw multigraph, rate-fed queue-flow GNNs, a tie-aware listwise loss, and a learning curve over training architectures (2026-10-06, before any result)
+
+**Status when written.** The code for these arms was written in the same commit as this amendment. Nothing has been trained or scored with it. What was seen before writing:
+- every published number;
+- the code facts that motivate the arms:
+  - `HomogeneousGIN` inherits the reverse-edge switch;
+  - the dependency-graph GAT sees no publication rate (Application features carry no rate column, and Topic nodes are absent from the projection);
+  - `CriticalityLoss._listmle_loss` breaks label ties in input order.
+
+Tier: registered secondary, logged after the primary null. No family joins the omnibus.
+
+**Why it exists.** The round-14 report (`reviews/review_2026-10-06_round14.md`) asks:
+- **M3.** Is the dependency-graph gain an attention artefact? The derived Rule-1 edge turns a typed two-hop count (publisher → topic ← subscriber) into a one-hop count, and the direction control `GAT-QoS-R` uses softmax attention, which cannot count.
+- **M4.** The GNN trained on `I_dyn` never received declared rates, the only declared input that carried queue-flow signal (Amendment 15). Can a rate-fed GNN approximate `I_dyn`?
+- **M6(b).** ListMLE breaks ties in node order (31% of labels are tied at zero), which Amendment 17b measured at about 0.044 of per-fold spread. Does a tie-aware loss remove that variance?
+- **M7.** Is the learned-versus-reference comparison starved of data? The report asks for a learning curve over training architectures and a smaller model.
+
+Not run, recorded as limitations:
+- a non-first-order oracle;
+- a confirmation corpus;
+- R-GCN or other relation-typed summing models;
+- manifest extraction;
+- the nested protocol for F8/F11;
+- a second compute device;
+- K > 11 (this needs newly generated scenarios, caches and labels).
+
+### Arms, fixed before any run
+
+GNN arms use the same protocol as Amendments 14, 16 and 17:
+- LOSO over the twelve folds, five seeds {42, 123, 456, 789, 2024}, CPU (`--jobs 10 --torch-threads 1`);
+- the published fixed configuration, no auto-layers, `--inner-val-scenario none`;
+- the Application population;
+- one invocation together with every comparator (`make -f reproduce/Makefile rq-amendment19`).
+
+| id | Label | Change against its comparator | Comparator(s) |
+|:---|:---|:---|:---|
+| `gin_full_qos16_rev` | GIN-QoS-R | GINE ×3, width 228 (434,123 parameters), raw multigraph, every edge also passed in reverse with shared weights | `gl_full_qos16_cap_rev`, `gin_proj_qos16` |
+| `gin_full_qos16_rev_min` | GIN-QoS-R-min | as above, the oracle-aligned set `MIN` (Amendment 17) zeroed | `gl_full_qos16_cap_rev_min`, `gin_proj_qos16_min` |
+| `gin_full_qos16_rev_const` | GIN-QoS-R-const | as above, every node-feature column zeroed (per-type input projections and the 16-D edge channel remain) | `gin_proj_qos16_const` |
+| `gl_proj_qos16_cap_idyn_r` | GAT-P-QoS→dyn+rate | GAT-P-QoS→dyn plus one node column `pub_rate` = Σ_{t∈pub(v)} r_t, rank-normalised within the scenario (Libraries 0); no prior and no logit residual | Eq. 7; `gl_proj_qos16_cap_idyn` |
+| `gl_proj_qos16_cap_idyn_re` | GAT-P-QoS→dyn+rate-e | as above, plus a 17th edge column: for a Rule-1 edge u→v, Σ_{t∈pub(v)∩sub(u)} r_t/\|pub(t)\|, divided by the scenario's largest value (Rule-5 edges 0). A node's in-sum of this column is its Eq. 7 score up to the max-normalisation and self-subscription | Eq. 7; `gl_proj_qos16_cap_idyn` |
+| `gin_proj_qos16_idyn_re` | GIN-P-QoS→dyn+rate-e | GINE, width 228, node and edge rate inputs; sum aggregation can represent Eq. 7 exactly | Eq. 7; `gl_proj_qos16_cap_idyn` |
+| `gl_proj_qos16_cap_tie` | GAT-P-QoS-tie | `ranking_loss="listmle_ties"`: Plackett–Luce over the label order in which each item's risk set starts at its tie group's first position (Breslow), invariant to input order and identical to ListMLE without ties | `gl_proj_qos16_cap` |
+| `gl_full_qos16_cap_rev_tie` | GAT-QoS-R-tie | GAT-QoS-R with the same loss | (F16b) |
+| `gl_proj_qos16_cap_tie_perm`, `_tie_perm18`, `_tie_perm19` | GAT-P-QoS-tie-perm17/18/19 | GAT-P-QoS-tie with node order permuted (seeds 17, 18, 19, as Amendment 17b) | GAT-P-QoS-tie (spread rule) |
+| `gl_proj_qos16_s` | GAT-S-P-QoS | GAT-P-QoS at width 64 (the small-capacity arm) | `gl_proj_qos16_cap`, `InDeg` (descriptive) |
+
+Payload is not an input. The published `I_dyn` reads none (Amendment 18 finding), so a payload column could carry no signal.
+
+**Comparators re-run in the same invocation:** `gl_proj_qos16_cap`, `gl_full_qos16_cap`, `gl_full_qos16_cap_rev`, `gin_proj_qos16`, `gl_proj_qos16_cap_idyn`, `gl_proj_qos16_cap_min`, `gl_full_qos16_cap_rev_min`, `gin_proj_qos16_min`, `gin_proj_qos16_const`.
+
+**Gate G0.** Each re-run comparator must reproduce its published per-seed ρ (max |Δ| < 1e-6). Eq. 7 and `GBM-P-QoS→dyn` are read from `referee_round12_f12.json`, whose own gate passed in Amendment 17.
+
+**Zero-shot.** The three GIN-QoS-R arms are trained on all twelve folds and scored on the five system models. The rate-fed arms are not run zero-shot, because the system models carry no `I_dyn` labels.
+
+**Learning curve** (`make -f reproduce/Makefile rq-amendment19-lc`).
+- **Learners:** `gl_proj_qos16_cap`, `gin_proj_qos16` and `gl_full_qos16_cap`.
+- **Training-set sizes and draws:** K ∈ {1, 2, 4, 8} training scenarios per fold × three subset draws d ∈ {1, 2, 3}. K = 11 is the comparator run of the main sweep.
+- **Subset rule:**
+  - the seed is the first 8 hex digits of SHA-256(`"a19:{d}:{holdout}"`);
+  - the training ids of the fold are sorted and permuted with `numpy.random.default_rng(seed)`, and the first K are kept, so subsets are nested in K;
+  - the primary is the largest kept scenario, the rest are inductives, and the node-level validation split is unchanged.
+- **Per-fold value:** the mean over draws of the mean over seeds.
+
+### Contrasts
+
+Each contrast uses a two-sided Wilcoxon over folds on the mean over seeds, with a bootstrap 95% CI (B = 2,000) and Holm correction within each family.
+
+- **F14 sum aggregation with reverse edges** (on `I*`):
+  - (a) GIN-P-QoS-min vs GIN-QoS-R-min;
+  - (b) GIN-P-QoS vs GIN-QoS-R;
+  - (c) GIN-P-QoS-const vs GIN-QoS-R-const.
+- **F15 rate-fed approximations** (on `I_dyn`, full population, rescored from saved per-seed predictions): each of the three rate-fed arms vs Eq. 7.
+- **F16 tie-aware loss** (on `I*`):
+  - (a) GAT-P-QoS-tie vs GAT-P-QoS;
+  - (b) GAT-P-QoS-tie vs GAT-QoS-R-tie.
+- **LC** (on `I*`, Holm across the three learners): ρ(K = 11) − ρ(K = 4) per learner.
+
+Descriptive only, with no tests:
+- every arm on `I*`, `I_dyn` and `I_comp`, and ρ>0;
+- GIN-QoS-R vs GAT-QoS-R, and GIN-QoS-R-min vs GAT-QoS-R-min;
+- the share s of the F11a gap closed, s = (ρ GIN-QoS-R-min − ρ GAT-QoS-R-min) / (ρ GAT-P-QoS-min − ρ GAT-QoS-R-min);
+- GIN-QoS-R-const vs `InDeg`;
+- each rate-fed arm vs GAT-P-QoS→dyn and vs GBM-P-QoS→dyn, and partial ρ(·, `I_dyn` | Eq. 7);
+- the mean per-fold spread of the three tie-loss permutations;
+- GAT-S-P-QoS vs GAT-P-QoS and vs `InDeg`;
+- LC:
+  - ρ(11) − ρ(8);
+  - slope per doubling, (ρ(11) − ρ(4)) / log2(11/4);
+  - gap to `InDeg` at every K;
+  - the smallest K within 0.02 of K = 11.
+
+**D19 (descriptive, no training; `referee_round14.py descriptive`):**
+- the nested-protocol GAT-P-QoS (Amendment 14 arm N) vs `InDeg` per fold;
+- a mixed-effects sensitivity (statsmodels `MixedLM`, `rho ~ arm`, fold as group with a random arm slope, seeds as residual), for F8b, F11a, F14a, F16b and GAT-P-QoS vs `InDeg`;
+- per-fold `I_dyn` headroom √r_f − ρ_f for Eq. 7 and the best learned approximation.
+
+### Decision rules
+
+| Rule | Condition | What the text says |
+|:---|:---|:---|
+| F14a | F14(a) Holm p < 0.05, Δ > 0 | "Under matched sum aggregation, the derived graph still beats the raw multigraph with reverse edges." The representation claim stays and is stated beyond direction and aggregator. |
+| F14b | F14(a) not significant and s ≥ 0.5 | "A sum aggregator on the raw multigraph recovers most of the gap: the projection precomputes a typed two-hop composition that sum aggregation can learn." The representation claim in the abstract, highlights, §7.1 and §8 becomes specific to attention-based learners. |
+| F14c | Otherwise | The numbers are reported as not resolving the question; the claim is conditioned on the aggregator. |
+| F15a | Any F15 arm beats Eq. 7 at Holm p < 0.05 | Reported in the abstract, §6.1 and §7.2 as a regime where learning added value beyond the aligned approximation. |
+| F15b | No arm beats Eq. 7, and the best arm is within 0.02 of GBM-P-QoS→dyn or significantly (unadjusted p < 0.05) above GAT-P-QoS→dyn | "Given declared rates, the GNN closes the input gap but does not exceed Eq. 7." |
+| F15c | Otherwise | "Even given declared rates, the GNN approximations stay below the tabular approximation and Eq. 7." |
+| F16 | F16(b) Holm p < 0.05, Δ > 0 | "The direction-controlled representation gain holds under a tie-aware loss"; otherwise the gain is stated as conditional on the loss. |
+| S1 / S2 | Mean per-fold tie-permutation spread ≤ 0.022 (half the ListMLE spread) / otherwise | S1: "tie order was the main source of node-order variance." S2: "node-order variance does not come mainly from tie order." |
+| LC-a | Upper CI bound of ρ(11) − ρ(8) < 0.02, and the LC contrast is not significant | "Within this generator family the learner is not data-starved at eleven architectures." |
+| LC-b | LC contrast Holm p < 0.05 with Δ > 0, and ρ(11) − ρ(8) > 0.02 | "Still rising at eleven architectures; the learned-versus-reference comparison cannot be separated from data scarcity." |
+| LC-c | Otherwise | The curve is reported without either claim. |
+
+How the learners combine:
+- the overall LC statement is LC-b if any learner is LC-b;
+- it is LC-a if all three are LC-a;
+- otherwise it is LC-c.
+
+K = 1 is reported but is not used by any rule.
+
+**Stopping rule.** No arm is re-run with other widths, features, seeds, K values, draws or loss settings in search of a different answer. A failed arm is reported with its failure.
+
+**What is unchanged.**
+- Every published arm, table value and tier.
+- The published arms keep ListMLE.
+- The new options default to the published behaviour (`tests/test_amendment19.py`).
+
+### Amendment 19 — results log (2026-10-07)
+
+- **Gate G0 passed.** All nine re-run comparators reproduced their published per-seed ρ exactly (max |Δ| = 0.0).
+- **Deviation 1 (provenance only).** During the main sweep, another session re-rendered `docs/research/jss/manuscript.md` in the main checkout, a generated-file change that does not touch any code. The sweep artifact was therefore stamped `dirty`. The sweep was re-stamped from a clean detached worktree at the registered commit `48c196fb`:
+  - `loso_all_variants.py --resume` reused every fingerprinted fit (the fingerprints include the code digest), and its per-seed ρ is identical to the first write (max |Δ| = 0);
+  - the three zero-shot arms were re-run from scratch.
+
+  The learning curve and the analysis ran in that worktree. Every Amendment 19 artifact records `dirty: false` and commit `48c196fb`.
+- **Deviation 2 (none in substance).** The analyses ran exactly as registered (`referee_round14.py amendment19 lc descriptive`, one process).
+
+**Rules that fired**
+
+| Rule | Result |
+|:---|:---|
+| **F14a** | GIN-P-QoS-min vs GIN-QoS-R-min: +0.239 [+0.151, +0.335], 12/12 folds, Holm p = 0.0015. Also GIN-P-QoS vs GIN-QoS-R +0.064 (Holm 0.0049), and GIN-P-QoS-const vs GIN-QoS-R-const +0.289 (Holm 0.0020). GIN-QoS-R reaches 0.668, level with GAT-QoS-R (−0.008). The share of the F11a gap closed by sum aggregation on the raw graph is s = 0.46. |
+| **F15b** | No rate-fed arm beats Eq. 7. GIN-P-QoS→dyn+rate-e reaches 0.665: −0.165 against Eq. 7 (Holm 0.0015) and −0.134 against GBM-P-QoS→dyn. The rule fired on its second condition: the best arm lies significantly above the rate-blind GAT-P-QoS→dyn (+0.067, unadjusted p = 0.021). Its first condition, within 0.02 of GBM-P-QoS→dyn, failed. The registered wording "closes the input gap" is therefore reported only together with the remaining 0.134 gap to the tabular approximation. |
+| **F16** | GAT-P-QoS-tie vs GAT-QoS-R-tie: +0.069, Holm p = 0.019. The direction-controlled gain holds under a tie-aware loss. GAT-P-QoS-tie vs GAT-P-QoS: −0.001 (Holm 0.97). |
+| **S2** | The mean per-fold spread across the three tie-loss permutations is 0.047, against 0.044 under ListMLE. Node-order variance does not come mainly from tie order. |
+| **LC-c (overall)** | GAT-P-QoS: LC-c. Δ(11−4) = +0.078, Holm 0.015; Δ(11−8) = +0.015 [+0.003, +0.028]. GIN-P-QoS: LC-c. Δ(11−4) = +0.027, Holm 0.024; Δ(11−8) = +0.001. GAT-QoS: LC-a, flat from K = 4. GAT-P-QoS's gap to `InDeg` narrows from 0.160 (K = 1) to 0.017 (K = 11). |
+
+**Descriptive**
+
+- **Small-capacity arm.** GAT-S-P-QoS (width 64) reaches 0.638, −0.110 against GAT-P-QoS on 12/12 folds.
+- **Nested protocol.** GAT-P-QoS under the nested protocol is −0.071 [−0.143, −0.002] against `InDeg` (p = 0.11).
+- **Mixed effects.** All models converged. The estimates match the paired tests: +0.072, +0.231, +0.239, +0.069, and −0.017 (p = 0.62).
+- **`I_dyn` headroom.** For Eq. 7 it is 0.047–0.291 per fold (mean 0.132).
+- **Zero-shot.** GIN-QoS-R 0.766, -min 0.725, -const 0.399.

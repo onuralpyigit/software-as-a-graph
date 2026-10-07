@@ -1,9 +1,9 @@
 # Amendment 17 (and 17b): round-12 referee controls
 
 **Paper:** §3.3 (in-degree feature vs `InDeg`), §3.5 (`sec:3.5`, oracle-aligned features), §4.2 (tie
-order), §6.1 (`sec:rq1`, "Learning on top of the rate-weighted reference"), §6.2 (`sec:rq2`, Table 7
+order), §6.1 (`sec:rq1`, "Learning on top of the rate-weighted reference"), §6.2 (`sec:rq2`, Table 8
 `tab:controls`: F11–F13), §7.2, §7.5.
-**Supplement:** §S42 (`supp:controls`, Table S71 `tab:a17`), §S27 (row A17).
+**Supplement:** §S43 (`supp:controls`, Table S72 `tab:a17`), §S28 (row A17).
 **Status:** registered secondary. Amendment 17 was committed at `b8710f75`, before any arm ran.
 Amendment 17b was committed before its two arms ran, but after F13 had been seen.
 **Registration:** [`../../PREREGISTRATION.md`](../../PREREGISTRATION.md), Amendments 17 and 17b and

@@ -523,8 +523,14 @@ class CriticalityLoss(nn.Module):
         pairwise_ranking_weight: float = 0.1,
         temperature: float = 1.0,
         pairwise_margin: float = 0.05,
+        ranking_loss: str = "listmle",
     ):
         super().__init__()
+        if ranking_loss not in ("listmle", "listmle_ties"):
+            raise ValueError(f"unknown ranking_loss {ranking_loss!r}")
+        #: ``"listmle"`` breaks label ties in input order; ``"listmle_ties"``
+        #: (Amendment 19) gives every member of a tie group the same risk set.
+        self.ranking_loss = ranking_loss
         self.multitask_weight = multitask_weight
         self.rm_consistency_weight = rm_consistency_weight
         self.ranking_weight = ranking_weight
@@ -551,7 +557,8 @@ class CriticalityLoss(nn.Module):
 
         loss_composite = self.mse(labeled_pred[:, 0], labeled_target[:, 0])
         loss_multitask = self._multitask_loss(labeled_pred, labeled_target, dim_weights)
-        loss_ranking = self._listmle_loss(labeled_pred[:, 0], labeled_target[:, 0], temperature=self.temperature)
+        listwise = self._listmle_ties_loss if self.ranking_loss == "listmle_ties" else self._listmle_loss
+        loss_ranking = listwise(labeled_pred[:, 0], labeled_target[:, 0], temperature=self.temperature)
         loss_pairwise = self._pairwise_margin_loss(labeled_pred[:, 0], labeled_target[:, 0], margin=self.pairwise_margin)
 
         supervised_loss = (
@@ -618,6 +625,27 @@ class CriticalityLoss(nn.Module):
         sorted_scores = scores[idx] / tau
         cum_lse = torch.logcumsumexp(sorted_scores.flip(0), dim=0).flip(0)
         log_probs = sorted_scores - cum_lse
+        return -log_probs.mean()
+
+    @staticmethod
+    def _listmle_ties_loss(scores: Tensor, targets: Tensor, temperature: float = 1.0) -> Tensor:
+        """ListMLE with tied labels as groups (Breslow), so input order cannot matter.
+
+        Plackett-Luce over the label order, except that each item's risk set starts
+        at the first position of its tie group: every member of a group is scored
+        against the whole group and everything below it. Identical to
+        :meth:`_listmle_loss` when no labels tie (Amendment 19).
+        """
+        sorted_targets, idx = torch.sort(targets, descending=True, stable=True)
+        tau = max(float(temperature), 1e-4)
+        sorted_scores = scores[idx] / tau
+        cum_lse = torch.logcumsumexp(sorted_scores.flip(0), dim=0).flip(0)
+        n = sorted_targets.shape[0]
+        pos = torch.arange(n, device=scores.device)
+        new_group = torch.ones(n, dtype=torch.bool, device=scores.device)
+        new_group[1:] = sorted_targets[1:] != sorted_targets[:-1]
+        start = torch.cummax(torch.where(new_group, pos, torch.zeros_like(pos)), dim=0).values
+        log_probs = sorted_scores - cum_lse[start]
         return -log_probs.mean()
 
     @staticmethod

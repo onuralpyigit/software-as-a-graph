@@ -1,10 +1,10 @@
 # Amendment 16: direction control and corrected-prior hybrids (round 11)
 
-**Paper:** §6.1 (`sec:rq1`, "Hybrids beat the baseline, not their base learners"; Table 5's corrected
-`Topo-QoS` row), §6.2 (`sec:rq2`, "Direction versus dependency semantics"; Table 7 `tab:controls`,
+**Paper:** §6.1 (`sec:rq1`, "Hybrids beat the baseline, not their base learners"; Table 6's corrected
+`Topo-QoS` row), §6.2 (`sec:rq2`, "Direction versus dependency semantics"; Table 8 `tab:controls`,
 F8–F10), §6.3 (zero-shot of the new arms), §7.4 (the reverse-edge control shares weights across
 directions).
-**Supplement:** §S42 (`supp:controls`, Table S70 `tab:a16`), §S27 (`supp:amendments`, row A16).
+**Supplement:** §S43 (`supp:controls`, Table S71 `tab:a16`), §S28 (`supp:amendments`, row A16).
 **Status:** registered secondary. Written 2026-09-30, before any arm was trained or scored. Families
 are Holm-corrected within themselves and none joins the omnibus.
 **Registration:** [`../../PREREGISTRATION.md`](../../PREREGISTRATION.md), Amendment 16, its results log
