@@ -159,9 +159,10 @@ def render_frontmatter() -> tuple[str, str, str]:
 
     header = (
         f"# {title}\n\n"
-        f"**Authors.** Ibrahim Onuralp Yigit, Feza Buzluca\n\n"
-        f"**Affiliation.** Department of Computer Engineering, Istanbul Technical University, "
-        f"34469 Istanbul, Turkey\n\n"
+        f"**Authors.** Ibrahim Onuralp Yigit (1, 2), Feza Buzluca (1)\n\n"
+        f"**Affiliations.**\n"
+        f"1. Department of Computer Engineering, Istanbul Technical University, 34469 Istanbul, Turkey\n"
+        f"2. HAVELSAN, Command, Control and Defense Technologies, 34903 Istanbul, Turkey\n\n"
         f"**Corresponding author.** Ibrahim Onuralp Yigit — yigiti@itu.edu.tr\n"
     )
 
