@@ -1,12 +1,16 @@
 % cover_letter.tex -- Cover letter for Editorial Manager (VSI: AI4MSS).
-% Text from the advisor's v8 email; the cost sentence is worded to match the
-% manuscript (rho = 0.830 is an approximation, exploratory, not a replacement).
-\documentclass[11pt]{letter}
-\usepackage[a4paper,margin=2.5cm]{geometry}
+% Text from the advisor's 2026-10-08 cover_letter.docx. One sentence differs: the
+% retained-content sentence also names the betweenness--articulation score, which
+% the conference paper defines (its Eq. 3) and Topo-QoS (Eq. 5) continues.
+\documentclass[10pt]{letter}
+\usepackage[a4paper,margin=2cm]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{url}
 
-\signature{Ibrahim Onuralp Yigit and Feza Buzluca\\
+\signature{Ibrahim Onuralp Yigit (corresponding author, yigiti@itu.edu.tr)\\
+Feza Buzluca\\
 Department of Computer Engineering, Istanbul Technical University}
 \address{Department of Computer Engineering\\Istanbul Technical University\\34469 Maslak, Istanbul, Turkey}
 
@@ -15,13 +19,17 @@ Department of Computer Engineering, Istanbul Technical University}
 
 \opening{Dear Guest Editors,}
 
-We submit the manuscript \emph{``Software-as-a-Graph: When Does Graph Learning Improve Cascade-Impact Ranking in Publish--Subscribe Systems?''} for consideration in the special issue.
+We submit the manuscript \emph{``Software-as-a-Graph: When Does Graph Learning Improve Cascade-Impact Ranking in Publish--Subscribe Systems?''} for consideration in the special issue on AI Techniques for Performance, Reliability and Sustainability of Modern Software Systems.
 
-This manuscript addresses the special issue topics ``AI for Reliability and Dependability Analysis in Complex ICT Systems'' and ``Datasets, Benchmarks, and Evaluation Methodologies for AI Performance Models''. It evaluates when graph-learning techniques add value for pre-deployment cascading-failure analysis of publish--subscribe systems, compared with analytical rankings derived from the same dependency structure. It introduces a reference criterion to identify when an AI model's agreement with a simulator reflects restatement of the simulator's rule rather than predictive skill, a contribution to understanding the limitations of AI techniques, as the call highlights. The study also quantifies cost and estimated energy, showing that a training-free approximation computed in milliseconds ranks components nearly as a queue-flow simulator does (Spearman $\rho = 0.830$), a simulator that takes 12.7 CPU-hours to label the corpus.
+The manuscript addresses two of the call's topics: ``AI for Reliability and Dependability Analysis in Complex ICT Systems'' and ``Datasets, Benchmarks, and Evaluation Methodologies for AI Performance Models''. Architects of publish--subscribe systems must identify the components whose failures have the greatest cascading impact before deployment, when no telemetry exists. Graph learning has been applied to such criticality analysis, but it is unclear whether its accuracy comes from the learning algorithm or from the dependency representation it reads. Our framework, Software-as-a-Graph, derives explicit dependency graphs from declared architecture models and compares analytical, hybrid, and learned rankers on twelve synthetic architectures, three failure simulators, and five models of open-source systems.
 
-The manuscript extends our RASSE 2025 paper with substantially more than 30\% new technical content; the prior paper and a document detailing the improvements are included with the submission.
+The study makes a methodological contribution that directly addresses the call's concern with understanding the limitations of AI techniques: a reference criterion that identifies when a model's agreement with a simulator reflects restatement of the simulator's rule rather than predictive skill. Applied here, the results show that explicit dependency representations provide most of the predictive signal. Counting direct dependents, a classical coupling metric, is not significantly different from the best graph neural network on a reachability simulator. On a queue-flow simulator that takes 12.7 CPU-hours to label the corpus, a training-free formula computed in milliseconds agrees with the simulator at Spearman $\rho = 0.830$ and exceeds learned approximations trained on its labels. Because these simulators propagate failures to first order by construction, the paper states its conclusions for that regime and identifies the mechanisms under which learning may add value.
 
-The manuscript is not under consideration elsewhere, and both authors have approved its submission. The datasets, harnesses and analysis scripts are archived on Zenodo (DOI 10.5281/zenodo.23045204).
+The evaluation follows an analysis plan committed before results were produced. Its two confirmatory contrasts were null, and the paper reports which findings are registered as secondary or exploratory. The datasets, simulation harnesses, models, and analysis scripts are archived on Zenodo (DOI 10.5281/zenodo.23045204), and a script verifies every reported figure against the released artifacts.
+
+The manuscript extends our conference paper ``A Graph-Based Dependency Analysis Method for Identifying Critical Components in Distributed Publish--Subscribe Systems'' (IEEE RASSE 2025, DOI 10.1109/\allowbreak RASSE64831.2025.11315354). The journal version retains the multigraph model, the subscriber-to-publisher dependency rule and, as its training-free baseline, a QoS-weighted version of the conference paper's betweenness--articulation score. All other content is new, substantially exceeding 30\% of the manuscript, and its results supersede those of the conference paper. As required by the call, the conference paper and a document detailing the improvements are included with the submission.
+
+The manuscript has not been published and is not under consideration elsewhere. Both authors have approved the submission and declare no competing interests. The use of AI-assisted tools is disclosed in the manuscript.
 
 \closing{Sincerely,}
 
