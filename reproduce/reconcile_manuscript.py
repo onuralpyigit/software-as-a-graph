@@ -2274,7 +2274,7 @@ def check_amendment16(rep: Report) -> None:
     num = r"\$?([-+]?[\d.]+)\$?"
     f8a, f8b = a16["F8"]["GAT-QoS-R vs GAT-QoS"], a16["F8"]["GAT-P-QoS vs GAT-QoS-R"]
     _quote(rep, "abstract direction control", _tex("abstract.tex"),
-           r"\$\+([\d.]+)\$ above the same model with reverse edges on the raw multigraph",
+           r"\$\+([\d.]+)\$ above the same model passing raw-multigraph edges in both directions",
            [(1, f8b["delta"])])
     _quote(rep, "sec:rq2 direction", tex,
            r"It reaches " + num + r": direction alone recovers \$\+([\d.]+)\$ of the gain, which is not significant \(Holm \$p = ([\d.]+)\$\), and \\texttt\{GAT-P-QoS\} still exceeds it by \$\+([\d.]+)\$ \$\[\+([\d.]+), \+([\d.]+)\]\$ on 10 of 12 folds \(Holm \$p = ([\d.]+)\$\)",

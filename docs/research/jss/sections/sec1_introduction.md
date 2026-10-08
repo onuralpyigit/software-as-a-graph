@@ -24,13 +24,13 @@ Explicit dependency representations provide most of the predictive signal for th
 
 Knowing when learning is unnecessary is as useful as knowing when it succeeds. Because the three simulators studied here are dominated by first-order propagation by construction, this study answers the title question for that regime only: it tests whether learning exceeds aligned analytical truncations of such simulators, and it cannot characterize the regimes in which learning would exceed them, which require simulators with non-first-order mechanisms (§7.5). Software engineering research has repeatedly shown that simple metrics can match more complex models when the right information is available [23, 27, 28, 29]. We therefore evaluate learned models against analytical rankings derived from the same dependencies:
 
--   **RQ1 (Ranking accuracy):** *How accurately do analytical baselines, hybrid models, and learned approaches rank components by cascading-failure impact on unseen architectures, and can learned models exceed analytical truncations of the simulator’s propagation rule?*
+-   **RQ1 (Ranking accuracy):** *How accurately do analytical rankings, hybrid models, and learned approaches rank components by cascading-failure impact on unseen architectures, and can learned models exceed analytical truncations of the simulator’s propagation rule?*
 
 -   **RQ2 (Sources of predictive performance):** *At matched model capacity, which factors contribute most to ranking performance: the dependency representation, degree information, relation typing, QoS information, the aggregator, the model family, or the number of training architectures?*
 
 -   **RQ3 (Transfer):** *How well do learned models trained on synthetic architectures transfer zero-shot to stylized models of five open-source systems, and does their ordering of components that actually propagate failures hold?*
 
--   **RQ4 (Cost):** *What do analytical and learned approaches cost at CI/CD time in latency and estimated energy, and how does this compare with running each simulator directly?*
+-   **RQ4 (Cost):** *What do analytical and learned approaches cost at continuous integration and delivery (CI/CD) time in latency and estimated energy, and how does this compare with running each simulator directly?*
 
 The evaluation follows an analysis plan pre-specified in the replication repository. Only its two co-primary contrasts are confirmatory, and both were null; the headline findings above are registered secondary or exploratory (§5.3).
 
@@ -40,12 +40,12 @@ The evaluation follows an analysis plan pre-specified in the replication reposit
 
 2.  **An evaluation guideline for simulator-labeled benchmarks** (§4.4): an order-$k$ reference criterion, truncating a simulator’s own computation, against which learned rankers are compared to separate genuine cascading prediction from first-order topological rule restatement.
 
-3.  **A controlled comparison of analytical, hybrid, and learned rankers** (§§6.1–6.3) that separates the effects of representation, degree information, relation typing, QoS information and model family.
+3.  **A controlled comparison of analytical, hybrid, and learned rankers** (§§6.1–6.3) that separates the effects of representation, degree information, relation typing, QoS information, aggregator, model family and the number of training architectures.
 
 4.  **Analytical and learned approximations of a queue-flow simulator** (§6.1): a rate-weighted first-order approximation (Eq. 7) of a simulator that is first-order by construction, compared with tabular and graph-learned approximations given the same declared rates.
 
 5.  **A reproducible benchmark, cost analysis and practitioner guidance** (§§5.1, 6.4 and 7.3) over twelve synthetic architectures labeled by three simulators and five system models labeled by the reachability simulator.
 
-A previous conference paper [30] introduced the publish–subscribe multigraph, the Application-level subscriber-to-publisher dependency (Rule 1 of Table 2) and a closed-form betweenness–articulation score similar to the training-free baseline (Eq. 5), validated against a reachability-loss simulation. Everything else here is new: the Library and infrastructure rules, QoS weighting, the reference criterion, the learned and hybrid rankers, the simulator approximations, leave-one-scenario-out (LOSO) cross-validation and zero-shot evaluation, the second and third simulators, the matched controls and the cost analysis. Under this broader evaluation, the closed-form score family of [30] is the weakest analytical ranker, and the present results supersede that paper’s implicit recommendation of it.
+A previous conference paper [30] introduced the publish–subscribe multigraph, the Application-level subscriber-to-publisher dependency (Rule 1 of Table 2) and the use of betweenness centrality and articulation points to identify critical components, combined there in a weighted criticality score and illustrated by removal experiments on a synthetic example and two ROS 2 benchmarks. The training-free baseline (Eq. 5) is a QoS-weighted version of that combination. Everything else here is new: the Library and infrastructure rules, QoS weighting, the reference criterion, the learned and hybrid rankers, the simulator approximations, leave-one-scenario-out (LOSO) cross-validation and zero-shot evaluation, the second and third simulators, the matched controls and the cost analysis. Under this broader evaluation, this combination is the weakest analytical ranker, and the present results supersede that paper’s implicit recommendation of it.
 
 §2 reviews related work, §§3 and 4 present the model and the rankers, §§5 and 6 the evaluation, §7 the discussion and threats, and §8 concludes.
