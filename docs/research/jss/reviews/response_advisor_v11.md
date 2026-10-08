@@ -13,7 +13,7 @@
 | Check | Result |
 |---|---|
 | Manuscript | 30 pp, unchanged |
-| Abstract | 239 words as rendered, 231 by the reconciler's count (math as one word); limit 250 |
+| Abstract | 248 words as rendered (a whitespace count, as Word does), 240 by the reconciler's count (math as one word); limit 250 |
 | `reproduce/reconcile_manuscript.py` | 2,032 figures match. The abstract's direction-control quote was re-keyed to the new wording |
 | `scripts/check_doc_links.py` | OK |
 | Cover letter | 1 page (10 pt, 2 cm margins) |
@@ -35,6 +35,13 @@
 | 112: RASSE sentence | **Adopted with one factual deviation.** The note says the conference paper reports betweenness and articulation points separately, with no weighted combination. The RASSE PDF does combine them: Eq. (3), CS(v) = α·C_B(v) + β·AP(v), with α = 0.7 and β = 0.3, used for its Table I scores. The new sentence keeps the advisor's structure and the more accurate "illustrated by removal experiments on a synthetic example and two ROS 2 benchmarks". It adds "combined there in a weighted criticality score" and says Eq. (5) "is a QoS-weighted version of that combination". The following sentence's "the closed-form score family of [30]" became "this combination" | §1.5 |
 
 **Length (follow-up).** The two notes above took the abstract to 251 rendered words (the author measured 256). To stay under 250 by any count, the direct-dependents sentence went back to the Abstract_v9 wording: "Counting direct dependents (ρ = 0.764) is not significantly different from the learned model." This drops "that is, afferent coupling" and "which approaches it as training architectures are added". Afferent coupling is still named in §1.3 and §8, and the learning-curve trend in §8.
+
+**Advisor's abstract_v11_2.docx (follow-up).** This version is applied verbatim; the rendered text matches the .docx word for word. It makes three changes to the cut version:
+- the first sentence reads "yet architects must identify components with the greatest cascading impact before deployment, without telemetry";
+- "Counting direct dependents (afferent coupling, ρ = 0.764)";
+- "not yet when it helps".
+
+The reconciler's abstract quote now accepts the "afferent coupling," prefix.
 
 ### Abstract_v9 items not restored
 
