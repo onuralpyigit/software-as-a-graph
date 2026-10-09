@@ -14,13 +14,14 @@ That machinery exists because the corpus silently drifted early in development: 
 
 ## 1. Corpus at a Glance
 
-The complete JSS evaluation corpus comprises **2,812 components and 11,618 edges across seventeen system architectures** (JSS Table 4), partitioned into twelve synthetic inductive scenarios, five hand-authored open-source system models, an ATM scaling suite for analysis cost benchmarking, and three regression/stress fixtures.
+The complete JSS evaluation corpus comprises **2,812 components and 11,618 edges across seventeen system architectures** (JSS Table 3), partitioned into twelve synthetic inductive scenarios, five hand-authored open-source system models, an ATM scaling suite for analysis cost benchmarking, and three regression/stress fixtures.
 
 Entity counts denote `Applications / Topics / Brokers / Execution Hosts / Libraries` (`apps / topics / brokers / nodes / libs`), read directly from the committed datasets.
 
 ### 1.1 Synthetic Inductive Evaluation Suite — Twelve LOSO Folds
 
-These twelve synthetic architectures form the basis of the **Leave-One-Scenario-Out (LOSO)** cross-validation protocol (JSS Table 7 and Supplementary Table S10). In each fold, one scenario is withheld as an unseen holdout architecture while models train on the remaining eleven.
+These twelve synthetic architectures form the basis of the **Leave-One-Scenario-Out (LOSO)** cross-validation protocol (JSS Table 6 and Supplementary Table S10). In each fold, one scenario is withheld as an unseen holdout architecture while models train on the remaining eleven.
+
 
 | Config | Dataset | Domain / Architecture | Apps | Topics | Brokers | Hosts | Libs | $|V|$ | $|E|$ | Seed | Canonical SHA-256 |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
@@ -44,7 +45,7 @@ These twelve synthetic architectures form the basis of the **Leave-One-Scenario-
 
 ### 1.2 Open-Source Real-World System Models — Zero-Shot Transfer Suite
 
-Five hand-authored architecture models of production open-source distributed systems, encoded in canonical SaG typed multigraph format via [`saag.adapters.realworld_adapter.RealWorldAdapter`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/adapters/realworld_adapter.py) and generated via [`cli/import_realworld_system.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/cli/import_realworld_system.py). These models are **withheld from all training folds** and used exclusively for **zero-shot transfer evaluation** (RQ4, JSS Table 9b & 9c).
+Five hand-authored architecture models of production open-source distributed systems, encoded in canonical SaG typed multigraph format via [`saag.adapters.realworld_adapter.RealWorldAdapter`](../saag/adapters/realworld_adapter.py) and generated via [`cli/import_realworld_system.py`](../cli/import_realworld_system.py). These models are **withheld from all training folds** and used exclusively for **zero-shot transfer evaluation** (RQ3, JSS Table 9).
 
 | Config | Dataset | Paradigm / Original System | Apps | Topics | Brokers | Hosts | Libs | $|V|$ | $|E|$ | Seed | Canonical SHA-256 |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
@@ -60,7 +61,7 @@ $$\mathbf{|V| = 2{,}812} \quad (1{,}462 \text{ Apps}, 735 \text{ Topics}, 81 \te
 
 #### Architectural Details of Open-Source Models
 
-* **`realworld_autoware_ros2.json` (`autoware_ros2`)**: Authentic ROS 2 pub-sub architecture of Autoware.universe. Spans 32 Applications (sensing, perception, localization, planning, control, vehicle interface, emergency safety), 24 DDS Topics with explicit DDS QoS contracts (`VOLATILE`/`TRANSIENT_LOCAL` durability, `BEST_EFFORT`/`RELIABLE` reliability, `CRITICAL`/`HIGHEST`/`HIGH` priority), 3 Brokers (DDS middleware: Eclipse CycloneDDS, eProsima FastDDS, Zenoh Router), 6 Deployment ECUs (Main Brain EPYC, Perception GPU Orin AGX, Sensing FPGA, Vehicle Actuation Aurix MCU, Teleop HMI, Gateway), and 10 shared C++/ROS 2 libraries (`autoware_universe_utils`, `tier4_autoware_utils`, `motion_utils`, `rclcpp_core`). Tested via [`examples/run_autoware_ros2_pipeline.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/examples/run_autoware_ros2_pipeline.py).
+* **`realworld_autoware_ros2.json` (`autoware_ros2`)**: Authentic ROS 2 pub-sub architecture of Autoware.universe. Spans 32 Applications (sensing, perception, localization, planning, control, vehicle interface, emergency safety), 24 DDS Topics with explicit DDS QoS contracts (`VOLATILE`/`TRANSIENT_LOCAL` durability, `BEST_EFFORT`/`RELIABLE` reliability, `CRITICAL`/`HIGHEST`/`HIGH` priority), 3 Brokers (DDS middleware: Eclipse CycloneDDS, eProsima FastDDS, Zenoh Router), 6 Deployment ECUs (Main Brain EPYC, Perception GPU Orin AGX, Sensing FPGA, Vehicle Actuation Aurix MCU, Teleop HMI, Gateway), and 10 shared C++/ROS 2 libraries (`autoware_universe_utils`, `tier4_autoware_utils`, `motion_utils`, `rclcpp_core`). Tested via [`examples/run_autoware_ros2_pipeline.py`](../examples/run_autoware_ros2_pipeline.py).
 * **`realworld_cloud_microservices.json` (`cloud_microservices`)**: Cloud-native pub-sub microservice mesh modelled after production e-commerce stacks (Google Online Boutique reference architecture). Contains 22 Applications (frontend, API gateway, auth, cart, checkout, order processor, payment, inventory reservation, notification workers, fraud detection, recommendation engine), 20 Topics with message broker QoS profiles, 4 Brokers (Apache Kafka cluster, RabbitMQ exchange, Redis PubSub, NATS JetStream), 6 Infrastructure/K8s nodes, and 8 shared SDKs (`shared-auth-jwt-client`, `kafka-common-producer`, `grpc-telemetry-sdk`, `redis-cache-utils`, `spring-cloud-circuitbreaker`).
 * **`realworld_trainticket.json` (`trainticket_microservices`)**: Industrial Train-Ticket microservices benchmark (Fudan University benchmark suite for SOA microservice management and fault diagnosis). Contains 41 Applications (order, travel, preserve, route, seat, payment, food, security, user, verification, admin, gateway services), 30 Pub-Sub topics for asynchronous event delivery and REST/gRPC message routes, 3 Message Brokers, 8 Deployment Nodes, and 8 Shared Libraries.
 * **`realworld_homeassistant.json` (`homeassistant_iot`)**: Authentic Home Assistant smart home IoT topology. Spans 24 Applications (core state machine, automation rule engine, script runner, safety hazard monitor, alarm control panel, emergency actuation, ZHA Zigbee gateway, Z-Wave supervisor, ESPHome manager, MQTT bridge, camera stream manager, climate HVAC controller, recorder persistence, energy analytics, WebSocket server, HTTP ingress, Lovelace UI dashboard), 22 Topics, 3 Brokers (AsyncIO EventBus, Mosquitto MQTT, WebSocket push router), 6 Deployment Nodes, and 8 shared Python libraries (`aiohttp`, `voluptuous`, `sqlalchemy`, `paho-mqtt`, `zeroconf`).
@@ -89,27 +90,32 @@ These three configurations serve regression testing and stress analysis. They ar
 | `scenario_09_xlarge_stress.yaml` | `xlarge_system.json` | 500 | 300 | 10 | 50 | 100 | 960 | 5,097 | 9009 | `e9357afba29f` | In-memory pipeline scaling ceiling and memory profiling |
 | `scenario_11_integration_hub_migration.yaml` | `integration_hub_migration_system.json` | 40 | 20 | 4 | 6 | 10 | 80 | 240 | 1111 | `116e4be669ba` | Stage 5 corpus-diversity fixture (publisher-less topics, mixed QoS) |
 
-* `tiny_system` is pinned in [`tests/test_generation_service.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/tests/test_generation_service.py) as the generator regression baseline and in `DETECTION_SCENARIOS` in [`reproduce/detection_validation.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/reproduce/detection_validation.py).
+* `tiny_system` is pinned in [`tests/test_generation_service.py`](../tests/test_generation_service.py) as the generator regression baseline and in `DETECTION_SCENARIOS` in [`reproduce/detection_validation.py`](../reproduce/detection_validation.py).
 * `integration_hub_migration_system` deliberately targets two edge-case properties: publisher-less topics (2/20, both sole-routed) and genuinely balanced QoS (no durability/reliability category exceeds 55%). It intentionally omits `graph.domain` to bypass per-domain curated QoS lookups in `DomainDataset`.
 
 ---
 
 ## 2. Which Scenario Backs Which Result
 
-| Paper Artifact / Table | Scenario Set Used | Count | Verification / Reproduction Target |
+Mapping of the final JSS manuscript tables to evaluation scenarios and reproduction targets:
+
+| Paper Artifact / Table | Scenario Set Used | Count | Description / Verification Target |
 |---|---|:---:|---|
-| **JSS Table 4** (Corpus Overview) | 12 Synthetic Scenarios + 5 Open-Source System Models | 17 | [`scripts/write_scenario_manifest.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/scripts/write_scenario_manifest.py) |
-| **JSS Table 5 & Supp. Table S11** (In-Distribution $\rho$ and Overlap@$K$) | 11 Evaluation Scenarios + ATM System | 12 | `make -f reproduce/Makefile table3` |
-| **JSS Table 7** (Inductive LOSO Cross-Validation) | 12 Synthetic Inductive Folds | 12 | `make -f reproduce/Makefile table4` |
-| **JSS Table 7c** (Active Stratum Ranking $\rho_{>0}$) | 12 Synthetic Inductive Folds ($n_{>0}$ active components) | 12 | `reproduce/main_table.py --active-stratum` |
-| **JSS Table 6 / Table 11** (Capacity- and Channel-Matched Controls) | 12 Synthetic Inductive Folds (`GAT-N-C`, `GAT-N-QoS16-C`) | 12 | `reproduce/main_table.py --matched-controls` |
-| **JSS Table 8 & Supp. Table S12** (`SaG-Hybrid` & `SaG-Hybrid-GAT`) | 12 Synthetic LOSO Folds + 5 Open-Source Models | 17 | `reproduce/main_table.py --hybrid` |
-| **JSS Table 9b & 9c / Supp. Table S13** (Zero-Shot Transfer) | 5 Open-Source Systems (`autoware`, `boutique`, `trainticket`, `homeassistant`, `edgex`) | 5 | `reproduce/main_table.py --realworld-zeroshot` |
-| **JSS Table 10 & Table 11 in §7.5** (Inference Cost & Scalability) | ATM Scaling Suite (249 to 1,998 nodes) + 12 Synthetic Scenarios | 16 | `reproduce/main_table.py --scale-sweep` |
-| **JSS §7.3.2 / Supp. Table S9** (Cross-Oracle Convergent Validity) | 12 Synthetic Inductive Folds ($I^*$, $I_{\text{dyn}}$, $I_{\text{comp}}$) | 12 | `reproduce/convergent_validity.py` |
-| **JSS §7.3.3 / Figure 4** (Node-Type Stratification & Anti-Patterns) | 12 Synthetic Scenarios ($I_{\text{comp}}$ Sensitivity) | 12 | `reproduce/detection_validation.py` |
-| **JSS §7.3.4 / Figure 5 & Supp. Table S8** (Attention & Card) | ATM System Only | 1 | `reproduce/main_table.py --figure5` |
-| **JSS §6.7** (Remediation / Prescriptive SRI Table) | 11 Evaluation Scenarios (**Enterprise excluded**) | 11 | `reproduce/run_prescribe_all.py` |
+| **JSS Table 1** (SaG Model Specification) | — | — | Formal entity and relation types in typed multigraph $G_{\text{raw}}$ |
+| **JSS Table 2** (Projection Rules) | — | — | Formal `DEPENDS_ON` projection rules (Application–Library) |
+| **JSS Table 3** (Evaluation Corpus Overview) | 12 Synthetic Scenarios + 5 Open-Source System Models | 17 | [`scripts/write_scenario_manifest.py`](../scripts/write_scenario_manifest.py) |
+| **JSS Table 4** (Ranker & Reference Taxonomy) | — | — | Mathematical definitions of learned rankers, baselines, and references |
+| **JSS Table 5** (Status of Headline Claims) | 12 Synthetic Folds | 12 | Pre-registered confirmatory and secondary hypothesis contrasts |
+| **JSS Table 6** (Main LOSO Benchmark on $I^*$) | 12 Synthetic Inductive Folds | 12 | `make -f reproduce/Makefile table4` / [`reproduce/main_table.py`](../reproduce/main_table.py) |
+| **JSS Table 7** (Rankers Against Three Oracles) | 12 Synthetic Inductive Folds ($I^*$, $I_{\text{dyn}}$, $I_{\text{comp}}$) | 12 | [`reproduce/convergent_validity.py`](../reproduce/convergent_validity.py) & Table 7 runner |
+| **JSS Table 8** (Digest of Registered Control Arms) | 12 Synthetic Inductive Folds | 12 | Degree, direction, prior, aggregator, rate-fed controls |
+| **JSS Table 9** (Zero-Shot Transfer to System Models) | 5 Open-Source Systems (`autoware`, `boutique`, `trainticket`, `homeassistant`, `edgex`) | 5 | [`reproduce/main_table.py --realworld-zeroshot`](../reproduce/main_table.py) |
+| **JSS Table 10** (Like-for-Like Cost & Scalability) | ATM Scaling Suite (249 to 1,998 nodes) + 12 Synthetic Scenarios | 16 | [`reproduce/main_table.py --scale-sweep`](../reproduce/main_table.py) |
+| **JSS Table 11** (Guidance Table by Failure Notion) | Summary across all oracles | 17 | Recommended rankers: training-free closed forms vs. learners |
+| **JSS Figure 4** (Node-Type Stratification & Anti-Patterns) | 12 Synthetic Scenarios ($I_{\text{comp}}$ Sensitivity) | 12 | [`reproduce/detection_validation.py`](../reproduce/detection_validation.py) |
+| **JSS Figure 5** (Attention Inspection & Critical Recall) | ATM System Only ($I^*$ Recall Curve across Folds) | 12 | Attention subgraphs and recall budget analysis |
+| **JSS Supp. Table S11** (In-Distribution Benchmark) | 11 Evaluation Scenarios + ATM System | 12 | `make -f reproduce/Makefile table3` |
+
 
 **Scope Exceptions:**
 1. **Enterprise exclusion from remediation**: In §6.7, the Enterprise scenario (520 components, 3,216 edges, 26,276 projection edges) is excluded from automated prescriptive remediation verification due to measured computational cost ($\approx 8.7\text{ h}$ of serial per-edit simulation).
@@ -227,25 +233,33 @@ Held-out in-distribution evaluation where each scenario is evaluated with a 60/2
 | **Telecom RAN** | 24 | 0.402 | 0.480 | 0.422 | 0.280 | 0.608 | 0.320 | 0.350 | 0.360 | 0.591 | 0.280 | 0.526 | 0.320 |
 | **Mean** | — | **0.370** | **0.379** | **0.568** | **0.390** | **0.522** | **0.391** | **0.411** | **0.346** | **0.624** | **0.501** | **0.661** | **0.503** |
 
-### 5.2 Inductive Out-of-Distribution Generalization (LOSO, 12 Folds)
+### 5.2 Inductive Out-of-Distribution Generalization (LOSO, 12 Folds — JSS Table 6)
 
-Leave-One-Scenario-Out cross-validation evaluating zero-shot prediction on completely unseen topologies (JSS Tables 7 & 8):
+Leave-One-Scenario-Out cross-validation evaluating zero-shot prediction on completely unseen topologies against reachability ground truth $I^*$ (JSS Table 6):
 
-| Predictor | Substrate | Mean LOSO $\rho$ | 95% Bootstrap CI | $\Delta\rho$ vs. Topo-QoS | Overlap@$K$ | Requires Training? |
-|---|---|:---:|:---:|:---:|:---:|:---:|
-| **RM / $Q(v)$** | Flow Projection ($G_{\text{analysis}}$) | 0.205 | $[0.092, 0.320]$ | −0.348 | 0.322 | No (Rule Attribution) |
-| **Topo** | Flow Projection ($G_{\text{analysis}}$) | 0.349 | $[0.254, 0.452]$ | −0.204 | 0.366 | No |
-| **Topo-QoS** | Flow Projection ($G_{\text{analysis}}$) | **0.553** | $[0.443, 0.657]$ | — (Reference) | 0.388 | No (Closed-Form) |
-| **GAT-N** | Native Multigraph | 0.317 | $[0.254, 0.381]$ | −0.236 | 0.328 | Yes |
-| **GAT-N-QoS** | Native Multigraph | 0.604 | $[0.538, 0.665]$ | +0.051 | 0.431 | Yes |
-| **HGT** | Native Multigraph | 0.551 | $[0.474, 0.617]$ | −0.002 | 0.427 | Yes |
-| **HGT-QoS** (GPU) | Native Multigraph | 0.638 | $[0.561, 0.710]$ | +0.085 | 0.424 | Yes |
-| **HGT-QoS** (CPU) | Native Multigraph | 0.622 | $[0.547, 0.690]$ | +0.069 | 0.426 | Yes |
-| **GAT-N-QoS16-C** | Native Multigraph | 0.635 | $[0.567, 0.696]$ | +0.082 | 0.438 | Yes (Matched Control) |
-| **SaG-Hybrid** | Native Multigraph + Prior | **0.657** | $[0.572, 0.733]$ | **+0.103** ($p=0.0068$) | 0.435 | Yes (HGT + Topo-QoS) |
-| **SaG-Hybrid-GAT** | Native Multigraph + Prior | **0.683** | $[0.603, 0.753]$ | **+0.130** ($p=0.0029$) | **0.450** | Yes (GAT + Topo-QoS) |
+| Predictor / Reference | Graph Substrate | Mean LOSO $\rho$ | 95% Bootstrap CI | $\Delta\rho$ vs. Topo-QoS | Overlap@$K$ | Nature / Type |
+|---|---|:---:|:---:|:---:|:---:|:---|
+| **$\text{Analytic } I^*$** | Projected $G_{\text{dep}}$ | **0.808** | $[0.720, 0.887]$ | +0.255 | **0.540** | Closed-Form Reference ($T_\infty(O)$) |
+| **$\text{InDeg}$ (Afferent)** | Projected $G_{\text{dep}}$ | **0.764** | $[0.640, 0.866]$ | +0.211 | 0.493 | Closed-Form Single-Metric Reference ($T_1(O)$) |
+| **$\text{Reach}$ (Transitive)**| Projected $G_{\text{dep}}$ | 0.732 | $[0.598, 0.849]$ | +0.179 | 0.470 | Closed-Form Graph Reachability Reference |
+| **$\text{GAT-P-QoS}$** | Projected $G_{\text{dep}}$ | 0.748 | $[0.628, 0.852]$ | +0.195 | 0.485 | Learned GNN on $G_{\text{dep}}$ (5-seed ensemble: $0.772$) |
+| **$\text{GIN-P-QoS}$** | Projected $G_{\text{dep}}$ | 0.716 | $[0.589, 0.832]$ | +0.163 | 0.472 | Learned Sum-Aggregation GNN on $G_{\text{dep}}$ |
+| **$\text{HGT-P-QoS}$** | Projected $G_{\text{dep}}$ | 0.514 | $[0.334, 0.697]$ | −0.039 | 0.380 | Learned Heterogeneous GNN on $G_{\text{dep}}$ (Unstable) |
+| **$\text{SaG-Hybrid-GAT}$** | Raw $G_{\text{raw}}$ + Prior | 0.683 | $[0.603, 0.753]$ | +0.130 ($p=0.0029$) | 0.450 | Hybrid (GAT + Topo-QoS) |
+| **$\text{SaG-Hybrid}$** | Raw $G_{\text{raw}}$ + Prior | 0.657 | $[0.572, 0.733]$ | +0.103 ($p=0.0068$) | 0.435 | Hybrid (HGT + Topo-QoS) |
+| **$\text{GAT-QoS}$** | Raw $G_{\text{raw}}$ | 0.635 | $[0.567, 0.696]$ | +0.082 | 0.438 | Learned GNN on Raw Multigraph |
+| **$\text{HGT-QoS}$** (CPU) | Raw $G_{\text{raw}}$ | 0.622 | $[0.547, 0.690]$ | +0.069 ($p=0.266$) | 0.426 | Primary Confirmatory Arm (Null vs. Baseline) |
+| **$\text{Topo-QoS}$** | Flow Projection | 0.553 | $[0.428, 0.672]$ | — (Comparator) | 0.388 | Registered Baseline Comparator (w/ defect) |
+| **$\text{Topo-QoS-AP}$** | Flow Projection | 0.533 | $[0.406, 0.655]$ | −0.020 | 0.385 | Corrected Baseline Comparator (w/ AP term) |
+| **$\text{Topo}$** | Flow Projection | 0.349 | $[0.254, 0.452]$ | −0.204 | 0.366 | Unweighted Topology Baseline |
+| **$\text{RM} / Q^*(v)$** | Flow Projection | 0.205 | $[0.092, 0.320]$ | −0.348 | 0.322 | Static Diagnostic Model (Pathway A) |
 
-### 5.3 Per-Fold LOSO Breakdown Across All 12 Architectures (JSS Supp. Table S12)
+> [!NOTE]
+> **Key Scientific Takeaway from LOSO Evaluation:**
+> The explicit derivation of the dependency graph $G_{\text{dep}}$ dominates model complexity: closed-form references computed on $G_{\text{dep}}$ ($\text{Analytic } I^*$ at $\rho = 0.808$ and afferent coupling $\text{InDeg}$ at $\rho = 0.764$) outperform or match the best neural rankers ($\text{GAT-P-QoS}$ at $0.748$), while running in milliseconds without training or GPU hardware. On raw multigraph $G_{\text{raw}}$, neural models achieve $\rho = 0.622$–$0.635$, failing to achieve statistically significant superiority over $\text{Topo-QoS}$ under the pre-registered confirmatory contrast ($p = 0.266$).
+
+### 5.3 Per-Fold LOSO Breakdown Across All 12 Architectures (JSS Supp. Table S60 / S12)
+
 
 Per-fold Spearman $\rho$ across the 12 holdouts, ordered by closed-form `Topo-QoS` score:
 
@@ -270,7 +284,7 @@ Per-fold Spearman $\rho$ across the 12 holdouts, ordered by closed-form `Topo-Qo
 * Conversely, pure learned models give up ground on highly centralized topologies dominated by single bottleneck brokers (Enterprise $0.426$ vs. $0.795$).
 * The hybrid formulations (`SaG-Hybrid` and `SaG-Hybrid-GAT`) resolve this failure mode: by learning a residual correction over rank-normalized `Topo-QoS`, they lift Enterprise back to $0.735$–$0.768$ while retaining learned gains on decentralized topologies.
 
-### 5.4 Zero-Shot Transfer to Open-Source System Models (JSS Table 9b & 9c)
+### 5.4 Zero-Shot Transfer to Open-Source System Models (JSS Table 9)
 
 Models trained on the 12 synthetic architectures evaluated zero-shot on 5 independently authored open-source architectures:
 
@@ -286,7 +300,8 @@ Models trained on the 12 synthetic architectures evaluated zero-shot on 5 indepe
 * **Active Stratum Correlation ($\rho_{>0}$)**: Restricted to components that actually propagate failures ($n_{>0}$), pure learned models keep positive correlations ($\text{HGT-QoS} = +0.236$, $\text{GAT-N-QoS16-C} = +0.319$), whereas training-free baselines turn negative ($\text{Topo-QoS} = -0.092$, $\text{Topo} = -0.083$, $\text{RM} = -0.055$).
 * **Transfer Trade-Off**: For systems outside the synthetic generator family, pure learned models (`GAT-N-QoS16-C` at $0.805$, `HGT-QoS` at $0.760$) outperform hybrids ($0.695$), as the structural prior pulls the model toward generator-specific betweenness heuristics.
 
-### 5.5 Convergent Validity Across Simulation Oracles (JSS §7.3.2)
+### 5.5 Convergent Validity Across Simulation Oracles (JSS Table 7, §7.3.2)
+
 
 Across the 12 synthetic folds, three distinct failure impact oracles measure convergent validity:
 1. **$I^*(v)$ (Topological Cascade Reachability)**: Deterministic, breadth-first reachability computation over degraded dependency paths. Test-retest reproducibility across seeds: $\rho \in [0.811, 1.000]$ (median $0.982$).

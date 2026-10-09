@@ -90,10 +90,10 @@ For the complete CLI command reference (`predict_graph.py`, `train_graph.py`), s
 
 | | |
 |:---|:---|
-| **Manuscript section** | §4 (HGT architecture, 16-D edge encoding, multi-task heads, the loss), §6.2 (baselines and substrate parity), §7.2 (matched controls), and §7.6 (SaG-Hybrid models). |
-| **Paper's name for this** | the **Predictive Pathway** — "Failure-Impact Forecasting, the primary task". This document calls it **Pathway B**. |
-| **Symbols** | $\hat{I}^*(v)$, $\hat{R}(v)$, $\hat{M}(v)$, $\hat{Q}(u,v)$, prior $p(v)$, residual scalar $\alpha$ — identical. Variant names follow §6.2's `-N` / `-QoS` grammar; see §2 below. |
-| **Results** | RQ1 (Table 7), RQ2 matched controls (Table 6), RQ3 ablations, RQ4 zero-shot transfer (Table 9b), RQ5 cost (§7.5), and §7.6 hybrid evaluation (Table 8). **Read the headline honestly:** On their own, HGT-QoS ($\rho = 0.638$) and Topo-QoS ($0.553$) are statistically on par ($+0.085$, $p = 0.151$, Holm $0.303$). However, combined in the hybrid engines (**SaG-Hybrid** at $\rho = 0.657$, Holm $p = 0.0068$; **SaG-Hybrid-GAT** at $\rho = 0.683$, Holm $p = 0.0029$), they **significantly outperform closed-form ranking** on 11 of 12 held-out folds. |
+| **Manuscript section** | §4 (ranking methods, GNNs, loss heads, simulation oracles, reference criterion), §6.2 (baselines and controls), §7.1 (RQ1 ranking accuracy & hybrids), §7.2 (RQ2 sources of performance & controls), and §8.1 (practical triage guidance). |
+| **Paper's name for this** | the **Predictive Pathway** (Failure-Impact Forecasting). This documentation calls it **Pathway B**. |
+| **Symbols** | $\hat{I}^*(v)$, $\hat{R}(v)$, $\hat{M}(v)$, $\hat{Q}(u,v)$, prior $p(v)$, residual scalar $\alpha$, direct-dependent count $\text{InDeg}(v)$, rate-weighted expansion Eq.~(7). |
+| **Key Findings** | 1. **Representation dominates:** $\text{GAT-P-QoS}$ on the derived dependency graph reaches $\rho = 0.748$ (ensemble $0.772$), outperforming raw-multigraph models ($\rho = 0.622 - 0.635$).<br>2. **Reference parity:** Counting direct dependents ($\text{InDeg}$, $\rho = 0.764$) is not significantly different from $\text{GAT-P-QoS}$. Closed-form first-order expansion reaches $\rho = 0.808$.<br>3. **Queue-flow surrogate:** On $I_{\text{dyn}}$ (12.7 CPU-hours), a training-free rate-weighted expansion reaches $\rho = 0.830$ in milliseconds, outperforming learned models ($\text{GBM}\to\text{dyn}$ $0.799$, GNNs $\le 0.665$).<br>4. **Hybrids:** $\text{Hybrid-GAT}$ ($0.683$) and $\text{Hybrid-HGT}$ ($0.657$) beat $\text{Topo-QoS}$ ($0.553$), but do not exceed their own base learners, and given $\text{InDeg}$ as prior, reproduce it ($\pm 0.012$). |
 
 > [!NOTE]
 > **Eight steps here, four stages in the paper.** This repository numbers the pipeline in eight
@@ -179,22 +179,31 @@ framework and is never a variant name.
 
 | Variant id | Display name | Model Class | Training? | Substrate & Feature Scope | Research Question / Operational Purpose | Output |
 |:---|:---|:---|:---:|:---|:---|:---|
-| `hgl_qos` | **HGT-QoS** | Heterogeneous Graph Transformer (`NodeCriticalityGNN`) | **Yes** | Native multigraph; heterogeneous nodes (19–25D) + 16D edge QoS | **Primary learned model**: do typed relations, multi-hop attention, and QoS contracts forecast multi-hop cascade blast radius? | $\hat{I}^*(v), \hat{R}(v), \hat{M}(v), \hat{Q}(u,v)$ |
-| `hgl` | **HGT** | Heterogeneous Graph Transformer (`NodeCriticalityGNN`) | **Yes** | Native multigraph; heterogeneous nodes, QoS channel masked | **RQ3 ablation**: do multi-dimensional transport QoS profiles beat pure topological connectivity? | $\hat{I}^*(v), \hat{R}(v), \hat{M}(v)$ |
-| `hgl_qos_prior` | **SaG-Hybrid** | Heterogeneous Graph Transformer (`NodeCriticalityGNN` + prior) | **Yes** | Native multigraph; heterogeneous nodes + 16D edge QoS + Topo-QoS prior | **JSS §7.6 headline hybrid (Amendment 5)**: HGT-QoS learning a residual correction to the rank-normalized Topo-QoS prior. Beats closed-form on 11/12 folds ($\rho = 0.657$, Holm $p = 0.0068$). | $\hat{I}^*(v), \hat{R}(v), \hat{M}(v)$ |
-| `gl_qos16_prior` | **SaG-Hybrid-GAT** | Homogeneous GAT (`HomogeneousGAT_ScalarWeighted` + prior) | **Yes** | Native multigraph; flat nodes + 16D edge QoS + Topo-QoS prior | **JSS §7.6 capacity-matched hybrid (Amendment 6)**: untyped GAT (288 channels, 16-D QoS) learning a correction to Topo-QoS. Highest LOSO accuracy ($\rho = 0.683$, Holm $p = 0.0029$). | Criticality score $\in [0, 1]$ |
-| `gl_full_qos` | **GAT-N-QoS** | Homogeneous GAT (`homo_scalar`) | **Yes** | **Native multigraph**; flat nodes + 1D scalar edge weight $w(e)$ | **RQ2 substrate-matched control**: with QoS present, does heterogeneous typing still add anything? | Criticality score $\in [0, 1]$ |
-| `gl_full` | **GAT-N** | Homogeneous GAT (`homo_unweighted`) | **Yes** | **Native multigraph**; flat nodes, topology only | **RQ2 substrate-matched control**: the untyped, unweighted floor. | Criticality score $\in [0, 1]$ |
-| `gl_qos` | **GAT-QoS** | Homogeneous GAT (`homo_scalar`) | **Yes** | Flow **projection**; flat nodes + scalar $w(e)$ | In-distribution ablation arm (JSS Table 5 only). | Criticality score $\in [0, 1]$ |
-| `gl` | **GAT** | Homogeneous GAT (`homo_unweighted`) | **Yes** | Flow **projection**; topology only | Classic graph-attention baseline (JSS Table 5 only). | Criticality score $\in [0, 1]$ |
-| `tab_gbm` | **GBM-Feat** | Gradient-Boosted Trees (`GradientBoostingRegressor`) | **Yes** | Identical typed node features, no message passing | **Non-graph control**: is the gain the aggregation, or just the features? Not a manuscript column. | Criticality score $\in [0, 1]$ |
-| `topo_qos` | **Topo-QoS** | QoS-Weighted Structural Centrality (`TopoQoSPredictor`) | **No** | Flow projection with inverted QoS distance $d = 1/(w + \epsilon)$ | Training-free baseline $0.6 \cdot BT_{\text{QoS}} + 0.4 \cdot AP$. **The baseline every claim of learned superiority must clear.** | Topological score $\in [0, 1]$ |
-| `topo_baseline` | **Topo** | Unweighted Structural Centrality (`TopoPredictor`) | **No** | Flow projection, unweighted | Classical structural baseline $0.6 \cdot BT + 0.4 \cdot AP$. | Topological score $\in [0, 1]$ |
-| `topology_rm` | **RM** | Closed-Form Attribute Synthesis | **No** | Step 2 structural metrics + declared composite weights | **Cold-start fallback**: with no GNN checkpoint, Step 3 falls back to $Q^*(v)$. A *diagnostic reference*, not a ranking model. | $Q^*(v) \in [0, 1]$ |
-| — | **Dual-Engine** | Ensemble & Consensus Evaluator (`DualEnginePredictor`) | Ensemble | Runs HGT-QoS and Topo-QoS concurrently | **Operational triage**: Consensus Critical Set (high confidence) and Divergence Escalation Set (human triage trigger). | Consensus & Divergence Sets |
+| **References** | | | | *(Order-$k$ rule restatements — not predictors)* | | |
+| `analytic_istar` | **Analytic $I^*$** | Closed-Form First-Order Expansion | **No** | Dependency graph ($G_{\text{dep}}$) | Truncation of $I^*$'s first wave (Eq.~(4)). Upper reference bound: $\rho = \mathbf{0.808}$. | Reference score $\in [0, 1]$ |
+| `indegree` | **InDeg** *(Afferent Coupling)* | Typed Two-Hop Query / In-Degree | **No** | Dependency graph ($G_{\text{dep}}$) | Counts direct dependents ($\rho = \mathbf{0.764}$). Matches learned GAT; runs in $< 5$ ms. | Integer count / rank |
+| `reach` | **Reach** *(Transitive)* | Transitive Reachability ($G_{\text{dep}}$) | **No** | Dependency graph ($G_{\text{dep}}$) | Full cascade support ($\rho = 0.732$). Top active stratum performer zero-shot ($\rho_{>0} = 0.871$). | Transitive count / rank |
+| `rate_expansion` | **Rate-Weighted** (Eq.~7) | Declared-Rate First-Order Expansion | **No** | Dependency graph + Topic Rates | Truncation of $I_{\text{dyn}}$ message delivery: $\rho = \mathbf{0.830}$ in $< 1$ ms without training. | Rate-loss score $\in [0, 1]$ |
+| **Learned on $G_{\text{dep}}$** | | | | *(Active dependency representation)* | | |
+| `gl_proj_qos16_cap` | **GAT-P-QoS** | Homogeneous GAT (`GATConv`, 288-ch) | **Yes** | **Dependency graph ($G_{\text{dep}}$)**; 16-D QoS edge vector | **Best learned predictor**: $\rho = \mathbf{0.748}$ (single seed), $\mathbf{0.772}$ (5-seed ensemble). Approaches $\text{InDeg}$. | $\hat{I}^*(v) \in [0, 1]$ |
+| `hgl_proj_qos` | **HGT-P-QoS** | Heterogeneous Graph Transformer | **Yes** | Dependency graph ($G_{\text{dep}}$); typed relations | Optimization instability on 2-type projection: $\rho = 0.514$ (high seed variance). | $\hat{I}^*(v) \in [0, 1]$ |
+| `gin_proj_qos16` | **GIN-P-QoS** | Graph Isomorphism Net (Sum Agg) | **Yes** | Dependency graph ($G_{\text{dep}}$); sum aggregation | Neighbor-counting GNN: $\rho = 0.724$ without oracle-aligned features, $0.665$ on $I_{\text{dyn}}$ rates. | $\hat{I}^*(v) \in [0, 1]$ |
+| **Learned on $G_{\text{raw}}$** | | | | *(Native multigraph)* | | |
+| `hgl_qos` | **HGT-QoS** | Heterogeneous Graph Transformer | **Yes** | Native multigraph; typed nodes + 16-D edge QoS | Co-primary contrast null ($\Delta\rho = +0.069, p = 0.266$); LOSO $\rho = 0.622$. | $\hat{I}^*(v), \hat{R}(v), \hat{M}(v), \hat{Q}(u,v)$ |
+| `gl_full_qos16_cap` | **GAT-QoS** | Homogeneous GAT (`GATConv`, 288-ch) | **Yes** | Native multigraph; flat nodes + 16-D edge QoS | Capacity-matched GAT on raw graph: $\rho = 0.635$. Direction control $\text{GAT-QoS-R}$ reaches $0.676$. | $\hat{I}^*(v) \in [0, 1]$ |
+| `hgl_qos_prior` | **SaG-Hybrid** | HGT + $\text{Topo-QoS}$ Logit Prior | **Yes** | Native multigraph + Topo-QoS prior | Learns residual correction: $\rho = 0.657$. Beats Topo-QoS ($p=0.0068$), but not base HGT. | $\hat{I}^*(v) \in [0, 1]$ |
+| `gl_qos16_prior` | **SaG-Hybrid-GAT** | GAT + $\text{Topo-QoS}$ Logit Prior | **Yes** | Native multigraph + Topo-QoS prior | Capacity-matched hybrid: $\rho = 0.683$. Beats Topo-QoS ($p=0.0029$), but not base GAT. | $\hat{I}^*(v) \in [0, 1]$ |
+| **Baselines & Fallback** | | | | *(Training-free comparators)* | | |
+| `topo_qos` | **Topo-QoS** | QoS-Weighted Betweenness Centrality | **No** | Flow projection with inverted QoS distance | Registered comparator ($0.6 \cdot BT_{\text{QoS}} + 0.4 \cdot AP$): $\rho = 0.553$ (corrected $0.533$). | Topological score $\in [0, 1]$ |
+| `topo_baseline` | **Topo** | Unweighted Betweenness Centrality | **No** | Flow projection, unweighted | Structural baseline ($0.6 \cdot BT + 0.4 \cdot AP$): $\rho = 0.349$. | Topological score $\in [0, 1]$ |
+| `topology_rm` | **RM** | Closed-Form ISO-RM Quality Model | **No** | 53-field metrics + declared composite weights | **Cold-start fallback**: $Q^*(v)$. Diagnostic reference, not a cascade predictor. | $Q^*(v) \in [0, 1]$ |
+| — | **Dual-Engine** | Consensus Evaluator (`DualEnginePredictor`)| Ensemble | Runs GNN and closed-form concurrently | **Operational triage**: Consensus Critical Set vs. Divergence Escalation Set. | Consensus & Divergence Sets |
 
-The registry also carries four **RQ2 confound controls** (`gl_full_cap` / GAT-N-C, `gl_full_qos_cap` / GAT-N-QoS-C, `gl_full_qos16_cap` / GAT-N-QoS16-C, `hgl_qos_uni` / HGT-QoS-U) and the two **hybrid variants** (`hgl_qos_prior` / SaG-Hybrid, `gl_qos16_prior` / SaG-Hybrid-GAT).
-Under Amendment 2, the capacity-matched and channel-matched controls were executed in a unified CPU sweep (JSS Table 6), proving that the 16-D QoS channel drives learned ranking ($+0.07$, $p = 0.016$), whereas relation-specific weights add nothing at matched capacity. Under Amendments 5 & 6, the hybrid engines synthesize the strengths of the closed-form and learned pathways, achieving the highest predictive accuracy under Leave-One-Scenario-Out (LOSO) cross-validation.
+The registry also carries the full battery of **RQ2 control arms** (evaluated in unified CPU sweeps in JSS Table 5):
+- **Aggregator & Degree Controls**: Zeroing degree features drops $\text{GAT-P-QoS}$ by $-0.136$ ($p = 0.0049$); sum aggregation ($\text{GIN-P-QoS}$) counts neighbors natively and retains $\rho = 0.721$.
+- **Edge Direction Control ($\text{GAT-QoS-R}$)**: Passing raw-graph edges in reverse adds $+0.041$ ($p = 0.064$), but $\text{GAT-P-QoS}$ still exceeds it by $+0.072$ ($p = 0.014$).
+- **Oracle-Aligned Feature Ablation ($\text{-min}$)**: Zeroing features that compute part of $I^*$ collapses raw-graph models ($\rho \le 0.378$), while $\text{GAT-P-QoS}$ retains $0.610$ and sum aggregation retains $0.724$.
+- **Queue-Flow Approximations ($I_{\text{dyn}}$)**: $\text{GBM-P-QoS}\to\text{dyn}$ reaches $\rho = 0.799$, while rate-fed GNNs reach at most $0.665$—all below the closed-form rate-weighted reference ($0.830$). Learners started from the formula fail to improve upon it.
 
 > [!IMPORTANT]
 > **`gl` and `gl_qos` do not denote one substrate.** `reproduce/main_table.py` runs them on the
@@ -541,16 +550,17 @@ The hybrid engines were evaluated under Leave-One-Scenario-Out (LOSO) cross-vali
 | **SaG-Hybrid** | Native (Heterogeneous + Prior) | 0.657 $[0.572, 0.733]$ | $+0.103$ $[+0.055, +0.152]$ | **11/12** | 0.0034 (0.0068) | 0.435 | 0.695 |
 | **SaG-Hybrid-GAT** | Native (Homogeneous + Prior) | **0.683** $[0.603, 0.753]$ | $\mathbf{+0.130}$ $[+0.075, +0.190]$ | **11/12** | **0.0015** (**0.0029**) | **0.450** | 0.662 |
 
-##### Key Insights from the JSS Evaluation:
-1. **Statistically Significant Superiority Over Closed-Form Ranking**:
-   Both hybrids significantly outperform `Topo-QoS` out of distribution: `SaG-Hybrid` reaches $\rho = 0.657$ ($+0.103$, Holm $p = 0.0068$) and `SaG-Hybrid-GAT` reaches $\rho = 0.683$ ($+0.130$, Holm $p = 0.0029$). They are the **only** engines in the entire study that statistically outperform closed-form ranking.
-2. **Elimination of the Collapse on Dense Graphs**:
-   On the Enterprise scenario (where pure learned models failed severely: $0.407 - 0.426$ vs. $0.795$ for `Topo-QoS`), the hybrid prior restored accuracy to **$0.735$** (SaG-Hybrid) and **$0.768$** (SaG-Hybrid-GAT). Enterprise became each hybrid's only loss to Topo-QoS (by a tiny margin of $-0.061$ and $-0.027$), while Telecom RAN flipped from a loss into a win.
-3. **SaG-Hybrid-GAT Leads on Unseen Synthetic Topologies**:
-   `SaG-Hybrid-GAT` achieved the highest correlation ($\rho = 0.683$), Overlap@$K$ ($0.450$), active-stratum correlation ($\rho_{>0} = 0.398$), and PR-AUC ($0.525$) of any engine evaluated under LOSO.
-4. **Transfer Trade-Off and Registered Headline Decision Rule**:
-   Anchoring to the prior trades slight zero-shot transfer for in-distribution accuracy. On the five open-source system models, both hybrids substantially outperform training-free scores ($0.695$ and $0.662$ vs. $0.51 - 0.53$), but sit below the pure learned models ($0.760$ and $0.805$).
-   *Decision Rule*: Under JSS Amendment 6, `SaG-Hybrid-GAT` replaces `SaG-Hybrid` as the recommended hybrid *only if* its zero-shot transfer is at least as high as `SaG-Hybrid`'s $0.695$. Because $0.662 < 0.695$, **SaG-Hybrid remains the headline recommended hybrid engine** for architectures resembling the training corpus.
+##### Key Insights from the JSS Evaluation (Section 7.1 & Section 8.2):
+1. **Hybrids Beat the Comparator, Not Their Base Learners**:
+   Both hybrids significantly outperform the registered `Topo-QoS` baseline out of distribution: `SaG-Hybrid` reaches $\rho = 0.657$ ($+0.103$, Holm $p = 0.0068$) and `SaG-Hybrid-GAT` reaches $\rho = 0.683$ ($+0.130$, Holm $p = 0.0029$). However, neither differs significantly from its own base learner ($\text{Hybrid-HGT}$ vs. $\text{HGT-QoS}$ $+0.035$, $p = 0.73$; $\text{Hybrid-GAT}$ vs. $\text{GAT-QoS}$ $+0.048$, $p = 0.30$). The hybrid gain therefore reflects the weakness of the `Topo-QoS` baseline (which acts as pure betweenness due to an articulation defect), not additional learned skill.
+2. **Behavior Under Structural References**:
+   When given publish–subscribe afferent coupling ($\text{InDeg}$) as their prior instead of $\text{Topo-QoS}$, both hybrids land within $\pm 0.012$ of $\text{InDeg}$ (JSS control family F10): a learner handed the structural reference simply reproduces it without adding predictive signal.
+3. **Dependency Graph Learning Dominates Raw Hybrids**:
+   On the derived dependency graph ($G_{\text{dep}}$), pure homogeneous graph attention ($\text{GAT-P-QoS}$) reaches $\rho = \mathbf{0.748}$ (single seed) and $\mathbf{0.772}$ (five-seed ensemble) without requiring an analytical prior, proving that explicitly materializing failure dependencies provides superior inductive signal than learning logit residuals on the raw multigraph.
+4. **Elimination of the Collapse on Dense Graphs**:
+   On the Enterprise scenario (where raw-graph learners struggled: $0.407 - 0.426$ vs. $0.795$ for `Topo-QoS`), the hybrid prior restored accuracy to **$0.735$** (SaG-Hybrid) and **$0.768$** (SaG-Hybrid-GAT), confirming that logit priors provide effective stability bounds when raw message-passing depth is constrained.
+5. **Transfer Trade-Off**:
+   Anchoring to the prior trades zero-shot transfer for in-distribution accuracy. On the five open-source system models, both hybrids sit below their pure base learners ($0.695$ and $0.662$ vs. $0.760$ and $0.805$), and all predictors sit far below transitive reach ($\text{Reach}$, $\rho = 0.938$, active stratum $\rho_{>0} = 0.871$).
 
 ---
 

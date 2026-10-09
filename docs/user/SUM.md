@@ -15,13 +15,13 @@
 This Software Installation & User Manual (SUM) provides instructions for installing, configuring, administering, and operating the Software-as-a-Graph (saag) framework, the command line interface (CLI) pipeline, the FastAPI REST API, and the Next.js web application, the SMART web application (smart).
 
 ### 1.2 System Overview
-The **Software-as-a-Graph (saag)** framework models pub-sub software system topologies as weighted directed graphs in Neo4j, executing a 6-stage analytical and simulation pipeline (preceded by an offline input preparation stage) to predict critical components (Single Points of Failure, cascade hubs, bottleneck nodes) that present the highest risk of systemic failure if compromised or disrupted.
+The **Software-as-a-Graph (saag)** framework models pub-sub software system topologies as weighted directed graphs in Neo4j (or in-memory via NetworkX), executing an 8-stage analytical and simulation pipeline (Model, Analyze, Predict, Diagnose, Simulate, Validate, Prescribe, Visualize, preceded by an offline input preparation stage) to predict critical components (Single Points of Failure, cascade hubs, bottleneck nodes) that present the highest risk of systemic failure if compromised or disrupted.
 
 The system is structured as four core components:
 1. **Core SDK (`saag/`):** Python library containing domain models, graph traversal heuristics, simulation engines, and GNN estimators.
 2. **CLI Scripts (`cli/`):** Console pipeline entry points allowing researchers and operators to execute pipeline stages independently or as an orchestrated batch.
 3. **REST API (`api/`):** FastAPI application acting as a gateway for programmatically triggering analysis, GNN training, and failure cascades.
-4. **SMART Web Toolkit (`smart/`):** A Next.js 16 + React 19 interactive single-page web dashboard offering force-directed graph rendering, metrics visualization, and validation reports.
+4. **SMART Web Toolkit (`smart/`):** A Next.js 14 + React 18 interactive single-page web dashboard offering force-directed graph rendering, metrics visualization, and validation reports.
 
 ---
 
@@ -46,15 +46,17 @@ Verify the installation of the following dependencies before proceeding with nat
 | **Python** | `>= 3.9` (3.11 Pinned) | Core SDK, API, and GNN backend execution | `python3 --version` |
 | **Node.js** | `>= 18.x` (20.x Rec.) | Next.js Frontend server compile & build | `node --version` |
 | **npm** | `>= 9.x` | Next.js Frontend package management | `npm --version` |
-| **Neo4j** | `5.x` | Graph Database store | `neo4j --version` |
+| **Neo4j** | `5.x` | Graph Database store (Optional if using MemoryRepository) | `neo4j --version` |
 | **Docker** | `>= 20.10.x` | Optional containerized runner | `docker --version` |
 | **Docker Compose** | `>= v2.x` | Multi-container orchestration | `docker compose version` |
 
-### 2.4 Neo4j Plugin Prerequisites
-If utilizing a native, non-Dockerized Neo4j database, you must install the following plugins in your Neo4j instance:
-1. **APOC** (Awesome Procedures on Cypher): Matching your Neo4j version.
-2. **Graph Data Science (GDS)**: Matching your Neo4j version.
-3. **Custom Graph Relationship Manager Plugin**: Pre-compiled custom JAR mapping transitive topology weights, located under `tools/neo4j-plugin/graph-relationship-manager/`.
+### 2.4 Neo4j Plugin Configuration
+**Zero Third-Party Plugins Required**: Software-as-a-Graph requires **neither APOC nor Graph Data Science (GDS)** plugins. Graph traversals, centrality algorithms, and dependency metrics execute in NetworkX and PyTorch Geometric in Python (`saag/analysis/structural_analyzer.py`), interacting with Neo4j via standard openCypher queries through the official Python driver.
+
+If utilizing a native, non-Dockerized Neo4j database with optional server-side acceleration, the repository provides a custom Java relationship manager plugin:
+- **Custom Graph Relationship Manager Plugin (Optional)**: Located under `tools/neo4j-plugin/graph-relationship-manager/`, compiled via Maven (`mvn clean package -DskipTests`) and placed in Neo4j's `plugins/` directory.
+- Note: When running with `MemoryRepository`, zero database instances or plugins are required.
+
 
 ---
 

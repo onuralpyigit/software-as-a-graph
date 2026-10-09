@@ -45,10 +45,11 @@ For the complete CLI command reference (`import_graph.py`, `export_graph.py`), s
 
 | | |
 |:---|:---|
-| **Manuscript section** | §3.1 (formal multigraph), §3.2 (QoS weights + the six `DEPENDS_ON` rules), §3.3 (dual graph views and the four analytical layers) |
+| **Manuscript section** | §3.1 (formal typed multigraph $G_{\text{raw}}$, Table 1), §3.2 (QoS-driven weighting and the `DEPENDS_ON` derivation rules, Table 2), §3.3 (dual graph views, four analytical layers, and **Remark 1** on pub-sub afferent coupling) |
 | **Paper's name for this** | Stages 1–2 of the four-stage pipeline: *Typed Multigraph Formulation* and *QoS-Aware Logical Dependency Projection* |
-| **Symbols** | $\mathcal{G} = (V, E, \tau_V, \tau_E, w_V, w_E)$, $w(t)$, $w_V$/$w_E$, $G_{\text{structural}}$, $G_{\text{analysis}}$ — identical to this document's |
-| **Results** | No results section; this stage is construction, not measurement. Supplementary §S14 shows the running example's structural graph and its projection. |
+| **Symbols** | $\mathcal{G} = (V, E, \tau_V, \tau_E, w_V, w_E)$, $w(t)$, $w_V$/$w_E$, $G_{\text{structural}} = G_{\text{raw}}$, $G_{\text{analysis}} = G_{\text{dep}}$ — identical to this document's |
+| **Empirical Role** | While this stage performs construction rather than statistical benchmarking, **deriving $G_{\text{dep}}$ dominates model complexity**: classical afferent coupling $\text{InDeg}(v)$ on $G_{\text{dep}}$ reaches Spearman $\rho = 0.764$ against cascade reachability $I^*$ without training (JSS Table 6), matching or exceeding multi-layer neural architectures. |
+
 
 > [!NOTE]
 > **Eight steps here, four stages in the paper.** This repository numbers the pipeline in eight
@@ -411,6 +412,15 @@ classDiagram
 - **Transitive Library Propagation**: Rule 1 inspects USES chains up to 3 hops deep (`USES*1..3`). If App $A$ uses a library that subscribes to Topic $T$, or if App $B$ uses a library that publishes to Topic $T$, the causal dependency $A \xrightarrow{\text{DEPENDS\_ON}} B$ is fully derived.
 - **Edge Weight ($w_E$)**: Evaluated using the **probabilistic union** over all mediating topics:
   $$w_E = 1 - \prod_{t \in T_{\text{mediating}}} (1 - w(t))$$
+
+> [!NOTE]
+> **Remark 1: In-Degree on $G_{\text{dep}}$ as Pub-Sub Afferent Coupling (JSS §3.3):**
+> For an application vertex $v$, its in-degree on the projected dependency graph $G_{\text{dep}}$ is formally:
+> $$\text{InDeg}(v) = |\text{Dep}(v)| = |\{ u \in V_{\text{app}} : (u, v) \in E_{\text{dep}} \}|$$
+> In classical software engineering metrics (Chidamber & Kemerer, Martin), **afferent coupling ($C_a$)** measures incoming dependencies on an architectural unit, capturing its systemic responsibility and failure blast radius. On $G_{\text{dep}}$, this directly equals the count of distinct subscriber applications starved when $v$ halts.
+> 
+> Because this metric operates on the derived dependency graph $G_{\text{dep}}$ rather than raw tripartite multigraph links, it achieves Spearman $\rho = \mathbf{0.764} \; [0.640, 0.866]$ under LOSO on cascade reachability $I^*$ (JSS Table 6) without requiring any neural training or GPU hardware.
+
 
 #### Rule 2: `app_to_broker` (Service-to-Broker Dependency)
 - **Pattern**: An application publishes to or subscribes from a topic routed by a message broker:

@@ -74,10 +74,11 @@ For the complete CLI command reference (`validate_graph.py`), see [cli-pipeline-
 
 | | |
 |:---|:---|
-| **Manuscript section** | §6.3 (metrics, Holm correction, pre-registration, the three evaluation protocols), §5.3 (the Prescribe acceptance rule this stage feeds), §7.3.2 and Supplementary §S9 (oracle agreement) |
+| **Manuscript section** | §6.3 (metrics, Holm correction, pre-registration, the three evaluation protocols), §4.4 (Order-$k$ Reference Criterion), §7.1–7.3 (LOSO benchmark & dynamic oracle results), §8.1 (Two-Tiered Triage Protocol), §5.3 (the Prescribe acceptance rule this stage feeds), §7.3.2 and Supplementary §S9 (oracle agreement) |
 | **Paper's name for this** | the **Validate stage** — used in §4.2.1 and §4.3 but never given a number in the paper's four-stage list |
 | **Symbols** | $\rho$, $\tau$, $F_1@K$ with $K = \text{round}(0.20 \cdot \lvert V_{\text{app}} \rvert)$, $\sigma_{\text{seed}}$, $\kappa$. Note the paper's $\hat{\sigma}$ is *prediction dispersion*, a label-free confidence signal it proposed and then **withdrew** (§7.2.3, §8.1) — not simulator noise. |
-| **Results** | §7.1–7.3. The numbers to hold onto: LOSO Spearman tops out at $0.638$ (HGT-QoS) against $0.553$ for a training-free baseline; precision, recall and $F_1$ coincide identically at top-$K$ because both sets are the top quartile; and LOSO folds are **not independent replicates**, so the $p$-values are optimistic by an unquantified amount. |
+| **Results** | §7.1–7.3. On reachability $I^*$ (Table 3), closed-form references dominate: $\text{Analytic } I^*$ achieves $\rho = \mathbf{0.808} \; [0.720, 0.887]$, $\text{InDeg}$ achieves $0.764$, and $\text{Reach}$ achieves $0.732$, outperforming or matching the best learned model on projected $G_{\text{dep}}$ ($\text{GAT-P-QoS}$ single seed $0.748$, 5-seed ensemble $0.772$). On raw multigraph $G_{\text{raw}}$, GNNs yield $\rho = 0.622$–$0.635$ with a null co-primary contrast ($\Delta\rho = +0.069, p = 0.266$). On dynamic traffic $I_{\text{dyn}}$ (Table 4), the training-free Rate-Weighted First-Order Expansion ($I_{\text{dyn}}^{(1)}$) achieves $\rho = \mathbf{0.830} \; [0.778, 0.872]$ in $<1$ ms, outperforming learned models ($0.799$ GBM, $\le 0.665$ rate-fed GNNs). Note that LOSO folds are **not independent replicates**, so reported $p$-values are optimistic. |
+
 
 > [!NOTE]
 > **Eight steps here, four stages in the paper.** This repository numbers the pipeline in eight
@@ -224,6 +225,20 @@ When evaluating prediction performance against simulation ground truth, SaG eval
 > $$\text{passed} = (\rho \ge 0.70) \land (\text{Overlap}_{Q3} \ge 0.75) \land (\text{Top5\_Overlap} \ge 0.60)$$
 > Tier-2 Reported Gates are recorded for scientific transparency and diagnostic debugging, but they **never cause a build to fail**. Furthermore, if an underlying dimension is degenerate or unmeasured, a Tier-2 gate reports `null` (not measured), which is distinctly different from `false` (measured and failed).
 
+### 2.3 Operational Dilemma & The Two-Tiered Triage Protocol (JSS §8.1)
+
+While the software library implements strict conjunction gates for test validation, the empirical findings of JSS §8.1 reveal an operational challenge for continuous delivery:
+- **The Review Budget Dilemma (Figure 5)**: Under reachability ground truth ($I^*$), achieving an $80\%$ recall of the critical hazard set requires reviewing $40\%$--$45\%$ of all application services across the system. In high-frequency CI/CD pipelines, treating reachability ranking as a blocking gate would halt builds and force developers to manually audit nearly half the architecture on routine commits.
+- **The Two-Tiered Triage Solution**: To balance developer velocity with systemic failure prevention, JSS §8.1 formalizes a two-tiered protocol:
+  1. **Tier 1 (Commit / PR Time - Fast Informational Screening)**:
+     - Runs training-free closed-form references: afferent coupling $\text{InDeg}(v)$ on projected $G_{\text{dep}}$ and the Rate-Weighted First-Order Expansion ($I_{\text{dyn}}^{(1)}(v)$).
+     - **Cost**: $< 1\text{ ms}$ latency and $< 1\text{ J}$ energy per evaluation; zero GPU, training, or simulation infrastructure required.
+     - **Action**: Posts a non-blocking informational comment on the PR surfacing the top-5 critical services affected by the proposed changes.
+  2. **Tier 2 (Staging / Release / Sprint Review - Targeted Simulation)**:
+     - Runs targeted discrete-event simulation ($I_{\text{dyn}}$ via SimPy) or multi-seed cascade injection ($I^*$) restricted to candidate architectural changes or shortlisted high-risk services.
+     - **Action**: Blocks deployment only if simulated packet delivery drops or cascade feed loss exceed agreed SLA degradation thresholds.
+
+
 ---
 
 ## 3. Two Validation Harnesses & Execution Modes
@@ -292,6 +307,24 @@ flowchart LR
 
 - **Convergent Validity (JSS §7.3.2 and Supplementary §S9)**: Across twelve benchmark scenarios, $I_{\text{dyn}}$ correlates with $I^*(v)$ at **mean Spearman $\rho = 0.627$** (ranging from $0.186$ on industrial SCADA to $0.953$ on financial trading).
 - **Ceiling Interpretation**: $I^*$'s own test-retest reproducibility across seeds is $0.811$–$1.0$. Thus, $I_{\text{dyn}}$ tracks $I^*$ closely while providing independent behavioral evidence that static graph rankings reflect real-world packet delivery drops.
+
+---
+
+### 4.3 Order-$k$ Reference Criterion & Approximation Horizons (JSS §4.4)
+
+When evaluating predictors against simulation oracles, it is essential to align the predictor's topological scope with the oracle's physical approximation horizon:
+
+- **Order-$k$ Truncation ($T_k(O)$)**: Under the formal reference criterion (§4.4 of the JSS paper), an analytical reference halted after wave $k$ under simplifications S1–S5 isolates the exact mechanistic cascade up to horizon $k$:
+  - **First-Order Horizon ($k=1$)**: Evaluates immediate subscribers starved when publisher $v$ fails:
+    $$I_{\text{dyn}}^{(1)}(v) = \sum_{t \in \text{pub}(v)} r(t) \cdot |\text{sub}(t)|$$
+    On dynamic discrete-event traffic ($I_{\text{dyn}}$), this closed-form formula achieves Spearman $\rho = \mathbf{0.830} \; [0.778, 0.872]$ in $<1\text{ ms}$ (JSS Table 4), outperforming learned models ($0.799$ for GBM, $\le 0.665$ for rate-fed GNNs). First-order subscriber starvation dominates real-world queue drops.
+  - **Direct Afferent Coupling on $G_{\text{dep}}$**: Setting uniform rates ($r(t) = 1$) reduces the reference to in-degree $\text{InDeg}(v) = |\text{Dep}(v)|$ on projected $G_{\text{dep}}$, achieving $\rho = 0.764$ on $I^*$ (JSS Table 3).
+  - **Transitive Reachability ($k=\infty$)**: Evaluates full downstream transitive reachability $\text{Reach}(v)$ ($\rho = 0.732$), while the closed-form $\text{Analytic } I^*$ achieves $\rho = \mathbf{0.808}$.
+- **Validation Diagnostic Rule**:
+  - Validating against $I^*$ tests structural cascade reachability bounds.
+  - Validating against $I_{\text{dyn}}$ tests continuous-time queuing stability and packet delivery drops.
+  - If a learned model cannot outperform $T_k(O)$ for the oracle's natural horizon $k$, its learned message-passing layers are capturing no genuine relational patterns beyond explicit dependency derivation.
+
 
 ---
 
@@ -431,10 +464,17 @@ The library gate suite evaluates 3 Tier-1 Release Gates and 3 Tier-2 Reported Ga
 | `bottleneck_precision` | **Tier-2** | Bottleneck Precision | $\ge 0.70$ | Informational Only |
 
 > [!TIP]
-> **Why the Release Thresholds are Strict — and What That Implies:**
-> The release threshold ($\rho \ge 0.70$) is deliberately set above what any predictor in this framework currently achieves out of distribution. Under leave-one-system-out cross-validation the strongest learned model, HGT-QoS, reaches $\rho = 0.638$ and the strongest training-free baseline, Topo-QoS, reaches $0.553$ (JSS Table 7). **The gate therefore fails on the authors' own best model under LOSO, by design**: it encodes the correlation a practitioner should demand before trusting a ranking unreviewed, not the correlation the framework has demonstrated. A failing gate (`passed = False`) signals: *"Do not deploy this architecture without manual architectural review."*
+> **Empirical Realities of the Release Threshold ($\rho \ge 0.70$) and Operational CI/CD:**
+> In the final JSS benchmark (Table 3), several methods comfortably satisfy the $\rho \ge 0.70$ threshold under leave-one-system-out (LOSO) cross-validation when evaluated on projected $G_{\text{dep}}$:
+> - $\text{Analytic } I^*$ achieves $\rho = \mathbf{0.808} \; [0.720, 0.887]$ (training-free closed-form reference).
+> - $\text{InDeg}$ (afferent coupling) achieves $\rho = 0.764 \; [0.640, 0.866]$ (training-free single metric).
+> - $\text{Reach}$ achieves $\rho = 0.732 \; [0.598, 0.849]$ (training-free graph reachability).
+> - $\text{GAT-P-QoS}$ achieves $\rho = 0.748 \; [0.628, 0.852]$ (single seed) and $0.772$ (5-seed ensemble).
 >
-> Do not confuse these figures with the in-distribution ones in JSS Table 5, which are higher because the held-out components come from a system the model trained on.
+> In contrast, raw multigraph GNNs ($\text{HGT-QoS}$ at $0.622$, $\text{GAT-QoS}$ at $0.635$) and weak topological baselines ($\text{Topo-QoS}$ at $0.553$) fail this gate.
+>
+> **Operational Triage in CI/CD (JSS §8.1)**: Even when a model passes $\rho \ge 0.70$, reachability ranking remains unsuitable as an aggressive blocking gate because capturing $80\%$ of critical hazards requires reviewing $40\%$--$45\%$ of all services across the system (JSS Figure 5). As detailed in §2.3, teams should implement the **Two-Tiered Triage Protocol**: fast, non-blocking informational comments at commit time using training-free references ($\text{InDeg}$, $I_{\text{dyn}}^{(1)}$), reserving blocking gates for targeted discrete-event simulation ($I_{\text{dyn}}$ / SimPy) during staging or scheduled sprint reviews.
+
 
 ---
 

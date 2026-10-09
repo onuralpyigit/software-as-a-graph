@@ -57,13 +57,22 @@ This is a principled boundary, not an oversight: the three operators only automa
 
 ## 3. The Triage Bridge: Stakeholder-Oriented Remediation Routing
 
-The **Triage Bridge** (`saag.analysis.triage.triage()` / `TriageUseCase` / `triage_presenter.py`) connects Step 3's high-risk shortlist (Top-$K$ ranked components) to targeted architectural root causes, routing recommendations to three distinct stakeholder groups:
+The **Triage Bridge** (`saag.analysis.triage.triage()` / `TriageUseCase` / `triage_presenter.py`) connects Step 3's high-risk shortlist (Top-$K$ ranked components) to targeted architectural root causes, routing actionable recommendations to three distinct stakeholder groups:
 
 | Stakeholder Role | Primary Focus & Domain | Associated Patterns & Metrics | Concrete Remediation Actions |
 |:---|:---|:---|:---|
 | **DevOps / SRE** | Infrastructure locality & broker resilience | `SPOF`, `BROKER_OVERLOAD`, $AP_c^{\text{dir}}$, host co-location | Configure Kubernetes pod anti-affinity, replicate message brokers, reallocate co-located high-risk services |
 | **System Architect** | Pub-sub topology & transport contracts | `GOD_COMPONENT`, `FAILURE_HUB`, `BOTTLENECK_EDGE`, `HUB_AND_SPOKE`, `CYCLE`, $CDI$ | Apply automated Operator 1 (Topic Splitting), Operator 3 (Transport QoS Hardening), and insert circuit breakers or event bridges |
 | **Software Developer** | Code complexity & component coupling | `CYCLIC_DEPENDENCY`, High $CQP$, High $MPCI$, High $PC$ | Refactor god classes, decompose high-cyclomatic-complexity methods, prune redundant transitive library imports |
+
+> [!NOTE]
+> **Operational Integration with the Two-Tiered Triage Protocol (JSS §8.1):**
+> While the Triage Bridge governs *who* receives architectural findings, the **Two-Tiered Triage Protocol** governs *when* and *at what computational cost* triage executes in CI/CD:
+> - **Tier 1 (Commit/PR Time)**: Triggers lightweight, training-free ranking ($\text{InDeg}$ and $I_{\text{dyn}}^{(1)}$ in $<1\text{ ms}$) to post an informational Top-5 alert on pull requests without blocking developers.
+> - **Tier 2 (Staging/Sprint Review)**: Triggers deep in-silico mutation verification (Section 4), evaluating counterfactual simulation sweeps ($\Delta\text{SRI} > 0$) before promoting major architectural refactorings.
+>
+> *(Note: The complete 19-pattern detection catalog and automated in-silico remediation operators are detailed in the companion AuSE paper, "Automated Identification and In-Silico Remediation of Architectural Smells in Publish-Subscribe Systems", whereas the JSS paper focuses on predictive vs. analytical cascade impact ranking).*
+
 
 ---
 

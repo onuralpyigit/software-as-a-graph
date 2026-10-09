@@ -50,7 +50,7 @@ Each capability is a pipeline stage with its own CLI script, SDK method, and met
 | — | *Generate (prep)* | Synthesizes a pub-sub topology for experiments, benchmarks, and CI regression | Topology JSON | [graph-generation.md](docs/graph-generation.md) |
 | 1 | **Model** | Imports topology JSON into Neo4j as a weighted directed graph $G = (V, E, \tau_V, \tau_E, w)$; derives logical `DEPENDS_ON` edges via six rules; computes QoS-derived weights | $G_{\text{structural}}$, $G_{\text{analysis}}(l)$ | [graph-model.md](docs/graph-model.md) |
 | 2 | **Analyze** | Deterministic, closed-form. Computes the 53-field structural metric vector $M(v)$ (19 of its fields feed the RM composite) — and nothing else | $M(v)$ metric vector | [structural-analysis.md](docs/structural-analysis.md) |
-| 3 | **Predict** | Pathway B: optional HGT neural blast-radius forecasts $\hat{I}^*(v)$ and Top-K criticality ranking; always computes the deterministic ISO-RM composite $Q^*(v)$ as the GNN's own input feature and zero-checkpoint fallback | GNN ranks (or RM fallback), Top-K shortlist | [prediction.md](docs/prediction.md) |
+| 3 | **Predict** | Pathway B: Blast-radius forecasting via closed-form structural references (direct-dependent count $\text{InDeg}$, $\text{Analytic } I^*$, rate-weighted queue expansion) or learned GNN rankers ($\text{GAT-P-QoS}$, HGT, hybrids); computes deterministic ISO-RM composite $Q^*(v)$ as input feature and zero-checkpoint fallback | Structural & GNN ranks, Top-K shortlist | [prediction.md](docs/prediction.md) |
 | 4 | **Diagnose** | Pathway A: deterministic ISO-RM dimension scores $Q^*(v)$ and 5-level classification, grounded in ISO/IEC 25010/25019; detects 19 anti-patterns; generates natural-language explanations; links to stage 3's ranking via the Triage Bridge to map Top-K risks to stakeholder actions — needs no GNN checkpoint (zero-GNN cold start) | RM/$Q^*(v)$ scores, Triage profile, anti-pattern report | [diagnosis.md](docs/diagnosis.md) |
 | 5 | **Simulate** | Injects faults and propagates cascades over the raw structural graph to obtain ground-truth impact — training labels for stage 3 and the offline oracle for stage 6 | $I^*(v)$ composite and per-dimension $I_R, I_M$ (itself $\alpha\cdot I_{FT}+(1-\alpha)\cdot I_A$) | [failure-simulation.md](docs/failure-simulation.md) |
 | 6 | **Validate** | Correlates predictions against simulated ground truth: Spearman $\rho$, Kendall $\tau$, F1, predictive gain, bootstrap CIs, Wilcoxon — scored against seven gates | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
@@ -228,61 +228,63 @@ Shell orchestrators for longer sweeps live in [`scripts/`](scripts/): `verify_pi
 
 ---
 
-## Validation Gates
+## Validation Gates & Two-Tiered Triage
 
-Stage 6 scores each run against seven gates (G1–G6, G8; G7 and G9 were retired along with the Vulnerability/Security dimension both were built to gate — the numbering gap is intentional). Thresholds are defined in [`ValidationTargets`](saag/validation/models.py#L10) and evaluated in [`ValidationService`](saag/validation/service.py#L713); full definitions are in [validation.md](docs/validation.md).
+Stage 6 scores each run against validation gates defined in [`ValidationTargets`](saag/validation/models.py#L10) and evaluated in [`ValidationService`](saag/validation/service.py#L713); full definitions are in [validation.md](docs/validation.md).
 
-| Tier | Gate | Threshold |
-|:---|:---|:---|
-| 1 | G1 — Spearman $\rho$ | $\ge 0.70$ |
-| 1 | G2 — F1 | $\ge 0.75$ |
-| 1 | G3 — Precision | $\ge 0.80$ |
-| 1 | G4 — Top-5 overlap | $\ge 0.60$ |
-| 2 | G5 — Predictive gain over degree baseline | $> 0.03$ |
-| 2 | G6 — Weighted $\kappa_{\text{CTA}}$ (maintainability) | $\ge 0.70$ |
-| 3 | G8 — Bottleneck precision | $\ge 0.70$ |
+| Tier | Gate | Threshold | Focus |
+|:---|:---|:---|:---|
+| 1 | G1 — Spearman $\rho$ | $\ge 0.70$ | Monotonic ranking accuracy |
+| 1 | G2 — F1 | $\ge 0.75$ | Critical component capture rate |
+| 1 | G3 — Precision | $\ge 0.80$ | High-precision triage accuracy |
+| 1 | G4 — Top-5 overlap | $\ge 0.60$ | Severe blast-radius capture |
+| 2 | G5 — Predictive gain over degree baseline | $> 0.03$ | Structural signal addition |
+| 2 | G6 — Weighted $\kappa_{\text{CTA}}$ | $\ge 0.70$ | Maintainability agreement |
+| 3 | G8 — Bottleneck precision | $\ge 0.70$ | Single point of failure detection |
 
-These are the **per-dimension** gates. The stricter **composite** targets for $Q^*(v)$ against $I^*(v)$ are separate: $\rho \ge 0.85$, F1 $\ge 0.90$, Top-5 $\ge 0.80$.
+### Practical Guidance: The Two-Tiered Triage Protocol
+As demonstrated in the JSS paper (§8.1, Figure 5), recovering 80% of the true critical set under reachability cascade $I^*$ requires reviewing approximately 40–45% of Applications by the best rankers. A gate designed to catch the majority of critical services would flag nearly half the system, making reachability ranking **unsuitable as an automated pass/fail blocking CI/CD gate**. SaG instead recommends a **two-tiered triage protocol**:
+1. **Tier 1 (Commit Stage):** Compute training-free closed-form metrics (publish–subscribe afferent coupling $\text{InDeg}$ and rate-weighted queue expansion) in milliseconds, surfacing the top-5 critical services as an informational, non-blocking note in PR reviews.
+2. **Tier 2 (Staging / Sprint Review):** Run discrete-event simulation ($I^*, I_{\text{dyn}}$) on the Tier-1 shortlisted candidates within a fixed inspection budget, reserving architectural refactoring (replication, topic splitting, QoS hardening) for verified bottlenecks.
 
 ---
 
 ## Empirical Results
 
-Validated on the corpus in [`data/scenarios/`](data/scenarios/): twelve synthetic
-architectures forming the inductive cross-validation folds, plus five real-world
-systems transcribed from open-source repositories and withheld from every
-training fold. See [docs/scenario.md](docs/scenario.md) for the corpus, its
-provenance manifest, and which scenario backs which result.
+Evaluated on the benchmark corpus in [`data/scenarios/`](data/scenarios/): twelve synthetic architectures forming the inductive cross-validation folds (1,321 Applications, 2,461 nodes, 10,918 edges), plus five hand-authored models of production open-source systems (Autoware ROS 2, Online Boutique, Train-Ticket, Home Assistant, EdgeX Foundry; 351 nodes, 700 edges) withheld from all training folds. See [docs/scenario.md](docs/scenario.md) for full provenance and manifests.
 
-Two regimes, and they disagree — which is the point. **In-distribution**
-(`make -f reproduce/Makefile table3`; 7 core domains × 6 variants × 5 seeds =
-210 runs, `results/table3_main_results.md`) and
-**inductive LOSO** (12 folds, train on eleven graphs and test on the held-out
-twelfth, `results/table4_loso_results.md`).
+### 1. Leave-One-Scenario-Out (LOSO) Cross-Validation (JSS Table 3)
 
-| Mean ρ vs. $I^*(v)$ | Topo | Topo-QoS | GAT-N | GAT-N-QoS | HGT | HGT-QoS |
-|:---|---:|---:|---:|---:|---:|---:|
-| In-distribution (7 domains) | 0.166 | 0.629 | **0.691** | 0.653 | 0.624 | 0.630 |
-| LOSO (12 folds) | 0.349 | 0.553 | 0.317 | 0.604 | 0.551 | **0.638** |
+The primary benchmark evaluates ranking accuracy across 12 unseen architectures under Leave-One-Scenario-Out (LOSO) cross-validation against the primary reachability oracle $I^*$:
 
-**Read these together, not separately.** Relation typing and QoS edge encoding
-substitute for one another: typing alone adds +0.234 over GAT-N ($p = 0.0005$),
-but when QoS edge encoding is present (HGT-QoS vs GAT-N-QoS) it adds only +0.035
-($p = 0.129$). And the learned model does **not** establish a statistically
-significant ranking advantage over training-free QoS-weighted centrality (+0.085,
-$p = 0.151$), so a team that wants a scalar ranking and nothing more can
-reasonably run `Topo-QoS` and stop. What the learned model adds is per-relationship
-edge criticalities and attention maps a centrality score cannot produce.
+| Ranker Type | Model / Method | Evaluation Substrate | Mean LOSO $\rho$ [95% CI] | Active $\rho_{>0}$ | Overlap@$K$ |
+|:---|:---|:---|:---:|:---:|:---:|
+| **Reference** *(Rule Restatements)* | **Analytic $I^*$** | Dependency Graph | **0.808** $[0.755, 0.853]$ | 0.631 | 0.536 |
+| | **InDeg** *(Afferent Coupling)* | Dependency Graph | **0.764** $[0.674, 0.840]$ | 0.516 | 0.504 |
+| | **Reach** *(Transitive)* | Dependency Graph | **0.732** $[0.674, 0.782]$ | 0.286 | 0.344 |
+| **Baseline** *(Comparator)* | **Topo-QoS** | Dependency Graph | **0.553** $[0.443, 0.657]$ | 0.280 | 0.388 |
+| | Topo-QoS (corrected) | Dependency Graph | 0.533 $[0.404, 0.650]$ | — | — |
+| **Learned** *(Dependency Graph)* | **GAT-P-QoS** | Dependency Graph | **0.748** $[0.704, 0.789]$ | 0.440 | 0.454 |
+| | HGT-P-QoS | Dependency Graph | 0.514 $[0.392, 0.636]$ | 0.237 | 0.380 |
+| **Learned & Hybrid** *(Raw Multigraph)*| GAT-QoS | Raw Multigraph | 0.635 $[0.567, 0.696]$ | 0.338 | 0.438 |
+| | HGT-QoS | Raw Multigraph | 0.622 $[0.547, 0.690]$ | 0.312 | 0.426 |
+| | Hybrid-HGT | Raw Multigraph | 0.657 $[0.572, 0.733]$ | 0.345 | 0.435 |
+| | **Hybrid-GAT** | Raw Multigraph | **0.683** $[0.603, 0.753]$ | 0.362 | 0.450 |
 
-The validation gates in [`saag/validation/models.py`](saag/validation/models.py)
-(ρ ≥ 0.70, F1@K ≥ 0.75, composite ρ ≥ 0.85) are deliberately stricter than
-anything measured above and are **not** met on the real-world systems — that is
-the gate working as intended, not a regression. See
-[docs/validation.md](docs/validation.md).
+*(Note: $\text{GAT-P-QoS}$ reaches $\rho = 0.772$ as a five-seed ensemble; see JSS Table 4).*
 
-Numbers above are rendered from `results/main_table_v3.json` and
-`results/loso_all_variants_v4.json` and are machine-checked against the
-manuscript by `python reproduce/reconcile_manuscript.py`.
+### 2. Independent Simulation Oracles (JSS Table 4)
+
+- **Queue-Flow Simulator ($I_{\text{dyn}}$):** Requiring 12.7 CPU-hours of SimPy simulation to label the corpus, $I_{\text{dyn}}$ is dominated by first-order delivered-rate loss. A closed-form **Rate-Weighted First-Order Expansion** reaches $\rho = \mathbf{0.830} \; [0.778, 0.872]$ in **milliseconds** without training. It outperforms learned surrogate models trained on its labels ($\text{GBM-P-QoS}\to\text{dyn}$ at $\rho = 0.799$; rate-fed GNNs at $\le 0.665$), and learners started from the formula capture no additional signal.
+- **Multi-Criteria Simulator ($I_{\text{comp}}$):** Measures multi-objective fragmentation and flow loss ($0.35\,\text{RL} + 0.25\,\text{FR} + 0.25\,\text{TL} + 0.15\,\text{FD}$). Training-free scores aligned with fragmentation rank highest (raw total degree $\rho = 0.719$, $\text{Topo-QoS}$ $\rho = 0.702$), while pure learned rankers collapse ($\le 0.334$).
+
+### 3. Key Takeaways
+
+1. **Representation dominates model complexity:** The derived dependency graph ($G_{\text{dep}}$, Rules 1 & 5) supplies the active signal. On the raw multigraph, messages never reach Applications, resulting in null confirmatory contrasts ($p = 0.266$).
+2. **Learning vs. Afferent Coupling:** Counting direct dependents ($\text{InDeg}$, $\rho = 0.764$) is not significantly different from the best learned model ($\text{GAT-P-QoS}$, $\rho = 0.748$). No learned model shows additional predictive skill beyond simple dependency derivation on these first-order oracles.
+3. **Hybrids beat the baseline, not their base learners:** Hybrids improve over the weak $\text{Topo-QoS}$ baseline ($+0.103$ and $+0.130$), but not over their own base learners. Given $\text{InDeg}$ as prior, hybrids simply reproduce it ($\pm 0.012$).
+4. **Zero-Shot Transfer Boundaries:** On five open-source system models, learned models filter inert components well ($\rho \approx 0.81$), but fail to discriminate active propagating components ($\rho_{>0} \le 0.342$), where only transitive reach ($\text{Reach}$, $\rho_{>0} = 0.871$) restates the cascade structure.
+5. **Cost & Green AI Feasibility:** Computing $\text{InDeg}$ runs in $0.4$–$15.6$ ms ($17$–$176\times$ cheaper than $I^*$ simulation). For $I_{\text{dyn}}$, the rate-weighted reference runs in milliseconds ($\approx 1$ J), whereas upfront simulation ($355.6$ Wh) and GNN training ($0.22$ kWh) are never amortized across continuous CI/CD runs. Training-free dependency analysis is the definitive low-cost, energy-efficient choice for routine pre-deployment review.
 
 ---
 

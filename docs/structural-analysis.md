@@ -57,10 +57,11 @@ For the complete CLI reference (`analyze_graph.py`), see [cli-pipeline-guide.md 
 
 | | |
 |:---|:---|
-| **Manuscript section** | §3.4 (typed node feature encoding, indices 0–17) and §5.2 (the metrics the RM formulas consume) |
+| **Manuscript section** | §3.4 (typed node feature encoding, indices 0–17), §3.5 (oracle-aligned feature identification), §5.2 (metrics feeding the ISO-RM formulas), and §7.4 / Table 8 (Family F11: oracle-aligned feature control arms) |
 | **Paper's name for this** | Not a named stage — the paper treats it as the feature-and-metric substrate both pathways read |
 | **Symbols** | The paper writes $\text{RPR}$, $\text{Deg}_{\text{in}}$, $\text{AP}_c^{\text{dir}}$, $\text{QSPOF}$, $\text{BR}$, $\text{CDI}$, $\text{BT}$, $w_{\text{out}}$, $\text{CQP}$, $\text{CC}$ — same names, same coefficients |
-| **Results** | §7.5 measures this stage's cost, and finds it dominates the pipeline: 239 s at 2,000 components, against 56 ms for the HGT forward pass |
+| **Results** | §7.5 measures this stage's cost, showing it dominates deterministic analysis (239 s at 2,000 components, dominated by $O(\|V\|^2 + \|V\|\|E\|)$ CDI). §7.4 / Table 8 shows that zeroing oracle-aligned features (`-min` control arm) degrades learned models, confirming that raw GNNs heavily rely on these explicit structural summaries. |
+
 
 > [!NOTE]
 > **Eight steps here, four stages in the paper.** This repository numbers the pipeline in eight
@@ -519,6 +520,21 @@ These metrics do not alter rule-based ISO-RM scores, but are exported in $M(v)$ 
 - `publisher_spof`: Sole-publisher risk score ($PSPOF$).
 
 ---
+
+### 8.6 Oracle-Aligned Features & Control Arms (JSS §3.5, §7.4)
+
+In §3.5 and §7.4 of the JSS paper, the authors formalize an essential analytical distinction:
+A subset of structural metrics computed during Step 2 directly encode the mechanics of the cascade simulation oracles:
+1. **`in_degree_raw` / `in_degree`**: Counts direct incoming dependencies on $G_{\text{dep}}$ ($C_a$, afferent coupling), mirroring wave-1 subscriber feed loss.
+2. **`dependency_weight_in` ($w_{\text{in}}$)**: Sums QoS-weighted incoming channels, tracking rate and priority criticality.
+3. **`bridge_ratio`**: Quantifies incident edges that sever connected components when removed.
+4. **`ap_c_directed` / `is_articulation_point`**: Measures topological cut-vertex potential and network fragmentation.
+
+**The Control Arm Reality (Family F11, JSS Table 8):**
+To determine whether learned GNNs discover emergent topological patterns or merely re-weight these explicit summary features, JSS evaluated the **`-min` control arm** (zeroing out all oracle-aligned features) and **`-const` control arm** (zeroing all node features). When these features are ablated, GNN ranking accuracy drops substantially, confirming that learned rankers on raw multigraphs derive their predictive utility by reading these explicit structural indicators rather than discovering latent relational representations through message passing.
+
+---
+
 
 ## 9. The Reliability–Maintainability (RM) Quality Model
 

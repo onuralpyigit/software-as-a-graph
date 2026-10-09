@@ -232,8 +232,43 @@ The table below summarizes the technical specifications of each engine:
 | **`FaultInjector`** | *"If publisher or broker $v$ dies, which subscribers starve?"* | BFS cascade reachability ($O(V+E)$) | **$I^*(v)$**: Feed loss fraction | **Fast** (~10 ms/node) | **Predict**: Training labels.<br>**Validate**: CLI benchmark ($\rho \ge 0.70$). |
 | **`FailureSimulator`** | *"What is the systemic loss across hosts, links, brokers, and libraries?"* | Multi-layer structural graph traversal | **$I_{\text{comp}}(v)$**: AHP composite loss | **Moderate** (~50 ms/node) | **Validate**: Release safety gates.<br>**Prescribe**: Refactoring verification. |
 | **`EventSimulator`** | *"How do messages traverse the graph under Poisson failure/recovery?"* | Priority queue (`heapq`) event loop | **Flow Set**: Active paths, drops | **Fast** (~20 ms/run) | **Utility**: Primes baseline flows for `FailureSimulator`. |
-| **`MessageFlowSimulator`** | *"How do queues, packet drops, and deadlines behave under DDS traffic?"* | Discrete-event queuing (SimPy) | **$I_{\text{dyn}}(v)$**: Dynamic delivery drop | **Detailed** (~5–30 s/node) | **Research**: Inter-oracle convergent validity ($\rho = 0.627$). |
+| **`MessageFlowSimulator`** | *"How do queues, packet drops, and deadlines behave under DDS traffic?"* | Discrete-event queuing (SimPy) | **$I_{\text{dyn}}(v)$**: Dynamic delivery drop | **Detailed** (~5–30 s/node) | **Research**: Inter-oracle convergent validity ($\rho = 0.711$). |
 | **`ChangePropagationSimulator`** | *"If an interface changes, how far does it ripple upstream?"* | Transposed dependency BFS on $G^\top$ | **$I_M(v)$**: Maintenance blast radius | **Instant** (<5 ms/node) | **Reference**: Software evolution & GNN dimension masking. |
+
+---
+
+### 2.5 The Order-$k$ Reference Criterion & First-Order Oracle Dynamics (JSS §4.4)
+
+In the JSS study, simulators and rankers read the same declared architecture model. Without methodological discipline, a ranking may agree with a simulator simply because it *restates the simulator's propagation rule* rather than predicting impact from independent evidence. To separate predictive skill from rule restatement, SaG formalizes the **Order-$k$ Reference Criterion**:
+
+#### 1. Formal Definition
+Let an oracle $O$ compute the failure impact of removing component $v$ by propagating failures in sequential waves over its inputs, and let $T_k(O)$ denote the same computation halted after wave $k$. A ranking $R$ is an **order-$k$ reference** for $O$ ($k \ge 1$ or $k = \infty$) if $R$ equals $T_k(O)$ after at most a closed set of five simplifications:
+- **(S1) Expectation**: Taking the expected outcome in place of seed-dependent stochastic propagation.
+- **(S2) Unscaled Severity**: Omitting heuristic QoS severity multipliers ($\times 1.2$ for `RELIABLE`, etc.) applied to loss terms.
+- **(S3) Dropped Queuing Mechanics**: Omitting queue buffers, drops, and deadline timers added on top of propagation.
+- **(S4) Uniform Rates / Normalization**: Using uniform unit weights in place of per-component rates or normalization denominators.
+- **(S5) Wave Support**: Counting the raw number of affected components (support of the wave) rather than summing weighted losses.
+
+Each simplification removes exactly one simulation mechanism; none changes which components are reached or the causal direction of propagation.
+
+#### 2. Classification of Rankers Under the Criterion
+
+| Oracle | Reference ($T_k(O)$ under S1–S5) | Order | Metric / Formula | Status | LOSO $\rho$ |
+|:---|:---|:---:|:---|:---:|:---:|
+| **$I^*$ (Reachability)** | **Analytic $I^*$** | $k = 1$ | First-order expansion (S1, S2, S4) | Reference | **0.808** |
+| | **InDeg** *(Afferent Coupling)* | $k = 1$ | Support of first wave (S5; direct-dependent count) | Reference | **0.764** |
+| | **Reach** *(Transitive)* | $k = \infty$ | Support of untruncated BFS cascade (S1, S5) | Reference | **0.732** |
+| **$I_{\text{dyn}}$ (Queue-Flow)** | **Rate-Weighted Expansion** | $k = 1$ | Delivered-rate loss without queuing (S3, S4; Eq.~7) | Reference | **0.830** |
+| **All Oracles** | **GAT-P-QoS / HGT-QoS / Hybrids** | — | Learned representations; do not truncate simulator rules | **Predictor** | $0.622 - 0.748$ |
+| | **Topo-QoS** | — | Shortest-path betweenness; does not truncate simulation | **Predictor** | $0.553$ |
+
+#### 3. The Rate-Weighted First-Order Expansion Formula
+For the computationally intensive queue-flow simulator ($I_{\text{dyn}}$), which required **12.7 CPU-hours** ($355.6$ Wh) to label the corpus, message propagation is dominated by the immediate loss of delivered messages to surviving subscribers. Its first-order truncation (Eq.~7 in the JSS paper) calculates the delivered-rate loss directly from declared publication rates $r(t)$:
+$$I_{\text{dyn}}^{(1)}(v) = \sum_{t \in \text{pub}(v)} r(t) \cdot |\text{sub}(t)|$$
+This closed-form reference executes in **less than 1 millisecond** per architecture ($\approx 1$ J), reaching $\rho = \mathbf{0.830} \; [0.778, 0.872]$ on unseen architectures. Learned surrogates trained on hours of simulation labels ($\text{GBM-P-QoS}\to\text{dyn}$ at $\rho = 0.799$, rate-fed GNNs at $\le 0.665$) fail to exceed this closed-form formula, demonstrating that declared message rates—not QoS contracts—drive queue-flow disruption.
+
+#### 4. Methodological Consequence: Why Simulators Are First-Order by Construction
+Because $I^*$ and $I_{\text{dyn}}$ propagate their primary damage in the first wave by construction, low-order analytical truncations capture their dominant signal. The JSS benchmark demonstrates that when simulators operate in this first-order regime, explicit dependency representation ($G_{\text{dep}}$) provides the signal directly, making complex graph learning unnecessary.
 
 ---
 
