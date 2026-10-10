@@ -47,7 +47,9 @@ def _harden_qos(mutated: Dict[str, Any], policy: PrescriptionPolicy) -> None:
 
 def _reallocate_nodes(mutated: Dict[str, Any], policy: PrescriptionPolicy) -> None:
     """Move each reallocated process onto a fresh node cloned from its old host."""
-    reallocations = {r.component: r for r in policy.node_reallocations}
+    # Keyed by (process, source host): a replicated process runs on several
+    # hosts, and moving it off one must leave its other placements alone.
+    reallocations = {(r.component, r.from_node): r for r in policy.node_reallocations}
     if not reallocations:
         return
 
@@ -57,7 +59,7 @@ def _reallocate_nodes(mutated: Dict[str, Any], policy: PrescriptionPolicy) -> No
     clone_sources: Dict[str, str] = {}
     runs_on: List[Dict[str, Any]] = []
     for rel in relationships.get("runs_on", []):
-        realloc = reallocations.get(rel.get("from"))
+        realloc = reallocations.get((rel.get("from"), rel.get("to")))
         if realloc is None:
             runs_on.append(rel)
             continue

@@ -386,3 +386,44 @@ def test_node_reallocation_keeps_the_first_process_in_place():
     # Hosted ids are sorted, so "first" is lexicographic and reproducible.
     assert [r.component for r in policy.node_reallocations] == ["AppB", "AppC"]
     assert [r.to_node for r in policy.node_reallocations] == ["N1_AppB", "N1_AppC"]
+
+
+def test_node_reallocation_moves_only_the_edge_off_its_source_host():
+    """A replicated process moved off one host must keep its replica on the other.
+
+    Reallocations used to be keyed by component alone and re-pointed *every*
+    RUNS_ON edge of that component, so moving AppA off N1 also moved its N2
+    replica -- collapsing replication onto one new host -- and a second edit for
+    the same component silently overwrote the first.
+    """
+    from saag.prescription.models import NodeReallocation, PrescriptionPolicy
+    from saag.prescription.mutator import apply_policy
+
+    graph = {
+        "nodes": [{"id": "N1"}, {"id": "N2"}],
+        "applications": [{"id": "AppA"}, {"id": "AppB"}],
+        "relationships": {
+            "runs_on": [
+                {"from": "AppA", "to": "N1"},
+                {"from": "AppA", "to": "N2"},
+                {"from": "AppB", "to": "N1"},
+            ],
+            "connects_to": [],
+        },
+    }
+
+    one = apply_policy(graph, PrescriptionPolicy.from_edits([
+        NodeReallocation("AppA", "N1", "N1_AppA"),
+    ]))
+    assert sorted((r["from"], r["to"]) for r in one["relationships"]["runs_on"]) == [
+        ("AppA", "N1_AppA"), ("AppA", "N2"), ("AppB", "N1"),
+    ]
+
+    both = apply_policy(graph, PrescriptionPolicy.from_edits([
+        NodeReallocation("AppA", "N1", "N1_AppA"),
+        NodeReallocation("AppA", "N2", "N2_AppA"),
+    ]))
+    assert sorted((r["from"], r["to"]) for r in both["relationships"]["runs_on"]) == [
+        ("AppA", "N1_AppA"), ("AppA", "N2_AppA"), ("AppB", "N1"),
+    ]
+    assert {n["id"] for n in both["nodes"]} == {"N1", "N2", "N1_AppA", "N2_AppA"}
