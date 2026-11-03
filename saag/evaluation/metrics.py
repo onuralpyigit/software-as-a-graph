@@ -12,8 +12,9 @@ test split of an ``{Application, Library}`` subset. Mixing those conventions
 inside one table compares different estimators on different samples.
 :func:`resolve_eval_keys` makes the population an explicit, recorded choice.
 
-**Absent is not zero.** A stratum whose labels are constant (Topic and Node
-carry no ground truth at all — see ``docs/failure-simulation.md`` L6/L10) has an
+**Absent is not zero.** A stratum whose labels are constant (Topic and Node are
+not injected under the default node types, so they carry no ground truth — see
+``docs/failure-simulation.md``, "Known limitations") has an
 *undefined* rank correlation, not a correlation of 0.0. Emitting 0.0 there
 silently converts a coverage gap into evidence of a bad model.
 """

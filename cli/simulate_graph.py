@@ -851,11 +851,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Comma-separated node types to inject.  "
              "Default: Application,Broker,Library.  Types omitted here get NO "
              "ground truth and are recorded in the artifact's unlabeled_node_ids.  "
-             "'Topic' and 'Node' are excluded on purpose: the cascade derives "
-             "DEPENDS_ON only from PUBLISHES_TO/SUBSCRIBES_TO/USES, so injecting "
-             "either yields I(v)=0 for every one of them — spurious zeros, not labels.  "
-             "With --network-gating, 'Node' and 'NetworkDevice' do get labels: "
-             "losing them can cut subscribers off from their publishers.",
+             "'Topic' and 'Node' can be added: a failed topic silences its "
+             "subscribers and a failed host takes its RUNS_ON residents with it.  "
+             "With --network-gating, 'NetworkDevice' failures get labels too.",
     )
     fi.add_argument(
         "--seeds",

@@ -307,21 +307,21 @@ Scores deterministic ISO-RM quality attribution, detects 19 architectural anti-p
 ---
 
 ### 5.6 Step 5: Cascade Failure Simulation
-Injects synthetic failures and evaluates cascade propagation, change propagation, and service disruptions to compute ground-truth impact labels.
+Injects failures into the architecture model and measures the impact: `FaultInjector` training labels (I\*), the `FailureSimulator` validation oracle (I_comp), and the `MessageFlowSimulator` queue-flow probe (I_dyn), plus opt-in runtime and testbed extensions. [Which engine to use](../failure-simulation.md#2-which-engine-do-i-need).
 - **Script:** [cli/simulate_graph.py] or `saag-simulate`
-- **Subcommand is mandatory** — one of `fault-inject`, `edge-criticality`, `message-flow`, `combined`.
-  (`--sim-mode` belongs to `cli/run.py`, not to this script.)
-- **Arguments:**
+- **Subcommands:** `fault-inject` (the default when none is given), `edge-criticality`, `message-flow`, `runtime-sweep`, `testbed`, `combined`. (`--sim-mode` belongs to `cli/run.py`, not to this script.)
+- **Common arguments:**
   - `--input`: System topology JSON the simulation runs against.
-  - `--layer`: Targets specific system layer.
-  - `--seeds`: Comma-separated seeds, e.g. `42,123,456,789,2024`.
-  - `--output`: Directory to save simulation results into.
-  - `--export-json`: Write the per-node impact scores as JSON.
+  - `--layer`: Used only when `--input` is missing; resolves to `data/<layer>.json`.
+  - `--output`: Directory for results (default `output/simulation/`).
+  - `--export-json`: Write the results as JSON.
+  - `fault-inject` only: `--seeds`, comma-separated (default `42,123,456,789,2024`).
 - **Example:**
   ```bash
-  python cli/simulate_graph.py fault-inject --input data/system.json --layer system \
+  python cli/simulate_graph.py fault-inject --input data/system.json \
       --seeds 42,123,456,789,2024 --output output/simulation/ --export-json
   ```
+- **All flags:** [CLI guide, Step 5](../cli-pipeline-guide.md#step-5-simulate).
 
 ---
 
