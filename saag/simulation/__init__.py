@@ -28,8 +28,8 @@ Supporting engines
     `ChangePropagationSimulator`    IM(v) sub-metrics, on the transposed
                                     DEPENDS_ON graph.
     `TrafficSimulator`          closed-form bandwidth calculator (talks to
-                                Neo4j directly; see docs/failure-simulation.md
-                                §12 for the caveat).
+                                Neo4j directly; see docs/failure-simulation.md,
+                                "Supporting engines").
 
 Runtime engine (opt-in)
     `runtime/` extends `MessageFlowSimulator` with reactive trigger policies,

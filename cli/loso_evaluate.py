@@ -2083,9 +2083,10 @@ def write_summary_md(report: LOSOReport, path: Path) -> None:
     L.append("| Node type | mean ρ | std | nodes | folds | folds undefined |")
     L.append("|-----------|--------|-----|-------|-------|-----------------|")
     for nt, info in sorted(report.per_type_summary.items()):
-        # "undefined" is a real outcome here — Topic and Node carry no ground
-        # truth (failure-simulation.md L6), so their ρ is not a number and must
-        # not be printed as one.
+        # "undefined" is a real outcome here — Topic and Node are not injected
+        # under the default node types, so they carry no ground truth
+        # (failure-simulation.md, "Known limitations"): their ρ is not a number
+        # and must not be printed as one.
         L.append(
             f"| {nt} | {_fmt(info.get('mean'))} | {_fmt(info.get('std'))} | "
             f"{info.get('n_nodes', '—')} | {info.get('n_folds', 0)} | "

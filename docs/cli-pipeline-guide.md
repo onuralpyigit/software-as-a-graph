@@ -313,93 +313,124 @@ PYTHONPATH=. python cli/diagnose_graph.py --layer system --use-ahp --triage-k 10
 
 ## Step 5: Simulate
 
-**Script:** `cli/simulate_graph.py`  
-**Purpose:** Fault injection and discrete-event message-flow simulation.
+**Script:** `cli/simulate_graph.py` (`saag-simulate`)
+**Purpose:** Inject failures and measure their impact: training labels, validation oracles and the opt-in runtime engine. What each engine computes, and which to use, is in [failure-simulation.md](failure-simulation.md#2-which-engine-do-i-need). This section is the complete flag reference.
 
 ```bash
-PYTHONPATH=. python cli/simulate_graph.py fault-inject --input data/atm_system.json --output output/simulation/ --seeds 42,123,456,789,2024 --export-json
+PYTHONPATH=. python cli/simulate_graph.py fault-inject --input data/scenarios/atm_system.json --export-json
 ```
 
-### Subcommands
+Every subcommand accepts `--input` (scenario JSON), `--layer` (resolves `data/<layer>.json` when `--input` is missing), `--output` (default `output/simulation/`), `--export-json` and `--verbose`/`-v`. With no subcommand, `fault-inject` runs.
 
-#### `fault-inject`
+### `fault-inject`
 
-Systematic BFS cascade fault injection → `impact_scores.json`.
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--input` | `None` | Graph JSON file |
-| `--layer` | `None` | Resolves to `data/<layer>.json` if `--input` missing |
-| `--output` | `output/simulation/` | Output directory |
-| `--nodes` | `None` | Comma-separated node IDs |
-| `--node-types` | `Application,Broker,Library` | Comma-separated node types. Do **not** add `Topic` or `Node` — the cascade cannot express their failure and every instance scores `I(v)=0`. |
-| `--seeds` | `42,123,456,789,2024` | Comma-separated seeds. ≥ 2 required for the artifact's `label_stability` block to be measurable. |
-| `--cascade-depth` | `0` | Max depth (0 = unlimited) |
-| `--propagation-threshold` | `0.2` | Fraction of feed loss before cascade |
-| `--failure-model` | `step` | `threshold_cdf`: per-subscriber latent tolerance θ ~ U(0.1, 0.5) instead of the cliff at the threshold ([failure-simulation.md §4.8](failure-simulation.md#48-opt-in-threshold_cdf-failure-model)). Default reproduces the published labels. |
-| `--export-json` | `False` | Write JSON result files |
-
-The emitted `impact_scores.json` is schema 2.1: it names its `labeler`, declares
-`labeled_node_types` / `labeled_dimensions` / `unlabeled_node_ids`, and carries a
-`label_stability` block giving the ceiling on any correlation computed against it. See
-[failure-simulation.md §6.1](failure-simulation.md#131-impact_scoresjson-fault-injection-ground-truth).
-
-#### `message-flow`
-
-Discrete-event SimPy simulation.
+`FaultInjector` cascade labels I\* → `impact_scores.json` ([format](failure-simulation.md#15-output-files)).
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--input` | `None` | Graph JSON file |
-| `--layer` | `None` | Resolves to `data/<layer>.json` |
-| `--output` | `output/simulation/` | Output directory |
-| `--duration` | `100.0` | Simulation duration (seconds) |
-| `--fault-node` | `None` | Node ID to fault |
-| `--fault-time` | `None` | Simulated fault time (default: `duration / 2`) |
+| `--nodes` | all of `--node-types` | Comma-separated node IDs to inject |
+| `--node-types` | `Application,Broker,Library` | Types to inject. Types left out are listed in `unlabeled_node_ids`, never scored 0. `Topic` and `Node` can be labelled too: a failed topic silences its readers, and a failed host takes its residents with it. |
+| `--seeds` | `42,123,456,789,2024` | Labels are seed means; two or more seeds are needed for the `label_stability` block |
+| `--cascade-depth` | `0` | Maximum waves (0 = unlimited) |
+| `--propagation-threshold` | `0.2` | Feed loss at which a subscriber may fail |
+| `--qos-factor` | `ladder` | `ladder` (published ×1.2 / ×1.15 / ×1.05), `wt` (topic weight w(t)), `none` (topology only) |
+| `--failure-model` | `step` | `threshold_cdf`: tolerance θ ~ U(0.1, 0.5) per subscriber instead of a cliff ([details](failure-simulation.md#4-faultinjector-cascade-labels-i)) |
+| `--network-gating` | off | A feed the live CONNECTS_TO network no longer carries counts as lost; labels `Node` and `NetworkDevice` failures |
+| `--replica-aware` | off | A host outage kills a multi-hosted component only when all its hosts are down |
+
+### `edge-criticality`
+
+`FailureSimulator` relationship-removal sweep → `edge_criticality.json`.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--layer-scope` | `system` | Layer whose relationships are swept |
+| `--top-q` | `50` | Number of most critical relationships to report |
+| `--network-gating` | off | As for `fault-inject` |
+
+### `message-flow`
+
+One `MessageFlowSimulator` run, with an optional failure → `message_flow_results.json`.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--duration` | `100.0` | Simulated seconds (the JSS study uses 60) |
+| `--fault-node` | none | Component to fail |
+| `--fault-time` | `duration / 2` | When it fails |
 | `--seed` | `42` | Random seed |
-| `--default-rate` | `10.0` | Fallback publish rate (Hz) |
-| `--default-queue-size` | `100` | Fallback broker queue capacity |
-| `--export-json` | `False` | Write JSON result files |
+| `--default-rate` | `10.0` | Publish rate (Hz) for topics that declare none |
+| `--default-queue-size` | `100` | Reader queue capacity when none is declared |
+| `--qos-mode` | `full` | `none` (policies off, load kept), `contracts`, `recovery`, `full`, `legacy` (pre-QoS, uncalibrated) |
+| `--target-utilization` | `0.65` | Target subscriber utilisation; `0` leaves service times uncalibrated |
+| `--utilization-mode` | `per_subscriber` | `global`: one service rate per scenario |
+| `--service-distribution` | `exponential` | `uniform`, `deterministic` |
+| `--replay-deadline` | `original` | A durability-replayed sample keeps its original timestamp, or `reset` |
+| `--warmup` | `0.0` | Seconds excluded from both windows at the start |
+| `--guard-band` | `0.0` | Seconds around the fault excluded from both windows |
 
-Runtime-engine flags ([failure-simulation.md §7.11](failure-simulation.md#711-runtime-engine-reactive-behaviour-deployment--gray-failures-opt-in)); every default is the published engine:
+Runtime-engine flags ([failure-simulation.md §11](failure-simulation.md#11-runtime-engine)). Every default is the published engine:
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--behavior-model` | `open_loop` | `reactive`: publication gated on input freshness, so faults propagate |
+| `--behavior-model` | `open_loop` | `reactive`: publication gated on input freshness, so failures propagate |
 | `--deployment-model` | `none` | `stations`: brokers and host CPUs on the data path; brokers and hosts labelled |
-| `--rng-streams` | `shared` | `per_process`: common random numbers |
-| `--estimator` | `windows` | `paired`: same-stream no-fault baseline, reports `i_dyn_paired` |
+| `--rng-streams` | `shared` | `per_process`: one random stream per process (common random numbers) |
+| `--estimator` | `windows` | `paired`: same-stream no-fault baseline; reports `i_dyn_paired` |
 | `--replica-aware` | off | A host outage kills a multi-hosted component only when all its hosts are down |
 | `--hot-standby` / `--failover-delay` | off / `1.0` | `hotstandby` components return after the delay |
-| `--workload-model` | `declared` | `mmpp`: bursty arrivals, same mean rate |
+| `--workload-model` | `declared` | `mmpp`: bursty arrivals with the declared mean rate |
 | `--staleness-periods` | `3.0` | Reactive input-freshness window, in periods |
 | `--network-gating` | off | With `stations`: CONNECTS_TO reachability gates delivery |
-| `--qos-semantics` | `engine` | `dds`: DEADLINE as a period contract (no drops), KEEP_LAST replaces the oldest sample, request-vs-offered incompatible pairs do not communicate ([failure-simulation.md §7.13](failure-simulation.md#713-dds-qos-semantics--standard-status-metrics-opt-in)) |
-| `--dds-status` | off | Count DDS standard statuses into the result (implied by `--qos-semantics dds`) |
-| `--fault-mode` | `crash` | Runtime fault mode for `--fault-node` (`transient_crash`, `freeze`, `slowdown`, `omission`, `babbling`, `buffer_leak`, `redelivery_storm`, `link_flap`) |
-| `--fault-duration` | `None` | Duration of a bounded fault |
-| `--fault-param KEY=VALUE` | — | Fault parameter (repeatable), e.g. `k=4`, `p=0.5` |
-| `--faults FILE` | `None` | JSON list of `{target, mode, start_s, duration_s, params}`; replaces `--fault-node` |
+| `--qos-semantics` | `engine` | `dds`: DEADLINE as a period contract (no drops), KEEP_LAST replaces the oldest sample, incompatible offered/requested QoS pairs do not communicate ([§12](failure-simulation.md#12-dds-qos-semantics-and-status-metrics)) |
+| `--dds-status` | off | Count the DDS standard statuses into the result (implied by `--qos-semantics dds`) |
+| `--fault-mode` | `crash` | `transient_crash`, `freeze`, `slowdown`, `omission`, `babbling`, `buffer_leak`, `redelivery_storm`, `link_flap` |
+| `--fault-duration` | none | Duration of a bounded fault |
+| `--fault-param KEY=VALUE` | — | Fault parameter, repeatable, e.g. `k=4`, `p=0.5` |
+| `--faults FILE` | none | JSON list of `{target, mode, start_s, duration_s, params}`; replaces `--fault-node` |
 
-#### `runtime-sweep`
+### `runtime-sweep`
 
-Faults every candidate under the runtime engine and writes `runtime_labels.json`: `i_delivery`, `i_delivery_consumer`, `i_flow`, `i_timeliness`, `i_recovery` with per-seed values and label stability, plus the order-k references `ref_delivery_first_order`, `ref_flow_reach`, `ref_flow_policy`. Defaults are the runtime oracle (`reactive`, `stations`, `per_process`, paired). Flags: the runtime flags above, plus `--seeds` (`42,123,456`), `--nodes`, `--duration` (`60`), `--qos-mode`, `--target-utilization`, `--fault-mode` / `--fault-duration` / `--fault-param`, and `--workers` (one seed per worker).
+Fails every candidate under the runtime engine → `runtime_labels.json`: the five runtime labels with per-seed values and stability, plus their order-k references ([§11](failure-simulation.md#11-runtime-engine)). Defaults are the runtime oracle.
 
-#### `testbed`
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--seeds` | `42,123,456` | One run per seed per candidate (plus one baseline per seed) |
+| `--nodes` | Applications (+ Brokers, Nodes under `stations`) | Candidates |
+| `--duration` | `60.0` | Simulated seconds per run |
+| `--qos-mode` / `--target-utilization` | `full` / `0.65` | As for `message-flow` |
+| `--fault-mode` / `--fault-duration` / `--fault-param` | `crash` | The fault applied to each candidate |
+| `--workers` | `1` | Parallel workers, one seed each |
+| runtime flags | `reactive`, `stations`, `per_process` | As for `message-flow`; `--estimator` is always `paired` |
 
-`testbed {build,run,calibrate,fidelity} --output DIR` (`build --qos-semantics dds` for DDS-semantics agents) — the emulated DDS testbed ([failure-simulation.md §7.12](failure-simulation.md#712-emulated-dds-testbed-calibration--fidelity-opt-in)). `build --input SCENARIO --duration S` writes `deployment.json`, `Dockerfile` and `docker-compose.yml`. `run --duration S [--faults FILE] [--mode local|docker]` runs it; `local` is in-process and needs no containers, while `docker` builds an image that downloads `cyclonedds`. `calibrate` writes `profile.json`. `fidelity [--calibrated]` simulates the same run and writes `fidelity.json`.
+### `testbed`
 
-#### `combined`
+`testbed {build,run,calibrate,fidelity} --output DIR` runs the emulated DDS testbed ([§13](failure-simulation.md#13-emulated-testbed-calibration-and-fidelity)).
 
-Run `fault-inject` then `message-flow` in sequence. Accepts all flags from both subcommands.
+| Flag | Default | Used by | Description |
+|------|---------|---------|-------------|
+| `--input` | — | `build` | Scenario JSON |
+| `--duration` | `60.0` | `build`, `run` | Run length (s) |
+| `--seed` | `0` | `build`, `run` | Agent seed |
+| `--target-utilization` | `0.65` | `build` | Service times in the deployment plan |
+| `--qos-semantics` | `engine` | `build` | `dds` for DDS-semantics agents |
+| `--mode` | `local` | `run` | `local`: in-process, no containers; `docker`: Docker Compose and Cyclone DDS (downloads `cyclonedds` when the image is built) |
+| `--faults` | none | `run` | Fault specs, the same JSON as `message-flow --faults` |
+| `--calibrated` | off | `fidelity` | Simulate with `profile.json` from `calibrate` |
+
+### `combined`
+
+Runs `fault-inject`, then `message-flow`, using a subset of their flags: `--nodes`, `--node-types` (default `Application,Broker`), `--seeds` (default `42`), `--cascade-depth`, `--propagation-threshold`, `--qos-factor`, `--duration` (`100.0`), `--fault-node`, `--fault-time`, `--seed`, `--default-rate`, `--default-queue-size`.
 
 ### Output Files
 
-- `fault-inject` → `output/simulation/impact_scores.json`, `output/simulation/impact_scores_summary.txt`
-- `message-flow` → `output/simulation/message_flow_results.json`, `output/simulation/message_flow_summary.txt`
-- `runtime-sweep` → `output/simulation/runtime_labels.json`
-- `testbed` → `<output>/deployment.json`, `docker-compose.yml`, `telemetry/*.jsonl`, `run.json`, `profile.json`, `fidelity.json`
-- `combined` → all of the above
+- `fault-inject` → `impact_scores.json`, `impact_scores_summary.txt`
+- `edge-criticality` → `edge_criticality.json`
+- `message-flow` → `message_flow_results.json`, `message_flow_summary.txt`
+- `runtime-sweep` → `runtime_labels.json`
+- `testbed` → `<output>/deployment.json`, `Dockerfile`, `docker-compose.yml`, `telemetry/*.jsonl`, `run.json`, `profile.json`, `fidelity.json`
+- `combined` → the `fault-inject` and `message-flow` files
+
+All are written under `--output` (default `output/simulation/`). Formats are described in [failure-simulation.md §15](failure-simulation.md#15-output-files).
 
 ---
 
