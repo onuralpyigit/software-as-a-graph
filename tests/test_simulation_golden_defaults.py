@@ -18,9 +18,11 @@ from pathlib import Path
 
 import pytest
 
-from saag.core.graph_io import load_graph
-from saag.simulation import MessageFlowSimulator
-from saag.simulation.fault_injector import FaultInjector, RECOMMENDED_SEEDS
+pytest.importorskip("simpy")
+
+from saag.core.graph_io import load_graph  # noqa: E402
+from saag.simulation import MessageFlowSimulator  # noqa: E402
+from saag.simulation.fault_injector import FaultInjector, RECOMMENDED_SEEDS  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 GOLDEN = Path(__file__).parent / "golden" / "simulation_defaults.json"
