@@ -938,9 +938,9 @@
    },
    "A1": {
     "change_reach": 0.2602739726027397,
-    "maintainability_impact": 0.3338390520236303,
+    "maintainability_impact": 0.32848449597480045,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.16204504100684972
+    "weighted_change_impact": 0.1467463094387645
    },
    "A10": {
     "change_reach": 0.2465753424657534,
@@ -950,9 +950,9 @@
    },
    "A11": {
     "change_reach": 0.2602739726027397,
-    "maintainability_impact": 0.31996190211218284,
+    "maintainability_impact": 0.31856889347228956,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.12239604125985698
+    "weighted_change_impact": 0.11841601657444768
    },
    "A12": {
     "change_reach": 0.2602739726027397,
@@ -968,9 +968,9 @@
    },
    "A14": {
     "change_reach": 0.2602739726027397,
-    "maintainability_impact": 0.24812614618824663,
+    "maintainability_impact": 0.2480463757860116,
     "normalized_change_depth": 0.4,
-    "weighted_change_impact": 0.14572245290575359
+    "weighted_change_impact": 0.14549453747079635
    },
    "A15": {
     "change_reach": 0.2876712328767123,
@@ -986,9 +986,9 @@
    },
    "A17": {
     "change_reach": 0.3013698630136986,
-    "maintainability_impact": 0.34824068585622464,
+    "maintainability_impact": 0.3459684580664313,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.15035499285731496
+    "weighted_change_impact": 0.14386291345790525
    },
    "A18": {
     "change_reach": 0.0,
@@ -998,33 +998,33 @@
    },
    "A19": {
     "change_reach": 0.2602739726027397,
-    "maintainability_impact": 0.3310627636282749,
+    "maintainability_impact": 0.3270253051579118,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.15411278844869142
+    "weighted_change_impact": 0.1425771928190825
    },
    "A2": {
     "change_reach": 0.2602739726027397,
-    "maintainability_impact": 0.2884005570009458,
+    "maintainability_impact": 0.283610928229046,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.1465064837991799
+    "weighted_change_impact": 0.1328218301651803
    },
    "A20": {
     "change_reach": 0.273972602739726,
-    "maintainability_impact": 0.3021292454116151,
+    "maintainability_impact": 0.3012961534573188,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.168118783367824
+    "weighted_change_impact": 0.16573852064126313
    },
    "A21": {
     "change_reach": 0.2602739726027397,
-    "maintainability_impact": 0.34037245963934804,
+    "maintainability_impact": 0.3406266236203912,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.18071191990890048
+    "weighted_change_impact": 0.18143810271188082
    },
    "A22": {
     "change_reach": 0.2602739726027397,
-    "maintainability_impact": 0.29846527898292285,
+    "maintainability_impact": 0.3006628830744998,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.17526283231911438
+    "weighted_change_impact": 0.18154170115219123
    },
    "A23": {
     "change_reach": 0.0,
@@ -1034,15 +1034,15 @@
    },
    "A24": {
     "change_reach": 0.273972602739726,
-    "maintainability_impact": 0.3021292454116151,
+    "maintainability_impact": 0.3012961534573188,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.168118783367824
+    "weighted_change_impact": 0.16573852064126313
    },
    "A25": {
     "change_reach": 0.2602739726027397,
-    "maintainability_impact": 0.28782448252718545,
+    "maintainability_impact": 0.2861023856280287,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.14486055673129314
+    "weighted_change_impact": 0.1399402798765596
    },
    "A3": {
     "change_reach": 0.2602739726027397,
@@ -1058,21 +1058,21 @@
    },
    "A5": {
     "change_reach": 0.2602739726027397,
-    "maintainability_impact": 0.32200115702670273,
+    "maintainability_impact": 0.3206081483868095,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.12822248387277096
+    "weighted_change_impact": 0.12424245918736165
    },
    "A6": {
     "change_reach": 0.2602739726027397,
-    "maintainability_impact": 0.33350060170904133,
+    "maintainability_impact": 0.3313655255232452,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.16107804010802415
+    "weighted_change_impact": 0.15497782243432093
    },
    "A7": {
     "change_reach": 0.2602739726027397,
-    "maintainability_impact": 0.2916316257867556,
+    "maintainability_impact": 0.29442696650440336,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.15573810890149356
+    "weighted_change_impact": 0.1637247966662014
    },
    "A8": {
     "change_reach": 0.2602739726027397,
@@ -1082,45 +1082,45 @@
    },
    "A9": {
     "change_reach": 0.273972602739726,
-    "maintainability_impact": 0.340503296818782,
+    "maintainability_impact": 0.3385830397835675,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.16347321595972927
+    "weighted_change_impact": 0.15798676728768796
    },
    "B0": {
     "change_reach": 0.3835616438356164,
-    "maintainability_impact": 0.3205309337901376,
+    "maintainability_impact": 0.3231551576981965,
     "normalized_change_depth": 0.4,
-    "weighted_change_impact": 0.19408055446888628
+    "weighted_change_impact": 0.2015783370633404
    },
    "B1": {
     "change_reach": 0.410958904109589,
-    "maintainability_impact": 0.4058528522850703,
+    "maintainability_impact": 0.4043354542704951,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.28834670124501494
+    "weighted_change_impact": 0.2840112783462288
    },
    "B2": {
     "change_reach": 0.4383561643835616,
-    "maintainability_impact": 0.38593051278521234,
+    "maintainability_impact": 0.385439256169034,
     "normalized_change_depth": 0.4,
-    "weighted_change_impact": 0.31048639660745597
+    "weighted_change_impact": 0.30908280627551793
    },
    "B3": {
     "change_reach": 0.4383561643835616,
-    "maintainability_impact": 0.42508763798532095,
+    "maintainability_impact": 0.42325083388199614,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.3080781828934806
+    "weighted_change_impact": 0.30283017116969546
    },
    "B4": {
     "change_reach": 0.4246575342465753,
-    "maintainability_impact": 0.3719613274352805,
+    "maintainability_impact": 0.3706464682041048,
     "normalized_change_depth": 0.4,
-    "weighted_change_impact": 0.28818696292663315
+    "weighted_change_impact": 0.2844302222661311
    },
    "N0": {
     "change_reach": 0.0958904109589041,
-    "maintainability_impact": 0.1408922210205238,
+    "maintainability_impact": 0.13984309557193156,
     "normalized_change_depth": 0.4,
-    "weighted_change_impact": 0.05069010311147692
+    "weighted_change_impact": 0.047692601829784846
    },
    "N1": {
     "change_reach": 0.0958904109589041,
@@ -1130,9 +1130,9 @@
    },
    "N2": {
     "change_reach": 0.0958904109589041,
-    "maintainability_impact": 0.14428755979538688,
+    "maintainability_impact": 0.1424342367237837,
     "normalized_change_depth": 0.4,
-    "weighted_change_impact": 0.060391071039657206
+    "weighted_change_impact": 0.055095862263648064
    },
    "N3": {
     "change_reach": 0.0958904109589041,
@@ -1148,89 +1148,89 @@
    },
    "N5": {
     "change_reach": 0.0958904109589041,
-    "maintainability_impact": 0.14759313958495027,
+    "maintainability_impact": 0.14464196341927033,
     "normalized_change_depth": 0.4,
-    "weighted_change_impact": 0.06983558472412403
+    "weighted_change_impact": 0.06140365282218128
    },
    "N6": {
     "change_reach": 0.0958904109589041,
     "maintainability_impact": 0.1099531662970708,
     "normalized_change_depth": 0.2,
-    "weighted_change_impact": 0.0765785181873256
+    "weighted_change_impact": 0.07657851818732558
    },
    "N7": {
     "change_reach": 0.0958904109589041,
-    "maintainability_impact": 0.11256564051727778,
+    "maintainability_impact": 0.1125656405172778,
     "normalized_change_depth": 0.2,
-    "weighted_change_impact": 0.08404273024505982
+    "weighted_change_impact": 0.08404273024505983
    }
   },
   "microservices_system": {
    "A0": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5461446346623058,
+    "maintainability_impact": 0.5464114018629215,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.3457414272204876
+    "weighted_change_impact": 0.34650361922224665
    },
    "A1": {
     "change_reach": 0.5783783783783784,
-    "maintainability_impact": 0.543916679115167,
+    "maintainability_impact": 0.5427657174550768,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.35327545384256176
+    "weighted_change_impact": 0.34998699195658994
    },
    "A10": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.4830695640928837,
+    "maintainability_impact": 0.4933090316108508,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.2798126541649959
+    "weighted_change_impact": 0.309068275644902
    },
    "A11": {
-    "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.542583152012814,
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.5182266093609484,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.33556576250765385
+    "weighted_change_impact": 0.2798752545447949
    },
    "A12": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5218223400227839,
+    "maintainability_impact": 0.5212826118129015,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.27624915682185375
+    "weighted_change_impact": 0.2747070762221896
    },
    "A13": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.4742844746590985,
+    "maintainability_impact": 0.47223198345276585,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.25471239863989525
+    "weighted_change_impact": 0.24884813805037354
    },
    "A14": {
     "change_reach": 0.5945945945945946,
-    "maintainability_impact": 0.5390072956918164,
+    "maintainability_impact": 0.5424486249737323,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.3183992232121393
+    "weighted_change_impact": 0.32823159258904183
    },
    "A15": {
     "change_reach": 0.5783783783783784,
-    "maintainability_impact": 0.532254087717213,
+    "maintainability_impact": 0.532017026084208,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.3199537641341221
+    "weighted_change_impact": 0.31927644518267917
    },
    "A16": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.48641008636773575,
+    "maintainability_impact": 0.4961949088077878,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.28935700352171606
+    "weighted_change_impact": 0.317313639064722
    },
    "A17": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.48451465692795276,
+    "maintainability_impact": 0.4855617767745816,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.2839414908366218
+    "weighted_change_impact": 0.2869332618269899
    },
    "A18": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.522661205427057,
+    "maintainability_impact": 0.5214805275840397,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.2786459151197767
+    "weighted_change_impact": 0.2752725498540129
    },
    "A19": {
     "change_reach": 0.06486486486486487,
@@ -1239,118 +1239,118 @@
     "weighted_change_impact": 0.005522590576528793
    },
    "A2": {
-    "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.4892842302590077,
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.47631106323494055,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.29756884321106436
+    "weighted_change_impact": 0.2744022656133437
    },
    "A20": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.4956495503067689,
+    "maintainability_impact": 0.491038949162528,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.31575547191895353
+    "weighted_change_impact": 0.302582325792551
    },
    "A21": {
     "change_reach": 0.5945945945945946,
-    "maintainability_impact": 0.5025076270033866,
+    "maintainability_impact": 0.5029873843882188,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.3284001698166255
+    "weighted_change_impact": 0.32977090520186053
    },
    "A22": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5207449511720186,
+    "maintainability_impact": 0.5226163601580109,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.2731709029625241
+    "weighted_change_impact": 0.2785177857796449
    },
    "A23": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5457887113251498,
+    "maintainability_impact": 0.5537024135185319,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.34472450340004196
+    "weighted_change_impact": 0.36733508109541924
    },
    "A24": {
     "change_reach": 0.5783783783783784,
-    "maintainability_impact": 0.5468158162544282,
+    "maintainability_impact": 0.5190165260270919,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.36155870281187963
+    "weighted_change_impact": 0.2821321593052047
    },
    "A25": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.48271718275551356,
+    "maintainability_impact": 0.48742788110208285,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.2788058503439383
+    "weighted_change_impact": 0.2922649884769935
    },
    "A26": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5168988808271588,
+    "maintainability_impact": 0.5182457949493076,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.26218213054863926
+    "weighted_change_impact": 0.26603045661192126
    },
    "A27": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5392317402794516,
+    "maintainability_impact": 0.5430919558883378,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.32599030041233285
+    "weighted_change_impact": 0.33701948786629343
    },
    "A28": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5386909421545214,
+    "maintainability_impact": 0.5459237274506354,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.3244451629125323
+    "weighted_change_impact": 0.3451102637585724
    },
    "A29": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.4944655205033946,
+    "maintainability_impact": 0.4927568518582145,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.3123725296235984
+    "weighted_change_impact": 0.30749061920879817
    },
    "A3": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5412864971849215,
+    "maintainability_impact": 0.5361454373622065,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.3318610344279609
+    "weighted_change_impact": 0.31717229207734676
    },
    "A30": {
-    "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5091992233489717,
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.4840062845533607,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.3544688234681046
+    "weighted_change_impact": 0.2963886122374012
    },
    "A31": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.47545387120536675,
+    "maintainability_impact": 0.47178938325135067,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.25805353162923317
+    "weighted_change_impact": 0.24758356604633003
    },
    "A32": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.4880838425762559,
+    "maintainability_impact": 0.4936038910211148,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.29413916411748786
+    "weighted_change_impact": 0.30991073110279893
    },
    "A33": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.4764109520735315,
+    "maintainability_impact": 0.47859073384614687,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.2607880483954182
+    "weighted_change_impact": 0.2670159963171763
    },
    "A34": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5348697128429762,
+    "maintainability_impact": 0.533249983475122,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.3135273648795461
+    "weighted_change_impact": 0.30889956668567653
    },
    "A35": {
     "change_reach": 0.5837837837837838,
-    "maintainability_impact": 0.5153983278352516,
+    "maintainability_impact": 0.5138367858281525,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.2648446432358537
+    "weighted_change_impact": 0.2603830946441422
    },
    "A36": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.527769405508127,
+    "maintainability_impact": 0.5296424970311518,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.29324077249426245
+    "weighted_change_impact": 0.29859246256004773
    },
    "A37": {
     "change_reach": 0.0,
@@ -1360,21 +1360,21 @@
    },
    "A38": {
     "change_reach": 0.5783783783783784,
-    "maintainability_impact": 0.5906404327149027,
+    "maintainability_impact": 0.5903184776673456,
     "normalized_change_depth": 1.0,
-    "weighted_change_impact": 0.3724861784132356
+    "weighted_change_impact": 0.3715663068487865
    },
    "A39": {
-    "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5501359723105118,
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.5431351894213465,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.3571452490725048
+    "weighted_change_impact": 0.3510426261459322
    },
    "A4": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5184793112684131,
+    "maintainability_impact": 0.5180504917035638,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.26669764609507973
+    "weighted_change_impact": 0.2654724473383672
    },
    "A40": {
     "change_reach": 0.03783783783783784,
@@ -1384,39 +1384,39 @@
    },
    "A41": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5808309487876557,
+    "maintainability_impact": 0.5782877524731389,
     "normalized_change_depth": 1.0,
-    "weighted_change_impact": 0.3305594675786303
+    "weighted_change_impact": 0.3232931923942964
    },
    "A42": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.49730574377077763,
+    "maintainability_impact": 0.4957028799310719,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.3204874532446928
+    "weighted_change_impact": 0.3159078422741052
    },
    "A43": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.528001863410348,
+    "maintainability_impact": 0.5278310974286997,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.29390493792917954
+    "weighted_change_impact": 0.2934170351244703
    },
    "A44": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.49874817321793063,
+    "maintainability_impact": 0.5019601156404433,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.32460868023655853
+    "weighted_change_impact": 0.33378565858659476
    },
    "A45": {
-    "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5412124272162888,
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.5400027211531243,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.33164940594615344
+    "weighted_change_impact": 0.3420927168081543
    },
    "A46": {
-    "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.4975170780359784,
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.490757740515827,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.32109126543098077
+    "weighted_change_impact": 0.31567848641587637
    },
    "A47": {
     "change_reach": 0.5783783783783784,
@@ -1425,34 +1425,34 @@
     "weighted_change_impact": 0.43505714960701847
    },
    "A48": {
-    "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5420840173197968,
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.5302591166875941,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.33413966338474754
+    "weighted_change_impact": 0.31425384690663927
    },
    "A49": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5065843891517765,
+    "maintainability_impact": 0.5017804765733351,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.34699786861897547
+    "weighted_change_impact": 0.3332724041091427
    },
    "A5": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5272915266053206,
+    "maintainability_impact": 0.535495497267702,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.29187540420053
+    "weighted_change_impact": 0.3153153203787621
    },
    "A50": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.48939314005967116,
+    "maintainability_impact": 0.49848309622785547,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.2978800140701029
+    "weighted_change_impact": 0.32385131740777245
    },
    "A51": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5171298541289936,
+    "maintainability_impact": 0.5171962762551531,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.26284205426816687
+    "weighted_change_impact": 0.2630318317714798
    },
    "A52": {
     "change_reach": 0.0,
@@ -1461,46 +1461,46 @@
     "weighted_change_impact": 0.0
    },
    "A53": {
-    "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5281886759844607,
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.528072116205224,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.29443868814093005
+    "weighted_change_impact": 0.3080052740998678
    },
    "A54": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.48729014711343377,
+    "maintainability_impact": 0.4919668275905098,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.29187146279513887
+    "weighted_change_impact": 0.30523340701535623
    },
    "A55": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5000341676729895,
+    "maintainability_impact": 0.5008549385806469,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.3282829501081552
+    "weighted_change_impact": 0.3306280098443192
    },
    "A56": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.550742792639409,
+    "maintainability_impact": 0.5497545016313334,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.35887902144078215
+    "weighted_change_impact": 0.3560553328462807
    },
    "A57": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.4898670699296066,
+    "maintainability_impact": 0.4880772391278456,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.2992340994127757
+    "weighted_change_impact": 0.29412029712202986
    },
    "A58": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.4860533164390297,
+    "maintainability_impact": 0.4824949239683451,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.2883376608682703
+    "weighted_change_impact": 0.27817082523774267
    },
    "A59": {
-    "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.48259842750896975,
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.4711268938598306,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.27846654963952744
+    "weighted_change_impact": 0.25959035311302947
    },
    "A6": {
     "change_reach": 0.5783783783783784,
@@ -1510,15 +1510,15 @@
    },
    "A60": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5030572137704552,
+    "maintainability_impact": 0.5029872661332258,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.3369202246723429
+    "weighted_change_impact": 0.3367203742802587
    },
    "A61": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5217773248062684,
+    "maintainability_impact": 0.5266892056177084,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.27612054191752344
+    "weighted_change_impact": 0.29015448709306624
    },
    "A62": {
     "change_reach": 0.0,
@@ -1528,57 +1528,57 @@
    },
    "A63": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5324716216584076,
+    "maintainability_impact": 0.536011067477262,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.3066756757807781
+    "weighted_change_impact": 0.3167883781203624
    },
    "A64": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5287721063241025,
+    "maintainability_impact": 0.5317898276846175,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.2961056319684781
+    "weighted_change_impact": 0.3047276929985208
    },
    "A65": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.4972506289483413,
+    "maintainability_impact": 0.49013495868149387,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.3203299823234463
+    "weighted_change_impact": 0.2999994958467392
    },
    "A66": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.47497579394750994,
+    "maintainability_impact": 0.4731478624744735,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.25668759660678514
+    "weighted_change_impact": 0.25146493525525243
    },
    "A67": {
-    "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.4889017684753414,
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.4803175363358442,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.29647609525773216
+    "weighted_change_impact": 0.2858493316159254
    },
    "A68": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.535921754183895,
+    "maintainability_impact": 0.5420325144829432,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.316533197282171
+    "weighted_change_impact": 0.3339925124223086
    },
    "A69": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5196349205280058,
+    "maintainability_impact": 0.5149783647565178,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.26999938683677316
+    "weighted_change_impact": 0.2566949417753791
    },
    "A7": {
     "change_reach": 0.5837837837837838,
-    "maintainability_impact": 0.596208119910673,
+    "maintainability_impact": 0.5958861648631157,
     "normalized_change_depth": 1.0,
-    "weighted_change_impact": 0.38144404916562924
+    "weighted_change_impact": 0.3805241776011801
    },
    "A70": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.4877996763930132,
+    "maintainability_impact": 0.48981969401463865,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.2933272607367945
+    "weighted_change_impact": 0.29909873965572437
    },
    "A71": {
     "change_reach": 0.5891891891891892,
@@ -1588,9 +1588,9 @@
    },
    "A72": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5462493293373092,
+    "maintainability_impact": 0.538014123269667,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.3460405548633545
+    "weighted_change_impact": 0.322511394670091
    },
    "A73": {
     "change_reach": 0.0,
@@ -1600,39 +1600,39 @@
    },
    "A74": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5401231181849682,
+    "maintainability_impact": 0.5391944798586814,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.3285370944280945
+    "weighted_change_impact": 0.325883842067275
    },
    "A75": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.49822306427334734,
+    "maintainability_impact": 0.49926310545030983,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.3231083689663206
+    "weighted_change_impact": 0.3260799151862135
    },
    "A76": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.524484769672879,
+    "maintainability_impact": 0.5199579100367266,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.28385609867926814
+    "weighted_change_impact": 0.270922214004547
    },
    "A77": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5426947041896828,
+    "maintainability_impact": 0.5425181669449695,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.3358844830129931
+    "weighted_change_impact": 0.3353800908852407
    },
    "A78": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5415262447610537,
+    "maintainability_impact": 0.5379843378314957,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.3325460275026244
+    "weighted_change_impact": 0.3224262934181727
    },
    "A79": {
     "change_reach": 0.5783783783783784,
-    "maintainability_impact": 0.5321882808343756,
+    "maintainability_impact": 0.5327388867112881,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.31976574446887246
+    "weighted_change_impact": 0.3213389041171938
    },
    "A8": {
     "change_reach": 0.0,
@@ -1642,21 +1642,21 @@
    },
    "A80": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5497101448580126,
+    "maintainability_impact": 0.5477203586471967,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.3559285992082213
+    "weighted_change_impact": 0.3502434957487473
    },
    "A81": {
     "change_reach": 0.5783783783783784,
-    "maintainability_impact": 0.5397980226640687,
+    "maintainability_impact": 0.5370280246983613,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.34150786398228133
+    "weighted_change_impact": 0.3335935840802601
    },
    "A82": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5196230545362285,
+    "maintainability_impact": 0.5148631200510794,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.2699654840031237
+    "weighted_change_impact": 0.256365671188412
    },
    "A83": {
     "change_reach": 0.032432432432432434,
@@ -1672,27 +1672,27 @@
    },
    "A85": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5239277245271312,
+    "maintainability_impact": 0.5271623721609344,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.2822645411199888
+    "weighted_change_impact": 0.29150639150228363
    },
    "A86": {
     "change_reach": 0.5945945945945946,
-    "maintainability_impact": 0.49254723509112314,
+    "maintainability_impact": 0.4962421388605385,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.2999419072101586
+    "weighted_change_impact": 0.3104987751227739
    },
    "A87": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.502485461174717,
+    "maintainability_impact": 0.500131785669637,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.3352866458273769
+    "weighted_change_impact": 0.32856185867000515
    },
    "A88": {
     "change_reach": 0.5783783783783784,
-    "maintainability_impact": 0.5331330568471702,
+    "maintainability_impact": 0.5332014995381372,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.32246510450542815
+    "weighted_change_impact": 0.3226606550510483
    },
    "A89": {
     "change_reach": 0.032432432432432434,
@@ -1702,45 +1702,45 @@
    },
    "A9": {
     "change_reach": 0.5891891891891892,
-    "maintainability_impact": 0.5376309484013386,
+    "maintainability_impact": 0.5351585822429545,
     "normalized_change_depth": 0.8,
-    "weighted_change_impact": 0.3214166093320097
+    "weighted_change_impact": 0.314352706022341
    },
    "B0": {
     "change_reach": 0.7027027027027027,
-    "maintainability_impact": 0.5475270759245932,
+    "maintainability_impact": 0.5480677072450295,
     "normalized_change_depth": 0.4,
-    "weighted_change_impact": 0.4323167420239341
+    "weighted_change_impact": 0.4338614029394667
    },
    "B1": {
     "change_reach": 0.6972972972972973,
-    "maintainability_impact": 0.5254732867918541,
+    "maintainability_impact": 0.5303879618846727,
     "normalized_change_depth": 0.4,
-    "weighted_change_impact": 0.3762557228802008
+    "weighted_change_impact": 0.3902976517168253
    },
    "B2": {
     "change_reach": 0.6918918918918919,
-    "maintainability_impact": 0.5361493107210347,
+    "maintainability_impact": 0.5386321867417618,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.29942274105623806
+    "weighted_change_impact": 0.30651667254402987
    },
    "B3": {
     "change_reach": 0.6972972972972973,
-    "maintainability_impact": 0.5670303106642094,
+    "maintainability_impact": 0.5658235482043041,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.3807043625155018
+    "weighted_change_impact": 0.3772564697729155
    },
    "B4": {
     "change_reach": 0.7135135135135136,
-    "maintainability_impact": 0.6101944781677211,
+    "maintainability_impact": 0.6069001375427618,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.4831811345332573
+    "weighted_change_impact": 0.47376873274765935
    },
    "B5": {
     "change_reach": 0.6810810810810811,
-    "maintainability_impact": 0.56214077677909,
+    "maintainability_impact": 0.5573858593057566,
     "normalized_change_depth": 0.6,
-    "weighted_change_impact": 0.38758368655029574
+    "weighted_change_impact": 0.3739982080550572
    },
    "N0": {
     "change_reach": 0.07567567567567568,
@@ -1756,9 +1756,9 @@
    },
    "N10": {
     "change_reach": 0.07567567567567568,
-    "maintainability_impact": 0.1311142231355926,
+    "maintainability_impact": 0.13163811492457106,
     "normalized_change_depth": 0.4,
-    "weighted_change_impact": 0.04874334023296718
+    "weighted_change_impact": 0.05024017391576284
    },
    "N11": {
     "change_reach": 0.07567567567567568,
@@ -1770,13 +1770,13 @@
     "change_reach": 0.07567567567567568,
     "maintainability_impact": 0.09210225294617629,
     "normalized_change_depth": 0.2,
-    "weighted_change_impact": 0.051566282548920615
+    "weighted_change_impact": 0.05156628254892062
    },
    "N13": {
     "change_reach": 0.07567567567567568,
     "maintainability_impact": 0.10014417496526251,
     "normalized_change_depth": 0.2,
-    "weighted_change_impact": 0.07454320260345272
+    "weighted_change_impact": 0.07454320260345271
    },
    "N14": {
     "change_reach": 0.07567567567567568,
@@ -1788,7 +1788,7 @@
     "change_reach": 0.07567567567567568,
     "maintainability_impact": 0.10080721694121772,
     "normalized_change_depth": 0.2,
-    "weighted_change_impact": 0.076437608249039
+    "weighted_change_impact": 0.07643760824903902
    },
    "N3": {
     "change_reach": 0.07567567567567568,
@@ -1798,15 +1798,15 @@
    },
    "N4": {
     "change_reach": 0.07567567567567568,
-    "maintainability_impact": 0.13181270490843566,
+    "maintainability_impact": 0.1322222595763023,
     "normalized_change_depth": 0.4,
-    "weighted_change_impact": 0.05073900244109027
+    "weighted_change_impact": 0.05190915863499495
    },
    "N5": {
     "change_reach": 0.07567567567567568,
-    "maintainability_impact": 0.13161668416742836,
+    "maintainability_impact": 0.1322674416298399,
     "normalized_change_depth": 0.4,
-    "weighted_change_impact": 0.05017894318106939
+    "weighted_change_impact": 0.05203825021653085
    },
    "N6": {
     "change_reach": 0.07567567567567568,
@@ -1830,7 +1830,7 @@
     "change_reach": 0.07567567567567568,
     "maintainability_impact": 0.13333160475245126,
     "normalized_change_depth": 0.4,
-    "weighted_change_impact": 0.055078716281134844
+    "weighted_change_impact": 0.05507871628113483
    }
   }
  },

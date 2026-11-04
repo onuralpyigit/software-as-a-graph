@@ -728,7 +728,9 @@ class SimulationGraph:
                         key = (b1, b2, "broker_to_broker")
                         edges[key] = max(edges.get(key, 0.0), node_w)
 
-        self._dependency_edges = [(s, t, w, d) for (s, t, d), w in edges.items()]
+        # Sorted: `edges` fills in set-of-topics order, which PYTHONHASHSEED salts, and
+        # the change-propagation BFS behind IM(v) is sensitive to arc order.
+        self._dependency_edges = [(s, t, edges[s, t, d], d) for s, t, d in sorted(edges)]
         return self._dependency_edges
 
     def get_depends_on_targets(self, comp_id: str) -> List[str]:
