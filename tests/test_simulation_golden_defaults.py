@@ -70,10 +70,10 @@ def _i_dyn():
 
 def _i_comp_and_i_m():
     """
-    Run in a child process with PYTHONHASHSEED=0. I_M depends on the hash seed:
-    SimulationGraph.get_dependency_edges() orders its arcs by iterating a set of
-    topic ids, and the change-propagation BFS is order-sensitive. The snapshot
-    pins the code's behaviour at one seed, not a seed-independent value.
+    Run in a child process with PYTHONHASHSEED=0. Set iteration order still
+    changes the floats by about 1e-16 (summation order), which an exact
+    comparison would see; test_i_m_does_not_depend_on_the_hash_seed covers the
+    larger, ordering-driven dependence this snapshot cannot.
     """
     env = {**os.environ, "PYTHONHASHSEED": "0", "PYTHONPATH": str(ROOT)}
     done = subprocess.run([sys.executable, __file__], env=env, cwd=ROOT,
@@ -129,6 +129,18 @@ def test_golden_defaults(current):
     expected = json.loads(GOLDEN.read_text())
     # Round-trip through JSON so float formatting cannot differ from the file.
     assert json.loads(json.dumps(current)) == expected
+
+
+def test_i_m_does_not_depend_on_the_hash_seed():
+    runs = []
+    for seed in ("1", "2"):
+        env = {**os.environ, "PYTHONHASHSEED": seed, "PYTHONPATH": str(ROOT)}
+        done = subprocess.run([sys.executable, __file__], env=env, cwd=ROOT,
+                              capture_output=True, text=True, check=True)
+        runs.append(json.loads(done.stdout)["i_m"])
+    for scenario, components in runs[0].items():
+        for comp, fields in components.items():
+            assert fields == pytest.approx(runs[1][scenario][comp], abs=1e-12)
 
 
 if __name__ == "__main__":
