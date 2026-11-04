@@ -1,4 +1,910 @@
 {
+ "i_comp": {
+  "atm_system": {
+   "A0": {
+    "cascade_count": 0,
+    "composite_impact": 0.04135813818392943,
+    "reachability_loss": 0.04129456593586578,
+    "reliability_impact": 0.03916686667067746
+   },
+   "A1": {
+    "cascade_count": 0,
+    "composite_impact": 0.06257869025765418,
+    "reachability_loss": 0.10484699710630896,
+    "reliability_impact": 0.05569187448641606
+   },
+   "A10": {
+    "cascade_count": 0,
+    "composite_impact": 0.018702042501013993,
+    "reachability_loss": 0.03179898349017052,
+    "reliability_impact": 0.01132660358382436
+   },
+   "A11": {
+    "cascade_count": 0,
+    "composite_impact": 0.030372894558726174,
+    "reachability_loss": 0.047885388088122705,
+    "reliability_impact": 0.01789247185192498
+   },
+   "A12": {
+    "cascade_count": 0,
+    "composite_impact": 0.07171725691457381,
+    "reachability_loss": 0.11609967777122399,
+    "reliability_impact": 0.04265349328523407
+   },
+   "A13": {
+    "cascade_count": 0,
+    "composite_impact": 0.027730866273123905,
+    "reachability_loss": 0.056311314969506365,
+    "reliability_impact": 0.01801962079024204
+   },
+   "A14": {
+    "cascade_count": 0,
+    "composite_impact": 0.09135597535865639,
+    "reachability_loss": 0.1321479521153689,
+    "reliability_impact": 0.10622844821175181
+   },
+   "A15": {
+    "cascade_count": 0,
+    "composite_impact": 0.015936008520111362,
+    "reachability_loss": 0.02001467225778375,
+    "reliability_impact": 0.00870458385365166
+   },
+   "A16": {
+    "cascade_count": 0,
+    "composite_impact": 0.053424804102115114,
+    "reachability_loss": 0.10848636827094249,
+    "reliability_impact": 0.0347156378467016
+   },
+   "A17": {
+    "cascade_count": 0,
+    "composite_impact": 0.0339569562657074,
+    "reachability_loss": 0.03890112798587142,
+    "reliability_impact": 0.018047033914521855
+   },
+   "A18": {
+    "cascade_count": 0,
+    "composite_impact": 0.030782762655192558,
+    "reachability_loss": 0.06250860778871858,
+    "reliability_impact": 0.020002754492389946
+   },
+   "A19": {
+    "cascade_count": 0,
+    "composite_impact": 0.05766185466875881,
+    "reachability_loss": 0.10977498617033443,
+    "reliability_impact": 0.054490780494292165
+   },
+   "A2": {
+    "cascade_count": 0,
+    "composite_impact": 0.08270025871551243,
+    "reachability_loss": 0.13675376124844074,
+    "reliability_impact": 0.06756988531641374
+   },
+   "A20": {
+    "cascade_count": 0,
+    "composite_impact": 0.017668564682020882,
+    "reachability_loss": 0.023658860298687023,
+    "reliability_impact": 0.027847251921621845
+   },
+   "A21": {
+    "cascade_count": 0,
+    "composite_impact": 0.08185877356723809,
+    "reachability_loss": 0.14774957454452642,
+    "reliability_impact": 0.06872177922424055
+   },
+   "A22": {
+    "cascade_count": 0,
+    "composite_impact": 0.06965796937758426,
+    "reachability_loss": 0.09809219571599503,
+    "reliability_impact": 0.05746674656958406
+   },
+   "A23": {
+    "cascade_count": 0,
+    "composite_impact": 0.008672168119843154,
+    "reachability_loss": 0.017610022912926016,
+    "reliability_impact": 0.005635207332136325
+   },
+   "A24": {
+    "cascade_count": 0,
+    "composite_impact": 0.017668564682020882,
+    "reachability_loss": 0.023658860298687023,
+    "reliability_impact": 0.027847251921621845
+   },
+   "A25": {
+    "cascade_count": 0,
+    "composite_impact": 0.025999319947096824,
+    "reachability_loss": 0.03850471511991682,
+    "reliability_impact": 0.014983715587846804
+   },
+   "A3": {
+    "cascade_count": 0,
+    "composite_impact": 0.020698805047994158,
+    "reachability_loss": 0.03759609972842548,
+    "reliability_impact": 0.012857081388751704
+   },
+   "A4": {
+    "cascade_count": 0,
+    "composite_impact": 0.08583040618396397,
+    "reachability_loss": 0.12404986250219963,
+    "reliability_impact": 0.0670553917955221
+   },
+   "A5": {
+    "cascade_count": 0,
+    "composite_impact": 0.03261022740408678,
+    "reachability_loss": 0.05533147620707102,
+    "reliability_impact": 0.019734435352133074
+   },
+   "A6": {
+    "cascade_count": 0,
+    "composite_impact": 0.06083373438051694,
+    "reachability_loss": 0.09491273165038705,
+    "reliability_impact": 0.053703485850969776
+   },
+   "A7": {
+    "cascade_count": 0,
+    "composite_impact": 0.054277366319905096,
+    "reachability_loss": 0.07641246534482227,
+    "reliability_impact": 0.048749637918864434
+   },
+   "A8": {
+    "cascade_count": 0,
+    "composite_impact": 0.07066071805509554,
+    "reachability_loss": 0.12770610891609124,
+    "reliability_impact": 0.06180567808388815
+   },
+   "A9": {
+    "cascade_count": 0,
+    "composite_impact": 0.026026675724688173,
+    "reachability_loss": 0.04034731961823068,
+    "reliability_impact": 0.033240433918317484
+   },
+   "B0": {
+    "cascade_count": 0,
+    "composite_impact": 0.03643823122842084,
+    "reachability_loss": 0.0,
+    "reliability_impact": 0.027580529605514312
+   },
+   "B1": {
+    "cascade_count": 0,
+    "composite_impact": 0.05635109790948815,
+    "reachability_loss": 0.0,
+    "reliability_impact": 0.03353333175172893
+   },
+   "B2": {
+    "cascade_count": 0,
+    "composite_impact": 0.12528114459311726,
+    "reachability_loss": 0.0,
+    "reliability_impact": 0.05497558025400899
+   },
+   "B3": {
+    "cascade_count": 0,
+    "composite_impact": 0.0432372376583423,
+    "reachability_loss": 0.0,
+    "reliability_impact": 0.015030674714514356
+   },
+   "B4": {
+    "cascade_count": 0,
+    "composite_impact": 0.055158618305158565,
+    "reachability_loss": 0.0,
+    "reliability_impact": 0.03687988367423342
+   },
+   "N0": {
+    "cascade_count": 13,
+    "composite_impact": 0.5443105499782754,
+    "reachability_loss": 0.7978193250356003,
+    "reliability_impact": 0.42425426072101946
+   },
+   "N1": {
+    "cascade_count": 19,
+    "composite_impact": 0.6996103466070723,
+    "reachability_loss": 0.9370809745156241,
+    "reliability_impact": 0.5119323955029174
+   },
+   "N2": {
+    "cascade_count": 13,
+    "composite_impact": 0.5105934779301835,
+    "reachability_loss": 0.7451267862625672,
+    "reliability_impact": 0.40485086686027827
+   },
+   "N3": {
+    "cascade_count": 8,
+    "composite_impact": 0.22109774398452542,
+    "reachability_loss": 0.29483034018113985,
+    "reliability_impact": 0.20264280265279672
+   },
+   "N4": {
+    "cascade_count": 2,
+    "composite_impact": 0.034638051021125355,
+    "reachability_loss": 0.05181365574795427,
+    "reliability_impact": 0.045342711372727974
+   },
+   "N5": {
+    "cascade_count": 13,
+    "composite_impact": 0.516183839540725,
+    "reachability_loss": 0.6810705353469086,
+    "reliability_impact": 0.3762156491085547
+   },
+   "N6": {
+    "cascade_count": 8,
+    "composite_impact": 0.4005018143583963,
+    "reachability_loss": 0.5958301886397703,
+    "reliability_impact": 0.292506714262912
+   },
+   "N7": {
+    "cascade_count": 9,
+    "composite_impact": 0.4387505173005868,
+    "reachability_loss": 0.5468843168233197,
+    "reliability_impact": 0.2986708794462691
+   }
+  },
+  "microservices_system": {
+   "A0": {
+    "cascade_count": 0,
+    "composite_impact": 0.012651623255609857,
+    "reachability_loss": 0.02090194170520776,
+    "reliability_impact": 0.015580759670231703
+   },
+   "A1": {
+    "cascade_count": 0,
+    "composite_impact": 0.01906794027189114,
+    "reachability_loss": 0.030440266852462927,
+    "reliability_impact": 0.019283349547674328
+   },
+   "A10": {
+    "cascade_count": 0,
+    "composite_impact": 0.011538018186122163,
+    "reachability_loss": 0.017887720242070637,
+    "reliability_impact": 0.006756467413398893
+   },
+   "A11": {
+    "cascade_count": 0,
+    "composite_impact": 0.00892308545745804,
+    "reachability_loss": 0.015149494909331929,
+    "reliability_impact": 0.005401136723774839
+   },
+   "A12": {
+    "cascade_count": 0,
+    "composite_impact": 0.01590581872926916,
+    "reachability_loss": 0.029789037674351815,
+    "reliability_impact": 0.010000068187592992
+   },
+   "A13": {
+    "cascade_count": 0,
+    "composite_impact": 0.008745398610416904,
+    "reachability_loss": 0.010036647390912368,
+    "reliability_impact": 0.012650293595442712
+   },
+   "A14": {
+    "cascade_count": 0,
+    "composite_impact": 0.007620762860312383,
+    "reachability_loss": 0.007801832892276872,
+    "reliability_impact": 0.011926040986229697
+   },
+   "A15": {
+    "cascade_count": 0,
+    "composite_impact": 0.016166683104064213,
+    "reachability_loss": 0.02818364487125391,
+    "reliability_impact": 0.033884098367364106
+   },
+   "A16": {
+    "cascade_count": 0,
+    "composite_impact": 0.0016951279964871298,
+    "reachability_loss": 0.0024755805452582047,
+    "reliability_impact": 0.000972257809105207
+   },
+   "A17": {
+    "cascade_count": 0,
+    "composite_impact": 0.005628329493735231,
+    "reachability_loss": 0.007457364093309327,
+    "reliability_impact": 0.003126260147044479
+   },
+   "A18": {
+    "cascade_count": 0,
+    "composite_impact": 0.0051824523487947905,
+    "reachability_loss": 0.008135731246342814,
+    "reliability_impact": 0.003048290821928037
+   },
+   "A19": {
+    "cascade_count": 0,
+    "composite_impact": 0.006470996947799564,
+    "reachability_loss": 0.013140243932711737,
+    "reliability_impact": 0.004204878058467756
+   },
+   "A2": {
+    "cascade_count": 0,
+    "composite_impact": 0.027918569177619226,
+    "reachability_loss": 0.05174831597398466,
+    "reliability_impact": 0.033480520715953366
+   },
+   "A20": {
+    "cascade_count": 0,
+    "composite_impact": 0.01797776191271435,
+    "reachability_loss": 0.03110130126588262,
+    "reliability_impact": 0.01895932832049932
+   },
+   "A21": {
+    "cascade_count": 0,
+    "composite_impact": 0.007509810020056425,
+    "reachability_loss": 0.01034793805370926,
+    "reliability_impact": 0.020224501427911917
+   },
+   "A22": {
+    "cascade_count": 0,
+    "composite_impact": 0.003054858635080375,
+    "reachability_loss": 0.0044613436986412625,
+    "reliability_impact": 0.009752145070946997
+   },
+   "A23": {
+    "cascade_count": 0,
+    "composite_impact": 0.009135396219687501,
+    "reachability_loss": 0.010416372645907668,
+    "reliability_impact": 0.01284859888168904
+   },
+   "A24": {
+    "cascade_count": 0,
+    "composite_impact": 0.013783388690896334,
+    "reachability_loss": 0.012169988684692878,
+    "reliability_impact": 0.01484137150259908
+   },
+   "A25": {
+    "cascade_count": 0,
+    "composite_impact": 0.018770107943411565,
+    "reachability_loss": 0.030290713078129694,
+    "reliability_impact": 0.019150685334262542
+   },
+   "A26": {
+    "cascade_count": 0,
+    "composite_impact": 0.01854676341381847,
+    "reachability_loss": 0.033438152742371496,
+    "reliability_impact": 0.011487031698783639
+   },
+   "A27": {
+    "cascade_count": 0,
+    "composite_impact": 0.007697292749225674,
+    "reachability_loss": 0.013135873966981237,
+    "reliability_impact": 0.012668192398603772
+   },
+   "A28": {
+    "cascade_count": 0,
+    "composite_impact": 0.016569456973464115,
+    "reachability_loss": 0.026003073859152348,
+    "reliability_impact": 0.033744906281662566
+   },
+   "A29": {
+    "cascade_count": 0,
+    "composite_impact": 0.015098190794854093,
+    "reachability_loss": 0.024392837228191633,
+    "reliability_impact": 0.016973036621460456
+   },
+   "A3": {
+    "cascade_count": 0,
+    "composite_impact": 0.024044080416781126,
+    "reachability_loss": 0.04170058264111687,
+    "reliability_impact": 0.022671374038279755
+   },
+   "A30": {
+    "cascade_count": 0,
+    "composite_impact": 0.018377359559067392,
+    "reachability_loss": 0.029589482490993135,
+    "reliability_impact": 0.018908351810653607
+   },
+   "A31": {
+    "cascade_count": 0,
+    "composite_impact": 0.006391406523014994,
+    "reachability_loss": 0.011868840916658852,
+    "reliability_impact": 0.004004773607604249
+   },
+   "A32": {
+    "cascade_count": 0,
+    "composite_impact": 0.008483328012385424,
+    "reachability_loss": 0.013483684093360648,
+    "reliability_impact": 0.005012048513178196
+   },
+   "A33": {
+    "cascade_count": 0,
+    "composite_impact": 0.01194846811311422,
+    "reachability_loss": 0.020093275505472907,
+    "reliability_impact": 0.007206636628979576
+   },
+   "A34": {
+    "cascade_count": 0,
+    "composite_impact": 0.0008878186306968607,
+    "reachability_loss": 0.0018028371006000299,
+    "reliability_impact": 0.0005769078721920096
+   },
+   "A35": {
+    "cascade_count": 0,
+    "composite_impact": 0.01480255516850618,
+    "reachability_loss": 0.027740939816611188,
+    "reliability_impact": 0.017308865914727578
+   },
+   "A36": {
+    "cascade_count": 0,
+    "composite_impact": 0.0035539973536489176,
+    "reachability_loss": 0.004052343207445852,
+    "reliability_impact": 0.0018862791695112143
+   },
+   "A37": {
+    "cascade_count": 0,
+    "composite_impact": 0.003473987722334867,
+    "reachability_loss": 0.007054406988439066,
+    "reliability_impact": 0.002257410236300501
+   },
+   "A38": {
+    "cascade_count": 0,
+    "composite_impact": 0.010821613790840576,
+    "reachability_loss": 0.017442599877816156,
+    "reliability_impact": 0.03042594104330429
+   },
+   "A39": {
+    "cascade_count": 0,
+    "composite_impact": 0.013219102858648211,
+    "reachability_loss": 0.02310032233199455,
+    "reliability_impact": 0.016089372749541045
+   },
+   "A4": {
+    "cascade_count": 0,
+    "composite_impact": 0.01622895944466687,
+    "reachability_loss": 0.03149125478696202,
+    "reliability_impact": 0.018349908942365822
+   },
+   "A40": {
+    "cascade_count": 0,
+    "composite_impact": 0.00421362278735281,
+    "reachability_loss": 0.0022362255096461947,
+    "reliability_impact": 0.0018929822341040526
+   },
+   "A41": {
+    "cascade_count": 0,
+    "composite_impact": 0.0017744076570459198,
+    "reachability_loss": 0.0025571416070602204,
+    "reliability_impact": 0.0010131540355217024
+   },
+   "A42": {
+    "cascade_count": 0,
+    "composite_impact": 0.02406530190102093,
+    "reachability_loss": 0.027935729812341048,
+    "reliability_impact": 0.03683893939540739
+   },
+   "A43": {
+    "cascade_count": 0,
+    "composite_impact": 0.00691695915302077,
+    "reachability_loss": 0.007522641705490218,
+    "reliability_impact": 0.011622467320838811
+   },
+   "A44": {
+    "cascade_count": 0,
+    "composite_impact": 0.008532311206040357,
+    "reachability_loss": 0.012778850455404611,
+    "reliability_impact": 0.004936337025702243
+   },
+   "A45": {
+    "cascade_count": 0,
+    "composite_impact": 0.011693410703537587,
+    "reachability_loss": 0.013946249682276535,
+    "reliability_impact": 0.006288247504734723
+   },
+   "A46": {
+    "cascade_count": 0,
+    "composite_impact": 0.03103620497996868,
+    "reachability_loss": 0.04907290946661336,
+    "reliability_impact": 0.026302177667571206
+   },
+   "A47": {
+    "cascade_count": 0,
+    "composite_impact": 0.01120533508595728,
+    "reachability_loss": 0.014922784178122761,
+    "reliability_impact": 0.014234181987148906
+   },
+   "A48": {
+    "cascade_count": 0,
+    "composite_impact": 0.01524785895518719,
+    "reachability_loss": 0.025844922971889117,
+    "reliability_impact": 0.0172238095779641
+   },
+   "A49": {
+    "cascade_count": 0,
+    "composite_impact": 0.0061398971543155465,
+    "reachability_loss": 0.008966762378184612,
+    "reliability_impact": 0.01152160011972941
+   },
+   "A5": {
+    "cascade_count": 0,
+    "composite_impact": 0.02270289223260931,
+    "reachability_loss": 0.03404645085987046,
+    "reliability_impact": 0.021140598463550687
+   },
+   "A50": {
+    "cascade_count": 0,
+    "composite_impact": 0.011538186647465722,
+    "reachability_loss": 0.01794502779200169,
+    "reliability_impact": 0.014764193584125122
+   },
+   "A51": {
+    "cascade_count": 0,
+    "composite_impact": 0.006957916825921345,
+    "reachability_loss": 0.012252853654007967,
+    "reliability_impact": 0.004270425609148796
+   },
+   "A52": {
+    "cascade_count": 0,
+    "composite_impact": 0.002570742208084749,
+    "reachability_loss": 0.005220243491822041,
+    "reliability_impact": 0.001670477917383053
+   },
+   "A53": {
+    "cascade_count": 0,
+    "composite_impact": 0.0006199008162734875,
+    "reachability_loss": 0.0012587933521882588,
+    "reliability_impact": 0.0004028138727002428
+   },
+   "A54": {
+    "cascade_count": 0,
+    "composite_impact": 0.007744859485088534,
+    "reachability_loss": 0.015726995960528733,
+    "reliability_impact": 0.005032638707369195
+   },
+   "A55": {
+    "cascade_count": 0,
+    "composite_impact": 0.021652472984986442,
+    "reachability_loss": 0.036771161015506815,
+    "reliability_impact": 0.021107546515874806
+   },
+   "A56": {
+    "cascade_count": 0,
+    "composite_impact": 0.019866582979516566,
+    "reachability_loss": 0.03801874892655144,
+    "reliability_impact": 0.020598769254089117
+   },
+   "A57": {
+    "cascade_count": 0,
+    "composite_impact": 0.019686142640732533,
+    "reachability_loss": 0.03617206848874033,
+    "reliability_impact": 0.04428359518248552
+   },
+   "A58": {
+    "cascade_count": 0,
+    "composite_impact": 0.0222002570434053,
+    "reachability_loss": 0.03484835621181259,
+    "reliability_impact": 0.013057675960239759
+   },
+   "A59": {
+    "cascade_count": 0,
+    "composite_impact": 0.022533423631362372,
+    "reachability_loss": 0.04086408313899936,
+    "reliability_impact": 0.013988057576317478
+   },
+   "A6": {
+    "cascade_count": 0,
+    "composite_impact": 0.014117995305695203,
+    "reachability_loss": 0.02053422124593063,
+    "reliability_impact": 0.008086310433696387
+   },
+   "A60": {
+    "cascade_count": 0,
+    "composite_impact": 0.01658364966750428,
+    "reachability_loss": 0.027609430871118223,
+    "reliability_impact": 0.017965057079653277
+   },
+   "A61": {
+    "cascade_count": 0,
+    "composite_impact": 0.003685750651640212,
+    "reachability_loss": 0.005096473840758287,
+    "reliability_impact": 0.002075728452140988
+   },
+   "A62": {
+    "cascade_count": 0,
+    "composite_impact": 0.009845363519756616,
+    "reachability_loss": 0.019992356556405633,
+    "reliability_impact": 0.006397554098049802
+   },
+   "A63": {
+    "cascade_count": 0,
+    "composite_impact": 0.003920754131471469,
+    "reachability_loss": 0.0044705270690259535,
+    "reliability_impact": 0.002080934821005593
+   },
+   "A64": {
+    "cascade_count": 0,
+    "composite_impact": 0.015127033276330757,
+    "reachability_loss": 0.023137902984352476,
+    "reliability_impact": 0.00881615353407848
+   },
+   "A65": {
+    "cascade_count": 0,
+    "composite_impact": 0.0019891545766273426,
+    "reachability_loss": 0.00208520741569318,
+    "reliability_impact": 0.009031290117842317
+   },
+   "A66": {
+    "cascade_count": 0,
+    "composite_impact": 0.012780050909619787,
+    "reachability_loss": 0.023099892335425753,
+    "reliability_impact": 0.01592322514899145
+   },
+   "A67": {
+    "cascade_count": 0,
+    "composite_impact": 0.03158777073380067,
+    "reachability_loss": 0.05259105405881259,
+    "reliability_impact": 0.02698123285327951
+   },
+   "A68": {
+    "cascade_count": 0,
+    "composite_impact": 0.008365161315454565,
+    "reachability_loss": 0.00953813446176821,
+    "reliability_impact": 0.012439797773834206
+   },
+   "A69": {
+    "cascade_count": 0,
+    "composite_impact": 0.0014020067947890095,
+    "reachability_loss": 0.0008516854541800178,
+    "reliability_impact": 0.0006442454476975711
+   },
+   "A7": {
+    "cascade_count": 0,
+    "composite_impact": 0.007680207429976594,
+    "reachability_loss": 0.007784749939581781,
+    "reliability_impact": 0.027946244310464163
+   },
+   "A70": {
+    "cascade_count": 0,
+    "composite_impact": 0.004490360516810026,
+    "reachability_loss": 0.00765442491598578,
+    "reliability_impact": 0.002722123383653428
+   },
+   "A71": {
+    "cascade_count": 0,
+    "composite_impact": 0.01528641516834365,
+    "reachability_loss": 0.023428891091916815,
+    "reliability_impact": 0.01691535378664608
+   },
+   "A72": {
+    "cascade_count": 0,
+    "composite_impact": 0.025017548536986366,
+    "reachability_loss": 0.041846762438865426,
+    "reliability_impact": 0.02305917515176761
+   },
+   "A73": {
+    "cascade_count": 0,
+    "composite_impact": 0.0054946225362622605,
+    "reachability_loss": 0.011157582212924844,
+    "reliability_impact": 0.00357042630813595
+   },
+   "A74": {
+    "cascade_count": 0,
+    "composite_impact": 0.020452903804863504,
+    "reachability_loss": 0.0382427449291719,
+    "reliability_impact": 0.020850520009550247
+   },
+   "A75": {
+    "cascade_count": 0,
+    "composite_impact": 0.009031916149412407,
+    "reachability_loss": 0.014186208555400981,
+    "reliability_impact": 0.005313508063893095
+   },
+   "A76": {
+    "cascade_count": 0,
+    "composite_impact": 0.01178824219921495,
+    "reachability_loss": 0.02198359443666087,
+    "reliability_impact": 0.007398773964551977
+   },
+   "A77": {
+    "cascade_count": 0,
+    "composite_impact": 0.006195184108008142,
+    "reachability_loss": 0.009585869723490292,
+    "reliability_impact": 0.035625293994159125
+   },
+   "A78": {
+    "cascade_count": 0,
+    "composite_impact": 0.017173882039703638,
+    "reachability_loss": 0.029969259357941258,
+    "reliability_impact": 0.0345038641356621
+   },
+   "A79": {
+    "cascade_count": 0,
+    "composite_impact": 0.020426737035752908,
+    "reachability_loss": 0.03683426675849344,
+    "reliability_impact": 0.036652297371280756
+   },
+   "A8": {
+    "cascade_count": 0,
+    "composite_impact": 0.015608580210367491,
+    "reachability_loss": 0.010739740137040932,
+    "reliability_impact": 0.015340593159264875
+   },
+   "A80": {
+    "cascade_count": 0,
+    "composite_impact": 0.01274092045057006,
+    "reachability_loss": 0.022695310945751612,
+    "reliability_impact": 0.015854326863107192
+   },
+   "A81": {
+    "cascade_count": 0,
+    "composite_impact": 0.0033280906747880797,
+    "reachability_loss": 0.006758143088256063,
+    "reliability_impact": 0.00216260578824194
+   },
+   "A82": {
+    "cascade_count": 0,
+    "composite_impact": 0.003147081796469606,
+    "reachability_loss": 0.006390579815660158,
+    "reliability_impact": 0.0020449855410112506
+   },
+   "A83": {
+    "cascade_count": 0,
+    "composite_impact": 0.004192580678566239,
+    "reachability_loss": 0.00851360822271241,
+    "reliability_impact": 0.002724354631267971
+   },
+   "A84": {
+    "cascade_count": 0,
+    "composite_impact": 0.008769122701849022,
+    "reachability_loss": 0.016976790503911765,
+    "reliability_impact": 0.00558721667985558
+   },
+   "A85": {
+    "cascade_count": 0,
+    "composite_impact": 0.016948636082187885,
+    "reachability_loss": 0.0302095037461112,
+    "reliability_impact": 0.018450777705553464
+   },
+   "A86": {
+    "cascade_count": 0,
+    "composite_impact": 0.013331198293035331,
+    "reachability_loss": 0.02120092549353858,
+    "reliability_impact": 0.015877814226045506
+   },
+   "A87": {
+    "cascade_count": 0,
+    "composite_impact": 0.017356993139263668,
+    "reachability_loss": 0.02358256016403204,
+    "reliability_impact": 0.009719184818127988
+   },
+   "A88": {
+    "cascade_count": 0,
+    "composite_impact": 0.0014557557337295836,
+    "reachability_loss": 0.0021259990871114187,
+    "reliability_impact": 0.0008349634264794691
+   },
+   "A89": {
+    "cascade_count": 0,
+    "composite_impact": 0.0020631175938337315,
+    "reachability_loss": 0.003498681526052483,
+    "reliability_impact": 0.0012482617175202878
+   },
+   "A9": {
+    "cascade_count": 0,
+    "composite_impact": 0.022422098111001793,
+    "reachability_loss": 0.04023822325426307,
+    "reliability_impact": 0.021862261861919495
+   },
+   "B0": {
+    "cascade_count": 0,
+    "composite_impact": 0.07192984978197821,
+    "reachability_loss": 0.002598061141593,
+    "reliability_impact": 0.03535099554039005
+   },
+   "B1": {
+    "cascade_count": 0,
+    "composite_impact": 0.07651333765685875,
+    "reachability_loss": 0.011220188928832253,
+    "reliability_impact": 0.045455711097936544
+   },
+   "B2": {
+    "cascade_count": 0,
+    "composite_impact": 0.02825926226495409,
+    "reachability_loss": 0.0,
+    "reliability_impact": 0.017181894338989975
+   },
+   "B3": {
+    "cascade_count": 0,
+    "composite_impact": 0.04678354012826242,
+    "reachability_loss": 0.0,
+    "reliability_impact": 0.013105946086493193
+   },
+   "B4": {
+    "cascade_count": 0,
+    "composite_impact": 0.09000856054651957,
+    "reachability_loss": 0.008137524979684563,
+    "reliability_impact": 0.04852635460426806
+   },
+   "B5": {
+    "cascade_count": 0,
+    "composite_impact": 0.05263324504634645,
+    "reachability_loss": 0.0,
+    "reliability_impact": 0.023404946347957267
+   },
+   "N0": {
+    "cascade_count": 30,
+    "composite_impact": 0.38954750283988404,
+    "reachability_loss": 0.39359913028205606,
+    "reliability_impact": 0.295162697500774
+   },
+   "N1": {
+    "cascade_count": 36,
+    "composite_impact": 0.4243799519936016,
+    "reachability_loss": 0.651142123402387,
+    "reliability_impact": 0.3656637193596433
+   },
+   "N10": {
+    "cascade_count": 22,
+    "composite_impact": 0.25887857638410494,
+    "reachability_loss": 0.42291999077221176,
+    "reliability_impact": 0.20853114735671105
+   },
+   "N11": {
+    "cascade_count": 42,
+    "composite_impact": 0.49088671793776084,
+    "reachability_loss": 0.6169812654596547,
+    "reliability_impact": 0.3571862441476883
+   },
+   "N12": {
+    "cascade_count": 13,
+    "composite_impact": 0.18835659973999264,
+    "reachability_loss": 0.3170477678434408,
+    "reliability_impact": 0.1637824208924032
+   },
+   "N13": {
+    "cascade_count": 16,
+    "composite_impact": 0.23389039841424053,
+    "reachability_loss": 0.24683126489132468,
+    "reliability_impact": 0.17484667576674806
+   },
+   "N14": {
+    "cascade_count": 6,
+    "composite_impact": 0.05844383931704403,
+    "reachability_loss": 0.0874100207729358,
+    "reliability_impact": 0.05840491505740088
+   },
+   "N2": {
+    "cascade_count": 15,
+    "composite_impact": 0.21297312946249447,
+    "reachability_loss": 0.2544737258051817,
+    "reliability_impact": 0.16134904095797928
+   },
+   "N3": {
+    "cascade_count": 10,
+    "composite_impact": 0.10182537300577027,
+    "reachability_loss": 0.16352086042800384,
+    "reliability_impact": 0.12309989902379578
+   },
+   "N4": {
+    "cascade_count": 5,
+    "composite_impact": 0.07571244953564475,
+    "reachability_loss": 0.12474172331653621,
+    "reliability_impact": 0.0771021483267758
+   },
+   "N5": {
+    "cascade_count": 5,
+    "composite_impact": 0.056217229450173746,
+    "reachability_loss": 0.07834446952853757,
+    "reliability_impact": 0.05506710196815432
+   },
+   "N6": {
+    "cascade_count": 7,
+    "composite_impact": 0.08673530833044735,
+    "reachability_loss": 0.14146324051657844,
+    "reliability_impact": 0.10172117114942034
+   },
+   "N7": {
+    "cascade_count": 6,
+    "composite_impact": 0.06690338791699091,
+    "reachability_loss": 0.11375400271808023,
+    "reliability_impact": 0.07286548311851573
+   },
+   "N8": {
+    "cascade_count": 8,
+    "composite_impact": 0.14446503627717183,
+    "reachability_loss": 0.23678491193717932,
+    "reliability_impact": 0.17034775527807577
+   },
+   "N9": {
+    "cascade_count": 6,
+    "composite_impact": 0.08143946677158428,
+    "reachability_loss": 0.12203179806937847,
+    "reliability_impact": 0.0728512787240839
+   }
+  }
+ },
  "i_dyn": {
   "A0": {
    "delivery_rate_after": 0.9682539682539683,
@@ -20,6 +926,912 @@
    "i_dyn": 0.021741293532338224,
    "latency_p95_after": 1436.9324601293379,
    "total_messages_delivered": 567
+  }
+ },
+ "i_m": {
+  "atm_system": {
+   "A0": {
+    "change_reach": 0.273972602739726,
+    "maintainability_impact": 0.33663288313494855,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.15241489114877668
+   },
+   "A1": {
+    "change_reach": 0.2602739726027397,
+    "maintainability_impact": 0.3338390520236303,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.16204504100684972
+   },
+   "A10": {
+    "change_reach": 0.2465753424657534,
+    "maintainability_impact": 0.3196945597805937,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.13924473048858454
+   },
+   "A11": {
+    "change_reach": 0.2602739726027397,
+    "maintainability_impact": 0.31996190211218284,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.12239604125985698
+   },
+   "A12": {
+    "change_reach": 0.2602739726027397,
+    "maintainability_impact": 0.3264790686878952,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.14101651719046387
+   },
+   "A13": {
+    "change_reach": 0.0,
+    "maintainability_impact": 0.0,
+    "normalized_change_depth": 0.0,
+    "weighted_change_impact": 0.0
+   },
+   "A14": {
+    "change_reach": 0.2602739726027397,
+    "maintainability_impact": 0.24812614618824663,
+    "normalized_change_depth": 0.4,
+    "weighted_change_impact": 0.14572245290575359
+   },
+   "A15": {
+    "change_reach": 0.2876712328767123,
+    "maintainability_impact": 0.3821468239531577,
+    "normalized_change_depth": 1.0,
+    "weighted_change_impact": 0.15055648331039181
+   },
+   "A16": {
+    "change_reach": 0.0,
+    "maintainability_impact": 0.0,
+    "normalized_change_depth": 0.0,
+    "weighted_change_impact": 0.0
+   },
+   "A17": {
+    "change_reach": 0.3013698630136986,
+    "maintainability_impact": 0.34824068585622464,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.15035499285731496
+   },
+   "A18": {
+    "change_reach": 0.0,
+    "maintainability_impact": 0.0,
+    "normalized_change_depth": 0.0,
+    "weighted_change_impact": 0.0
+   },
+   "A19": {
+    "change_reach": 0.2602739726027397,
+    "maintainability_impact": 0.3310627636282749,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.15411278844869142
+   },
+   "A2": {
+    "change_reach": 0.2602739726027397,
+    "maintainability_impact": 0.2884005570009458,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.1465064837991799
+   },
+   "A20": {
+    "change_reach": 0.273972602739726,
+    "maintainability_impact": 0.3021292454116151,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.168118783367824
+   },
+   "A21": {
+    "change_reach": 0.2602739726027397,
+    "maintainability_impact": 0.34037245963934804,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.18071191990890048
+   },
+   "A22": {
+    "change_reach": 0.2602739726027397,
+    "maintainability_impact": 0.29846527898292285,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.17526283231911438
+   },
+   "A23": {
+    "change_reach": 0.0,
+    "maintainability_impact": 0.0,
+    "normalized_change_depth": 0.0,
+    "weighted_change_impact": 0.0
+   },
+   "A24": {
+    "change_reach": 0.273972602739726,
+    "maintainability_impact": 0.3021292454116151,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.168118783367824
+   },
+   "A25": {
+    "change_reach": 0.2602739726027397,
+    "maintainability_impact": 0.28782448252718545,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.14486055673129314
+   },
+   "A3": {
+    "change_reach": 0.2602739726027397,
+    "maintainability_impact": 0.3244224360757363,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.1351404240128669
+   },
+   "A4": {
+    "change_reach": 0.2602739726027397,
+    "maintainability_impact": 0.30226124901066215,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.18610846096979794
+   },
+   "A5": {
+    "change_reach": 0.2602739726027397,
+    "maintainability_impact": 0.32200115702670273,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.12822248387277096
+   },
+   "A6": {
+    "change_reach": 0.2602739726027397,
+    "maintainability_impact": 0.33350060170904133,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.16107804010802415
+   },
+   "A7": {
+    "change_reach": 0.2602739726027397,
+    "maintainability_impact": 0.2916316257867556,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.15573810890149356
+   },
+   "A8": {
+    "change_reach": 0.2602739726027397,
+    "maintainability_impact": 0.3004637895903628,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.18097286262608547
+   },
+   "A9": {
+    "change_reach": 0.273972602739726,
+    "maintainability_impact": 0.340503296818782,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.16347321595972927
+   },
+   "B0": {
+    "change_reach": 0.3835616438356164,
+    "maintainability_impact": 0.3205309337901376,
+    "normalized_change_depth": 0.4,
+    "weighted_change_impact": 0.19408055446888628
+   },
+   "B1": {
+    "change_reach": 0.410958904109589,
+    "maintainability_impact": 0.4058528522850703,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.28834670124501494
+   },
+   "B2": {
+    "change_reach": 0.4383561643835616,
+    "maintainability_impact": 0.38593051278521234,
+    "normalized_change_depth": 0.4,
+    "weighted_change_impact": 0.31048639660745597
+   },
+   "B3": {
+    "change_reach": 0.4383561643835616,
+    "maintainability_impact": 0.42508763798532095,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.3080781828934806
+   },
+   "B4": {
+    "change_reach": 0.4246575342465753,
+    "maintainability_impact": 0.3719613274352805,
+    "normalized_change_depth": 0.4,
+    "weighted_change_impact": 0.28818696292663315
+   },
+   "N0": {
+    "change_reach": 0.0958904109589041,
+    "maintainability_impact": 0.1408922210205238,
+    "normalized_change_depth": 0.4,
+    "weighted_change_impact": 0.05069010311147692
+   },
+   "N1": {
+    "change_reach": 0.0958904109589041,
+    "maintainability_impact": 0.11286307567209264,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.08489254497310227
+   },
+   "N2": {
+    "change_reach": 0.0958904109589041,
+    "maintainability_impact": 0.14428755979538688,
+    "normalized_change_depth": 0.4,
+    "weighted_change_impact": 0.060391071039657206
+   },
+   "N3": {
+    "change_reach": 0.0958904109589041,
+    "maintainability_impact": 0.09952361126623072,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.046779789527782445
+   },
+   "N4": {
+    "change_reach": 0.0958904109589041,
+    "maintainability_impact": 0.13298007338400256,
+    "normalized_change_depth": 0.4,
+    "weighted_change_impact": 0.028083967007130547
+   },
+   "N5": {
+    "change_reach": 0.0958904109589041,
+    "maintainability_impact": 0.14759313958495027,
+    "normalized_change_depth": 0.4,
+    "weighted_change_impact": 0.06983558472412403
+   },
+   "N6": {
+    "change_reach": 0.0958904109589041,
+    "maintainability_impact": 0.1099531662970708,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.0765785181873256
+   },
+   "N7": {
+    "change_reach": 0.0958904109589041,
+    "maintainability_impact": 0.11256564051727778,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.08404273024505982
+   }
+  },
+  "microservices_system": {
+   "A0": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5461446346623058,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.3457414272204876
+   },
+   "A1": {
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.543916679115167,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.35327545384256176
+   },
+   "A10": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.4830695640928837,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.2798126541649959
+   },
+   "A11": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.542583152012814,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.33556576250765385
+   },
+   "A12": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5218223400227839,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.27624915682185375
+   },
+   "A13": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.4742844746590985,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.25471239863989525
+   },
+   "A14": {
+    "change_reach": 0.5945945945945946,
+    "maintainability_impact": 0.5390072956918164,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.3183992232121393
+   },
+   "A15": {
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.532254087717213,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.3199537641341221
+   },
+   "A16": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.48641008636773575,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.28935700352171606
+   },
+   "A17": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.48451465692795276,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.2839414908366218
+   },
+   "A18": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.522661205427057,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.2786459151197767
+   },
+   "A19": {
+    "change_reach": 0.06486486486486487,
+    "maintainability_impact": 0.07112209589097428,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.005522590576528793
+   },
+   "A2": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.4892842302590077,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.29756884321106436
+   },
+   "A20": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.4956495503067689,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.31575547191895353
+   },
+   "A21": {
+    "change_reach": 0.5945945945945946,
+    "maintainability_impact": 0.5025076270033866,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.3284001698166255
+   },
+   "A22": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5207449511720186,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.2731709029625241
+   },
+   "A23": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5457887113251498,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.34472450340004196
+   },
+   "A24": {
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.5468158162544282,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.36155870281187963
+   },
+   "A25": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.48271718275551356,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.2788058503439383
+   },
+   "A26": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5168988808271588,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.26218213054863926
+   },
+   "A27": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5392317402794516,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.32599030041233285
+   },
+   "A28": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5386909421545214,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.3244451629125323
+   },
+   "A29": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.4944655205033946,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.3123725296235984
+   },
+   "A3": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5412864971849215,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.3318610344279609
+   },
+   "A30": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5091992233489717,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.3544688234681046
+   },
+   "A31": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.47545387120536675,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.25805353162923317
+   },
+   "A32": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.4880838425762559,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.29413916411748786
+   },
+   "A33": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.4764109520735315,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.2607880483954182
+   },
+   "A34": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5348697128429762,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.3135273648795461
+   },
+   "A35": {
+    "change_reach": 0.5837837837837838,
+    "maintainability_impact": 0.5153983278352516,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.2648446432358537
+   },
+   "A36": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.527769405508127,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.29324077249426245
+   },
+   "A37": {
+    "change_reach": 0.0,
+    "maintainability_impact": 0.0,
+    "normalized_change_depth": 0.0,
+    "weighted_change_impact": 0.0
+   },
+   "A38": {
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.5906404327149027,
+    "normalized_change_depth": 1.0,
+    "weighted_change_impact": 0.3724861784132356
+   },
+   "A39": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5501359723105118,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.3571452490725048
+   },
+   "A4": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5184793112684131,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.26669764609507973
+   },
+   "A40": {
+    "change_reach": 0.03783783783783784,
+    "maintainability_impact": 0.05957694848701621,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.007285489885683345
+   },
+   "A41": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5808309487876557,
+    "normalized_change_depth": 1.0,
+    "weighted_change_impact": 0.3305594675786303
+   },
+   "A42": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.49730574377077763,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.3204874532446928
+   },
+   "A43": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.528001863410348,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.29390493792917954
+   },
+   "A44": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.49874817321793063,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.32460868023655853
+   },
+   "A45": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5412124272162888,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.33164940594615344
+   },
+   "A46": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.4975170780359784,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.32109126543098077
+   },
+   "A47": {
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.5725402726327268,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.43505714960701847
+   },
+   "A48": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5420840173197968,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.33413966338474754
+   },
+   "A49": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5065843891517765,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.34699786861897547
+   },
+   "A5": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5272915266053206,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.29187540420053
+   },
+   "A50": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.48939314005967116,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.2978800140701029
+   },
+   "A51": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5171298541289936,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.26284205426816687
+   },
+   "A52": {
+    "change_reach": 0.0,
+    "maintainability_impact": 0.0,
+    "normalized_change_depth": 0.0,
+    "weighted_change_impact": 0.0
+   },
+   "A53": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5281886759844607,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.29443868814093005
+   },
+   "A54": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.48729014711343377,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.29187146279513887
+   },
+   "A55": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5000341676729895,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.3282829501081552
+   },
+   "A56": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.550742792639409,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.35887902144078215
+   },
+   "A57": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.4898670699296066,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.2992340994127757
+   },
+   "A58": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.4860533164390297,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.2883376608682703
+   },
+   "A59": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.48259842750896975,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.27846654963952744
+   },
+   "A6": {
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.6406357530957161,
+    "normalized_change_depth": 1.0,
+    "weighted_change_impact": 0.5153299509298452
+   },
+   "A60": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5030572137704552,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.3369202246723429
+   },
+   "A61": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5217773248062684,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.27612054191752344
+   },
+   "A62": {
+    "change_reach": 0.0,
+    "maintainability_impact": 0.0,
+    "normalized_change_depth": 0.0,
+    "weighted_change_impact": 0.0
+   },
+   "A63": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5324716216584076,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.3066756757807781
+   },
+   "A64": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5287721063241025,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.2961056319684781
+   },
+   "A65": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.4972506289483413,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.3203299823234463
+   },
+   "A66": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.47497579394750994,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.25668759660678514
+   },
+   "A67": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.4889017684753414,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.29647609525773216
+   },
+   "A68": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.535921754183895,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.316533197282171
+   },
+   "A69": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5196349205280058,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.26999938683677316
+   },
+   "A7": {
+    "change_reach": 0.5837837837837838,
+    "maintainability_impact": 0.596208119910673,
+    "normalized_change_depth": 1.0,
+    "weighted_change_impact": 0.38144404916562924
+   },
+   "A70": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.4877996763930132,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.2933272607367945
+   },
+   "A71": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5807008104530287,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.4444733580511242
+   },
+   "A72": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5462493293373092,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.3460405548633545
+   },
+   "A73": {
+    "change_reach": 0.0,
+    "maintainability_impact": 0.0,
+    "normalized_change_depth": 0.0,
+    "weighted_change_impact": 0.0
+   },
+   "A74": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5401231181849682,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.3285370944280945
+   },
+   "A75": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.49822306427334734,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.3231083689663206
+   },
+   "A76": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.524484769672879,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.28385609867926814
+   },
+   "A77": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5426947041896828,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.3358844830129931
+   },
+   "A78": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5415262447610537,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.3325460275026244
+   },
+   "A79": {
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.5321882808343756,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.31976574446887246
+   },
+   "A8": {
+    "change_reach": 0.0,
+    "maintainability_impact": 0.0,
+    "normalized_change_depth": 0.0,
+    "weighted_change_impact": 0.0
+   },
+   "A80": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5497101448580126,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.3559285992082213
+   },
+   "A81": {
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.5397980226640687,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.34150786398228133
+   },
+   "A82": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5196230545362285,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.2699654840031237
+   },
+   "A83": {
+    "change_reach": 0.032432432432432434,
+    "maintainability_impact": 0.05615533001050445,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.004459244045456687
+   },
+   "A84": {
+    "change_reach": 0.05405405405405406,
+    "maintainability_impact": 0.06632529746933354,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.005717066128597708
+   },
+   "A85": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5239277245271312,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.2822645411199888
+   },
+   "A86": {
+    "change_reach": 0.5945945945945946,
+    "maintainability_impact": 0.49254723509112314,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.2999419072101586
+   },
+   "A87": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.502485461174717,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.3352866458273769
+   },
+   "A88": {
+    "change_reach": 0.5783783783783784,
+    "maintainability_impact": 0.5331330568471702,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.32246510450542815
+   },
+   "A89": {
+    "change_reach": 0.032432432432432434,
+    "maintainability_impact": 0.05596735373218874,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.003922168964554681
+   },
+   "A9": {
+    "change_reach": 0.5891891891891892,
+    "maintainability_impact": 0.5376309484013386,
+    "normalized_change_depth": 0.8,
+    "weighted_change_impact": 0.3214166093320097
+   },
+   "B0": {
+    "change_reach": 0.7027027027027027,
+    "maintainability_impact": 0.5475270759245932,
+    "normalized_change_depth": 0.4,
+    "weighted_change_impact": 0.4323167420239341
+   },
+   "B1": {
+    "change_reach": 0.6972972972972973,
+    "maintainability_impact": 0.5254732867918541,
+    "normalized_change_depth": 0.4,
+    "weighted_change_impact": 0.3762557228802008
+   },
+   "B2": {
+    "change_reach": 0.6918918918918919,
+    "maintainability_impact": 0.5361493107210347,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.29942274105623806
+   },
+   "B3": {
+    "change_reach": 0.6972972972972973,
+    "maintainability_impact": 0.5670303106642094,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.3807043625155018
+   },
+   "B4": {
+    "change_reach": 0.7135135135135136,
+    "maintainability_impact": 0.6101944781677211,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.4831811345332573
+   },
+   "B5": {
+    "change_reach": 0.6810810810810811,
+    "maintainability_impact": 0.56214077677909,
+    "normalized_change_depth": 0.6,
+    "weighted_change_impact": 0.38758368655029574
+   },
+   "N0": {
+    "change_reach": 0.07567567567567568,
+    "maintainability_impact": 0.09877026207640402,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.07061773720671417
+   },
+   "N1": {
+    "change_reach": 0.07567567567567568,
+    "maintainability_impact": 0.0988865776439398,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.0709500673996735
+   },
+   "N10": {
+    "change_reach": 0.07567567567567568,
+    "maintainability_impact": 0.1311142231355926,
+    "normalized_change_depth": 0.4,
+    "weighted_change_impact": 0.04874334023296718
+   },
+   "N11": {
+    "change_reach": 0.07567567567567568,
+    "maintainability_impact": 0.09731630496111597,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.06646357402017686
+   },
+   "N12": {
+    "change_reach": 0.07567567567567568,
+    "maintainability_impact": 0.09210225294617629,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.051566282548920615
+   },
+   "N13": {
+    "change_reach": 0.07567567567567568,
+    "maintainability_impact": 0.10014417496526251,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.07454320260345272
+   },
+   "N14": {
+    "change_reach": 0.07567567567567568,
+    "maintainability_impact": 0.08828838232595393,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.040669509348285296
+   },
+   "N2": {
+    "change_reach": 0.07567567567567568,
+    "maintainability_impact": 0.10080721694121772,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.076437608249039
+   },
+   "N3": {
+    "change_reach": 0.07567567567567568,
+    "maintainability_impact": 0.09472790965389041,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.05906815885667528
+   },
+   "N4": {
+    "change_reach": 0.07567567567567568,
+    "maintainability_impact": 0.13181270490843566,
+    "normalized_change_depth": 0.4,
+    "weighted_change_impact": 0.05073900244109027
+   },
+   "N5": {
+    "change_reach": 0.07567567567567568,
+    "maintainability_impact": 0.13161668416742836,
+    "normalized_change_depth": 0.4,
+    "weighted_change_impact": 0.05017894318106939
+   },
+   "N6": {
+    "change_reach": 0.07567567567567568,
+    "maintainability_impact": 0.09332736926998766,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.05506661490266743
+   },
+   "N7": {
+    "change_reach": 0.07567567567567568,
+    "maintainability_impact": 0.09201647726749003,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.051321209181245594
+   },
+   "N8": {
+    "change_reach": 0.07567567567567568,
+    "maintainability_impact": 0.09580659405730174,
+    "normalized_change_depth": 0.2,
+    "weighted_change_impact": 0.06215011429499335
+   },
+   "N9": {
+    "change_reach": 0.07567567567567568,
+    "maintainability_impact": 0.13333160475245126,
+    "normalized_change_depth": 0.4,
+    "weighted_change_impact": 0.055078716281134844
+   }
   }
  },
  "i_star": {

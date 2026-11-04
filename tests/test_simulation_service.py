@@ -171,6 +171,44 @@ class TestLibraryCascade:
         assert len(result.cascaded_failures) == 0
         assert result.impact.cascade_count == 0
 
+    def test_library_failure_chains_through_a_starved_topic(self):
+        """
+        Rule 4 then Rule 3: Lib1 takes down its users at the same depth, the
+        topic App1 alone published starves one wave later, and so does its
+        subscriber. Consolidated from test_library_cascade.py.
+        """
+        components = [
+            ComponentData("Lib1", "Library"),
+            ComponentData("App1", "Application"),
+            ComponentData("App2", "Application"),
+            ComponentData("App3", "Application"),
+            ComponentData("Topic1", "Topic"),
+            ComponentData("Broker1", "Broker"),
+        ]
+        edges = [
+            EdgeData("App1", "Lib1", "Application", "Library", "logic", "USES"),
+            EdgeData("App2", "Lib1", "Application", "Library", "logic", "USES"),
+            EdgeData("App1", "Topic1", "Application", "Topic", "logic", "PUBLISHES_TO"),
+            EdgeData("App3", "Topic1", "Application", "Topic", "logic", "SUBSCRIBES_TO"),
+            EdgeData("Broker1", "Topic1", "Broker", "Topic", "logic", "ROUTES"),
+        ]
+
+        sim = FailureSimulator(SimulationGraph(GraphData(components=components, edges=edges)))
+        res = sim.simulate(FailureScenario(target_ids=["Lib1"], failure_mode=FailureMode.CRASH))
+
+        assert {"App1", "App2", "Topic1", "App3"} <= set(res.cascaded_failures)
+
+        lib_event = next(e for e in res.cascade_sequence if e.component_id == "Lib1")
+        assert lib_event.depth == 0
+
+        app1_event = next(e for e in res.cascade_sequence if e.component_id == "App1")
+        assert app1_event.depth == 0
+        assert app1_event.cause == "uses_library:Lib1"
+
+        topic_event = next(e for e in res.cascade_sequence if e.component_id == "Topic1")
+        assert topic_event.depth == 1
+        assert "sl_starvation" in topic_event.cause
+
 
 # =============================================================================
 # Logical Cascade Tests (C1 Fix)
