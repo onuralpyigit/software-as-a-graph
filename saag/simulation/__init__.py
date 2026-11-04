@@ -35,7 +35,7 @@ Runtime engine (opt-in)
     `runtime/` extends `MessageFlowSimulator` with reactive trigger policies,
     the deployment on the data path, a fault library, bursty workloads and the
     runtime label sweep; `calibration` maps observed telemetry onto simulator
-    parameters. Defaults reproduce the published engine bit for bit
+    parameters. Defaults reproduce the published engines bit for bit
     (tests/test_simulation_golden_defaults.py).
 
 Simulation never reads derived `DEPENDS_ON` edges from the analysis graph —
