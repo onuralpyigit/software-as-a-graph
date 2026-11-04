@@ -670,7 +670,13 @@ overlay, and runtime levels~\cite{eugster2003,carzaniga2001}. Our contribution i
 protocol nor a runtime mechanism but a pipeline-integrated static check over the deployment's own
 descriptors.
 
-% TODO(refs): expand from 9 to ~18 citations before submission -- see refs.bib header comment.
+\textbf{Scalability testing.} Scalability faults can stay latent until production
+scale~\cite{leesatapornwongsa2017,zhu2026}. Existing techniques run the implementation:
+emulation~\cite{gupta2008,wang2014,stuardo2019}, workload extrapolation~\cite{shi2018}, or scaling
+runs with static analysis~\cite{zhu2026}. SaaG runs nothing, so it needs no scaled deployment and
+sees no code-level fault.
+
+% TODO(refs): expand from 15 to ~18 citations before submission -- see refs.bib header comment.
 
 \section{Conclusion}
 \label{sec:conclusion}

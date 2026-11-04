@@ -585,7 +585,12 @@ describes; we do not use it to claim a live-synchronized model we have not built
 overlay, and runtime levels. Our contribution is neither a protocol nor a runtime mechanism but a
 pipeline-integrated static check over the deployment's own descriptors.
 
-<!-- TODO(refs): expand from 6 to ~18 citations before submission. Reuse the bibliography assembled
+**Scalability testing.** Scalability faults can stay latent until production scale (Leesatapornwongsa
+et al. 2017; Zhu et al. 2026). Existing techniques run the implementation: emulation (DieCast, Exalt,
+ScaleCheck), workload extrapolation (PatternMiner), or scaling runs with static analysis (ScaleLens).
+SaaG runs nothing, so it needs no scaled deployment and sees no code-level fault.
+
+<!-- TODO(refs): expand from 12 to ~18 citations before submission. Reuse the bibliography assembled
      in docs/research/middleware2026/research/middleware26_revision_plan.md §A1 (Eugster, Carzaniga,
      DDS spec, MQTT, Freeman, Brandes). Add: DDS QoS conformance literature; deployment/config
      verification (e.g. configuration error studies); CI quality-gate practice; a manufacturing/

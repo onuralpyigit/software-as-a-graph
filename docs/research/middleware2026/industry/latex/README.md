@@ -35,8 +35,8 @@ dependency tree correctly in one shot.)
 including "Future work") ends on page 6, and only the reference list itself spills onto page 7 —
 confirmed via `pdftotext` in natural column order, not just total page count. Since references are
 excluded from the CFP's 6-page limit, this satisfies it. Re-run `make pages` after any further
-edits to confirm this still holds; the margin is thin (References starts partway down page 6's
-second column), so a modest amount of added content could push it back over.
+edits to confirm this still holds; there is almost no margin left (References now starts at the top
+of page 7), so nearly any added body content will push it back over.
 
 A handful of cosmetic `Overfull \hbox` warnings remain (long `\texttt{}` tokens and one figure
 caption not breaking ideally in the narrow single-column width, up to ~46pt over) — `\sloppy` is
