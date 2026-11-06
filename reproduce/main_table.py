@@ -584,6 +584,7 @@ def _load_scenario_data(
     DEPENDS_ON edges) > cached structural_metrics.json > NX-derived fallback.
     """
     from saag.core.graph_io import build_graph_from_json as _build_graph_from_json
+    from saag.prediction.label_artifacts import check_topology
 
     cache_dir = Path(cache_dir) if cache_dir is not None else _find_cache_dir(scenario)
 
@@ -602,6 +603,9 @@ def _load_scenario_data(
     nx_graph = _build_graph_from_json(topology)
 
     if cache_dir and cache_dir.exists():
+        fi_path = cache_dir / "failure_impact.json"
+        if fi_path.exists():
+            check_topology(json.loads(fi_path.read_text()), nx_graph)
         graph_nodes = {str(n) for n in nx_graph.nodes()}
         structural_dict, simulation_dict, rm_dict, gt_source = _load_cache_dicts(cache_dir, graph_nodes)
     else:

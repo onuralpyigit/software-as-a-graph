@@ -174,9 +174,12 @@ def test_threshold_cdf_is_graded():
 
 def test_threshold_cdf_records_its_config():
     res = FaultInjector(fan(3), seeds=[1], failure_model="threshold_cdf").run(node_ids=["L"])
-    assert res.to_dict()["labeler_config"] == {"failure_model": "threshold_cdf",
-                                               "threshold_range": [0.1, 0.5]}
-    assert "labeler_config" not in FaultInjector(fan(3), seeds=[1]).run(node_ids=["L"]).to_dict()
+    config = res.to_dict()["labeler_config"]
+    assert config["failure_model"] == "threshold_cdf"
+    assert config["threshold_range"] == [0.1, 0.5]
+    default = FaultInjector(fan(3), seeds=[1]).run(node_ids=["L"]).to_dict()["labeler_config"]
+    assert default["failure_model"] == "step"
+    assert "threshold_range" not in default
     with pytest.raises(ValueError):
         FaultInjector(fan(3), failure_model="soft")
     with pytest.raises(ValueError):

@@ -137,7 +137,7 @@ def test_artifact_round_trips_stability(tmp_path):
     _run(RECOMMENDED_SEEDS).save(out)
     raw = json.loads(out.read_text())
 
-    assert raw["schema_version"] == "2.1"
+    assert raw["schema_version"] == "2.2"
     assert raw["label_stability"]["n_seeds"] == 5
     assert raw["label_stability"]["test_retest_spearman"] is not None
 

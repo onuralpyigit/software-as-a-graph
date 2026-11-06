@@ -182,6 +182,7 @@ Computes structural metrics only on the layer subgraph. No RM/Q scores or anti-p
 ### `prediction/` — Step 3 Predictive Engine + Step 4 Diagnostic Engine
 `PredictionService` orchestrates the predictive forecasting and diagnostic attribution engines: it computes rule-based RM scores first (Step 4's substrate and Step 3's zero-checkpoint fallback), evaluates closed-form structural references or blends in GNN inference when available (Step 3), and — governed by `diagnose=True` — executes anti-pattern detection and natural language explanation generation (Step 4).
 - `PredictionService` — Orchestrates closed-form references ($\text{InDeg}$, $\text{Analytic } I^*$), RM scoring, GNN inference when checkpoints are provided, and anti-pattern auditing with narrative explanation.
+- `label_artifacts` — Checks a label file before training: its labeler, the chosen label, its topology fingerprint, and its stability across seeds.
 - `GNNService` — Loads trained model checkpoints supporting both homogeneous graph attention on the derived dependency graph (`GAT-P-QoS` via `GATConv`) and heterogeneous graph transformers on the raw multigraph (`HGT-QoS` via `HGTConv`) with 16-D QoS edge encodings, as well as logit-residual hybrid heads. Runs inductive prediction (Step 3).
 - `ExplanationEngine` (from `explanation/`) — Generates stakeholder-oriented natural-language narratives for Step 4.
 

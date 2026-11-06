@@ -84,6 +84,7 @@ from .simulation_results import (
     FaultInjectionRecord,
     FaultInjectionResult,
 )
+from saag.core.graph_io import topology_fingerprint
 from saag.core.models import QoSPolicy, topic_weight_from_node_attrs
 from saag.core.network import NETWORK_TYPES, Fabric, evaluate
 
@@ -301,6 +302,9 @@ class FaultInjector:
         self.depth_damp_step = depth_damp_step
         self.depth_damp_floor = depth_damp_floor
         self.replica_aware = replica_aware
+        self.network_gating = network_gating
+        # From the graph as given: the arcs derived below overwrite USES on the same pair.
+        self._topology_fingerprint = topology_fingerprint(graph)
         self.graph = graph.copy()
         
         # Derive DEPENDS_ON edges dynamically if they are missing
@@ -437,6 +441,7 @@ class FaultInjector:
 
         result = FaultInjectionResult(
             graph_id=self.graph.graph.get("id", ""),
+            topology_fingerprint=self._topology_fingerprint,
             total_application_nodes=n_apps,
             total_broker_nodes=n_brokers,
             total_subscribers=len(self._index.all_subscribers),
@@ -472,9 +477,7 @@ class FaultInjector:
             )
 
         result.finalise()
-        if self.failure_model != "step":
-            result.labeler_config = {"failure_model": self.failure_model,
-                                     "threshold_range": list(self.threshold_range)}
+        result.labeler_config = self._labeler_config()
         result.label_stability = self._compute_label_stability(result)
         self._record_degenerate_types(result)
         if self.strict_labels and result.degenerate_node_types:
@@ -486,6 +489,23 @@ class FaultInjector:
             )
         logger.info("Fault injection complete.  %d records.", result.total_nodes_injected)
         return result
+
+    def _labeler_config(self) -> Dict[str, Any]:
+        """Every setting that changes a label, so an artifact states how it was made."""
+        config: Dict[str, Any] = {
+            "failure_model": self.failure_model,
+            "propagation_threshold": self.propagation_threshold,
+            "qos_factor_mode": self.qos_factor_mode,
+            "qos_factor_kappa": self.qos_factor_kappa,
+            "cascade_depth_limit": self.cascade_depth_limit,
+            "depth_damp_step": self.depth_damp_step,
+            "depth_damp_floor": self.depth_damp_floor,
+            "network_gating": self.network_gating,
+            "replica_aware": self.replica_aware,
+        }
+        if self.failure_model == "threshold_cdf":
+            config["threshold_range"] = list(self.threshold_range)
+        return config
 
     @staticmethod
     def _compute_label_stability(result: FaultInjectionResult, k_frac: float = 0.20) -> Dict[str, Any]:

@@ -131,7 +131,7 @@ I\* is 0 when nobody loses anything and 1 when every subscriber loses every feed
 | `seeds` | `[42]` in code; `RECOMMENDED_SEEDS` (5 seeds) on the CLI | Labels are seed means; `impact_score_std` is the spread |
 | `propagation_threshold` | 0.2 | Raise toward 1.0 for "fail only when starved" |
 | `qos_factor_mode` | `ladder` | `wt`: scale by the topic weight w(t), which includes durability; `none`: topology only (the label-ablation arm) |
-| `failure_model` | `step` | `threshold_cdf`: each subscriber draws a tolerance θ_s ~ U(0.1, 0.5) once per seed and is redrawn only when its loss rises. Averaged over seeds, P(fail) = F_θ(loss) · depth_damp, so the cliff at θ becomes a smooth curve. Recorded as `labeler_config`. |
+| `failure_model` | `step` | `threshold_cdf`: each subscriber draws a tolerance θ_s ~ U(0.1, 0.5) once per seed and is redrawn only when its loss rises. Averaged over seeds, P(fail) = F_θ(loss) · depth_damp, so the cliff at θ becomes a smooth curve. |
 | `network_gating`, `replica_aware` | off | See [§9](#9-shared-deployment-options) |
 | `node_types` | `Application, Broker` in code; the CLI adds `Library` | Types left out are listed in `unlabeled_node_ids`, never scored 0. `Topic` and `Node` can be labelled: a failed topic silences its subscribers, and a failed host takes its residents with it. |
 
@@ -470,9 +470,12 @@ The whole-pipeline CLI `saag` (`cli/run.py`) runs `SimulateGraphUseCase` instead
 <!-- schema: impact_scores -->
 ```json
 {
-  "schema_version": "2.1",
+  "schema_version": "2.2",
   "graph_id": "atm_system",
+  "topology_fingerprint": "92670795fd37e398",
   "labeler": "FaultInjector",
+  "labeler_config": {"failure_model": "step", "propagation_threshold": 0.2, "qos_factor_mode": "ladder",
+                     "network_gating": false, "replica_aware": false},
   "seeds_used": [42, 123, 456, 789, 2024],
   "labeled_node_types": ["Application", "Broker"],
   "labeled_dimensions": ["composite", "reliability"],
@@ -490,6 +493,8 @@ The whole-pipeline CLI `saag` (`cli/run.py`) runs `SimulateGraphUseCase` instead
 ```
 
 Read labels from `records[*].impact_score`. `unlabeled_node_ids` lists nodes that were never injected; they are unmeasured, not zero.
+
+`labeler_config` states every setting that changes a label, and `topology_fingerprint` hashes the topology the labels were measured on. `cli/train_graph.py` uses them to refuse the wrong file: labels from another topology, or labels that do not reproduce across seeds ([flags](cli-pipeline-guide.md#step-3b-train-gnn)).
 
 ### `message_flow_results.json` (`message-flow`)
 

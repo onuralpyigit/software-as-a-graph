@@ -127,6 +127,7 @@ from saag.prediction.data_preparation import (
     extract_rm_scores_dict,
     extract_edge_simulation_dict,
 )
+from saag.prediction.label_artifacts import check_topology
 from saag.core.models import QoSPolicy, topic_weight_from_node_attrs
 from saag.evaluation import variant_registry as _registry
 
@@ -321,6 +322,8 @@ def load_scenario_bundle(scenario_dir: Path) -> Optional[ScenarioBundle]:
     )
 
     graph = _build_graph_from_json(topology)
+    if isinstance(sim_raw, dict):
+        check_topology(sim_raw, graph)
     structural = extract_structural_metrics_dict(structural_raw)
 
     try:

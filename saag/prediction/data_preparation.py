@@ -1392,6 +1392,13 @@ def normalize_labels_robust(hetero_data, rank_normalize: bool = False) -> None:
 
 # ── Extraction utilities ───────────────────────────────────────────────────────
 
+def _impact_score(record: Dict[str, Any]) -> float:
+    """A record's I*(v). A missing score is an error: read as 0.0, it would be a measurement."""
+    if "impact_score" not in record:
+        raise ValueError(f"label record has no impact_score (keys: {sorted(record)})")
+    return float(record["impact_score"])
+
+
 def extract_simulation_dict(simulation_results: Union[list, dict, Any]) -> Dict[str, Dict[str, float]]:
     """Normalise Simulation output to common flat dict format."""
     out: Dict[str, Dict[str, float]] = {}
@@ -1410,6 +1417,13 @@ def extract_simulation_dict(simulation_results: Union[list, dict, Any]) -> Dict[
         return out
 
     if isinstance(simulation_results, dict) and "records" in simulation_results:
+        labeler = simulation_results.get("labeler", "FaultInjector")
+        if labeler != "FaultInjector":
+            raise ValueError(
+                f"{labeler} artifacts have no impact_score: choose one of "
+                f"{simulation_results.get('labeled_dimensions', [])} with "
+                "saag.prediction.label_artifacts.select_labels."
+            )
         # FaultInjector emits a single scalar I*(v). It measures reachability-style
         # impact, so it maps onto composite/reliability (reliability is itself the
         # r_alpha-blend of fault-tolerance and availability — this scalar doesn't
@@ -1424,7 +1438,7 @@ def extract_simulation_dict(simulation_results: Union[list, dict, Any]) -> Dict[
             for nid, r in records.items():
                 if not isinstance(r, dict):
                     continue
-                score = float(r.get("impact_score", 0.0))
+                score = _impact_score(r)
                 out[str(nid)] = {
                     "composite": score,
                     "reliability": score,
@@ -1436,7 +1450,7 @@ def extract_simulation_dict(simulation_results: Union[list, dict, Any]) -> Dict[
                 nid = r.get("node_id") or r.get("id")
                 if nid is None:
                     continue
-                score = float(r.get("impact_score", 0.0))
+                score = _impact_score(r)
                 out[str(nid)] = {
                     "composite": score,
                     "reliability": score,

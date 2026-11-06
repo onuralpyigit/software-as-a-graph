@@ -61,6 +61,8 @@ from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
 
+from saag.core.graph_io import topology_fingerprint
+
 from .faults import FaultSpec
 from .uncertainty import rank_stability
 
@@ -347,6 +349,7 @@ def runtime_labels(
     return {
         "schema_version": "1.0",
         "graph_id": graph.graph.get("id", ""),
+        "topology_fingerprint": topology_fingerprint(graph),
         "labeler": "MessageFlowSimulator/runtime",
         "settings": cfg,
         "fault": fault,
