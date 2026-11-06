@@ -126,7 +126,7 @@ When comparing the output of the actual Python script against the theoretical Se
 
 ## Step 5: Failure Simulation
 
-- **`run_failure_simulation.py`**: Executes the Step 5 Failure Simulation phase. It showcases both simulation engines: the stochastic **Fault Injector** (BFS cascade propagation) and the discrete-event **Message Flow Simulator** (SimPy queue timing).
+- **`run_failure_simulation.py`**: Executes the Step 5 Failure Simulation phase. It showcases two of the [simulation engines](../docs/failure-simulation.md#2-which-engine-do-i-need): the stochastic **Fault Injector** (cascade labels I\*) and the discrete-event **Message Flow Simulator** (SimPy queue timing, I_dyn).
 
 ### Running the Simulation Example
 
@@ -141,14 +141,19 @@ This runs:
 
 ### Simulation Observations & Metrics
 
-1. **Fault Injection Cascade**:
-   - **`SensorApp` (`A0`)**: Failing `A0` orphans `/temperature` (`T0`), which completely starves `MonitorApp` (`A1`). Because `A1` loses 100% of its incoming feeds (exceeding the propagation threshold of 20%), it fails. This leads to a cascade depth of 1 and a composite impact score of $I(A0) = 1.0000$.
-   - **`MonitorApp` (`A1`)**: Since `A1` is only a subscriber and does not publish to any topic, failing it does not orphan any topic or affect any other subscriber, yielding $I(A1) = 0.0000$.
-   - **`MainBroker` (`B0`)**: In the static fault injector, broker failure only orphans a topic if all routing brokers for that topic fail and there are no active direct publishers. Because `SensorApp` (`A0`) is still alive and publishing to `T0`, failing `B0` does not cascade, yielding $I(B0) = 0.0000$.
+The script asserts each result below, so a change in behaviour makes it fail.
 
-2. **Message Flow Simulation (SimPy)**:
-   - **Baseline Scenario**: With 10.0 Hz publisher frequency, `A0` publishes exactly 990 messages over 100 seconds (accounting for simulated startup timing). Since no fault is active, all 990 messages are successfully delivered to `A1`'s subscriber queue, giving a system delivery rate of `1.0000`.
-   - **Faulted Scenario**: Injecting a runtime fault on `A0` at $t = 50.0$ s silences its publisher process. `A0` successfully publishes 495 messages before failing. The delivery rate *after* the fault drops to `0.0000` because the `/temperature` topic becomes completely starved. The system delivery rate is still reported as `1.0000` because 100% of the messages that *were* published were successfully delivered before the fault silenced the publisher.
+1. **Fault Injection Cascade** (`SensorApp` publishes `/temperature` to `MonitorApp`, routed by `MainBroker`):
+
+   | Component | I\* | Cascade depth | Why |
+   |:---|:---|:---|:---|
+   | `SensorApp` (`A0`) | 1.0 | 1 | Sole publisher of `T0`, so `MonitorApp` loses its only feed |
+   | `MainBroker` (`B0`) | 1.0 | 1 | Sole router of `T0`, so the feed is lost even though `SensorApp` is alive |
+   | `MonitorApp` (`A1`) | 0.0 | 0 | Only subscribes, so no other subscriber is harmed |
+
+2. **Message Flow Simulation (SimPy)**, a 100 s run:
+   - **Baseline**: `A0` publishes 1000 messages and 998 are delivered, a delivery rate of `0.9980`. The other 2 are not dropped: they are reported as `unserved_demand`, still unprocessed when the run ends.
+   - **Faulted**: a fault on `A0` at $t = 50.0$ s silences it after 499 messages. All 499 are delivered, so the *system* delivery rate reads `1.0000`, which hides the outage. The damage is in the fault record: the delivery rate falls from `1.0000` before the fault to `0.0000` after it, so I_dyn(A0) = 1.0.
 
 ---
 
@@ -260,7 +265,7 @@ This prints:
 - **ATM Graph Summary**: Detailed topological summary ($S(G)$) of the 74-component graph.
 
 ### 2. ATM Failure Simulation
-To run stochastic fault propagation (BFS-based cascade) and discrete-event SimPy message queue flow simulation on the ATM system:
+To run the stochastic fault cascade and the discrete-event SimPy queue-flow simulation on the ATM system:
 ```bash
 python examples/run_atm_failure_simulation.py
 ```

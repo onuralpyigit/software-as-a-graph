@@ -486,20 +486,37 @@ def test_coupling_risk_cap_enforcement(self):
 
 ### 4.4 Simulation Module
 
-| Test ID | Description | Expected Result |
-|---------|-------------|-----------------|
-| UT-SIM-20 | CRASH mode: physical cascade | \|F\| > 1 when a Node hosting multiple applications fails |
-| UT-SIM-21 | Physical cascade rule: Node → hosted Apps/Brokers fail | All hosted components in failed set |
-| UT-SIM-22 | Logical cascade rule: Broker → exclusively-routed Topics die | Exclusively-routed topics marked unreachable |
-| UT-SIM-23 | Application cascade: Publisher → starved Subscribers fail | Subscribers with no remaining publisher added to failed set |
-| UT-SIM-24 | Fixed-point termination | Cascade terminates when no new failures in iteration |
-| UT-SIM-25 | I(v) composition: ReachabilityLoss, Fragmentation, ThroughputLoss | composite\_impact = weighted combination of three components |
-| UT-SIM-26 | Configurable I(v) weights | Different w\_r, w\_f, w\_t produce different composite\_impact ordering |
-| UT-SIM-27 | DEGRADED mode less severe than CRASH | DEGRADED I(v) ≤ CRASH I(v) for same target component |
-| UT-SIM-28 | PARTITION mode | Graph splitting reduces reachability; Fragmentation > 0 |
-| UT-SIM-29 | OVERLOAD mode | ThroughputLoss > 0; cascade depth limited vs. CRASH |
-| UT-SIM-30 | Monte Carlo mode: N trials | Returns N impact samples per component; mean and variance present |
-| UT-SIM-31 | Monte Carlo deterministic with fixed seed | Identical results across two runs with same seed |
+Each row names the test that implements it. `sim` is `tests/test_simulation_service.py`; `modes` is `tests/test_failure_modes.py`.
+
+| Test ID | Description | Expected Result | Implemented by |
+|---------|-------------|-----------------|----------------|
+| UT-SIM-20 | CRASH: physical cascade | Node failure fails its hosted applications | `sim::TestPhysicalCascade::test_node_failure_cascades_to_hosted_apps` |
+| UT-SIM-21 | Physical cascade stays physical | Broker failure does not cascade to Nodes | `sim::TestPhysicalCascade::test_broker_failure_does_not_cascade_to_nodes` |
+| UT-SIM-22 | Logical cascade: Broker → Topics | Routed topics are impacted | `sim::TestLogicalCascade::test_broker_failure_cascades_to_topics` |
+| UT-SIM-23 | Logical cascade: publisher starvation | Starved topics and subscribers are impacted | `sim::TestLogicalCascade::test_publisher_starvation_cascade` |
+| UT-SIM-24 | Library cascade | Library failure fails its consumers | `sim::TestLibraryCascade::test_library_failure_cascades_to_consumers` |
+| UT-SIM-25 | I_comp composition | Default weights are 0.35 / 0.25 / 0.25 / 0.15 and all four terms contribute | `sim::TestImpactWeights::test_default_weights`, `test_all_dimensions_contribute` |
+| UT-SIM-26 | Configurable I_comp weights | Custom weights change the composite | `sim::TestImpactWeights::test_custom_weights` |
+| UT-SIM-27 | DEGRADED mode | A degraded single publisher (0.5) does not starve its topic | `modes::test_degraded_single_publisher` |
+| UT-SIM-28 | PARTITION mode | The physical cascade is skipped | `modes::test_partition_mode_skips_physical_cascade` |
+| UT-SIM-29 | Pairwise mode | Pairs of components fail together | `modes::test_pairwise_logic` |
+| UT-SIM-30 | Monte Carlo mode | Returns a distribution of impact over N trials | `sim::TestMonteCarlo::test_monte_carlo_returns_distribution` |
+| UT-SIM-31 | Monte Carlo with certain propagation | No spread at p = 1 | `sim::TestMonteCarlo::test_monte_carlo_deterministic_at_prob_1` |
+| UT-SIM-32 | `FaultInjector`: router loss | Fractional, softened by a redundant broker | `tests/test_simulation_defects.py::test_fault_injector_router_loss_is_fractional_and_redundancy_softens` |
+| UT-SIM-33 | `FaultInjector`: label stability | Labels reproduce across runs and processes | `tests/test_label_stability.py` |
+| UT-SIM-34 | `MessageFlowSimulator`: I_dyn accounting | A silenced publisher is visible; the failed node's own consumption is not damage | `tests/test_message_flow_oracle.py` |
+| UT-SIM-35 | Edge removal | Measured against a control, and restored after each measurement | `tests/test_edge_removal.py` |
+
+**Contract guards.** These protect the invariants in [CLAUDE.md](../../CLAUDE.md#invariants):
+
+| Guard | What it enforces |
+|:---|:---|
+| `tests/test_groundtruth_contract.py` | `FaultInjector` is the Predict labeller and `FailureSimulator` the Validate oracle |
+| `tests/test_independence_guarantee.py` | The simulation package does not import prediction or quality-scoring classes |
+| `tests/test_predict_simulate_separation.py` | Predict does not import Simulate |
+| `tests/test_simulation_dependency_derivation.py` | Re-derived `DEPENDS_ON` arcs equal the repository's |
+| `tests/test_simulation_golden_defaults.py` | Default I\*, I_dyn, I_comp and I_M outputs are pinned bit for bit |
+| `tests/test_docs_simulation.py` | The examples in [failure-simulation.md](../failure-simulation.md) and [simulation-extensions.md](../simulation-extensions.md) run against the code |
 
 ### 4.5 Anti-Pattern Detection Module
 
@@ -688,11 +705,10 @@ def test_full_analysis_pipeline(multi_layer_graph):
 
 ### 5.2 Simulation Pipeline
 
-| Test ID | Description | Expected Result |
-|---------|-------------|-----------------|
-| IT-SIM-01 | Event simulation + failure simulation on same graph | Both produce valid results without state contamination |
-| IT-SIM-02 | Exhaustive simulation across all components | Exactly one FailureResult per component in layer |
-| IT-SIM-03 | Layer-specific simulation | Only layer components simulated; cross-layer cascade still propagates |
+| Test ID | Description | Expected Result | Implemented by |
+|---------|-------------|-----------------|----------------|
+| IT-SIM-02 | Exhaustive simulation across all components | One result per component in the layer | `tests/test_simulation_service.py::TestExhaustiveSimulation::test_exhaustive_covers_all_layer_components` |
+| IT-SIM-03 | Per-layer impacts | Each result reports its layer impacts | `tests/test_simulation_service.py::TestExhaustiveSimulation::test_layer_impacts_present` |
 
 ### 5.3 Cross-Pipeline (Analysis → Simulation → Validation)
 
@@ -838,7 +854,7 @@ Each CLI tool is tested independently with its most common options.
 | ST-CLI-02 | `cli/import_graph.py --input <json>` (JSON format) | Correct DEPENDS\_ON edges derived |
 | ST-CLI-03 | `cli/import_graph.py --input <graphml>` | Equivalent topology as JSON import |
 | ST-CLI-04 | `cli/analyze_graph.py --layer app` | Non-empty JSON output; structural metric vector present (no RM scores — Analyze is structural-only) |
-| ST-CLI-05 | `cli/simulate_graph.py fault-inject --input <json>` | One I(v) per component; sorted by impact |
+| ST-CLI-05 | `cli/simulate_graph.py fault-inject --input <json> --export-json` | One I\*(v) per injected component; `top_k_by_impact` sorted by impact |
 | ST-CLI-06 | `cli/validate_graph.py report --input <json> --qos` | JSON with Spearman ρ, F1, pass/fail flag |
 | ST-CLI-07 | `cli/visualize_graph.py --layer system` | Valid HTML file; vis.js network included |
 | ST-CLI-08 | `cli/generate_graph.py --scale medium --seed 42` | Deterministic output; same topology on re-run |
@@ -1040,11 +1056,11 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 
 | ID | Criterion | Method | Pass If |
 |----|-----------|--------|---------|
-| AC-15 | Cascade propagation (CRASH) | Auto | \|F\| > 1 when a connected Node fails |
-| AC-16 | DEGRADED mode less severe than CRASH | Auto | DEGRADED I(v) ≤ CRASH I(v) for same target |
-| AC-17 | Impact score computed | Auto | I(v) ∈ [0, 1] for all components |
+| AC-15 | Cascade propagation (CRASH) | Auto | Hosted applications fail when their Node fails |
+| AC-16 | DEGRADED mode less severe than CRASH | Auto | A degraded single publisher does not starve its topic |
+| AC-17 | Impact score computed | Auto | I_comp(v) ∈ [0, 1] for all components |
 | AC-18 | Exhaustive mode | Auto | Exactly one result per component in layer |
-| AC-19 | Results sorted by impact | Auto | I(v) values in descending order |
+| AC-19 | Results sorted by impact | Auto | I_comp(v) values in descending order |
 
 #### Validation
 
@@ -1182,13 +1198,14 @@ Each SRS v3.0 requirement maps to one or more test cases. Requirements without e
 | REQ-GNN-TR-03 | Loss calculation MSE/ListMLE | UT-GNN-07, ST-CLI-13 |
 | REQ-GNN-TR-04 | Robust IQR-based label sigmoidal | UT-GNN-08 |
 | REQ-GNN-TR-05 | Multi-seed execution loops | ST-CLI-13 |
-| REQ-FS-01 | Simulate CRASH mode | UT-SIM-20, AC-15 |
-| REQ-FS-02 | DEGRADED, PARTITION, OVERLOAD modes | UT-SIM-27, UT-SIM-28, UT-SIM-29, AC-16 |
-| REQ-FS-03 | Cascade propagation rules (3 rules) | UT-SIM-21, UT-SIM-22, UT-SIM-23 |
-| REQ-FS-04–06 | Reachability, Fragmentation, Throughput | UT-SIM-25 (I(v) composition) |
-| REQ-FS-07 | Composite impact I(v) with configurable weights | UT-SIM-25, UT-SIM-26 |
-| REQ-FS-08 | Exhaustive simulation | ST-CLI-05, IT-SIM-02, AC-18 |
-| REQ-FS-09 | Monte Carlo mode | UT-SIM-30, UT-SIM-31, ST-CLI-05 |
+| REQ-FS-01 | Exhaustive failure simulation | IT-SIM-02, AC-18 |
+| REQ-FS-02 | Monte Carlo simulation | UT-SIM-30, UT-SIM-31 |
+| REQ-FS-03 | Dimension-specific sub-passes | `tests/test_maintainability_dimension.py` |
+| REQ-FS-04 | Cascade propagation rules | UT-SIM-20, UT-SIM-21, UT-SIM-22, UT-SIM-23, UT-SIM-24, AC-15 |
+| REQ-FS-05 | Composite impact I_comp(v) | UT-SIM-25, UT-SIM-26, AC-17, AC-19 |
+| REQ-FS-06 | Cascade training labels I\*(v) | UT-SIM-32, UT-SIM-33, ST-CLI-05 |
+| REQ-FS-07 | Queue-flow probe I_dyn(v) | UT-SIM-34 |
+| REQ-FS-08 | Edge criticality | UT-SIM-35 |
 | REQ-VL-01 | Spearman ρ | UT-VAL-01, UT-VAL-02, IT-VAL-01, AC-20 |
 | REQ-VL-02 | Precision, Recall, F1-Score | UT-VAL-08, IT-VAL-03, AC-21 |
 | REQ-VL-03 | Top-K overlap (K=5, K=10) | UT-VAL-04, UT-VAL-05 |

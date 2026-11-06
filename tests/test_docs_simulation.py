@@ -1,7 +1,7 @@
 """
-Keep docs/failure-simulation.md honest.
+Keep docs/failure-simulation.md and docs/simulation-extensions.md honest.
 
-The page's examples had drifted from the code: calls to APIs that did not
+The pages' examples had drifted from the code: calls to APIs that did not
 exist, CLI defaults that had changed, JSON snippets with invented fields. This
 test makes each kind of drift a failure:
 
@@ -24,7 +24,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-DOC = ROOT / "docs" / "failure-simulation.md"
+DOCS = [ROOT / "docs" / "failure-simulation.md", ROOT / "docs" / "simulation-extensions.md"]
 
 _FENCE = re.compile(r"(?:^<!--\s*(?P<marker>[^>]*?)\s*-->\s*\n)?^```(?P<lang>\w+)\n(?P<body>.*?)^```",
                     re.M | re.S)
@@ -32,10 +32,13 @@ _FENCE = re.compile(r"(?:^<!--\s*(?P<marker>[^>]*?)\s*-->\s*\n)?^```(?P<lang>\w+
 
 def _blocks(lang):
     out = []
-    for m in _FENCE.finditer(DOC.read_text()):
-        if m.group("lang") == lang:
-            line = DOC.read_text()[: m.start("body")].count("\n")
-            out.append(pytest.param(m.group("body"), m.group("marker") or "", id=f"line{line}"))
+    for doc in DOCS:
+        text = doc.read_text()
+        for m in _FENCE.finditer(text):
+            if m.group("lang") == lang:
+                line = text[: m.start("body")].count("\n")
+                out.append(pytest.param(m.group("body"), m.group("marker") or "",
+                                        id=f"{doc.stem}:line{line}"))
     return out
 
 
@@ -57,7 +60,7 @@ def test_python_example_runs(code, marker, scratch, capsys):
         pytest.skip(marker)
     if "MessageFlowSimulator" in code or "runtime_labels" in code:
         pytest.importorskip("simpy")
-    exec(compile(code, str(DOC), "exec"), {"__name__": "__doc_example__"})
+    exec(compile(code, "<simulation docs>", "exec"), {"__name__": "__doc_example__"})
 
 
 # ── CLI lines ────────────────────────────────────────────────────────────────
@@ -84,7 +87,7 @@ def test_cli_example_parses(argv):
         assert (ROOT / path).exists(), f"example input {path} does not exist"
 
 
-def test_the_page_has_examples():
+def test_the_pages_have_examples():
     assert len(_blocks("python")) >= 8 and len(_commands()) >= 8
 
 

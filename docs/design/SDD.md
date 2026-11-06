@@ -574,9 +574,10 @@ These are Python dataclasses that flow between services. All continuous metrics 
 | `reachability_loss` | float | Fraction of broken pub-sub paths |
 | `fragmentation` | float | Graph disconnection severity |
 | `throughput_loss` | float | Weighted message capacity reduction |
+| `flow_disruption` | float | Fraction of healthy baseline flows broken |
 | `cascade_count` | int | Number of cascaded failures |
 | `cascade_depth` | int | Maximum cascade propagation depth |
-| `composite_impact` | float | I(v) = weighted combination |
+| `composite_impact` | float | I_comp(v) = 0.35·reachability + 0.25·fragmentation + 0.25·throughput + 0.15·flow |
 
 **ValidationGroupResult** — output of Step 6, one per layer:
 
@@ -734,28 +735,26 @@ saag.usecases.DiagnosticUseCase                            saag.usecases.Predict
 
 ### 5.6 Simulation Pipeline (Step 5)
 
+The Validate-stage sweep, as reached from REST (`POST /api/v1/simulation/exhaustive`) and from `cli/run.py`:
+
+```mermaid
+flowchart TD
+    A["SimulationService.run_failure_simulation_exhaustive(layer)"] --> B["Build SimulationGraph from the raw relationships"]
+    B --> C["_prime_baseline_flows<br>EventSimulator records the healthy flows"]
+    C --> D["FailureSimulator.simulate_exhaustive<br>baseline computed once"]
+    D --> E["For each component v of the layer, in sorted order"]
+    E --> F["simulate: fail v, propagate impact (§6.10)"]
+    F --> G["_calculate_impact<br>reachability, fragmentation, throughput, flow disruption"]
+    G --> H["Record FailureResult"]
+    H --> E
+    E --> I["Sort by composite_impact"]
+    I --> J["Post-passes: fault tolerance, maintainability, availability"]
+    J --> K["List of FailureResult"]
 ```
-saag.simulation.service.SimulationService.run_failure_simulation(layer)
-  (also exposed as FastAPI POST /api/v1/simulation/failure)
-         │
-    1. Build SimulationGraph from G_structural (all raw relationships)
-    2. Compute baseline state (paths, components, topic weights)
-    3. For each component v in layer:
-         │
-         a. Remove v from graph
-         b. Propagate cascades (FailureSimulator, §6.10):
-              Physical: Node fails → hosted Apps/Brokers fail
-              Logical:  Broker fails → exclusively-routed Topics die
-              Application: Publisher fails → starved Subscribers fail
-              (repeat until no new failures — fixed-point iteration)
-         c. Measure impact vs. baseline:
-              ReachabilityLoss, Fragmentation, ThroughputLoss
-         d. Record FailureResult with cascade sequence
-         e. Restore v
-         │
-         ▼
-    Return List[FailureResult] with I(v) for every component
-```
+
+`run_failure_simulation(target_ids)` runs one scenario in which the targets fail together, without priming the baseline flows, so its flow-disruption term reads 0.
+
+The other engines do not go through this path. `FaultInjector` (Predict-stage labels, I\*) and `MessageFlowSimulator` (queue-flow probe, I_dyn) run from `cli/simulate_graph.py` on a NetworkX graph loaded from the scenario JSON. See [failure-simulation.md](../failure-simulation.md#2-which-engine-do-i-need).
 
 ### 5.7 Validation Pipeline (Step 6)
 
@@ -1041,31 +1040,43 @@ Fallback (n < 12): Fixed percentile thresholds
 
 ### 6.10 Cascade Propagation
 
-Simulates failure spread through the physical system graph G\_structural.
+Spreads a failure through G\_structural as a continuous impact, where 1.0 means failed. This is `FailureSimulator`; `FaultInjector` uses a different rule ([failure-simulation.md §4](../failure-simulation.md#4-faultinjector-cascade-labels-i)).
 
 ```
-Input:  G_structural, target component t, cascade rules, max_depth
-Output: Failed set F, cascade sequence S
+Input:  G_structural, targets T, failure_mode, cascade_rule,
+        cascade_probability p, max_cascade_depth = 10
+Output: impact[c] ∈ [0, 1], failed set F, cascade sequence S
 
-1. F = {t}, queue = [t], S = [(t, "initial", depth=0)]
-2. While queue not empty:
-     current = queue.pop()
+1. impact[t] = 1.0 for t ∈ T (0.5 under DEGRADED); all others 0
+   Library targets immediately raise their consumers (not under DEGRADED)
+2. queue = every component with impact > 0
+3. While queue not empty:
+     (current, depth) = queue.pop(); skip if depth ≥ max_cascade_depth
 
-     Physical cascade (if current is Node):
-       For each component hosted on current → add to F, enqueue
+     Node, physical rule (not under PARTITION):
+       each hosted c, with probability p: raise c to impact[current]
+     Library:
+       each consumer c, with library probability: raise c to impact[current]
+     Application, logical rule:
+       each topic t it publishes, with probability P(e):
+         a = mean impact of t's publishers
+         raise t to w(t) × (1.0 if a ≥ 1 − θ else a)        θ = 0.2
+     Broker, logical rule:
+       each topic t it routes, with probability P(e):
+         raise t to w(t) × min impact of t's routing brokers
+     Topic, logical rule:
+       each subscriber s, with probability P(e):
+         raise s to min impact over s's subscribed topics
+     Node, network rule:
+       each peer n, with probability p:
+         raise n to min(impact[current], min impact of n's other links)
 
-     Logical cascade (if current is Broker):
-       For each topic exclusively routed by current → mark unreachable
-       For each subscriber with no remaining data source → add to F, enqueue
-
-     Application cascade (if current is Publisher):
-       For each subscriber starved of all publishers → add to F, enqueue
-
-3. Repeat step 2 until fixed-point (no new failures)
-4. Return F, S
+   raise c to x: only if x > impact[c]; add c to F when x ≥ 1.0;
+                 append to S; enqueue (c, depth + 1)
+4. Return impact, F, S
 ```
 
-In Monte Carlo mode, each cascade propagation step fires with probability p ∈ (0, 1], and N trials produce a distribution of I(v) values from which mean and variance are reported.
+P(e) is the edge's QoS weight w(e) when recorded, otherwise p. Impact only rises, so the loop terminates. In Monte Carlo mode, N seeded trials give the mean, standard deviation and 95% interval of I_comp(v).
 
 ### 6.11 Spearman Rank Correlation
 
@@ -1768,7 +1779,7 @@ Domain weighting has been measured to barely perturb component ranking on this c
 | REQ-QS-07–08 | §6.7 AHP Weight Calculation; Appendix C AHP error handling |
 | REQ-QS-09 | §6.9 Box-Plot Classification (normal path and fallback) |
 | REQ-QS-10 | §5.9 Anti-Pattern Detection Pipeline |
-| REQ-FS-01–05 | §5.6 Simulation Pipeline; §6.10 Cascade Propagation |
+| REQ-FS-01–08 | §5.6 Simulation Pipeline; §6.10 Cascade Propagation |
 | REQ-VL-01 | §6.11 Spearman Rank Correlation |
 | REQ-VL-02–10 | §5.7 Validation Pipeline (classification, ranking, error metrics, min-n check) |
 | REQ-VL-07 | §6.12 NDCG@K |

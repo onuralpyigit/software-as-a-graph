@@ -324,7 +324,7 @@ Every subcommand accepts `--input` (scenario JSON), `--layer` (resolves `data/<l
 
 ### `fault-inject`
 
-`FaultInjector` cascade labels I\* → `impact_scores.json` ([format](failure-simulation.md#15-output-files)).
+`FaultInjector` cascade labels I\* → `impact_scores.json` ([format](failure-simulation.md#12-output-files)).
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -368,7 +368,7 @@ One `MessageFlowSimulator` run, with an optional failure → `message_flow_resul
 | `--warmup` | `0.0` | Seconds excluded from both windows at the start |
 | `--guard-band` | `0.0` | Seconds around the fault excluded from both windows |
 
-Runtime-engine flags ([failure-simulation.md §11](failure-simulation.md#11-runtime-engine)). Every default is the published engine:
+Runtime-engine flags ([simulation-extensions.md §1](simulation-extensions.md#1-runtime-engine)). Every default is the published engine:
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -381,7 +381,7 @@ Runtime-engine flags ([failure-simulation.md §11](failure-simulation.md#11-runt
 | `--workload-model` | `declared` | `mmpp`: bursty arrivals with the declared mean rate |
 | `--staleness-periods` | `3.0` | Reactive input-freshness window, in periods |
 | `--network-gating` | off | With `stations`: CONNECTS_TO reachability gates delivery |
-| `--qos-semantics` | `engine` | `dds`: DEADLINE as a period contract (no drops), KEEP_LAST replaces the oldest sample, incompatible offered/requested QoS pairs do not communicate ([§12](failure-simulation.md#12-dds-qos-semantics-and-status-metrics)) |
+| `--qos-semantics` | `engine` | `dds`: DEADLINE as a period contract (no drops), KEEP_LAST replaces the oldest sample, incompatible offered/requested QoS pairs do not communicate ([details](simulation-extensions.md#2-dds-qos-semantics-and-status-metrics)) |
 | `--dds-status` | off | Count the DDS standard statuses into the result (implied by `--qos-semantics dds`) |
 | `--fault-mode` | `crash` | `transient_crash`, `freeze`, `slowdown`, `omission`, `babbling`, `buffer_leak`, `redelivery_storm`, `link_flap` |
 | `--fault-duration` | none | Duration of a bounded fault |
@@ -390,7 +390,7 @@ Runtime-engine flags ([failure-simulation.md §11](failure-simulation.md#11-runt
 
 ### `runtime-sweep`
 
-Fails every candidate under the runtime engine → `runtime_labels.json`: the five runtime labels with per-seed values and stability, plus their order-k references ([§11](failure-simulation.md#11-runtime-engine)). Defaults are the runtime oracle.
+Fails every candidate under the runtime engine → `runtime_labels.json`: the five runtime labels with per-seed values and stability, plus their order-k references ([details](simulation-extensions.md#runtime-labels-runtime-sweep)). Defaults are the runtime oracle.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -404,7 +404,7 @@ Fails every candidate under the runtime engine → `runtime_labels.json`: the fi
 
 ### `testbed`
 
-`testbed {build,run,calibrate,fidelity} --output DIR` runs the emulated DDS testbed ([§13](failure-simulation.md#13-emulated-testbed-calibration-and-fidelity)).
+`testbed {build,run,calibrate,fidelity} --output DIR` runs the emulated DDS testbed ([details](simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity)).
 
 | Flag | Default | Used by | Description |
 |------|---------|---------|-------------|
@@ -430,7 +430,7 @@ Runs `fault-inject`, then `message-flow`, using a subset of their flags: `--node
 - `testbed` → `<output>/deployment.json`, `Dockerfile`, `docker-compose.yml`, `telemetry/*.jsonl`, `run.json`, `profile.json`, `fidelity.json`
 - `combined` → the `fault-inject` and `message-flow` files
 
-All are written under `--output` (default `output/simulation/`). Formats are described in [failure-simulation.md §15](failure-simulation.md#15-output-files).
+All are written under `--output` (default `output/simulation/`). Formats are described in [failure-simulation.md §12](failure-simulation.md#12-output-files).
 
 ---
 
@@ -755,7 +755,7 @@ PYTHONPATH=. python cli/import_graph.py --input data/atm_system.json --clear
 PYTHONPATH=. python cli/analyze_graph.py --layer system
 
 # 3. Simulate (fault-inject for ground-truth, then optional message-flow)
-PYTHONPATH=. python cli/simulate_graph.py fault-inject --input data/atm_system.json --output output/simulation/ --export-json
+PYTHONPATH=. python cli/simulate_graph.py fault-inject --input data/scenarios/atm_system.json --output output/simulation/ --export-json
 
 # 3b. Train GNN on the fault-inject labels from step 3
 PYTHONPATH=. python cli/train_graph.py --layer system --simulated output/simulation/impact_scores.json --output output/gnn_checkpoints/best_model
@@ -944,7 +944,7 @@ The orchestrator warns when `--all` is used without a GNN checkpoint and skips t
 - Structural analysis: [structural-analysis.md](structural-analysis.md)
 - Prediction and GNN: [prediction.md](prediction.md)
 - Diagnosis and Triage Bridge: [diagnosis.md](diagnosis.md)
-- Failure simulation: [failure-simulation.md](failure-simulation.md)
+- Failure simulation: [failure-simulation.md](failure-simulation.md), with opt-in engines in [simulation-extensions.md](simulation-extensions.md)
 - Validation methodology: [validation.md](validation.md)
 - Prescription: [prescription.md](prescription.md)
 - Visualization: [visualization.md](visualization.md)
