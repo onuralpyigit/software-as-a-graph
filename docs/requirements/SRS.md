@@ -208,15 +208,18 @@ Step 4 (Diagnose) is the deterministic root-cause stage. It requires no trained 
 | **REQ-QS-05** | The system shall scope Step 3's Top-K ranking to Step 4's root-cause profile via the Triage Bridge, joining strictly by component ID (never reading a root cause off the ranking itself), and route the joined profile to stakeholder roles (DevOps/SRE, Architect, Developer). |
 
 ### 3.6 Failure Simulation (Step 5)
-The system must run cascade simulations to establish target criticality labels.
+The system must inject failures into the architecture model to produce training labels and validation oracles. The engines are described in [failure-simulation.md](../failure-simulation.md).
 
 | ID | Requirement |
 |----|-------------|
 | **REQ-FS-01** | The system shall support exhaustive failure simulation by sequentially failing each component and evaluating downstream disruptions. |
-| **REQ-FS-02** | The system shall support Monte Carlo simulation for large systems to limit execution durations. |
+| **REQ-FS-02** | The system shall support Monte Carlo simulation over repeated stochastic trials, reporting the mean, spread and a 95% interval of the impact. |
 | **REQ-FS-03** | The system shall execute dimension-specific simulator sub-passes computing ground truth for: Fault Tolerance (cascade propagation dynamics), Availability (connectivity disruption), and Maintainability (change-propagation reach). Reliability's ground truth $I_R(v)$ is the $\alpha$-blend of the Fault Tolerance and Availability sub-passes, mirroring the scoring-side hierarchy. |
 | **REQ-FS-04** | The system shall propagate cascades using four semantic rules: PHYSICAL (RUNS_ON), LOGICAL (Broker routes), NETWORK (CONNECTS_TO), and LIBRARY (USES). |
-| **REQ-FS-05** | The system shall output a composite impact score $I(v)$ representing the overall cascading footprint of each component. |
+| **REQ-FS-05** | The system shall output a composite impact score $I_{\text{comp}}(v)$ for each component, combining reachability loss, fragmentation, throughput loss and flow disruption. |
+| **REQ-FS-06** | The system shall produce cascade training labels $I^*(v)$, the mean subscriber feed loss after a cascade, as multi-seed means with a label-stability report. Node types that were not injected shall be reported as unlabeled, never as zero. |
+| **REQ-FS-07** | The system shall measure the delivery-rate drop $I_{\text{dyn}}(v)$ of a failure in a timed queueing simulation that models publication rates, bounded reader queues, subscriber contention and QoS contracts. |
+| **REQ-FS-08** | The system shall measure the criticality of a relationship by removing it with both endpoints alive, and shall report which relationships were evaluated. |
 
 ### 3.7 Statistical Validation (Step 6)
 The system must validate prediction accuracy against simulation ground truth.
@@ -380,7 +383,7 @@ This matrix maps the requirements defined in Section 3 to the standard software 
 | **REQ-GNN-01 to 09**| Software Implementation / Design | Node/edge dimension checks, HGT layer shapes verification. |
 | **REQ-GNN-CLS-01 to 02** | Software Integration / Classification | Criticality tier classification checks, fallback mode tests. |
 | **REQ-GNN-TR-01 to 05**| Software Implementation / Training | Optimization checks, loss value decreases validation. |
-| **REQ-FS-01 to 05** | Software Verification | Cascade propagation rules checking against test scenarios. |
+| **REQ-FS-01 to 08** | Software Verification | Cascade propagation rules checking against test scenarios. |
 | **REQ-VL-01 to 05** | Software Validation | Statistical function testing (scipy comparison assertions). |
 | **REQ-VZ-01 to 04** | Software Transition | HTML formatting validations, Next.js UI integration tests. |
 | **REQ-API-01 to 10**| Software Integration | REST API routing validation, JSON schema assertions. |

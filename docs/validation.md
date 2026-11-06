@@ -280,33 +280,33 @@ flowchart TD
 
 ### 4.1 The Simulation Oracles ($I^*, I_{\text{comp}}, I_{\text{dyn}}, IM$)
 
-To validate predictions objectively, the simulation suite generates four specialized ground-truth metrics:
+To validate predictions, the simulation suite generates four ground-truth metrics. How each engine works is in [Step 5: Simulate](failure-simulation.md).
 
 | Oracle Symbol | Generating Engine | Mathematical Definition | Validates What? |
 |:---:|:---|:---|:---|
 | **$I^*(v)$** | `FaultInjector` | Mean continuous subscriber feed loss across 5 seeds | Global GNN predictions (`HGT-QoS`, `GAT`), CLI benchmarks |
 | **$I_{\text{comp}}(v)$** | `FailureSimulator` | $0.35\cdot\text{reach} + 0.25\cdot\text{frag} + 0.25\cdot\text{tp} + 0.15\cdot\text{flow}$ | Multi-layer structural resilience, Tier-1 release gates, `EditVerifier` |
-| **$I_{\text{dyn}}(v)$** | `MessageFlowSimulator` | $\text{DeliveryRate}_{\text{pre-fault}} - \text{DeliveryRate}_{\text{post-fault}}$ | Continuous-time queuing and DDS QoS compliance (research probe) |
+| **$I_{\text{dyn}}(v)$** | `MessageFlowSimulator` | $\text{DeliveryRate}_{\text{pre-fault}} - \text{DeliveryRate}_{\text{post-fault}}$ | Simulated delivery loss under queueing, contention and QoS contracts (research probe; its deadline rule is [not DDS DEADLINE](failure-simulation.md#6-messageflowsimulator-queue-flow-oracle-i_dyn)) |
 | **$I_M(v)$** | `ChangePropagationSimulator` | $0.45\cdot\text{Reach} + 0.35\cdot\text{Impact} + 0.20\cdot\text{Depth}$ | Maintainability blast radius on transposed dependency graph $G^\top$ |
 
 > [!CAUTION]
 > **Ground-Truth Non-Interchangeability Contract:**
-> $I^*(v)$ and $I_{\text{comp}}(v)$ are mathematically and conceptually distinct quantities. $I^*(v)$ measures rate-weighted subscriber feed starvation; $I_{\text{comp}}(v)$ measures physical and multi-layer structural graph partition. Mixing them within the same validation stage is a contract violation enforced by [`tests/test_groundtruth_contract.py`](../tests/test_groundtruth_contract.py).
+> $I^*(v)$ and $I_{\text{comp}}(v)$ are mathematically and conceptually distinct quantities. $I^*(v)$ measures rate-weighted subscriber feed starvation; $I_{\text{comp}}(v)$ measures multi-layer loss of reachability, connectivity, throughput and flows. Mixing them within the same validation stage is a contract violation enforced by [`tests/test_groundtruth_contract.py`](../tests/test_groundtruth_contract.py).
 
 ---
 
 ### 4.2 Oracle Convergence & Behavioral Validation ($I_{\text{dyn}}(v)$)
 
-To ensure that topological predictions are not circular graph artifacts, SaG validates topological predictions against the dynamic discrete-event SimPy traffic oracle $I_{\text{dyn}}(v)$:
+As a cross-check that does not share $I^*$'s propagation rule, SaG compares the oracles with the discrete-event SimPy queue-flow oracle $I_{\text{dyn}}(v)$:
 
 ```mermaid
 flowchart LR
-    I_Star["FaultInjector I*(v)<br>(Graph Cascade Feed Loss)"] <-->|"Mean ρ = 0.627<br>(Strong Cross-Method Convergence)"| I_Dyn["MessageFlow I_dyn(v)<br>(SimPy Dynamic Traffic Drop)"]
-    I_Star <-->|"Mean ρ = 0.395<br>(Moderate Structural Concordance)"| I_Comp["FailureSimulator I_comp(v)<br>(4-Layer Structural Loss)"]
+    I_Star["FaultInjector I*(v)<br>(Graph Cascade Feed Loss)"] <-->|"Mean ρ = 0.627<br>(single seed, at most 30 candidates per fold)"| I_Dyn["MessageFlow I_dyn(v)<br>(SimPy Dynamic Traffic Drop)"]
+    I_Star <-->|"Mean ρ = 0.395<br>(12 folds)"| I_Comp["FailureSimulator I_comp(v)<br>(4-Layer Structural Loss)"]
 ```
 
-- **Convergent Validity (JSS §7.3.2 and Supplementary §S9)**: Across twelve benchmark scenarios, $I_{\text{dyn}}$ correlates with $I^*(v)$ at **mean Spearman $\rho = 0.627$** (ranging from $0.186$ on industrial SCADA to $0.953$ on financial trading).
-- **Ceiling Interpretation**: $I^*$'s own test-retest reproducibility across seeds is $0.811$–$1.0$. Thus, $I_{\text{dyn}}$ tracks $I^*$ closely while providing independent behavioral evidence that static graph rankings reflect real-world packet delivery drops.
+- **Convergent Validity (JSS §7.3.2 and Supplementary §S9)**: Across twelve benchmark scenarios, $I_{\text{dyn}}$ correlates with $I^*(v)$ at **mean Spearman $\rho = 0.627$** (ranging from $0.186$ on industrial SCADA to $0.953$ on financial trading). That is the single-seed run with at most 30 candidates per fold; with five seeds on the full Application population the figure is $0.711$ (manuscript §7).
+- **Ceiling Interpretation**: $I^*$'s own test-retest reproducibility across seeds is $0.811$–$1.0$. Both oracles are simulators, so their agreement shows that two different models concur, not that rankings match delivery loss in a real system. No oracle has been validated against production outages.
 
 ---
 
@@ -316,13 +316,13 @@ When evaluating predictors against simulation oracles, it is essential to align 
 
 - **Order-$k$ Truncation ($T_k(O)$)**: Under the formal reference criterion (§4.4 of the JSS paper), an analytical reference halted after wave $k$ under simplifications S1–S5 isolates the exact mechanistic cascade up to horizon $k$:
   - **First-Order Horizon ($k=1$)**: Evaluates immediate subscribers starved when publisher $v$ fails:
-    $$I_{\text{dyn}}^{(1)}(v) = \sum_{t \in \text{pub}(v)} r(t) \cdot |\text{sub}(t)|$$
-    On dynamic discrete-event traffic ($I_{\text{dyn}}$), this closed-form formula achieves Spearman $\rho = \mathbf{0.830} \; [0.778, 0.872]$ in $<1\text{ ms}$ (JSS Table 4), outperforming learned models ($0.799$ for GBM, $\le 0.665$ for rate-fed GNNs). First-order subscriber starvation dominates real-world queue drops.
-  - **Direct Afferent Coupling on $G_{\text{dep}}$**: Setting uniform rates ($r(t) = 1$) reduces the reference to in-degree $\text{InDeg}(v) = |\text{Dep}(v)|$ on projected $G_{\text{dep}}$, achieving $\rho = 0.764$ on $I^*$ (JSS Table 3).
+    $$I_{\text{dyn}}^{(1)}(v) = \sum_{t \in \text{pub}(v)} \frac{r(t)}{|\text{pub}(t)|} \cdot |\text{sub}(t)|$$
+    On dynamic discrete-event traffic ($I_{\text{dyn}}$), this closed-form formula achieves Spearman $\rho = \mathbf{0.830} \; [0.778, 0.872]$ in $<1\text{ ms}$ (JSS Table 4), outperforming learned models ($0.799$ for GBM, $\le 0.665$ for rate-fed GNNs). First-order delivered-rate loss dominates the simulator's drops.
+  - **Direct Afferent Coupling on $G_{\text{dep}}$**: Setting uniform rates and normalisers reduces the reference to in-degree $\text{InDeg}(v) = |\text{Dep}(v)|$ on projected $G_{\text{dep}}$, achieving $\rho = 0.764$ on $I^*$ (JSS Table 3).
   - **Transitive Reachability ($k=\infty$)**: Evaluates full downstream transitive reachability $\text{Reach}(v)$ ($\rho = 0.732$), while the closed-form $\text{Analytic } I^*$ achieves $\rho = \mathbf{0.808}$.
 - **Validation Diagnostic Rule**:
   - Validating against $I^*$ tests structural cascade reachability bounds.
-  - Validating against $I_{\text{dyn}}$ tests continuous-time queuing stability and packet delivery drops.
+  - Validating against $I_{\text{dyn}}$ tests simulated delivery loss under queueing and contention.
   - If a learned model cannot outperform $T_k(O)$ for the oracle's natural horizon $k$, its learned message-passing layers are capturing no genuine relational patterns beyond explicit dependency derivation.
 
 

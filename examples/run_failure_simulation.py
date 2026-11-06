@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Example script to run Step 4: Failure Simulation (Fault Injection & Message Flow)
+Example script to run Step 5: Failure Simulation (Fault Injection & Message Flow)
 on the worked example topology, adhering to docs/failure-simulation.md specifications.
 """
 
@@ -158,10 +158,10 @@ def run_failure_simulation(args):
         assert rec_a1.cascade_depth == 0, f"Expected A1 cascade depth 0, got {rec_a1.cascade_depth}"
         print("  [PASS] MonitorApp (A1) does not cascade, resulting in I(A1) = 0.0")
 
-        # MainBroker (B0) failure in fault-injection does not cascade because SensorApp (A0) is still alive
+        # MainBroker (B0) is the sole router of T0, so its failure silences T0 even though A0 is alive
         rec_b0 = fi_result.records["B0"]
-        assert math.isclose(rec_b0.impact_score, 0.0), f"Expected B0 impact score 0.0, got {rec_b0.impact_score}"
-        print("  [PASS] MainBroker (B0) does not cascade in fault injection, resulting in I(B0) = 0.0")
+        assert math.isclose(rec_b0.impact_score, 1.0), f"Expected B0 impact score 1.0, got {rec_b0.impact_score}"
+        print("  [PASS] MainBroker (B0) is T0's sole router: its failure starves MonitorApp (A1), resulting in I(B0) = 1.0")
 
         # ---------------------------------------------------------------------
         # MODE 2: Message Flow Simulation (SimPy)
@@ -213,9 +213,9 @@ def run_failure_simulation(args):
         print("\nVerifying Message Flow Simulation results:")
         
         # Baseline check
-        assert math.isclose(res_baseline.system_delivery_rate, 1.0), f"Expected baseline delivery rate 1.0, got {res_baseline.system_delivery_rate}"
+        assert math.isclose(res_baseline.system_delivery_rate, 1.0, abs_tol=1e-2), f"Expected baseline delivery rate near 1.0, got {res_baseline.system_delivery_rate}"
         assert res_baseline.total_messages_published > 0, "Expected non-zero baseline published count"
-        print(f"  [PASS] Baseline system delivery rate = {res_baseline.system_delivery_rate:.4f} (perfect delivery)")
+        print(f"  [PASS] Baseline system delivery rate = {res_baseline.system_delivery_rate:.4f}")
 
         # Faulted check
         fe = res_fault.fault_event

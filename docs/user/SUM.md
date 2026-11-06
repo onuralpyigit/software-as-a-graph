@@ -424,16 +424,25 @@ The server will start on port `8000`. You can access the Swagger UI documentatio
   ```
 - **Response:** GNN scores, edge attention mappings, and classification categories (e.g., `CRITICAL`, `HIGH`).
 
-#### Failure Simulation `/api/v1/simulation/simulate`
-- **Method:** `POST`
-- **Request Body (JSON):**
+#### Simulation endpoints `/api/v1/simulation/*`
+All are `POST`, run on Neo4j, and take Neo4j `credentials` in the body. Layers are `app`, `infra`, `mw` or `system`.
+
+| Endpoint | Body fields besides `credentials` (defaults in brackets) | Response |
+|:---|:---|:---|
+| `/event` | `source_app`, `num_messages` (100), `duration` (10.0) | Message-flow metrics from one source application |
+| `/failure` | `target_ids`, `layer` (`system`) | Impact of failing the targets together |
+| `/exhaustive` | `layer` (`system`) | Impact of failing each component of the layer in turn |
+| `/report` | `layers` (`app`, `infra`, `system`) | Per-layer metrics, criticality classes and recommendations |
+
+- **Request Body (JSON), `/failure`:**
   ```json
   {
-    "layer": "system",
-    "mode": "exhaustive"
+    "credentials": {"uri": "bolt://localhost:7687", "user": "neo4j", "password": "<password>"},
+    "target_ids": ["A0"],
+    "layer": "system"
   }
   ```
-- **Response:** Node cascade reachability losses and service disruption metrics.
+- `FaultInjector` labels and the `MessageFlowSimulator` are available from the [command line](../cli-pipeline-guide.md#step-5-simulate) only. Behaviour notes: [failure-simulation.md §11](../failure-simulation.md#11-command-line-and-rest-api).
 
 ---
 

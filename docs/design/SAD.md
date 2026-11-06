@@ -141,7 +141,7 @@ The logical view decomposes the codebase into specialized packages with strict d
 │ Application Service Packages                                    │
 │ - saag.analysis (structural metrics & RM quality)             │
 │ - saag.prediction (inductive GNN prediction service)           │
-│ - saag.simulation (BFS discrete-event cascade simulation)       │
+│ - saag.simulation (failure oracles: cascade and queue-flow)     │
 │ - saag.validation (Spearman ρ, classification performance)      │
 │ - saag.visualization (HTML dashboard builder)                   │
 └──────────────────────┬───────────────────┬──────────────────────┘
@@ -232,7 +232,7 @@ software-as-a-graph/                  # Workspace Root
 │   ├── core/                         #   Core domain models, ports, and layer definitions
 │   ├── analysis/                     #   Structural metrics and RM formula engines
 │   ├── prediction/                   #   PyTorch HGT/GNN prediction service
-│   ├── simulation/                   #   Discrete-event cascade propagation engine
+│   ├── simulation/                   #   Failure-injection engines (cascade and queue-flow oracles)
 │   ├── validation/                   #   Spearman ρ and classification evaluation
 │   ├── visualization/                #   Plotly chart and static HTML builders
 │   └── infrastructure/               #   Neo4j and Memory adapters (implementing ports)
