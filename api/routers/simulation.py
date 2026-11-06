@@ -80,7 +80,8 @@ async def simulate_failure(
         result = client.simulate(
             target_ids=request.target_ids,
             layer=layer_canonical,
-            mode="single"
+            mode="single",
+            cascade_probability=request.cascade_probability
         )
         
         return simulation_presenter.format_failure_simulation_response([result])
@@ -109,7 +110,11 @@ async def simulate_exhaustive(
     try:
         logger.info(f"Running exhaustive failure analysis: layer={layer_canonical}")
         
-        results = client.simulate(layer=layer_canonical, mode="exhaustive")
+        results = client.simulate(
+            layer=layer_canonical,
+            mode="exhaustive",
+            cascade_probability=request.cascade_probability
+        )
         
         return simulation_presenter.format_exhaustive_simulation_response(results, layer_canonical)
     except Exception as e:

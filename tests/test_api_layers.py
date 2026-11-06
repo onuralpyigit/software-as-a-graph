@@ -148,7 +148,8 @@ def test_simulation_failure_layer_resolution(mock_client):
             
             response = client.post("/api/v1/simulation/failure", json=payload)
             assert response.status_code == 200, response.text
-            mock_client.simulate.assert_called_with(target_ids=["c1"], layer="mw", mode="single")
+            mock_client.simulate.assert_called_with(
+                target_ids=["c1"], layer="mw", mode="single", cascade_probability=1.0)
     finally:
         app.dependency_overrides = {}
 
@@ -170,7 +171,8 @@ def test_simulation_exhaustive_layer_resolution(mock_client):
             
             response = client.post("/api/v1/simulation/exhaustive", json=payload)
             assert response.status_code == 200, response.text
-            mock_client.simulate.assert_called_with(layer="app", mode="exhaustive")
+            mock_client.simulate.assert_called_with(
+                layer="app", mode="exhaustive", cascade_probability=1.0)
     finally:
         app.dependency_overrides = {}
 
