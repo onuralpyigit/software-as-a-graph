@@ -27,6 +27,7 @@ their original private names, so existing imports keep working.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Dict
@@ -262,6 +263,27 @@ def load_graph(input_path: Path):
     logger.info("Graph loaded via fallback: %d nodes, %d edges",
                 len(g.nodes), len(g.edges))
     return g
+
+
+def topology_fingerprint(g: nx.DiGraph) -> str:
+    """A short hash of what a label depends on: nodes, their attributes, structural edges.
+
+    Node attributes carry each topic's rate and QoS, so a QoS-only change to a
+    scenario changes the fingerprint. ``DEPENDS_ON`` is left out because it is
+    derived, and edge attributes because the two loaders above fill them
+    differently (only `load_graph` sets ``rate_hz``); both loaders agree on what
+    is hashed here, which `tests/test_label_safety.py` pins over the corpus.
+    """
+    nodes = sorted(
+        (str(n), json.dumps(attrs, sort_keys=True, default=str))
+        for n, attrs in g.nodes(data=True)
+    )
+    edges = sorted(
+        (str(u), str(v), str(d.get("type")))
+        for u, v, d in g.edges(data=True)
+        if u != v and d.get("type") != "DEPENDS_ON"
+    )
+    return hashlib.sha256(json.dumps([nodes, edges]).encode()).hexdigest()[:16]
 
 
 #: Original private names, kept so the CLI modules can re-export without churn.

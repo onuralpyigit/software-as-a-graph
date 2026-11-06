@@ -516,6 +516,7 @@ Each row names the test that implements it. `sim` is `tests/test_simulation_serv
 | `tests/test_predict_simulate_separation.py` | Predict does not import Simulate |
 | `tests/test_simulation_dependency_derivation.py` | Re-derived `DEPENDS_ON` arcs equal the repository's |
 | `tests/test_simulation_golden_defaults.py` | Default I\*, I_dyn, I_comp and I_M outputs are pinned bit for bit |
+| `tests/test_label_safety.py` | Training refuses another labeler's file, a missing label, another topology's labels and labels that do not reproduce across seeds |
 | `tests/test_docs_simulation.py` | The examples in [failure-simulation.md](../failure-simulation.md) and [simulation-extensions.md](../simulation-extensions.md) run against the code |
 
 ### 4.5 Anti-Pattern Detection Module

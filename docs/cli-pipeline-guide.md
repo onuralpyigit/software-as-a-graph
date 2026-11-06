@@ -219,7 +219,9 @@ The RM weighting, Triage bridge, and anti-pattern flags documented under Step 4 
 **Script:** `cli/train_graph.py`  
 **Purpose:** Train a Heterogeneous Graph Transformer (HGT) to predict component criticality.
 
-Labels come only from a `FaultInjector` file (`simulate_graph.py fault-inject`, see [Step 5](#step-5-simulate)); the script never runs a simulator itself and exits if `--simulated` is missing.
+Labels come from a `FaultInjector` file (`simulate_graph.py fault-inject`, see [Step 5](#step-5-simulate)) or, with `--label`, a `runtime_labels.json` (`simulate_graph.py runtime-sweep`). The script never runs a simulator itself and exits if `--simulated` is missing.
+
+It also exits if the file is a `FailureSimulator` output, lacks the chosen label, was measured on a different topology than `--input`, or holds a label that does not reproduce across seeds. Without `--input` the topology cannot be checked, and a warning says so. What the run trained on is written to `label_provenance.json` in the checkpoint directory.
 
 ```bash
 PYTHONPATH=. python cli/train_graph.py --layer system --simulated output/simulation/impact_scores.json --epochs 500 --hidden 128 --heads 8 --checkpoint output/gnn_checkpoints/
@@ -231,7 +233,10 @@ PYTHONPATH=. python cli/train_graph.py --layer system --simulated output/simulat
 |------|---------|----------------|-------------|
 | `--layer` | `app` | `app`, `infra`, `mw`, `system` | System layer |
 | `--structural` | `None` | Path | Skip Step 2, load pre-computed metrics JSON |
-| `--simulated` | `None` | Path | **Required** (except `--variant topology_rm`). `FaultInjector` label file — the `impact_scores.json` written by `simulate_graph.py fault-inject`. `FailureSimulator` output is rejected |
+| `--simulated` | `None` | Path | **Required** (except `--variant topology_rm`). `FaultInjector` label file — the `impact_scores.json` written by `simulate_graph.py fault-inject` — or a `runtime_labels.json` with `--label`. `FailureSimulator` output is rejected |
+| `--label` | `impact_score` | str | Label to train on. A runtime artifact needs one of its labels, e.g. `i_flow` |
+| `--min-label-retest` | `0.70` | float | Lowest worst-pair Spearman across seeds a label may have |
+| `--allow-unstable-labels` | `False` | flag | Train on a label that fails or never measured the retest. `FaultInjector` labels with no measured retest only warn |
 | `--rm` | `None` | Path | Skip Step 4, load RM scores JSON |
 | `--input` | `None` | Path | Topology JSON (raw structural graph, as in `loso_evaluate.py`). Required when `--structural` and `--rm` are both files; `--multi-scenario` dirs likewise need a `topology.json` |
 | `--hidden` | `64` | int | Hidden dimension |

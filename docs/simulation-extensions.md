@@ -151,6 +151,10 @@ python cli/simulate_graph.py runtime-sweep --input data/scenarios/tiny_system.js
 }
 ```
 
+**Training on a runtime label.** Name the label, because the file holds several: `train_graph.py --simulated runtime_labels.json --label i_flow`. Each label's `label_stability` block gives its worst pairwise Spearman across seeds, and training refuses a label below 0.70 or one measured with a single seed. `--allow-unstable-labels` overrides that.
+
+Check the block before planning a study. In a 30 s, 2-seed sweep of 3 scenarios, crash `i_flow` reproduced at 0.73–0.97, but crash `i_delivery` reached −0.011 on `integration_hub_migration`.
+
 > [!WARNING]
 > **Exploratory measurements, not results** (2 scenarios, 2 seeds, 30 s runs):
 > - ρ(`i_flow`, `ref_flow_policy`) is 0.86 on atm and 0.80 on microservices.

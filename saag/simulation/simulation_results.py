@@ -92,8 +92,10 @@ class FaultInjectionResult:
     Aggregated result of a full fault-injection experiment across all nodes.
     This is the canonical output written to ``impact_scores.json``.
     """
-    schema_version: str = "2.1"
+    schema_version: str = "2.2"
     graph_id: str = ""
+    #: Hash of the labelled topology (`saag.core.graph_io.topology_fingerprint`).
+    topology_fingerprint: str = ""
     total_nodes_injected: int = 0
     total_application_nodes: int = 0
     total_broker_nodes: int = 0
@@ -132,8 +134,7 @@ class FaultInjectionResult:
     #: correlation metric: a model scoring rho=0.93 against labels whose own
     #: test-retest rho is 0.91 has saturated, not underperformed.
     label_stability: Dict[str, Any] = field(default_factory=dict)
-    #: Non-default labeller settings (e.g. ``failure_model="threshold_cdf"``).
-    #: Empty for the published labels, and then omitted from `to_dict()`.
+    #: The settings that decide a label: threshold, QoS mode, failure model, ...
     labeler_config: Dict[str, Any] = field(default_factory=dict)
 
     # Per-node records, keyed by node_id
@@ -172,6 +173,7 @@ class FaultInjectionResult:
         return {
             "schema_version": self.schema_version,
             "graph_id": self.graph_id,
+            "topology_fingerprint": self.topology_fingerprint,
             "total_nodes_injected": self.total_nodes_injected,
             "total_application_nodes": self.total_application_nodes,
             "total_broker_nodes": self.total_broker_nodes,
@@ -183,7 +185,7 @@ class FaultInjectionResult:
             "unlabeled_node_ids": self.unlabeled_node_ids,
             "degenerate_node_types": self.degenerate_node_types,
             "label_stability": self.label_stability,
-            **({"labeler_config": self.labeler_config} if self.labeler_config else {}),
+            "labeler_config": self.labeler_config,
             "top_k_by_impact": self.top_k_by_impact,
             "records": {
                 nid: rec.to_dict() for nid, rec in self.records.items()

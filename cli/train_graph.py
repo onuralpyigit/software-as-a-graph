@@ -37,6 +37,7 @@ from typing import Optional
 
 from cli.common.console import ConsoleDisplay
 from cli.common.arguments import add_neo4j_arguments, add_runtime_arguments
+from saag.prediction.label_artifacts import DEFAULT_LABEL, MIN_LABEL_RETEST
 
 logging.basicConfig(
     level=logging.INFO,
@@ -65,9 +66,17 @@ def parse_args() -> argparse.Namespace:
     inputs.add_argument("--structural", type=str, default=None,
                         help="Path to structural metrics JSON (skips Step 2)")
     inputs.add_argument("--simulated", type=str, default=None,
-                        help="FaultInjector label file (impact_scores.json from "
-                             "`cli/simulate_graph.py fault-inject`). Required except "
-                             "for --variant topology_rm")
+                        help="Label file: impact_scores.json from `cli/simulate_graph.py "
+                             "fault-inject`, or runtime_labels.json with --label. Required "
+                             "except for --variant topology_rm")
+    inputs.add_argument("--label", type=str, default=DEFAULT_LABEL,
+                        help="Label to train on. Default: FaultInjector's impact_score. A "
+                             "runtime_labels.json from `simulate_graph.py runtime-sweep` needs "
+                             "one of its labels, e.g. i_flow")
+    inputs.add_argument("--min-label-retest", type=float, default=MIN_LABEL_RETEST,
+                        help="Lowest worst-pair Spearman across seeds a label may have")
+    inputs.add_argument("--allow-unstable-labels", action="store_true",
+                        help="Train on a label that fails or never measured --min-label-retest")
     inputs.add_argument("--rm", type=str, default=None,
                         help="Path to RM scores JSON (skips Step 3)")
     inputs.add_argument("--input", type=str, default=None,
@@ -148,26 +157,50 @@ def load_json(path: Optional[str]) -> Optional[dict]:
         return json.load(f)
 
 
-def load_labels(path: Optional[str]) -> Optional[dict]:
+def load_labels(
+    path: Optional[str],
+    label: str = DEFAULT_LABEL,
+    min_retest: float = MIN_LABEL_RETEST,
+    allow_unstable: bool = False,
+    topology: Optional[dict] = None,
+) -> Optional[dict]:
     """Load a label file as the flat ``{node_id: {dim: value}}`` dict training expects.
 
     A FaultInjector artifact nests its labels under ``records``; passed through
     unflattened, no node id matches and training runs with zero labelled nodes.
     FailureSimulator output is refused: it is the Validate-stage oracle, not the
-    Predict-stage labeler (tests/test_groundtruth_contract.py).
+    Predict-stage labeler (tests/test_groundtruth_contract.py). An artifact is
+    also refused if it has no such label, belongs to a different ``topology``, or
+    does not reproduce across seeds (saag/prediction/label_artifacts.py).
     """
     raw = load_json(path)
     if not isinstance(raw, dict):
         return raw
     if "records" in raw:
-        from saag.prediction import extract_simulation_dict
-        return extract_simulation_dict(raw)
+        from saag.core.graph_io import build_graph_from_json
+        from saag.prediction.label_artifacts import (
+            LabelArtifactError, check_stability, check_topology, select_labels,
+        )
+        try:
+            labels = select_labels(raw, label)
+            check_stability(raw, label, min_retest, allow_unstable)
+            if topology is None:
+                logger.warning("No --input topology: cannot verify %s belongs to this graph.", path)
+            else:
+                check_topology(raw, build_graph_from_json(topology))
+        except LabelArtifactError as exc:
+            logger.error("%s: %s", path, exc)
+            sys.exit(1)
+        return labels
     if "component_criticality" in raw or "results" in raw:
         logger.error(
             f"{path} is FailureSimulator output. GNN training labels must come from "
             "FaultInjector: run `cli/simulate_graph.py fault-inject` and pass its "
             "impact_scores.json as --simulated."
         )
+        sys.exit(1)
+    if label != DEFAULT_LABEL:
+        logger.error(f"{path} is not a label artifact, so it has no label {label!r}.")
         sys.exit(1)
     return raw
 
@@ -190,7 +223,9 @@ def main() -> None:
 
     # ── Data Loading ────────────────────────────────────────────────────────
     structural_dict = load_json(args.structural)
-    simulation_dict = load_labels(args.simulated)
+    label_args = dict(label=args.label, min_retest=args.min_label_retest,
+                      allow_unstable=args.allow_unstable_labels)
+    simulation_dict = load_labels(args.simulated, topology=load_json(args.input), **label_args)
     rm_dict = load_json(args.rm)
     nx_graph = None
 
@@ -278,7 +313,7 @@ def main() -> None:
             elif s_path.exists() and i_path.exists():
                 logger.info(f"  Found scenario: {scenario_dir.name}")
                 s_dict = load_json(str(s_path))
-                i_dict = load_labels(str(i_path))
+                i_dict = load_labels(str(i_path), topology=load_json(str(t_path)), **label_args)
                 r_dict = load_json(str(q_path)) if q_path.exists() else None
                 
                 from saag.core.graph_io import build_graph_from_json
@@ -369,6 +404,14 @@ def main() -> None:
         checkpoint_dir=ckpt_dir,
         device=target_device,
     )
+
+    # Next to the checkpoint, so a model can say which label it learned.
+    label_raw = load_json(args.simulated)
+    if isinstance(label_raw, dict) and "records" in label_raw:
+        from saag.prediction.label_artifacts import label_provenance
+        Path(ckpt_dir).mkdir(parents=True, exist_ok=True)
+        with open(Path(ckpt_dir) / "label_provenance.json", "w") as f:
+            json.dump(label_provenance(label_raw, args.label), f, indent=2)
 
     display.print_step("Starting GNN training session...")
     result = service.train(
