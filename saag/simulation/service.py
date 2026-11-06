@@ -178,8 +178,14 @@ class SimulationService:
                                cascade_probability: float = 1.0,
                                library_cascade_probability: Optional[float] = None,
                                propagation_threshold: float = 0.2,
-                               failure_mode: FailureMode = FailureMode.CRASH) -> FailureResult:
-        """Run a single failure simulation for one or more targets."""
+                               failure_mode: FailureMode = FailureMode.CRASH,
+                               seed: Optional[int] = 42) -> FailureResult:
+        """Run a single failure simulation for one or more targets.
+
+        `seed` makes the result reproducible. It is derived as in the exhaustive
+        sweep, so one target at the same seed gets the same draw there. Pass None
+        for free-running behaviour.
+        """
         graph, sim = self._failure_sim(propagation_threshold)
         self._prime_baseline_flows(graph, sim)
         return sim.simulate(FailureScenario(
@@ -188,6 +194,7 @@ class SimulationService:
             cascade_rule=cascade_rule,
             cascade_probability=cascade_probability,
             library_cascade_probability=library_cascade_probability,
+            seed=FailureSimulator._derive_seed(seed, "+".join(sorted(target_ids))),
         ))
 
     def run_failure_simulation_monte_carlo(self, target_id: str, layer: str = "system",
