@@ -989,7 +989,7 @@ def _publisher_process(
         # Failed publishers keep generating demand but emit nothing.
         if app_id in failed_nodes:
             continue
-        if runtime is not None and runtime.withhold(app_id, rng):
+        if runtime is not None and runtime.withhold(app_id, rng, topic_id):
             continue
         # Reactive model: a stalled (or degraded) application withholds some or
         # all of its schedule. Its demand stays counted, exactly like a dead one.

@@ -253,3 +253,46 @@ def test_zipf_preserves_total_rate():
     assert sum(rates) == pytest.approx(30.0)
     assert rates[0] == pytest.approx(2 * rates[1])
     assert g.nodes["t1"]["frequency"] == 10          # input graph untouched
+
+
+# ── slowdown reaches emission ────────────────────────────────────────────────
+
+def test_slowdown_of_a_publish_only_app_is_not_a_no_op():
+    """A has no service station, so scaling service time alone left it untouched."""
+    g = system()
+    base = run(g, [crash("A", mode="slowdown", k=1.0)])
+    slow = run(g, [crash("A", mode="slowdown", k=4.0)], estimator="paired")
+    assert post(slow, "B") == pytest.approx(post(base, "B") / 4, rel=0.15)
+    assert slow.fault_event.i_dyn_paired == pytest.approx(0.75 * 0.5, abs=0.1)
+
+
+def test_slowdown_throttles_each_output_separately():
+    g = system()
+    g.add_node("t3", type="Topic", frequency=10)
+    g.add_edge("A", "t3", type="PUBLISHES_TO")
+    g.add_node("E", type="Application", app_type="monitor")
+    g.add_edge("E", "t3", type="SUBSCRIBES_TO")
+    slow = run(g, [crash("A", mode="slowdown", k=2.0)])
+    assert post(slow, "B") == pytest.approx(post(slow, "E"), rel=0.1)
+
+
+def test_a_slowdown_below_one_does_not_speed_emission_up():
+    g = system()
+    base = run(g, [crash("A", mode="slowdown", k=1.0)])
+    fast = run(g, [crash("A", mode="slowdown", k=0.5)])
+    assert post(fast, "B") <= post(base, "B") * 1.05
+
+
+def test_slowdown_leaves_the_output_of_an_app_with_a_station_alone():
+    """Below saturation a slowed processor handles every input, only later."""
+    g = system()
+    base = run(g, [crash("B", mode="slowdown", k=1.0)], target_utilization=0.2)
+    slow = run(g, [crash("B", mode="slowdown", k=2.0)], target_utilization=0.2)
+    assert post(slow, "C") == pytest.approx(post(base, "C"), rel=0.05)
+
+
+def test_slowdown_ends_with_its_duration():
+    g = system()
+    bounded = run(g, [FaultSpec("A", "slowdown", D / 2, 2.0, {"k": 8.0})])
+    permanent = run(g, [crash("A", mode="slowdown", k=8.0)])
+    assert post(bounded, "B") > 2 * post(permanent, "B")

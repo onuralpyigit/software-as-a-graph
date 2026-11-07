@@ -44,7 +44,7 @@ class RuntimeFaultMode(str, Enum):
     CRASH = "crash"                       # permanent crash-stop (the historical fault)
     TRANSIENT_CRASH = "transient_crash"   # crash, then restart after duration_s
     FREEZE = "freeze"                     # stops serving and emitting; queues keep filling
-    SLOWDOWN = "slowdown"                 # service time x k (k fixed or log-normal)
+    SLOWDOWN = "slowdown"                 # service time x k; output period x k with no station
     OMISSION = "omission"                 # drops each emission with probability p
     BABBLING = "babbling"                 # publishes at k x its rate
     BUFFER_LEAK = "buffer_leak"           # reader queue capacity shrinks by beta/s
@@ -191,6 +191,9 @@ class RuntimeController:
         self.frozen: Set[str] = set()
         self.rate_mult: Dict[str, float] = {}
         self.omission: Dict[str, float] = {}
+        #: Output slowdown of station-less apps, and the emission credit per (app, topic).
+        self.emit_slowdown: Dict[str, float] = {}
+        self._emit_credit: Dict[Tuple[str, str], float] = {}
         self._recovery_events: Dict[str, Any] = {}
         self._thaw_events: Dict[str, Any] = {}
         self.ever_failed: Set[str] = set()
@@ -266,10 +269,24 @@ class RuntimeController:
         k = self.rate_mult.get(app)
         return base / k if k else base
 
-    def withhold(self, app: str, rng: random.Random) -> bool:
-        """True when a frozen or omitting publisher skips this emission."""
+    def withhold(self, app: str, rng: random.Random, topic: str = "") -> bool:
+        """True when a frozen, slowed or omitting publisher skips this emission.
+
+        A slowed app keeps its schedule and emits one tick in k, rather than
+        stretching its interval: the schedule is the demand its readers expect,
+        and a longer interval would shrink demand and delivery together, so the
+        slowdown would cancel itself out of the delivery rate. No draw is taken,
+        so this cannot shift the publisher's random stream.
+        """
         if app in self.frozen:
             return True
+        k = self.emit_slowdown.get(app)
+        if k:
+            credit = self._emit_credit.get((app, topic), 1.0) + 1.0 / k
+            if credit < 1.0:
+                self._emit_credit[(app, topic)] = credit
+                return True
+            self._emit_credit[(app, topic)] = credit - 1.0
         p = self.omission.get(app)
         return bool(p) and rng.random() < p
 
@@ -467,15 +484,24 @@ class RuntimeController:
                 k = math.exp(self._rng.gauss(float(p["k_mu"]), float(p.get("k_sigma", 0.5))))
             else:
                 k = float(p.get("k", 4.0))
-            stations = [self.stations[t] for t in self._targets(spec.target) if t in self.stations]
+            targets = self._targets(spec.target)
+            stations = [self.stations[t] for t in targets if t in self.stations]
             if spec.target in self.broker_stations:
                 stations.append(self.broker_stations[spec.target])
             self._log("slowdown_k", spec.target, f"{k:.4f}")
             for st in stations:
                 st.slowdown *= k
+            # An app with no inputs has no station: its work is the emission itself.
+            # An app with a station keeps emitting, because below saturation it still
+            # handles every input, only later. A k below 1 cannot beat the schedule.
+            throttled = [t for t in targets if t not in self.stations]
+            for t in throttled:
+                self.emit_slowdown[t] = max(1.0, k)
             yield from self._until_end(spec)
             for st in stations:
                 st.slowdown /= k
+            for t in throttled:
+                self.emit_slowdown.pop(t, None)
             return
 
         if mode in (RuntimeFaultMode.OMISSION, RuntimeFaultMode.BABBLING):

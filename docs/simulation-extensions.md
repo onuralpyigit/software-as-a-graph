@@ -69,7 +69,7 @@ Faults are given as `faults=[FaultSpec(target, mode, start_s, duration_s, params
 | `crash` | Permanent crash; a host takes its residents | — |
 | `transient_crash` | Crash, restart after `duration_s` | `storm_copies` on restart |
 | `freeze` | Stops serving and publishing; queues keep filling | `duration_s` |
-| `slowdown` | Service time × k (a host's residents, or a broker's station) | `k`, or `k_mu` / `k_sigma` (log-normal) |
+| `slowdown` | Service time × k (a host's residents, or a broker's station). An app with no inputs has no station, so it emits one tick in k instead; its demand stays counted. An app with a station keeps emitting on schedule, even when saturated, unless its inputs go stale. The testbed agent does not yet throttle station-less apps. | `k`, or `k_mu` / `k_sigma` (log-normal) |
 | `omission` | Drops each emission with probability p | `p` |
 | `babbling` | Publishes at k × its rate | `k` |
 | `buffer_leak` | Reader queues shrink by β slots per second | `beta` |
