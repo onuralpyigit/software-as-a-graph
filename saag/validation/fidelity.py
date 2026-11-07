@@ -171,6 +171,50 @@ def stalled_in_trace(trace: TelemetryTrace, after: float, min_silence_s: float =
     return out
 
 
+def observed_impact(
+    trace: TelemetryTrace, subscribers: Mapping[str, Iterable[str]], fault_node: str,
+    fault_time: float, warmup_s: float = 0.0, guard_band_s: float = 0.0,
+    failed: Optional[Iterable[str]] = None,
+) -> float:
+    """I_dyn computed from a trace: delivery rate before the fault minus after it.
+
+    The engine's definition: samples are bucketed by creation time, expected
+    deliveries are publications times the surviving readers, including what a
+    dead publisher would have sent, the faulted component's own receipts are excluded, and the result is unclamped. *failed*
+    widens "faulted" to everything the fault removes (a host's residents).
+    """
+    gone = set(failed) if failed is not None else {fault_node}
+
+    def bucket(t: float) -> Optional[str]:
+        if t < warmup_s or abs(t - fault_time) < guard_band_s:
+            return None
+        return "pre" if t < fault_time else "post"
+
+    readers = {t: sum(1 for s in subs if s not in gone) for t, subs in subscribers.items()}
+    expected = {"pre": 0.0, "post": 0.0}
+    delivered = {"pre": 0, "post": 0}
+    silenced = 0.0
+    for e in trace.events:
+        if e["kind"] == "publish":
+            w = bucket(e["t"])
+            if w:
+                expected[w] += readers.get(e["topic"], 0)
+                if w == "pre" and e["app"] in gone:
+                    silenced += readers.get(e["topic"], 0)
+        elif e["kind"] == "deliver" and e["app"] not in gone and e["latency_ms"] is not None:
+            w = bucket(e["t"] - float(e["latency_ms"]) / 1000.0)
+            if w:
+                delivered[w] += 1
+    # A dead publisher emits nothing, yet its readers still lost those samples: its
+    # post-fault demand is its pre-fault rate, as the engine counts lost publications.
+    pre_span = fault_time - guard_band_s - warmup_s
+    post_span = trace.end_s - fault_time - guard_band_s
+    if pre_span > 0 and post_span > 0:
+        expected["post"] += silenced * post_span / pre_span
+    rate = {w: (delivered[w] / expected[w] if expected[w] else 0.0) for w in expected}
+    return rate["pre"] - rate["post"]
+
+
 def compare_dds_status(
     simulated: TelemetryTrace, observed: TelemetryTrace, split_at: Optional[float] = None,
     end_margin_s: float = 1.5, dead_instances: Iterable[str] = (),

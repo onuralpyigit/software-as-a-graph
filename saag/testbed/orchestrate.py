@@ -23,17 +23,23 @@ from saag.core.graph_io import load_graph
 from saag.simulation.calibration import TelemetryCalibrator, TelemetryTrace
 from saag.simulation.runtime.faults import FaultSpec
 
+from .agent import START_FILE
 from .chaos import execute, plan_actions
 from .collect import load_run
 from .compose import write_testbed
 from .deployment import build_deployment
 
+#: Every container must have created its DDS entities within this time.
+READY_TIMEOUT_S = 180.0
+#: Time for discovery to finish between the last host being ready and the first sample.
+DISCOVERY_SETTLE_S = 5.0
 
 
 def build(scenario: Path, out_dir: Path, duration_s: float, seed: int = 0,
-          target_utilization: float = 0.65, qos_semantics: str = "engine") -> Path:
+          target_utilization: float = 0.65, qos_semantics: str = "engine",
+          open_loop: bool = False) -> Path:
     plan = build_deployment(scenario, target_utilization=target_utilization,
-                            qos_semantics=qos_semantics)
+                            qos_semantics=qos_semantics, open_loop=open_loop)
     plan["source_scenario"] = str(Path(scenario))
     return write_testbed(plan, out_dir, duration_s, seed)
 
@@ -51,6 +57,21 @@ def _reset_run_dir(out_dir: Path) -> None:
                 f.unlink()
 
 
+def _start_together(out_dir: Path, hosts: List[str]) -> float:
+    """Release every host at one instant, so a run's windows mean the same on any host count."""
+    control = out_dir / "control"
+    deadline = time.time() + READY_TIMEOUT_S
+    while missing := [h for h in hosts if not (control / f"ready-{h}").exists()]:
+        if time.time() > deadline:
+            raise TimeoutError(f"hosts not ready after {READY_TIMEOUT_S} s: {missing}")
+        time.sleep(0.1)
+    start = time.time() + DISCOVERY_SETTLE_S
+    pending = control / f"{START_FILE}.tmp"
+    pending.write_text(json.dumps({"start_unix": start}))
+    pending.rename(control / START_FILE)
+    return start
+
+
 def run(out_dir: Path, duration_s: float, faults: Optional[List[FaultSpec]] = None,
         mode: str = "local", seed: int = 0) -> Dict[str, Any]:
     from .agent import run_host
@@ -61,9 +82,9 @@ def run(out_dir: Path, duration_s: float, faults: Optional[List[FaultSpec]] = No
     _reset_run_dir(out_dir)
     chaos = plan_actions(faults or [], plan, duration_s, seed=seed, local=(mode == "local"))
     start = time.time()
-    (out_dir / "run.json").write_text(json.dumps({
-        "start_unix": start, "duration_s": duration_s, "mode": mode, "seed": seed,
-        "faults": [f.to_dict() for f in faults or []], "unsupported": chaos.unsupported}))
+    record = {"start_unix": start, "duration_s": duration_s, "mode": mode, "seed": seed,
+              "faults": [f.to_dict() for f in faults or []], "unsupported": chaos.unsupported}
+    (out_dir / "run.json").write_text(json.dumps(record))
     if mode == "local":
         sink = TelemetrySink(out_dir / "telemetry" / "all.jsonl")
         th = threading.Thread(target=run_host, args=(plan, "all", LocalTransport(), sink,
@@ -75,6 +96,8 @@ def run(out_dir: Path, duration_s: float, faults: Optional[List[FaultSpec]] = No
         compose = ["docker", "compose", "-f", str(out_dir / "docker-compose.yml")]
         subprocess.run(compose + ["up", "--build", "-d"], check=True)
         try:
+            start = _start_together(out_dir, list(plan["hosts"]))
+            (out_dir / "run.json").write_text(json.dumps({**record, "start_unix": start}))
             log = execute(chaos, out_dir / "control", start)
             remaining = start + duration_s + 2.0 - time.time()
             if remaining > 0:

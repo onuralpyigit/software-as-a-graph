@@ -27,6 +27,7 @@ def build_deployment(
     staleness_periods: float = STALENESS_PERIODS,
     qos_semantics: str = "engine",
     liveliness_lease_s: float = 1.0,
+    open_loop: bool = False,
 ) -> Dict[str, Any]:
     """Resolve everything an agent needs, once, so all agents agree on it.
 
@@ -35,6 +36,8 @@ def build_deployment(
     replace the oldest sample of a full BEST_EFFORT queue.
     ``liveliness_lease_s`` becomes every data writer's and reader's
     AUTOMATIC liveliness lease.
+    ``open_loop`` makes every application emit on schedule whatever its inputs
+    do, the published `MessageFlowSimulator`'s assumption.
     """
     from saag.simulation.runtime.dds_status import QOS_SEMANTICS
     if qos_semantics not in QOS_SEMANTICS:
@@ -84,7 +87,7 @@ def build_deployment(
             "publishes": out,
             "subscribes": ins,
             "inputs": required,
-            "policy": "periodic" if not required else (
+            "policy": "periodic" if open_loop or not required else (
                 g.nodes[a].get("trigger") or policy_for(g.nodes[a]).kind),
             "staleness_s": {t: staleness_s(g.nodes[t], topics[t]["rate_hz"], staleness_periods)
                             for t in required},
@@ -122,6 +125,7 @@ def build_deployment(
         "target_utilization": target_utilization,
         "staleness_periods": staleness_periods,
         "qos_semantics": qos_semantics,
+        "open_loop": open_loop,
         "liveliness_lease_s": liveliness_lease_s,
         "topics": topics,
         "apps": apps,

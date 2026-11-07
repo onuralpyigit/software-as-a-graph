@@ -56,7 +56,7 @@ def compose_spec(plan: Dict[str, Any], duration_s: float, seed: int = 0) -> Dict
                         "./telemetry:/telemetry", "./control:/control"],
             "command": ["python", "-m", "saag.testbed.agent", "--deployment", "/cfg/deployment.json",
                         "--host", host, "--telemetry", "/telemetry", "--control", "/control",
-                        "--duration", str(duration_s), "--seed", str(seed)],
+                        "--duration", str(duration_s), "--seed", str(seed), "--await-start"],
         }
     return {"name": f"saag-{plan['scenario']}".lower(), "services": services,
             "networks": {"saag": {"driver": "bridge"}}}
