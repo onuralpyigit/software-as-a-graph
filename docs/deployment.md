@@ -192,7 +192,7 @@ On the two-tier atm topology with uniform Node specs, free brokers halved the mi
 SimulationService(repo, qos_weighting=True, network_gating=g, replica_aware=True).run_failure_events(events, seed)
 ```
 
-- `run_failure_events` fails each event's Nodes together. Unlike `run_failure_simulation`, it primes the discrete-event baseline first, so the flow-disruption term is live.
+- `run_failure_events` fails each event's Nodes together. It primes the discrete-event baseline first, so the flow-disruption term is live.
 - `g` is on exactly when the topology has NetworkDevices, unless `--network-gating` overrides it.
 - `FaultInjector`, the Predict-stage labeler, is never used here. `tests/test_deployment_verify.py` enforces this.
 

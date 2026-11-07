@@ -178,15 +178,23 @@ class SimulationService:
                                cascade_probability: float = 1.0,
                                library_cascade_probability: Optional[float] = None,
                                propagation_threshold: float = 0.2,
-                               failure_mode: FailureMode = FailureMode.CRASH) -> FailureResult:
-        """Run a single failure simulation for one or more targets."""
-        _, sim = self._failure_sim(propagation_threshold)
+                               failure_mode: FailureMode = FailureMode.CRASH,
+                               seed: Optional[int] = 42) -> FailureResult:
+        """Run a single failure simulation for one or more targets.
+
+        `seed` makes the result reproducible. It is derived as in the exhaustive
+        sweep, so one target at the same seed gets the same draw there. Pass None
+        for free-running behaviour.
+        """
+        graph, sim = self._failure_sim(propagation_threshold)
+        self._prime_baseline_flows(graph, sim)
         return sim.simulate(FailureScenario(
             target_ids=target_ids,
             failure_mode=failure_mode,
             cascade_rule=cascade_rule,
             cascade_probability=cascade_probability,
             library_cascade_probability=library_cascade_probability,
+            seed=FailureSimulator._derive_seed(seed, "+".join(sorted(target_ids))),
         ))
 
     def run_failure_simulation_monte_carlo(self, target_id: str, layer: str = "system",
@@ -196,7 +204,8 @@ class SimulationService:
                                            failure_mode: FailureMode = FailureMode.CRASH,
                                            n_trials: int = 100) -> Any:
         """Run Monte Carlo failure simulation."""
-        _, sim = self._failure_sim(propagation_threshold)
+        graph, sim = self._failure_sim(propagation_threshold)
+        self._prime_baseline_flows(graph, sim)
         scenario = self._sweep_scenario(
             failure_mode, cascade_probability, library_cascade_probability)
         scenario.target_ids = [target_id]
@@ -227,10 +236,9 @@ class SimulationService:
         """Run one simultaneous-failure scenario per named event.
 
         Each event fails its targets together (e.g. every host of a failure
-        domain). Unlike ``run_failure_simulation``, the discrete-event baseline
-        is primed first, so the flow-disruption term is live. Events run in
-        sorted order, each with a seed derived from (seed, event name), so a
-        result does not depend on which other events share the call.
+        domain). Events run in sorted order, each with a seed derived from
+        (seed, event name), so a result does not depend on which other events
+        share the call.
         """
         graph, sim = self._failure_sim(propagation_threshold)
         self._prime_baseline_flows(graph, sim)
