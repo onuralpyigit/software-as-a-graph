@@ -426,7 +426,8 @@ The published engines have structural limits: publishers ignore their inputs, so
 | [Deployment on the data path](simulation-extensions.md#deployment-on-the-data-path-deployment_modelstations) | `deployment_model="stations"` | `MessageFlowSimulator` | Brokers and host CPUs become stations; brokers and hosts are labelled |
 | [Fault library](simulation-extensions.md#fault-library) | `faults=[FaultSpec, …]` | `MessageFlowSimulator` | Transient crashes, gray failures, storms, link flaps, hot standby |
 | [Paired estimator, bursty workload](simulation-extensions.md#other-runtime-options) | `estimator="paired"`, `workload_model="mmpp"` | `MessageFlowSimulator` | Same-stream baseline; bursts with the declared mean rate |
-| [Runtime labels](simulation-extensions.md#runtime-labels-runtime-sweep) | `saag-simulate runtime-sweep` | `MessageFlowSimulator` | Five labels with their order-k references |
+| [Overload failure](simulation-extensions.md#overload-failure-overload_modelsaturation) | `overload_model="saturation"` | `MessageFlowSimulator` | Components crash when offered more work than they can do, so failover can cascade |
+| [Runtime labels](simulation-extensions.md#runtime-labels-runtime-sweep) | `saag-simulate runtime-sweep` | `MessageFlowSimulator` | Five labels with their order-k references; `--parameter-draws` tests them against guessed parameters |
 | [DDS semantics and statuses](simulation-extensions.md#2-dds-qos-semantics-and-status-metrics) | `qos_semantics="dds"`, `dds_status=True` | `MessageFlowSimulator`, testbed | Period deadlines, KEEP_LAST, QoS matching; DDS status counts |
 | [Emulated testbed](simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) | `saag-simulate testbed …` | — | Runs the scenario on real Cyclone DDS and compares it with the simulator |
 

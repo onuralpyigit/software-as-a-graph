@@ -288,6 +288,8 @@ saag-deploy -i data/network/atm_two_tier_system.json \
 saag -i data/scenarios/atm_system.json --deploy --deployment-spec data/deployment/atm_system_deployment.json
 ```
 
+`--dynamic-report` also replays the outage events on the runtime engine (reactive, stations, replica-aware, overload on) for the recommended placement and its baselines, reporting delivery loss, time to recover and overload cascades. It needs SimPy, runs after the recommendation, and is **descriptive only**: `reliability_claim` is never decided by it, so a placement that looks better or worse in the replay stays a finding to investigate, not a verdict.
+
 `--placed-topology` writes the recommended placement applied to the topology, ready for `saag-import`. Flags are listed in the [CLI guide](cli-pipeline-guide.md#pre-deployment-deploy).
 
 ---

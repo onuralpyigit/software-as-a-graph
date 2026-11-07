@@ -100,6 +100,18 @@ print(fe.i_dyn_paired, fe.time_to_recover_s, len(fe.stalled_apps))
 |:---|:---|
 | `rng_streams="per_process"`, `estimator="paired"` | Same-stream no-fault baseline; a fault that touches nothing scores exactly 0 |
 | `workload_model="mmpp"` | Bursts with the declared mean rate |
+| `calibration_load="published"` | Sizes stations without topics nobody publishes. The default counts them, which leaves `atm_system` at 0.41 against a 0.65 target, because 26 of its 85 subscriptions read silent topics |
+
+### Overload failure (`overload_model="saturation"`)
+
+Without this, load never fails anything: a broker inheriting traffic on failover just queues. With it, and `deployment_model="stations"`, a broker, app or host crashes when its offered load reaches capacity over a window, which can start a chain the fault alone would not cause.
+
+- **The signal** is arrivals × mean service time ÷ capacity over `overload_window_s` (default 5 s). The threshold is `overload_utilization` (default 1.0). A busy fraction or a standing backlog would not do: at 1 Hz and ρ = 0.65 a queue stays backlogged for about 17 s by chance, so they would crash healthy components.
+- **Capacity** comes from a broker's `capacity_msgs_s` and a host's `cpu_cores`. A host with no declared `cpu_cores` is never overloaded as a host. An undeclared broker is sized from the load it routes at the start of the run, so a backup that routes nothing gets the default service time and is hard to overload. Declare capacities for failover to mean anything.
+- **Restart.** `overload_restart_s` brings the component back after that long; by default it stays down.
+- **The record.** `fault_event.overload_failures` lists what overload brought down, and `runtime_events` says when.
+
+Not modelled: publisher backpressure under RELIABLE, and retries. The testbed does not implement overload yet.
 
 ### Runtime labels (`runtime-sweep`)
 
@@ -112,6 +124,10 @@ The sweep fails every candidate under the runtime settings: reactive, stations, 
 | `i_flow` | Criticality-weighted loss at the sinks. A failed sink loses everything, so terminal consumers are not harmless as they are under I\*. |
 | `i_timeliness` | Signed change in the deadline-miss share. Under `qos_semantics="dds"` it is the paired increase in the DDS deadline-miss rate instead. |
 | `i_recovery` | Recovery time, for bounded faults only |
+
+**Parameter uncertainty.** Before deployment, the operating point, service distribution, staleness window and burstiness are guesses. `runtime-sweep --parameter-draws N` repeats the sweep under N draws from `PARAMETER_RANGES`, at the first seed, and adds `parameter_stability` to the file: the worst pairwise Spearman of each label across draws. A label can reproduce across seeds and still depend on the guess, so read both blocks. The retest gate in training looks only at seeds.
+
+The sweep is also available as `SimulationService.run_runtime_sweep(...)`, and as `SimulationMode.RUNTIME` through `SimulateGraphUseCase`.
 
 Each label ships with its **order-k reference**: the training-free truncation of the simulator's own computation that a learned ranker must beat ([research context](failure-simulation.md#14-research-context)).
 
