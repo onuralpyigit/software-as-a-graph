@@ -27,6 +27,9 @@ from .runtime import AppRuntime, BrokerRelay, Control, LocalTransport, Telemetry
 CONTROL_POLL_S = 0.1
 #: How often agent-level DDS status counts are written to the trace.
 STATUS_PERIOD_S = 1.0
+#: Written by the orchestrator once every host is ready, with the common start time.
+START_FILE = "start.json"
+START_POLL_S = 0.05
 
 
 def _emit_status(parts: Dict[str, object], sink: TelemetrySink) -> None:
@@ -38,8 +41,17 @@ def _emit_status(parts: Dict[str, object], sink: TelemetrySink) -> None:
                 sink.emit(ev)
 
 
+def _await_start(control_dir: Path, host: str) -> None:
+    """Report that this host's DDS entities exist, then hold traffic until the common start."""
+    (control_dir / f"ready-{host}").touch()
+    start_file = control_dir / START_FILE
+    while not start_file.exists():
+        time.sleep(START_POLL_S)
+    time.sleep(max(0.0, json.loads(start_file.read_text())["start_unix"] - time.time()))
+
+
 def run_host(plan: Dict, host: str, transport, sink: TelemetrySink, duration_s: float,
-             control_dir: Optional[Path] = None, seed: int = 0) -> None:
+             control_dir: Optional[Path] = None, seed: int = 0, await_start: bool = False) -> None:
     hosts = plan["hosts"] if host == "all" else {host: plan["hosts"][host]}
     parts: Dict[str, object] = {}
     for h, residents in hosts.items():
@@ -49,6 +61,8 @@ def run_host(plan: Dict, host: str, transport, sink: TelemetrySink, duration_s: 
             replicated = len(plan["apps"][a].get("hosts", [])) > 1
             parts[f"{a}@{h}" if replicated else a] = AppRuntime(
                 a, plan, transport, sink, seed=seed, host=h)
+    if await_start:
+        _await_start(control_dir, host)
     for p in parts.values():
         p.start()
     end = time.time() + duration_s
@@ -96,6 +110,8 @@ def main(argv: Optional[List[str]] = None) -> None:
     ap.add_argument("--transport", choices=("dds", "local"), default="dds")
     ap.add_argument("--domain", type=int, default=0)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--await-start", action="store_true",
+                    help=f"hold traffic until {START_FILE} appears in --control")
     args = ap.parse_args(argv)
     # `docker kill -s USR1 <container>` dumps every thread's stack to the log.
     faulthandler.register(signal.SIGUSR1, all_threads=True)
@@ -108,7 +124,8 @@ def main(argv: Optional[List[str]] = None) -> None:
         transport = LocalTransport()
     args.telemetry.mkdir(parents=True, exist_ok=True)
     sink = TelemetrySink(args.telemetry / f"{args.host}.jsonl")
-    run_host(plan, args.host, transport, sink, args.duration, args.control, args.seed)
+    run_host(plan, args.host, transport, sink, args.duration, args.control, args.seed,
+             await_start=args.await_start)
 
 
 if __name__ == "__main__":
