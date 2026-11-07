@@ -407,6 +407,7 @@ Fails every candidate under the runtime engine → `runtime_labels.json`: the fi
 | `--duration` | `60.0` | Simulated seconds per run |
 | `--qos-mode` / `--target-utilization` | `full` / `0.65` | As for `message-flow` |
 | `--fault-mode` / `--fault-duration` / `--fault-param` | `crash` | The fault applied to each candidate |
+| `--declare-capacities` | none | Size brokers and hosts the scenario leaves undeclared for healthy utilisation ρ, so `--overload-model` has something to act on |
 | `--parameter-draws` | `0` | Repeat the sweep under N draws of the guessed parameters; writes `parameter_stability` |
 | `--workers` | `1` | Parallel workers, one seed or draw each |
 | runtime flags | `reactive`, `stations`, `per_process` | As for `message-flow`; `--estimator` is always `paired` |

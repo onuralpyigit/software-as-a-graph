@@ -128,7 +128,7 @@ from saag.simulation.message_flow_simulator import (
 from saag.simulation.runtime.dds_status import QOS_SEMANTICS
 from saag.simulation.runtime.faults import DEPLOYMENT_MODELS, OVERLOAD_MODELS, FaultSpec, RuntimeFaultMode
 from saag.simulation.runtime.labels import RUNTIME_LABEL_SETTINGS
-from saag.simulation.runtime.workload import WORKLOAD_MODELS
+from saag.simulation.runtime.workload import WORKLOAD_MODELS, declare_capacities
 
 logger = logging.getLogger("simulate_graph")
 
@@ -416,7 +416,11 @@ def _run_runtime_sweep(args: argparse.Namespace) -> None:
     logger.info("═" * 60)
 
     t0 = time.perf_counter()
-    out = runtime_labels(_load_graph(input_path), candidates=candidates, seeds=seeds,
+    graph = _load_graph(input_path)
+    if args.declare_capacities is not None:
+        graph = declare_capacities(graph, rho=args.declare_capacities,
+                                   target_utilization=settings["target_utilization"] or 0.65)
+    out = runtime_labels(graph, candidates=candidates, seeds=seeds,
                          settings=settings, fault=fault, workers=args.workers,
                          parameter_draws=args.parameter_draws)
     elapsed = time.perf_counter() - t0
@@ -1099,6 +1103,9 @@ def _build_parser() -> argparse.ArgumentParser:
     rs.add_argument("--fault-mode", choices=[m.value for m in RuntimeFaultMode], default="crash")
     rs.add_argument("--fault-duration", type=float, default=None, metavar="SECONDS")
     rs.add_argument("--fault-param", action="append", default=[], metavar="KEY=VALUE")
+    rs.add_argument("--declare-capacities", type=float, default=None, metavar="RHO",
+                    help="Size brokers and hosts the scenario leaves undeclared for healthy "
+                         "utilisation RHO, so --overload-model has something to act on.")
     rs.add_argument("--parameter-draws", type=int, default=0, metavar="N",
                     help="Repeat the sweep under N draws of the guessed parameters and report "
                          "each label's rank stability across them.  Default: 0 (off)")
