@@ -417,7 +417,8 @@ def _run_runtime_sweep(args: argparse.Namespace) -> None:
 
     t0 = time.perf_counter()
     out = runtime_labels(_load_graph(input_path), candidates=candidates, seeds=seeds,
-                         settings=settings, fault=fault, workers=args.workers)
+                         settings=settings, fault=fault, workers=args.workers,
+                         parameter_draws=args.parameter_draws)
     elapsed = time.perf_counter() - t0
     out_json = output_dir / "runtime_labels.json"
     out_json.write_text(json.dumps(out, indent=2, sort_keys=True))
@@ -1098,6 +1099,9 @@ def _build_parser() -> argparse.ArgumentParser:
     rs.add_argument("--fault-mode", choices=[m.value for m in RuntimeFaultMode], default="crash")
     rs.add_argument("--fault-duration", type=float, default=None, metavar="SECONDS")
     rs.add_argument("--fault-param", action="append", default=[], metavar="KEY=VALUE")
+    rs.add_argument("--parameter-draws", type=int, default=0, metavar="N",
+                    help="Repeat the sweep under N draws of the guessed parameters and report "
+                         "each label's rank stability across them.  Default: 0 (off)")
     rs.add_argument("--workers", type=int, default=1,
                     help="Parallel workers (one seed per worker).  Default: 1")
 

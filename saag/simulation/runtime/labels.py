@@ -57,6 +57,7 @@ compared against it rather than presented as recovering it:
 from __future__ import annotations
 
 import statistics
+import random
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
@@ -64,7 +65,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, 
 from saag.core.graph_io import topology_fingerprint
 
 from .faults import FaultSpec
-from .uncertainty import rank_stability
+from .uncertainty import PARAMETER_RANGES, rank_stability, sample_settings
 
 #: Runtime-oracle settings. Kept separate from the published I_dyn settings
 #: (reproduce/oracle_robust_ltr.py:IDYN_SETTINGS) so that cache key never moves.
@@ -301,8 +302,14 @@ def runtime_labels(
     settings: Optional[Mapping[str, Any]] = None,
     fault: Optional[Mapping[str, Any]] = None,
     workers: int = 1,
+    parameter_draws: int = 0,
+    parameter_ranges: Mapping[str, Any] = PARAMETER_RANGES,
 ) -> Dict[str, Any]:
     """Fault every candidate under every seed; return labels, references, stability.
+
+    ``parameter_draws`` repeats the sweep at the first seed under that many draws
+    from ``parameter_ranges``, and reports in ``parameter_stability`` how far each
+    label's ranking depends on parameters that are guesses before deployment.
 
     ``fault`` is ``{"mode": ..., "duration_s": ..., "params": {...}}`` (default a
     permanent crash at mid-run). ``settings`` override `RUNTIME_LABEL_SETTINGS`.
@@ -346,8 +353,12 @@ def runtime_labels(
              for s in seeds]).items() if k not in ("mean", "std")}
         for n in measured
     }
+    extra: Dict[str, Any] = {}
+    if parameter_draws > 0:
+        extra["parameter_stability"] = _parameter_stability(
+            graph, cands, seeds[0], cfg, fault, workers, parameter_draws, parameter_ranges)
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "graph_id": graph.graph.get("id", ""),
         "topology_fingerprint": topology_fingerprint(graph),
         "labeler": "MessageFlowSimulator/runtime",
@@ -359,4 +370,23 @@ def runtime_labels(
         "unlabeled_node_ids": sorted(set(graph.nodes) - set(cands)),
         "records": records,
         "label_stability": stability,
+        **extra,
     }
+
+
+def _parameter_stability(graph, cands, seed, cfg, fault, workers, draws, ranges) -> Dict[str, Any]:
+    """Rank stability of each label across parameter draws, at one fixed seed."""
+    rng = random.Random(seed)
+    settings = [sample_settings(rng, ranges) for _ in range(draws)]
+    jobs = [(graph, cands, seed, {**cfg, **s}, fault) for s in settings]
+    if workers > 1 and len(jobs) > 1:
+        with ProcessPoolExecutor(max_workers=min(workers, len(jobs))) as pool:
+            sweeps = [out for _, out in pool.map(_sweep_seed, jobs)]
+    else:
+        sweeps = [out for _, out in map(_sweep_seed, jobs)]
+    labels = {}
+    for name in LABEL_NAMES:
+        per_draw = [{c: sweep[c][name] for c in cands if sweep[c][name] is not None} for sweep in sweeps]
+        if any(per_draw):
+            labels[name] = {k: v for k, v in rank_stability(per_draw).items() if k not in ("mean", "std")}
+    return {"draws": draws, "seed": seed, "settings": settings, "labels": labels}
