@@ -1156,8 +1156,11 @@ def _subscriber_process(
             if post_fault:
                 sub_stats.missed_post_fault += 1
             if recorder is not None:
+                # The message was served before it was dropped: without its
+                # service time a calibrator would fit only the fast survivors.
                 recorder.append(make_event(delivery_time, "saag.deadline_miss", app_id, topic_id,
-                                           publisher=msg.publisher_id, latency_ms=e2e_latency_ms))
+                                           publisher=msg.publisher_id, latency_ms=e2e_latency_ms,
+                                           service_ms=pure_service_s * 1000.0))
             continue
 
         # Delivered

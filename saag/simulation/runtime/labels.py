@@ -65,7 +65,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, 
 from saag.core.graph_io import topology_fingerprint
 
 from .faults import FaultSpec
-from .uncertainty import PARAMETER_RANGES, rank_stability, sample_settings
+from .uncertainty import PARAMETER_RANGES, inert_parameters, rank_stability, sample_settings
 
 #: Runtime-oracle settings. Kept separate from the published I_dyn settings
 #: (reproduce/oracle_robust_ltr.py:IDYN_SETTINGS) so that cache key never moves.
@@ -389,4 +389,5 @@ def _parameter_stability(graph, cands, seed, cfg, fault, workers, draws, ranges)
         per_draw = [{c: sweep[c][name] for c in cands if sweep[c][name] is not None} for sweep in sweeps]
         if any(per_draw):
             labels[name] = {k: v for k, v in rank_stability(per_draw).items() if k not in ("mean", "std")}
-    return {"draws": draws, "seed": seed, "settings": settings, "labels": labels}
+    return {"draws": draws, "seed": seed, "settings": settings,
+            "inert": inert_parameters(cfg, ranges), "labels": labels}

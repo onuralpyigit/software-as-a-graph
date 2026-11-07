@@ -136,7 +136,7 @@ The sweep fails every candidate under the runtime settings: reactive, stations, 
 | `i_timeliness` | Signed change in the deadline-miss share. Under `qos_semantics="dds"` it is the paired increase in the DDS deadline-miss rate instead. |
 | `i_recovery` | Recovery time, for bounded faults only |
 
-**Parameter uncertainty.** Before deployment, the operating point, service distribution, staleness window and burstiness are guesses. `runtime-sweep --parameter-draws N` repeats the sweep under N draws from `PARAMETER_RANGES`, at the first seed, and adds `parameter_stability` to the file: the worst pairwise Spearman of each label across draws. A label can reproduce across seeds and still depend on the guess, so read both blocks. The retest gate in training looks only at seeds.
+**Parameter uncertainty.** Before deployment, the operating point, service distribution, staleness window and burstiness are guesses. `runtime-sweep --parameter-draws N` repeats the sweep under N draws from `PARAMETER_RANGES`, at the first seed, and adds `parameter_stability` to the file: the worst pairwise Spearman of each label across draws. A label can reproduce across seeds and still depend on the guess, so read both blocks. The retest gate in training looks only at seeds. The block's `inert` list names drawn keys that the run never reads. Under the default label settings, that list is `burst_ratio`, because bursts apply only under `workload_model="mmpp"`. So the spread measures three guesses, not four.
 
 The sweep is also available as `SimulationService.run_runtime_sweep(...)`, and as `SimulationMode.RUNTIME` through `SimulateGraphUseCase`.
 
@@ -280,7 +280,7 @@ flowchart TD
 | Runtime | Stub applications: one publisher thread per output, one worker per app (the shared station), bounded queues, deadline checks. A **broker** is a relay: writers publish to `ingress`, the routing broker republishes to `egress`, and the lowest-id relay with a live heartbeat routes. A **multi-hosted app** runs one instance per host; the lowest-id live instance is active and the others are warm standbys. |
 | Transport | Cyclone DDS (extra `testbed`, `cyclonedds==11.0.1`) through a WaitSet poller, never listeners, with AUTOMATIC liveliness. `--mode local` runs everything in-process without Docker. |
 | Chaos | Host faults become `docker kill`, `start`, `pause` or `update`. App faults become control files the agents poll. `link_flap` becomes `tc netem`, which cuts all of one endpoint's traffic. `buffer_leak` and `redelivery_storm` are reported as unsupported. |
-| Calibration | `TelemetryCalibrator` fits topic rates and service-time distributions on the pre-fault steady state. It infers trigger policies from how emissions respond to input outages, abstaining when the evidence is ambiguous. It never writes `edge_failure_correlation`, which is a cascade probability, not a drop rate. |
+| Calibration | `TelemetryCalibrator` fits topic rates and service-time distributions on the pre-fault steady state. It infers trigger policies from how emissions respond to input outages, abstaining when the evidence is ambiguous. It never writes `edge_failure_correlation`, which is a cascade probability, not a drop rate. See *What calibration can recover*, below. |
 | Fidelity | The simulated run is compared with the observed one: steady state against declared tolerances, the fault response (stall-set Jaccard), and DDS statuses. It is a report, never a gate. |
 
 ```bash
@@ -291,6 +291,15 @@ python cli/simulate_graph.py testbed fidelity --output output/testbed/tiny --cal
 ```
 
 `--mode docker` builds an image that downloads `python:3.11-slim` and `cyclonedds`. The testbed directory is its own build context, with a copy of `saag/`.
+
+**What calibration can recover.** To test this, `atm` was simulated under the runtime-label settings with known parameters. The trace was then calibrated, and the fitted parameters compared with the known ones (`tests/test_calibration_identifiability.py`, measured 2026-11-07):
+
+| Parameter | Recovered? |
+|:---|:---|
+| Topic rates | Yes. Median error 3% over a 60 s trace. |
+| Service mean and CV | Yes. The median error is 1%, and every app is within sampling noise (at most 3.6 standard errors over 30 apps). A uniform service distribution comes back as `lognormal` with its true CV of 0.115. A message dropped for missing its deadline was served first, so `saag.deadline_miss` carries `service_ms` in both the simulated and the testbed trace, and the fit includes it. Before that, the fit saw only the fast survivors, and on `atm` `A11` the mean came back 45% low. |
+| Trigger policy | Never wrong. On `atm`, 16 or 17 of the 17 apps with inputs and outputs get an answer, and every answer is right, whether the true staleness window is 2, 3 or 6 periods (the calibrator assumes 3). A single-input `all_of` comes back as `any_of`, which is the same policy. Pure sinks and apps that never saw a partial input outage get no answer. |
+| `staleness_periods`, `burst_ratio` | No. The calibrator has no estimator for either, so post-deployment data cannot narrow those ranges. |
 
 A testbed directory contains:
 - `deployment.json`, `Dockerfile`, `docker-compose.yml` and `saag/`;

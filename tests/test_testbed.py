@@ -250,6 +250,23 @@ def test_local_dds_semantics_status_agrees_with_the_simulator(tmp_path):
     assert rep["statuses"]["requested_deadline_missed"]["after_split"]["fired_jaccard"] == 1.0
 
 
+def test_deadline_drops_report_their_service_time(tmp_path):
+    """A 1 ms deadline on t1 makes P drop every sample after serving it. The
+    drop must carry its service time, or the calibrator fits no service for P."""
+    path = scenario(tmp_path, brokers=False)
+    data = json.loads(path.read_text())
+    data["topics"][0]["deadline_ms"] = 1
+    path.write_text(json.dumps(data))
+    d = orchestrate.build(path, tmp_path / "tb", duration_s=3.0)
+    orchestrate.run(d, 3.0, [], mode="local")
+    from saag.testbed.collect import load_run
+    trace = load_run(d)
+    misses = [e for e in trace.events if e["kind"] == "deadline_miss" and e["app"] == "P"]
+    assert len(misses) > 10 and not trace.times("deliver", "P", "t1")
+    assert all(e["service_ms"] is not None and e["service_ms"] >= 0 for e in misses)
+    assert "P" in TelemetryCalibrator(infer_policies=False).calibrate(trace).service_time_dist
+
+
 # ── Calibrator round trip on a simulated trace ───────────────────────────────
 
 def chain_graph(trigger="all_of", f=20):
