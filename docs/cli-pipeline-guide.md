@@ -385,6 +385,9 @@ Runtime-engine flags ([simulation-extensions.md §1](simulation-extensions.md#1-
 | `--hot-standby` / `--failover-delay` | off / `1.0` | `hotstandby` components return after the delay |
 | `--workload-model` | `declared` | `mmpp`: bursty arrivals with the declared mean rate |
 | `--staleness-periods` | `3.0` | Reactive input-freshness window, in periods |
+| `--calibration-load` | `declared` | `published`: size stations without topics nobody publishes |
+| `--overload-model` | `none` | `saturation`: with `stations`, a component offered more work than it can do over a window crashes ([details](simulation-extensions.md#overload-failure-overload_modelsaturation)) |
+| `--overload-window` / `--overload-utilization` / `--overload-restart` | `5.0` / `1.0` / never | Window, threshold and restart delay of the overload model |
 | `--network-gating` | off | With `stations`: CONNECTS_TO reachability gates delivery |
 | `--qos-semantics` | `engine` | `dds`: DEADLINE as a period contract (no drops), KEEP_LAST replaces the oldest sample, incompatible offered/requested QoS pairs do not communicate ([details](simulation-extensions.md#2-dds-qos-semantics-and-status-metrics)) |
 | `--dds-status` | off | Count the DDS standard statuses into the result (implied by `--qos-semantics dds`) |
@@ -404,7 +407,8 @@ Fails every candidate under the runtime engine → `runtime_labels.json`: the fi
 | `--duration` | `60.0` | Simulated seconds per run |
 | `--qos-mode` / `--target-utilization` | `full` / `0.65` | As for `message-flow` |
 | `--fault-mode` / `--fault-duration` / `--fault-param` | `crash` | The fault applied to each candidate |
-| `--workers` | `1` | Parallel workers, one seed each |
+| `--parameter-draws` | `0` | Repeat the sweep under N draws of the guessed parameters; writes `parameter_stability` |
+| `--workers` | `1` | Parallel workers, one seed or draw each |
 | runtime flags | `reactive`, `stations`, `per_process` | As for `message-flow`; `--estimator` is always `paired` |
 
 ### `testbed`
@@ -598,6 +602,8 @@ saag -i data/scenarios/atm_system.json --deploy --deployment-spec data/deploymen
 | `--kappa` | `1.0` | Noise-bar multiple of the seed standard deviation |
 | `--network-gating` | `auto` | `auto` (on when the topology has NetworkDevices), `on` or `off` |
 | `--output` / `-o` | `None` | Write the full `DeploymentResult` JSON |
+| `--dynamic-report` | off | Replay the outage events on the runtime engine for the recommended placement and its baselines. Descriptive; needs SimPy |
+| `--dynamic-duration` | `30.0` | Simulated seconds per replay |
 | `--placed-topology` | `None` | Write the topology with the recommended placement applied (importable with `saag-import`) |
 
 `cli/run.py` adds `--deploy` and `--deployment-spec FILE`. `--deploy` without a spec is an

@@ -156,3 +156,77 @@ def test_service_sweeps_prime_baseline_flows(primed_service, monkeypatch, sweep)
     assert seen, f"{sweep} never primed the flow-disruption baseline"
     assert seen[-1], f"{sweep} primed an empty flow set"
     assert ("A0", "T0", "A1") in seen[-1]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The one-scenario paths must report the same composite as the sweeps.
+#
+# ``run_failure_simulation`` (behind REST /failure) and
+# ``run_failure_simulation_monte_carlo`` did not prime, so B0 scored FD = 0 here
+# and FD = 1 in the exhaustive sweep. The exhaustive result is the reference
+# because tests/test_simulation_golden_defaults.py pins it.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def exhaustive_b0(primed_service):
+    results = primed_service.run_failure_simulation_exhaustive(layer="system")
+    return next(r for r in results if r.target_id == "B0").impact
+
+
+def test_single_failure_counts_flow_disruption(primed_service, exhaustive_b0):
+    impact = primed_service.run_failure_simulation(target_ids=["B0"]).impact
+
+    assert impact.flow_disruption == 1.0
+    assert impact.composite_impact == pytest.approx(exhaustive_b0.composite_impact)
+
+
+def test_monte_carlo_counts_flow_disruption(primed_service, exhaustive_b0):
+    # B0's outcome does not vary between draws on this topology, so the mean is
+    # exactly the composite of one primed run.
+    result = primed_service.run_failure_simulation_monte_carlo(target_id="B0", n_trials=3)
+
+    assert result.mean_impact == pytest.approx(exhaustive_b0.composite_impact)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# run_failure_simulation is reproducible.
+#
+# Logical rules fire with probability w(e), so a run is stochastic even at
+# cascade_probability = 1.0. It drew from an unseeded generator, which on
+# weighted topologies such as this one made repeat calls return different values.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def weighted_service():
+    import json
+    from pathlib import Path
+
+    from saag.infrastructure.memory_repo import MemoryRepository
+    from saag.simulation.service import SimulationService
+
+    path = Path(__file__).resolve().parents[1] / "data" / "scenarios" / "tiny_system.json"
+    repo = MemoryRepository()
+    repo.save_graph(json.loads(path.read_text()), clear=True)
+    return SimulationService(repo)
+
+
+def test_single_failure_equals_the_exhaustive_draw(weighted_service):
+    sweep = weighted_service.run_failure_simulation_exhaustive(layer="system")
+
+    for result in sweep:
+        single = weighted_service.run_failure_simulation([result.target_id])
+        assert single.impact.composite_impact == pytest.approx(result.impact.composite_impact), (
+            result.target_id)
+
+
+def test_joint_failure_repeats_exactly(weighted_service):
+    # Unseeded, this pair gave 17 distinct composites in 40 draws.
+    targets = ["B1", "N1"]
+
+    first = weighted_service.run_failure_simulation(targets).impact.composite_impact
+    assert all(
+        weighted_service.run_failure_simulation(targets).impact.composite_impact == first
+        for _ in range(10)
+    )

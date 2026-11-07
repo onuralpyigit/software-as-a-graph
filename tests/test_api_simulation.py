@@ -133,3 +133,63 @@ def test_simulate_failure(mock_failure_result):
         assert "results" in data
     finally:
         app.dependency_overrides = {}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# cascade_probability reaches the simulator.
+#
+# Both request models accepted the field and the router dropped it, so the
+# request validated and the value had no effect. These run the real Client,
+# use case and service over an in-memory graph rather than a mock, so a break
+# anywhere on the path fails them.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_CASCADE_TOPOLOGY = {
+    "applications": [{"id": "A0", "name": "pub"}, {"id": "A1", "name": "sub"}],
+    "topics": [{"id": "T0", "name": "t", "size": 256}],
+    "brokers": [{"id": "B0", "name": "b"}],
+    "nodes": [{"id": "N0", "name": "h"}],
+    "libraries": [],
+    "relationships": {
+        "publishes_to": [{"from": "A0", "to": "T0"}],
+        "subscribes_to": [{"from": "A1", "to": "T0"}],
+        "routes": [{"from": "B0", "to": "T0"}],
+        "runs_on": [{"from": "A0", "to": "N0"}, {"from": "A1", "to": "N0"},
+                    {"from": "B0", "to": "N0"}],
+    },
+}
+_CREDS = {"credentials": {"uri": "bolt://localhost:7687", "user": "neo4j", "password": "password"}}
+
+
+@pytest.fixture
+def real_client():
+    from saag import Client
+    from saag.infrastructure.memory_repo import MemoryRepository
+
+    repo = MemoryRepository()
+    repo.save_graph(_CASCADE_TOPOLOGY, clear=True)
+    app.dependency_overrides[get_client] = lambda: Client(repo=repo)
+    yield
+    app.dependency_overrides = {}
+
+
+def _node_cascade_count(path, body):
+    """Cascade count for N0, whose hosted components only fail by a physical cascade."""
+    response = client.post(path, json={**body, **_CREDS})
+    assert response.status_code == 200, response.text
+    by_id = {r["target_id"]: r for r in response.json()["results"]}
+    return by_id["N0"]["impact"]["cascade"]["count"]
+
+
+@pytest.mark.parametrize("path, body", [
+    ("/api/v1/simulation/failure", {"target_ids": ["N0"]}),
+    ("/api/v1/simulation/exhaustive", {}),
+])
+def test_cascade_probability_changes_the_result(real_client, path, body):
+    assert _node_cascade_count(path, {**body, "cascade_probability": 0.0}) == 0
+    assert _node_cascade_count(path, {**body, "cascade_probability": 1.0}) > 0
+
+
+def test_cascade_probability_defaults_to_a_full_cascade(real_client):
+    """Leaving the field out must keep what the endpoint returned before it was forwarded."""
+    assert _node_cascade_count("/api/v1/simulation/failure", {"target_ids": ["N0"]}) > 0

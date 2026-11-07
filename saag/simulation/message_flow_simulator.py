@@ -174,6 +174,11 @@ QOS_MODES: Tuple[str, ...] = ("none", "contracts", "recovery", "full", "legacy")
 _CAPACITY_FROM_HISTORY: frozenset = frozenset({"contracts", "full"})
 #: Modes in which deadline_ms / lifespan_ms are enforced on delivery.
 _DEADLINES_ENFORCED: frozenset = frozenset({"contracts", "full", "legacy"})
+#: What sizes a calibrated station: every subscribed topic's declared rate, or only
+#: topics someone publishes. The corpus subscribes to silent topics (31% of atm's
+#: subscriptions), and counting them leaves such a reader well below the target.
+CALIBRATION_LOADS: Tuple[str, ...] = ("declared", "published")
+
 #: Modes in which transport_priority orders service at the contended resource.
 _PRIORITY_ORDERED: frozenset = frozenset({"full"})
 #: Modes in which durability replay fires after a fault.
@@ -376,6 +381,8 @@ class ServiceStation:
         self.topic_scale: Dict[str, float] = {}
         #: Service-time multiplier set by a SLOWDOWN fault (runtime/faults.py).
         self.slowdown = 1.0
+        #: Messages that reached this station's broker path (overload monitor).
+        self.arrivals = 0
         #: Coefficient of variation, used only by the measured "lognormal" family.
         self.cv = 1.0
 
@@ -570,6 +577,8 @@ class SubscriberQueue:
         self._area_post = 0.0
         self._peak_pre = 0
         self._peak_post = 0
+        #: Messages offered to this queue, dropped or not (overload monitor).
+        self.offered = 0
 
     def _update_depth_area(self) -> None:
         now = self.env.now
@@ -650,6 +659,7 @@ class SubscriberQueue:
 
     def _try_put(self, msg: Message, stats: TopicFlowStats) -> bool:
         """Enqueue msg; apply overflow policy; return True if enqueued."""
+        self.offered += 1
         self._update_depth_area()
         cap = self.capacity
         if self.depth >= cap:
@@ -989,7 +999,7 @@ def _publisher_process(
         # Failed publishers keep generating demand but emit nothing.
         if app_id in failed_nodes:
             continue
-        if runtime is not None and runtime.withhold(app_id, rng):
+        if runtime is not None and runtime.withhold(app_id, rng, topic_id):
             continue
         # Reactive model: a stalled (or degraded) application withholds some or
         # all of its schedule. Its demand stays counted, exactly like a dead one.
@@ -1471,8 +1481,28 @@ class MessageFlowSimulator:
         qos_semantics: str = "engine",
         dds_status: bool = False,
         liveliness_lease_s: float = 1.0,
+        calibration_load: str = "declared",
+        overload_model: str = "none",
+        overload_window_s: float = 5.0,
+        overload_utilization: float = 1.0,
+        overload_restart_s: Optional[float] = None,
     ) -> None:
         _require_simpy()
+        if calibration_load not in CALIBRATION_LOADS:
+            raise ValueError(
+                f"calibration_load must be one of {CALIBRATION_LOADS}, got {calibration_load!r}")
+        self.calibration_load = calibration_load
+        self._published_topics: Optional[Set[str]] = None
+        from .runtime.faults import OVERLOAD_MODELS
+        if overload_model not in OVERLOAD_MODELS:
+            raise ValueError(f"overload_model must be one of {OVERLOAD_MODELS}, got {overload_model!r}")
+        if overload_model != "none" and deployment_model != "stations":
+            raise ValueError("overload_model needs deployment_model='stations': "
+                             "brokers and host CPUs have to be on the data path")
+        self.overload_model = overload_model
+        self.overload_window_s = float(overload_window_s)
+        self.overload_utilization = float(overload_utilization)
+        self.overload_restart_s = overload_restart_s
         from .runtime.dds_status import QOS_SEMANTICS
         if qos_semantics not in QOS_SEMANTICS:
             raise ValueError(f"qos_semantics must be one of {QOS_SEMANTICS}, got {qos_semantics!r}")
@@ -1745,6 +1775,16 @@ class MessageFlowSimulator:
                     pass
         return self.default_publish_rate_hz
 
+    def calibration_rate(self, topic_id: str) -> float:
+        """The rate a station is sized for: under ``published``, nothing for a silent topic."""
+        if self.calibration_load == "published":
+            if self._published_topics is None:
+                self._published_topics = {
+                    v for _, v, d in self.graph.edges(data=True) if d.get("type") == "PUBLISHES_TO"}
+            if topic_id not in self._published_topics:
+                return 0.0
+        return self.topic_aggregate_rate(topic_id)
+
     def topic_payload_bytes(self, topic_id: str) -> float:
         """The topic's declared payload `size` in bytes, or `DEFAULT_PAYLOAD_BYTES`."""
         node = self.graph.nodes[topic_id] if topic_id in self.graph.nodes else {}
@@ -1786,7 +1826,7 @@ class MessageFlowSimulator:
         work: Dict[str, float] = defaultdict(float)
         topics_of: Dict[str, List[str]] = defaultdict(list)
         for src, tgt, _ in sub_edges:
-            rate = self.topic_aggregate_rate(tgt)
+            rate = self.calibration_rate(tgt)
             offered[src] += rate
             work[src] += rate * self.topic_work_weight(tgt)
             topics_of[src].append(tgt)
@@ -2327,6 +2367,8 @@ class MessageFlowSimulator:
                 fault_event_record.cascade_silenced_publishers = sorted(
                     runtime.ever_failed & set(publications)) or [self.fault_node]
                 fault_event_record.runtime_events = runtime.events
+                if self.overload_model != "none":
+                    fault_event_record.overload_failures = sorted(runtime.overloaded)
                 primary = self.faults[0]
                 if primary.end_s is not None and primary.end_s < self.duration:
                     fault_event_record.time_to_recover_s = runtime.time_to_recover(
@@ -2487,7 +2529,8 @@ class MessageFlowSimulator:
                     "estimator": "windows", "deployment_model": "none",
                     "replica_aware": False, "hot_standby": False,
                     "workload_model": "declared", "network_gating": False,
-                    "qos_semantics": "engine", "dds_status": False}
+                    "qos_semantics": "engine", "dds_status": False,
+                    "calibration_load": "declared", "overload_model": "none"}
         out = {k: getattr(self, k) for k, v in defaults.items() if getattr(self, k) != v}
         if self.faults:
             out["faults"] = [f.to_dict() for f in self.faults]
@@ -2496,6 +2539,10 @@ class MessageFlowSimulator:
                        mean_burst_s=self.mean_burst_s)
         if self.behavior_model == "reactive":
             out["staleness_periods"] = self.staleness_periods
+        if self.overload_model != "none":
+            out.update(overload_window_s=self.overload_window_s,
+                       overload_utilization=self.overload_utilization,
+                       overload_restart_s=self.overload_restart_s)
         return out
 
     def _paired_baseline(self) -> MessageFlowResult:

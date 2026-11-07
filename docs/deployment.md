@@ -192,7 +192,7 @@ On the two-tier atm topology with uniform Node specs, free brokers halved the mi
 SimulationService(repo, qos_weighting=True, network_gating=g, replica_aware=True).run_failure_events(events, seed)
 ```
 
-- `run_failure_events` fails each event's Nodes together. Unlike `run_failure_simulation`, it primes the discrete-event baseline first, so the flow-disruption term is live.
+- `run_failure_events` fails each event's Nodes together. It primes the discrete-event baseline first, so the flow-disruption term is live.
 - `g` is on exactly when the topology has NetworkDevices, unless `--network-gating` overrides it.
 - `FaultInjector`, the Predict-stage labeler, is never used here. `tests/test_deployment_verify.py` enforces this.
 
@@ -287,6 +287,8 @@ saag-deploy -i data/network/atm_two_tier_system.json \
 # As a pipeline stage (with --all it runs only when a spec is given)
 saag -i data/scenarios/atm_system.json --deploy --deployment-spec data/deployment/atm_system_deployment.json
 ```
+
+`--dynamic-report` also replays the outage events on the runtime engine (reactive, stations, replica-aware, overload on) for the recommended placement and its baselines, reporting delivery loss, time to recover and overload cascades. It needs SimPy, runs after the recommendation, and is **descriptive only**: `reliability_claim` is never decided by it, so a placement that looks better or worse in the replay stays a finding to investigate, not a verdict.
 
 `--placed-topology` writes the recommended placement applied to the topology, ready for `saag-import`. Flags are listed in the [CLI guide](cli-pipeline-guide.md#pre-deployment-deploy).
 

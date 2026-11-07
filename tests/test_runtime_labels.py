@@ -184,3 +184,72 @@ def test_threshold_cdf_records_its_config():
         FaultInjector(fan(3), failure_model="soft")
     with pytest.raises(ValueError):
         FaultInjector(fan(3), threshold_range=(0.5, 0.2))
+
+
+# ── Parameter uncertainty ────────────────────────────────────────────────────
+
+def _tiny():
+    from pathlib import Path
+
+    from saag.core.graph_io import load_graph
+    return load_graph(Path(__file__).resolve().parents[1] / "data" / "scenarios" / "tiny_system.json")
+
+
+def test_parameter_draws_report_rank_stability_per_label():
+    out = runtime_labels(_tiny(), seeds=[42], settings={"duration": 8.0}, parameter_draws=3)
+    assert out["schema_version"] == "1.1"
+    block = out["parameter_stability"]
+    assert block["draws"] == 3 and len(block["settings"]) == 3
+    assert block["labels"]["i_flow"]["n_draws"] == 3
+    assert -1.0 <= block["labels"]["i_flow"]["worst_spearman"] <= 1.0
+    # The draws really differ, and a draw fixes every parameter it declares.
+    assert len({s["target_utilization"] for s in block["settings"]}) == 3
+
+
+def test_parameter_draws_are_reproducible_and_leave_the_seed_labels_alone():
+    kw = dict(seeds=[42], settings={"duration": 8.0})
+    plain = runtime_labels(_tiny(), **kw)
+    a = runtime_labels(_tiny(), parameter_draws=2, **kw)
+    b = runtime_labels(_tiny(), parameter_draws=2, **kw)
+    assert a["parameter_stability"] == b["parameter_stability"]
+    assert a["records"] == plain["records"]
+    assert "parameter_stability" not in plain
+
+
+def test_runtime_sweep_cli_takes_parameter_draws():
+    from cli.simulate_graph import _build_parser
+    args = _build_parser().parse_args(["runtime-sweep", "--parameter-draws", "4"])
+    assert args.parameter_draws == 4
+
+
+# ── Service entry point ──────────────────────────────────────────────────────
+
+def _service():
+    import json
+    from pathlib import Path
+
+    from saag.infrastructure.memory_repo import MemoryRepository
+    from saag.simulation.service import SimulationService
+
+    repo = MemoryRepository()
+    repo.save_graph(json.loads((Path(__file__).resolve().parents[1] / "data" / "scenarios"
+                                / "tiny_system.json").read_text()), clear=True)
+    return SimulationService(repo)
+
+
+def test_service_runs_the_runtime_sweep():
+    out = _service().run_runtime_sweep(seeds=[42], settings={"duration": 8.0})
+    assert out["labeler"] == "MessageFlowSimulator/runtime"
+    direct = runtime_labels(_tiny(), seeds=[42], settings={"duration": 8.0})
+    assert set(out["records"]) == set(direct["records"])
+    for node, rec in direct["records"].items():
+        assert out["records"][node]["i_flow"]["mean"] == pytest.approx(rec["i_flow"]["mean"], abs=1e-9)
+
+
+def test_use_case_exposes_the_runtime_mode():
+    from saag.usecases.models import SimulationMode
+    from saag.usecases.simulate_graph import SimulateGraphUseCase
+
+    case = SimulateGraphUseCase(_service())
+    out = case.execute(mode=SimulationMode.RUNTIME, seeds=[42], settings={"duration": 8.0})
+    assert out["labeler"] == "MessageFlowSimulator/runtime"

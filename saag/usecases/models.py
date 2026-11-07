@@ -34,6 +34,7 @@ class SimulationMode(Enum):
     EVENT = "event"
     REPORT = "report"
     CLASSIFY = "classify"
+    RUNTIME = "runtime"
 
 @dataclass
 class VisOptions:

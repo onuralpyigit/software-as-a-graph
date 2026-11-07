@@ -117,6 +117,7 @@ from saag.simulation.fault_injector import FaultInjector
 # itself is still constructed lazily inside _run_message_flow.
 from saag.simulation.message_flow_simulator import (
     BEHAVIOR_MODELS,
+    CALIBRATION_LOADS,
     ESTIMATORS,
     QOS_MODES,
     REPLAY_DEADLINE_POLICIES,
@@ -125,7 +126,7 @@ from saag.simulation.message_flow_simulator import (
     UTILIZATION_MODES,
 )
 from saag.simulation.runtime.dds_status import QOS_SEMANTICS
-from saag.simulation.runtime.faults import DEPLOYMENT_MODELS, FaultSpec, RuntimeFaultMode
+from saag.simulation.runtime.faults import DEPLOYMENT_MODELS, OVERLOAD_MODELS, FaultSpec, RuntimeFaultMode
 from saag.simulation.runtime.labels import RUNTIME_LABEL_SETTINGS
 from saag.simulation.runtime.workload import WORKLOAD_MODELS
 
@@ -362,6 +363,11 @@ def _runtime_kwargs(args: argparse.Namespace) -> Dict[str, Any]:
         "network_gating": getattr(args, "network_gating", False),
         "qos_semantics": getattr(args, "qos_semantics", "engine"),
         "dds_status": getattr(args, "dds_status", False),
+        "calibration_load": getattr(args, "calibration_load", "declared"),
+        "overload_model": getattr(args, "overload_model", "none"),
+        "overload_window_s": getattr(args, "overload_window", 5.0),
+        "overload_utilization": getattr(args, "overload_utilization", 1.0),
+        "overload_restart_s": getattr(args, "overload_restart", None),
     }
 
 
@@ -411,7 +417,8 @@ def _run_runtime_sweep(args: argparse.Namespace) -> None:
 
     t0 = time.perf_counter()
     out = runtime_labels(_load_graph(input_path), candidates=candidates, seeds=seeds,
-                         settings=settings, fault=fault, workers=args.workers)
+                         settings=settings, fault=fault, workers=args.workers,
+                         parameter_draws=args.parameter_draws)
     elapsed = time.perf_counter() - t0
     out_json = output_dir / "runtime_labels.json"
     out_json.write_text(json.dumps(out, indent=2, sort_keys=True))
@@ -809,6 +816,18 @@ def _build_parser() -> argparse.ArgumentParser:
         p.add_argument("--dds-status", action="store_true",
                        help="Count DDS standard statuses (deadline missed, sample lost/"
                             "rejected, liveliness, incompatible QoS) into the result.")
+        p.add_argument("--calibration-load", choices=CALIBRATION_LOADS, default="declared",
+                       help="'published': size stations without topics nobody publishes.  "
+                            "Default: declared")
+        p.add_argument("--overload-model", choices=OVERLOAD_MODELS, default="none",
+                       help="'saturation': with --deployment-model stations, a broker, app or "
+                            "host offered more work than it can do over a window crashes.")
+        p.add_argument("--overload-window", type=float, default=5.0, metavar="SECONDS",
+                       help="Window offered load is measured over.  Default: 5")
+        p.add_argument("--overload-utilization", type=float, default=1.0, metavar="RHO",
+                       help="Offered load at which a component crashes.  Default: 1.0")
+        p.add_argument("--overload-restart", type=float, default=None, metavar="SECONDS",
+                       help="Restart an overloaded component after this long.  Default: never")
         p.add_argument("--network-gating", action="store_true",
                        help="With --deployment-model stations: CONNECTS_TO reachability "
                             "gates delivery (host outages and link_flap partition).")
@@ -1080,6 +1099,9 @@ def _build_parser() -> argparse.ArgumentParser:
     rs.add_argument("--fault-mode", choices=[m.value for m in RuntimeFaultMode], default="crash")
     rs.add_argument("--fault-duration", type=float, default=None, metavar="SECONDS")
     rs.add_argument("--fault-param", action="append", default=[], metavar="KEY=VALUE")
+    rs.add_argument("--parameter-draws", type=int, default=0, metavar="N",
+                    help="Repeat the sweep under N draws of the guessed parameters and report "
+                         "each label's rank stability across them.  Default: 0 (off)")
     rs.add_argument("--workers", type=int, default=1,
                     help="Parallel workers (one seed per worker).  Default: 1")
 

@@ -30,6 +30,8 @@ class SimulateGraphUseCase:
             return self.service.run_failure_simulation_monte_carlo(target_id=target_id, layer=layer, **kwargs)
         elif mode == SimulationMode.PAIRWISE:
             return self.service.run_failure_simulation_pairwise(layer=layer, **kwargs)
+        elif mode == SimulationMode.RUNTIME:
+            return self.service.run_runtime_sweep(**kwargs)
         elif mode == SimulationMode.REPORT:
             # Avoid multiple values for 'layers' by popping it from kwargs
             layers = kwargs.pop("layers", [layer])
