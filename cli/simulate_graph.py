@@ -117,6 +117,7 @@ from saag.simulation.fault_injector import FaultInjector
 # itself is still constructed lazily inside _run_message_flow.
 from saag.simulation.message_flow_simulator import (
     BEHAVIOR_MODELS,
+    CALIBRATION_LOADS,
     ESTIMATORS,
     QOS_MODES,
     REPLAY_DEADLINE_POLICIES,
@@ -125,7 +126,7 @@ from saag.simulation.message_flow_simulator import (
     UTILIZATION_MODES,
 )
 from saag.simulation.runtime.dds_status import QOS_SEMANTICS
-from saag.simulation.runtime.faults import DEPLOYMENT_MODELS, FaultSpec, RuntimeFaultMode
+from saag.simulation.runtime.faults import DEPLOYMENT_MODELS, OVERLOAD_MODELS, FaultSpec, RuntimeFaultMode
 from saag.simulation.runtime.labels import RUNTIME_LABEL_SETTINGS
 from saag.simulation.runtime.workload import WORKLOAD_MODELS
 
@@ -362,6 +363,11 @@ def _runtime_kwargs(args: argparse.Namespace) -> Dict[str, Any]:
         "network_gating": getattr(args, "network_gating", False),
         "qos_semantics": getattr(args, "qos_semantics", "engine"),
         "dds_status": getattr(args, "dds_status", False),
+        "calibration_load": getattr(args, "calibration_load", "declared"),
+        "overload_model": getattr(args, "overload_model", "none"),
+        "overload_window_s": getattr(args, "overload_window", 5.0),
+        "overload_utilization": getattr(args, "overload_utilization", 1.0),
+        "overload_restart_s": getattr(args, "overload_restart", None),
     }
 
 
@@ -809,6 +815,18 @@ def _build_parser() -> argparse.ArgumentParser:
         p.add_argument("--dds-status", action="store_true",
                        help="Count DDS standard statuses (deadline missed, sample lost/"
                             "rejected, liveliness, incompatible QoS) into the result.")
+        p.add_argument("--calibration-load", choices=CALIBRATION_LOADS, default="declared",
+                       help="'published': size stations without topics nobody publishes.  "
+                            "Default: declared")
+        p.add_argument("--overload-model", choices=OVERLOAD_MODELS, default="none",
+                       help="'saturation': with --deployment-model stations, a broker, app or "
+                            "host offered more work than it can do over a window crashes.")
+        p.add_argument("--overload-window", type=float, default=5.0, metavar="SECONDS",
+                       help="Window offered load is measured over.  Default: 5")
+        p.add_argument("--overload-utilization", type=float, default=1.0, metavar="RHO",
+                       help="Offered load at which a component crashes.  Default: 1.0")
+        p.add_argument("--overload-restart", type=float, default=None, metavar="SECONDS",
+                       help="Restart an overloaded component after this long.  Default: never")
         p.add_argument("--network-gating", action="store_true",
                        help="With --deployment-model stations: CONNECTS_TO reachability "
                             "gates delivery (host outages and link_flap partition).")

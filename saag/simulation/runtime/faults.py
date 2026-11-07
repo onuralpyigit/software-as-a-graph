@@ -56,6 +56,7 @@ class RuntimeFaultMode(str, Enum):
 BOUNDED_MODES = frozenset({RuntimeFaultMode.TRANSIENT_CRASH, RuntimeFaultMode.FREEZE})
 
 DEPLOYMENT_MODELS: Tuple[str, ...] = ("none", "stations")
+OVERLOAD_MODELS: Tuple[str, ...] = ("none", "saturation")
 
 
 @dataclass(frozen=True)
@@ -208,6 +209,10 @@ class RuntimeController:
         self.delivered_bins: Dict[int, int] = defaultdict(int)
 
         self._rng = random.Random(derive_seed(sim.seed, "runtime-controller"))
+        #: Components brought down by overload, in the order they went.
+        self.overloaded: List[str] = []
+        if sim.overload_model == "saturation":
+            env.process(self._overload_monitor())
         for i, spec in enumerate(self.faults):
             env.process(self._fault_process(i, spec))
 
@@ -220,7 +225,7 @@ class RuntimeController:
         load: Dict[str, float] = defaultdict(float)
         for t, br in self.router_of.items():
             if br is not None:
-                load[br] += self.sim.topic_aggregate_rate(t)
+                load[br] += self.sim.calibration_rate(t)
         for br in sorted({b for rs in self.routers_of.values() for b in rs}):
             declared = self.graph.nodes.get(br, {}).get("capacity_msgs_s")
             calibrated = False
@@ -331,6 +336,7 @@ class RuntimeController:
 
     def _broker_forward(self, broker: str, fanout, msg):
         station = self.broker_stations[broker]
+        station.arrivals += 1
         with station.resource.request() as req:
             yield req
             service = station.sample_service_time(self._rng)
@@ -590,6 +596,55 @@ class RuntimeController:
                         if sq._try_put(msg, fo.stats):
                             fo.stats.replayed_enqueued += 1
         self._log("storm", comp, f"copies={copies}")
+
+    # ── Overload ────────────────────────────────────────────────────────────
+
+    def _overload_monitor(self):
+        """Crash whatever is offered more work than it can do over a window.
+
+        The signal is offered load: arrivals x mean service time / capacity. It
+        does not fluctuate with the service draws, unlike a busy fraction or a
+        standing backlog: at 1 Hz and rho 0.65 a queue stays backlogged for ~17 s
+        by chance, so either of those would crash a healthy component. Host CPUs
+        are checked too, because a shared core can saturate while no resident does.
+        """
+        window = self.sim.overload_window_s
+        queues_of: Dict[str, List[Any]] = defaultdict(list)
+        for (_, sub), queue in self.sub_queues.items():
+            queues_of[sub].append(queue)
+        arrivals = lambda c: (self.broker_stations[c].arrivals if c in self.broker_stations  # noqa: E731
+                              else sum(q.offered for q in queues_of[c]))
+        watched = sorted(set(self.stations) | set(self.broker_stations))
+        seen = {c: arrivals(c) for c in watched}
+        while True:
+            yield self.env.timeout(window)
+            work: Dict[str, float] = {}
+            for c in watched:
+                count, seen[c] = arrivals(c) - seen[c], arrivals(c)
+                st = self.broker_stations.get(c) or self.stations[c]
+                work[c] = count * st.service_time_s * st.slowdown / window
+                if c not in self.failed and work[c] / st.concurrency >= self.sim.overload_utilization:
+                    self._overload(c)
+            for host in sorted(self.host_cpu):
+                cores = self.graph.nodes[host].get("cpu_cores")
+                if not cores or host in self.failed:
+                    continue
+                load = sum(work[c] for c in self.residents[host]
+                           if c in self.stations and c not in self.failed)
+                if load / float(cores) >= self.sim.overload_utilization:
+                    self._overload(host)
+
+    def _overload(self, comp: str) -> None:
+        if comp not in self.overloaded:
+            self.overloaded.append(comp)
+        self._log("overload", comp, "")
+        self._kill(comp, "overload")
+        if self.sim.overload_restart_s is not None:
+            self.env.process(self._restart_after_overload(comp))
+
+    def _restart_after_overload(self, comp: str):
+        yield self.env.timeout(self.sim.overload_restart_s)
+        self._revive(comp, "overload")
 
     # ── Results ─────────────────────────────────────────────────────────────
 

@@ -587,6 +587,8 @@ class FaultEventRecord:
     #: bounded fault), and the controller's event log.
     time_to_recover_s: Optional[float] = None
     runtime_events: Optional[List[Dict[str, Any]]] = None
+    #: Overload model: components brought down by overload, whatever the fault was.
+    overload_failures: Optional[List[str]] = None
 
     @property
     def i_dyn(self) -> float:
@@ -647,7 +649,7 @@ class FaultEventRecord:
     _RUNTIME_FIELDS = (
         "delivery_rate_baseline_after", "i_dyn_paired",
         "stalled_apps", "time_to_stall_s", "cascade_hops",
-        "time_to_recover_s", "runtime_events",
+        "time_to_recover_s", "runtime_events", "overload_failures",
     )
 
 

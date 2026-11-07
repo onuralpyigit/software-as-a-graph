@@ -296,3 +296,107 @@ def test_slowdown_ends_with_its_duration():
     bounded = run(g, [FaultSpec("A", "slowdown", D / 2, 2.0, {"k": 8.0})])
     permanent = run(g, [crash("A", mode="slowdown", k=8.0)])
     assert post(bounded, "B") > 2 * post(permanent, "B")
+
+
+# ── Calibrating load on published topics ─────────────────────────────────────
+
+def _with_dead_feed():
+    g = system()
+    g.add_node("dead", type="Topic", frequency=100)
+    g.add_edge("B", "dead", type="SUBSCRIBES_TO")
+    return g
+
+
+def test_declared_load_counts_a_topic_nobody_publishes():
+    r = run(_with_dead_feed())
+    assert r.measured_utilization["B"] < 0.2
+
+
+def test_published_load_reaches_the_target_despite_a_dead_feed():
+    r = run(_with_dead_feed(), calibration_load="published")
+    assert r.measured_utilization["B"] == pytest.approx(0.65, abs=0.1)
+    assert r.runtime_config["calibration_load"] == "published"
+
+
+def test_published_load_with_only_dead_feeds_keeps_a_station():
+    g = system()
+    g.add_node("D", type="Application", app_type="monitor")
+    g.add_node("dead", type="Topic", frequency=100)
+    g.add_edge("D", "dead", type="SUBSCRIBES_TO")
+    assert run(g, calibration_load="published").subscriber_stats["D"].received_post_fault == 0
+
+
+def test_calibration_load_rejects_an_unknown_mode():
+    with pytest.raises(ValueError):
+        MessageFlowSimulator(system(), duration=D, calibration_load="guessed")
+
+
+# ── Overload failure ─────────────────────────────────────────────────────────
+
+def _failover_system(survivor_capacity):
+    """BR1 routes t1, with BR2 as its backup; BR2 already routes t2."""
+    g = system(brokers=("BR1", "BR2"))
+    g.remove_edge("BR1", "t2")
+    g.nodes["BR1"]["capacity_msgs_s"] = 100
+    g.nodes["BR2"]["capacity_msgs_s"] = survivor_capacity
+    return g
+
+
+OVERLOAD = dict(overload_model="saturation", overload_window_s=4.0)
+
+
+def _events(result, event):
+    return [e["component"] for e in result.fault_event.runtime_events if e["event"] == event]
+
+
+def test_failover_load_brings_the_survivor_down_only_above_its_capacity():
+    fails = run(_failover_system(15), [crash("BR1")], **OVERLOAD)
+    holds = run(_failover_system(40), [crash("BR1")], **OVERLOAD)
+    assert fails.fault_event.overload_failures == ["BR2"]
+    assert not holds.fault_event.overload_failures
+    assert post(fails, "C") < post(holds, "C") / 2
+
+
+def test_overload_is_off_by_default():
+    r = run(_failover_system(15), [crash("BR1")])
+    assert not r.fault_event.overload_failures
+    assert post(r, "B") > 0
+
+
+def test_overload_restart_brings_the_component_back():
+    r = run(_failover_system(15), [crash("BR1")], overload_restart_s=2.0, **OVERLOAD)
+    assert "BR2" in _events(r, "overload")
+    assert "BR2" in _events(r, "up")
+
+
+def test_slowdown_past_saturation_crashes_the_app():
+    slow = run(system(), [crash("B", mode="slowdown", k=4.0)], **OVERLOAD)
+    mild = run(system(), [crash("B", mode="slowdown", k=1.2)], **OVERLOAD)
+    assert slow.fault_event.overload_failures == ["B"]
+    assert not mild.fault_event.overload_failures
+
+
+def test_host_with_declared_cores_can_be_overloaded():
+    """B and C at rho 0.65 each share one core, so the host sees 1.3."""
+    r = run(system(cores=1), [crash("A", mode="slowdown", k=1.0)], **OVERLOAD)
+    assert "H2" in r.fault_event.overload_failures
+
+
+def test_declared_cores_with_room_do_not_overload():
+    r = run(system(cores=2), [crash("A", mode="slowdown", k=1.0)], **OVERLOAD)
+    assert not r.fault_event.overload_failures
+
+
+def test_overload_requires_stations():
+    with pytest.raises(ValueError, match="stations"):
+        MessageFlowSimulator(system(), duration=D, overload_model="saturation")
+
+
+def test_a_healthy_corpus_system_never_overloads():
+    from pathlib import Path
+
+    from saag.core.graph_io import load_graph
+    g = load_graph(Path(__file__).resolve().parents[1] / "data" / "scenarios" / "atm_system.json")
+    r = run(g, [crash("A0", mode="slowdown", k=1.0)], overload_model="saturation",
+            calibration_load="published", qos_mode="full")
+    assert not r.fault_event.overload_failures
