@@ -18,7 +18,8 @@ JSON lines, one event per line, shaped like an OpenTelemetry log record::
                     "saag.service_ms": 6.1}}
 
 Event names: ``saag.publish`` (an emission), ``saag.deliver`` (a sample that
-met its deadline and was processed), ``saag.deadline_miss``, ``saag.drop``
+met its deadline and was processed), ``saag.deadline_miss`` (processed, then
+dropped as late; it carries ``saag.service_ms`` too), ``saag.drop``
 (queue overflow) and ``saag.state`` (a component's state change; attribute
 ``saag.state``). Times are seconds on one clock shared by all agents.
 
@@ -317,7 +318,9 @@ class TelemetryCalibrator:
         for e in tr.events:
             if e["kind"] == "publish" and e["topic"]:
                 pubs[e["topic"]] += 1
-            elif e["kind"] == "deliver" and e["service_ms"] is not None:
+            # Deadline drops were served too; leaving them out fits only the
+            # fast survivors (45% low on atm A11).
+            elif e["kind"] in ("deliver", "deadline_miss") and e["service_ms"] is not None:
                 service[e["app"]].append(float(e["service_ms"]) / 1000.0)
         if dur > 0:
             prof.msg_rate_per_sec = {t: n / dur for t, n in sorted(pubs.items())}

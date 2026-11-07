@@ -30,6 +30,35 @@ PARAMETER_RANGES: Dict[str, Any] = {
 }
 
 
+#: Drawn keys that the simulator reads only under one setting, as (key, value).
+#: Under any other value a draw of the key changes nothing in the run.
+ONLY_UNDER: Dict[str, tuple] = {
+    "burst_ratio": ("workload_model", "mmpp"),
+    "burst_fraction": ("workload_model", "mmpp"),
+    "mean_burst_s": ("workload_model", "mmpp"),
+    "staleness_periods": ("behavior_model", "reactive"),
+}
+
+#: The simulator's own defaults for the keys in `ONLY_UNDER`.
+_SIMULATOR_DEFAULTS = {"workload_model": "declared", "behavior_model": "open_loop"}
+
+
+def inert_parameters(settings: Mapping[str, Any], ranges: Mapping[str, Any] = PARAMETER_RANGES) -> List[str]:
+    """Keys of *ranges* that a run under *settings* never reads.
+
+    `burst_ratio` is drawn by default, but it shapes traffic only under
+    ``workload_model="mmpp"``; with declared workload every draw gives the same
+    run, so its spread in `rank_stability` is no evidence about burstiness.
+    """
+    out = []
+    for key in sorted(ranges):
+        if key in ONLY_UNDER:
+            setting, needed = ONLY_UNDER[key]
+            if settings.get(setting, _SIMULATOR_DEFAULTS[setting]) != needed:
+                out.append(key)
+    return out
+
+
 def sample_settings(rng: random.Random, ranges: Mapping[str, Any] = PARAMETER_RANGES) -> Dict[str, Any]:
     """One draw from *ranges*, in sorted key order so a seed fixes the draw."""
     out: Dict[str, Any] = {}

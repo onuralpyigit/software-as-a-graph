@@ -390,8 +390,10 @@ class AppRuntime:
             # The published engine's latency drop; under DDS semantics a
             # deadline is a period contract and drops nothing.
             if not self.dds and deadline is not None and latency_ms > float(deadline):
+                # Served before it was dropped; see the simulator's deadline drop.
                 self.sink.emit(make_event(done, "saag.deadline_miss", self.app, topic,
-                                          publisher=sample.get("publisher"), latency_ms=latency_ms))
+                                          publisher=sample.get("publisher"), latency_ms=latency_ms,
+                                          service_ms=(done - start) * 1000.0))
                 continue
             self.last_fresh[topic] = done
             self.sink.emit(make_event(
