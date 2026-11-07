@@ -16,7 +16,7 @@ pytest.importorskip("simpy")
 from saag.simulation._stats import percentile  # noqa: E402
 from saag.simulation.message_flow_simulator import MessageFlowSimulator  # noqa: E402
 from saag.simulation.runtime.faults import FaultSpec, RuntimeFaultMode  # noqa: E402
-from saag.simulation.runtime.workload import MMPP, apply_zipf_rates  # noqa: E402
+from saag.simulation.runtime.workload import MMPP, apply_zipf_rates, declare_capacities  # noqa: E402
 
 logging.disable(logging.WARNING)
 
@@ -400,3 +400,45 @@ def test_a_healthy_corpus_system_never_overloads():
     r = run(g, [crash("A0", mode="slowdown", k=1.0)], overload_model="saturation",
             calibration_load="published", qos_mode="full")
     assert not r.fault_event.overload_failures
+
+
+# ── Capacity overlay ─────────────────────────────────────────────────────────
+
+def test_capacity_overlay_sizes_brokers_for_their_load_or_the_fleet_mean():
+    g = _failover_system(1)
+    for b in ("BR1", "BR2"):
+        del g.nodes[b]["capacity_msgs_s"]
+    g.add_node("BR3", type="Broker")
+    g.add_edge("BR3", "t1", type="ROUTES")
+    out = declare_capacities(g, rho=0.5)
+    # Primaries are the lowest-id routers: BR1 carries t1, BR2 carries t2, BR3 nothing.
+    assert out.nodes["BR1"]["capacity_msgs_s"] == pytest.approx(20)
+    assert out.nodes["BR3"]["capacity_msgs_s"] == pytest.approx(20 / 3 / 0.5)
+    assert "capacity_msgs_s" not in g.nodes["BR1"]
+
+
+def test_capacity_overlay_sizes_hosts_for_their_stationed_residents():
+    out = declare_capacities(system(), rho=0.65, target_utilization=0.65)
+    assert out.nodes["H2"]["cpu_cores"] == 2    # B and C each have a station
+    assert out.nodes["H1"]["cpu_cores"] == 1    # A has none, and a host keeps at least one
+
+
+def test_capacity_overlay_keeps_what_a_scenario_declares():
+    out = declare_capacities(system(cores=8))
+    assert out.nodes["H2"]["cpu_cores"] == 8
+    assert out.nodes["BR1"]["capacity_msgs_s"] > 0
+
+
+def test_capacity_overlay_leaves_a_healthy_system_healthy():
+    from pathlib import Path
+
+    from saag.core.graph_io import load_graph
+    g = load_graph(Path(__file__).resolve().parents[1] / "data" / "scenarios" / "atm_system.json")
+    r = run(declare_capacities(g), [crash("A0", mode="slowdown", k=1.0)],
+            overload_model="saturation", calibration_load="published")
+    assert not r.fault_event.overload_failures
+
+
+def test_capacity_overlay_rejects_a_rho_outside_the_unit_interval():
+    with pytest.raises(ValueError):
+        declare_capacities(system(), rho=1.5)

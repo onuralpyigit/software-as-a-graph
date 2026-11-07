@@ -113,6 +113,17 @@ Without this, load never fails anything: a broker inheriting traffic on failover
 
 Not modelled: publisher backpressure under RELIABLE, and retries. The testbed does not implement overload yet.
 
+**Declaring capacities.** The corpus declares none, so a crash almost never triggers overload. `runtime-sweep --declare-capacities RHO` (`runtime.workload.declare_capacities`) sizes what a scenario leaves undeclared: a broker for the larger of its starting load and the fleet's mean, divided by ρ, and a host for its stationed residents. This is an assumption about the system, not a measurement.
+
+> [!WARNING]
+> **Overload is not a new label source for applications** (exploratory: 4 scenarios, 2 seeds, 30 s runs, crash faults, ρ of 0.65, 0.8 and 0.95):
+> - No application crash caused overload anywhere (0 of 206 at each ρ), because losing an application only removes load. Only brokers and hosts pass load on, through failover.
+> - Chains are rare and short, at most 2 components. `atm_system` had none, and `healthcare_system` and `microservices_system` had one only at ρ = 0.95. `integration_hub_migration_system` was the exception, with 1–2 of its 4 brokers and 1–2 of its 6 hosts.
+> - Rankings mostly hold. `i_flow` stays close to its no-overload value (ρ 0.80–0.99). `i_delivery` moves more as capacity tightens, most on `integration_hub_migration_system` (ρ 0.31–0.62, retest 0.68–0.76).
+> - No fault-free run overloaded at any ρ.
+>
+> Getting load to move on an application failure would take retries or rerouting, which are not modelled.
+
 ### Runtime labels (`runtime-sweep`)
 
 The sweep fails every candidate under the runtime settings: reactive, stations, per-process streams and the paired estimator. Candidates are Applications, plus Brokers and Nodes under stations. It writes `runtime_labels.json`; each label is a mean and spread over seeds:

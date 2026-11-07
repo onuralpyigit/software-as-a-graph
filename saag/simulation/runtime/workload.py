@@ -19,7 +19,9 @@ topic declares (nearly) the same frequency.
 
 from __future__ import annotations
 
+import math
 import random
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, Tuple
 
@@ -87,4 +89,50 @@ def apply_zipf_rates(graph, exponent: float = 1.0):
     scale = total / sum(weights)
     for (tid, _), w in zip(ranked, weights):
         g.nodes[tid]["frequency"] = w * scale
+    return g
+
+
+def declare_capacities(graph, rho: float = 0.65, target_utilization: float = 0.65):
+    """Copy of *graph* with broker and host capacities a scenario did not declare.
+
+    The corpus declares none, so overload has nothing to act on: a backup broker
+    gets the default service time and cannot saturate. This sizes the system for its
+    healthy load, before any fault and without reference to one:
+
+    * a broker for ``max(its starting load, the fleet's mean load) / rho``, because a
+      broker that starts idle is still a member of the fleet and not a spare of
+      unlimited size;
+    * a host for ``ceil(stationed residents x target_utilization / rho)`` cores.
+
+    An explicit value in the scenario is kept. This is an assumption about the
+    system, not a measurement of it.
+    """
+    if not 0.0 < rho <= 1.0:
+        raise ValueError(f"rho must be in (0, 1], got {rho!r}")
+    g = graph.copy()
+    published, routers, residents = set(), defaultdict(list), defaultdict(list)
+    subscribers = set()
+    for src, tgt, data in g.edges(data=True):
+        kind = data.get("type")
+        if kind == "PUBLISHES_TO":
+            published.add(tgt)
+        elif kind == "SUBSCRIBES_TO":
+            subscribers.add(src)
+        elif kind == "ROUTES":
+            routers[tgt].append(src)
+        elif kind == "RUNS_ON":
+            residents[tgt].append(src)
+
+    brokers = sorted(n for n, d in g.nodes(data=True) if d.get("type") == "Broker")
+    load = dict.fromkeys(brokers, 0.0)
+    for topic, routing in routers.items():
+        if topic in published:
+            load[min(routing)] += float(g.nodes[topic].get("frequency") or 10.0)
+    mean = sum(load.values()) / len(load) if load else 0.0
+    for b in brokers:
+        if max(load[b], mean) > 0:
+            g.nodes[b].setdefault("capacity_msgs_s", max(load[b], mean) / rho)
+    for host, comps in residents.items():
+        stationed = sum(1 for c in comps if c in subscribers)
+        g.nodes[host].setdefault("cpu_cores", max(1, math.ceil(stationed * target_utilization / rho)))
     return g
