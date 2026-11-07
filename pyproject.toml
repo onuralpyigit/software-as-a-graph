@@ -73,6 +73,7 @@ markers = [
     "slow: marks tests as slow (skip with --quick)",
     "integration: marks integration tests",
     "testbed: needs the emulated-testbed extra (cyclonedds); skipped when absent",
+    "timeout: per-test limit (pytest-timeout); declared so runs without the plugin do not warn",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",

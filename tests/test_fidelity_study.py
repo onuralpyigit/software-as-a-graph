@@ -165,6 +165,8 @@ def test_calibrated_arm_reads_a_profile(tmp_path):
 
 
 @pytest.mark.slow
+# About 24 real-time testbed runs of 6 s each: 140 s locally, so the 120 s default is too short.
+@pytest.mark.timeout(600)
 def test_whole_pipeline_on_the_in_process_transport(tmp_path, monkeypatch):
     """Sweep, arms, analysis, end to end. The chain fixture is not in the study population."""
     from concurrent.futures import ThreadPoolExecutor
