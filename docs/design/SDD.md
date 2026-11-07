@@ -752,7 +752,7 @@ flowchart TD
     J --> K["List of FailureResult"]
 ```
 
-`run_failure_simulation(target_ids)` runs one scenario in which the targets fail together, without priming the baseline flows, so its flow-disruption term reads 0.
+`run_failure_simulation(target_ids)` runs one seeded scenario in which the targets fail together.
 
 The other engines do not go through this path. `FaultInjector` (Predict-stage labels, I\*) and `MessageFlowSimulator` (queue-flow probe, I_dyn) run from `cli/simulate_graph.py` on a NetworkX graph loaded from the scenario JSON. See [failure-simulation.md](../failure-simulation.md#2-which-engine-do-i-need).
 

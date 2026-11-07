@@ -230,13 +230,15 @@ Both terms are single measurements with **no cascade**: the question is what thi
 
 `SimulationService` loads the graph and offers several ways to run the engine:
 
-| Method | What it runs | Baseline flows primed? |
-|:---|:---|:---|
-| `run_failure_simulation_exhaustive(layer)` | Every component of the layer, one at a time. `system` covers Application, Broker and Node. | yes |
-| `run_failure_simulation_pairwise(layer)` | Every pair of components failing together | yes |
-| `run_failure_events({name: targets})` | Named joint outages, such as a whole failure domain | yes |
-| `run_failure_simulation(target_ids)` | One scenario; the targets fail together | **no: FD reads 0** |
-| `run_failure_simulation_monte_carlo(target_id, n_trials=100)` | Repeated trials; returns mean, spread and 95 % interval | **no: FD reads 0** |
+| Method | What it runs |
+|:---|:---|
+| `run_failure_simulation_exhaustive(layer)` | Every component of the layer, one at a time. `system` covers Application, Broker and Node. |
+| `run_failure_simulation_pairwise(layer)` | Every pair of components failing together |
+| `run_failure_events({name: targets})` | Named joint outages, such as a whole failure domain |
+| `run_failure_simulation(target_ids)` | One seeded scenario; the targets fail together |
+| `run_failure_simulation_monte_carlo(target_id, n_trials=100)` | Repeated trials; returns mean, spread and 95 % interval |
+
+All of them prime the baseline flows first, so the FD term is live.
 
 ```python
 import json
@@ -455,11 +457,11 @@ The whole-pipeline CLI `saag` (`cli/run.py`) runs `SimulateGraphUseCase` instead
 | Endpoint | Body fields | Runs |
 |:---|:---|:---|
 | `/event` | `source_app`, `num_messages` (100), `duration` (10.0) | `EventSimulator` |
-| `/failure` | `target_ids`, `layer` (`system`) | `run_failure_simulation` (FD reads 0, [§5](#run-it)) |
-| `/exhaustive` | `layer` (`system`) | `run_failure_simulation_exhaustive` |
+| `/failure` | `target_ids`, `layer` (`system`), `cascade_probability` (1.0) | `run_failure_simulation` |
+| `/exhaustive` | `layer` (`system`), `cascade_probability` (1.0) | `run_failure_simulation_exhaustive` |
 | `/report` | `layers` (`app`, `infra`, `system`) | `generate_report` |
 
-`/failure` and `/exhaustive` also accept `cascade_probability`, but the router does not forward it, so it currently has no effect.
+`/failure` is seeded, and the API has no seed field. With `cascade_probability` below 1.0 it therefore returns the same single draw on every call, not a sample or an average. For a spread, use the Monte Carlo method, which no endpoint exposes yet.
 
 ---
 
