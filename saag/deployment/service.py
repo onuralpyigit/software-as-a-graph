@@ -59,6 +59,8 @@ class DeploymentService:
         seeds: Sequence[int] = (42, 123, 456),
         kappa: float = 1.0,
         network_gating: Optional[bool] = None,
+        dynamic_report: bool = False,
+        dynamic_duration: float = 30.0,
     ) -> DeploymentResult:
         """Solve, verify and recommend.
 
@@ -82,6 +84,10 @@ class DeploymentService:
             kappa: Noise-bar multiplier on the seed standard deviation.
             network_gating: Gate deliveries on the CONNECTS_TO network in the oracle;
                 None turns it on exactly when the topology has NetworkDevices.
+            dynamic_report: Replay the outage events on the runtime engine for the
+                recommended placement and the baselines it is judged against. Runs
+                after the recommendation and cannot change it (needs SimPy).
+            dynamic_duration: Simulated seconds per replay.
         """
         if solver not in SOLVERS:
             raise ValueError(f"solver must be one of {SOLVERS}, got {solver!r}")
@@ -205,10 +211,20 @@ class DeploymentService:
             closest = min(candidates, key=lambda c: (hard_violations(inst, c.placement), c.name))
             diagnosis = Diagnosis(families={f: n for f, n in closest.violations.items() if n},
                                   culprits=[{"closest_candidate": closest.name}])
+        replay = None
+        if dynamic_report and pick["recommended"] is not None:
+            from .dynamic import dynamic_report as replay_placements
+
+            t_dynamic = time.monotonic()
+            shortlist = {c.name: c.placement for c in candidates
+                         if c.name in (pick["recommended"], pick["best_baseline"], REQUIRED_BASELINE)}
+            replay = replay_placements(topology, shortlist, inst.events, inst.p, seeds,
+                                       duration=dynamic_duration, network_gating=gating)
+            seconds["dynamic_report"] = round(time.monotonic() - t_dynamic, 3)
         return DeploymentResult(
             status=status, solver=used, candidates=candidates, front_flat=flat,
             proxy_oracle_rho=proxy_oracle_rho(candidates), oracle=oracle, diagnosis=diagnosis,
-            spec_summary=bound.summary(), skipped=skipped, seconds=seconds, **pick,
+            spec_summary=bound.summary(), skipped=skipped, seconds=seconds, dynamic_report=replay, **pick,
         )
 
 

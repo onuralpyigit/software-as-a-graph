@@ -153,3 +153,22 @@ def test_without_a_feasible_baseline_there_is_no_reference_and_no_claim():
     assert pick["recommended"] == "front_1" and pick["reliability_claim"] is False
     cands = [_cand("front_0", "front", 0.050, 30, violations=1), _cand("indeg_spread", "baseline", 0.1, 90, violations=2)]
     assert select_recommendation(cands)["recommended"] is None
+
+
+# ── Dynamic report (descriptive only) ────────────────────────────────────────
+
+def test_dynamic_report_never_changes_the_recommendation():
+    pytest.importorskip("simpy")
+    kw = dict(seeds=(1,), ties=1, front_points=2)
+    plain = DeploymentService(_repo(topology())).optimize(spec(), **kw)
+    both = DeploymentService(_repo(topology())).optimize(spec(), dynamic_report=True,
+                                                         dynamic_duration=10.0, **kw)
+    assert plain.dynamic_report is None
+    assert both.recommended == plain.recommended
+    assert both.reliability_claim == plain.reliability_claim
+    report = both.dynamic_report
+    assert report["descriptive_only"] is True
+    assert both.recommended in report["placements"]
+    row = report["placements"][both.recommended]
+    assert set(row["per_event"]) == set(both.oracle["events"])
+    assert {"delivery_loss", "worst_time_to_recover_s", "overload_failures"} <= set(row)

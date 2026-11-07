@@ -67,6 +67,13 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--network-gating", choices=("auto", "on", "off"), default="auto",
                         help="Gate deliveries on the CONNECTS_TO network; auto = on when the topology has devices.")
 
+    verify.add_argument("--dynamic-report", action="store_true",
+                        help="Also replay the outage events on the runtime engine, for the "
+                             "recommended placement and its baselines. Descriptive: it never "
+                             "changes the recommendation or the reliability claim. Needs SimPy.")
+    verify.add_argument("--dynamic-duration", type=float, default=30.0,
+                        help="Simulated seconds per replay (default: %(default)s).")
+
     out = parser.add_argument_group("Output")
     out.add_argument("--output", "-o", metavar="FILE", help="Write the full result JSON here.")
     out.add_argument("--placed-topology", metavar="FILE",
@@ -129,6 +136,7 @@ def main():
             heuristic_budget=args.heuristic_budget, max_nonzeros=args.max_nonzeros,
             solver=args.solver, baseline_names=args.baselines, seeds=args.seeds, kappa=args.kappa,
             network_gating={"auto": None, "on": True, "off": False}[args.network_gating],
+            dynamic_report=args.dynamic_report, dynamic_duration=args.dynamic_duration,
         )
     except DeploymentSpecError as e:
         console.print_error(str(e))
@@ -166,6 +174,15 @@ def main():
     rho = "n/a" if res.proxy_oracle_rho is None else f"{res.proxy_oracle_rho:+.2f}"
     print(f"\n  Best baseline: {res.best_baseline}   tie spread: {res.noise_floor:.3g}   "
           f"rho(blast proxy, held-out): {rho}")
+
+    if res.dynamic_report:
+        console.print_subheader("Runtime replay (descriptive; decides nothing)")
+        print(f"  {'placement':24s} {'delivery loss':>14s} {'worst':>8s} {'recover s':>10s}  overload")
+        for name, row in sorted(res.dynamic_report["placements"].items()):
+            recover = row["worst_time_to_recover_s"]
+            print(f"  {name:24s} {row['delivery_loss']:14.4f} {row['worst_delivery_loss']:8.4f} "
+                  f"{'never' if recover is None else f'{recover:.1f}':>10s}  "
+                  f"{', '.join(row['overload_failures']) or '-'}")
 
     console.print_subheader(f"Recommendation: {res.recommended}")
     print(f"  {res.rationale}")
