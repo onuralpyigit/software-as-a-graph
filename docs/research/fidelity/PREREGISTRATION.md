@@ -1,6 +1,6 @@
 # Pre-registration: Do the Current Simulators Match Observed Behaviour Better?
 
-**Status: DRAFT, not yet frozen.**
+**Status: FROZEN 2026-11-08 e1ca2ac0.**
 
 - **What freezing means.** The file is registered when it is committed with this line changed to `FROZEN <date> <commit>`. That commit must come before any study number exists.
 - **The only runs allowed before freezing** are the pilot runs in §8. They measure capacity and noise only, never agreement between a simulator and the testbed.
@@ -89,7 +89,7 @@ Both conditions use `qos_semantics="dds"`, so the agent imposes no latency drop.
 | Fault | Permanent crash of one target: app via control file (all instances), broker via control file, host via `docker kill` |
 | Repetitions | 3 per target per condition, independently seeded, in a seeded random order |
 | Baselines | 5 fault-free runs per scenario per condition. An extra fault-free run with its own seed supplies calibration data only |
-| Machine | One machine, serial runs, no other workload. Host CPU is logged in every run |
+| Machine | One machine, serial runs, no other workload. Host CPU is logged in every run. CPU clocks pinned as in the pilot (§8): `performance` governor, turbo off, P-cores at 1.9 GHz, E-cores at their 1.4 GHz maximum without turbo. The runner checks this before every scenario and stops if the clocks are not pinned. The sweep may run in sessions of a few hours (`sweep --hours`): no run starts past the budget, finished runs are kept, and the next session resumes by each run's fingerprint. Session boundaries are logged and change no seed, target or order |
 
 **Targets.** Chosen before any run from `data/scenarios` alone, with seed 20261105:
 - up to 30 publishing applications (no outcome is used), stratified by sole versus shared publisher on at least one topic;
@@ -139,7 +139,7 @@ I\* and I_comp measure other constructs and are not arms. Their rank agreement w
 
 A negative HL with a CI excluding 0 is reported as **Worse**, using a two-sided p-value.
 
-**Inconclusive is a likely outcome, stated in advance.** On the pilot's `integration_hub_migration_system`, the mean leave-one-repetition-out ρ of I_obs on itself was only 0.56. Three publishers stood clear of the others, and the other 17 had I_obs of about 0.006–0.035, ordered differently from one repetition to the next. Scenarios shaped like this one limit how far either model's ρ_s can rise and how small d_s can be measured. An Inconclusive result is reported as the table states it, and is not evidence that the two models are equal. Repetitions are not added after any comparison has been seen.
+**Inconclusive is a possible outcome, stated in advance.** On the pilot's `integration_hub_migration_system` with unpinned clocks, the mean leave-one-repetition-out ρ of I_obs on itself was only 0.56: three publishers stood clear of the others, and the other 17 had I_obs of about 0.006–0.035, ordered differently from one repetition to the next. With the clocks pinned it rose to 0.85 (§8), so most of that noise was the machine, but the low-impact group remains. Scenarios shaped like this one limit how far either model's ρ_s can rise and how small d_s can be measured. An Inconclusive result is reported as the table states it, and is not evidence that the two models are equal. Repetitions are not added after any comparison has been seen.
 
 ## 7. Secondary and descriptive analyses
 
@@ -183,6 +183,24 @@ A negative HL with a CI excluding 0 is reported as **Worse**, using a two-sided 
 - **Machine time:** the projected total, using the §4 rule.
 
 **Recording.** B_h, δ, the included scenarios and their κ are written into this section in the freezing commit.
+
+### Recorded values (pilot of 2026-11-08, clocks pinned)
+
+The first pilot (2026-11-05) ran with unpinned clocks, and its CPU readings did not reproduce: the same `av` run peaked between 81.6% and 93.5% CPU across five repetitions. With the clocks pinned, five repetitions of `atm` and `av` peaked within 3.0 and 8.6 points, all below 80%, so the CPU gate is reproducible only when pinned. Every pilot below was rerun pinned; the unpinned values are kept for the record.
+
+| Value | Unpinned (2026-11-05) | **Recorded (pinned, 2026-11-08)** |
+|---|---|---|
+| B_h | 2,756 msg/s | **2,756 msg/s**: `integration_hub_migration` passes at 8× (60% CPU) and fails at 16× (94%); `tiny` passes up to 200× |
+| Noise: leave-one-repetition-out ρ | 0.51, 0.69, 0.49 | 0.87, 0.86, 0.82 (60 of 60 runs valid) |
+| Ceiling C (mean ρ) | 0.56 | 0.85 |
+| SD of ρ | 0.107 | 0.027 |
+| **δ** = max(0.05, SD) | 0.107 | **0.05** |
+
+**Included scenarios (n = 10), all at κ = 1:** av, iot_smart_city, healthcare, hub_and_spoke, microservices, telecom_ran, industrial_scada, realtime_gaming, logistics_fleet, atm.
+
+**Excluded:** `enterprise` (rate error 0.35 at κ = 1, a throughput failure rather than CPU) and `financial_trading` (κ = 0.15, below the 0.2 floor).
+
+**Machine time:** 556 targets × 3 repetitions × 2 conditions, plus 100 baselines and 10 calibration runs, at about 73 s per run (the pinned noise pilot's median), is about 70 hours. That is under the 14-day limit of §4, so the application cap stays at 30.
 
 ## 9. Attainable-p floor (exact Wilcoxon signed-rank)
 
