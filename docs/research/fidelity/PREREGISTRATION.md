@@ -245,7 +245,7 @@ The first pilot (2026-11-05) ran with unpinned clocks, and its CPU readings did 
 
 ## 12. Amendments
 
-None yet.
+**A1, 2026-11-08: sessions sized in scenarios.** Made during the first sweep session, before any simulator output existed. A session can now also be sized in scenarios: `sweep --scenarios N` stops once N more scenarios have finished every run, and each finished scenario is marked in `sweep/done/`. `--hours` still works, and the two can be combined. Like `--hours`, this changes no seed, target, order or run fingerprint, so no run and no result depends on how the sweep was split. At about 73 s per run, one scenario takes 5–9 hours (§8).
 
 ## 13. Design decisions
 

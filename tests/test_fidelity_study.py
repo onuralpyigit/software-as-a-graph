@@ -169,6 +169,34 @@ def test_sweep_stops_at_its_session_budget_and_leaves_no_partial_run(tmp_path, m
     assert not list((out / "sweep").glob("baseline_*.json"))
 
 
+def test_sweep_session_can_be_sized_in_scenarios(tmp_path, monkeypatch):
+    import reproduce.fidelity_study as fr
+
+    out = tmp_path / "res"
+    out.mkdir()
+    (out / "capacity.json").write_text(json.dumps(
+        {n: {"kappa": 1.0, "included": True} for n in ("a", "b", "c")}))
+    ran = []
+    monkeypatch.setattr(fr, "OUT", out)
+    monkeypatch.setattr(fr, "MODE", "local")
+    monkeypatch.setattr(fr, "require_frozen", lambda: None)
+    monkeypatch.setattr(fr, "targets_for", lambda n: {"publishers": ["p"], "sinks": [], "brokers": [], "hosts": []})
+    monkeypatch.setattr(fr, "baselines", lambda *a: None)
+    monkeypatch.setattr(fr, "sweep_one", lambda name, cond, *a: ran.append((name, cond)))
+
+    class A:
+        hours, scenarios = None, 2
+    fr.cmd_sweep(A())
+    assert ran == [(n, c) for n in ("a", "b") for c in fr.CONDITIONS]
+    assert not (out / "sweep" / "COMPLETE").exists()
+    A.scenarios = 1
+    fr.cmd_sweep(A())
+    assert ran[-1][0] == "c" and (out / "sweep" / "COMPLETE").exists()
+    log = [json.loads(l) for l in (out / "sweep" / "sessions.jsonl").read_text().splitlines()]
+    assert [(r["finished"], r["outcome"]) for r in log] == [
+        (["a", "b"], "scenario limit reached"), (["c"], "complete")]
+
+
 def test_study_runner_refuses_unpinned_clocks(tmp_path, monkeypatch):
     import reproduce.fidelity_study as fr
 

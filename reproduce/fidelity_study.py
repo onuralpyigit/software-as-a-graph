@@ -301,28 +301,36 @@ def targets_for(name: str) -> dict:
 
 
 def cmd_sweep(a) -> None:
-    """§4, in sessions: ``--hours`` stops before a run would start past the budget; rerun to resume."""
+    """§4, in sessions: ``--scenarios`` stops after that many scenarios finish, ``--hours`` before
+    a run would start past the budget; rerun to resume."""
     global SESSION_END
     require_frozen()
-    hours = getattr(a, "hours", None)
+    hours, limit = getattr(a, "hours", None), getattr(a, "scenarios", None)
     SESSION_END = time.time() + hours * 3600.0 if hours else None
     log = OUT / "sweep" / "sessions.jsonl"
     log.parent.mkdir(parents=True, exist_ok=True)
-    started, outcome = time.time(), "complete"
+    started, outcome, finished = time.time(), "complete", []
     try:
-        _sweep()
-    except SessionOver:
-        outcome = "budget reached"
-        print("session budget reached; finished runs are saved, run `sweep` again to resume", flush=True)
+        _sweep(limit, finished)
+    except SessionOver as exc:
+        outcome = str(exc) or "budget reached"
+        print(f"session over ({outcome}); finished runs are saved, run `sweep` again to resume", flush=True)
     finally:
         with open(log, "a") as fh:
-            fh.write(json.dumps({"start_unix": started, "end_unix": time.time(),
-                                 "hours": getattr(a, "hours", None), "outcome": outcome}) + "\n")
+            fh.write(json.dumps({"start_unix": started, "end_unix": time.time(), "hours": hours,
+                                 "scenarios": limit, "finished": finished, "outcome": outcome}) + "\n")
 
 
-def _sweep() -> None:
+def _sweep(limit=None, finished=None) -> None:
+    finished = [] if finished is None else finished
     for name, row in included().items():
+        mark = OUT / "sweep" / "done" / name
+        if mark.exists():
+            continue
+        if limit is not None and len(finished) >= limit:
+            raise SessionOver("scenario limit reached")
         require_pinned()
+        print("scenario", name, flush=True)
         t = targets_for(name)
         order = t["publishers"] + t["sinks"] + t["brokers"] + t["hosts"]
         rng = random.Random(study.run_seed(STUDY_SEED, name, "order"))
@@ -331,6 +339,9 @@ def _sweep() -> None:
             root = OUT / "sweep" / "traces" / name
             baselines(name, cond, row["kappa"], "sweep", root)
             sweep_one(name, cond, row["kappa"], "sweep", order, REPS, root)
+        mark.parent.mkdir(parents=True, exist_ok=True)
+        mark.write_text("every run of this scenario finished\n")
+        finished.append(name)
     (OUT / "sweep" / "COMPLETE").write_text("all runs finished\n")
 
 
@@ -416,6 +427,8 @@ def main() -> None:
     w = sub.add_parser("sweep")
     w.add_argument("--hours", type=float, default=None,
                    help="session budget: start no new run after this many hours (resume by rerunning)")
+    w.add_argument("--scenarios", type=int, default=None,
+                   help="session size: stop once this many scenarios have finished (resume by rerunning)")
     w.set_defaults(fn=cmd_sweep)
     m = sub.add_parser("simulate")
     m.add_argument("--workers", type=int, default=4)
