@@ -138,11 +138,56 @@ def test_significance_decisions():
     assert instrument_ok(0.02) and not instrument_ok(0.3) and not instrument_ok(None)
 
 
-def test_study_runner_refuses_until_frozen():
-    from reproduce.fidelity_study import require_frozen
+def test_study_runner_refuses_until_frozen(tmp_path, monkeypatch):
+    import reproduce.fidelity_study as fr
 
+    draft = tmp_path / "PREREGISTRATION.md"
+    draft.write_text("# Pre-registration\n\n**Status: DRAFT, not yet frozen.**\n")
+    monkeypatch.setattr(fr, "PREREG", draft)
     with pytest.raises(SystemExit):
-        require_frozen()
+        fr.require_frozen()
+    draft.write_text("# Pre-registration\n\n**Status: FROZEN 2026-11-08 6b2034f3.**\n")
+    fr.require_frozen()
+
+
+def test_sweep_stops_at_its_session_budget_and_leaves_no_partial_run(tmp_path, monkeypatch):
+    import reproduce.fidelity_study as fr
+
+    src = scenario(tmp_path)
+    out = tmp_path / "res"
+    out.mkdir()
+    (out / "capacity.json").write_text(json.dumps({"chain": {"kappa": 1.0, "included": True}}))
+    monkeypatch.setattr(fr, "OUT", out)
+    monkeypatch.setattr(fr, "MODE", "local")
+    monkeypatch.setattr(fr, "scenario_path", lambda name: src)
+    monkeypatch.setattr(fr, "require_frozen", lambda: None)
+
+    class A:
+        hours = 1e-9
+    fr.cmd_sweep(A())
+    assert not (out / "sweep" / "COMPLETE").exists()
+    assert not list((out / "sweep").glob("baseline_*.json"))
+
+
+def test_study_runner_refuses_unpinned_clocks(tmp_path, monkeypatch):
+    import reproduce.fidelity_study as fr
+
+    def cpu(governor, no_turbo, lo, hi):
+        root = tmp_path / governor / no_turbo / str(lo)
+        (root / "cpu0" / "cpufreq").mkdir(parents=True)
+        (root / "intel_pstate").mkdir()
+        (root / "cpu0" / "cpufreq" / "scaling_governor").write_text(governor + "\n")
+        (root / "cpu0" / "cpufreq" / "scaling_min_freq").write_text(f"{lo}\n")
+        (root / "cpu0" / "cpufreq" / "scaling_max_freq").write_text(f"{hi}\n")
+        (root / "intel_pstate" / "no_turbo").write_text(no_turbo + "\n")
+        return root
+
+    monkeypatch.setattr(fr, "MODE", "docker")
+    monkeypatch.setattr(fr, "CPU", cpu("powersave", "0", 400000, 5000000))
+    with pytest.raises(SystemExit, match="not pinned"):
+        fr.require_pinned()
+    monkeypatch.setattr(fr, "CPU", cpu("performance", "1", 1900000, 1900000))
+    fr.require_pinned()
 
 
 def test_analysis_refuses_a_partial_study(tmp_path):

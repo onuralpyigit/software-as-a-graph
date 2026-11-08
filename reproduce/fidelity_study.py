@@ -26,6 +26,7 @@ import shutil
 import statistics
 import subprocess
 import sys
+import time
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
@@ -62,6 +63,37 @@ def scenario_path(name: str) -> Path:
 def require_frozen() -> None:
     if not any(l.startswith("**Status: FROZEN") for l in PREREG.read_text().splitlines()):
         raise SystemExit(f"{PREREG.name} is not frozen; only the pilot may run (§8).")
+
+
+CPU = Path("/sys/devices/system/cpu")
+#: §4: the clocks the pilot was measured on.
+PINNED = {"governor": "performance", "no_turbo": "1", "p_core_khz": 1900000}
+
+
+#: Wall-clock time after which no new run starts (``sweep --hours``); None = no limit.
+SESSION_END = None
+
+
+class SessionOver(Exception):
+    """The session's time budget is spent; every finished run is saved and the next session resumes."""
+
+
+def check_session() -> None:
+    if SESSION_END is not None and time.time() >= SESSION_END:
+        raise SessionOver
+
+
+def require_pinned() -> None:
+    """§4: refuse to run a measured scenario unless the CPU clocks are pinned as in the pilot."""
+    if MODE == "local":
+        return
+    gov = (CPU / "cpu0/cpufreq/scaling_governor").read_text().strip()
+    turbo = (CPU / "intel_pstate/no_turbo").read_text().strip()
+    mx = int((CPU / "cpu0/cpufreq/scaling_max_freq").read_text())
+    mn = int((CPU / "cpu0/cpufreq/scaling_min_freq").read_text())
+    if (gov, turbo) != (PINNED["governor"], PINNED["no_turbo"]) or mx != mn or mx != PINNED["p_core_khz"]:
+        raise SystemExit(f"CPU clocks are not pinned (governor={gov}, no_turbo={turbo}, "
+                         f"min/max={mn}/{mx} kHz); see PREREGISTRATION.md §4")
 
 
 def prepare(name: str, kappa: float, tag: str, open_loop: bool, duration: float) -> Path:
@@ -142,6 +174,7 @@ def sweep_one(name, cond, kappa, tag, targets, reps, trace_root):
     done = json.loads(store.read_text()) if store.exists() else {}
     for rep in range(reps):
         for target in targets:
+            check_session()
             key_seed = study.run_seed(STUDY_SEED, name, cond, target, str(rep))
             key = hashlib.sha1(f"{name}|{cond}|{kappa}|{target}|{rep}|{key_seed}".encode()).hexdigest()[:12]
             if key in done:
@@ -173,6 +206,7 @@ def baselines(name, cond, kappa, tag, trace_root):
     store = OUT / tag / f"baseline_{name}_{cond}.json"
     done = json.loads(store.read_text()) if store.exists() else {}
     for i in range(BASELINES):
+        check_session()
         if str(i) in done:
             continue
         key_seed = study.run_seed(STUDY_SEED, name, cond, "baseline", str(i))
@@ -267,8 +301,28 @@ def targets_for(name: str) -> dict:
 
 
 def cmd_sweep(a) -> None:
+    """§4, in sessions: ``--hours`` stops before a run would start past the budget; rerun to resume."""
+    global SESSION_END
     require_frozen()
+    hours = getattr(a, "hours", None)
+    SESSION_END = time.time() + hours * 3600.0 if hours else None
+    log = OUT / "sweep" / "sessions.jsonl"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    started, outcome = time.time(), "complete"
+    try:
+        _sweep()
+    except SessionOver:
+        outcome = "budget reached"
+        print("session budget reached; finished runs are saved, run `sweep` again to resume", flush=True)
+    finally:
+        with open(log, "a") as fh:
+            fh.write(json.dumps({"start_unix": started, "end_unix": time.time(),
+                                 "hours": getattr(a, "hours", None), "outcome": outcome}) + "\n")
+
+
+def _sweep() -> None:
     for name, row in included().items():
+        require_pinned()
         t = targets_for(name)
         order = t["publishers"] + t["sinks"] + t["brokers"] + t["hosts"]
         rng = random.Random(study.run_seed(STUDY_SEED, name, "order"))
@@ -359,7 +413,10 @@ def main() -> None:
     c = sub.add_parser("capacity")
     c.add_argument("--capacity", type=float, required=True, help="B_h, messages/s on the busiest host")
     c.set_defaults(fn=cmd_capacity)
-    sub.add_parser("sweep").set_defaults(fn=cmd_sweep)
+    w = sub.add_parser("sweep")
+    w.add_argument("--hours", type=float, default=None,
+                   help="session budget: start no new run after this many hours (resume by rerunning)")
+    w.set_defaults(fn=cmd_sweep)
     m = sub.add_parser("simulate")
     m.add_argument("--workers", type=int, default=4)
     m.set_defaults(fn=cmd_simulate)
