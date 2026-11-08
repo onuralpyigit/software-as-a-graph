@@ -315,6 +315,9 @@ def cmd_sweep(a) -> None:
     except SessionOver as exc:
         outcome = str(exc) or "budget reached"
         print(f"session over ({outcome}); finished runs are saved, run `sweep` again to resume", flush=True)
+    except BaseException as exc:
+        outcome = f"stopped: {exc}"
+        raise
     finally:
         with open(log, "a") as fh:
             fh.write(json.dumps({"start_unix": started, "end_unix": time.time(), "hours": hours,

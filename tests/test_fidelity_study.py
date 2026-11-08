@@ -197,6 +197,27 @@ def test_sweep_session_can_be_sized_in_scenarios(tmp_path, monkeypatch):
         (["a", "b"], "scenario limit reached"), (["c"], "complete")]
 
 
+def test_a_refused_session_is_not_logged_as_complete(tmp_path, monkeypatch):
+    import reproduce.fidelity_study as fr
+
+    out = tmp_path / "res"
+    out.mkdir()
+    (out / "capacity.json").write_text(json.dumps({"a": {"kappa": 1.0, "included": True}}))
+    monkeypatch.setattr(fr, "OUT", out)
+    monkeypatch.setattr(fr, "require_frozen", lambda: None)
+
+    def unpinned():
+        raise SystemExit("CPU clocks are not pinned")
+    monkeypatch.setattr(fr, "require_pinned", unpinned)
+
+    class A:
+        hours, scenarios = None, 1
+    with pytest.raises(SystemExit):
+        fr.cmd_sweep(A())
+    log = json.loads((out / "sweep" / "sessions.jsonl").read_text())
+    assert log["outcome"] == "stopped: CPU clocks are not pinned"
+
+
 def test_study_runner_refuses_unpinned_clocks(tmp_path, monkeypatch):
     import reproduce.fidelity_study as fr
 
