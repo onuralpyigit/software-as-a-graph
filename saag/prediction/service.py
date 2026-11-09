@@ -281,6 +281,12 @@ class PredictionService:
             logger.warning("GNN inference failed; falling back to RM scores.", exc_info=True)
             return rm_result
 
+        # The GNN scores every node of the raw graph; report the analysed layer's.
+        layer_ids = set(structural_result.components)
+        gnn_result.node_scores = {
+            nid: score for nid, score in gnn_result.node_scores.items() if nid in layer_ids
+        }
+
         gnn_result.problems = problems
         gnn_result.problem_summary = problem_summary
         gnn_result.explanation = explanation

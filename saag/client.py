@@ -70,20 +70,24 @@ class Client:
     ) -> PredictionResult:
         """Run the Predict stage (Step 3) on a prior AnalysisResult.
 
-        Consumes the StructuralAnalysisResult produced by analyze() — no
-        repository access. Always computes rule-based RM scores (the GNN's
-        own input feature and cold-start fallback); blends in GNN-derived
-        criticality ranks when a trained checkpoint is available at
-        ``gnn_checkpoint`` (falls back to RM otherwise).
+        Consumes the StructuralAnalysisResult produced by analyze(). Always
+        computes rule-based RM scores (the GNN's own input feature and
+        cold-start fallback). Returns GNN-derived criticality ranks instead
+        only when ``mode='gnn'`` and a trained checkpoint is passed as
+        ``gnn_checkpoint``; it then also reads the raw structural graph from
+        the repository, because that is the graph the GNN is trained on.
 
         Parameters
         ----------
         analysis_result:
             Output of a preceding client.analyze() call for the same layer.
         mode:
-            'gnn' for raw GNN scores (default) when a checkpoint is available.
+            'gnn' for raw GNN scores (default) when ``gnn_checkpoint`` is given;
+            'rm' for RM scores.
         gnn_checkpoint:
-            Path to a GNN checkpoint directory. Defaults to output/gnn_checkpoints.
+            Path to a GNN checkpoint directory. Without one the result is RM:
+            no default directory is searched, so a stray local checkpoint
+            cannot change what a caller gets.
         use_ahp, equal_weights, ahp_shrinkage:
             RM dimension weighting. Mutually exclusive modes: AHP-derived
             weights (shrunk toward uniform by ``ahp_shrinkage``), equal 0.25
@@ -111,7 +115,7 @@ class Client:
         structural = layer_result.structural
         layer = getattr(layer_result, "layer", "system")
 
-        checkpoint = gnn_checkpoint or "output/gnn_checkpoints"
+        use_gnn = mode == "gnn" and gnn_checkpoint is not None
         service = PredictionService(
             use_ahp=use_ahp,
             equal_weights=equal_weights,
@@ -119,15 +123,30 @@ class Client:
             normalization_method=normalization_method,
             winsorize=winsorize,
             winsorize_limit=winsorize_limit,
-            gnn_checkpoint_dir=checkpoint,
-            prefer_gnn=(mode == "gnn"),
+            gnn_checkpoint_dir=gnn_checkpoint,
+            prefer_gnn=use_gnn,
         )
 
+        # The analysis graph carries derived DEPENDS_ON edges only. The GNN is
+        # trained on the raw structural graph and cannot run on anything else.
+        graph = self._raw_structural_graph() if use_gnn else structural.graph
+
         result = service.predict_quality_with_gnn(
-            structural, structural.graph, layer=layer, run_sensitivity=run_sensitivity,
+            structural, graph, layer=layer, run_sensitivity=run_sensitivity,
             active_patterns=active_patterns, diagnose=diagnose,
         )
         return PredictionResult(result)
+
+    def _raw_structural_graph(self):
+        """The repository's graph as the GNN was trained on it: no derived edges."""
+        from saag.core.graph_io import build_graph_from_json
+
+        topology = self.repo.export_json()
+        relationships = {
+            kind: edges for kind, edges in topology.get("relationships", {}).items()
+            if kind != "depends_on"
+        }
+        return build_graph_from_json({**topology, "relationships": relationships})
 
     def diagnose(
         self,
