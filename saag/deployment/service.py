@@ -61,6 +61,8 @@ class DeploymentService:
         network_gating: Optional[bool] = None,
         dynamic_report: bool = False,
         dynamic_duration: float = 30.0,
+        warp_report: bool = False,
+        warp_rho: Optional[float] = None,
     ) -> DeploymentResult:
         """Solve, verify and recommend.
 
@@ -88,6 +90,13 @@ class DeploymentService:
                 recommended placement and the baselines it is judged against. Runs
                 after the recommendation and cannot change it (needs SimPy).
             dynamic_duration: Simulated seconds per replay.
+            warp_report: Crash each Application of the recommended placement with the
+                deployment out of and then in the runtime data path, and report how
+                its criticality moves against seed noise. Descriptive, like
+                dynamic_report; it uses ``seeds``, ``kappa`` and ``dynamic_duration``
+                (needs SimPy).
+            warp_rho: Size undeclared broker and host capacities for this
+                utilisation in the warp report (`declare_capacities`).
         """
         if solver not in SOLVERS:
             raise ValueError(f"solver must be one of {SOLVERS}, got {solver!r}")
@@ -221,10 +230,21 @@ class DeploymentService:
             replay = replay_placements(topology, shortlist, inst.events, inst.p, seeds,
                                        duration=dynamic_duration, network_gating=gating)
             seconds["dynamic_report"] = round(time.monotonic() - t_dynamic, 3)
+        warp = None
+        if warp_report and pick["recommended"] is not None:
+            from .dynamic import warp_report as deployment_warp
+
+            t_warp = time.monotonic()
+            chosen = next(c for c in candidates if c.name == pick["recommended"])
+            warp = deployment_warp(topology, chosen.placement, seeds, duration=dynamic_duration,
+                                   kappa=kappa, capacities_rho=warp_rho, workers=len(seeds))
+            warp["placement"] = chosen.name
+            seconds["warp_report"] = round(time.monotonic() - t_warp, 3)
         return DeploymentResult(
             status=status, solver=used, candidates=candidates, front_flat=flat,
             proxy_oracle_rho=proxy_oracle_rho(candidates), oracle=oracle, diagnosis=diagnosis,
-            spec_summary=bound.summary(), skipped=skipped, seconds=seconds, dynamic_report=replay, **pick,
+            spec_summary=bound.summary(), skipped=skipped, seconds=seconds, dynamic_report=replay,
+            warp_report=warp, **pick,
         )
 
 

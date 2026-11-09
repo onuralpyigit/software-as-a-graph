@@ -290,6 +290,8 @@ saag -i data/scenarios/atm_system.json --deploy --deployment-spec data/deploymen
 
 `--dynamic-report` also replays the outage events on the runtime engine (reactive, stations, replica-aware, overload on) for the recommended placement and its baselines, reporting delivery loss, time to recover and overload cascades. It needs SimPy, runs after the recommendation, and is **descriptive only**: `reliability_claim` is never decided by it, so a placement that looks better or worse in the replay stays a finding to investigate, not a verdict.
 
+`--warp-report` shows which Applications the deployment itself makes more or less critical. Each Application of the recommended placement is crashed twice on the same seeds and random streams: once with brokers and hosts out of the data path (`deployment_model="none"`, where the placement plays no part) and once with them in it (broker stations, shared host CPU, replica-aware outages, overload). The report gives the paired change in `i_flow` per Application, whether it exceeds `--kappa` × the seed standard deviation, the rank shift and the Spearman correlation between the two rankings. Negative changes are real: a crash can relieve contention it shared. A topology that declares no capacities shows little contention, so `--warp-rho` sizes them with `declare_capacities`. CONNECTS_TO gating is not a separate step, because an Application crash leaves it exactly inert. Like `--dynamic-report`, it is descriptive only.
+
 `--placed-topology` writes the recommended placement applied to the topology, ready for `saag-import`. Flags are listed in the [CLI guide](cli-pipeline-guide.md#pre-deployment-deploy).
 
 ---

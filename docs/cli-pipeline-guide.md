@@ -604,7 +604,9 @@ saag -i data/scenarios/atm_system.json --deploy --deployment-spec data/deploymen
 | `--network-gating` | `auto` | `auto` (on when the topology has NetworkDevices), `on` or `off` |
 | `--output` / `-o` | `None` | Write the full `DeploymentResult` JSON |
 | `--dynamic-report` | off | Replay the outage events on the runtime engine for the recommended placement and its baselines. Descriptive; needs SimPy |
-| `--dynamic-duration` | `30.0` | Simulated seconds per replay |
+| `--dynamic-duration` | `30.0` | Simulated seconds per replay (and per warp-report run) |
+| `--warp-report` | off | Crash each Application of the recommended placement with brokers and hosts out of, then in, the runtime data path; report the paired change in `i_flow` against `--kappa` × seed noise. Descriptive; needs SimPy |
+| `--warp-rho` | `None` | Size undeclared broker and host capacities for this utilisation in the warp report (`declare_capacities`) |
 | `--placed-topology` | `None` | Write the topology with the recommended placement applied (importable with `saag-import`) |
 
 `cli/run.py` adds `--deploy` and `--deployment-spec FILE`. `--deploy` without a spec is an
