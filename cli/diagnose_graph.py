@@ -13,6 +13,13 @@ Exit codes (CI/CD gate):
   1 — MEDIUM anti-patterns detected
   2 — HIGH or CRITICAL anti-patterns detected  → blocks deployment
 
+With --baseline (delta-aware gating, saag/analysis/delta_gate.py) the codes
+count only findings the merge-base did not have:
+  0 — nothing new
+  1 — new MEDIUM findings, new BOTTLENECK_EDGE (warn-only), or new HIGH/CRITICAL
+      within --fence-margin of their fence
+  2 — new HIGH or CRITICAL finding clear of the margin and not waived
+
 Usage examples
 --------------
   # Minimal — RM scoring + antipatterns on system layer
@@ -32,6 +39,10 @@ Usage examples
 
   # Baseline equal weights, skip antipatterns
   python cli/diagnose_graph.py --equal-weights --no-antipatterns
+
+  # Delta-aware gate: block only on what the PR adds over the merge-base
+  python cli/diagnose_graph.py --output-antipatterns base.json        # on the merge-base
+  python cli/diagnose_graph.py --baseline base.json --waivers waivers.yaml  # on the PR
 
   # Print the full pattern catalog and exit
   python cli/diagnose_graph.py --catalog
@@ -130,6 +141,21 @@ def build_parser() -> argparse.ArgumentParser:
         "--pattern", metavar="IDS", default=None,
         help="Comma-separated pattern IDs to run (default: full catalog). "
              "Example: --pattern SPOF,FAILURE_HUB,GOD_COMPONENT,CYCLE",
+    )
+    ap_grp.add_argument(
+        "--baseline", metavar="FILE", default=None,
+        help="Delta-aware gating: the merge-base's --output-antipatterns JSON. "
+             "Exit codes then count only findings it does not contain.",
+    )
+    ap_grp.add_argument(
+        "--waivers", metavar="FILE", default=None,
+        help="Waiver register (YAML/JSON) for delta-aware gating: entries with "
+             "pattern, entity, expires, reason, approved_by. Needs --baseline.",
+    )
+    ap_grp.add_argument(
+        "--fence-margin", type=float, default=0.10, metavar="M",
+        help="Delta-aware gating: a new HIGH/CRITICAL finding whose metric is within "
+             "M of its fence (fence_ratio <= 1+M) warns instead of blocking (default: 0.10).",
     )
     ap_grp.add_argument(
         "--catalog", action="store_true",
@@ -233,6 +259,34 @@ def display_rm_breakdown(components: list, top_n: int = 10) -> None:
     print()
 
 
+def display_delta(delta, margin: float) -> None:
+    """Print the delta-aware gate's verdict, newest risk first."""
+    def line(f):
+        ratio = (f.get("evidence") or {}).get("fence_ratio")
+        tail = f"  (fence ratio {ratio:.2f})" if ratio is not None else ""
+        return f"    {f['severity']:<8} {f['name']:<26} {f['entity_id']}{tail}"
+
+    print()
+    print(f"  Delta-aware gate: {delta.carried} carried from merge-base, "
+          f"{len(delta.resolved)} resolved, {len(delta.waived)} waived")
+    for title, items in (("New — blocking", delta.blocking),
+                         (f"New — within {margin:.0%} of the fence (warning)", delta.near_fence),
+                         ("New — advisory", delta.new_advisory)):
+        if items:
+            print(f"  {title}: {len(items)}")
+            for f in items:
+                print(line(f))
+    for w in delta.expired_waivers:
+        print(f"  Expired waiver (no longer applied): {w.pattern} {w.entity} "
+              f"expired {w.expires.isoformat()} ({w.approved_by})")
+    if delta.exit_code == 2:
+        print("  DEPLOYMENT GATE: this change introduces HIGH or CRITICAL anti-patterns.")
+    elif delta.exit_code == 1:
+        print("  WARNING: this change introduces findings below the blocking bar.")
+    else:
+        print("  No new anti-patterns relative to the merge-base.")
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Main
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -251,6 +305,10 @@ def main() -> None:
     # ── Validate conflicting weight flags ─────────────────────────────────────
     if args.equal_weights and args.use_ahp:
         parser.error("--equal-weights and --use-ahp are mutually exclusive.")
+    if args.waivers and not args.baseline:
+        parser.error("--waivers needs --baseline (waivers apply to delta-aware gating).")
+    if args.baseline and args.no_antipatterns:
+        parser.error("--baseline needs the anti-pattern scan; drop --no-antipatterns.")
 
     # ── Parse layers (multi-layer support) ────────────────────────────────────
     layers = [l.strip() for l in args.layer.split(",") if l.strip()]
@@ -402,6 +460,18 @@ def main() -> None:
             layer_entry["triage"] = triage_result.to_dict()
         all_output["layers"][layer] = layer_entry
 
+    # ── Delta-aware gate (merge-base comparison) ─────────────────────────────
+    delta = None
+    if args.baseline:
+        from saag.analysis.delta_gate import delta_gate, load_waivers
+        baseline = json.loads(Path(args.baseline).read_text())
+        if severity_filter:
+            baseline = [f for f in baseline if f["severity"].lower() in severity_filter]
+        waivers = load_waivers(Path(args.waivers)) if args.waivers else []
+        delta = delta_gate(baseline, [p.to_dict() for p in all_problems],
+                           waivers=waivers, margin=args.fence_margin)
+        all_output["delta_gate"] = delta.to_dict()
+
     # ── Persist combined output ────────────────────────────────────────────────
     if args.output:
         out_path = Path(args.output)
@@ -441,6 +511,10 @@ def main() -> None:
             "Findings for these patterns are incomplete."
         )
         sys.exit(2)
+
+    if delta is not None:
+        display_delta(delta, args.fence_margin)
+        sys.exit(delta.exit_code)
 
     # Determine worst severity found (respecting --severity filter)
     severities_found = {p.severity for p in all_problems}

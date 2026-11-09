@@ -284,6 +284,14 @@ CATALOG: Dict[str, PatternSpec] = {
 }
 
 
+def _fence_ratio(value: float, fence: float) -> Optional[float]:
+    """Metric over the threshold it crossed; the delta gate's margin reads it.
+
+    None when the threshold is not positive, so no margin can be applied.
+    """
+    return value / fence if fence > 0 else None
+
+
 # =============================================================================
 # Detector Engine
 # =============================================================================
@@ -441,7 +449,8 @@ class AntiPatternDetector:
             elif getattr(c.structural, 'is_articulation_point', False):
                  out.append(self._make_problem("SPOF", c.id, {"availability_level": c.levels.availability.value, "is_directed": False, "trigger": "articulation_point"}))
             elif c.scores.availability > fence_avail:
-                out.append(self._make_problem("SPOF", c.id, {"availability_level": c.levels.availability.value, "availability_score": c.scores.availability, "trigger": "availability_fence"}))
+                out.append(self._make_problem("SPOF", c.id, {"availability_level": c.levels.availability.value, "availability_score": c.scores.availability, "trigger": "availability_fence",
+                                                             "fence_ratio": _fence_ratio(c.scores.availability, fence_avail)}))
         return out
 
     def _detect_bridge_edge(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
@@ -461,7 +470,8 @@ class AntiPatternDetector:
             if c.scores.reliability > rel_fence and c.structural.out_degree_raw > median_out:
                 out.append(self._make_problem("FAILURE_HUB", c.id, {
                     "reliability": c.scores.reliability, 
-                    "out_degree": c.structural.out_degree_raw
+                    "out_degree": c.structural.out_degree_raw,
+                    "fence_ratio": _fence_ratio(c.scores.reliability, rel_fence),
                 }))
         return out
 
@@ -480,7 +490,8 @@ class AntiPatternDetector:
         for c in lr.components:
             betweenness = getattr(c.structural, 'betweenness', 0)
             if betweenness > 0.3 and c.levels.maintainability >= CriticalityLevel.CRITICAL:
-                out.append(self._make_problem("GOD_COMPONENT", c.id, {"betweenness": betweenness}))
+                out.append(self._make_problem("GOD_COMPONENT", c.id, {"betweenness": betweenness,
+                                                                      "fence_ratio": _fence_ratio(betweenness, 0.3)}))
         return out
 
     def _detect_hub_and_spoke(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
@@ -498,7 +509,9 @@ class AntiPatternDetector:
         for e in getattr(lr, "edges", []):
             betweenness = getattr(e.structural, 'betweenness', 0)
             if betweenness > fence_edge_bt:
-                out.append(self._make_problem("BOTTLENECK_EDGE", e.id, {"betweenness": betweenness}, entity_type="Edge"))
+                out.append(self._make_problem("BOTTLENECK_EDGE", e.id, {"betweenness": betweenness,
+                                                                        "fence_ratio": _fence_ratio(betweenness, fence_edge_bt)},
+                                              entity_type="Edge"))
         return out
 
     def _detect_cycle(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
@@ -547,7 +560,9 @@ class AntiPatternDetector:
         crit_count = sum(1 for c in lr.components if c.levels.overall == CriticalityLevel.CRITICAL)
         total = stats["total_count"]
         if total > 0 and (crit_count / total) > 0.2:
-            return [self._make_problem("SYSTEMIC_RISK", "SYSTEM", {"critical_ratio": crit_count/total}, entity_type="System")]
+            return [self._make_problem("SYSTEMIC_RISK", "SYSTEM", {"critical_ratio": crit_count/total,
+                                                                   "fence_ratio": _fence_ratio(crit_count / total, 0.2)},
+                                       entity_type="System")]
         return []
 
     def _detect_broker_overload(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
@@ -563,7 +578,8 @@ class AntiPatternDetector:
         for b in brokers:
             if median_a > 0 and b.scores.availability >= 2 * median_a:
                 out.append(self._make_problem("BROKER_OVERLOAD", b.id, {
-                    "availability": b.scores.availability, "median_broker_availability": median_a
+                    "availability": b.scores.availability, "median_broker_availability": median_a,
+                    "fence_ratio": _fence_ratio(b.scores.availability, 2 * median_a),
                 }))
         return out
 

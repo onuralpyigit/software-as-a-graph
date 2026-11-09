@@ -307,12 +307,22 @@ PYTHONPATH=. python cli/diagnose_graph.py --layer system --use-ahp --triage-k 10
 | `--output` / `-o` | Write full diagnosis JSON (RM profiles, anti-patterns, and Triage shortlist) |
 | `--output-antipatterns` | Write standalone anti-pattern report JSON (feeds `visualize_graph.py`) |
 | `--no-exit-code` | Always exit 0 (disable CI/CD gating) |
+| `--baseline FILE` | Delta-aware gating: the merge-base's `--output-antipatterns` JSON; exit codes count only findings it lacks |
+| `--waivers FILE` | Waiver register (YAML/JSON: `pattern`, `entity`, `expires`, `reason`, `approved_by`); expired waivers are listed and not applied. Needs `--baseline` |
+| `--fence-margin M` | Default `0.10`. A new HIGH/CRITICAL finding with `fence_ratio <= 1+M` warns instead of blocking |
 
 ### Exit Codes (CI/CD Quality Gating)
 
 - `0` — clean (no anti-patterns detected, or `--no-antipatterns` / `--no-exit-code`)
 - `1` — MEDIUM anti-patterns detected (warnings/smells)
 - `2` — HIGH or CRITICAL anti-patterns detected → blocks pre-merge deployment gate
+
+With `--baseline` ([delta_gate.py](../saag/analysis/delta_gate.py)), a finding is keyed on (pattern, entity type, entity id). Only keys the merge-base did not have count: `2` for a new HIGH/CRITICAL finding that is neither waived nor within the fence margin, `1` for new MEDIUM findings, near-fence ones, and any new `BOTTLENECK_EDGE` (warn-only in delta mode: it flags 10–15% of edges and drifts with global betweenness), `0` otherwise. A crashed detector still exits `2`.
+
+```bash
+saag-diagnose --layer system --output-antipatterns base.json                 # on the merge-base
+saag-diagnose --layer system --baseline base.json --waivers waivers.yaml     # on the PR
+```
 
 ---
 
