@@ -423,6 +423,9 @@ Fails every candidate under the runtime engine → `runtime_labels.json`: the fi
 | `--seed` | `0` | `build`, `run` | Agent seed |
 | `--target-utilization` | `0.65` | `build` | Service times in the deployment plan |
 | `--qos-semantics` | `engine` | `build` | `dds` for DDS-semantics agents |
+| `--service-work` | `sleep` | `build` | `cpu`: burn service time on the CPU, each host container capped at its simulated capacity |
+| `--carry-payload` | off | `build` | Put each topic's declared `size` bytes on the wire |
+| `--network-gating` | off | `build` | Partition hosts by CONNECTS_TO reachability on link flaps and network-vertex crashes |
 | `--mode` | `local` | `run` | `local`: in-process, no containers; `docker`: Docker Compose and Cyclone DDS (downloads `cyclonedds` when the image is built) |
 | `--faults` | none | `run` | Fault specs, the same JSON as `message-flow --faults` |
 | `--calibrated` | off | `fidelity` | Simulate with `profile.json` from `calibrate` |

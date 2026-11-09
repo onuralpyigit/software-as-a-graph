@@ -119,7 +119,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     plan = json.loads(args.deployment.read_text())
     if args.transport == "dds":
         from .dds import DdsTransport
-        transport = DdsTransport(args.domain)
+        transport = DdsTransport(args.domain, carry_payload=bool(plan.get("carry_payload")))
     else:
         transport = LocalTransport()
     args.telemetry.mkdir(parents=True, exist_ok=True)

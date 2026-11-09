@@ -10,6 +10,7 @@ by the ``testbed``-marked test, which needs ``cyclonedds`` installed.
 import json
 import logging
 import random
+from types import SimpleNamespace
 
 import pytest
 
@@ -124,7 +125,7 @@ def test_chaos_plan_docker(tmp_path):
     controls = [(a.t, a.target, a.control) for a in cp.actions if a.kind == "control"]
     assert (2.0, "P", {"slowdown": 3.0}) in controls and (6.0, "P", {}) in controls
     assert [u["mode"] for u in cp.unsupported] == ["buffer_leak"]
-    assert any("netem" in a.argv for a in cp.actions if a.argv)
+    assert any(a.kind == "partition" for a in cp.actions)
     assert [a.t for a in cp.actions] == sorted(a.t for a in cp.actions)
 
 
@@ -134,6 +135,122 @@ def test_chaos_plan_local_expands_hosts(tmp_path):
                       plan, 30.0, local=True)
     assert sorted(a.target for a in cp.actions) == ["BR", "S"]
     assert cp.unsupported[0]["mode"] == "link_flap"
+
+
+def switched(tmp_path):
+    """The chain scenario with H1 and H2 behind one switch instead of a direct link."""
+    data = json.loads(scenario(tmp_path).read_text())
+    data["network_devices"] = [{"id": "SW", "name": "SW", "role": "switch"}]
+    data["relationships"]["connects_to"] = [{"from": "H1", "to": "SW"}, {"from": "H2", "to": "SW"}]
+    p = tmp_path / "switched_system.json"
+    p.write_text(json.dumps(data))
+    return p
+
+
+def test_emulation_options_in_plan_and_compose(tmp_path):
+    plan = build_deployment(scenario(tmp_path))
+    assert (plan["service_work"], plan["carry_payload"], plan["cpus"]) == ("sleep", False, {})
+    assert "cpus" not in compose_spec(plan, 30.0)["services"]["saag-H1"]
+    plan = build_deployment(scenario(tmp_path), service_work="cpu", carry_payload=True)
+    # One core per resident station, at least one: H1 holds none (S emits only, BR is a relay).
+    assert plan["cpus"] == {"H1": 1, "H2": 2}
+    assert compose_spec(plan, 30.0)["services"]["saag-H2"]["cpus"] == 2
+    assert plan["network"] == {"gating": False, "vertices": ["H1", "H2"]}
+    with pytest.raises(ValueError):
+        build_deployment(scenario(tmp_path), service_work="spin")
+
+
+def test_host_slowdown_slows_every_resident(tmp_path):
+    plan = build_deployment(scenario(tmp_path))
+    cp = plan_actions([FaultSpec("H2", "slowdown", 2.0, 4.0, {"k": 3})], plan, 30.0)
+    assert not [a for a in cp.actions if a.kind == "docker"]
+    controls = sorted((a.t, a.target, a.control) for a in cp.actions if a.kind == "control")
+    assert controls == [(2.0, "K", {"slowdown": 3.0}), (2.0, "P", {"slowdown": 3.0}),
+                        (6.0, "K", {}), (6.0, "P", {})]
+
+
+def test_link_flap_partitions_its_endpoints(tmp_path):
+    plan = build_deployment(scenario(tmp_path))
+    cp = plan_actions([FaultSpec("H1|H2", "link_flap", 1.0, 10.0)], plan, 30.0)
+    states = [a.control["blocked"] for a in cp.actions if a.kind == "partition"]
+    assert states and len(states) % 2 == 0
+    assert states[0::2] == [{"H1": ["H2"], "H2": ["H1"]}] * (len(states) // 2)
+    assert states[1::2] == [{}] * (len(states) // 2)
+    assert all(1.0 <= a.t <= 11.0 for a in cp.actions)
+
+
+def test_network_gating_partitions_by_reachability(tmp_path):
+    faults = [FaultSpec("SW", "transient_crash", 2.0, 3.0), FaultSpec("H1|SW", "link_flap", 8.0, 4.0)]
+    plan = build_deployment(switched(tmp_path))
+    # Without gating there is no container to crash and no host pair to cut.
+    assert {u["mode"] for u in plan_actions(faults, plan, 20.0).unsupported} == {"transient_crash",
+                                                                                "link_flap"}
+    plan = build_deployment(switched(tmp_path), network_gating=True)
+    cp = plan_actions(faults, plan, 20.0)
+    assert not cp.unsupported
+    parts = [(a.t, a.control["blocked"]) for a in cp.actions if a.kind == "partition"]
+    cut = {"H1": ["H2"], "H2": ["H1"]}
+    assert parts[:2] == [(2.0, cut), (5.0, {})]
+    assert [b for _, b in parts[2:]] == [cut, {}] * ((len(parts) - 2) // 2)
+
+
+def test_gating_partitions_a_disconnected_topology_before_start(tmp_path):
+    data = json.loads(scenario(tmp_path).read_text())
+    data["relationships"]["connects_to"] = []
+    p = tmp_path / "split_system.json"
+    p.write_text(json.dumps(data))
+    cp = plan_actions([], build_deployment(p, network_gating=True), 10.0)
+    assert [(a.t, a.control["blocked"]) for a in cp.actions] == [
+        (float("-inf"), {"H1": ["H2"], "H2": ["H1"]})]
+
+
+def test_execute_applies_partitions_as_ingress_drops(tmp_path):
+    plan = build_deployment(scenario(tmp_path))
+    cp = plan_actions([FaultSpec("H1|H2", "link_flap", 0.0, 5.0)], plan, 5.0)
+    ran = []
+
+    def runner(argv, **kw):
+        ran.append(argv)
+        return SimpleNamespace(returncode=0, stdout={"saag-H1": "10.0.0.1", "saag-H2": "10.0.0.2"}
+                               .get(argv[-1], "") if argv[1] == "inspect" else "")
+
+    execute(cp, tmp_path, t0=0.0, runner=runner, sleep=lambda s: None, clock=lambda: 100.0)
+    execs = [a for a in ran if a[1] == "exec"]
+    assert execs[0][2] == "saag-H1" and "match ip src 10.0.0.2/32 action drop" in execs[0][-1]
+    assert execs[1][2] == "saag-H2" and "match ip src 10.0.0.1/32 action drop" in execs[1][-1]
+    # Healing removes the rules and adds none.
+    assert "filter" not in execs[2][-1] and "ingress" in execs[2][-1]
+    assert sum(a[1] == "inspect" for a in ran) == 2          # addresses are looked up once
+
+
+def test_burn_cpu_spends_cpu_without_holding_the_gil():
+    import os
+    import threading
+    import time
+    from saag.testbed.runtime import burn_cpu
+
+    t = time.thread_time()
+    burn_cpu(0.05)
+    assert time.thread_time() - t >= 0.05
+    if (os.cpu_count() or 1) < 4:
+        pytest.skip("needs 4 cores to see threads burn in parallel")
+    threads = [threading.Thread(target=burn_cpu, args=(0.3,)) for _ in range(4)]
+    start = time.perf_counter()
+    for th in threads:
+        th.start()
+    for th in threads:
+        th.join()
+    assert time.perf_counter() - start < 0.9      # serialised by the GIL it would take 1.2 s
+
+
+def test_local_cpu_service_and_stationless_slowdown(tmp_path):
+    d = orchestrate.build(scenario(tmp_path), tmp_path / "tb", duration_s=3.0, service_work="cpu")
+    orchestrate.run(d, 3.0, [FaultSpec("S", "slowdown", 0.0, None, {"k": 2})], mode="local")
+    events = [json.loads(line) for line in (d / "telemetry" / "all.jsonl").read_text().splitlines()]
+    published = sum(e["name"] == "saag.publish" and e["attributes"]["service.name"] == "S"
+                    for e in events)
+    assert 24 <= published <= 36                  # 20 Hz for 3 s, period stretched x2
+    assert any(e["name"] == "saag.deliver" for e in events)
 
 
 def test_execute_writes_controls_and_runs_commands(tmp_path):

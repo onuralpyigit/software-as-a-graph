@@ -4,8 +4,9 @@ Write a runnable testbed: Dockerfile, docker-compose.yml and deployment.json.
 One container per host (``saag-<host>``), all on one bridge network so DDS
 discovery works, each running `saag.testbed.agent` for its residents. The
 compose file is written as JSON, which is valid YAML and needs no YAML library.
-Containers get ``NET_ADMIN`` so `saag.testbed.chaos` can impair links with
-``tc netem``.
+Containers get ``NET_ADMIN`` so `saag.testbed.chaos` can partition hosts with
+``tc``. With ``service_work="cpu"`` each container is capped at its host's
+``cpus`` from the plan.
 
 The testbed directory is its own build context: `write_testbed` copies the
 ``saag`` package into it, so a build never ships the (large) repository to the
@@ -45,7 +46,7 @@ def container_name(host: str) -> str:
 def compose_spec(plan: Dict[str, Any], duration_s: float, seed: int = 0) -> Dict[str, Any]:
     services = {}
     for host in plan["hosts"]:
-        services[container_name(host)] = {
+        svc = services[container_name(host)] = {
             "build": {"context": ".", "dockerfile": "Dockerfile"},
             "image": "saag-testbed:latest",
             "container_name": container_name(host),
@@ -58,6 +59,8 @@ def compose_spec(plan: Dict[str, Any], duration_s: float, seed: int = 0) -> Dict
                         "--host", host, "--telemetry", "/telemetry", "--control", "/control",
                         "--duration", str(duration_s), "--seed", str(seed), "--await-start"],
         }
+        if host in plan.get("cpus", {}):
+            svc["cpus"] = plan["cpus"][host]
     return {"name": f"saag-{plan['scenario']}".lower(), "services": services,
             "networks": {"saag": {"driver": "bridge"}}}
 
