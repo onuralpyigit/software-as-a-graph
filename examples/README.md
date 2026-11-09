@@ -155,6 +155,19 @@ The script asserts each result below, so a change in behaviour makes it fail.
    - **Baseline**: `A0` publishes 1000 messages and 998 are delivered, a delivery rate of `0.9980`. The other 2 are not dropped: they are reported as `unserved_demand`, still unprocessed when the run ends.
    - **Faulted**: a fault on `A0` at $t = 50.0$ s silences it after 499 messages. All 499 are delivered, so the *system* delivery rate reads `1.0000`, which hides the outage. The damage is in the fault record: the delivery rate falls from `1.0000` before the fault to `0.0000` after it, so I_dyn(A0) = 1.0.
 
+### Simulator Walkthrough (Mini-ATM Failure Lab)
+
+- **`mini_atm.json`**: A hand-made 15-component air-traffic topology (2 hosts, 2 brokers, 1 library, 6 applications, 4 topics). It is a demo and is not part of the scenario corpus.
+- **`run_simulator_walkthrough.py`**: Runs all four [simulation engines](../docs/failure-simulation.md#2-which-engine-do-i-need) on it with their published defaults (`FaultInjector`, `FailureSimulator`, `MessageFlowSimulator`, `ChangePropagationSimulator`), prints the four scores per component, and builds the page below.
+- **`mini_atm_failure_lab.template.html`**: The page template; the script injects the engine output into it.
+- **`mini_atm_failure_lab.html`**: The generated interactive walkthrough. Open it in a browser, pick a component to fail, and compare what each engine does with it.
+
+```bash
+python examples/run_simulator_walkthrough.py
+```
+
+The four scores answer different questions and rank the components differently. `radar` (`A1`) tops I\* (0.833) but has the lowest I_comp (0.053), because its only topic is best-effort and carries little QoS weight. `display` (`A5`) scores 0 on I\* as a pure sink but 0.296 on I_comp, because three of the eight delivery paths end there.
+
 ---
 
 ## Step 6: Validation Pipeline

@@ -1,0 +1,563 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Mini-ATM Failure Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: one sticky "fail this component" bar drives four engine panels, each a diagram beside its readout. */
+:root {
+  --bg: #f2f5f7; --surface: #ffffff; --ink: #16212b; --muted: #5a6877; --line: #cbd4dc; --line-soft: #e3e8ed;
+  --accent: #0b6a94; --accent-soft: #d9ebf3;
+  --fail: #bf3b2b; --fail-soft: #f9ddd7; --on-fail: #ffffff;
+  --warn: #9a6a12; --warn-soft: #f7e8c6;
+  --host: #e8edf1;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c; --on-fail: #1c0a07;
+  --warn: #e3b550; --warn-soft: #43350f;
+  --host: #1c2732; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c; --on-fail: #1c0a07;
+  --warn: #e3b550; --warn-soft: #43350f;
+  --host: #1c2732; color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 40px; }
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: 2.3rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.55rem; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+.lede { font-size: 1.05rem; color: var(--muted); margin-top: 10px; }
+.eyebrow { font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+section { display: flex; flex-direction: column; gap: 16px; }
+.sec-head { display: flex; flex-direction: column; gap: 8px; }
+.sec-head p { color: var(--muted); }
+.sec-head p b, .note b { color: var(--ink); font-weight: 600; }
+
+/* picker */
+.picker { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding-block: 10px; display: flex; gap: 14px; align-items: center; }
+.picker-label { font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.chips { display: flex; gap: 6px; overflow-x: auto; min-width: 0; padding-bottom: 2px; scrollbar-width: thin; }
+.chip { font: 500 0.8rem var(--mono); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 5px 9px; cursor: pointer; white-space: nowrap; }
+.chip small { font: 400 0.74rem var(--body); color: var(--muted); margin-left: 5px; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--fail); border-color: var(--fail); color: var(--on-fail); }
+.chip[aria-pressed="true"] small { color: var(--on-fail); opacity: 0.85; }
+.chip.gap { margin-left: 8px; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* panels */
+.panel { display: grid; grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .panel { grid-template-columns: minmax(0, 1fr); } }
+.fig { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; overflow-x: auto; min-width: 0; }
+.fig svg { display: block; width: 100%; min-width: 620px; height: auto; }
+.fig-bar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; color: var(--muted); }
+.steps { display: flex; gap: 4px; }
+.step { font: 500 0.78rem var(--mono); border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 3px 9px; border-radius: 4px; cursor: pointer; }
+.step[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.key { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.sw { width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid var(--line); background: var(--surface); display: inline-block; }
+.sw.origin { background: var(--fail); border-color: var(--fail); }
+.sw.failed { background: var(--fail-soft); border-color: var(--fail); }
+.sw.lost { background: var(--warn-soft); border-color: var(--warn); }
+.sw.reached { background: var(--accent-soft); border-color: var(--accent); }
+.ln { width: 22px; height: 0; border-top: 1.6px solid var(--muted); display: inline-block; }
+.ln.dash { border-top-style: dashed; } .ln.dot { border-top-style: dotted; }
+
+.read { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.score { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+.score .sym { font: 500 0.95rem var(--mono); color: var(--muted); }
+.score .val { font: 600 2.1rem var(--mono); font-variant-numeric: tabular-nums; line-height: 1; }
+.score .sub { font-size: 0.8rem; color: var(--muted); }
+.note { font-size: 0.9rem; color: var(--muted); }
+.rows { display: flex; flex-direction: column; gap: 7px; }
+.rows h3 { font: 600 0.74rem var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 2px; }
+.bar-row { display: grid; grid-template-columns: 8.2em minmax(0, 1fr) 6.4em; gap: 8px; align-items: center; font-size: 0.84rem; }
+.bar-row .lab { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar-row .num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; font-size: 0.8rem; }
+.track { height: 10px; background: var(--line-soft); border-radius: 2px; overflow: hidden; }
+.fill { height: 100%; background: var(--accent); }
+.fill.f { background: var(--fail); }
+.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: 0.82rem; max-height: 15.5em; overflow-y: auto; }
+.log li { display: grid; grid-template-columns: 2.4em 2.6em minmax(0, 1fr); gap: 6px; align-items: baseline; }
+.log .d { font: 500 0.74rem var(--mono); color: var(--muted); }
+.log .c { font: 600 0.8rem var(--mono); }
+.log .w { color: var(--muted); }
+.empty { padding: 28px 18px; color: var(--muted); font-size: 0.92rem; }
+
+/* svg */
+svg text { font-family: var(--body); fill: var(--ink); }
+.n { cursor: pointer; }
+.n rect, .n polygon { fill: var(--surface); stroke: var(--muted); stroke-width: 1.3; }
+.n .nm { font-size: 12px; font-weight: 600; text-anchor: middle; }
+.n .sb { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); text-anchor: middle; }
+.n.host > rect { fill: var(--host); stroke: var(--line); stroke-dasharray: 5 3; }
+.n.host .nm { font-size: 11px; font-family: var(--mono); font-weight: 500; fill: var(--muted); }
+.n.lib rect { stroke-dasharray: 3 2; }
+.n.origin > rect, .n.origin > polygon { fill: var(--fail); stroke: var(--fail); stroke-dasharray: none; }
+.n.origin > .nm, .n.origin > .sb { fill: var(--on-fail); }
+.n.failed > rect, .n.failed > polygon { fill: var(--fail-soft); stroke: var(--fail); stroke-width: 1.8; }
+.n.lost > rect, .n.lost > polygon { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 1.8; }
+.n.reached > rect, .n.reached > polygon { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.8; }
+.n.dim { opacity: 0.4; }
+.n:hover > rect, .n:hover > polygon { stroke-width: 2.4; }
+.bdg rect { fill: var(--ink); stroke: none; }
+.bdg text { fill: var(--bg); font-family: var(--mono); font-size: 9.5px; font-weight: 600; text-anchor: middle; }
+.e { stroke: var(--muted); stroke-width: 1.3; fill: none; }
+.e.routes { stroke-dasharray: 5 4; } .e.uses { stroke-dasharray: 1.5 3.5; stroke-linecap: round; stroke-width: 1.6; }
+.e.cut { stroke: var(--fail); opacity: 0.55; stroke-dasharray: 2 4; }
+.e.hot { stroke: var(--accent); stroke-width: 1.8; }
+.ah { fill: var(--muted); stroke: none; } .ah.cut { fill: var(--fail); opacity: 0.55; } .ah.hot { fill: var(--accent); }
+.link { stroke: var(--muted); stroke-width: 3; }
+.lbl { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); }
+.axis { stroke: var(--line); stroke-width: 1; }
+.grid { stroke: var(--line-soft); stroke-width: 1; }
+.bars rect { fill: var(--accent); }
+.faultline { stroke: var(--fail); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.faulttxt { font-family: var(--mono); font-size: 10px; fill: var(--fail); }
+.rowlbl { font-size: 11.5px; font-weight: 600; }
+.wlab { font-family: var(--mono); font-size: 10px; fill: var(--accent); text-anchor: middle; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+
+/* tables */
+.tbl-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+th, td { padding: 7px 12px; text-align: left; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+th { font: 600 0.72rem var(--mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+tbody tr.pick { cursor: pointer; }
+tbody tr.pick:hover td { background: var(--line-soft); }
+tbody tr.on td { background: var(--accent-soft); }
+.cell { display: grid; grid-template-columns: 3.6em 70px; gap: 8px; align-items: center; }
+.na { color: var(--muted); font-family: var(--body); font-size: 0.8rem; }
+.two { display: grid; grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .two { grid-template-columns: minmax(0, 1fr); } }
+.legend { display: flex; flex-direction: column; gap: 7px; font-size: 0.86rem; color: var(--muted); }
+footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: 0.84rem; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+footer p { max-width: 90ch; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">software-as-a-graph · saag/simulation</div>
+    <h1>Mini-ATM Failure Lab</h1>
+    <p class="lede">Four simulators, one 15-component air-traffic system. Pick a component to fail and see what each engine does with it. Every number on this page is the output of the repository's own engines run on this topology.</p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">The scenario</div>
+      <h2>A radar feed, two hosts, two brokers</h2>
+      <p>Radar plots become tracks, tracks become conflict alerts, and a display and a recorder consume the results. <b>tracks</b> is routed by both brokers; every other topic has one. Tracker and conflict-detector share a library. All engines read only these raw edges, never derived <code>DEPENDS_ON</code> edges.</p>
+    </div>
+    <div class="two">
+      <div class="fig">
+        <div class="fig-bar">
+          <span class="key"><span class="ln"></span>publish / subscribe (data flow)</span>
+          <span class="key"><span class="ln dash"></span>routes</span>
+          <span class="key"><span class="ln dot"></span>uses library</span>
+          <span class="key"><span class="sw" style="border-style:dashed"></span>host (runs on)</span>
+        </div>
+        <svg id="topo0" viewBox="0 0 780 420" role="img" aria-label="Topology of the mini air-traffic system"></svg>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Topic</th><th>Rate</th><th>QoS</th><th>w(t)</th></tr></thead>
+          <tbody id="topic-tbl"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="picker">
+    <span class="picker-label">Fail</span>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">FaultInjector · I*(v) · training labels</div>
+      <h2>Who starves once the failure has cascaded?</h2>
+      <p>The cascade runs in waves. In each wave a topic's loss is the worse of its publisher loss and its router loss, scaled by a QoS factor. A subscriber whose <b>mean feed loss reaches 0.2</b> may fail, which silences whatever it publishes in the next wave. The score is the mean final feed loss over the four subscribers.</p>
+    </div>
+    <div class="panel">
+      <div class="fig">
+        <div class="fig-bar">
+          <div class="steps" id="fi-steps"></div>
+          <span class="key"><span class="sw origin"></span>injected</span>
+          <span class="key"><span class="sw failed"></span>failed in wave</span>
+          <span class="key"><span class="sw lost"></span>topic losing feed</span>
+        </div>
+        <svg id="topo-fi" viewBox="0 0 780 420" role="img" aria-label="FaultInjector cascade"></svg>
+      </div>
+      <div class="read" id="fi-read"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">FailureSimulator · I_comp(v) · validation oracle</div>
+      <h2>What does the system as a whole lose?</h2>
+      <p>Each component carries an impact between 0 and 1. Hosts pass their impact to residents, libraries to users, publishers to topics. Redundancy is a <b>minimum</b>: a topic takes the least impaired of its brokers, a subscriber the least impaired of its feeds. A logical hop fires with probability equal to the edge's QoS weight. The score then combines four system-wide losses.</p>
+    </div>
+    <div class="panel">
+      <div class="fig">
+        <div class="fig-bar">
+          <span class="key"><span class="sw origin"></span>injected</span>
+          <span class="key"><span class="sw failed"></span>failed (impact 1)</span>
+          <span class="key"><span class="sw lost"></span>degraded (impact below 1)</span>
+          <span>badge = cascade depth</span>
+        </div>
+        <svg id="topo-fs" viewBox="0 0 780 420" role="img" aria-label="FailureSimulator cascade"></svg>
+      </div>
+      <div class="read" id="fs-read"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">MessageFlowSimulator · I_dyn(v) · research probe</div>
+      <h2>How much less traffic gets through over time?</h2>
+      <p>This engine runs 60 simulated seconds. Publishers emit at each topic's declared rate, subscribers queue and serve messages, and the component fails at 30 s. The score is the delivery rate before the fault minus the rate after it. Healthy demand here is <b>74 deliveries per second</b>: 40 + 30 + 2 + 2.</p>
+    </div>
+    <div class="panel">
+      <div class="fig" id="mf-fig"></div>
+      <div class="read" id="mf-read"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">ChangePropagationSimulator · I_M(v) · maintainability</div>
+      <h2>If its interface changes, who has to adapt?</h2>
+      <p>This is a development-time question, not a runtime failure. The engine first re-derives dependency arcs from the raw edges, then walks them backwards from the changed component. Every direct dependent is reached. The walk continues <b>through</b> a dependent only if the coupling weight is at least 0.20 and the dependent's instability is at least 0.20.</p>
+    </div>
+    <div class="panel">
+      <div class="fig">
+        <div class="fig-bar">
+          <span class="key"><span class="sw origin"></span>changed</span>
+          <span class="key"><span class="sw reached"></span>must adapt</span>
+          <span>edge label = dependency weight</span>
+        </div>
+        <svg id="cp-svg" viewBox="0 0 700 200" role="img" aria-label="Change propagation"></svg>
+      </div>
+      <div class="read" id="cp-read"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Side by side</div>
+      <h2>Four engines, four different rankings</h2>
+      <p>The scores live on different scales and answer different questions, so only their rankings are comparable. Radar tops I* and I_dyn yet sits at the bottom of I_comp, because its only topic carries little QoS weight. Display scores zero on I* as a pure sink, yet 0.296 on I_comp, because three of the eight delivery paths end there.</p>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Component</th><th>Type</th><th>I* cascade</th><th>I_comp system</th><th>I_dyn delivery</th><th>I_M change</th></tr></thead>
+        <tbody id="cmp-tbl"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p><b>How these numbers were produced.</b> <code>FaultInjector</code> with the five recommended seeds over every node type. <code>SimulationService.run_failure_simulation_exhaustive("system")</code> on a <code>MemoryRepository</code>, plus one single run for the library. <code>MessageFlowSimulator</code> with duration 60 s, fault at 30 s, seed 42, full QoS and target utilisation 0.65. <code>ChangePropagationSimulator</code> on the dependency view that <code>FailureSimulator</code> builds.</p>
+    <p>All options are the published defaults. A different run seed can change which probabilistic hops fire in the FailureSimulator runs. The topology is a hand-made demo (<code>examples/mini_atm.json</code>) and is not part of the scenario corpus. Regenerate this page with <code>python examples/run_simulator_walkthrough.py</code>.</p>
+  </footer>
+</div>
+
+<script>
+const R = {"fi":{"A1":{"score":0.8333,"std":0.0,"depth":3,"loss":{"A2":1.0,"A3":1.0,"A5":0.6667,"A6":0.6667},"waves":[{"topics":["T1"],"subs":["A2","A6"],"failed":["A2","A6"]},{"topics":["T2"],"subs":["A3","A5"],"failed":["A3","A5"]},{"topics":["T3"],"subs":[],"failed":[]}]},"A2":{"score":0.5,"std":0.0,"depth":2,"loss":{"A2":0.0,"A3":1.0,"A5":0.6667,"A6":0.3333},"waves":[{"topics":["T2"],"subs":["A3","A5","A6"],"failed":["A3","A5","A6"]},{"topics":["T3"],"subs":[],"failed":[]}]},"A3":{"score":0.0833,"std":0.0,"depth":1,"loss":{"A2":0.0,"A3":0.0,"A5":0.3333,"A6":0.0},"waves":[{"topics":["T3"],"subs":["A5"],"failed":["A5"]}]},"A4":{"score":0.1667,"std":0.0,"depth":1,"loss":{"A2":0.0,"A3":0.0,"A5":0.3333,"A6":0.3333},"waves":[{"topics":["T4"],"subs":["A5","A6"],"failed":["A5","A6"]}]},"A5":{"score":0.0,"std":0.0,"depth":0,"loss":{"A2":0.0,"A3":0.0,"A5":0.0,"A6":0.0},"waves":[]},"A6":{"score":0.0,"std":0.0,"depth":0,"loss":{"A2":0.0,"A3":0.0,"A5":0.0,"A6":0.0},"waves":[]},"B1":{"score":0.8333,"std":0.0,"depth":2,"loss":{"A2":1.0,"A3":1.0,"A5":0.6667,"A6":0.6667},"waves":[{"topics":["T1","T2"],"subs":["A2","A3","A5","A6"],"failed":["A2","A3","A5","A6"]},{"topics":["T3"],"subs":[],"failed":[]}]},"B2":{"score":0.5375,"std":0.0,"depth":1,"loss":{"A2":0.0,"A3":0.69,"A5":0.8967,"A6":0.5633},"waves":[{"topics":["T2","T3","T4"],"subs":["A3","A5","A6"],"failed":["A3","A5","A6"]}]},"T1":{"score":0.8333,"std":0.0,"depth":3,"loss":{"A2":1.0,"A3":1.0,"A5":0.6667,"A6":0.6667},"waves":[{"topics":["T1"],"subs":["A2","A6"],"failed":["A2","A6"]},{"topics":["T2"],"subs":["A3","A5"],"failed":["A3","A5"]},{"topics":["T3"],"subs":[],"failed":[]}]},"T2":{"score":0.5,"std":0.0,"depth":2,"loss":{"A2":0.0,"A3":1.0,"A5":0.6667,"A6":0.3333},"waves":[{"topics":["T2"],"subs":["A3","A5","A6"],"failed":["A3","A5","A6"]},{"topics":["T3"],"subs":[],"failed":[]}]},"T3":{"score":0.0833,"std":0.0,"depth":1,"loss":{"A2":0.0,"A3":0.0,"A5":0.3333,"A6":0.0},"waves":[{"topics":["T3"],"subs":["A5"],"failed":["A5"]}]},"T4":{"score":0.1667,"std":0.0,"depth":1,"loss":{"A2":0.0,"A3":0.0,"A5":0.3333,"A6":0.3333},"waves":[{"topics":["T4"],"subs":["A5","A6"],"failed":["A5","A6"]}]},"N1":{"score":0.8333,"std":0.0,"depth":2,"loss":{"A2":1.0,"A3":1.0,"A5":0.6667,"A6":0.6667},"waves":[{"topics":["T1","T2"],"subs":["A3","A5","A6"],"failed":["A3","A5","A6"]},{"topics":["T3"],"subs":[],"failed":[]}]},"N2":{"score":0.5375,"std":0.0,"depth":1,"loss":{"A2":0.0,"A3":0.69,"A5":0.8967,"A6":0.5633},"waves":[{"topics":["T2","T3","T4"],"subs":[],"failed":[]}]},"L1":{"score":0.5,"std":0.0,"depth":1,"loss":{"A2":0.0,"A3":1.0,"A5":0.6667,"A6":0.3333},"waves":[{"topics":["T2","T3"],"subs":["A5","A6"],"failed":["A2","A3","A5","A6"]}]}},"fs":{"N1":{"comp":0.7462,"RL":1.0,"FR":0.0,"TL":1.0,"FD":1.0,"paths":[8,0],"failed":["A1","A2","A3","A4","A5","A6","B1","B2","N2"],"seq":[{"id":"N1","cause":"initial_failure","depth":0},{"id":"A1","cause":"hosted_on:N1","depth":1},{"id":"A2","cause":"hosted_on:N1","depth":1},{"id":"B1","cause":"hosted_on:N1","depth":1},{"id":"N2","cause":"network_partition:N1","depth":1},{"id":"T1","cause":"sl_starvation:1.00 (via A1)","depth":2},{"id":"A3","cause":"hosted_on:N2","depth":2},{"id":"A4","cause":"hosted_on:N2","depth":2},{"id":"A5","cause":"hosted_on:N2","depth":2},{"id":"A6","cause":"hosted_on:N2","depth":2},{"id":"B2","cause":"hosted_on:N2","depth":2},{"id":"T2","cause":"no_active_brokers:B2","depth":3},{"id":"T3","cause":"no_active_brokers:B2","depth":3},{"id":"T4","cause":"no_active_brokers:B2","depth":3}]},"N2":{"comp":0.7105,"RL":0.9645,"FR":0.0,"TL":0.9283,"FD":0.9645,"paths":[8,1],"failed":["A3","A4","A5","A6","B2"],"seq":[{"id":"N2","cause":"initial_failure","depth":0},{"id":"A3","cause":"hosted_on:N2","depth":1},{"id":"A4","cause":"hosted_on:N2","depth":1},{"id":"A5","cause":"hosted_on:N2","depth":1},{"id":"A6","cause":"hosted_on:N2","depth":1},{"id":"B2","cause":"hosted_on:N2","depth":1},{"id":"T4","cause":"sl_starvation:1.00 (via A4)","depth":2}]},"A2":{"comp":0.316,"RL":0.5031,"FR":0.0,"TL":0.2899,"FD":0.4668,"paths":[8,4],"failed":[],"seq":[{"id":"A2","cause":"initial_failure","depth":0},{"id":"T2","cause":"sl_starvation:1.00 (via A2)","depth":1},{"id":"A3","cause":"subscriber_starvation:T2","depth":2},{"id":"T3","cause":"sl_starvation:0.59 (via A3)","depth":3}]},"A5":{"comp":0.2961,"RL":0.4604,"FR":0.0,"TL":0.2733,"FD":0.4604,"paths":[8,5],"failed":[],"seq":[{"id":"A5","cause":"initial_failure","depth":0}]},"B2":{"comp":0.2711,"RL":0.0,"FR":0.0,"TL":0.7834,"FD":0.4977,"paths":[8,8],"failed":[],"seq":[{"id":"B2","cause":"initial_failure","depth":0},{"id":"T4","cause":"no_active_brokers:B2","depth":1}]},"A4":{"comp":0.271,"RL":0.3621,"FR":0.0,"TL":0.3651,"FD":0.3621,"paths":[8,6],"failed":[],"seq":[{"id":"A4","cause":"initial_failure","depth":0},{"id":"T4","cause":"sl_starvation:1.00 (via A4)","depth":1}]},"A3":{"comp":0.2069,"RL":0.2793,"FR":0.0,"TL":0.2733,"FD":0.2793,"paths":[8,6],"failed":[],"seq":[{"id":"A3","cause":"initial_failure","depth":0},{"id":"T3","cause":"sl_starvation:1.00 (via A3)","depth":1}]},"A6":{"comp":0.1775,"RL":0.3604,"FR":0.0,"TL":0.0,"FD":0.3604,"paths":[8,5],"failed":[],"seq":[{"id":"A6","cause":"initial_failure","depth":0}]},"B1":{"comp":0.0653,"RL":0.0,"FR":0.0,"TL":0.2166,"FD":0.0711,"paths":[8,8],"failed":[],"seq":[{"id":"B1","cause":"initial_failure","depth":0}]},"A1":{"comp":0.0532,"RL":0.0711,"FR":0.0,"TL":0.0717,"FD":0.0711,"paths":[8,6],"failed":[],"seq":[{"id":"A1","cause":"initial_failure","depth":0}]},"L1":{"comp":0.4396,"RL":0.6023,"FR":0.0,"TL":0.5632,"FD":0.6023,"paths":[8,3],"failed":["A2","A3"],"seq":[{"id":"L1","cause":"initial_failure","depth":0},{"id":"A2","cause":"uses_library:L1","depth":0},{"id":"A3","cause":"uses_library:L1","depth":0},{"id":"T2","cause":"sl_starvation:1.00 (via A2)","depth":1},{"id":"T3","cause":"sl_starvation:1.00 (via A3)","depth":1}]}},"fs_weights":{"reachability":0.3472,"fragmentation":0.2538,"throughput":0.2538,"flow_disruption":0.1453},"cp":{"N1":{"reached":["N2"],"reach":0.0714,"wimp":0.0588,"depth":1,"ndepth":0.5,"trace":[{"id":"N2","from":"N1","d":1,"w":0.6513,"stop":""}]},"N2":{"reached":["N1"],"reach":0.0714,"wimp":0.0338,"depth":1,"ndepth":0.5,"trace":[{"id":"N1","from":"N2","d":1,"w":0.5915,"stop":""}]},"B1":{"reached":["A1","A2","A3","A5","A6","N1","N2"],"reach":0.5,"wimp":0.2697,"depth":1,"ndepth":0.5,"trace":[{"id":"A1","from":"B1","d":1,"w":0.1462,"stop":"loose"},{"id":"A2","from":"B1","d":1,"w":0.6513,"stop":""},{"id":"A3","from":"B1","d":1,"w":0.5915,"stop":""},{"id":"A5","from":"B1","d":1,"w":0.5915,"stop":""},{"id":"A6","from":"B1","d":1,"w":0.6513,"stop":""},{"id":"N1","from":"B1","d":1,"w":0.6513,"stop":""},{"id":"N2","from":"B1","d":1,"w":0.6513,"stop":""}]},"B2":{"reached":["A2","A3","A4","A5","A6","N1","N2"],"reach":0.5,"wimp":0.4165,"depth":1,"ndepth":0.5,"trace":[{"id":"A2","from":"B2","d":1,"w":0.5915,"stop":""},{"id":"A3","from":"B2","d":1,"w":0.8193,"stop":""},{"id":"A4","from":"B2","d":1,"w":0.745,"stop":""},{"id":"A5","from":"B2","d":1,"w":0.9539,"stop":""},{"id":"A6","from":"B2","d":1,"w":0.8959,"stop":""},{"id":"N1","from":"B2","d":1,"w":0.5915,"stop":""},{"id":"N2","from":"B2","d":1,"w":0.9539,"stop":""}]},"T1":{"reached":[],"reach":0.0,"wimp":0.0,"depth":0,"ndepth":0.0,"trace":[]},"T2":{"reached":[],"reach":0.0,"wimp":0.0,"depth":0,"ndepth":0.0,"trace":[]},"T3":{"reached":[],"reach":0.0,"wimp":0.0,"depth":0,"ndepth":0.0,"trace":[]},"T4":{"reached":[],"reach":0.0,"wimp":0.0,"depth":0,"ndepth":0.0,"trace":[]},"A1":{"reached":["A2","A6"],"reach":0.1429,"wimp":0.0189,"depth":1,"ndepth":0.5,"trace":[{"id":"A2","from":"A1","d":1,"w":0.1462,"stop":"loose"},{"id":"A6","from":"A1","d":1,"w":0.1462,"stop":"loose"}]},"A2":{"reached":["A3","A5","A6"],"reach":0.2143,"wimp":0.1297,"depth":1,"ndepth":0.5,"trace":[{"id":"A3","from":"A2","d":1,"w":0.5915,"stop":""},{"id":"A5","from":"A2","d":1,"w":0.5915,"stop":""},{"id":"A6","from":"A2","d":1,"w":0.5915,"stop":""}]},"A3":{"reached":["A5"],"reach":0.0714,"wimp":0.0434,"depth":1,"ndepth":0.5,"trace":[{"id":"A5","from":"A3","d":1,"w":0.5577,"stop":""}]},"A4":{"reached":["A5","A6"],"reach":0.1429,"wimp":0.1114,"depth":1,"ndepth":0.5,"trace":[{"id":"A5","from":"A4","d":1,"w":0.745,"stop":""},{"id":"A6","from":"A4","d":1,"w":0.745,"stop":""}]},"A5":{"reached":[],"reach":0.0,"wimp":0.0,"depth":0,"ndepth":0.0,"trace":[]},"A6":{"reached":[],"reach":0.0,"wimp":0.0,"depth":0,"ndepth":0.0,"trace":[]},"L1":{"reached":["A2","A3","A5","A6"],"reach":0.2857,"wimp":0.1652,"depth":2,"ndepth":1.0,"trace":[{"id":"A2","from":"L1","d":1,"w":0.5675,"stop":""},{"id":"A3","from":"L1","d":1,"w":0.6362,"stop":""},{"id":"A5","from":"A2","d":2,"w":0.5915,"stop":""},{"id":"A6","from":"A2","d":2,"w":0.5915,"stop":""}]}},"instab":{"N1":0.75,"N2":0.75,"B1":0.0,"B2":0.0,"T1":0.0,"T2":0.0,"T3":0.0,"T4":0.0,"A1":0.3333,"A2":0.5714,"A3":0.8,"A4":0.3333,"A5":1.0,"A6":1.0,"L1":0.0},"mf":{"A1":{"idyn":0.5319,"pre":0.981,"post":0.4491,"per_topic":{"T1":0.9741,"T2":0.0122,"T3":0.0,"T4":0.0},"bins":{"T1":[36,42,37,27,37,43,41,38,41,38,41,39,40,40,41,40,40,39,41,38,41,41,38,40,33,38,37,38,42,37,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"T2":[27,28,30,31,29,32,30,21,32,26,33,26,30,32,30,30,30,28,32,30,26,32,31,31,29,31,30,25,34,29,29,29,30,31,31,30,22,32,29,31,28,30,33,30,30,30,24,30,32,29,24,31,22,35,30,28,30,29,31,29],"T3":[1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],"T4":[0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]},"deadline":60,"overflow":3,"published":1376,"delivered":3168},"A2":{"idyn":0.5397,"pre":0.9839,"post":0.4442,"per_topic":{"T1":-0.0234,"T2":0.9877,"T3":0.0,"T4":0.0},"bins":{"T1":[36,42,37,27,37,43,41,38,41,38,41,39,40,40,41,40,40,39,41,38,41,41,38,40,33,38,37,38,42,37,23,20,20,20,19,21,20,20,20,20,20,20,20,19,21,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20],"T2":[27,28,30,31,29,32,30,21,32,26,33,26,30,32,30,30,30,28,32,30,26,32,31,31,29,31,30,25,34,29,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"T3":[1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],"T4":[0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]},"deadline":39,"overflow":3,"published":1677,"delivered":2890},"A3":{"idyn":0.0254,"pre":0.9838,"post":0.9584,"per_topic":{"T1":-0.0092,"T2":0.0,"T3":1.0,"T4":0.0},"bins":{"T1":[36,42,37,27,37,43,41,38,41,38,41,39,40,40,41,40,40,39,41,38,41,41,38,40,33,38,37,38,42,37,41,42,40,38,37,40,40,40,39,38,39,39,39,41,37,39,37,39,41,38,40,41,41,40,39,38,40,42,39,41],"T2":[27,28,30,31,29,32,30,21,32,26,33,26,30,32,30,30,30,28,32,30,26,32,31,31,29,31,30,25,34,29,21,20,20,20,19,19,20,22,19,21,19,20,21,20,19,21,20,20,20,20,20,20,20,20,19,21,20,20,20,20],"T3":[1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"T4":[0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]},"deadline":57,"overflow":3,"published":1917,"delivered":4012},"A4":{"idyn":0.026,"pre":0.981,"post":0.955,"per_topic":{"T1":-0.0001,"T2":-0.0023,"T3":0.0,"T4":1.0},"bins":{"T1":[36,42,37,27,37,43,41,38,41,38,41,39,40,40,41,40,40,39,41,38,41,41,38,40,33,38,37,38,42,37,40,43,40,37,42,41,40,40,40,28,30,38,38,41,39,40,41,40,40,38,37,40,42,40,39,40,37,43,40,40],"T2":[27,28,30,31,29,32,30,21,32,26,33,26,30,32,30,30,30,28,32,30,26,32,31,31,29,31,30,25,34,29,30,29,31,20,31,29,31,31,30,28,29,32,31,30,29,30,31,28,30,31,31,29,30,31,30,29,30,31,29,31],"T3":[1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],"T4":[0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"deadline":81,"overflow":5,"published":1947,"delivered":4292},"A5":{"idyn":-0.0094,"pre":0.977,"post":0.9864,"per_topic":{"T1":-0.0051,"T2":-0.0184,"T4":0.0},"bins":{"T1":[36,42,37,27,37,43,41,38,41,38,41,39,40,40,41,40,40,39,41,38,41,41,38,40,33,38,37,38,42,37,40,42,41,38,28,42,37,44,39,40,38,35,42,40,30,44,39,41,40,39,40,41,39,40,39,41,41,39,39,42],"T2":[27,28,30,31,29,32,30,21,32,26,33,26,30,32,30,30,30,28,32,30,26,32,31,31,29,31,30,25,34,29,21,20,19,21,19,19,22,20,18,22,20,20,20,20,19,21,18,22,18,20,22,18,21,20,18,22,21,18,20,22],"T3":[1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"T4":[0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},"deadline":61,"overflow":4,"published":1977,"delivered":3977},"A6":{"idyn":0.0022,"pre":0.979,"post":0.9768,"per_topic":{"T1":0.0149,"T2":-0.0101,"T3":0.0,"T4":0.0},"bins":{"T1":[36,42,37,27,37,43,41,38,41,38,41,39,40,40,41,40,40,39,41,38,41,41,38,40,33,38,37,38,42,37,21,19,21,20,18,18,21,20,19,20,21,20,20,20,20,18,10,15,17,21,17,22,21,18,22,19,21,19,21,18],"T2":[27,28,30,31,29,32,30,21,32,26,33,26,30,32,30,30,30,28,32,30,26,32,31,31,29,31,30,25,34,29,21,20,17,23,20,19,17,22,22,18,21,21,19,20,21,15,21,18,21,21,16,23,21,20,19,21,18,20,21,20],"T3":[1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],"T4":[0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},"deadline":65,"overflow":3,"published":1977,"delivered":3429}},"topic_w":{"T1":0.1462,"T2":0.5915,"T3":0.5577,"T4":0.745}};
+
+const N = {
+  B1:{t:'Broker',name:'sensor-broker',sub:'B1 · on N1',x:210,y:46,w:110,h:36,host:'N1'},
+  B2:{t:'Broker',name:'ops-broker',sub:'B2 · on N2',x:490,y:46,w:110,h:36,host:'N2'},
+  T1:{t:'Topic',name:'radar.plots',sub:'T1 · 20 Hz',x:130,y:150,w:100,h:36},
+  T2:{t:'Topic',name:'tracks',sub:'T2 · 10 Hz',x:290,y:150,w:100,h:36},
+  T3:{t:'Topic',name:'conflict.alerts',sub:'T3 · 2 Hz',x:530,y:150,w:100,h:36},
+  T4:{t:'Topic',name:'flight.plans',sub:'T4 · 1 Hz',x:650,y:150,w:100,h:36},
+  A1:{t:'Application',name:'radar',sub:'A1',x:68,y:282,w:100,h:38,host:'N1'},
+  A2:{t:'Application',name:'tracker',sub:'A2',x:193,y:282,w:100,h:38,host:'N1'},
+  A6:{t:'Application',name:'recorder',sub:'A6',x:350,y:282,w:100,h:38,host:'N2'},
+  A3:{t:'Application',name:'conflict-detector',sub:'A3',x:470,y:282,w:106,h:38,host:'N2'},
+  A5:{t:'Application',name:'display',sub:'A5',x:590,y:282,w:100,h:38,host:'N2'},
+  A4:{t:'Application',name:'flight-plan',sub:'A4',x:710,y:282,w:100,h:38,host:'N2'},
+  L1:{t:'Library',name:'track-model',sub:'L1 · library',x:330,y:388,w:100,h:36},
+  N1:{t:'Node',name:'sensor-host',box:{x:8,y:248,w:242,h:92},x:129,y:340,w:242,h:10},
+  N2:{t:'Node',name:'ops-host',box:{x:288,y:248,w:484,h:92},x:530,y:340,w:484,h:10},
+};
+const ORDER = ['N1','N2','B1','B2','L1','A1','A2','A3','A4','A5','A6','T1','T2','T3','T4'];
+const SUBS = ['A2','A3','A5','A6'];
+const E = [
+  ['A1','T1','flow'],['A2','T2','flow'],['A3','T3','flow'],['A4','T4','flow'],
+  ['T1','A2','flow'],['T2','A3','flow'],['T2','A5','flow'],['T3','A5','flow'],['T4','A5','flow'],['T1','A6','flow'],['T2','A6','flow'],['T4','A6','flow'],
+  ['B1','T1','routes'],['B1','T2','routes'],['B2','T2','routes'],['B2','T3','routes'],['B2','T4','routes'],
+  ['A2','L1','uses'],['A3','L1','uses'],
+];
+const TOPICS = [
+  ['T1','20 Hz','best effort, volatile, medium'],['T2','10 Hz','reliable, transient-local, high'],
+  ['T3','2 Hz','reliable, transient-local, high'],['T4','1 Hz','reliable, persistent, low'],
+];
+const NS = 'http://www.w3.org/2000/svg';
+const f3 = v => v.toFixed(3);
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const nm = id => N[id].name;
+
+function el(tag, attrs, parent, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function clip(a, b, pad) {
+  const dx = b.x - a.x, dy = b.y - a.y, hw = a.w / 2 + pad, hh = a.h / 2 + pad;
+  const s = Math.min(dx ? hw / Math.abs(dx) : Infinity, dy ? hh / Math.abs(dy) : Infinity);
+  return { x: a.x + dx * s, y: a.y + dy * s };
+}
+function arrow(svg, p1, p2, cls) {
+  const a = Math.atan2(p2.y - p1.y, p2.x - p1.x), s = 7, w = 0.42;
+  const pts = [[p2.x, p2.y], [p2.x - s * Math.cos(a - w), p2.y - s * Math.sin(a - w)], [p2.x - s * Math.cos(a + w), p2.y - s * Math.sin(a + w)]];
+  el('polygon', { points: pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' '), class: 'ah ' + cls }, svg);
+}
+function badge(g, x, y, text) {
+  const w = text.length * 6.2 + 9, b = el('g', { class: 'bdg' }, g);
+  el('rect', { x: x - w, y: y - 8, width: w, height: 15, rx: 3 }, b);
+  el('text', { x: x - w / 2, y: y + 3.4 }, b, text);
+}
+function nodeShape(g, n) {
+  const x = n.x - n.w / 2, y = n.y - n.h / 2;
+  if (n.t === 'Broker') {
+    const c = 9;
+    el('polygon', { points: [[x + c, y], [x + n.w - c, y], [x + n.w, y + c], [x + n.w, y + n.h - c], [x + n.w - c, y + n.h], [x + c, y + n.h], [x, y + n.h - c], [x, y + c]].map(p => p.join(',')).join(' ') }, g);
+  } else {
+    el('rect', { x, y, width: n.w, height: n.h, rx: n.t === 'Topic' ? n.h / 2 : 5 }, g);
+  }
+}
+const DEAD = { origin: 1, failed: 1, lost: 1 };
+
+function drawTopo(svg, state = {}, badges = {}) {
+  svg.textContent = '';
+  for (const h of ['N1', 'N2']) {
+    const b = N[h].box, g = el('g', { class: 'n host ' + (state[h] || ''), 'data-id': h }, svg);
+    el('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 6 }, g);
+    const right = h === 'N2';
+    el('text', { class: 'nm', x: right ? b.x + b.w - 10 : b.x + 10, y: b.y + b.h - 9, style: 'text-anchor:' + (right ? 'end' : 'start') }, g, h + ' · ' + N[h].name);
+    if (badges[h]) badge(g, b.x + b.w - 4, b.y + 2, badges[h]);
+  }
+  el('line', { class: 'link', x1: 250, y1: 294, x2: 288, y2: 294 }, svg);
+  el('text', { class: 'lbl', x: 269, y: 286, style: 'text-anchor:middle' }, svg, 'link');
+  for (const [u, v, kind] of E) {
+    const cut = DEAD[state[u]] || DEAD[state[v]] || (N[u].host && state[N[u].host] === 'origin') || (N[v].host && state[N[v].host] === 'origin');
+    const p1 = clip(N[u], N[v], 1), p2 = clip(N[v], N[u], kind === 'flow' ? 3 : 1);
+    el('line', { class: 'e ' + kind + (cut ? ' cut' : ''), x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }, svg);
+    if (kind === 'flow') arrow(svg, p1, p2, cut ? 'cut' : '');
+  }
+  for (const id in N) {
+    const n = N[id]; if (n.box) continue;
+    const g = el('g', { class: 'n ' + (n.t === 'Library' ? 'lib ' : '') + (state[id] || ''), 'data-id': id }, svg);
+    nodeShape(g, n);
+    el('text', { class: 'nm', x: n.x, y: n.y - 1 }, g, n.name);
+    el('text', { class: 'sb', x: n.x, y: n.y + 11.5 }, g, n.sub);
+    if (badges[id]) badge(g, n.x + n.w / 2 + 5, n.y - n.h / 2 - 1, badges[id]);
+  }
+}
+
+/* ---------- state ---------- */
+let sel = 'A1', fiStep = -1; // -1 = final
+const residents = h => Object.keys(N).filter(id => N[id].host === h);
+
+function scoreBlock(sym, val, sub) {
+  return `<div class="score"><span class="sym">${sym}</span><span class="val">${val}</span><span class="sub">${sub}</span></div>`;
+}
+function barRow(label, v, text, cls) {
+  return `<div class="bar-row"><span class="lab">${esc(label)}</span><span class="track"><span class="fill ${cls || ''}" style="display:block;width:${Math.max(0, Math.min(1, v)) * 100}%"></span></span><span class="num">${text}</span></div>`;
+}
+
+/* ---------- FaultInjector ---------- */
+const FI_NOTE = {
+  A1: 'Radar is the only publisher of radar.plots. Wave 0: tracker and recorder lose that feed and fail (recorder at a loss of 1/3, already above 0.2). Wave 1: with tracker gone, tracks goes silent, so conflict-detector and display fail. Wave 2: conflict.alerts goes silent. Display and recorder still receive flight.plans, so each ends at 2 of 3 feeds lost.',
+  A2: 'Tracker is the only publisher of tracks. All three of its subscribers pass the threshold in wave 0, and conflict-detector takes conflict.alerts down with it in wave 1. Recorder loses 1 of 3 feeds, display 2 of 3.',
+  A3: 'Only display reads conflict.alerts. It loses 1 of its 3 feeds; averaged over four subscribers that is 0.083.',
+  A4: 'Display and recorder each lose flight.plans, 1 of their 3 feeds: (0.333 + 0.333) / 4 = 0.167.',
+  A5: 'Display only subscribes. Its failure removes no feed from anyone else, so a pure sink always scores 0 here.',
+  A6: 'Recorder only subscribes. Its failure removes no feed from anyone else, so a pure sink always scores 0 here.',
+  B1: 'Sensor-broker is the only router of radar.plots, so tracker loses its sole feed and fails in wave 0. That silences tracks completely in wave 1, even though ops-broker still routes it. The end state equals the radar failure.',
+  B2: 'Ops-broker is the only router of conflict.alerts and flight.plans and one of two routers of tracks. Tracks loses half its routing: 0.5 × 1.2 (reliable) × 1.15 (high priority) = 0.69. So conflict-detector loses 0.69, display (0.69 + 1 + 1) / 3 = 0.897 and recorder (0 + 0.69 + 1) / 3 = 0.563.',
+  N1: 'The host takes radar, tracker and sensor-broker with it at once. From there the cascade is the radar failure: tracks and then conflict.alerts go silent.',
+  N2: 'The host takes four applications and ops-broker with it. The score still counts the feed loss of every subscriber, including those that went down with the host, so it equals the ops-broker failure.',
+  L1: 'Applications that use a failed library fail outright before any feed is counted. Tracker and conflict-detector go down together, silencing tracks and conflict.alerts. The end state equals the tracker failure.',
+  T1: 'A failed topic loses everything. radar.plots has one publisher, so the result equals the radar failure.',
+  T2: 'A failed topic loses everything, whatever its two brokers do. The result equals the tracker failure.',
+  T3: 'A failed topic loses everything. The result equals the conflict-detector failure.',
+  T4: 'A failed topic loses everything. The result equals the flight-plan failure.',
+};
+function renderFI() {
+  const r = R.fi[sel], nW = r.waves.length, last = fiStep < 0 ? nW - 1 : fiStep;
+  const steps = document.getElementById('fi-steps');
+  steps.innerHTML = r.waves.map((_, i) => `<button class="step" data-step="${i}" aria-pressed="${fiStep === i}">wave ${i}</button>`).join('') + `<button class="step" data-step="-1" aria-pressed="${fiStep < 0}">final loss</button>`;
+  const st = { [sel]: 'origin' }, bd = {};
+  if (N[sel].t === 'Node') for (const id of residents(sel)) { st[id] = 'failed'; bd[id] = 'host'; }
+  for (let i = 0; i <= last; i++) {
+    for (const t of r.waves[i].topics) if (!st[t]) { st[t] = 'lost'; bd[t] = 'w' + i; }
+    for (const a of r.waves[i].failed) if (!st[a]) { st[a] = 'failed'; bd[a] = 'w' + i; }
+  }
+  if (fiStep < 0) for (const s of SUBS) if (r.loss[s] > 0) bd[s] = 'loss ' + r.loss[s].toFixed(2);
+  drawTopo(document.getElementById('topo-fi'), st, bd);
+  document.getElementById('fi-read').innerHTML =
+    scoreBlock('I*(' + sel + ')', f3(r.score), `${nW} wave${nW === 1 ? '' : 's'} · spread over 5 seeds ${f3(r.std)}`) +
+    `<div class="rows"><h3>Final feed loss per subscriber</h3>${SUBS.map(s => barRow(nm(s), r.loss[s], f3(r.loss[s]), 'f')).join('')}</div>` +
+    `<p class="note">${FI_NOTE[sel]}</p>`;
+}
+
+/* ---------- FailureSimulator ---------- */
+const FS_NOTE = {
+  A1: 'Only the injected failure appears in the log. The hop from radar to radar.plots fires with probability 0.146, the QoS weight of that best-effort, volatile edge, and in this seeded run it did not fire. Two paths are still severed, but they carry little QoS weight, so every term stays small.',
+  A2: 'tracks is starved to an impact of 0.59, its QoS weight. Conflict-detector has no other feed, so it is degraded and weakens conflict.alerts in turn. Display and recorder each keep a healthy feed, and the minimum rule leaves them up.',
+  A3: 'conflict.alerts is starved. Display still has two healthy feeds, so the minimum rule leaves it up. The loss comes from the paths that ran through conflict-detector.',
+  A4: 'flight.plans is starved. Display and recorder keep other healthy feeds, so nobody downstream is marked. flight.plans carries the heaviest QoS weight, which is why a 1 Hz topic still scores 0.271.',
+  A5: 'Display publishes nothing, so nothing cascades. It still scores well above zero: three of the eight publisher-to-subscriber paths end here, and they carry 46% of the QoS weight.',
+  A6: 'Recorder publishes nothing, so nothing cascades. Three of the eight paths end here, including the light radar.plots one.',
+  B1: 'No cascade event. tracks keeps ops-broker, so its minimum over brokers stays 0, and the hop to radar.plots did not fire in this seeded run. No path is severed; only throughput and a few flows register.',
+  B2: 'flight.plans starves because no other broker routes it. tracks survives on sensor-broker. The hop to conflict.alerts is probabilistic and did not fire in this seeded run. No path counts as severed, so the score comes from throughput and flow disruption.',
+  N1: 'Everything on sensor-host fails. The legacy network rule then isolates ops-host too, because the only link is declared from N1 to N2 and the rule follows outgoing links only. That asymmetry is a documented limitation: failing N2 does not isolate N1. network_gating=True replaces the rule with undirected reachability.',
+  N2: 'Four applications and ops-broker fail with the host. One path survives, radar to tracker over radar.plots on sensor-host.',
+  L1: 'A library fails its users at depth 0, before the cascade starts. Tracker and conflict-detector go down and their topics starve. Libraries are outside the system-layer sweep, so this is a single run.',
+};
+const TERMS = [['RL', 'reachability', 'Reachability loss'], ['FR', 'fragmentation', 'Fragmentation'], ['TL', 'throughput', 'Throughput loss'], ['FD', 'flow_disruption', 'Flow disruption']];
+function cause(c) {
+  let m;
+  if (c === 'initial_failure') return 'injected failure';
+  if ((m = c.match(/^hosted_on:(.+)/))) return 'runs on ' + m[1];
+  if ((m = c.match(/^network_partition:(.+)/))) return 'its only link was to ' + m[1];
+  if ((m = c.match(/^sl_starvation:([\d.]+) \(via (.+)\)/))) return `publisher ${m[2]} impaired (mean publisher impact ${m[1]})`;
+  if ((m = c.match(/^no_active_brokers:(.+)/))) return 'no healthy broker left after ' + m[1];
+  if ((m = c.match(/^subscriber_starvation:(.+)/))) return 'every feed impaired, last via ' + m[1];
+  if ((m = c.match(/^uses_library:(.+)/))) return 'uses ' + m[1];
+  return c;
+}
+function renderFS() {
+  const r = R.fs[sel], svg = document.getElementById('topo-fs'), out = document.getElementById('fs-read');
+  if (!r) {
+    drawTopo(svg, { [sel]: 'origin' });
+    out.innerHTML = scoreBlock('I_comp(' + sel + ')', 'n/a', 'not swept') + `<p class="note">The exhaustive sweep fails applications, brokers and hosts. Topics are passive here: they take impact from publishers and brokers but are not injected.</p>`;
+    return;
+  }
+  const st = {}, bd = {};
+  for (const e of r.seq) {
+    if (e.id === sel) { st[e.id] = 'origin'; continue; }
+    st[e.id] = r.failed.includes(e.id) ? 'failed' : 'lost';
+    bd[e.id] = 'd' + e.depth;
+  }
+  drawTopo(svg, st, bd);
+  const w = R.fs_weights;
+  out.innerHTML =
+    scoreBlock('I_comp(' + sel + ')', f3(r.comp), `paths ${r.paths[0]} → ${r.paths[1]}`) +
+    `<div class="rows"><h3>Four losses × weight</h3>${TERMS.map(([k, wk, lab]) => barRow(lab, r[k], `${r[k].toFixed(2)} × ${w[wk].toFixed(2)}`)).join('')}</div>` +
+    `<div class="rows"><h3>Cascade log</h3><ol class="log">${r.seq.map(e => `<li><span class="d">d${e.depth}</span><span class="c">${e.id}</span><span class="w">${esc(cause(e.cause))}</span></li>`).join('')}</ol></div>` +
+    `<p class="note">${FS_NOTE[sel]}</p>`;
+}
+
+/* ---------- MessageFlow ---------- */
+const NOMINAL = { T1: 40, T2: 30, T3: 2, T4: 2 };
+const MF_NOTE = {
+  A1: 'radar.plots stops at 30 s. tracks keeps flowing: in the default open-loop model tracker publishes on its own clock whether or not plots arrive. There is no cascade in this engine, unlike FaultInjector, so the loss is radar’s own 40 of 74 deliveries per second.',
+  A2: 'tracks stops at 30 s and nothing else does: conflict-detector keeps publishing alerts on its own clock. Tracker’s own radar.plots receipts are left out of both windows, so the loss is 30 of the remaining 54 deliveries per second.',
+  A3: 'conflict.alerts is a 2 Hz topic with one subscriber, so its loss is 2 of 74 deliveries per second. A rate-aware engine barely notices it.',
+  A4: 'flight.plans carries the heaviest QoS weight but only 1 Hz to two subscribers. By delivery volume that is 2 of 74 per second.',
+  A5: 'Display only consumes. The chart shows raw deliveries, so its own missing receipts are visible after 30 s, but the score leaves a failed component’s own receipts out of both windows. The result is slightly negative; the score is not clamped.',
+  A6: 'Recorder only consumes. Its own missing receipts are visible in the chart, but the score leaves them out of both windows, so the result is near zero.',
+};
+function renderMF() {
+  const fig = document.getElementById('mf-fig'), out = document.getElementById('mf-read'), r = R.mf[sel];
+  if (!r) {
+    fig.innerHTML = `<div class="empty"><b>${sel} ${esc(nm(sel))}</b> is not observable by this engine. In its default form it sees only publish and subscribe traffic, so brokers, hosts, libraries and topics are reported as unlabelled, never scored 0. Pick an application to see a run.</div>`;
+    out.innerHTML = scoreBlock('I_dyn(' + sel + ')', 'n/a', 'not observable');
+    return;
+  }
+  const W = 700, L = 44, Rr = 14, rowH = 62, top = 26, H = top + rowH * 4 + 26, x = s => L + (W - L - Rr) * s / 60;
+  fig.innerHTML = `<div class="fig-bar"><span>deliveries per second, by topic</span><span class="key"><span class="ln" style="border-top-color:var(--fail);border-top-style:dashed"></span>${sel} fails at 30 s</span></div><svg id="mf-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Deliveries per second per topic"></svg>`;
+  const svg = document.getElementById('mf-svg');
+  TOPICS.forEach(([t], i) => {
+    const y0 = top + rowH * i, base = y0 + rowH - 12, bins = r.bins[t], ymax = Math.max(NOMINAL[t] * 1.3, ...bins), h = rowH - 30, y = v => base - h * v / ymax;
+    el('line', { class: 'grid', x1: L, x2: W - Rr, y1: y(NOMINAL[t]), y2: y(NOMINAL[t]) }, svg);
+    el('line', { class: 'axis', x1: L, x2: W - Rr, y1: base, y2: base }, svg);
+    el('text', { class: 'lbl', x: L - 6, y: y(NOMINAL[t]) + 3, style: 'text-anchor:end' }, svg, NOMINAL[t] + '/s');
+    el('text', { class: 'lbl', x: L - 6, y: base + 3, style: 'text-anchor:end' }, svg, '0');
+    el('text', { class: 'rowlbl', x: L, y: y0 + 9 }, svg, `${t} ${nm(t)}`);
+    const d = r.per_topic[t];
+    el('text', { class: 'lbl', x: W - Rr, y: y0 + 9, style: 'text-anchor:end' }, svg, d == null ? 'no surviving demand' : 'delivery-rate drop ' + d.toFixed(3));
+    const g = el('g', { class: 'bars' }, svg), bw = (W - L - Rr) / 60;
+    bins.forEach((v, s) => { if (v > 0) el('rect', { x: (x(s) + 0.6).toFixed(1), y: y(v).toFixed(1), width: (bw - 1.2).toFixed(1), height: (base - y(v)).toFixed(1) }, g); });
+  });
+  el('line', { class: 'faultline', x1: x(30), x2: x(30), y1: 12, y2: H - 22 }, svg);
+  el('text', { class: 'faulttxt', x: x(30) + 5, y: 12 }, svg, 'fault');
+  for (const s of [0, 15, 30, 45, 60]) el('text', { class: 'lbl', x: x(s), y: H - 8, style: 'text-anchor:middle' }, svg, s + ' s');
+  out.innerHTML =
+    scoreBlock('I_dyn(' + sel + ')', (r.idyn < 0 ? '−' : '') + f3(Math.abs(r.idyn)), 'delivery rate before − after') +
+    `<div class="rows"><h3>Delivery rate of surviving demand</h3>${barRow('before fault', r.pre, f3(r.pre))}${barRow('after fault', r.post, f3(r.post), 'f')}</div>` +
+    `<div class="rows"><h3>Whole run</h3><div class="bar-row"><span class="lab">published</span><span></span><span class="num">${r.published}</span></div><div class="bar-row"><span class="lab">delivered</span><span></span><span class="num">${r.delivered}</span></div><div class="bar-row"><span class="lab">deadline drops</span><span></span><span class="num">${r.deadline}</span></div><div class="bar-row"><span class="lab">queue overflows</span><span></span><span class="num">${r.overflow}</span></div></div>` +
+    `<p class="note">${MF_NOTE[sel]}</p>`;
+}
+
+/* ---------- ChangePropagation ---------- */
+const IM = id => { const c = R.cp[id]; return 0.45 * c.reach + 0.35 * c.wimp + 0.20 * c.ndepth; };
+function renderCP() {
+  const c = R.cp[sel], svg = document.getElementById('cp-svg'), out = document.getElementById('cp-read');
+  svg.textContent = '';
+  const cols = [[sel], [], []];
+  for (const t of c.trace) cols[t.d].push(t.id);
+  const rows = Math.max(1, ...cols.map(a => a.length)), gap = 48, H = rows * gap + 28, cx = [90, 350, 600], bw = 164, bh = 36;
+  svg.setAttribute('viewBox', `0 0 700 ${H}`);
+  const pos = {};
+  cols.forEach((a, d) => a.forEach((id, i) => { pos[id] = { x: cx[d], y: H / 2 + (i - (a.length - 1) / 2) * gap, w: d ? bw : 150, h: bh }; }));
+  for (const t of c.trace) {
+    const a = pos[t.from], b = pos[t.id], p1 = { x: a.x + a.w / 2 + 2, y: a.y }, p2 = { x: b.x - b.w / 2 - 4, y: b.y };
+    el('line', { class: 'e hot', x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }, svg);
+    arrow(svg, p1, p2, 'hot');
+    el('text', { class: 'wlab', x: p1.x + (p2.x - p1.x) * 0.66, y: p1.y + (p2.y - p1.y) * 0.66 + 3.5 }, svg, t.w.toFixed(2));
+  }
+  const info = {}; for (const t of c.trace) info[t.id] = t;
+  for (const id in pos) {
+    const p = pos[id], g = el('g', { class: 'n ' + (id === sel ? 'origin' : 'reached'), 'data-id': id }, svg), t = info[id];
+    el('rect', { x: p.x - p.w / 2, y: p.y - p.h / 2, width: p.w, height: p.h, rx: 5 }, g);
+    el('text', { class: 'nm', x: p.x, y: p.y - 1 }, g, id + ' ' + nm(id));
+    el('text', { class: 'sb', x: p.x, y: p.y + 11.5 }, g, id === sel ? 'interface changes' : t.stop === 'loose' ? 'stops: weight < 0.20' : t.stop === 'stable' ? 'stops: stable interface' : `instability ${R.instab[id].toFixed(2)} · continues`);
+  }
+  if (!c.trace.length) el('text', { class: 'lbl', x: 190, y: H / 2 + 4, style: 'font-size:11.5px' }, svg, 'No derived dependency arc points at ' + sel + ', so nobody has to adapt.');
+  const n = c.reached.length;
+  out.innerHTML =
+    scoreBlock('I_M(' + sel + ')', f3(IM(sel)), `${n} of 14 other components reached`) +
+    `<div class="rows"><h3>Three sub-metrics × weight</h3>${barRow('Change reach', c.reach, c.reach.toFixed(2) + ' × 0.45')}${barRow('Weighted impact', c.wimp, c.wimp.toFixed(2) + ' × 0.35')}${barRow('Depth (of 2)', c.ndepth, c.ndepth.toFixed(2) + ' × 0.20')}</div>` +
+    `<p class="note">${N[sel].t === 'Topic' ? 'Topics have no arcs in the derived dependency graph: the derivation rules connect applications, libraries, brokers and hosts through topics, not to them.' : n === 0 ? 'Nothing depends on a pure consumer, so a change to it stays local.' : c.depth === 2 ? 'The only two-hop ripple in this system: tracker and conflict-detector are tightly coupled to the library and unstable enough to pass the change on to display and recorder.' : 'All of these are direct dependents. Where the walk continued through one of them, it found only components that were already reached.'}</p>`;
+}
+
+/* ---------- static bits ---------- */
+function renderTable() {
+  const cell = (v, max) => v == null ? '<span class="na">n/a</span>' : `<span class="cell"><span>${(v < 0 ? '−' : '') + f3(Math.abs(v))}</span><span class="track"><span class="fill" style="display:block;width:${Math.max(0, v) / max * 100}%"></span></span></span>`;
+  document.getElementById('cmp-tbl').innerHTML = ORDER.map(id => `<tr class="pick ${id === sel ? 'on' : ''}" data-id="${id}"><td><span class="mono">${id}</span> ${esc(nm(id))}</td><td>${N[id].t === 'Node' ? 'Host' : N[id].t}</td><td class="num">${cell(R.fi[id].score, 1)}</td><td class="num">${cell(R.fs[id] ? R.fs[id].comp : null, 1)}</td><td class="num">${cell(R.mf[id] ? R.mf[id].idyn : null, 1)}</td><td class="num">${cell(IM(id), 1)}</td></tr>`).join('');
+}
+function renderChips() {
+  let prev = null;
+  document.getElementById('chips').innerHTML = ORDER.map(id => { const g = prev && prev !== N[id].t; prev = N[id].t; return `<button class="chip ${g ? 'gap' : ''}" data-id="${id}" aria-pressed="${id === sel}">${id}<small>${esc(nm(id))}</small></button>`; }).join('');
+}
+function renderAll() { renderChips(); drawTopo(document.getElementById('topo0'), { [sel]: 'reached' }); renderFI(); renderFS(); renderMF(); renderCP(); renderTable(); }
+function select(id) { if (!N[id] || id === sel) return; sel = id; fiStep = -1; renderAll(); }
+
+document.getElementById('topic-tbl').innerHTML = TOPICS.map(([t, rate, qos]) => `<tr><td><span class="mono">${t}</span> ${esc(nm(t))}</td><td class="num">${rate}</td><td style="white-space:normal">${qos}</td><td class="num">${R.topic_w[t].toFixed(2)}</td></tr>`).join('');
+document.addEventListener('click', e => {
+  const s = e.target.closest('[data-step]'); if (s) { fiStep = +s.dataset.step; renderFI(); return; }
+  const t = e.target.closest('[data-id]'); if (t) select(t.dataset.id);
+});
+renderAll();
+</script>
