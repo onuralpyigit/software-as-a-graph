@@ -1,0 +1,251 @@
+{
+  "metadata": {
+    "domain": "demo",
+    "scenario": "mini_atm"
+  },
+  "nodes": [
+    {
+      "id": "N1",
+      "name": "sensor-host"
+    },
+    {
+      "id": "N2",
+      "name": "ops-host"
+    }
+  ],
+  "brokers": [
+    {
+      "id": "B1",
+      "name": "sensor-broker"
+    },
+    {
+      "id": "B2",
+      "name": "ops-broker"
+    }
+  ],
+  "topics": [
+    {
+      "id": "T1",
+      "name": "radar.plots",
+      "size": 512,
+      "frequency": 20.0,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM",
+        "deadline_ms": 200,
+        "history_depth": 5
+      }
+    },
+    {
+      "id": "T2",
+      "name": "tracks",
+      "size": 1024,
+      "frequency": 10.0,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH",
+        "deadline_ms": 500,
+        "history_depth": 10
+      }
+    },
+    {
+      "id": "T3",
+      "name": "conflict.alerts",
+      "size": 256,
+      "frequency": 2.0,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH",
+        "deadline_ms": 500,
+        "history_depth": 10
+      }
+    },
+    {
+      "id": "T4",
+      "name": "flight.plans",
+      "size": 4096,
+      "frequency": 1.0,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "LOW",
+        "deadline_ms": 2000,
+        "history_depth": 20
+      }
+    }
+  ],
+  "applications": [
+    {
+      "id": "A1",
+      "name": "radar",
+      "app_type": "sensor",
+      "criticality": "HIGH"
+    },
+    {
+      "id": "A2",
+      "name": "tracker",
+      "app_type": "service",
+      "criticality": "HIGH"
+    },
+    {
+      "id": "A3",
+      "name": "conflict-detector",
+      "app_type": "service",
+      "criticality": "HIGH"
+    },
+    {
+      "id": "A4",
+      "name": "flight-plan",
+      "app_type": "service",
+      "criticality": "MEDIUM"
+    },
+    {
+      "id": "A5",
+      "name": "display",
+      "app_type": "ui",
+      "criticality": "HIGH"
+    },
+    {
+      "id": "A6",
+      "name": "recorder",
+      "app_type": "service",
+      "criticality": "LOW"
+    }
+  ],
+  "libraries": [
+    {
+      "id": "L1",
+      "name": "track-model",
+      "version": "1.0.0"
+    }
+  ],
+  "relationships": {
+    "runs_on": [
+      {
+        "from": "A1",
+        "to": "N1"
+      },
+      {
+        "from": "A2",
+        "to": "N1"
+      },
+      {
+        "from": "B1",
+        "to": "N1"
+      },
+      {
+        "from": "A3",
+        "to": "N2"
+      },
+      {
+        "from": "A4",
+        "to": "N2"
+      },
+      {
+        "from": "A5",
+        "to": "N2"
+      },
+      {
+        "from": "A6",
+        "to": "N2"
+      },
+      {
+        "from": "B2",
+        "to": "N2"
+      }
+    ],
+    "routes": [
+      {
+        "from": "B1",
+        "to": "T1"
+      },
+      {
+        "from": "B1",
+        "to": "T2"
+      },
+      {
+        "from": "B2",
+        "to": "T2"
+      },
+      {
+        "from": "B2",
+        "to": "T3"
+      },
+      {
+        "from": "B2",
+        "to": "T4"
+      }
+    ],
+    "publishes_to": [
+      {
+        "from": "A1",
+        "to": "T1"
+      },
+      {
+        "from": "A2",
+        "to": "T2"
+      },
+      {
+        "from": "A3",
+        "to": "T3"
+      },
+      {
+        "from": "A4",
+        "to": "T4"
+      }
+    ],
+    "subscribes_to": [
+      {
+        "from": "A2",
+        "to": "T1"
+      },
+      {
+        "from": "A3",
+        "to": "T2"
+      },
+      {
+        "from": "A5",
+        "to": "T2"
+      },
+      {
+        "from": "A5",
+        "to": "T3"
+      },
+      {
+        "from": "A5",
+        "to": "T4"
+      },
+      {
+        "from": "A6",
+        "to": "T1"
+      },
+      {
+        "from": "A6",
+        "to": "T2"
+      },
+      {
+        "from": "A6",
+        "to": "T4"
+      }
+    ],
+    "connects_to": [
+      {
+        "from": "N1",
+        "to": "N2"
+      }
+    ],
+    "uses": [
+      {
+        "from": "A2",
+        "to": "L1"
+      },
+      {
+        "from": "A3",
+        "to": "L1"
+      }
+    ]
+  }
+}
