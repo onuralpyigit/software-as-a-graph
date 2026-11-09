@@ -8,10 +8,13 @@ from typing import Any, Dict, List
 
 from saag.core.graph_io import load_graph
 from saag.core.models import QoSPolicy
+from saag.core.network import NETWORK_TYPES
 from saag.simulation.runtime.behavior import STALENESS_PERIODS, policy_for, staleness_s
 
 #: Host given to components that declare no RUNS_ON.
 DEFAULT_HOST = "h_default"
+#: How a stub's service time is spent: asleep (no CPU) or burning its own CPU.
+SERVICE_WORK = ("sleep", "cpu")
 
 
 def _rate(attrs: Dict[str, Any]) -> float:
@@ -28,6 +31,9 @@ def build_deployment(
     qos_semantics: str = "engine",
     liveliness_lease_s: float = 1.0,
     open_loop: bool = False,
+    service_work: str = "sleep",
+    carry_payload: bool = False,
+    network_gating: bool = False,
 ) -> Dict[str, Any]:
     """Resolve everything an agent needs, once, so all agents agree on it.
 
@@ -38,7 +44,17 @@ def build_deployment(
     AUTOMATIC liveliness lease.
     ``open_loop`` makes every application emit on schedule whatever its inputs
     do, the published `MessageFlowSimulator`'s assumption.
+    ``service_work="cpu"`` makes each service burn its time on the CPU instead
+    of sleeping, and caps every host container at the simulator's host
+    capacity (``cpu_cores``, else one core per resident station), so
+    co-located applications really compete for a host. Broker relays keep
+    sleeping: the simulator's broker stations do not share a host CPU.
+    ``carry_payload`` puts each topic's ``size`` bytes on the wire.
+    ``network_gating`` partitions hosts by CONNECTS_TO reachability when links
+    flap or network vertices crash, as `MessageFlowSimulator(network_gating=True)`.
     """
+    if service_work not in SERVICE_WORK:
+        raise ValueError(f"service_work must be one of {SERVICE_WORK}, got {service_work!r}")
     from saag.simulation.runtime.dds_status import QOS_SEMANTICS
     if qos_semantics not in QOS_SEMANTICS:
         raise ValueError(f"qos_semantics must be one of {QOS_SEMANTICS}, got {qos_semantics!r}")
@@ -119,6 +135,15 @@ def build_deployment(
         for h in (sorted(hosts_of.get(b, [])) or [DEFAULT_HOST])[:1]:
             hosts[h]["brokers"].append(b)
 
+    cpus: Dict[str, int] = {}
+    if service_work == "cpu":
+        for h in hosts:
+            # As `_share_host_cpu`: the active instance (first host) holds a station.
+            stations = sum(1 for a in hosts[h]["apps"]
+                           if apps[a]["subscribes"] and apps[a]["hosts"][0] == h)
+            declared = g.nodes[h].get("cpu_cores") if h in g else None
+            cpus[h] = int(declared) if declared else max(1, stations)
+
     return {
         "schema_version": "1.0",
         "scenario": g.graph.get("id", Path(scenario).stem),
@@ -127,10 +152,15 @@ def build_deployment(
         "qos_semantics": qos_semantics,
         "open_loop": open_loop,
         "liveliness_lease_s": liveliness_lease_s,
+        "service_work": service_work,
+        "carry_payload": carry_payload,
+        "cpus": cpus,
         "topics": topics,
         "apps": apps,
         "brokers": brokers,
         "hosts": {h: hosts[h] for h in sorted(hosts)},
         "links": sorted({tuple(sorted((u, v))) for u, v, d in g.edges(data=True)
                          if d.get("type") == "CONNECTS_TO"}),
+        "network": {"gating": network_gating,
+                    "vertices": sorted(n for n, t in ntype.items() if t in NETWORK_TYPES)},
     }

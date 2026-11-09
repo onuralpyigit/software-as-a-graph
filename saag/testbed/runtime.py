@@ -25,6 +25,7 @@ Telemetry goes through a `TelemetrySink` in the trace format of
 
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 import threading
@@ -45,6 +46,20 @@ HEARTBEAT_PERIOD_S = 0.2
 BROKER_LEASE_S = 1.0
 REPLICA_LEASE_S = 1.0
 DEFAULT_QUEUE = 100
+#: Hashed by `burn_cpu`; above 2 KiB, hashlib releases the GIL while it hashes.
+_BURN_BLOCK = bytes(16384)
+
+
+def burn_cpu(seconds: float) -> None:
+    """Spend *seconds* of this thread's CPU time, releasing the GIL as it goes.
+
+    Measured in thread CPU time, not wall time: when the container's CPU quota
+    is shared with busy neighbours, the same work takes longer on the clock --
+    which is the contention ``service_work="cpu"`` is there to produce.
+    """
+    end = time.thread_time() + seconds
+    while time.thread_time() < end:
+        hashlib.sha256(_BURN_BLOCK).digest()
 
 
 class Transport(Protocol):
@@ -193,6 +208,7 @@ class AppRuntime:
         self._msg_id = 0
         self._id_lock = threading.Lock()
         self.dds = plan.get("qos_semantics") == "dds"
+        self.serve = burn_cpu if plan.get("service_work") == "cpu" else time.sleep
         ins = {t: self.topics[t] for t in self.spec["subscribes"]}
         self.station = _Station(ins, keep_last=self.dds)
         owner = self.instance if len(self.replicas) > 1 else app
@@ -307,8 +323,13 @@ class AppRuntime:
             if delay > 0 and self.stop.wait(delay):
                 return
             now = self.clock()
-            nxt += 1.0 / (rate * max(self.control.babbling, 1e-9))
             c = self.control
+            period = 1.0 / (rate * max(c.babbling, 1e-9))
+            if not self.spec["subscribes"]:
+                # No station: the emission is the work, so a slowdown stretches
+                # the period (the simulator's ``emit_slowdown``, k below 1 ignored).
+                period *= max(1.0, c.slowdown)
+            nxt += period
             if c.crashed or c.frozen:
                 continue
             if not self._check_active(now):
@@ -383,7 +404,7 @@ class AppRuntime:
             if mean > 0:
                 with self._rng_lock:
                     service = self.rng.expovariate(1.0 / mean)
-                time.sleep(service)
+                self.serve(service)
             done = self.clock()
             latency_ms = (done - float(sample["created"])) * 1000.0
             deadline = self.topics[topic].get("deadline_ms")

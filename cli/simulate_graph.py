@@ -447,7 +447,8 @@ def _run_testbed(args: argparse.Namespace) -> None:
             logger.error("testbed build needs --input")
             sys.exit(1)
         orchestrate.build(Path(args.input), out, args.duration, args.seed, args.target_utilization,
-                          qos_semantics=args.qos_semantics)
+                          qos_semantics=args.qos_semantics, service_work=args.service_work,
+                          carry_payload=args.carry_payload, network_gating=args.network_gating)
         print(f"Testbed written → {out}")
     elif args.action == "run":
         faults = ([FaultSpec.from_dict(d) for d in json.loads(Path(args.faults).read_text())]
@@ -1135,6 +1136,14 @@ def _build_parser() -> argparse.ArgumentParser:
     tb.add_argument("--target-utilization", type=float, default=0.65, metavar="RHO")
     tb.add_argument("--qos-semantics", choices=QOS_SEMANTICS, default="engine",
                     help="build: agents' QoS semantics ('dds': period deadlines, KEEP_LAST).")
+    tb.add_argument("--service-work", choices=("sleep", "cpu"), default="sleep",
+                    help="build: spend service time asleep (default) or burning CPU, with each "
+                         "host container capped at its simulated host capacity.")
+    tb.add_argument("--carry-payload", action="store_true",
+                    help="build: put each topic's declared size in bytes on the wire.")
+    tb.add_argument("--network-gating", action="store_true",
+                    help="build: partition hosts by CONNECTS_TO reachability on link flaps and "
+                         "network-vertex crashes (the simulator's network_gating).")
     tb.add_argument("--calibrated", action="store_true",
                     help="fidelity: simulate with profile.json from 'calibrate'.")
     tb.add_argument("--verbose", "-v", action="store_true")

@@ -10,7 +10,7 @@ this module requires ``cyclonedds``; `saag.testbed.dds` imports it lazily.
 from dataclasses import dataclass
 
 from cyclonedds.idl import IdlStruct
-from cyclonedds.idl.types import float64, int64
+from cyclonedds.idl.types import float64, int64, sequence, uint8
 
 
 @dataclass
@@ -19,3 +19,5 @@ class Sample(IdlStruct, typename="saag::Sample"):
     publisher: str
     created: float64
     size: int64
+    #: ``size`` zero bytes when the plan carries payloads, else empty.
+    payload: sequence[uint8]

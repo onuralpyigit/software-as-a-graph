@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import os
 import subprocess
 import threading
 import time
@@ -37,9 +38,21 @@ DISCOVERY_SETTLE_S = 5.0
 
 def build(scenario: Path, out_dir: Path, duration_s: float, seed: int = 0,
           target_utilization: float = 0.65, qos_semantics: str = "engine",
-          open_loop: bool = False) -> Path:
+          open_loop: bool = False, service_work: str = "sleep", carry_payload: bool = False,
+          network_gating: bool = False) -> Path:
     plan = build_deployment(scenario, target_utilization=target_utilization,
-                            qos_semantics=qos_semantics, open_loop=open_loop)
+                            qos_semantics=qos_semantics, open_loop=open_loop,
+                            service_work=service_work, carry_payload=carry_payload,
+                            network_gating=network_gating)
+    if service_work == "cpu":
+        # Burned service time is real load: past this machine's cores it is the
+        # machine, not the modelled hosts, that saturates.
+        stations = sum(1 for a in plan["apps"].values() if a["subscribes"])
+        demand = target_utilization * stations
+        if demand > (os.cpu_count() or 1):
+            raise ValueError(f"service_work='cpu' needs ~{demand:.1f} cores at utilisation "
+                             f"{target_utilization} ({stations} stations); this machine has "
+                             f"{os.cpu_count()}. Lower --target-utilization or use 'sleep'.")
     plan["source_scenario"] = str(Path(scenario))
     return write_testbed(plan, out_dir, duration_s, seed)
 
@@ -164,7 +177,8 @@ def simulate_like(out_dir: Path, settings: Optional[Dict[str, Any]] = None,
           "target_utilization": plan["target_utilization"],
           "staleness_periods": plan["staleness_periods"],
           "qos_semantics": plan.get("qos_semantics", "engine"), "dds_status": True,
-          "liveliness_lease_s": plan.get("liveliness_lease_s", 1.0), **(settings or {})}
+          "liveliness_lease_s": plan.get("liveliness_lease_s", 1.0),
+          "network_gating": bool((plan.get("network") or {}).get("gating")), **(settings or {})}
     res = MessageFlowSimulator(g, duration=meta["duration_s"], seed=meta["seed"], faults=faults,
                                record_events=True, telemetry_profile=profile, **kw).run()
     return TelemetryTrace.from_records(res.events, start_s=0.0, end_s=meta["duration_s"])

@@ -17,6 +17,7 @@ history_depth          History KeepLast(depth) (KeepLast(100) when absent)
 deadline_ms            Deadline (only when declared)
 transport_priority     TransportPriority (LOW 0, MEDIUM 1, HIGH 2, CRITICAL 3)
 partition              Partition (ingress / egress / direct, see runtime)
+size                   ``size`` zero bytes of payload, with ``carry_payload``
 =====================  =======================================================
 
 Samples are taken by one Python poller thread blocked on a WaitSet, never by
@@ -83,7 +84,7 @@ def qos_spec(topic: Mapping[str, Any]) -> Dict[str, Any]:
 class DdsTransport:
     """One DomainParticipant; one Topic per name; partitions via Publisher/Subscriber QoS."""
 
-    def __init__(self, domain_id: int = 0) -> None:
+    def __init__(self, domain_id: int = 0, carry_payload: bool = False) -> None:
         from cyclonedds.domain import DomainParticipant
 
         from ._dds_types import Sample
@@ -91,6 +92,9 @@ class DdsTransport:
         from cyclonedds.core import WaitSet
 
         self.Sample = Sample
+        #: Put each sample's ``size`` bytes on the wire (the plan's ``carry_payload``).
+        self.carry_payload = carry_payload
+        self._payloads: Dict[int, bytes] = {}
         self.dp = DomainParticipant(domain_id)
         self._topics: Dict[str, Any] = {}
         self._entities = []
@@ -147,10 +151,15 @@ class DdsTransport:
             if owner is not None:
                 self._status_handles.append(("writer", owner, topic, w))
         Sample = self.Sample
+        payloads = self._payloads
 
         def send(sample: Dict[str, Any]) -> None:
+            size = int(sample.get("size", 0))
+            body = b""
+            if self.carry_payload and size > 0:
+                body = payloads.get(size) or payloads.setdefault(size, bytes(size))
             w.write(Sample(msg_id=int(sample["msg_id"]), publisher=str(sample["publisher"]),
-                           created=float(sample["created"]), size=int(sample.get("size", 0))))
+                           created=float(sample["created"]), size=size, payload=body))
         return send
 
     def subscribe(self, topic: str, partition: str, qos: Mapping[str, Any],
