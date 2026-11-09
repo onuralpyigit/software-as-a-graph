@@ -283,6 +283,10 @@ class PredictionResult:
                 provenance = "rm"
                 
             struct_cache = getattr(self._inner, "_structural_cache", {})
+            # The structural cache holds metrics only; type and name come from
+            # the RM result the GNN result carries.
+            rm_result = getattr(self._inner, "rm_result", None)
+            known = {c.id: c for c in getattr(rm_result, "components", None) or []}
             rankings = []
             for score in source_dict.values():
                 # fault_tolerance/availability are Reliability sub-characteristics
@@ -298,15 +302,16 @@ class PredictionResult:
                     "overall": score.criticality_level.upper(),
                 }
                 s_dict = struct_cache.get(score.component, {}) if struct_cache else {}
+                comp = known.get(score.component)
                 rankings.append(CriticalityRanking(
                     id=score.component,
-                    type=s_dict.get("type", "Application"),
+                    type=s_dict.get("type") or (comp.type if comp else "Application"),
                     scores=scores,
                     levels=levels,
                     overall=score.composite_score,
                     level=levels["overall"],
                     provenance=provenance,
-                    name=s_dict.get("name", score.component),
+                    name=s_dict.get("name") or (comp.structural.name if comp else score.component),
                     blast_radius=s_dict.get("blast_radius", 0),
                     cascade_depth=s_dict.get("cascade_depth", 0),
                     is_articulation_point=s_dict.get("is_articulation_point", False),

@@ -112,7 +112,7 @@ class Pipeline:
         mode:
             'gnn' for raw GNN scores (default) when a checkpoint is available.
         gnn_checkpoint:
-            Path to a GNN checkpoint directory. Defaults to output/gnn_checkpoints.
+            Path to a GNN checkpoint directory. Without one, Predict returns RM scores.
         **kwargs:
             Forwarded to ``Client.predict`` — the RM weighting/normalisation
             options (``use_ahp``, ``equal_weights``, ``ahp_shrinkage``,

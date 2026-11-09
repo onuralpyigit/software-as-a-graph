@@ -2,11 +2,11 @@
 
 The reproduction reference for the datasets behind the empirical results of the Journal of Systems and Software (JSS) paper.
 
-Everything in [`data/scenarios/`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/data/scenarios/) is a **versioned, reproducible artifact**. Each `scenario_NN_*.yaml` is a declarative specification; each `*_system.json` is what the generator deterministically produces from it. The corpus is held together by three integrity layers:
+Everything in [`data/scenarios/`](file:///home/onuralpyigit/Workspace/software-as-a-graph/data/scenarios/) is a **versioned, reproducible artifact**. Each `scenario_NN_*.yaml` is a declarative specification; each `*_system.json` is what the generator deterministically produces from it. The corpus is held together by three integrity layers:
 
-1. [`MANIFEST.json`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/data/scenarios/MANIFEST.json) — per-dataset seed, entity counts, git commit, and canonical SHA-256 cryptographic digest.
-2. [`tests/test_scenario_corpus.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/tests/test_scenario_corpus.py) — continuous integration test that regenerates every dataset from its configuration and fails on any divergence from committed bytes or the manifest.
-3. The stale-cache guard in [`reproduce/main_table.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/reproduce/main_table.py) — refuses to evaluate against an `output/loso_cache/` topology that no longer matches its dataset.
+1. [`MANIFEST.json`](file:///home/onuralpyigit/Workspace/software-as-a-graph/data/scenarios/MANIFEST.json) — per-dataset seed, entity counts, git commit, and canonical SHA-256 cryptographic digest.
+2. [`tests/test_scenario_corpus.py`](file:///home/onuralpyigit/Workspace/software-as-a-graph/tests/test_scenario_corpus.py) — continuous integration test that regenerates every dataset from its configuration and fails on any divergence from committed bytes or the manifest.
+3. The stale-cache guard in [`reproduce/main_table.py`](file:///home/onuralpyigit/Workspace/software-as-a-graph/reproduce/main_table.py) — refuses to evaluate against an `output/loso_cache/` topology that no longer matches its dataset.
 
 That machinery exists because the corpus silently drifted early in development: published preliminary numbers were computed on cached topologies built by an older generator, and `make table3` reproduced the paper only because the stale cache outranked the committed datasets. **Never hand-edit a `*_system.json`.** Change the YAML configuration, regenerate via the CLI, refresh the manifest, and rebuild the caches.
 
@@ -39,9 +39,9 @@ These twelve synthetic architectures form the basis of the **Leave-One-Scenario-
 | `scenario_21_logistics_fleet.yaml` | `logistics_fleet_system.json` | Vehicle Telematics Mesh | 110 | 50 | 7 | 18 | 20 | 205 | 755 | 2104 | `93595b70607c` |
 | **Synthetic Subtotal (12 Folds)** | — | **12 Archetypes** | **1,321** | **615** | **65** | **202** | **258** | **2,461** | **10,918** | — | — |
 
-* **11 Core Evaluation Scenarios Subtotal**: 2,387 components (1,295 Applications, 588 Topics, 60 Brokers, 194 Hosts, 250 Libraries) and 10,657 edges. Asserted by `test_evaluation_suite_matches_paper_population` in [`tests/test_scenario_corpus.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/tests/test_scenario_corpus.py).
+* **11 Core Evaluation Scenarios Subtotal**: 2,387 components (1,295 Applications, 588 Topics, 60 Brokers, 194 Hosts, 250 Libraries) and 10,657 edges. Asserted by `test_evaluation_suite_matches_paper_population` in [`tests/test_scenario_corpus.py`](file:///home/onuralpyigit/Workspace/software-as-a-graph/tests/test_scenario_corpus.py).
 * **ATM System Case Study**: 74 components (26 Applications, 27 Topics, 5 Brokers, 8 Hosts, 8 Libraries) and 261 edges. Hand-shaped after the ICAO Global ATM Concept. In JSS, ATM serves a dual role: it is promoted to the **12th inductive LOSO fold** while retaining its function as the qualitative case study for relational attention subgraph inspection (JSS Figure 5) and the illustrative diagnostic remediation card (Supplementary Table S8).
-* **Corpus Diversity Extension**: Four additional domains (`telecom_ran`, `industrial_scada`, `realtime_gaming`, `logistics_fleet`) were introduced to expand the inductive suite from 8 to 12 folds. This expansion provides sufficient statistical power for two-sided Wilcoxon signed-rank tests ($n=12$), avoiding the $p = 0.0078$ floor of $n=8$ (see [`docs/research/jss/PREREGISTRATION.md`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/docs/research/jss/PREREGISTRATION.md)).
+* **Corpus Diversity Extension**: Four additional domains (`telecom_ran`, `industrial_scada`, `realtime_gaming`, `logistics_fleet`) were introduced to expand the inductive suite from 8 to 12 folds. This expansion provides sufficient statistical power for two-sided Wilcoxon signed-rank tests ($n=12$), avoiding the $p = 0.0078$ floor of $n=8$ (see [`docs/research/jss/PREREGISTRATION.md`](file:///home/onuralpyigit/Workspace/software-as-a-graph/docs/research/jss/PREREGISTRATION.md)).
 
 ### 1.2 Open-Source Real-World System Models — Zero-Shot Transfer Suite
 
@@ -140,7 +140,7 @@ PYTHONPATH=. python scripts/write_scenario_manifest.py
 PYTHONPATH=. python cli/import_realworld_system.py
 ```
 
-`batch` writes intermediate `scenario_NN_*.json` files and mirrors each to its canonical `<name>_system.json` via `SCENARIO_SYSTEM_MAP` in [`cli/common/batch_generation.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/cli/common/batch_generation.py). The intermediate files are gitignored; only the `*_system.json` files are committed.
+`batch` writes intermediate `scenario_NN_*.json` files and mirrors each to its canonical `<name>_system.json` via `SCENARIO_SYSTEM_MAP` in [`cli/common/batch_generation.py`](file:///home/onuralpyigit/Workspace/software-as-a-graph/cli/common/batch_generation.py). The intermediate files are gitignored; only the `*_system.json` files are committed.
 
 ### 3.2 Verify Integrity
 
@@ -321,9 +321,9 @@ Two historical defects affected early pre-revision drafts and are permanently do
 
 To introduce an architecture or modify an existing one:
 
-1. Create a `scenario_NN_<name>.yaml` configuration. Ensure `graph.seed` is unique and not already listed in [`data/scenarios/MANIFEST.json`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/data/scenarios/MANIFEST.json).
+1. Create a `scenario_NN_<name>.yaml` configuration. Ensure `graph.seed` is unique and not already listed in [`data/scenarios/MANIFEST.json`](file:///home/onuralpyigit/Workspace/software-as-a-graph/data/scenarios/MANIFEST.json).
 2. Configure `graph.counts` and tailor the `*_stats` distributions to reflect the domain's communication topology and QoS contracts.
-3. Register the mapping in `SCENARIO_SYSTEM_MAP` ([`cli/common/batch_generation.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/cli/common/batch_generation.py)) and in `CORPUS` ([`scripts/write_scenario_manifest.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/scripts/write_scenario_manifest.py)). If authoring an authentic open-source system model, define its adapter in [`saag/adapters/realworld_adapter.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/saag/adapters/realworld_adapter.py) and hook it into [`cli/import_realworld_system.py`](file:///home/onuralpyigit/Workspace/SoftwareAsAGraph/cli/import_realworld_system.py).
+3. Register the mapping in `SCENARIO_SYSTEM_MAP` ([`cli/common/batch_generation.py`](file:///home/onuralpyigit/Workspace/software-as-a-graph/cli/common/batch_generation.py)) and in `CORPUS` ([`scripts/write_scenario_manifest.py`](file:///home/onuralpyigit/Workspace/software-as-a-graph/scripts/write_scenario_manifest.py)). If authoring an authentic open-source system model, define its adapter in [`saag/adapters/realworld_adapter.py`](file:///home/onuralpyigit/Workspace/software-as-a-graph/saag/adapters/realworld_adapter.py) and hook it into [`cli/import_realworld_system.py`](file:///home/onuralpyigit/Workspace/software-as-a-graph/cli/import_realworld_system.py).
 4. Regenerate the datasets, refresh the cryptographic manifest, and repopulate the caches:
    ```bash
    make -f reproduce/Makefile scenarios cache
