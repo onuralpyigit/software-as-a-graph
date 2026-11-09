@@ -172,3 +172,46 @@ def test_dynamic_report_never_changes_the_recommendation():
     row = report["placements"][both.recommended]
     assert set(row["per_event"]) == set(both.oracle["events"])
     assert {"delivery_loss", "worst_time_to_recover_s", "overload_failures"} <= set(row)
+
+
+# ── Deployment warp (descriptive only) ───────────────────────────────────────
+
+def test_warp_report_pairs_logical_and_deployed_regimes():
+    pytest.importorskip("simpy")
+    from saag.deployment.dynamic import warp_report
+
+    spread = {"P": ["N1", "N3"], "S1": ["N2"], "S2": ["N4"], "B": ["N1"]}
+    packed = {"P": ["N1", "N3"], "S1": ["N1"], "S2": ["N1"], "B": ["N1"]}
+    a = warp_report(topology(), spread, seeds=(1, 2), duration=10.0, capacities_rho=0.9)
+    b = warp_report(topology(), packed, seeds=(1, 2), duration=10.0, capacities_rho=0.9)
+
+    assert a["descriptive_only"] is True and a["label"] == "i_flow"
+    assert set(a["components"]) == {"P", "S1", "S2"}
+    for c, row in a["components"].items():
+        d = row["delta"]
+        assert d["mean"] == pytest.approx(row["deployed"] - row["logical"])   # paired, same seeds
+        assert d["beyond_noise"] in (True, False)
+        # With brokers and hosts out of the data path the placement plays no part.
+        assert b["components"][c]["logical"] == pytest.approx(row["logical"])
+
+
+def test_warp_report_does_not_claim_noise_from_one_seed():
+    pytest.importorskip("simpy")
+    from saag.deployment.dynamic import warp_report
+
+    w = warp_report(topology(), {"P": ["N1", "N3"]}, seeds=(1,), duration=10.0)
+    assert all(r["delta"]["std"] is None and r["delta"]["beyond_noise"] is None
+               for r in w["components"].values())
+    assert w["beyond_noise"] == 0
+
+
+def test_warp_report_never_changes_the_recommendation():
+    pytest.importorskip("simpy")
+    kw = dict(seeds=(1, 2), ties=1, front_points=2)
+    plain = DeploymentService(_repo(topology())).optimize(spec(), **kw)
+    warped = DeploymentService(_repo(topology())).optimize(spec(), warp_report=True,
+                                                           dynamic_duration=10.0, **kw)
+    assert plain.warp_report is None
+    assert warped.recommended == plain.recommended
+    assert warped.reliability_claim == plain.reliability_claim
+    assert warped.warp_report["placement"] == warped.recommended

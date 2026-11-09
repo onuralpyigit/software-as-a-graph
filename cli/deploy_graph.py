@@ -73,6 +73,14 @@ def build_parser() -> argparse.ArgumentParser:
                              "changes the recommendation or the reliability claim. Needs SimPy.")
     verify.add_argument("--dynamic-duration", type=float, default=30.0,
                         help="Simulated seconds per replay (default: %(default)s).")
+    verify.add_argument("--warp-report", action="store_true",
+                        help="Also crash each Application of the recommended placement with brokers "
+                             "and hosts out of, then in, the runtime data path, and report how its "
+                             "criticality (i_flow) moves against --kappa x seed noise. Descriptive; "
+                             "needs SimPy.")
+    verify.add_argument("--warp-rho", type=float, default=None, metavar="RHO",
+                        help="Size undeclared broker and host capacities for utilisation RHO in the "
+                             "warp report; without it a topology that declares none shows little contention.")
 
     out = parser.add_argument_group("Output")
     out.add_argument("--output", "-o", metavar="FILE", help="Write the full result JSON here.")
@@ -111,6 +119,25 @@ def print_candidates(res) -> None:
               f"{h.sigma_seed:>9.1e}{h.worst_impact:>7.3f}  {c.verdict or '-'}{flags}")
 
 
+def print_warp(console: ConsoleDisplay, warp, top: int = 10) -> None:
+    """Applications whose runtime criticality moves most once the deployment is in the data path."""
+    console.print_subheader(f"Deployment warp on {warp['placement']} ({warp['label']}; descriptive; decides nothing)")
+    rho = "n/a" if warp["spearman"] is None else f"{warp['spearman']:+.2f}"
+    print(f"  Spearman logical vs deployed: {rho}   beyond {warp['kappa']:g} x seed noise: "
+          f"{warp['beyond_noise']} of {len(warp['components'])}")
+    rows = sorted(warp["components"].items(), key=lambda kv: -abs(kv[1]["delta"]["mean"] or 0.0))[:top]
+    print(f"  {'application':<16}{'logical':>10}{'deployed':>10}{'delta':>10}{'±σ':>9}{'rank':>10}")
+    for c, row in rows:
+        d = row["delta"]
+        nums = "".join("       n/a" if v is None else f"{v:>10.4f}" for v in (row["logical"], row["deployed"]))
+        delta = "       n/a" if d["mean"] is None else f"{d['mean']:>+10.4f}"
+        sd = "      n/a" if d["std"] is None else f"{d['std']:>9.4f}"
+        mark = " *" if d["beyond_noise"] else ""
+        rank = f"{row['rank']['logical'] or '-'}->{row['rank']['deployed'] or '-'}"
+        print(f"  {c:<16}{nums}{delta}{sd}{rank:>10}{mark}")
+    print("  * beyond noise")
+
+
 def print_diagnosis(console: ConsoleDisplay, diagnosis) -> None:
     for line in diagnosis.prechecks:
         console.print_error(line)
@@ -137,6 +164,7 @@ def main():
             solver=args.solver, baseline_names=args.baselines, seeds=args.seeds, kappa=args.kappa,
             network_gating={"auto": None, "on": True, "off": False}[args.network_gating],
             dynamic_report=args.dynamic_report, dynamic_duration=args.dynamic_duration,
+            warp_report=args.warp_report, warp_rho=args.warp_rho,
         )
     except DeploymentSpecError as e:
         console.print_error(str(e))
@@ -183,6 +211,9 @@ def main():
             print(f"  {name:24s} {row['delivery_loss']:14.4f} {row['worst_delivery_loss']:8.4f} "
                   f"{'never' if recover is None else f'{recover:.1f}':>10s}  "
                   f"{', '.join(row['overload_failures']) or '-'}")
+
+    if res.warp_report:
+        print_warp(console, res.warp_report)
 
     console.print_subheader(f"Recommendation: {res.recommended}")
     print(f"  {res.rationale}")

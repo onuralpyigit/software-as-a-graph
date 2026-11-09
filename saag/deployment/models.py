@@ -88,6 +88,8 @@ class DeploymentResult:
     seconds: Dict[str, float] = field(default_factory=dict)
     #: Runtime replay of the shortlist. Descriptive: nothing above reads it.
     dynamic_report: Optional[Dict[str, Any]] = None
+    #: Per-Application criticality across nested runtime regimes. Descriptive too.
+    warp_report: Optional[Dict[str, Any]] = None
 
     @property
     def recommended_candidate(self) -> Optional[Candidate]:
