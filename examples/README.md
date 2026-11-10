@@ -168,6 +168,35 @@ python examples/run_simulator_walkthrough.py
 
 The four scores answer different questions and rank the components differently. `radar` (`A1`) tops I\* (0.833) but has the lowest I_comp (0.053), because its only topic is best-effort and carries little QoS weight. `display` (`A5`) scores 0 on I\* as a pure sink but 0.296 on I_comp, because three of the eight delivery paths end there.
 
+### Container Testbed Walkthrough (Mini-ATM Testbed Run)
+
+- **`run_testbed_walkthrough.py`**: Runs the [container testbed](../docs/simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) on `mini_atm.json` twice, each time with one fault (the `B1` relay stopped for 12 s; host `N1` killed with `docker kill`). For each run it calibrates from the telemetry, runs the fidelity comparison with declared and with calibrated parameters, and sets the observed trace beside the simulator's.
+- **`mini_atm_testbed_run.template.html`** / **`mini_atm_testbed_run.html`**: The page template and the generated interactive walkthrough.
+
+```bash
+python examples/run_testbed_walkthrough.py           # two Docker runs, about three minutes
+python examples/run_testbed_walkthrough.py --reuse   # rebuild the page from the last runs, no Docker
+```
+
+Needs Docker with the compose plugin; the first run builds an image that downloads `python:3.11-slim` and `cyclonedds`. The testbed directories and telemetry go to the ignored `output/testbed_walkthrough/`.
+
+On this topology the simulator reproduces who stalls and who recovers (stall-set Jaccard 1.0 in both runs) and the delivery rates (within 8% per reader), but not latency: the median p95 error is about 0.6 with declared parameters. Each scenario is run once, so this is a smoke test, not a fidelity estimate. The page also notes one input-format mismatch: `mini_atm.json` declares deadlines only inside each topic's `qos` block, which the simulator reads and the testbed plan does not.
+
+---
+
+## The Method End to End (SaG Method Walkthrough)
+
+- **`run_method_walkthrough.py`**: Runs every pipeline stage on `mini_atm.json` through the SDK (Model, Analyze, Predict, Diagnose with the triage bridge, Simulate, Validate, Prescribe) and builds a page showing what each stage produced.
+- **`sag_method_walkthrough.template.html`** / **`sag_method_walkthrough.html`**: The page template and the generated walkthrough.
+
+```bash
+python examples/run_method_walkthrough.py
+```
+
+Stage 3 loads a trained HGT-QoS checkpoint from the ignored `output/realworld_zeroshot/hgl_qos/seed_42`; pass `--checkpoint` to use another. The script stops if GNN inference does not actually run.
+
+What the run shows on this system: 26 derived dependencies; a trained ranking and a quality-model ranking that disagree at the top, kept side by side by triage; a system-layer validation that misses its correlation gate narrowly (ρ = 0.685 against 0.70 with n = 10); and a prescription step that accepts 2 of 7 candidate fixes after counterfactual simulation. Fifteen components cannot support an accuracy claim either way; the page demonstrates how the stages connect.
+
 ---
 
 ## Step 6: Validation Pipeline
