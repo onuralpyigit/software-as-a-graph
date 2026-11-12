@@ -1,0 +1,117 @@
+\section{Introduction}
+\label{sec:introduction}
+
+\subsection{Context and Domain Motivation: Modeling Publish--Subscribe Systems}
+\label{sec:intro:context}
+
+Distributed publish--subscribe (pub--sub) middleware frameworks---including the Robot Operating System (ROS~2), the Object Management Group's Data Distribution Service (DDS), Apache Kafka, and MQTT---form the foundational communication substrate of modern robotics, autonomous vehicles, industrial IoT, and distributed microservices \citep{lee2025probabilistic, lee2025dependency}. By decoupling message producers and consumers across space (anonymous communication), time (asynchronous message delivery), and synchronization (non-blocking publish and subscribe operations) via intermediary topics and brokers, these architectures enable high scalability, modularity, and operational flexibility \citep{wang2015building, pallickara2007fault}.
+
+However, this decoupling introduces a fundamental challenge for Model-Driven Engineering (MDE) and software architecture analysis: \emph{it obscures the end-to-end topological dependencies of the system}. In publish--subscribe environments, components do not maintain explicit point-to-point references to one another; instead, dependencies are mediated dynamically through topic contracts, message brokers, and Quality of Service (QoS) transport profiles (e.g., reliability deadlines, history depths, liveliness leases). Consequently, cascading failures, buffer overflows, broker bottlenecks, and timing jitter propagate along indirect architectural pathways that remain invisible when analyzing individual source code files or static component interfaces in isolation \citep{yigit2025graph, basiri2016chaos}.
+
+\subsection{Open Challenges in Architectural Modeling and Tool Support}
+\label{sec:intro:gaps}
+
+Despite the proliferation of model-based tools for software design and dependability analysis, engineering teams managing publish--subscribe systems face three critical tool and methodological gaps:
+
+\begin{enumerate}
+    \item \textbf{The Architecture-Implementation Gap in MDE:} Classical static analysis platforms (e.g., SonarQube, SpotBugs) operate at the file, class, or method level, focusing on syntactic code smells and local complexity. Conversely, conventional Architecture Description Languages (ADLs) and MDE frameworks (e.g., AADL, Palladio Component Model) have historically been optimized for synchronous Remote Procedure Call (RPC) or procedural client-server paradigms \citep{becker2009palladio, feiler2006aadl}. As a result, an event-driven system can achieve pristine unit-level code quality while harboring severe architectural vulnerabilities---such as unmitigated Single Points of Failure (SPOFs), co-located high-criticality components on shared hardware nodes, or mismatched transport reliability contracts. Bridging this gap requires tools capable of lifting code-level artifacts and deployment configurations into unified, multi-layer architectural graph models.
+    \item \textbf{Lack of Domain-Specific Anti-Pattern Catalogs:} In object-oriented programming, mature catalogs of design anti-patterns (e.g., God Class, Shotgun Surgery) provide software modelers with standardized vocabularies and detection rules \citep{fowler1999refactoring, brown1998antipatterns}. Similarly, service-oriented and microservices research has cataloged structural smells such as cyclic dependencies and shared databases \citep{taibi2020microservices}. However, \emph{publish--subscribe systems lack a formalized catalog of architectural anti-patterns stated over their native abstractions}---specifically topics, broker partitions, and QoS contracts. Without formal metamodel signatures and detection criteria, architectural degradation is identified reactively during catastrophic production incidents rather than proactively during design and modeling.
+    \item \textbf{Open-Loop Model Refactoring vs.\ Verified Transformation:} While search-based model engineering (SBSE) and automated refactoring tools can propose structural modifications \citep{harman2012sbse, aleti2013software}, they almost universally operate \emph{open-loop}: they apply syntactic transformation rules or optimize abstract heuristic fitness functions without verifying whether the mutated architecture actually prevents failure propagation under dynamic message workloads. In safety-critical domains, unverified architectural transformations risk introducing subtle topological regressions or exacerbating cascading failure risks.
+\end{enumerate}
+
+\subsection{The SaG Framework: An MDE Tool for Publish--Subscribe Systems}
+\label{sec:intro:solution}
+
+To resolve these challenges, we introduce \textbf{Software-as-a-Graph (SaG)}, an open-source, extensible Model-Driven Engineering framework designed to model, diagnose, and counterfactually refactor distributed publish--subscribe architectures. SaG extracts typed, multi-layer multigraph models from Architecture-as-Code descriptors, evaluates architectural health against international quality standards, and executes verified graph-mutation refactorings.
+
+As shown in Figure~\ref{fig:overview}, SaG integrates two coordinated modeling pathways within a unified, hexagonal architecture:
+
+\begin{itemize}
+    \item \textbf{The Diagnostic Modeling Pathway:} Ingests declarative architecture manifests and source-level static code metrics, synthesizing them into a \textbf{Code Quality Penalty (CQP)}. It constructs a multi-layer heterogeneous dependency graph ($G_{\text{analysis}}$) spanning applications, libraries, topics, message brokers, and physical hosting nodes across four architectural layers. Grounded in \textbf{ISO/IEC 25010} (Product Quality) and \textbf{ISO/IEC 25019} (Quality-in-Use) \citep{iso25010_2023, iso25019_2023}, the tool computes a hierarchical \textbf{Reliability--Maintainability (RM)} attribution model. Reliability decomposes into \textbf{Fault Tolerance} ($FT$, cascading error reach) and \textbf{Availability} ($A$, single-point-of-failure exposure), while \textbf{Maintainability} ($M$) quantifies coupling complexity, change ripple risk, and code-level debt. Over these models, SaG executes an extensible engine detecting nineteen formalized publish--subscribe anti-patterns using adaptive box-plot thresholds, mapping findings directly to stakeholder roles (Reliability Engineers, DevOps/SREs, and Software Architects).
+    \item \textbf{The Counterfactual Prescriptive Pathway:} Rather than proposing speculative or unverified modifications, SaG compiles diagnosed architectural pathologies into three formal graph-mutation operators: logical topic splitting, physical host anti-affinity reallocation, and transport QoS contract hardening. The tool implements a closed-loop \textbf{``verify-before-transform''} discipline: every candidate transformation is counterfactually applied in an isolated in-memory graph sandbox and evaluated against a discrete-event cascade simulator across multiple random seeds and propagation thresholds. A refactoring is admitted if and only if its measured cascade-impact reduction clears simulator seed noise at every threshold ($\overline{\Delta I} > \kappa \sigma_{\text{seed}}$), ensuring that only empirically beneficial architectural transformations are recommended.
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    box/.style={draw, rounded corners, align=center, font=\footnotesize, inner sep=3pt},
+    arr/.style={-{Stealth[length=2.5mm]}, thick},
+    node distance=6mm and 8mm
+]
+\node[box, fill=gray!10, minimum width=4.5cm] (input) {
+    \textbf{System Specification \& Code Artifacts} \\
+    \scriptsize Architecture-as-Code (JSON/YAML) + SCA Metrics
+};
+
+\node[box, fill=blue!8, below=7mm of input, minimum width=8.5cm] (diag) {
+    \textbf{Diagnostic Modeling Pathway} \\
+    \begin{tabular}{c c c}
+    \scriptsize 1. Multi-Layer Graph Extraction & \scriptsize 2. Code Quality Penalty (CQP) & \scriptsize 3. Hierarchical RM Attribution \\
+    \scriptsize 4. 19-Pattern Smell Engine & \scriptsize 5. Role-Based Stakeholder Mapping & \scriptsize 6. Substrate Adequacy Check
+    \end{tabular}
+};
+
+\node[box, fill=orange!8, below left=8mm and -22mm of diag, minimum width=4.6cm] (usability) {
+    \textbf{Tool Ecosystem \& Interfaces} \\
+    \scriptsize $\bullet$ Interactive Web Graph Explorer \\
+    \scriptsize $\bullet$ Python SDK \& Client API \\
+    \scriptsize $\bullet$ Headless CLI Suite \& REST API \\
+    \scriptsize $\bullet$ CI/CD Automated Quality Gate
+};
+
+\node[box, fill=green!8, below right=8mm and -22mm of diag, minimum width=4.6cm] (presc) {
+    \textbf{Prescriptive Refactoring Engine} \\
+    \scriptsize $\bullet$ Rule-Based Candidate Compilation \\
+    \scriptsize $\bullet$ In-Memory Graph Mutation Operators \\
+    \scriptsize $\bullet$ Discrete-Event Cascade Simulation \\
+    \scriptsize $\bullet$ Closed-Loop Verification Filter
+};
+
+\draw[arr] (input) -- (diag);
+\draw[arr] (diag.south) -- ++(0,-4mm) -| (usability.north);
+\draw[arr] (diag.south) -- ++(0,-4mm) -| (presc.north);
+\end{tikzpicture}
+\caption{System architecture of the Software-as-a-Graph (SaG) framework: the multi-layer graph metamodel and diagnostic pathway serve as the shared foundation powering both multi-modal tool interfaces (Web, SDK, CLI, CI/CD) and the closed-loop counterfactual refactoring engine.}
+\label{fig:overview}
+\end{figure}
+
+\subsection{Target Audience and Tool Use Cases}
+\label{sec:intro:audience}
+
+SaG is designed to serve four primary categories of users in the systems and software modeling community:
+\begin{enumerate}
+    \item \textbf{Software and Systems Architects:} Architects use SaG to model event-driven topologies before deployment, visualize cross-layer dependency structures, detect architectural anti-patterns, and explore verified refactoring blueprints to eliminate structural bottlenecks.
+    \item \textbf{Reliability and SRE Engineers:} Site reliability engineers leverage SaG's deterministic ISO 25010/25019 quality decompositions to identify Single Points of Failure and estimate blast-radius vulnerability without performing destructive fault-injection tests on production clusters.
+    \item \textbf{MDE and Systems Modeling Researchers:} Researchers can utilize SaG as an extensible, open-source experimental platform for evaluating novel graph metrics, domain-specific anti-patterns, and model transformation algorithms on realistic distributed benchmarks.
+    \item \textbf{DevOps and Quality Assurance Teams:} DevOps practitioners integrate SaG's headless CLI and regression gating protocols into continuous integration pipelines, preventing structural technical debt regressions before code merges.
+\end{enumerate}
+
+\subsection{Contributions to the Modeling Community}
+\label{sec:intro:contributions}
+
+In accordance with the criteria of the SoSyM Tool Paper Call, this article presents the following contributions:
+
+\begin{enumerate}
+    \item \textbf{A Domain-Specific Graph Metamodel for Publish--Subscribe Systems (Section~\ref{sec:sag_model}):} We formalize a typed, multi-layer multigraph metamodel ($V, E, \tau_V, \tau_E, w_V, w_E$) capturing applications, libraries, topics, brokers, and compute hosts across four layer projections, governed by seven formal dependency derivation rules and a continuous Code Quality Penalty (CQP).
+    \item \textbf{A Formal Catalog of 19 Publish--Subscribe Anti-Patterns (Section~\ref{sec:antipattern_catalog}):} We formalize nineteen architectural anti-patterns stated over pub--sub constructs across Reliability, Availability, Maintainability, and Architecture, complete with metric signatures, adaptive box-plot detection thresholds, and finding scope classifications.
+    \item \textbf{Tool Architecture and Implementation Techniques (Section~\ref{sec:tool_architecture}):} We detail SaG's hexagonal ports-and-adapters architecture, highlighting its dual-repository design pattern that pairs a persistent graph database (\texttt{Neo4jRepository}) with a high-throughput, in-memory sandboxed repository (\texttt{MemoryRepository}) enabling rapid counterfactual model transformations.
+    \item \textbf{A Closed-Loop Counterfactual Refactoring Verifier (Section~\ref{sec:tool_architecture}):} We introduce a rule-based refactoring compiler coupled with three graph-mutation operators, implementing a two-level simulation verification discipline that rejects mutations failing to clear stochastic noise floor margins.
+    \item \textbf{Tool Usability and Multi-Modal Interfaces (Section~\ref{sec:tool_usability}):} We describe the multi-modal interaction modalities engineered into SaG, including an interactive web-based graph explorer, a Python SDK, a modular CLI, a REST API, and CI/CD quality gating with standardized exit-code protocols.
+    \item \textbf{Comprehensive Empirical Evaluation in Realistic Scenarios (Section~\ref{sec:empirical_application}):} We evaluate SaG across eight multi-domain benchmark scenarios (29 to 520 vertices) and three transcribed real-world open-source systems (Autoware.Universe, Apollo Cyber RT, and Cloud IoT Mesh), reporting ranking quality saturation (NDCG@10 $\approx 0.82$--$0.86$), catalog discrimination characteristics ($\kappa = +0.296$ on real-world topologies), and refactoring survival rates ($71.0\%$).
+    \item \textbf{Community Importance and Lessons Learnt (Section~\ref{sec:community_and_lessons_learnt}):} In fulfillment of SoSyM's tool paper mandate, we explicitly articulate the framework's broader significance for systems modeling and detail five transferable lessons learnt across designing, building, testing, evaluating, and disseminating the tool.
+    \item \textbf{Open-Source Availability and Reproducibility (Section~\ref{sec:discussion}):} The tool is released under the Apache 2.0 license, packaged for pip installation and Docker Compose deployment, and backed by a complete Zenodo-archived reproduction package with a persistent DOI.
+\end{enumerate}
+
+\subsection{Relationship to Prior Work}
+\label{sec:intro:prior_work}
+
+This paper builds upon and expands two prior research efforts by the authors:
+\begin{enumerate}
+    \item An initial conference workshop paper \citep{yigit2025graph} introduced an early prototype of the multi-layer graph representation and evaluated a preliminary heuristic criticality score ($CS$) against a reachability loss metric on a single, small 10-application system ($\rho = 0.94$). In Section~\ref{sec:empirical_application}, we re-measure this claim across eight heterogeneous scenarios under an independent discrete-event cascade simulator, explaining why ranking correlation on directed dependency graphs saturates around $\rho \approx 0.485$ and why deterministic, role-attributed quality modeling is the true value over scalar ranking.
+    \item A companion research manuscript focuses specifically on a learned Graph Neural Network (GNN) predictor for blast-radius forecasting. The present tool paper is entirely distinct and self-contained: it presents the comprehensive \textbf{Software-as-a-Graph framework}, its domain metamodel, the formal 19-pattern catalog, the dual-repository architecture, the closed-loop counterfactual refactoring engine, the multi-modal tool interfaces, the realistic scenario evaluation, and the community lessons learnt.
+\end{enumerate}
+
+\subsection{Organization}
+\label{sec:intro:org}
+
+The remainder of this paper is structured as follows. Section~\ref{sec:related_work} reviews related work in MDE, architecture modeling, and smell detection. Section~\ref{sec:sag_model} defines the graph metamodel and diagnostic quality attribution framework. Section~\ref{sec:antipattern_catalog} details the 19-pattern anti-pattern catalog. Section~\ref{sec:tool_architecture} presents the tool architecture, implementation techniques, and counterfactual refactoring engine. Section~\ref{sec:tool_usability} describes tool usability, interfaces, and CI/CD integration. Section~\ref{sec:empirical_application} evaluates the tool on benchmark scenarios and real-world systems. Section~\ref{sec:community_and_lessons_learnt} articulates the tool's community importance and five key lessons learnt. Section~\ref{sec:discussion} addresses threats to validity and tool availability, and Section~\ref{sec:conclusion} concludes with future work.

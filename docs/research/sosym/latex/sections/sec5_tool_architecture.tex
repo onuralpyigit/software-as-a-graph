@@ -1,0 +1,111 @@
+\section{Tool Architecture and Implementation Techniques}
+\label{sec:tool_architecture}
+
+\subsection{Hexagonal Ports-and-Adapters Architecture and Dual-Repository Design}
+\label{sec:tool:hexagonal}
+
+To decouple domain modeling and verification algorithms from underlying storage technologies, SaG is implemented according to a \textbf{hexagonal (ports-and-adapters) architecture} \citep{martin2003agile}. As illustrated in Figure~\ref{fig:hexagonal_arch}, core modeling services interact with graph storage exclusively through an abstract port interface, \texttt{IGraphRepository}.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    box/.style={draw, rounded corners, align=center, font=\footnotesize, inner sep=3pt},
+    port/.style={draw, dashed, rounded corners, fill=yellow!10, align=center, font=\scriptsize, inner sep=2.5pt},
+    adapter/.style={draw, rounded corners, fill=blue!8, align=center, font=\scriptsize, inner sep=3pt},
+    arr/.style={-{Stealth[length=2mm]}, thick},
+    node distance=5mm and 6mm
+]
+\node[box, fill=purple!10, minimum width=6.5cm, minimum height=2.2cm] (core) {
+    \textbf{Core Domain Layer} \\
+    \scriptsize $\bullet$ \texttt{MultiLayerGraph} Metamodel \quad $\bullet$ \texttt{DiagnosticEngine} \\
+    \scriptsize $\bullet$ \texttt{AntipatternDetector} \quad $\bullet$ \texttt{PrescriptionCompiler} \\
+    \scriptsize $\bullet$ \texttt{CascadeSimulator} \quad $\bullet$ \texttt{ClosedLoopVerifier}
+};
+
+\node[port, right=7mm of core, minimum width=2.6cm] (port) {
+    \textbf{\texttt{IGraphRepository}} \\
+    \textit{(Abstract Port)}
+};
+
+\node[adapter, above right=1mm and 7mm of port, minimum width=3.4cm] (neo4j) {
+    \textbf{\texttt{Neo4jRepository}} \\
+    \scriptsize Bolt Driver / Cypher Queries \\
+    \scriptsize Persistent Storage \& Viz
+};
+
+\node[adapter, below right=1mm and 7mm of port, minimum width=3.4cm] (mem) {
+    \textbf{\texttt{MemoryRepository}} \\
+    \scriptsize Fast In-Memory Graph \\
+    \scriptsize Isolated Sandboxed Mutation
+};
+
+\draw[arr] (core) -- (port);
+\draw[arr] (port) |- (neo4j);
+\draw[arr] (port) |- (mem);
+\end{tikzpicture}
+\caption{Hexagonal architecture of SaG: domain services access graph representations via the \texttt{IGraphRepository} port, supported by dual persistent and in-memory repository adapters.}
+\label{fig:hexagonal_arch}
+\end{figure}
+
+The framework provides two specialized repository adapters, forming a **Dual-Repository Pattern**:
+\begin{enumerate}
+    \item \textbf{\texttt{Neo4jRepository}:} A graph database adapter utilizing the official Bolt driver to communicate with a Neo4j cluster. This adapter supports declarative Cypher queries, persistent graph schemas, and interactive visual exploration during architectural review.
+    \item \textbf{\texttt{MemoryRepository}:} A pure in-memory graph repository engineered in Python using vectorized adjacency tables and thread-safe copy-on-write semantics. While Neo4j excels at persistence, executing thousands of speculative graph mutations against an external database incurs prohibitive I/O and transaction serialization overhead. \texttt{MemoryRepository} allows the prescriptive engine to fork, mutate, and simulate counterfactual architectures in microseconds, enabling over 14,000 discrete-event simulation sweeps to complete in under 3~hours (Section~\ref{sec:results:performance}).
+\end{enumerate}
+
+\subsection{The Seven Pipeline Stages}
+\label{sec:tool:stages}
+
+SaG operationalizes model analysis through a sequential, seven-stage processing pipeline:
+\begin{enumerate}
+    \item \textbf{Stage 1 (Model Ingestion):} Ingests declarative Architecture-as-Code descriptors (JSON or YAML) and associated static code analysis metrics (LOC, WMC, LCOM, coupling instability).
+    \item \textbf{Stage 2 (Topological Projection):} Synthesizes the multi-layer graph $G$ and evaluates the seven derivation rules to generate the directed \texttt{DEPENDS\_ON} analysis graph $G_{\text{analysis}}$.
+    \item \textbf{Stage 3 (Diagnostic Quality Attribution):} Computes CQP for application nodes, evaluates the fourteen structural graph metrics, derives $FT$, $A$, and $M$ quality scores, and projects them into ISO/IEC 25019 stakeholder harm vectors ($\mathbf{h}_{\text{QiU}}$).
+    \item \textbf{Stage 4 (Anti-Pattern Detection):} Executes the 19-pattern detection engine across Application, Middleware, Infrastructure, and System projections using adaptive box-plot fences.
+    \item \textbf{Stage 5 (Refactoring Candidate Compilation):} Compiles detected \texttt{CRITICAL} and \texttt{HIGH} findings into targeted candidate graph-mutation operators.
+    \item \textbf{Stage 6 (Counterfactual Verification):} Executes isolated, multi-seed cascade simulation sweeps within \texttt{MemoryRepository} sandboxes to filter out ineffective or noisy edits.
+    \item \textbf{Stage 7 (Presentation and Gating):} Emits verified architectural refactoring blueprints and CI/CD quality gate verdicts across standardized exit codes.
+\end{enumerate}
+
+\subsection{Graph-Mutation Refactoring Operators}
+\label{sec:prescribe:operators}
+
+The prescriptive engine implements three typed graph-mutation operators:
+\begin{enumerate}
+    \item \textbf{Logical Topic Splitting (Operator 1):} Addresses \texttt{TOPIC\_FANOUT}, \texttt{GOD\_COMPONENT}, and \texttt{FAILURE\_HUB}. This operator decomposes a high-congestion topic $T$ into dedicated sub-topics $\{T_a : a \in P(T)\}$, updating publisher and subscriber edge endpoints to isolate message streams and bound cascade reach.
+    \item \textbf{Physical Anti-Affinity Reallocation (Operator 2):} Addresses \texttt{SPOF}, \texttt{BROKER\_OVERLOAD}, and \texttt{COMPOUND\_RISK}. This operator migrates co-located critical components from a shared host node $N_{\text{from}}$ to an isolated host $N_{\text{to}}$, updating \texttt{RUNS\_ON} and \texttt{HOSTED\_ON} relationships to eliminate single-hardware failure domains.
+    \item \textbf{Transport QoS Contract Hardening (Operator 3):} Addresses volatile message channels operating under \texttt{BEST\_EFFORT} or non-persistent contracts, updating transport specifications to \texttt{RELIABLE} and \texttt{TRANSIENT\_LOCAL} with bounded history depths.
+\end{enumerate}
+
+\paragraph{Automation Footprint Disclosure.}
+Exactly \textbf{five of the nineteen patterns} directly trigger an automated mutation operator (\texttt{SPOF} $\to$ Operator 2; \texttt{GOD\_COMPONENT}, \texttt{BOTTLENECK\_EDGE}, \texttt{FAILURE\_HUB}, \texttt{HUB\_AND\_SPOKE} $\to$ Operator 1). Operator 3 triggers from generic criticality tier membership. The remaining fourteen patterns provide advisory recommendations for human review. In practice, Operator 2 fires from RM criticality tier membership and \texttt{SPOF} findings, while Operator 1 fires on congestion, RM-critical topics, or bottleneck findings; Section~\ref{sec:results:prescriptive} reports the resulting per-operator breakdown.
+
+\subsection{Closed-Loop Counterfactual Verification Engine}
+\label{sec:optimization_objective}
+
+The prescriptive engine couples candidate compilation with closed-loop simulation verification. The idealized architectural optimization objective can be expressed as:
+\begin{equation}
+\min_{\Delta} \sum_{v \in V} I^*_{\Delta(G)}(v) \quad \text{subject to} \quad \mathrm{Cost}(\Delta) \le \mathcal{B}
+\label{eq:ideal_objective}
+\end{equation}
+where $\Delta(G)$ represents an architectural transformation producing mutated topology $G' = \Delta(G)$, and $I^*$ is the simulated failure impact. 
+
+Rather than executing an unconstrained search over the combinatorial space of graph transformations, SaG implements a **two-level verification-gated screening rule**:
+\begin{enumerate}
+    \item \textbf{Per-Edit Counterfactual Acceptance Filter (Level 1):} Each candidate refactoring edit $\delta$ is applied in isolation to a sandboxed copy of $G$ inside \texttt{MemoryRepository}. The engine executes discrete-event failure cascade simulations across propagation thresholds $\Theta = \{0.1, 0.2, 0.5\}$ and random seeds $S = \{42, 123, 456\}$. An edit is retained if and only if its measured cascade-impact reduction exceeds simulator seed noise at every threshold:
+    \begin{equation}
+    \overline{\Delta I}_\theta(\delta) > \kappa \cdot \sigma_{\text{seed},\theta}(\delta) \quad \forall \theta \in \Theta
+    \end{equation}
+    where $\kappa = 1.0$ is the noise-rejection margin parameter.
+    \item \textbf{Whole-Policy Acceptance Gate (Level 2):} The surviving set of admitted edits $\Delta_{\text{admitted}}$ is applied jointly to $G$. The composite policy is accepted if and only if the net System Risk Index improves:
+    \begin{equation}
+    \Delta\mathrm{SRI} = \mathrm{SRI}_{\text{baseline}} - \mathrm{SRI}_{\text{mutated}} > 0
+    \end{equation}
+\end{enumerate}
+
+\subsection{Substrate Independence and View Isolation}
+\label{sec:prescribe:verification}
+
+Candidate generation and per-edit verification are decoupled at the foundational modeling level: candidates are compiled from the projected dependency graph $G_{\text{analysis}}$ and diagnostic RM scores, while simulation verification is executed on the structural graph $G_{\text{structural}}$ within \texttt{MemoryRepository}. Consequently, the per-edit acceptance statistic $\overline{\Delta I}$ is evaluated by an independent discrete-event cascade simulator that shares no computational substrate with the RM score that proposed the candidate. 
+
+This independence does not extend to the second-level gate, where $\Delta\mathrm{SRI}$ is evaluated on RM dimensions ($\mathrm{SRI} = 0.5\,\bar{R}_w + 0.5\,\bar{M}_w$). We therefore treat cascade impact reduction $\overline{\Delta I}_{\text{policy}}$ as the primary outcome measure and $\Delta\mathrm{SRI}$ as an internal consistency check (Section~\ref{sec:results:prescriptive}).

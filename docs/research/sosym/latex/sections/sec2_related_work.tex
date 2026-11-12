@@ -1,0 +1,70 @@
+\section{Background and Related Modeling Tools}
+\label{sec:related_work}
+
+\subsection{Model-Driven Engineering and Architectural Description Languages}
+\label{sec:related:mde}
+
+Model-Driven Engineering (MDE) elevates high-level system models to primary engineering artifacts, enabling automated analysis, formal verification, and code synthesis \citep{schmidt2006mde, combemale2016global}. Within software and systems modeling, Architecture Description Languages (ADLs) such as the Architecture Analysis \& Design Language (AADL) \citep{feiler2006aadl} and the Palladio Component Model (PCM) \citep{becker2009palladio} formalize structural hierarchies, component interfaces, and execution platforms for dependability and performance forecasting.
+
+However, existing ADLs and architectural modeling tools are primarily tailored for synchronous remote procedure call (RPC), client--server interactions, or discrete hardware bus execution. In event-driven publish--subscribe (pub--sub) systems, communication is mediated through anonymous topics, message brokers, and Quality of Service (QoS) transport policies. Classical component-connector models fail to capture the subtle dynamic coupling introduced when dozens of subscribers bind to a single high-fanout topic or when broker memory partitions become exhausted under unthrottled producer bursts. SaG advances MDE by formalizing a domain-specific, typed multigraph metamodel specifically engineered to capture publish--subscribe topology semantics, multi-layer projections, and transport QoS contracts.
+
+\subsection{Architectural Smell and Anti-Pattern Detection Tools}
+\label{sec:related:smells}
+
+In object-oriented software engineering, Fowler's refactoring catalog \citep{fowler1999refactoring} and Brown et al.'s AntiPatterns taxonomy \citep{brown1998antipatterns} formalized recurring design flaws and remediation strategies. Suryanarayana et al.\ systematized design smells using structural metrics \citep{suryanarayana2014refactoring}. In distributed microservices, Taibi et al.\ established empirical taxonomies of architectural smells, such as Cyclic Dependency, Shared Database, and Distributed Monolith \citep{taibi2020microservices}.
+
+At the architectural level, automated smell detection is an established discipline. Mo et al.\ formalized architectural hotspots and evaluated their maintenance costs \citep{mo2015hotspot}. Specialized tools such as Arcan \citep{arcan2017}, Designite \citep{sharma2016designite}, and DV8 \citep{cai2019dv8} detect dependency smells from reverse-engineered source-code graphs, and recent surveys document their agreements and divergence \citep{azadi2019architectural, mumtaz2021systematic}. Common patterns such as cyclic dependencies, hub-like dependencies, and unstable interfaces align conceptually with \texttt{CYCLE}, \texttt{HUB\_AND\_SPOKE}, and \texttt{UNSTABLE\_INTERFACE} in our catalog.
+
+However, existing tools operate on module, package, or class dependency graphs recovered from source code; \emph{they possess no representation for topics, message brokers, partition queues, or QoS transport policies}. Consequently, they are blind to the failure modes unique to publish--subscribe middleware. Furthermore, empirical studies by Lenarduzzi et al.\ \citep{lenarduzzi2020sonarqube} indicate that static rule-based tools (e.g., SonarQube) often exhibit weak correlation with real-world fault proneness. SaG addresses this by grounding its 19-pattern catalog in a multi-layer graph metamodel and evaluating detection against dynamic cascade simulation.
+
+Software performance engineering has also cataloged performance antipatterns \citep{smith2000software, smith2002new}, which are detected in Java applications \citep{trubiani2023automated} or modeled via queueing networks \citep{pinciroli2023performance, avritzer2025architecture}. While patterns such as the Blob and One-Lane Bridge resemble SaG's \texttt{GOD\_COMPONENT} and \texttt{BROKER\_OVERLOAD}, they target execution latency, whereas SaG targets structural failure cascades. Similarly, scalability fault detectors (e.g., ScaleCheck \citep{stuardo2019scalecheck}, PCatch \citep{li2018pcatch}, and recent distributed fault studies \citep{zhu2026understanding}) target code-level thread and socket bottlenecks, whereas SaG targets pre-deployment architectural models.
+
+\subsection{Model Refactoring: Open-Loop Search vs.\ Counterfactual Verification}
+\label{sec:related:refactoring}
+
+Automated model refactoring and architecture optimization have been approached through multiple modeling paradigms:
+\begin{enumerate}
+    \item \emph{Rule-Based Model Transformations:} Graph transformation tools apply declarative graph rewrite rules to restructure models based on predefined architectural patterns \citep{mens2006taxonomy}.
+    \item \emph{Search-Based Software Engineering (SBSE):} Multi-objective evolutionary algorithms (e.g., NSGA-II) explore architectural design spaces to optimize coupling, cohesion, or hardware cost \citep{harman2012sbse, aleti2013software, deb2002fast}.
+    \item \emph{Simulation-in-the-Loop Optimization:} The Palladio/PerOpteryx line of work \citep{koziolek2011peropteryx} evaluates candidate architectural variants within an optimization loop using simulation and analytical models.
+\end{enumerate}
+
+Despite these advances, the vast majority of architectural refactoring engines operate \emph{open-loop} with respect to failure propagation: transformations are selected either by heuristic structural fitness functions or by unverified rule triggers. SaG introduces a closed-loop \textbf{``verify-before-transform''} discipline: candidate graph mutations are executed in an in-memory sandbox and evaluated against a discrete-event cascade simulator across multiple seeds and failure thresholds. Edits are admitted only if the measured impact reduction clears stochastic seed noise ($\overline{\Delta I} > \kappa \sigma_{\text{seed}}$), preventing regressions.
+
+\subsection{Explainable Quality Models and Graph Centrality}
+\label{sec:related:quality_models}
+
+Software quality models, standardized in ISO/IEC 25010 (Product Quality) and ISO/IEC 25019 (Quality-in-Use) \citep{iso25010_2023, iso25019_2023}, structure software quality into hierarchical characteristics. In distributed systems, however, predictive analytics often rely on opaque machine learning models or collapse multiple metrics into unweighted sums \citep{menzies2018bad}.
+
+SaG strictly distinguishes \emph{post-hoc attribution} (e.g., SHAP or GNN attention weights, which approximate an opaque model's decisions) from \emph{intrinsic score decomposition}. SaG defines its Reliability--Maintainability (RM) quality model as a deterministic, weighted decomposition over standardized sub-characteristics (Fault Tolerance, Availability, Maintainability). This ensures that every computed score has auditable provenance directly mapped to stakeholder engineering roles.
+
+Finally, while complex network theory applies graph centrality indices (betweenness \citep{freeman1977set}, degree, PageRank, articulation points) to microservices and call graphs \citep{bakhtin2025network, falci2018complex}, our empirical evaluation reveals that multi-dimensional metrics saturate at comparable ranking accuracy with degree centrality (Section~\ref{sec:empirical_application}). SaG's principal value is therefore its deterministic, domain-grounded attribution and verified refactoring, rather than superior scalar ranking.
+
+\subsection{Advance Over State of the Art}
+\label{sec:related:sota}
+
+Table~\ref{tab:sota_comparison} summarizes SaG's key contributions in comparison to state-of-the-art modeling and architecture analysis tools.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\caption{Comparison of SaG with State-of-the-Art Modeling and Architecture Tools.}
+\label{tab:sota_comparison}
+\begin{tabularx}{\textwidth}{lccccc}
+\toprule
+\textbf{Capability / Characteristic} & \textbf{Palladio / PerOpteryx} & \textbf{AADL} & \textbf{Arcan / Designite} & \textbf{SonarQube} & \textbf{SaG (This Tool)} \\
+\midrule
+Pub--Sub Semantics (Topics, Brokers, QoS) & No & Partial & No & No & \textbf{Yes (First-Class)} \\
+Multi-Layer Heterogeneous Metamodel & Component/Hardware & Component/Bus & Class/Package & File/Line & \textbf{Yes (4 Layers, 5 Types)} \\
+Standardized Quality Model & Custom metrics & Custom annexes & Smells only & Technical Debt & \textbf{ISO/IEC 25010 \& 25019} \\
+Domain-Specific Anti-Pattern Catalog & Performance only & Fault trees & OO / Microservices & Code rules & \textbf{19 Pub--Sub Patterns} \\
+Code-to-Architecture Bridge (CQP) & No & No & No & Native (AST) & \textbf{Yes (Continuous CQP)} \\
+Refactoring Verification Discipline & Open-loop / Sim & Analytic / Open & Open-loop & Advisory only & \textbf{Closed-Loop Simulation} \\
+In-Memory Sandboxed Transformation & No & No & No & No & \textbf{Yes (\texttt{MemoryRepository})} \\
+Multi-Modal Interfaces (Web, SDK, CLI) & Eclipse IDE & OSATE / Eclipse & CLI / Desktop & Web Dashboard & \textbf{Web, SDK, CLI, REST} \\
+CI/CD Regression Quality Gating & No & No & Partial & Yes & \textbf{Yes (3-Tier Exit Codes)} \\
+Open Source License & EPL & Open source & Proprietary/Academic & LGPL / Freemium & \textbf{Apache 2.0 (Open)} \\
+\bottomrule
+\end{tabularx}
+\end{table}

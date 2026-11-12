@@ -1,0 +1,112 @@
+\section{Tool Interfaces, Usability, and Engineering Ecosystem}
+\label{sec:tool_usability}
+
+\subsection{Multi-Modal Tool Interfaces}
+\label{sec:tool:interfaces}
+
+A primary design goal of SaG is to support diverse engineering stakeholders across the software modeling lifecycle. To achieve this, the tool provides four synchronized interaction modalities, depicted in Figure~\ref{fig:tool_interfaces}.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    box/.style={draw, rounded corners, align=center, font=\footnotesize, inner sep=3pt},
+    arr/.style={-{Stealth[length=2mm]}, thick},
+    node distance=5mm and 6mm
+]
+\node[box, fill=purple!8, minimum width=9.5cm] (engine) {
+    \textbf{SaG Core Domain Engine} (\texttt{MultiLayerGraph}, \texttt{RM Scoring}, \texttt{Prescription})
+};
+
+\node[box, fill=blue!8, below left=7mm and -15mm of engine, minimum width=4.3cm] (web) {
+    \textbf{1. Interactive Web Dashboard} \\
+    \scriptsize $\bullet$ 2D/3D Force-Directed Graph Layout \\
+    \scriptsize $\bullet$ Cascade Blast Heatmaps \\
+    \scriptsize $\bullet$ RM Radar Charts \& Metric Matrices
+};
+
+\node[box, fill=green!8, below right=7mm and -15mm of engine, minimum width=4.3cm] (sdk) {
+    \textbf{2. Python SDK \& Client API} \\
+    \scriptsize $\bullet$ Programmatic \texttt{SaagClient} \\
+    \scriptsize $\bullet$ Jupyter Notebook Integration \\
+    \scriptsize $\bullet$ Extensible Scripting \& Pipelines
+};
+
+\node[box, fill=orange!8, below=22mm of web, minimum width=4.3cm] (cli) {
+    \textbf{3. Modular CLI Suite} \\
+    \scriptsize $\bullet$ Headless \texttt{saag} CLI Commands \\
+    \scriptsize $\bullet$ Batch Generation \& Sweeps \\
+    \scriptsize $\bullet$ Standard Unix Pipeline Output
+};
+
+\node[box, fill=yellow!10, below=22mm of sdk, minimum width=4.3cm] (api) {
+    \textbf{4. REST API \& CI/CD Gate} \\
+    \scriptsize $\bullet$ FastAPI with OpenAPI 3.0 Specs \\
+    \scriptsize $\bullet$ Pre-Merge Quality Gate Bot \\
+    \scriptsize $\bullet$ 3-Tier Exit Codes (0 / 1 / 2)
+};
+
+\draw[arr] (engine.south) -| (web.north);
+\draw[arr] (engine.south) -| (sdk.north);
+\draw[arr] (engine.south) -| (cli.north);
+\draw[arr] (engine.south) -| (api.north);
+\end{tikzpicture}
+\caption{Multi-modal interaction ecosystem of the Software-as-a-Graph framework.}
+\label{fig:tool_interfaces}
+\end{figure}
+
+\subsubsection{Interactive Web Dashboard and Visual Graph Explorer}
+For software architects and reliability engineers, SaG provides an interactive web dashboard developed in Next.js and React, complemented by a zero-dependency self-contained HTML dashboard generator (\texttt{saag.visualization.dashboard}). The visual explorer provides:
+\begin{itemize}
+    \item \textbf{Dynamic Topology Visualization:} Interactive 2D/3D force-directed network graphs rendering nodes, topics, brokers, and dependencies with color-coded severity tiers.
+    \item \textbf{Cascade Heatmaps:} Visual overlays depicting simulated blast radii under single- and multi-node failure injection.
+    \item \textbf{RM Diagnostic Radar Charts:} Multi-axis radial plots comparing Fault Tolerance, Availability, and Maintainability across subsystems.
+    \item \textbf{Dependency Matrix and Triage Views:} Tabular cross-layer dependency matrices highlighting high-coupling hotspots and anti-pattern findings.
+\end{itemize}
+
+\subsubsection{Python SDK and Client API}
+For systems researchers and data scientists, SaG exposes a native Python client library (\texttt{saag.client.SaagClient}) and pipeline orchestration interface (\texttt{saag.pipeline.Pipeline}). The SDK enables programmatic topology generation, metric extraction, counterfactual model mutation, and statistical validation within Jupyter notebooks and automated simulation testbeds:
+\begin{verbatim}
+from saag.client import SaagClient
+client = SaagClient.from_config("config/saag.yaml")
+graph = client.model.import_topology("data/scenarios/s01_av.json")
+diagnosis = client.diagnose.evaluate(graph, layer="app")
+print(f"Critical components: {diagnosis.get_critical_nodes()}")
+prescription = client.prescribe.run_verified(graph, margin=1.0)
+\end{verbatim}
+
+\subsubsection{Command-Line Interface (CLI) Suite}
+For automated batch execution and headless cluster sweeps, SaG offers a modular command-line suite:
+\begin{itemize}
+    \item \texttt{saag model}: Ingests architecture manifests and populates graph repositories.
+    \item \texttt{saag diagnose}: Computes CQP, RM attributions, and executes anti-pattern detectors.
+    \item \texttt{saag prescribe}: Compiles and counterfactually verifies refactoring candidates.
+    \item \texttt{saag simulate}: Runs discrete-event cascade simulations with configurable seed sweeps.
+    \item \texttt{saag validate}: Correlates structural predictions against ground-truth cascade outcomes.
+\end{itemize}
+
+\subsubsection{RESTful API Service}
+SaG includes a production-ready asynchronous web service built with FastAPI (\texttt{api/main.py}). The API exposes full OpenAPI 3.0 documentation, enabling external engineering platforms (e.g., Jenkins, GitLab CI, GitHub Actions) to trigger analysis and retrieve serialized JSON diagnostic payloads over HTTP.
+
+\subsection{DevOps Integration and CI/CD Quality Gating}
+\label{sec:cicd_gating}
+
+To prevent architectural regression during continuous system evolution, SaG's diagnostic engine is packaged as an automated quality gate for continuous integration workflows.
+
+\subsubsection{Regression Semantics: Absolute vs.\ Delta-Aware Gating}
+\label{sec:cicd:semantics}
+
+The gate supports two operational evaluation modes:
+\begin{itemize}
+    \item \textbf{Absolute Gating:} Evaluates the complete system topology against global thresholds. However, mature industrial software systems frequently maintain accepted, intentional architectural debt. Under absolute gating on our benchmark corpus, the presence of legacy \texttt{CRITICAL} or \texttt{HIGH} findings triggers \textbf{Exit Code 2 (Block) on all eight scenarios} (Section~\ref{sec:results:performance}). This demonstrates that absolute gating is too rigid for iterative development.
+    \item \textbf{Delta-Aware Gating (Design):} Compares the candidate pull-request topology against the target branch merge-base, blocking only \emph{newly introduced} anti-patterns or worsening severity classifications, while respecting signed \textbf{waiver registers} for risk-accepted legacy debt.
+\end{itemize}
+
+\subsubsection{Three-Tier Exit-Code Protocol}
+\label{sec:cicd:protocol}
+
+The quality gate communicates verdicts to CI runners via a standardized three-tier exit-code protocol:
+\begin{itemize}
+    \item \textbf{Exit Code 0 (Pass):} No critical architectural anti-patterns detected; build is cleared for deployment.
+    \item \textbf{Exit Code 1 (Warning):} Non-critical \texttt{MEDIUM}-severity smells detected; build passes with advisory warnings posted to developers.
+    \item \textbf{Exit Code 2 (Block):} Severe \texttt{CRITICAL} or \texttt{HIGH} anti-patterns detected; deployment pipeline is halted.
+\end{itemize}

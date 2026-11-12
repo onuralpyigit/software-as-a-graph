@@ -1,0 +1,194 @@
+\section{Graph Metamodel and Multi-Layer System Representation}
+\label{sec:sag_model}
+
+\subsection{Heterogeneous Graph Metamodel}
+\label{sec:model:formulation}
+
+In the SaG framework, a distributed publish--subscribe software architecture is formalized as a typed, attributed, directed multigraph:
+\begin{equation}
+G = (V, E, \tau_V, \tau_E, w_E, w_V)
+\end{equation}
+where $V$ is the set of architectural vertices, $E \subseteq V \times V$ is the multiset of directed edges, $\tau_V : V \to T_V$ partitions vertices into five distinct semantic classes, $\tau_E : E \to T_E$ assigns each edge to an architectural relationship type, $w_E : E \to \mathbb{R}^+$ maps edges to QoS-derived communication weights, and $w_V : V \to [0,1]$ assigns normalized component weights.
+
+The vertex type universe $T_V$ captures the fundamental building blocks of publish--subscribe architectures:
+\begin{equation}
+T_V = \{\text{Application}, \text{Library}, \text{Topic}, \text{Broker}, \text{Node}\}
+\end{equation}
+\begin{itemize}
+    \item \textbf{Application ($V_{\text{app}}$):} Autonomous execution processes (e.g., ROS~2 nodes, microservice daemons) that actively produce or consume messages.
+    \item \textbf{Library ($V_{\text{lib}}$):} Passive shared code modules or algorithmic libraries dynamically or statically linked by applications.
+    \item \textbf{Topic ($V_{\text{topic}}$):} Named publish--subscribe communication channels routing asynchronous message streams.
+    \item \textbf{Broker ($V_{\text{broker}}$):} Message routing and queuing intermediaries (e.g., MQTT brokers, Kafka partition leaders, DDS domain participants).
+    \item \textbf{Node ($V_{\text{node}}$):} Physical or virtual compute hosts, containers, or virtual machines executing processes and brokers.
+\end{itemize}
+
+The edge type universe $T_E$ formalizes the operational and structural relationships among these entities:
+\begin{equation}
+\begin{split}
+T_E = \{ & \text{PUBLISHES\_TO}, \text{SUBSCRIBES\_TO}, \text{ROUTES}, \\
+        & \text{RUNS\_ON}, \text{CONNECTS\_TO}, \text{USES}\}
+\end{split}
+\end{equation}
+
+\subsection{Derived Architectural Dependencies: The \texttt{DEPENDS\_ON} Projection}
+\label{sec:model:projection}
+
+Because pub--sub systems achieve spatial and temporal decoupling via topic mediation, direct runtime invocation dependencies are not explicitly declared in source manifests. To expose indirect failure propagation pathways, SaG defines formal derivation rules that project $G$ into a directed analysis graph $G_{\text{analysis}} = (V, E_{\text{depends}})$, where directed edges $(u \to v)$ denote that entity $u$ functionally depends on entity $v$ (i.e., disruption of $v$ directly impacts $u$):
+
+\begin{itemize}
+    \item \textbf{Application-to-Application:} Formed when application $A_1$ subscribes to a topic $T$ published by application $A_2$: $(A_1 \to A_2) \in E_{\text{depends}}$.
+    \item \textbf{Application-to-Broker:} Formed when application $A$ publishes or subscribes to a topic routed through broker $B$: $(A \to B) \in E_{\text{depends}}$.
+    \item \textbf{Application-to-Library:} Formed when application $A$ links shared library $L$: $(A \to L) \in E_{\text{depends}}$, capturing shared-dependency blast radius if $L$ suffers a defect.
+    \item \textbf{Broker-to-Broker / Node Colocation:} Captures shared-fate host vulnerabilities when multiple critical applications or brokers are co-located on the same physical host $N$: $(A_i \to N) \in E_{\text{depends}}$.
+\end{itemize}
+
+The resulting analysis graph is stratified across four architectural layer projections:
+\begin{enumerate}
+    \item \textbf{Application Layer ($\text{app}$):} Subgraph induced by $V_{\text{app}} \cup V_{\text{lib}}$, modeling end-to-end business logic and functional data flows.
+    \item \textbf{Infrastructure Layer ($\text{infra}$):} Subgraph induced by $V_{\text{node}}$, modeling physical and virtual compute network topology.
+    \item \textbf{Middleware Layer ($\text{mw}$):} Subgraph induced by $V_{\text{app}} \cup V_{\text{broker}}$, modeling broker mediation, partition bottlenecks, and transport queues.
+    \item \textbf{System Layer ($\text{system}$):} The complete multi-layer graph across all five vertex types, capturing cross-layer failure cascades.
+\end{enumerate}
+
+\subsection{The Code Quality Penalty (CQP): Bridging SCA and Architecture}
+\label{sec:model:cqp}
+
+To bridge source-level implementation health with macro-architectural risk, SaG ingests four file-level static code analysis (SCA) metrics for Application and Library components:
+\begin{itemize}
+    \item Total Lines of Code (\texttt{loc}, sizing component scale),
+    \item Average Weighted Methods per Class (\texttt{cyclomatic\_complexity}, proxy for cognitive complexity),
+    \item Lack of Cohesion in Methods (\texttt{lcom}, proxy for modularity decay),
+    \item Code-level instability, $\text{instability\_code}(v) = C_e(v) / (C_a(v) + C_e(v))$, computed from efferent and afferent coupling.
+\end{itemize}
+
+Signals are min-max normalized independently within each component type population (Applications and Libraries form distinct populations with different scale baselines). Populations with zero variance collapse to $0$ rather than $1$, ensuring that absent data is not penalized as worst-case debt. These normalized metrics synthesize into the continuous \textbf{Code Quality Penalty (CQP)}:
+\begin{equation}
+\begin{aligned}
+\mathrm{CQP}(v) = & \; 0.10\,\text{loc\_norm}(v) + 0.35\,\text{complexity\_norm}(v) \\
+                  & + 0.30\,\text{instability\_code}(v) + 0.25\,\text{lcom\_norm}(v)
+\end{aligned}
+\end{equation}
+$\mathrm{CQP}(v) \in [0,1]$ provides an explicit, quantitative bridge from source-code technical debt to architectural criticality, entering directly into the Maintainability dimension of the quality model.
+
+\subsection{Hierarchical Reliability--Maintainability (RM) Quality Model}
+\label{sec:model:rm}
+
+Grounded in \textbf{ISO/IEC 25010} (Product Quality) and \textbf{ISO/IEC 25019} (Quality-in-Use) \citep{iso25010_2023, iso25019_2023}, SaG decomposes architectural quality into two primary dimensions---\textbf{Reliability} and \textbf{Maintainability}---providing explainable, role-specific diagnostics (Figure~\ref{fig:rm_hierarchy}, Table~\ref{tab:rm_stakeholders}).
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    box/.style={draw, rounded corners, align=center, font=\footnotesize, inner sep=2.5pt},
+    role/.style={draw, rounded corners, align=center, font=\scriptsize\itshape, fill=gray!8, inner sep=2pt},
+    >={Stealth[length=2mm]}, node distance=5mm and 5mm
+]
+\node[box, fill=purple!8, minimum width=5.2cm] (q) {Composite Criticality $Q(v)$ \\ $(0.80\,R(v) + 0.20\,M(v))$};
+\node[box, fill=blue!8, below left=6mm and 0mm of q, minimum width=3.0cm] (r) {Reliability $R(v)$ \\ $(0.36\,FT(v) + 0.64\,A(v))$};
+\node[box, fill=orange!10, below right=6mm and 0mm of q, minimum width=3.0cm] (m) {Maintainability $M(v)$ \\ (BT, $w_{\text{out}}$, CQP, coupling)};
+\node[box, below left=5mm and -6mm of r, minimum width=1.7cm] (ft) {Fault Tolerance $FT(v)$ \\ \scriptsize (cascade depth)};
+\node[box, below right=5mm and -6mm of r, minimum width=1.7cm] (a) {Availability $A(v)$ \\ \scriptsize (SPOF / cut-vertex)};
+\node[role, below=3mm of ft] (rft) {Reliability Engineer \\ (blast radius)};
+\node[role, below=3mm of a] (ra) {DevOps / SRE \\ (task continuity)};
+\node[role, below=12mm of m] (rm) {Software Architect \\ (cognitive load \& debt)};
+\draw[->] (q) -- (r);
+\draw[->] (q) -- (m);
+\draw[->] (r) -- (ft);
+\draw[->] (r) -- (a);
+\draw[->] (ft) -- (rft);
+\draw[->] (a) -- (ra);
+\draw[->] (m) -- (rm);
+\end{tikzpicture}
+\caption{The hierarchical RM Diagnostic Attribution Model and stakeholder role mapping. Each arrow represents a deterministic scoring dependency computed in a single pass.}
+\label{fig:rm_hierarchy}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{RM Quality Dimensions, Stakeholder Roles, and ISO/IEC 25019 Quality-in-Use Mapping.}
+\label{tab:rm_stakeholders}
+\begin{tabularx}{\textwidth}{l>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{2.4cm}X>{\raggedright\arraybackslash}p{2.4cm}}
+\toprule
+\textbf{Dim.} & \textbf{Sub-Characteristic} & \textbf{Engineering Role} & \textbf{High Score Meaning} & \textbf{ISO 25019 Harm} \\
+\midrule
+\textbf{R} & \textbf{Fault Tolerance ($FT$)} & Reliability Engineer & Cascades deeply; large blast radius & Indirect Harm \\
+& \textbf{Availability ($A$)} & DevOps / SRE & Single point of failure; partition & Primary Task Loss \\
+\textbf{M} & Structural Coupling & Software Architect & High change ripple; code-level debt & Maintainer Effort \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Formal Quality Definitions.}
+\begin{itemize}
+    \item \textbf{Definition D1 (Component Criticality):} Let $G_l = (V_l, E_l)$ be a layer-projected graph. Component criticality $\mathrm{crit}_l : V_l \to [0,1]^2 \times [0,1]$ maps vertex $v$ to metric vector $\mathbf{s}(v) = [R(v), M(v)]^T$ and composite score $Q(v)$, estimating Quality-in-Use degradation.
+    \item \textbf{Definition D2 (Relationship Criticality):} Let $e = (u,v) \in E_l$ be a dependency edge. Relationship criticality $\mathrm{crit}_l(e) \in [0,1]$ estimates Quality-in-Use loss resulting from link disruption.
+    \item \textbf{Definition D3 (Consequence Metric):} Criticality measures structural consequence given failure. Failure likelihood is supplied externally from operational telemetry.
+    \item \textbf{Definition D4 (Relative Distribution):} Criticality classifications are relative to the score distribution of system $S$ at layer $l$.
+\end{itemize}
+
+\paragraph{Structural Inputs.}
+Let $\varepsilon = 10^{-9}$. The model computes the following structural metrics on $G_l$:
+\begin{itemize}
+    \item $\mathrm{RPR}(v)$: PageRank on the transposed graph $G_l^{\mathsf T}$, rank-normalized over the population. Because \texttt{DEPENDS\_ON} edges point dependent~$\to$~dependency, failure propagates \emph{against} edge direction; reverse PageRank is thus the true cascade-reach estimator.
+    \item $\mathrm{DG}_{\text{in}}(v) = \deg^{-}(v) / (|V_l| - 1)$ and $\mathrm{DG}_{\text{out}}(v) = \deg^{+}(v) / (|V_l| - 1)$.
+    \item \textbf{Multi-Path Coupling Index:} $\mathrm{MPCI}(v) = \sum_{e \in \mathrm{In}(v)} \max(\mathrm{paths}(e) - 1,\, 0) \,/\, (|V_l| - 1)$, where $\mathrm{paths}(e)$ counts distinct pub--sub channels realizing dependency $e$.
+    \item \textbf{Fan-Out Criticality} (Topic vertices): $\mathrm{FOC}(t) = \ln(1 + f(t))\, s(t) \,/\, \max_{t'} [\ln(1 + f(t'))\, s(t')]$, for publication frequency $f(t)$ in Hz and subscriber count $s(t)$.
+    \item \textbf{Directed Articulation Score:} $\mathrm{AP}_{c,\text{directed}}(v) = \max(\mathrm{AP}_c^{\text{out}}(v), \mathrm{AP}_c^{\text{in}}(v))$, where $\mathrm{AP}_{c}^{\text{out}}(v) = 1 - L(G_l \setminus \{v\})/(|V_l|-1)$ and $L(H)$ is the order of the largest connected component of $H$.
+    \item \textbf{Bridge Ratio:} $\mathrm{BR}(v) = |\{e \in \mathrm{bridges}(G_l^{\text{und}}) : v \in e\}| / \deg^{\text{und}}(v)$.
+    \item \textbf{Connectivity Degradation Index:} $\mathrm{CDI}(v) = \min\!\big( [\bar{d}(G_l \setminus \{v\}) - \bar{d}(G_l)] / \bar{d}(G_l),\; 1 \big)$, for $\bar{d}$ the average shortest-path length over reachable pairs.
+    \item $\mathrm{BT}(v)$: betweenness centrality; $\mathrm{CC}(v)$: clustering coefficient; $\mathrm{PC}(v)$: normalized path complexity; $w(v)$: normalized QoS component weight; $w_{\text{out}}(v)$: normalized summed efferent QoS weight.
+\end{itemize}
+
+\paragraph{Mathematical Formulation of Quality Dimensions.}
+\begin{enumerate}
+    \item \textbf{Fault Tolerance ($FT$).} Estimates cascade reach. For Application, Library, Broker, and Node vertices, an enhanced cascade-depth potential $\mathrm{CDPot}$ discounts vertices that forward more than they absorb, amplified by multi-path coupling:
+    \begin{equation}
+    \begin{aligned}
+    \mathrm{CDPot}_{\text{base}}(v) &= \frac{\mathrm{RPR}(v) + \mathrm{DG}_{\text{in}}(v)}{2}\left(1 - \min\!\left(\frac{\deg^{+}(v)}{\max(\deg^{-}(v),\varepsilon)},\, 1\right)\right) \\
+    \mathrm{CDPot}(v) &= \min\!\big(\mathrm{CDPot}_{\text{base}}(v)\,(1 + \mathrm{MPCI}(v)),\; 1\big) \\
+    FT(v) &= 0.45\,\mathrm{RPR}(v) + 0.30\,\mathrm{DG}_{\text{in}}(v) + 0.25\,\mathrm{CDPot}(v)
+    \end{aligned}
+    \end{equation}
+    For Topic vertices, the blast surface is the subscriber set moderated by publisher redundancy:
+    \begin{equation}
+    FT_{\text{topic}}(t) = 0.50\,\mathrm{FOC}(t) + 0.50\,\mathrm{FOC}(t)\big(1 - \min(w_{\text{in}}(t), 1)\big)
+    \end{equation}
+    \item \textbf{Availability ($A$).} Evaluates single-point-of-failure exposure. The interaction term $\mathrm{QSPOF}(v) = \mathrm{AP}_{c,\text{directed}}(v)\cdot w(v)$ deliberately incorporates QoS weight so structural SPOF risk is not masked at low weight:
+    \begin{equation}
+    \begin{aligned}
+    A(v) = & \; 0.25\,\mathrm{AP}_{c,\text{directed}}(v) + 0.20\,\mathrm{QSPOF}(v) \\
+           & + 0.20\,\mathrm{BR}(v) + 0.25\,\mathrm{CDI}(v) + 0.10\,w(v)
+    \end{aligned}
+    \end{equation}
+    \item \textbf{Maintainability ($M$).} Blends betweenness, efferent QoS out-degree, CQP, coupling risk, and inverse clustering. With $\iota(v) = \deg^{+}(v) / (\deg^{-}(v) + \deg^{+}(v) + \varepsilon)$:
+    \begin{equation}
+    \begin{aligned}
+    \mathrm{CouplingRisk\_enh}(v) &= \min\!\big(1,\; \big[1 - |2\iota(v) - 1|\big]\,(1 + 0.10\,\mathrm{PC}(v))\big) \\
+    M(v) = & \; 0.35\,\mathrm{BT}(v) + 0.30\,w_{\text{out}}(v) + 0.15\,\mathrm{CQP}(v) \\
+           & + 0.12\,\mathrm{CouplingRisk\_enh}(v) + 0.08\,(1-\mathrm{CC}(v))
+    \end{aligned}
+    \end{equation}
+    \item \textbf{Reliability Composite ($R$).} Blends Fault Tolerance and Availability with $\alpha = 0.36$:
+    \begin{equation}
+    R(v) = \alpha \cdot FT(v) + (1-\alpha) \cdot A(v)
+    \end{equation}
+\end{enumerate}
+
+\paragraph{Composite Criticality and Stakeholder Projection.}
+Composite criticality blends Reliability and Maintainability:
+\begin{equation}
+Q(v) = 0.80\,R(v) + 0.20\,M(v)
+\end{equation}
+The diagnostic vector $\mathbf{s}_{\text{RM}}(v) = [R(v), M(v)]^T$ projects into ISO/IEC 25019 Quality-in-Use stakeholder harm scores $[H_{\text{Ben}}, H_{\text{Risk}}, H_{\text{Acc}}]^T$ via transformation matrix $\mathbf{M}_{\text{RM} \to \text{QiU}}$:
+\begin{equation}
+\mathbf{h}_{\text{QiU}}(v) = \mathbf{M}_{\text{RM} \to \text{QiU}} \cdot \mathbf{s}_{\text{RM}}(v) = \begin{bmatrix} 0.75 & 0.25 \\ 0.80 & 0.20 \\ 0.60 & 0.40 \end{bmatrix} \begin{bmatrix} R(v) \\ M(v) \end{bmatrix}
+\end{equation}
+$\mathbf{M}_{\text{RM} \to \text{QiU}}$ is row-stochastic, providing a declared re-presentation of RM in stakeholder-facing terms for routing findings to responsible engineering roles. Components are classified into five severity tiers (\texttt{CRITICAL}, \texttt{HIGH}, \texttt{MEDIUM}, \texttt{LOW}, \texttt{MINIMAL}) using adaptive box-plot fences ($Q > Q_3 + 1.5\,\mathrm{IQR}$ for \texttt{CRITICAL}; $Q_3 < Q \le \text{fence}$ for \texttt{HIGH}).
+
+\subsection{Substrate Adequacy: Layer Requirements for Topological Metrics}
+\label{sec:model:substrate}
+
+A foundational insight of our metamodel is that architectural quality dimensions are not equally well-posed on all layer projections. Continuous metrics ($FT$ and $M$) vary smoothly across all layers. In contrast, discrete cut-vertex and bridge predicates ($\mathrm{AP}_{c,\text{directed}}$ and $\mathrm{BR}$ in Availability) fire only where the projected graph contains cut vertices. 
+
+On densely interconnected application-layer projections where topics allow multiple redundant paths, cut structures can be structurally absent ($F_1 = 0.0$ for articulation-point detection). Because $A(v)$ carries $(1-\alpha) = 0.64$ of $R(v)$'s weight, an availability score evaluated on an inadequate substrate collapses to a near-constant baseline. Substrate adequacy is therefore a design-time property: Availability-focused analysis (such as SPOF detection) must be evaluated on layer projections where physical or mediation bottlenecks exist---specifically the Middleware or System layers.

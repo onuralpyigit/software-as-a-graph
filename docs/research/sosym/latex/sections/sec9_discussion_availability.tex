@@ -1,0 +1,26 @@
+\section{Discussion and Tool Availability}
+\label{sec:discussion}
+
+\subsection{Threats to Validity}
+\label{sec:disc:threats}
+
+\begin{itemize}
+    \item \textbf{Construct Validity --- Circularity of Whole-Policy Gating:} While the Level 1 per-edit filter utilizes an independent cascade oracle, the Level 2 whole-policy gate evaluates $\Delta\mathrm{SRI}$, which reweights the same RM dimensions used to compile candidates. This is why Section~\ref{sec:results:prescriptive} treats the oracle-measured cascade reduction ($\overline{\Delta I}_{\text{policy}}$) as the primary outcome and $\Delta\mathrm{SRI}$ as an internal consistency check.
+    \item \textbf{Construct Validity --- Substrate Adequacy:} As formalized in Section~\ref{sec:model:substrate}, discrete topological predicates (e.g., articulation points) collapse on projections lacking cut structures. Availability metrics must be evaluated on Middleware or Infrastructure projections where mediation bottlenecks are physically present.
+    \item \textbf{Internal Validity --- Independence in Verification:} Decoupled in-memory graph sandboxing (\texttt{MemoryRepository}) guarantees that speculative graph mutations do not leak state into baseline graphs or cross-contaminate concurrent verification sweeps.
+    \item \textbf{External Validity --- Synthetic vs.\ Real-World Generalization:} The eight core benchmark scenarios are synthetic generators. We mitigated this by evaluating three transcribed real-world open-source systems (Autoware.Universe, Train-Ticket, Cloud IoT Mesh), demonstrating that the catalog achieves substantial chance-corrected agreement ($\kappa = +0.296$) on realistic topologies.
+    \item \textbf{Conclusion Validity --- Sample Size and Effect Significance:} The primary oracle-measured reduction ($+3.52\%$) across seven prescriptive scenarios does not achieve statistical significance under a two-sided Wilcoxon signed-rank test ($p = 0.219, n=7$). We report this effect descriptively and provide complete per-scenario distributions.
+\end{itemize}
+
+\subsection{Tool Availability, Reproducibility, and Open Science}
+\label{sec:tool:availability}
+
+In strict compliance with SoSyM's tool availability criteria, Software-as-a-Graph (SaG) is developed and maintained as an open-source, fully reproducible scientific software framework:
+
+\begin{itemize}
+    \item \textbf{Open-Source License:} SaG is released under the permissive **Apache License 2.0**, granting complete freedom for academic research, extension, and industrial adoption.
+    \item \textbf{Source Code Repository:} The full source code---including the core `saag` domain engine, the `cli` suite, the `api` service, and the web visualization components---is publicly hosted on GitHub at \url{https://github.com/software-as-a-graph/software-as-a-graph}.
+    \item \textbf{Persistent Archival and DOI:} The repository, benchmark scenario datasets, and experimental outputs are permanently archived on Zenodo with a persistent Digital Object Identifier (DOI), registered via \texttt{.zenodo.json}.
+    \item \textbf{Package Distribution and Containerization:} SaG is packaged for Python $\ge 3.10$ via \texttt{pyproject.toml} and can be installed directly with standard package managers. For zero-configuration deployment, a complete multi-container environment is provided via \texttt{docker-compose.yml}, orchestrating the Neo4j 5.x graph database, the FastAPI backend, and the interactive web explorer.
+    \item \textbf{Reproduction Package:} The repository contains an automated reproduction suite under \texttt{reproduce/}. Running the automated harness reproduces all numerical values, tables, and figures reported in Section~\ref{sec:empirical_application} from raw artifact JSONs.
+\end{itemize}

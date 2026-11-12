@@ -1,0 +1,93 @@
+% manuscript.tex -- Software and Systems Modeling (SoSyM) submission
+% Collection: "Tool Paper"
+%
+% ---------------------------------------------------------------------------
+% SUBMISSION FORMAT NOTE
+% ---------------------------------------------------------------------------
+% SoSyM is published by Springer. The journal accepts submissions formatted
+% with the Springer Nature template (\documentclass{sn-jnl}) or traditional
+% Springer journal class (\documentclass{svjour3}).
+%
+% The article class below is configured for local compilation and editing
+% without requiring external non-standard class bundles. Everything else
+% (author-year citations, alphabetised bibliography, structured abstract,
+% keywords, formal definitions, and sectioning) is aligned with the SoSyM
+% Guide for Authors.
+% ---------------------------------------------------------------------------
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{lineno}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage[round,authoryear]{natbib}
+\usepackage{tabularx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=blue!70!black,
+    urlcolor=blue!70!black
+}
+
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+% ---------------------------------------------------------------------------
+% Title page. SoSyM operates SINGLE-BLIND peer review for tool papers.
+% ---------------------------------------------------------------------------
+\title{\Large\bfseries Software-as-a-Graph: A Model-Driven Framework for Graph-Based Architectural Modeling, Diagnostic Analysis, and Counterfactual Refactoring of Publish--Subscribe Systems}
+
+\author{
+  Ibrahim Onuralp Yigit\thanks{Corresponding author. E-mail: \texttt{[CORRESPONDING-AUTHOR-EMAIL]}. ORCID: \texttt{[0000-0000-0000-0000]}.}
+  \and
+  Feza Buzluca\thanks{ORCID: \texttt{[0000-0000-0000-0000]}.}
+  \\[6pt]
+  \normalsize [DEPARTMENT], [INSTITUTION] \\
+  \normalsize [STREET ADDRESS], [CITY], [POSTAL CODE], [COUNTRY]
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\input{sections/abstract.tex}
+\end{abstract}
+
+\textbf{Keywords:} Model-driven engineering; Software and systems modeling; Architectural models; Graph metamodeling; Anti-pattern detection; Counterfactual refactoring; Publish--subscribe middleware; Simulation-based verification; Tool paper.
+
+\linenumbers
+
+\input{sections/sec1_introduction.tex}
+\input{sections/sec2_related_work.tex}
+\input{sections/sec3_graph_metamodel.tex}
+\input{sections/sec4_antipattern_catalog.tex}
+\input{sections/sec5_tool_architecture.tex}
+\input{sections/sec6_tool_usability.tex}
+\input{sections/sec7_empirical_application.tex}
+\input{sections/sec8_community_and_lessons_learnt.tex}
+\input{sections/sec9_discussion_availability.tex}
+\input{sections/sec10_conclusion.tex}
+
+\input{sections/declarations.tex}
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}

@@ -1,0 +1,52 @@
+\section{Community Importance and Lessons Learnt}
+\label{sec:community_and_lessons_learnt}
+
+In accordance with the guidelines of the SoSyM Tool Paper Call, this section explicitly articulates why the Software-as-a-Graph framework is important for the systems and modeling community, followed by five transferable lessons learnt from designing, building, testing, evaluating, and disseminating the tool.
+
+\subsection{Importance for the Systems and Software Modeling Community}
+\label{sec:community:importance}
+
+\begin{enumerate}
+    \item \textbf{Addressing the MDE Blind Spot for Asynchronous Pub--Sub Systems:} While Model-Driven Engineering has produced mature modeling languages and tools for synchronous RPC, component-connector monoliths, and embedded control loops (e.g., AADL, Palladio, SysML), asynchronous publish--subscribe architectures have remained a significant blind spot. Contemporary cyber-physical systems, autonomous vehicles (ROS~2/DDS), and IoT clouds rely heavily on topic-based pub--sub middleware. SaG provides the modeling community with a formalized, open-source metamodel, multi-layer projection rules, and quality attribution framework tailored specifically to the semantics of asynchronous message-passing systems.
+    \item \textbf{A Standardized, Reproducible Experimental Benchmark Testbed:} A recurring obstacle in software architecture and modeling research is the scarcity of open, diverse, and realistic benchmark models. SaG delivers an open corpus of eight multi-scale benchmark topologies (spanning autonomous driving, smart cities, financial trading, healthcare, and microservices) alongside three transcribed real-world open-source architectures (Autoware.Universe, Train-Ticket, Cloud IoT Mesh). This corpus, complete with declarative descriptors and discrete-event simulation oracles, establishes a shared experimental substrate for researchers developing new graph metrics, smell detectors, and model optimizers.
+    \item \textbf{Reusable Catalog of Anti-Patterns and Refactoring Operators:} SaG formalizes nineteen architectural anti-patterns and three graph-mutation operators stated over native publish--subscribe constructs. By publishing complete metric formulas, detection algorithms, and mutation preconditions, SaG provides a modular specification that other MDE researchers can adopt, extend, or transcribe into other modeling formalisms (e.g., EMF/Ecore, AGG, Henshin).
+    \item \textbf{Operationalizing International Quality Standards in Graph Models:} Many predictive modeling tools rely on ad-hoc scalar metrics or opaque neural networks. SaG demonstrates how international quality standards (\textbf{ISO/IEC 25010} and \textbf{ISO/IEC 25019}) can be operationalized deterministically over graph models, establishing an auditable bridge between source-code metrics (CQP) and macro-architectural risk.
+\end{enumerate}
+
+\subsection{Lessons Learnt Designing, Building, Testing, and Disseminating the Tool}
+\label{sec:community:lessons}
+
+\subsubsection{Lesson 1 (Designing): Metamodel Substrate Adequacy and Layer Awareness}
+\textit{Architectural quality metrics are only as valid as the projection substrate on which they are evaluated.} 
+
+A common design instinct in MDE is to define a structural metric (such as articulation-point membership for Single Points of Failure) and evaluate it across whatever graph model is available. In SaG, our initial design evaluated the complete RM composite at the application layer. However, because application-layer projections abstract away underlying middleware brokers and host nodes, topics often present redundant alternate paths, rendering cut-vertices structurally nonexistent ($F_1 = 0.0$ for SPOF detection across all eight scenarios). 
+
+\textbf{Takeaway for tool designers:} Multi-level system models must formally specify the exact architectural layer on which each quality metric is mathematically well-posed. Discrete connectivity metrics must be evaluated on layers where physical mediation bottlenecks actually exist (e.g., Middleware and Infrastructure layers), rather than assuming that application-layer projections reflect global availability risks.
+
+\subsubsection{Lesson 2 (Building): Dual Repositories for Counterfactual Model Transformation}
+\textit{Graph databases are ideal for persistent exploration, but in-memory copy-on-write sandboxes are mandatory for high-throughput model verification.}
+
+Initially, our tool prototype executed all graph operations directly against Neo4j via Cypher queries. While Neo4j provided excellent persistence, expressive graph queries, and visual debugging, using it for closed-loop refactoring verification created severe performance bottlenecks: executing thousands of speculative graph mutations, running cascade simulations, and rolling back state incurred severe disk I/O, network serialization, and transaction locking delays. 
+
+\textbf{Takeaway for tool designers:} By adopting a hexagonal ports-and-adapters architecture around an abstract \texttt{IGraphRepository} port, we implemented a specialized \texttt{MemoryRepository}. This in-memory adapter uses vectorized adjacency lists and thread-safe copy-on-write branching, enabling isolated counterfactual mutation sweeps to execute in microseconds and completing 14,301 simulation sweeps in 2~h 47~min. Tool builders should cleanly separate persistent query stores from ephemeral, in-memory execution sandboxes.
+
+\subsubsection{Lesson 3 (Testing): The ``Verify-Before-Transform'' Discipline}
+\textit{Rule-based model refactoring cannot be trusted open-loop; candidate transformations must be counterfactually verified against dynamic failure cascades.}
+
+In the model refactoring literature, transformation rules are typically assumed to improve system quality by definition (e.g., splitting a congested topic must reduce coupling). When we tested this assumption against our discrete-event cascade simulator, we discovered that \textbf{461 of 1589 compiled refactoring candidates ($29.0\%$)} failed verification: their measured cascade-impact reduction did not exceed stochastic seed noise, or they introduced subtle downstream congestion that exacerbated cascade reach. Furthermore, in two scenarios (S03 and S06), individually beneficial edits composed sub-additively into a net regression under joint application.
+
+\textbf{Takeaway for tool designers:} In complex distributed architectures, static heuristic rules are insufficient to guarantee resilience. Refactoring tools must incorporate closed-loop counterfactual simulation or formal verification into the transformation pipeline, actively discarding plausible-looking edits that fail to demonstrate measurable dependability gains beyond noise.
+
+\subsubsection{Lesson 4 (Evaluating): Explanatory Attribution vs.\ Scalar Centrality Ranking}
+\textit{Multi-metric composite scores do not necessarily out-rank simple centralities; their true value lies in explainable, role-specific quality attribution.}
+
+A foundational hypothesis in software metrics research is that multi-dimensional composite scores should significantly outperform simple graph centralities for predicting structural failure impact. Our empirical findings decisively qualify this assumption: across eight scenarios, degree centrality ($\rho = 0.519$), betweenness ($\mathrm{NDCG@10} = 0.859$), and the RM composite ($\rho = 0.485$, $\mathrm{NDCG@10} = 0.830$) saturate at statistically indistinguishable ranking quality (paired $p = 0.95$). 
+
+\textbf{Takeaway for tool designers:} Modeling researchers should resist the urge to claim superior ranking accuracy where empirical evidence demonstrates saturation. Instead, the true value of domain-grounded modeling is \emph{explanatory attribution}: a scalar degree centrality cannot tell an engineer whether a component is critical due to deep cascade reach (Reliability Engineer), single-point-of-failure exposure (SRE), or high coupling debt (Software Architect). Grounding models in standardized, auditable quality taxonomies provides actionable engineering value that raw centralities cannot offer.
+
+\subsubsection{Lesson 5 (Disseminating): Multi-Modal Ergonomics for Diverse Modeling Personas}
+\textit{Tool adoption requires meeting diverse stakeholders in their native operational environments.}
+
+During early dissemination of SaG, we observed that different engineering personas rejected tools that did not fit their established workflows. Systems architects preferred visual graph layouts, interactive heatmaps, and radar charts over raw data tables. Systems researchers and MDE modelers demanded scriptable Python APIs and Jupyter notebook integration for rapid experimentation. Conversely, DevOps engineers flatly rejected graphical interfaces, demanding headless CLI binaries with deterministic Unix exit codes (0/1/2) that could run within sub-second pre-merge CI/CD quality gates.
+
+\textbf{Takeaway for tool designers:} A modeling tool must provide synchronized multi-modal interaction interfaces: an interactive web dashboard for visual exploration, a programmatic Python SDK for research, and a headless CLI and REST API for continuous automated governance.

@@ -1,0 +1,211 @@
+\section{Empirical Application in Realistic Scenarios}
+\label{sec:empirical_application}
+
+\subsection{Benchmark Scenarios and Real-World Corpora}
+\label{sec:exp:scenarios}
+
+To evaluate SaG across diverse system domains and scales, we employ an evaluation corpus comprising eight synthetic benchmark scenarios (Table~\ref{tab:scenarios}) and three architectures transcribed from open-source systems.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\caption{Benchmark Scenario Scales and Topological Dimensions.}
+\label{tab:scenarios}
+\begin{tabular}{lrrrrrr}
+\toprule
+\textbf{Scenario} & \textbf{Applications} & \textbf{Libraries} & \textbf{Topics} & \textbf{Brokers} & \textbf{Nodes} & \textbf{Total Edges ($|E|$)} \\
+\midrule
+S01 Autonomous Vehicle & 80 & 20 & 40 & 4 & 8 & 797 \\
+S02 IoT Smart City & 200 & 10 & 80 & 6 & 30 & 1322 \\
+S03 Financial Trading & 60 & 18 & 35 & 5 & 6 & 580 \\
+S04 Healthcare & 50 & 12 & 25 & 3 & 8 & 400 \\
+S05 Hub-and-Spoke & 70 & 25 & 30 & 2 & 12 & 797 \\
+S06 Microservices Mesh & 90 & 30 & 45 & 6 & 15 & 680 \\
+S07 Hyper-Scale Enterprise & 300 & 50 & 120 & 10 & 40 & 3245 \\
+S08 Tiny Regression & 12 & 4 & 8 & 2 & 3 & 101 \\
+\midrule
+\textbf{Transcribed Real-World Topologies} & & & & & & \\
+Autoware.Universe (ROS~2/DDS) & 32 & 10 & 24 & 3 & 6 & 284 \\
+Train-Ticket (Microservices) & 41 & 8 & 30 & 3 & 8 & 342 \\
+Cloud IoT Mesh (MQTT) & 22 & 8 & 20 & 4 & 6 & 195 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Scenarios S01--S08 span six architectural domains ranging from 29 to 520 vertices (12 to 300 applications). Scenarios S01--S07 evaluate prescriptive refactoring; S08 is retained as a regression smoke test. To evaluate real-world validity, we include three architectures transcribed from production open-source systems: \textbf{Autoware.Universe} (the leading open-source ROS~2/DDS autonomous driving stack), the \textbf{Train-Ticket} microservices benchmark, and a \textbf{Cloud IoT Mesh} modeled on an industrial e-commerce and MQTT telemetry gateway.
+
+\subsection{Research Questions and Evaluation Protocol}
+\label{sec:exp:protocol}
+
+Our empirical evaluation addresses five central research questions:
+\begin{itemize}
+    \item \textbf{RQ1 (Diagnostic Ranking Efficacy):} How does the RM composite's rank correlation with cascade failure impact compare to structural baselines (betweenness, degree centrality)?
+    \item \textbf{RQ2 (Catalog Discrimination and Calibration):} How does the anti-pattern catalog perform on synthetic versus real-world topologies, and what explains its implication rate?
+    \item \textbf{RQ3 (Attribution Validity and Substrate Adequacy):} Does the Availability dimension carry genuine signal on the application layer, and how does node stratification resolve Simpson's paradox?
+    \item \textbf{RQ4 (Prescriptive Refactoring Efficacy and Operator Survival):} Does the closed-loop prescriptive engine achieve measurable reductions in cascade impact and System Risk Index, and how do individual mutation operators survive counterfactual verification?
+    \item \textbf{RQ5 (Tool Performance and Verification Latency):} What is the execution latency of diagnostic gating and counterfactual verification across system scales?
+\end{itemize}
+
+\paragraph{Evaluation Protocol and Metrics.}
+\begin{itemize}
+    \item \textbf{Detection Metrics:} Spearman rank correlation $\rho(Q, I_{\text{comp}})$, Cohen's $\kappa$, Normalized Discounted Cumulative Gain ($\mathrm{NDCG@10}$), Top-10 overlap, precision, recall, and $F_1$ against discrete-event simulation ground truth $I_{\text{comp}}(v)$.
+    \item \textbf{Prescriptive Metrics (Primary):} Mean fractional cascade-impact reduction on the fully mutated graph: $\overline{\Delta I}_{\text{policy}} = \mathrm{mean}_v\,[I(v) - I'(v)]/I(v)$, measured by the independent cascade simulator.
+    \item \textbf{Prescriptive Metrics (Secondary):} System Risk Index change $\Delta\mathrm{SRI} = \mathrm{SRI}_{\text{baseline}} - \mathrm{SRI}_{\text{mutated}}$, serving as an internal consistency check.
+    \item \textbf{Verification Parameters:} Propagation thresholds $\Theta = \{0.1, 0.2, 0.5\}$, random seeds $S = \{42, 123, 456\}$, and noise rejection margin $\kappa = 1.0$.
+\end{itemize}
+
+\subsection{Diagnostic Ranking Efficacy and Predictor Saturation (RQ1)}
+\label{sec:results:detection}
+
+Table~\ref{tab:detection_results} summarizes diagnostic performance at the application layer across all eight scenarios. Table~\ref{tab:predictor_comparison} compares the RM composite against single-metric baselines.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\caption{Diagnostic detection validation (app layer) against simulation ground truth $I_{\text{comp}}(v)$.}
+\label{tab:detection_results}
+\begin{tabular}{lrrrrrrrr}
+\toprule
+\textbf{Scenario} & $n$ & $\rho(Q, I)$ & $F_1$ & \textbf{Top-5} & \textbf{Catalog P} & \textbf{Catalog R} & \textbf{Implicated \%} & \textbf{Gate (s)} \\
+\midrule
+S01 Autonomous Vehicle & 80 & 0.457 & 0.600 & 0.40 & 0.244 & 0.950 & 97.5\% & 0.59 \\
+S02 IoT Smart City & 200 & 0.718 & 0.780 & 0.40 & 0.310 & 0.880 & 71.0\% & 0.56 \\
+S03 Financial Trading & 60 & 0.365 & 0.667 & 1.00 & 0.237 & 0.933 & 98.3\% & 0.40 \\
+S04 Healthcare & 50 & 0.451 & 0.538 & 0.60 & 0.213 & 0.769 & 94.0\% & 0.16 \\
+S05 Hub-and-Spoke & 70 & 0.466 & 0.611 & 0.80 & 0.257 & 1.000 & 100.0\% & 0.92 \\
+S06 Microservices Mesh & 90 & 0.405 & 0.565 & 0.40 & 0.261 & 1.000 & 97.8\% & 0.35 \\
+S07 Hyper-Scale Enterprise & 300 & 0.480 & 0.627 & 0.20 & 0.251 & 1.000 & 99.7\% & 20.98 \\
+S08 Tiny Regression & 12 & 0.538 & 0.333 & 0.60 & 0.250 & 1.000 & 100.0\% & 0.01 \\
+\midrule
+\textbf{Mean} & --- & \textbf{0.485} & \textbf{0.590} & \textbf{0.550} & \textbf{0.253} & \textbf{0.942} & \textbf{94.8\%} & \textbf{3.00} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Predictor Comparison (App Layer, Mean over 8 Scenarios). Structural predictors saturate around comparable ranking quality.}
+\label{tab:predictor_comparison}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Predictor} & $\rho$ & \textbf{Cohen's $\kappa$} & \textbf{NDCG@10} & \textbf{Top-10} \\
+\midrule
+$Q(v)$ composite (RM) & 0.4850 & 0.4514 & 0.8295 & 0.5875 \\
+Betweenness & 0.4346 & 0.4139 & \textbf{0.8592} & \textbf{0.6250} \\
+Degree Centrality & \textbf{0.5187} & \textbf{0.4792} & 0.8214 & 0.5625 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Predictor Saturation.}
+As Table~\ref{tab:predictor_comparison} illustrates, all three predictors saturate around comparable performance: degree centrality leads slightly on $\rho$ ($0.519$) and $\kappa$ ($0.479$), betweenness leads on $\mathrm{NDCG@10}$ ($0.859$) and Top-10 overlap ($0.625$), while the RM composite $Q(v)$ achieves balanced ranking ($\rho = 0.485$, $\mathrm{NDCG@10} = 0.830$). Under a Wilcoxon paired signed-rank test across scenarios, $Q(v)$ versus degree centrality yields $p = 0.945$ (paired $t$-test, $p = 0.465$); head-to-head, $Q(v)$ attains higher correlation in \textbf{five of eight} scenarios. This empirical saturation demonstrates that no single scalar predictor dominates. Consequently, the primary value of the RM model is not superior ranking accuracy, but rather its **deterministic, role-attributed quality decomposition** into actionable Fault Tolerance, Availability, and Maintainability dimensions.
+
+\subsection{Catalog Calibration on Synthetic vs.\ Transcribed Topologies (RQ2)}
+\label{sec:results:calibration}
+\label{sec:results:realworld}
+
+On the generated benchmark scenarios, the anti-pattern catalog exhibits high screening recall ($0.942$) and low precision ($0.253$), implicating an average of $94.8\%$ of components with chance-level agreement ($\kappa = -0.0022$). As detailed in Section~\ref{sec:catalog:coverage}, this is driven by finding scope: $98.4\%$ of findings are edge-scoped (\texttt{BOTTLENECK\_EDGE} and \texttt{QOS\_MISMATCH}), which implicate all connected endpoints.
+
+To assess whether this is an artifact of synthetic topology generation, we evaluated the catalog across the three transcribed real-world open-source systems over five simulation seeds (Table~\ref{tab:realworld}).
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{Catalog behavior on generated versus transcribed topologies (System Layer, 5 seeds). The catalog discriminates effectively on real-world architectures.}
+\label{tab:realworld}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Measure} & \textbf{Generated} ($n=40$) & \textbf{Transcribed} ($n=15$) \\
+\midrule
+Cohen's $\kappa$          & $-0.036 \pm 0.049$ & $\mathbf{+0.296 \pm 0.100}$ \\
+Precision                 & $0.237 \pm 0.014$  & $\mathbf{0.402 \pm 0.060}$ \\
+Recall                    & $0.887 \pm 0.059$  & $0.861 \pm 0.105$ \\
+$F_1$                     & $0.374 \pm 0.022$  & $\mathbf{0.545 \pm 0.061}$ \\
+Components Implicated     & $93.7\% \pm 3.2$   & $\mathbf{56.3\% \pm 9.8}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On transcribed architectures, chance-corrected agreement rises to $\mathbf{\kappa = +0.296}$ (fair agreement), precision increases by two-thirds to $0.402$, and the component implication rate drops from $93.7\%$ to $56.3\%$ ($21.3\%$ in Autoware, $18.3\%$ in Cloud Mesh, $14.4\%$ in Train-Ticket). This confirms that the catalog's indiscriminate behavior is largely an artifact of the dense uniform edge distributions in synthetic generators, whereas modular real-world architectures provide natural structural boundaries where anti-patterns discriminate effectively.
+
+\subsection{Attribution Validity and Substrate Adequacy (RQ3)}
+\label{sec:results:attribution}
+
+\paragraph{Availability Degeneracy on Application Layer.}
+At the application layer, the \texttt{SPOF} detector scores $F_1 = 0.0$ in \textbf{all eight scenarios}, predicting zero articulation points in six scenarios. Because $A(v)$ carries $0.64$ of $R(v)$'s weight, half of the composite score on this layer is computed over a near-constant substrate. This confirms Section~\ref{sec:model:substrate}'s substrate adequacy theorem: Availability metrics must be evaluated on Middleware or System layer projections where brokers and compute nodes create genuine physical bottlenecks.
+
+\paragraph{Reconciling Prior Conference Findings.}
+Our preliminary conference study \citep{yigit2025graph} reported $\rho = 0.94$ on a 10-application system validated against reachability loss. That earlier result shared its computational substrate with the predictor (both computed on the undirected application graph) and examined a topology with deliberate cut-vertices. This paper evaluates an independent discrete-event cascade oracle on directed dependency graphs across up to 300 applications, revealing the realistic saturation baseline ($\rho \approx 0.485$).
+
+\paragraph{Simpson's Paradox in Multi-Type Pooling.}
+When all five entity types are pooled at the system layer, the aggregate correlation collapses to $\rho = 0.028$, even though within-type strata show strong positive correlation (Application $0.503$, Broker $0.395$, Node $0.142$). This is a textbook instance of Simpson's paradox arising from baseline score offsets between entity types, demonstrating that stratified evaluation is a mandatory requirement for heterogeneous software graphs.
+
+\subsection{Prescriptive Refactoring Performance and Operator Survival (RQ4)}
+\label{sec:results:prescriptive}
+
+Table~\ref{tab:prescriptive_results} details the closed-loop refactoring results across all seven prescriptive scenarios, and Table~\ref{tab:operator_results} breaks down admission by mutation operator.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{2.5pt}
+\caption{Prescriptive refactoring performance under per-edit counterfactual verification.}
+\label{tab:prescriptive_results}
+\begin{tabular}{lrrrrrr}
+\toprule
+\textbf{Scenario} & $\overline{\Delta I}_{\text{policy}}$ & $\Delta\mathrm{SRI}$ & \textbf{Cand.} & \textbf{Adm.} & \textbf{Rej.} & \textbf{Adm.\ \%} \\
+ & \scriptsize(primary, oracle) & \scriptsize(secondary, RM) & & & & \\
+\midrule
+S01 Autonomous Vehicle & $+0.0161$ & +0.0086 & 156 & 45 & 111 & 28.8\% \\
+S02 IoT Smart City & $+0.0822$ & \textbf{+0.0461} & 391 & 297 & 94 & 76.0\% \\
+S03 Financial Trading & $\mathbf{-0.0689}$ & +0.0108 & 125 & 22 & 103 & 17.6\% \\
+S04 Healthcare & $\mathbf{+0.1894}$ & +0.0109 & 99 & 36 & 63 & 36.4\% \\
+S05 Hub-and-Spoke & $+0.0236$ & +0.0115 & 127 & 107 & 20 & 84.3\% \\
+S06 Microservices Mesh & $\mathbf{-0.0015}$ & +0.0097 & 163 & 142 & 21 & 87.1\% \\
+S07 Hyper-Scale Enterprise & $+0.0060$ & \textbf{+0.0171} & 528 & 479 & 49 & 90.7\% \\
+\midrule
+\textbf{Mean / Total} & \textbf{+0.0352} & --- & \textbf{1589} & \textbf{1128} & \textbf{461} & \textbf{71.0\%} \\
+\textbf{Scenarios Improved} & \textbf{5 / 7} & \textbf{7 / 7} & & & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\caption{Candidate Generation vs.\ Verified Admission by Refactoring Operator.}
+\label{tab:operator_results}
+\begin{tabularx}{\textwidth}{lrrr>{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Refactoring Operator} & \textbf{Candidates} & \textbf{Admitted} & \textbf{Survival Rate} & \textbf{Primary Structural Target} \\
+\midrule
+\textbf{Physical Anti-Affinity Reallocation} & 1188 & \textbf{923} & \textbf{77.7\%} & Single points of failure, co-location \\
+\textbf{Transport QoS Contract Hardening} & 69 & \textbf{40} & \textbf{58.0\%} & Volatile transport contracts on topics \\
+\textbf{Logical Topic Splitting} & 332 & \textbf{165} & \textbf{49.7\%} & High-fan-out message channels, hubs \\
+\midrule
+\textbf{Total} & \textbf{1589} & \textbf{1128} & \textbf{71.0\%} & --- \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Key Prescriptive Findings.}
+\begin{enumerate}
+    \item \textbf{Verification Yield:} Across 1589 compiled candidates, \textbf{1128 edits ($71.0\%$)} survive counterfactual verification, while 461 edits ($29.0\%$) are filtered out because they fail to clear simulator noise.
+    \item \textbf{Operator Survival:} Physical anti-affinity reallocation demonstrates the highest survival rate ($77.7\%$), followed by transport QoS hardening ($58.0\%$) and topic splitting ($49.7\%$).
+    \item \textbf{Oracle-Measured Impact Reduction:} Under the independent cascade oracle, five of seven scenarios achieve net cascade-impact reduction (mean $+3.52\%$, reaching $+18.9\%$ in Healthcare). Two scenarios regress slightly under joint composition (S03 $-6.9\%$, S06 $-0.15\%$), demonstrating that individually verified edits can interact sub-additively.
+    \item \textbf{Internal Risk Index ($\Delta\mathrm{SRI}$):} All seven scenarios achieve positive $\Delta\mathrm{SRI}$ gains (Wilcoxon $W=0, p=0.0156$). However, because $\Delta\mathrm{SRI}$ evaluates the same RM dimensions used to compile candidates, we treat the independent oracle's $+3.52\%$ impact reduction as the definitive headline measure.
+\end{enumerate}
+
+\subsection{Tool Performance, Scalability, and Latency (RQ5)}
+\label{sec:results:performance}
+
+\begin{enumerate}
+    \item \textbf{Diagnostic Pipeline Execution Latency:} The complete diagnostic pipeline (graph parsing, CQP computation, RM attribution, and 18 active detectors) executes in \textbf{0.01~s to 20.98~s} across the corpus (Table~\ref{tab:detection_results}). The 18 detectors run in under \textbf{0.2~s total}; overhead is dominated by base shortest-path and centrality calculations.
+    \item \textbf{\texttt{DEEP\_PIPELINE} Bounding:} Unconstrained path enumeration in the \texttt{DEEP\_PIPELINE} detector generated 247,761 paths on small fixtures and hung on enterprise graphs. Excluding it restored sub-second execution across small-to-medium scenarios.
+    \item \textbf{Prescriptive Verification Throughput:} The complete prescriptive sweep across seven scenarios (comprising 14,301 discrete-event simulation sweeps) executed in \textbf{2~h 47~min} on a 20-core workstation using \texttt{MemoryRepository}, confirming the computational feasibility of nightly automated refactoring verification.
+\end{enumerate}
