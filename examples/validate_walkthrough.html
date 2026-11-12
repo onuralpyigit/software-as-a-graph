@@ -1,0 +1,375 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Validate Walkthrough</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: seven numbered checks in the order the validator applies them, each a figure beside its reading. */
+
+:root {
+  --bg: #f2f5f7; --surface: #ffffff; --ink: #16212b; --muted: #5a6877; --line: #cbd4dc; --line-soft: #e3e8ed;
+  --accent: #0b6a94; --accent-soft: #d9ebf3;
+  --fail: #bf3b2b; --fail-soft: #f9ddd7;
+  --ok: #2b7a4b; --ok-soft: #dcefe3;
+  --warn: #9a6a12; --warn-soft: #f7e8c6;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c;
+  --ok: #63c08a; --ok-soft: #173826;
+  --warn: #e3b550; --warn-soft: #43350f; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c;
+  --ok: #63c08a; --ok-soft: #173826;
+  --warn: #e3b550; --warn-soft: #43350f; color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 46px; }
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: 2.3rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.55rem; font-weight: 600; }
+p { margin: 0; max-width: 70ch; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+.lede { font-size: 1.05rem; color: var(--muted); margin-top: 10px; }
+.eyebrow, .cap { font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.eyebrow { color: var(--accent); margin-bottom: 6px; } .cap { color: var(--muted); font-weight: 600; }
+section { display: flex; flex-direction: column; gap: 16px; }
+.sec-head { display: flex; flex-direction: column; gap: 8px; }
+.sec-head p, .note { color: var(--muted); } .note { font-size: 0.9rem; }
+.sec-head p b, .note b, li b { color: var(--ink); font-weight: 600; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.pad { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.scroll { overflow-x: auto; }
+.two { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.half { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+@media (max-width: 900px) { .two, .half, .three { grid-template-columns: minmax(0, 1fr); } }
+ul.plain { margin: 0; padding-left: 1.15em; display: flex; flex-direction: column; gap: 8px; max-width: 78ch; color: var(--muted); }
+.fig svg { display: block; width: 100%; min-width: 600px; height: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+th { font: 600 0.7rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num, td.h { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+td.c, th.c { text-align: center; }
+td.wrapcell { white-space: normal; min-width: 15em; }
+tbody tr.pick { cursor: pointer; } tbody tr.pick:hover td { background: var(--line-soft); } tbody tr.on td { background: var(--accent-soft); }
+.pill { display: inline-block; font: 600 0.68rem var(--mono); letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.pill.critical { background: var(--fail); border-color: var(--fail); color: var(--surface); }
+.pill.high, .pill.no { background: var(--fail-soft); border-color: var(--fail); color: var(--fail); }
+.pill.medium, .pill.warn { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.pill.ok { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.pill.accent { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.bar { display: grid; grid-template-columns: 3.4em minmax(40px, 1fr); gap: 8px; align-items: center; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.track { height: 9px; background: var(--line-soft); border-radius: 2px; overflow: hidden; }
+.fill { height: 100%; background: var(--accent); display: block; } .fill.f { background: var(--fail); }
+.card { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.card .rk { font: 600 0.74rem var(--mono); color: var(--accent); letter-spacing: 0.05em; }
+.card .who { font: 600 1.05rem var(--display); }
+.card .join { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 2px; display: flex; flex-direction: column; gap: 5px; font-size: 0.86rem; color: var(--muted); }
+.score { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.score .val { font: 600 1.9rem var(--mono); line-height: 1; } .score .sub { font-size: 0.82rem; color: var(--muted); }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; color: var(--muted); align-items: center; }
+.key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ln { width: 22px; height: 0; border-top: 1.6px solid var(--muted); display: inline-block; } .ln.dash { border-top-style: dashed; } .ln.dot { border-top-style: dotted; }
+.sw { width: 12px; height: 12px; display: inline-block; border-radius: 2px; background: var(--accent); }
+.picker { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding-block: 10px; display: flex; gap: 14px; align-items: center; }
+.chips { display: flex; gap: 6px; overflow-x: auto; min-width: 0; padding-bottom: 2px; }
+.chip { font: 500 0.82rem var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; cursor: pointer; white-space: nowrap; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.formula { font-family: var(--mono); font-size: 0.86rem; background: var(--bg); border: 1px solid var(--line-soft); border-radius: 4px; padding: 8px 10px; overflow-x: auto; white-space: nowrap; }
+footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: 0.84rem; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+footer p { max-width: 92ch; }
+
+svg text { font-family: var(--body); fill: var(--ink); }
+.n rect, .n polygon { fill: var(--surface); stroke: var(--muted); stroke-width: 1.3; }
+.n.host > rect { fill: var(--bg); stroke: var(--line); stroke-dasharray: 5 3; }
+.n.lib rect { stroke-dasharray: 3 2; }
+.n.pickable { cursor: pointer; }
+.n.sel > rect, .n.sel > polygon { stroke: var(--accent); stroke-width: 2.6; }
+.n.hot > rect, .n.hot > polygon { fill: var(--fail-soft); stroke: var(--fail); stroke-width: 1.8; }
+.n.mark > rect, .n.mark > polygon { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.8; }
+.n.dim { opacity: 0.4; }
+.nm { font-size: 12px; font-weight: 600; text-anchor: middle; }
+.sb { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); text-anchor: middle; }
+.hl { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+.bdg rect { fill: var(--ink); } .bdg text { fill: var(--bg); font-family: var(--mono); font-size: 9.5px; font-weight: 600; text-anchor: middle; }
+.e { stroke: var(--muted); stroke-width: 1.2; fill: none; } .e.routes { stroke-dasharray: 5 4; } .e.uses { stroke-dasharray: 1.5 3.5; stroke-linecap: round; stroke-width: 1.6; }
+.ah { fill: var(--muted); }
+.link { stroke: var(--muted); stroke-width: 3; }
+.lbl { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+.axis { stroke: var(--line); } .grid { stroke: var(--line-soft); } .diag { stroke: var(--muted); stroke-dasharray: 4 3; }
+.pt { fill: var(--accent); fill-opacity: 0.6; stroke: var(--accent); }
+.ptl { font-family: var(--mono); font-size: 10px; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+
+.fig.plain svg { min-width: 0; }
+.hbar { fill: var(--accent); opacity: 0.75; } .hbar.out { fill: var(--line); opacity: 1; }
+.mark { stroke: var(--fail); stroke-width: 1.6; } .marktxt { font-family: var(--mono); font-size: 10px; fill: var(--fail); }
+.tgt { stroke: var(--ok); stroke-width: 1.4; stroke-dasharray: 4 3; } .tgttxt { font-family: var(--mono); font-size: 10px; fill: var(--ok); }
+.TP { fill: var(--ok); stroke: var(--ok); } .FN, .FP { fill: var(--fail); stroke: var(--fail); } .TN { fill: var(--surface); stroke: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">software-as-a-graph · step 6 · validate</div>
+    <h1>Validate Walkthrough</h1>
+    <p class="lede">A score that claims to predict failure impact has to be checked against something that measures it. Validate sets the quality model's Q(v) beside the impact the failure simulator measured for the same components, and asks a fixed sequence of questions. This page asks them in order for one 15-component system.</p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">1 · align</div>
+      <h2 id="s1-title"></h2>
+      <p>Only components that both sides scored can be compared. The quality model scores everything; the failure sweep on the system layer fails applications, brokers and hosts. Anything else is dropped, with a warning, not counted as zero.</p>
+    </div>
+    <div class="box scroll"><table id="align"></table></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">2 · rank agreement</div>
+      <h2 id="s2-title"></h2>
+      <p>The two scores are on different scales, so the question is whether they put components in the same order. Spearman's ρ measures that; Kendall's τ is reported beside it as a check.</p>
+    </div>
+    <div class="two">
+      <div class="box fig plain">
+        <div class="keys"><span class="key"><svg width="12" height="12"><circle class="TP" cx="6" cy="6" r="5"/></svg>critical in both</span><span class="key"><svg width="12" height="12"><circle class="FN" cx="6" cy="6" r="5"/></svg>critical in one only</span><span class="key"><svg width="12" height="12"><circle class="TN" cx="6" cy="6" r="5"/></svg>critical in neither</span></div>
+        <svg id="scatter" viewBox="0 0 520 360" role="img" aria-label="Predicted Q against simulated impact"></svg>
+      </div>
+      <div class="box pad" id="corr"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">3 · how sure</div>
+      <h2 id="s3-title"></h2>
+      <p>A correlation over a handful of components can move a long way if one of them changes. Resampling the components with replacement many times shows how far.</p>
+    </div>
+    <div class="two">
+      <div class="box fig plain"><svg id="hist" viewBox="0 0 520 240" role="img" aria-label="Bootstrap distribution of the rank correlation"></svg></div>
+      <div class="box pad" id="hist-side"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">4 · the critical few</div>
+      <h2 id="s4-title"></h2>
+      <p>A good overall order matters less than finding the components at the top. Each side marks its own top quartile as critical, and the validator counts the overlap.</p>
+    </div>
+    <div class="two">
+      <div class="box scroll"><table id="cls"></table></div>
+      <div class="box pad" id="cls-side"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">5 · by type and by dimension</div>
+      <h2>Pooling hides what happens inside each group and each dimension</h2>
+      <p>Hosts, brokers and applications have different base rates, so a pooled correlation can be driven by the gap between types. Each quality dimension also has its own simulated counterpart.</p>
+    </div>
+    <div class="three" id="dims"></div>
+    <p class="note" id="dims-note"></p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">6 · the gates</div>
+      <h2 id="s6-title"></h2>
+      <p>Three release gates decide the verdict. Three more are reported beside them and never change it. A gate whose input could not be measured says so.</p>
+    </div>
+    <div class="box scroll"><table id="gates"></table></div>
+    <p class="note" id="gates-note"></p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">7 · system health</div>
+      <h2>One number per dimension, and one for the whole system</h2>
+      <p>Health indices summarise the simulated impact across components. They are what the Prescribe step later tries to improve.</p>
+    </div>
+    <div class="two">
+      <div class="box scroll"><table id="health"></table></div>
+      <div class="box pad" id="health-side"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Reading the result</div>
+      <h2>What this validation does and does not establish</h2>
+    </div>
+    <ul class="plain" id="take"></ul>
+  </section>
+
+  <footer>
+    <p><b>How this was produced.</b> <code>PYTHONHASHSEED=0 python examples/run_validate_walkthrough.py</code> on <code>examples/mini_atm.json</code>: <code>Client.validate(layers=["system", "app"])</code>. Every number comes from the validator except the histogram in step 3, which the script resamples itself to show the spread behind the engine's interval.</p>
+    <p>The published evidence for the method comes from systems of 50 to 300 components, where these statistics are stable. Here they are shown for their mechanics.</p>
+  </footer>
+</div>
+
+<script>
+const D = {"targets":{"spearman":0.7,"f1_score":0.75,"top_5_overlap":0.6,"predictive_gain":0.03,"weighted_kappa_cta":0.7,"bottleneck_precision_target":0.7,"gnn_spearman":0.85,"gnn_macro_f1":0.88,"gnn_ndcg_10":0.9,"precision":0.8,"max_interdim_correlation":0.4,"node_type_rho_default":0.7},"release_gates":["spearman","overlap_at_q3","top5_overlap"],"reported_gates":["predictive_gain","kappa_cta","bottleneck_precision"],"layers":{"system":{"name":"Complete System","passed":false,"gates":{"spearman":false,"overlap_at_q3":false,"top5_overlap":true,"predictive_gain":true,"kappa_cta":false,"bottleneck_precision":null},"counts":{"predicted_count":15,"actual_count":10,"matched_count":10},"warnings":["5 predicted components not in actual scores"],"comparisons":[{"id":"N1","type":"Node","predicted":0.2509,"actual":0.9773,"cls":"FN"},{"id":"N2","type":"Node","predicted":0.3072,"actual":0.9702,"cls":"TP"},{"id":"A5","type":"Application","predicted":0.2441,"actual":0.5494,"cls":"TN"},{"id":"A2","type":"Application","predicted":0.295,"actual":0.5882,"cls":"FP"},{"id":"B2","type":"Broker","predicted":0.2707,"actual":0.5001,"cls":"TN"},{"id":"A4","type":"Application","predicted":0.2848,"actual":0.4999,"cls":"TN"},{"id":"A3","type":"Application","predicted":0.2682,"actual":0.3756,"cls":"TN"},{"id":"A6","type":"Application","predicted":0.2283,"actual":0.3227,"cls":"TN"},{"id":"B1","type":"Broker","predicted":0.239,"actual":0.1638,"cls":"TN"},{"id":"A1","type":"Application","predicted":0.2197,"actual":0.1511,"cls":"TN"}],"correlation":{"spearman":0.6848,"kendall":0.5556,"pearson":0.6089,"spearman_p_value":0.0289},"ci":[-0.0189,0.9877],"bootstrap":{"hist":[0,0,0,2,0,0,4,11,12,24,31,54,69,112,157,211,348,314,348,303],"edges":[-1.0,-0.9,-0.8,-0.7,-0.6,-0.5,-0.4,-0.3,-0.2,-0.1,0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0],"n":2000,"lo":-0.019,"hi":0.9877},"classification":{"precision":0.5,"recall":0.5,"f1_score":0.5,"accuracy":0.8,"confusion":{"tp":1,"fp":1,"tn":7,"fn":1}},"top5":{"predicted":["N2","A2","A4","B2","A3"],"actual":["N1","N2","A2","A5","B2"],"common":["B2","A2","N2"]},"values":{"spearman":0.6848,"overlap_at_q3":0.5,"top5_overlap":0.6,"predictive_gain":0.3636,"kappa_cta":-0.0811,"bottleneck_precision":null},"by_type":{"Application":{"n":6,"spearman":0.8286}},"stratified":{"Application":{"n":6,"spearman":0.8286,"target_rho":0.75,"passed":true}},"dimensions":{"reliability":{"points":[["A1",0.19,0.2824],["A2",0.2198,0.6826],["A3",0.1977,0.4689],["A4",0.2581,0.5336],["A5",0.2022,0.5311],["A6",0.1859,0.4248],["B1",0.2339,0.2694],["B2",0.2712,0.3961],["N1",0.2181,0.9648],["N2",0.2754,0.9355]],"spearman":0.2727,"truth":"IR(v)","ci":[-0.434,0.8868]},"maintainability":{"points":[["A1",0.388,0.526],["A2",0.7208,0.7142],["A3",0.6676,0.4587],["A4",0.4361,0.6165],["A5",0.482,0.1356],["A6",0.4686,0.1356],["B1",0.2676,0.9502],["B2",0.2676,0.9717],["N1",0.4367,0.474],["N2",0.487,0.4492]],"spearman":-0.5305,"truth":"IM(v)","ci":[-0.9524,0.3683]},"availability":{"points":[["A1",0.0071,0.2614],["A2",0.0361,0.6357],["A3",0.0438,0.4559],["A4",0.0929,0.5441],["A5",0.0688,0.5996],["A6",0.0615,0.4551],["B1",0.0361,0.2446],["B2",0.0825,0.3585],["N1",0.0214,0.9016],["N2",0.0929,0.9115]],"spearman":0.2805,"truth":"IA(v)","ci":[-0.6864,0.8301]}},"composite":{"spearman_q_star_i_star":0.6364,"predictive_gain":0.3636,"dimensions":["m","r"],"best_single_dim":"Reliability","best_single_dim_rho":0.2727,"interdim_rhos":{"R*vsM*":-0.1154},"interdim_max_correlation":-0.1154,"diagnostic_rhos":{"FT*vsA*":-0.1166},"n":10.0,"ground_truth":"I*(v)"},"composite_ci":[0.026,0.9484],"health":{"H_R":0.7819,"H_M":0.5987,"H_FT":0.5054,"H_A":0.9374,"SRI":0.3097,"RCI":0.1302}},"app":{"name":"Application Layer","passed":true,"gates":{"spearman":true,"overlap_at_q3":true,"top5_overlap":true,"predictive_gain":false,"kappa_cta":false,"bottleneck_precision":null},"counts":{"predicted_count":7,"actual_count":6,"matched_count":6},"warnings":["1 predicted components not in actual scores","Low statistical power (n=6 < 10)"],"comparisons":[{"id":"A5","type":"Application","predicted":0.2564,"actual":0.6328,"cls":"TP"},{"id":"A4","type":"Application","predicted":0.2074,"actual":0.5757,"cls":"TN"},{"id":"A2","type":"Application","predicted":0.3484,"actual":0.6758,"cls":"TP"},{"id":"A3","type":"Application","predicted":0.2315,"actual":0.4243,"cls":"TN"},{"id":"A6","type":"Application","predicted":0.2168,"actual":0.3576,"cls":"TN"},{"id":"A1","type":"Application","predicted":0.141,"actual":0.1456,"cls":"TN"}],"correlation":{"spearman":0.8286,"kendall":0.7333,"pearson":0.8299,"spearman_p_value":0.0416},"ci":[0.0323,1.0],"bootstrap":{"hist":[8,6,0,8,5,0,0,3,0,0,109,18,0,56,0,136,224,0,411,1016],"edges":[-1.0,-0.9,-0.8,-0.7,-0.6,-0.5,-0.4,-0.3,-0.2,-0.1,0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0],"n":2000,"lo":0.0,"hi":1.0},"classification":{"precision":1.0,"recall":1.0,"f1_score":1.0,"accuracy":1.0,"confusion":{"tp":2,"fp":0,"tn":4,"fn":0}},"top5":{"predicted":["A2","A5","A3","A6","A4"],"actual":["A2","A5","A4","A3","A6"],"common":["A4","A6","A3","A2","A5"]},"values":{"spearman":0.8286,"overlap_at_q3":1.0,"top5_overlap":1.0,"predictive_gain":-0.4,"kappa_cta":0.25,"bottleneck_precision":null},"by_type":{"Application":{"n":6,"spearman":0.8286}},"stratified":{"Application":{"n":6,"spearman":0.8286,"target_rho":0.75,"passed":true}},"dimensions":{"reliability":{"points":[["A1",0.1365,0.0842],["A2",0.2931,0.8765],["A3",0.1653,0.4209],["A4",0.2005,0.5854],["A5",0.2186,0.5791],["A6",0.181,0.3152]],"spearman":0.8857,"truth":"IR(v)","ci":[0.0,1.0]},"maintainability":{"points":[["A1",0.1667,0.5186],["A2",0.6616,0.6277],["A3",0.6063,0.4814],["A4",0.2467,0.5693],["A5",0.47,0.268],["A6",0.42,0.268]],"spearman":0.116,"truth":"IM(v)","ci":[-0.866,1.0]},"availability":{"points":[["A1",0.0,0.122],["A2",0.1276,0.7423],["A3",0.0333,0.4167],["A4",0.1,0.5833],["A5",0.0745,0.6829],["A6",0.0578,0.4153]],"spearman":0.8857,"truth":"IA(v)","ci":[0.0,1.0]}},"composite":{"spearman_q_star_i_star":0.4857,"predictive_gain":-0.4,"dimensions":["m","r"],"best_single_dim":"Reliability","best_single_dim_rho":0.8857,"interdim_rhos":{"R*vsM*":0.4865},"interdim_max_correlation":0.4865,"diagnostic_rhos":{"FT*vsA*":0.2965},"n":6.0,"ground_truth":"I*(v)"},"composite_ci":[-0.6364,1.0],"health":{"H_R":0.7978,"H_M":0.604,"H_FT":0.5734,"H_A":0.924,"SRI":0.2991,"RCI":0.1415}}}};
+
+const NS = 'http://www.w3.org/2000/svg';
+const NAME = { A1: 'radar', A2: 'tracker', A3: 'conflict-detector', A4: 'flight-plan', A5: 'display', A6: 'recorder', B1: 'sensor-broker', B2: 'ops-broker', T1: 'radar.plots', T2: 'tracks', T3: 'conflict.alerts', T4: 'flight.plans', N1: 'sensor-host', N2: 'ops-host', L1: 'track-model' };
+const ORDER = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'L1', 'B1', 'B2', 'N1', 'N2', 'T1', 'T2', 'T3', 'T4'];
+const f2 = v => v == null ? '–' : v.toFixed(2), f3 = v => v == null ? '–' : v.toFixed(3), f4 = v => v == null ? '–' : v.toFixed(4);
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const who = id => `<span class="mono">${esc(id)}</span> ${esc(NAME[id] || '')}`;
+const sum = a => a.reduce((x, y) => x + y, 0);
+function el(tag, attrs, parent, text) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; }
+const heat = (v, max) => `background: color-mix(in srgb, var(--accent) ${Math.round(Math.max(0, Math.min(1, max ? v / max : 0)) * 55)}%, transparent)`;
+const bar = (v, max, cls) => `<span class="bar"><span>${f3(v)}</span><span class="track"><span class="fill ${cls || ''}" style="width:${Math.max(0, Math.min(1, max ? v / max : 0)) * 100}%"></span></span></span>`;
+const LEVEL = { critical: 'critical', high: 'high', medium: 'medium' };
+const level = l => `<span class="pill ${LEVEL[String(l).toLowerCase()] || ''}">${esc(String(l).toLowerCase())}</span>`;
+const verdict = (ok, yes, no) => ok == null ? '<span class="pill">not measured</span>' : `<span class="pill ${ok ? 'ok' : 'no'}">${ok ? (yes || 'pass') : (no || 'fail')}</span>`;
+
+/* The mini-ATM raw structural graph. state: {id: 'sel' | 'hot' | 'mark' | 'dim'}, badges: {id: text}, sub: {id: text}. */
+const MINI = {
+  B1: { t: 'Broker', x: 210, y: 46, w: 110, h: 36 }, B2: { t: 'Broker', x: 490, y: 46, w: 110, h: 36 },
+  T1: { t: 'Topic', x: 130, y: 150, w: 100, h: 36 }, T2: { t: 'Topic', x: 290, y: 150, w: 100, h: 36 }, T3: { t: 'Topic', x: 530, y: 150, w: 100, h: 36 }, T4: { t: 'Topic', x: 650, y: 150, w: 100, h: 36 },
+  A1: { t: 'Application', x: 68, y: 282, w: 100, h: 38 }, A2: { t: 'Application', x: 193, y: 282, w: 100, h: 38 }, A6: { t: 'Application', x: 350, y: 282, w: 100, h: 38 },
+  A3: { t: 'Application', x: 470, y: 282, w: 106, h: 38 }, A5: { t: 'Application', x: 590, y: 282, w: 100, h: 38 }, A4: { t: 'Application', x: 710, y: 282, w: 100, h: 38 },
+  L1: { t: 'Library', x: 330, y: 388, w: 100, h: 36 },
+};
+const MINI_HOST = { N1: { x: 8, y: 248, w: 242, h: 92 }, N2: { x: 288, y: 248, w: 484, h: 92 } };
+const MINI_EDGES = [['A1', 'T1', 'flow'], ['A2', 'T2', 'flow'], ['A3', 'T3', 'flow'], ['A4', 'T4', 'flow'], ['T1', 'A2', 'flow'], ['T2', 'A3', 'flow'], ['T2', 'A5', 'flow'], ['T3', 'A5', 'flow'], ['T4', 'A5', 'flow'], ['T1', 'A6', 'flow'], ['T2', 'A6', 'flow'], ['T4', 'A6', 'flow'],
+  ['B1', 'T1', 'routes'], ['B1', 'T2', 'routes'], ['B2', 'T2', 'routes'], ['B2', 'T3', 'routes'], ['B2', 'T4', 'routes'], ['A2', 'L1', 'uses'], ['A3', 'L1', 'uses']];
+function drawMiniAtm(svg, opts = {}) {
+  const { state = {}, badges = {}, sub = {}, pickable = false } = opts;
+  svg.textContent = ''; svg.setAttribute('viewBox', '0 0 780 420');
+  const badge = (g, x, y, text) => { const w = String(text).length * 6.2 + 9, b = el('g', { class: 'bdg' }, g); el('rect', { x: x - w, y: y - 8, width: w, height: 15, rx: 3 }, b); el('text', { x: x - w / 2, y: y + 3.4 }, b, text); };
+  for (const h in MINI_HOST) {
+    const b = MINI_HOST[h], g = el('g', { class: `n host ${state[h] || ''} ${pickable ? 'pickable' : ''}`, 'data-id': h }, svg);
+    el('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 6 }, g);
+    el('text', { class: 'hl', x: h === 'N2' ? b.x + b.w - 10 : b.x + 10, y: b.y + b.h - 9, 'text-anchor': h === 'N2' ? 'end' : 'start' }, g, `${h} · ${NAME[h]}${sub[h] ? ' · ' + sub[h] : ''}`);
+    if (badges[h]) badge(g, b.x + b.w - 4, b.y + 2, badges[h]);
+  }
+  el('line', { class: 'link', x1: 250, y1: 294, x2: 288, y2: 294 }, svg);
+  const clip = (a, b, pad) => { const dx = b.x - a.x, dy = b.y - a.y, k = Math.min(dx ? (a.w / 2 + pad) / Math.abs(dx) : Infinity, dy ? (a.h / 2 + pad) / Math.abs(dy) : Infinity); return { x: a.x + dx * k, y: a.y + dy * k }; };
+  for (const [u, v, kind] of MINI_EDGES) {
+    const p1 = clip(MINI[u], MINI[v], 1), p2 = clip(MINI[v], MINI[u], kind === 'flow' ? 3 : 1);
+    el('line', { class: 'e ' + (kind === 'flow' ? '' : kind), x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }, svg);
+    if (kind === 'flow') { const a = Math.atan2(p2.y - p1.y, p2.x - p1.x), z = 7, w = 0.42; el('polygon', { class: 'ah', points: `${p2.x},${p2.y} ${p2.x - z * Math.cos(a - w)},${p2.y - z * Math.sin(a - w)} ${p2.x - z * Math.cos(a + w)},${p2.y - z * Math.sin(a + w)}` }, svg); }
+  }
+  for (const id in MINI) {
+    const n = MINI[id], g = el('g', { class: `n ${n.t === 'Library' ? 'lib' : ''} ${state[id] || ''} ${pickable ? 'pickable' : ''}`, 'data-id': id }, svg), x = n.x - n.w / 2, y = n.y - n.h / 2;
+    if (n.t === 'Broker') { const c = 9; el('polygon', { points: [[x + c, y], [x + n.w - c, y], [x + n.w, y + c], [x + n.w, y + n.h - c], [x + n.w - c, y + n.h], [x + c, y + n.h], [x, y + n.h - c], [x, y + c]].map(p => p.join(',')).join(' ') }, g); }
+    else el('rect', { x, y, width: n.w, height: n.h, rx: n.t === 'Topic' ? n.h / 2 : 5 }, g);
+    el('text', { class: 'nm', x: n.x, y: n.y - 1 }, g, NAME[id]); el('text', { class: 'sb', x: n.x, y: n.y + 11.5 }, g, sub[id] ? `${id} · ${sub[id]}` : id);
+    if (badges[id]) badge(g, n.x + n.w / 2 + 5, y - 1, badges[id]);
+  }
+}
+
+const S = D.layers.system, A = D.layers.app, T = D.targets;
+const sgn = v => (v < 0 ? '−' : '') + Math.abs(v).toFixed(3);
+
+(function align() {
+  const C = S.counts, scored = new Set(S.comparisons.map(c => c.id)), dropped = ORDER.filter(i => !scored.has(i));
+  document.getElementById('s1-title').textContent = `${C.matched_count} of ${C.predicted_count} components can be compared`;
+  document.getElementById('align').innerHTML = `<thead><tr><th></th><th class="num">Count</th><th>Components</th></tr></thead><tbody>
+    <tr><td>Scored by the quality model</td><td class="num">${C.predicted_count}</td><td style="white-space:normal">all components</td></tr>
+    <tr><td>Failed by the simulator</td><td class="num">${C.actual_count}</td><td style="white-space:normal">${[...scored].map(i => NAME[i]).join(', ')}</td></tr>
+    <tr><td><b>Compared</b></td><td class="num"><b>${C.matched_count}</b></td><td style="white-space:normal">the same ${C.matched_count}</td></tr>
+    <tr><td>Dropped</td><td class="num">${dropped.length}</td><td style="white-space:normal">${dropped.map(i => NAME[i]).join(', ')}: the four topics and the library, which this sweep does not fail</td></tr></tbody>`;
+})();
+
+(function scatter() {
+  const s = document.getElementById('scatter'), P = S.comparisons, L = 52, Tp = 16, W = 440, H = 290;
+  const xmin = Math.floor(Math.min(...P.map(p => p.predicted)) * 20) / 20, xmax = Math.ceil(Math.max(...P.map(p => p.predicted)) * 20) / 20, ymax = 1, x = v => L + W * (v - xmin) / (xmax - xmin), y = v => Tp + H * (1 - v / ymax);
+  for (let i = 0; i <= 4; i++) { const xv = xmin + (xmax - xmin) * i / 4, yv = ymax * i / 4; el('line', { class: 'grid', x1: x(xv), x2: x(xv), y1: y(0), y2: y(ymax) }, s); el('line', { class: 'grid', x1: x(xmin), x2: x(xmax), y1: y(yv), y2: y(yv) }, s); el('text', { class: 'lbl', x: x(xv), y: y(0) + 14, 'text-anchor': 'middle' }, s, xv.toFixed(3)); el('text', { class: 'lbl', x: L - 6, y: y(yv) + 3, 'text-anchor': 'end' }, s, yv.toFixed(2)); }
+  el('text', { class: 'lbl', x: x((xmin + xmax) / 2), y: y(0) + 32, 'text-anchor': 'middle' }, s, 'predicted Q(v) (axis does not start at zero)'); el('text', { class: 'lbl', x: 14, y: y(ymax / 2), 'text-anchor': 'middle', transform: `rotate(-90 14 ${y(ymax / 2)})` }, s, 'simulated impact');
+  for (const p of P) { const c = el('circle', { class: p.cls, cx: x(p.predicted), cy: y(p.actual), r: 5.5, 'fill-opacity': 0.75 }, s); el('title', {}, c, `${p.id} ${NAME[p.id]}: Q ${f3(p.predicted)}, impact ${f3(p.actual)}`); el('text', { class: 'ptl', x: x(p.predicted) + 8, y: y(p.actual) + 3.5 }, s, p.id); }
+  const C = S.correlation;
+  document.getElementById('s2-title').textContent = `The two orders agree moderately: ρ = ${f3(C.spearman)}`;
+  document.getElementById('corr').innerHTML = `<span class="cap">Spearman ρ</span><div class="score"><span class="val">${f3(C.spearman)}</span><span class="sub">target ≥ ${T.spearman}</span></div>
+    <table><tbody><tr><td>Kendall τ</td><td class="num">${f3(C.kendall)}</td></tr><tr><td>Pearson r</td><td class="num">${f3(C.pearson)}</td></tr><tr><td>p-value for ρ</td><td class="num">${C.spearman_p_value.toFixed(3)}</td></tr></tbody></table>
+    <p class="note">Both hosts sit at the top of the simulated axis: failing a host takes down everything on it. The quality model spreads them apart, ranking ${NAME.N2} near the top and ${NAME.N1} in the lower half. That one disagreement accounts for much of the gap to 1.0.</p>`;
+})();
+
+(function hist() {
+  const s = document.getElementById('hist'), B = S.bootstrap, L = 40, Tp = 26, W = 460, H = 160, x = v => L + W * (v + 1) / 2, max = Math.max(...B.hist), bw = W / B.hist.length;
+  B.hist.forEach((n, i) => { const lo = B.edges[i], inside = lo >= S.ci[0] - 0.1 && B.edges[i + 1] <= S.ci[1] + 0.1; if (n) el('rect', { class: 'hbar' + (inside ? '' : ' out'), x: x(lo) + 1, y: Tp + H - H * n / max, width: bw - 2, height: H * n / max }, s); });
+  el('line', { class: 'axis', x1: L, x2: L + W, y1: Tp + H, y2: Tp + H }, s);
+  for (const v of [-1, -0.5, 0, 0.5, 1]) el('text', { class: 'lbl', x: x(v), y: Tp + H + 14, 'text-anchor': 'middle' }, s, v.toFixed(1));
+  el('text', { class: 'lbl', x: x(0), y: Tp + H + 32, 'text-anchor': 'middle' }, s, `Spearman ρ over ${B.n} resamples of the ${S.counts.matched_count} components`);
+  el('line', { class: 'mark', x1: x(S.correlation.spearman), x2: x(S.correlation.spearman), y1: Tp - 8, y2: Tp + H }, s); el('text', { class: 'marktxt', x: x(S.correlation.spearman), y: Tp - 12, 'text-anchor': 'middle' }, s, `measured ${f3(S.correlation.spearman)}`);
+  el('line', { class: 'tgt', x1: x(T.spearman), x2: x(T.spearman), y1: Tp + 14, y2: Tp + H }, s); el('text', { class: 'tgttxt', x: x(T.spearman) + 4, y: Tp + 24 }, s, `target ${T.spearman}`);
+  document.getElementById('s3-title').textContent = `Not very: the 95% interval runs from ${f2(S.ci[0])} to ${f2(S.ci[1])}`;
+  document.getElementById('hist-side').innerHTML = `<span class="cap">Engine's 95% interval</span><div class="score"><span class="val">${f2(S.ci[0])} to ${f2(S.ci[1])}</span></div>
+    <p class="note"><b>The interval contains both "no relationship" and "near perfect".</b> With ${S.counts.matched_count} components, a single resample that leaves out one host or doubles another changes ρ substantially.</p>
+    <p class="note">The histogram is redrawn by this page's script; its own 95% range is ${f2(B.lo)} to ${f2(B.hi)}.</p>
+    <p class="note"><b>The engine's lower bound is not stable across runs.</b> ρ is identical every time, but the interval's lower end moved between about −0.03 and 0.07 over several runs of this script, and is fixed when <code>PYTHONHASHSEED</code> is fixed. The bootstrap is seeded; the order in which components reach it is not.</p>`;
+})();
+
+(function cls() {
+  const P = [...S.comparisons].sort((a, b) => b.actual - a.actual), LAB = { TP: ['critical in both', 'ok'], FN: ['missed', 'no'], FP: ['false alarm', 'no'], TN: ['neither', ''] }, K = S.classification, c = K.confusion;
+  document.getElementById('cls').innerHTML = `<thead><tr><th>Component</th><th>Predicted Q</th><th>Simulated impact</th><th></th></tr></thead><tbody>` +
+    P.map(p => `<tr><td>${who(p.id)}</td><td>${bar(p.predicted, 0.5)}</td><td>${bar(p.actual, 1)}</td><td><span class="pill ${LAB[p.cls][1]}">${LAB[p.cls][0]}</span></td></tr>`).join('') + '</tbody>';
+  const miss = P.filter(p => p.cls === 'FN').map(p => NAME[p.id]), fa = P.filter(p => p.cls === 'FP').map(p => NAME[p.id]), t5 = S.top5;
+  document.getElementById('s4-title').textContent = `${c.tp} of the ${c.tp + c.fn} truly critical components is caught`;
+  document.getElementById('cls-side').innerHTML = `<span class="cap">Top-quartile overlap</span><div class="score"><span class="val">${f2(K.f1_score)}</span><span class="sub">target ≥ ${T.f1_score}</span></div>
+    <p class="note"><b>Missed: ${miss.join(', ') || 'none'}.</b> <b>False alarm: ${fa.join(', ') || 'none'}.</b> Each side marks ${c.tp + c.fn} components as critical, so one swap halves the overlap.</p>
+    <span class="cap">Top-5 overlap</span><div class="score"><span class="val">${f2(S.values.top5_overlap)}</span><span class="sub">target ≥ ${T.top_5_overlap}</span></div>
+    <p class="note">Predicted top five: ${t5.predicted.map(i => NAME[i]).join(', ')}.<br>Simulated top five: ${t5.actual.map(i => NAME[i]).join(', ')}.<br>In both: <b>${t5.common.map(i => NAME[i]).join(', ')}</b>.</p>`;
+})();
+
+(function dims() {
+  const LAB = { reliability: ['Reliability', 'R(v)'], maintainability: ['Maintainability', 'M(v)'], availability: ['Availability', 'A(v)'] };
+  document.getElementById('dims').innerHTML = Object.keys(LAB).map(d => `<div class="box"><div class="pad" style="padding-bottom:0"><span class="cap">${LAB[d][0]}: ${LAB[d][1]} against ${esc(S.dimensions[d].truth)}</span><div class="score"><span class="val">${sgn(S.dimensions[d].spearman)}</span><span class="sub">ρ, 95% interval ${f2(S.dimensions[d].ci[0])} to ${f2(S.dimensions[d].ci[1])}</span></div></div><div class="fig plain"><svg id="dim-${d}" viewBox="0 0 300 220" role="img" aria-label="${LAB[d][0]} predicted against simulated"></svg></div></div>`).join('');
+  for (const d of Object.keys(LAB)) {
+    const s = document.getElementById('dim-' + d), P = S.dimensions[d].points, L = 34, Tp = 10, W = 250, H = 170, xm = Math.max(...P.map(p => p[1])) * 1.1 || 1, ym = Math.max(...P.map(p => p[2])) * 1.1 || 1, x = v => L + W * v / xm, y = v => Tp + H * (1 - v / ym);
+    el('line', { class: 'axis', x1: L, x2: L + W, y1: y(0), y2: y(0) }, s); el('line', { class: 'axis', x1: L, x2: L, y1: y(0), y2: y(ym) }, s);
+    el('text', { class: 'lbl', x: L + W / 2, y: y(0) + 16, 'text-anchor': 'middle' }, s, 'predicted'); el('text', { class: 'lbl', x: 10, y: Tp + H / 2, 'text-anchor': 'middle', transform: `rotate(-90 10 ${Tp + H / 2})` }, s, 'simulated');
+    for (const [id, a, b] of P) { el('circle', { class: 'pt', cx: x(a), cy: y(b), r: 4 }, s); el('text', { class: 'ptl', x: x(a) + 6, y: y(b) + 3 }, s, id); }
+  }
+  const by = Object.entries(S.by_type).map(([t, v]) => `${t === 'Node' ? 'Host' : t}s (n = ${v.n}): ρ = ${sgn(v.spearman)}`), st = S.stratified.Application;
+  document.getElementById('dims-note').innerHTML = `<b>By type:</b> ${by.join('; ')}. Brokers and hosts have two members each, too few to correlate, so only applications get a figure${st ? `, and they ${st.passed ? 'clear' : 'miss'} their own target of ${st.target_rho}` : ''}. <b>By dimension:</b> none of the three tracks its simulated counterpart well, and maintainability runs the wrong way at ${sgn(S.dimensions.maintainability.spearman)}. The composite correlates better than any single dimension, which is what the predictive-gain gate measures.`;
+})();
+
+(function gates() {
+  const NAMES = { spearman: ['Rank correlation ρ', T.spearman], overlap_at_q3: ['Top-quartile overlap', T.f1_score], top5_overlap: ['Top-5 overlap', T.top_5_overlap], predictive_gain: ['Predictive gain of the composite', T.predictive_gain], kappa_cta: ['Weighted κ, maintainability', T.weighted_kappa_cta], bottleneck_precision: ['Bottleneck precision', T.bottleneck_precision_target] };
+  const row = g => { const [lab, t] = NAMES[g], v = l => l.values[g] == null ? '–' : sgn(l.values[g]); return `<tr><td>${lab}</td><td class="num">${g === 'predictive_gain' ? '> ' : '≥ '}${t}</td><td class="num">${v(S)}</td><td>${verdict(S.gates[g])}</td><td class="num">${v(A)}</td><td>${verdict(A.gates[g])}</td></tr>`; };
+  document.getElementById('gates').innerHTML = `<thead><tr><th rowspan="2">Gate</th><th rowspan="2" class="num">Target</th><th colspan="2" class="c">System layer, n = ${S.counts.matched_count}</th><th colspan="2" class="c">Application layer, n = ${A.counts.matched_count}</th></tr><tr><th class="num">Value</th><th></th><th class="num">Value</th><th></th></tr></thead><tbody>
+    <tr><td colspan="6" class="cap" style="background:var(--bg)">Release gates: all three must pass</td></tr>${D.release_gates.map(row).join('')}
+    <tr><td colspan="6" class="cap" style="background:var(--bg)">Reported gates: shown, never decisive</td></tr>${D.reported_gates.map(row).join('')}
+    <tr><td><b>Layer verdict</b></td><td></td><td></td><td>${verdict(S.passed)}</td><td></td><td>${verdict(A.passed)}</td></tr></tbody>`;
+  document.getElementById('s6-title').textContent = `The system layer ${S.passed ? 'passes' : 'fails'}; the application layer ${A.passed ? 'passes' : 'fails'}`;
+  document.getElementById('gates-note').innerHTML = `The system layer misses the correlation gate by ${(T.spearman - S.values.spearman).toFixed(3)} and the top-quartile gate by one component. <b>Bottleneck precision is "not measured"</b>, not failed: the validator had no value for it here and refuses to read a missing value as zero. The application layer passes all three release gates on ${A.counts.matched_count} components and says so itself: "${esc(A.warnings[A.warnings.length - 1])}".`;
+})();
+
+(function health() {
+  const H = S.health, ROWS = [['H_R', 'Reliability health'], ['H_M', 'Maintainability health'], ['H_FT', 'Fault-tolerance health (diagnostic)'], ['H_A', 'Availability health (diagnostic)']];
+  document.getElementById('health').innerHTML = `<thead><tr><th>Index</th><th>Value</th></tr></thead><tbody>` + ROWS.map(([k, l]) => `<tr><td>${l}</td><td>${bar(H[k], 1)}</td></tr>`).join('') +
+    `<tr><td><b>System risk index, SRI</b></td><td>${bar(H.SRI, 1, 'f')}</td></tr><tr><td>Risk concentration, RCI</td><td>${bar(H.RCI, 1)}</td></tr></tbody>`;
+  document.getElementById('health-side').innerHTML = `<span class="cap">Reading them</span>
+    <p class="note"><b>SRI = ${f3(H.SRI)}.</b> It combines the two composite dimensions only; fault tolerance and availability already feed reliability, so counting them again would double their weight.</p>
+    <p class="note"><b>RCI = ${f3(H.RCI)}.</b> A Gini coefficient of impact across components. A low value means risk is spread out, not concentrated in one or two components.</p>
+    <p class="note">The Prescribe step proposes edits and keeps only those that measurably lower the risk index.</p>`;
+})();
+
+(function take() {
+  document.getElementById('take').innerHTML = [
+    `<b>The validator is strict about what it compares.</b> Five components were dropped because the simulator never failed them, and the result says so.`,
+    `<b>A point estimate alone would mislead.</b> ρ = ${f3(S.correlation.spearman)} looks like a near miss of ${T.spearman}; the interval from ${f2(S.ci[0])} to ${f2(S.ci[1])} shows the data cannot distinguish a miss from a comfortable pass.`,
+    `<b>The verdict hinges on single components.</b> One host ranked too low costs both the correlation gate and the top-quartile gate.`,
+    `<b>"Not measured" is kept apart from "failed".</b> That distinction exists because an unmeasured dimension was once reported as a failure for a long time.`,
+    `<b>Passing on six components means little, and the validator says so.</b> The application layer clears every release gate and carries a low-power warning.`,
+    `<b>None of this is evidence about the method's accuracy.</b> It shows the checks a result has to survive, on a system small enough to follow by eye.`,
+  ].map(i => `<li>${i}</li>`).join('');
+})();
+</script>

@@ -1,0 +1,323 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Predict Walkthrough</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: one component picker drives the derivations; rankings and the comparison with simulation close the page. */
+
+:root {
+  --bg: #f2f5f7; --surface: #ffffff; --ink: #16212b; --muted: #5a6877; --line: #cbd4dc; --line-soft: #e3e8ed;
+  --accent: #0b6a94; --accent-soft: #d9ebf3;
+  --fail: #bf3b2b; --fail-soft: #f9ddd7;
+  --ok: #2b7a4b; --ok-soft: #dcefe3;
+  --warn: #9a6a12; --warn-soft: #f7e8c6;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c;
+  --ok: #63c08a; --ok-soft: #173826;
+  --warn: #e3b550; --warn-soft: #43350f; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c;
+  --ok: #63c08a; --ok-soft: #173826;
+  --warn: #e3b550; --warn-soft: #43350f; color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 46px; }
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: 2.3rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.55rem; font-weight: 600; }
+p { margin: 0; max-width: 70ch; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+.lede { font-size: 1.05rem; color: var(--muted); margin-top: 10px; }
+.eyebrow, .cap { font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.eyebrow { color: var(--accent); margin-bottom: 6px; } .cap { color: var(--muted); font-weight: 600; }
+section { display: flex; flex-direction: column; gap: 16px; }
+.sec-head { display: flex; flex-direction: column; gap: 8px; }
+.sec-head p, .note { color: var(--muted); } .note { font-size: 0.9rem; }
+.sec-head p b, .note b, li b { color: var(--ink); font-weight: 600; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.pad { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.scroll { overflow-x: auto; }
+.two { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.half { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+@media (max-width: 900px) { .two, .half, .three { grid-template-columns: minmax(0, 1fr); } }
+ul.plain { margin: 0; padding-left: 1.15em; display: flex; flex-direction: column; gap: 8px; max-width: 78ch; color: var(--muted); }
+.fig svg { display: block; width: 100%; min-width: 600px; height: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+th { font: 600 0.7rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num, td.h { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+td.c, th.c { text-align: center; }
+td.wrapcell { white-space: normal; min-width: 15em; }
+tbody tr.pick { cursor: pointer; } tbody tr.pick:hover td { background: var(--line-soft); } tbody tr.on td { background: var(--accent-soft); }
+.pill { display: inline-block; font: 600 0.68rem var(--mono); letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.pill.critical { background: var(--fail); border-color: var(--fail); color: var(--surface); }
+.pill.high, .pill.no { background: var(--fail-soft); border-color: var(--fail); color: var(--fail); }
+.pill.medium, .pill.warn { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.pill.ok { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.pill.accent { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.bar { display: grid; grid-template-columns: 3.4em minmax(40px, 1fr); gap: 8px; align-items: center; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.track { height: 9px; background: var(--line-soft); border-radius: 2px; overflow: hidden; }
+.fill { height: 100%; background: var(--accent); display: block; } .fill.f { background: var(--fail); }
+.card { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.card .rk { font: 600 0.74rem var(--mono); color: var(--accent); letter-spacing: 0.05em; }
+.card .who { font: 600 1.05rem var(--display); }
+.card .join { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 2px; display: flex; flex-direction: column; gap: 5px; font-size: 0.86rem; color: var(--muted); }
+.score { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.score .val { font: 600 1.9rem var(--mono); line-height: 1; } .score .sub { font-size: 0.82rem; color: var(--muted); }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; color: var(--muted); align-items: center; }
+.key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ln { width: 22px; height: 0; border-top: 1.6px solid var(--muted); display: inline-block; } .ln.dash { border-top-style: dashed; } .ln.dot { border-top-style: dotted; }
+.sw { width: 12px; height: 12px; display: inline-block; border-radius: 2px; background: var(--accent); }
+.picker { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding-block: 10px; display: flex; gap: 14px; align-items: center; }
+.chips { display: flex; gap: 6px; overflow-x: auto; min-width: 0; padding-bottom: 2px; }
+.chip { font: 500 0.82rem var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; cursor: pointer; white-space: nowrap; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.formula { font-family: var(--mono); font-size: 0.86rem; background: var(--bg); border: 1px solid var(--line-soft); border-radius: 4px; padding: 8px 10px; overflow-x: auto; white-space: nowrap; }
+footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: 0.84rem; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+footer p { max-width: 92ch; }
+
+svg text { font-family: var(--body); fill: var(--ink); }
+.n rect, .n polygon { fill: var(--surface); stroke: var(--muted); stroke-width: 1.3; }
+.n.host > rect { fill: var(--bg); stroke: var(--line); stroke-dasharray: 5 3; }
+.n.lib rect { stroke-dasharray: 3 2; }
+.n.pickable { cursor: pointer; }
+.n.sel > rect, .n.sel > polygon { stroke: var(--accent); stroke-width: 2.6; }
+.n.hot > rect, .n.hot > polygon { fill: var(--fail-soft); stroke: var(--fail); stroke-width: 1.8; }
+.n.mark > rect, .n.mark > polygon { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.8; }
+.n.dim { opacity: 0.4; }
+.nm { font-size: 12px; font-weight: 600; text-anchor: middle; }
+.sb { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); text-anchor: middle; }
+.hl { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+.bdg rect { fill: var(--ink); } .bdg text { fill: var(--bg); font-family: var(--mono); font-size: 9.5px; font-weight: 600; text-anchor: middle; }
+.e { stroke: var(--muted); stroke-width: 1.2; fill: none; } .e.routes { stroke-dasharray: 5 4; } .e.uses { stroke-dasharray: 1.5 3.5; stroke-linecap: round; stroke-width: 1.6; }
+.ah { fill: var(--muted); }
+.link { stroke: var(--muted); stroke-width: 3; }
+.lbl { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+.axis { stroke: var(--line); } .grid { stroke: var(--line-soft); } .diag { stroke: var(--muted); stroke-dasharray: 4 3; }
+.pt { fill: var(--accent); fill-opacity: 0.6; stroke: var(--accent); }
+.ptl { font-family: var(--mono); font-size: 10px; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+
+.feat { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 18px; font-size: 0.8rem; }
+@media (max-width: 560px) { .feat { grid-template-columns: minmax(0, 1fr); } }
+.feat div { display: grid; grid-template-columns: minmax(0, 1fr) 2.6em 60px; gap: 6px; align-items: center; }
+.feat .k { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feat .v { font-family: var(--mono); text-align: right; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">software-as-a-graph · step 3 · predict</div>
+    <h1>Predict Walkthrough</h1>
+    <p class="lede">Predict answers one question: if this component failed, how far would the damage spread? It answers from structure alone, before anything runs. This page builds that answer for one small air-traffic system, first by counting, then with a trained model, and then checks both against simulation.</p>
+  </header>
+
+  <div class="picker"><span class="cap">Component</span><div class="chips" id="chips"></div></div>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">1 · the inputs</div>
+      <h2>The same architecture is read two ways</h2>
+      <p>Closed-form references read the <b>dependency projection</b>: who depends on whom once topics are folded away. The trained model reads the <b>raw graph</b>, with every node type and a QoS vector on each edge. In the diagram the selected component is outlined and the components that depend on it, directly or transitively, are shaded.</p>
+    </div>
+    <div class="two">
+      <div class="box fig scroll">
+        <div class="keys"><span class="key"><span class="ln"></span>publishes / subscribes</span><span class="key"><span class="ln dash"></span>routes</span><span class="key"><span class="ln dot"></span>uses</span><span class="key"><span class="sw" style="background:var(--accent-soft);border:1.5px solid var(--accent)"></span>depends on the selection</span></div>
+        <svg id="graph" role="img" aria-label="Mini-ATM raw structural graph"></svg>
+      </div>
+      <div class="box scroll"><table id="inputs"></table></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">2 · counting</div>
+      <h2 id="cf-title"></h2>
+      <p>Four references need no training and run in under a millisecond. Each is a truncation of what the simulator itself computes, so they are baselines to beat, not discoveries.</p>
+    </div>
+    <div class="half" id="cf"></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">3 · the trained model</div>
+      <h2 id="gnn-title"></h2>
+      <p>HGT-QoS was fitted on twelve other systems and has never seen this one. It reads a feature row per node, passes messages along the typed edges, and returns three numbers: a composite criticality, plus reliability and maintainability heads. Five independently trained seeds are run to see how stable the answer is.</p>
+    </div>
+    <div class="two">
+      <div class="box pad"><span class="cap">Feature row the model reads for this component (rank-normalised within the graph)</span><div class="feat" id="feat"></div></div>
+      <div class="box scroll"><table id="seeds"></table></div>
+    </div>
+    <p class="note" id="gnn-note"></p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">4 · the ranking</div>
+      <h2>Every ranker orders the same seven components</h2>
+      <p>Scores are on different scales, so only the order is comparable. The trained model's top three become the shortlist handed to Diagnose.</p>
+    </div>
+    <div class="box scroll"><table id="rank"></table></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">5 · two engines at once</div>
+      <h2>Where the trained model and a structural baseline agree, and where they do not</h2>
+      <p>The dual-engine mode runs HGT-QoS beside Topo-QoS, a betweenness baseline. Components in both top-K lists form the consensus set. Components whose ranks differ widely are escalated for a person to look at.</p>
+    </div>
+    <div class="two">
+      <div class="box scroll"><table id="dual"></table></div>
+      <div class="box pad" id="dual-note"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">6 · checked against simulation</div>
+      <h2>How each ranking compares with the impact it was meant to forecast</h2>
+      <p>None of the rankers saw these numbers. I* is the cascade impact the fault injector measures when each component is failed in turn; ρ is the rank correlation over the six applications.</p>
+    </div>
+    <div class="two">
+      <div class="box scroll"><table id="truth"></table></div>
+      <div class="box pad" id="truth-note"></div>
+    </div>
+  </section>
+
+  <footer>
+    <p><b>How this was produced.</b> <code>python examples/run_predict_walkthrough.py</code> on <code>examples/mini_atm.json</code>: reference rankers from <code>reproduce/referee_round7.raw_rankers</code>, the trained model through <code>Client.predict(mode="gnn", gnn_checkpoint=…)</code> for five seeds, the dual engine through <code>PredictionService.predict_dual</code>, and labels from <code>FaultInjector</code> with five seeds.</p>
+    <p>Six applications are far too few to estimate accuracy: one swapped pair moves ρ by a tenth or more. The page shows how a prediction is assembled, not how good it is. For that, see the published leave-one-system-out results.</p>
+  </footer>
+</div>
+
+<script>
+const D = {"closed":{"flow":[["A3","A2",1.0],["A3","L1",1.0],["A5","A2",1.0],["A5","A3",1.0],["A5","A4",1.0],["A2","A1",1.0],["A2","L1",1.0],["A6","A1",1.0],["A6","A2",1.0],["A6","A4",1.0]],"dependents":{"A3":["A5"],"A1":["A2","A6"],"A5":[],"A2":["A3","A5","A6"],"A4":["A5","A6"],"A6":[],"L1":["A2","A3"]},"reach":{"A3":["A5"],"A1":["A2","A3","A5","A6"],"A5":[],"A2":["A3","A5","A6"],"A4":["A5","A6"],"A6":[],"L1":["A2","A3","A5","A6"]},"terms":{"A1":[{"topic":"T1","subs":2,"pubs":1,"rate":20.0}],"A2":[{"topic":"T2","subs":3,"pubs":1,"rate":10.0}],"A3":[{"topic":"T3","subs":1,"pubs":1,"rate":2.0}],"A4":[{"topic":"T4","subs":2,"pubs":1,"rate":1.0}],"A5":[],"A6":[]},"scores":{"InDeg":{"A3":1.0,"A1":2.0,"A5":0.0,"A2":3.0,"A4":2.0,"A6":0.0,"L1":2.0},"Reach":{"A3":0.1667,"A1":0.6667,"A5":0.0,"A2":0.5,"A4":0.3333,"A6":0.0,"L1":0.6667},"Analytic-I*":{"A1":2.0,"A2":3.0,"A3":1.0,"A4":2.0,"A5":0.0,"A6":0.0},"Rate-weighted":{"A1":40.0,"A2":30.0,"A3":2.0,"A4":2.0,"A5":0.0,"A6":0.0}}},"inputs":{"node_counts":{"Application":6,"Broker":2,"Topic":4,"Node":2,"Library":1},"feature_dims":{"Application":23,"Broker":19,"Topic":22,"Node":20,"Library":25},"edge_types":{"Application PUBLISHES_TO Topic":4,"Application RUNS_ON Node":6,"Application SUBSCRIBES_TO Topic":8,"Application USES Library":2,"Broker ROUTES Topic":5,"Broker RUNS_ON Node":2,"Node CONNECTS_TO Node":1},"edge_dim":16,"app_keys":["pagerank","reverse_pagerank","betweenness_centrality","closeness_centrality","eigenvector_centrality","in_degree_centrality","out_degree_centrality","clustering_coefficient","ap_c_score","bridge_ratio","qos_weight","qos_weight_in","qos_weight_out","mpci","path_complexity","fan_out_criticality","ap_c_directed","cdi","loc_norm","complexity_norm","instability_code","lcom_norm","code_quality_penalty"],"app_rows":{"A1":[0.6,0.1,0.3,0.9,0.4,0.7,0.1,1.0,0.5,0.5,0.0,0.4,0.1,0.5,0.1,0.5,0.5,0.2,0.0,0.0,0.0,0.0,0.0],"A2":[1.0,0.4,1.0,0.9,1.0,1.0,0.5,0.2,0.5,0.5,0.2,1.0,0.4,0.5,0.7,0.5,0.5,1.0,0.0,0.0,0.0,0.0,0.0],"A3":[0.4,0.6,0.8,0.4,0.6,0.4,0.5,0.8,0.5,0.5,0.4,0.6,0.6,0.5,0.7,0.5,0.5,0.2,0.0,0.0,0.0,0.0,0.0],"A4":[0.8,0.1,0.3,0.6,0.8,0.7,0.1,0.0,0.5,0.5,1.0,0.8,0.1,0.5,0.1,0.5,0.5,0.2,0.0,0.0,0.0,0.0,0.0],"A5":[0.1,1.0,0.3,0.1,0.1,0.1,0.9,0.5,0.5,0.5,0.8,0.1,1.0,0.5,0.7,0.5,0.5,0.7,0.0,0.0,0.0,0.0,0.0],"A6":[0.1,0.8,0.3,0.1,0.1,0.1,0.9,0.5,0.5,0.5,0.6,0.1,0.8,0.5,0.7,0.5,0.5,0.7,0.0,0.0,0.0,0.0,0.0]}},"trained":{"seeds":[42,123,456,789,2024],"runs":{"42":{"A1":{"composite":0.6224,"reliability":0.5049,"maintainability":0.6103},"A2":{"composite":0.6547,"reliability":0.4728,"maintainability":0.6439},"A3":{"composite":0.4176,"reliability":0.3588,"maintainability":0.4628},"A4":{"composite":0.6986,"reliability":0.496,"maintainability":0.6231},"A5":{"composite":0.0994,"reliability":0.1504,"maintainability":0.1382},"A6":{"composite":0.108,"reliability":0.172,"maintainability":0.155},"L1":{"composite":0.7373,"reliability":0.7303,"maintainability":0.8796}},"123":{"A1":{"composite":0.652,"reliability":0.5886,"maintainability":0.1744},"A2":{"composite":0.7442,"reliability":0.6208,"maintainability":0.1164},"A3":{"composite":0.4277,"reliability":0.4487,"maintainability":0.3393},"A4":{"composite":0.7771,"reliability":0.6939,"maintainability":0.1272},"A5":{"composite":0.0648,"reliability":0.0922,"maintainability":0.7999},"A6":{"composite":0.0663,"reliability":0.1004,"maintainability":0.7718},"L1":{"composite":0.8559,"reliability":0.6824,"maintainability":0.4234}},"456":{"A1":{"composite":0.5393,"reliability":0.4653,"maintainability":0.4798},"A2":{"composite":0.5049,"reliability":0.4811,"maintainability":0.3507},"A3":{"composite":0.2356,"reliability":0.2346,"maintainability":0.6235},"A4":{"composite":0.4861,"reliability":0.3839,"maintainability":0.4349},"A5":{"composite":0.0667,"reliability":0.1013,"maintainability":0.7916},"A6":{"composite":0.0606,"reliability":0.1007,"maintainability":0.8019},"L1":{"composite":0.7705,"reliability":0.7286,"maintainability":0.3443}},"789":{"A1":{"composite":0.7092,"reliability":0.5735,"maintainability":0.6704},"A2":{"composite":0.7137,"reliability":0.5896,"maintainability":0.6918},"A3":{"composite":0.3908,"reliability":0.3215,"maintainability":0.3778},"A4":{"composite":0.6524,"reliability":0.4697,"maintainability":0.6501},"A5":{"composite":0.0908,"reliability":0.1631,"maintainability":0.1776},"A6":{"composite":0.0879,"reliability":0.1611,"maintainability":0.1808},"L1":{"composite":0.8578,"reliability":0.6653,"maintainability":0.7917}},"2024":{"A1":{"composite":0.5314,"reliability":0.5526,"maintainability":0.5032},"A2":{"composite":0.6964,"reliability":0.6318,"maintainability":0.4459},"A3":{"composite":0.1385,"reliability":0.2535,"maintainability":0.6854},"A4":{"composite":0.6866,"reliability":0.6852,"maintainability":0.4359},"A5":{"composite":0.0316,"reliability":0.0662,"maintainability":0.8323},"A6":{"composite":0.0337,"reliability":0.0685,"maintainability":0.826},"L1":{"composite":0.8144,"reliability":0.6441,"maintainability":0.5613}}},"mean":{"A1":0.6109,"A2":0.6628,"A3":0.322,"A4":0.6602,"A5":0.0707,"A6":0.0713,"L1":0.8072},"std":{"A1":0.0677,"A2":0.0841,"A3":0.115,"A4":0.0961,"A5":0.0237,"A6":0.0252,"L1":0.0474}},"dual":{"k":3,"threshold":2,"gnn_ranks":{"L1":1,"A4":2,"A2":3,"A1":4,"A3":5,"A6":6,"A5":7},"topo_ranks":{"A2":1,"A1":2,"A3":3,"A4":4,"A5":5,"A6":6,"L1":7},"topo_scores":{"A3":0.0,"L1":0.0,"A1":0.0,"A5":0.0,"A2":0.08,"A4":0.0,"A6":0.0},"divergence":{"A1":2,"A2":2,"A3":2,"A4":2,"A5":2,"A6":0,"L1":6},"consensus":["A2"],"escalations":["L1","A1","A2","A3","A4"]},"cold":{"mode":"rm","scores":{"A2":0.3484,"A5":0.2564,"A3":0.2315,"A6":0.2168,"A4":0.2074,"L1":0.1864,"A1":0.141}},"istar":{"A1":0.8333,"A2":0.5,"A3":0.0833,"A4":0.1667,"A5":0.0,"A6":0.0,"L1":0.5},"agreement":{"InDeg":0.8956,"Reach":1.0,"Analytic-I*":0.8956,"Rate-weighted":0.9852,"HGT-QoS":0.8117,"RM Q(v)":-0.3189}};
+
+const NS = 'http://www.w3.org/2000/svg';
+const NAME = { A1: 'radar', A2: 'tracker', A3: 'conflict-detector', A4: 'flight-plan', A5: 'display', A6: 'recorder', B1: 'sensor-broker', B2: 'ops-broker', T1: 'radar.plots', T2: 'tracks', T3: 'conflict.alerts', T4: 'flight.plans', N1: 'sensor-host', N2: 'ops-host', L1: 'track-model' };
+const ORDER = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'L1', 'B1', 'B2', 'N1', 'N2', 'T1', 'T2', 'T3', 'T4'];
+const f2 = v => v == null ? '–' : v.toFixed(2), f3 = v => v == null ? '–' : v.toFixed(3), f4 = v => v == null ? '–' : v.toFixed(4);
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const who = id => `<span class="mono">${esc(id)}</span> ${esc(NAME[id] || '')}`;
+const sum = a => a.reduce((x, y) => x + y, 0);
+function el(tag, attrs, parent, text) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; }
+const heat = (v, max) => `background: color-mix(in srgb, var(--accent) ${Math.round(Math.max(0, Math.min(1, max ? v / max : 0)) * 55)}%, transparent)`;
+const bar = (v, max, cls) => `<span class="bar"><span>${f3(v)}</span><span class="track"><span class="fill ${cls || ''}" style="width:${Math.max(0, Math.min(1, max ? v / max : 0)) * 100}%"></span></span></span>`;
+const LEVEL = { critical: 'critical', high: 'high', medium: 'medium' };
+const level = l => `<span class="pill ${LEVEL[String(l).toLowerCase()] || ''}">${esc(String(l).toLowerCase())}</span>`;
+const verdict = (ok, yes, no) => ok == null ? '<span class="pill">not measured</span>' : `<span class="pill ${ok ? 'ok' : 'no'}">${ok ? (yes || 'pass') : (no || 'fail')}</span>`;
+
+/* The mini-ATM raw structural graph. state: {id: 'sel' | 'hot' | 'mark' | 'dim'}, badges: {id: text}, sub: {id: text}. */
+const MINI = {
+  B1: { t: 'Broker', x: 210, y: 46, w: 110, h: 36 }, B2: { t: 'Broker', x: 490, y: 46, w: 110, h: 36 },
+  T1: { t: 'Topic', x: 130, y: 150, w: 100, h: 36 }, T2: { t: 'Topic', x: 290, y: 150, w: 100, h: 36 }, T3: { t: 'Topic', x: 530, y: 150, w: 100, h: 36 }, T4: { t: 'Topic', x: 650, y: 150, w: 100, h: 36 },
+  A1: { t: 'Application', x: 68, y: 282, w: 100, h: 38 }, A2: { t: 'Application', x: 193, y: 282, w: 100, h: 38 }, A6: { t: 'Application', x: 350, y: 282, w: 100, h: 38 },
+  A3: { t: 'Application', x: 470, y: 282, w: 106, h: 38 }, A5: { t: 'Application', x: 590, y: 282, w: 100, h: 38 }, A4: { t: 'Application', x: 710, y: 282, w: 100, h: 38 },
+  L1: { t: 'Library', x: 330, y: 388, w: 100, h: 36 },
+};
+const MINI_HOST = { N1: { x: 8, y: 248, w: 242, h: 92 }, N2: { x: 288, y: 248, w: 484, h: 92 } };
+const MINI_EDGES = [['A1', 'T1', 'flow'], ['A2', 'T2', 'flow'], ['A3', 'T3', 'flow'], ['A4', 'T4', 'flow'], ['T1', 'A2', 'flow'], ['T2', 'A3', 'flow'], ['T2', 'A5', 'flow'], ['T3', 'A5', 'flow'], ['T4', 'A5', 'flow'], ['T1', 'A6', 'flow'], ['T2', 'A6', 'flow'], ['T4', 'A6', 'flow'],
+  ['B1', 'T1', 'routes'], ['B1', 'T2', 'routes'], ['B2', 'T2', 'routes'], ['B2', 'T3', 'routes'], ['B2', 'T4', 'routes'], ['A2', 'L1', 'uses'], ['A3', 'L1', 'uses']];
+function drawMiniAtm(svg, opts = {}) {
+  const { state = {}, badges = {}, sub = {}, pickable = false } = opts;
+  svg.textContent = ''; svg.setAttribute('viewBox', '0 0 780 420');
+  const badge = (g, x, y, text) => { const w = String(text).length * 6.2 + 9, b = el('g', { class: 'bdg' }, g); el('rect', { x: x - w, y: y - 8, width: w, height: 15, rx: 3 }, b); el('text', { x: x - w / 2, y: y + 3.4 }, b, text); };
+  for (const h in MINI_HOST) {
+    const b = MINI_HOST[h], g = el('g', { class: `n host ${state[h] || ''} ${pickable ? 'pickable' : ''}`, 'data-id': h }, svg);
+    el('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 6 }, g);
+    el('text', { class: 'hl', x: h === 'N2' ? b.x + b.w - 10 : b.x + 10, y: b.y + b.h - 9, 'text-anchor': h === 'N2' ? 'end' : 'start' }, g, `${h} · ${NAME[h]}${sub[h] ? ' · ' + sub[h] : ''}`);
+    if (badges[h]) badge(g, b.x + b.w - 4, b.y + 2, badges[h]);
+  }
+  el('line', { class: 'link', x1: 250, y1: 294, x2: 288, y2: 294 }, svg);
+  const clip = (a, b, pad) => { const dx = b.x - a.x, dy = b.y - a.y, k = Math.min(dx ? (a.w / 2 + pad) / Math.abs(dx) : Infinity, dy ? (a.h / 2 + pad) / Math.abs(dy) : Infinity); return { x: a.x + dx * k, y: a.y + dy * k }; };
+  for (const [u, v, kind] of MINI_EDGES) {
+    const p1 = clip(MINI[u], MINI[v], 1), p2 = clip(MINI[v], MINI[u], kind === 'flow' ? 3 : 1);
+    el('line', { class: 'e ' + (kind === 'flow' ? '' : kind), x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }, svg);
+    if (kind === 'flow') { const a = Math.atan2(p2.y - p1.y, p2.x - p1.x), z = 7, w = 0.42; el('polygon', { class: 'ah', points: `${p2.x},${p2.y} ${p2.x - z * Math.cos(a - w)},${p2.y - z * Math.sin(a - w)} ${p2.x - z * Math.cos(a + w)},${p2.y - z * Math.sin(a + w)}` }, svg); }
+  }
+  for (const id in MINI) {
+    const n = MINI[id], g = el('g', { class: `n ${n.t === 'Library' ? 'lib' : ''} ${state[id] || ''} ${pickable ? 'pickable' : ''}`, 'data-id': id }, svg), x = n.x - n.w / 2, y = n.y - n.h / 2;
+    if (n.t === 'Broker') { const c = 9; el('polygon', { points: [[x + c, y], [x + n.w - c, y], [x + n.w, y + c], [x + n.w, y + n.h - c], [x + n.w - c, y + n.h], [x + c, y + n.h], [x, y + n.h - c], [x, y + c]].map(p => p.join(',')).join(' ') }, g); }
+    else el('rect', { x, y, width: n.w, height: n.h, rx: n.t === 'Topic' ? n.h / 2 : 5 }, g);
+    el('text', { class: 'nm', x: n.x, y: n.y - 1 }, g, NAME[id]); el('text', { class: 'sb', x: n.x, y: n.y + 11.5 }, g, sub[id] ? `${id} · ${sub[id]}` : id);
+    if (badges[id]) badge(g, n.x + n.w / 2 + 5, y - 1, badges[id]);
+  }
+}
+
+const IDS = ORDER.filter(i => D.trained.mean[i] != null);
+let sel = 'A2';
+const rankOf = (obj, id) => 1 + IDS.filter(j => obj[j] != null && obj[j] > obj[id] + 1e-9).length;
+
+function renderStatic() {
+  const I = D.inputs;
+  document.getElementById('inputs').innerHTML = `<thead><tr><th>What the trained model receives</th><th class="num">Count</th><th class="num">Features</th></tr></thead><tbody>` +
+    Object.keys(I.node_counts).map(t => `<tr><td>${t} nodes</td><td class="num">${I.node_counts[t]}</td><td class="num">${I.feature_dims[t]}</td></tr>`).join('') +
+    Object.entries(I.edge_types).map(([k, n]) => `<tr><td class="mono">${esc(k.split(' ')[1])}</td><td class="num">${n}</td><td class="num">${I.edge_dim}</td></tr>`).join('') + '</tbody>';
+  const C = D.closed.scores, T = D.trained, cols = [['InDeg', C.InDeg, 0], ['Reach', C.Reach, 3], ['Analytic I*', C['Analytic-I*'], 0], ['Rate-weighted', C['Rate-weighted'], 0]];
+  const top = new Set([...IDS].sort((a, b) => T.mean[b] - T.mean[a]).slice(0, 3));
+  const cell = (obj, id, dp) => obj[id] == null ? '<td class="num" style="color:var(--muted)">–</td><td></td>' : `<td class="num">${obj[id].toFixed(dp)}</td><td class="num" style="color:var(--muted)">#${rankOf(obj, id)}</td>`;
+  document.getElementById('rank').innerHTML = `<thead><tr><th>Component</th>${cols.map(c => `<th class="num" colspan="2">${c[0]}</th>`).join('')}<th class="num" colspan="2">HGT-QoS mean ± sd</th><th class="num" colspan="2">RM Q(v), no checkpoint</th><th></th></tr></thead><tbody>` +
+    [...IDS].sort((a, b) => T.mean[b] - T.mean[a]).map(i => `<tr class="pick" data-id="${i}"><td>${who(i)}</td>${cols.map(c => cell(c[1], i, c[2])).join('')}<td class="num">${f3(T.mean[i])} ± ${f2(T.std[i])}</td><td class="num" style="color:var(--muted)">#${rankOf(T.mean, i)}</td>${cell(D.cold.scores, i, 3)}<td>${top.has(i) ? '<span class="pill accent">shortlist</span>' : ''}</td></tr>`).join('') + '</tbody>';
+  const U = D.dual;
+  document.getElementById('dual').innerHTML = `<thead><tr><th>Component</th><th class="num">HGT-QoS rank</th><th class="num">Topo-QoS rank</th><th class="num">Topo-QoS score</th><th class="num">Rank gap</th><th></th></tr></thead><tbody>` +
+    Object.keys(U.gnn_ranks).sort((a, b) => U.gnn_ranks[a] - U.gnn_ranks[b]).map(i => `<tr><td>${who(i)}</td><td class="num">${U.gnn_ranks[i]}</td><td class="num">${U.topo_ranks[i]}</td><td class="num">${f3(U.topo_scores[i])}</td><td class="num">${U.divergence[i]}</td><td>${U.consensus.includes(i) ? '<span class="pill ok">consensus</span> ' : ''}${U.escalations.includes(i) ? '<span class="pill warn">escalate</span>' : ''}</td></tr>`).join('') + '</tbody>';
+  const zero = Object.values(U.topo_scores).filter(v => v === 0).length, n = Object.keys(U.topo_scores).length;
+  document.getElementById('dual-note').innerHTML = `<span class="cap">Result with K = ${U.k}</span>
+    <p class="note"><b>Consensus: ${U.consensus.map(i => NAME[i]).join(', ') || 'none'}.</b> It is the only component in both top-${U.k} lists.</p>
+    <p class="note"><b>Escalated: ${U.escalations.length} of ${n}.</b> That is most of the system, which makes the escalation set uninformative here.</p>
+    <p class="note"><b>Why.</b> Topo-QoS scores ${zero} of ${n} components at exactly zero: betweenness is zero for anything that does not sit between two other applications. Their Topo-QoS ranks are therefore tie-breaks, and the rank gaps built on them are arbitrary. On a system this small the dual engine has little to compare.</p>`;
+  const apps = IDS.filter(i => D.closed.scores['Analytic-I*'][i] != null), A = D.agreement;
+  document.getElementById('truth').innerHTML = `<thead><tr><th>Ranker</th><th>Rank correlation with I*, six applications</th></tr></thead><tbody>` +
+    Object.entries(A).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<tr><td>${esc(k)}</td><td><span class="bar"><span>${v < 0 ? '−' : ''}${f3(Math.abs(v))}</span><span class="track"><span class="fill ${v < 0 ? 'f' : ''}" style="width:${Math.abs(v) * 100}%"></span></span></span></td></tr>`).join('') +
+    `<tr><td colspan="2" style="white-space:normal;color:var(--muted)">I* itself: ${apps.map(i => `${NAME[i]} ${f2(D.istar[i])}`).join(' · ')}</td></tr></tbody>`;
+  document.getElementById('truth-note').innerHTML = `<span class="cap">What to notice</span>
+    <p class="note"><b>Counting does very well here.</b> Reach orders the applications exactly as the simulator does (ρ = ${f2(A.Reach)}), because this system is one pipeline and Reach counts everything downstream.</p>
+    <p class="note"><b>The trained model is close behind, at ρ = ${f2(A['HGT-QoS'])}.</b> It places ${NAME.A2} and ${NAME.A4} above ${NAME.A1}, which simulation ranks first.</p>
+    <p class="note"><b>The fallback is a different instrument.</b> RM Q(v) correlates at ${f2(A['RM Q(v)'])} with I*. It is a quality profile for diagnosis and is not built to forecast cascades; when no checkpoint is passed, that is what a default <code>predict</code> call returns (<code>prediction_mode = ${esc(D.cold.mode)}</code>).</p>
+    <p class="note">Which ranker holds up on which shape is examined in the Predictor Proving Ground.</p>`;
+}
+
+function renderSel() {
+  document.getElementById('chips').innerHTML = IDS.map(i => `<button class="chip" data-id="${i}" aria-pressed="${i === sel}">${i} ${esc(NAME[i])}</button>`).join('');
+  const C = D.closed, reach = C.reach[sel] || [], state = { [sel]: 'sel' };
+  for (const r of reach) state[r] = 'mark';
+  drawMiniAtm(document.getElementById('graph'), { state, pickable: true });
+  document.querySelectorAll('#rank tr.pick').forEach(tr => tr.classList.toggle('on', tr.dataset.id === sel));
+  document.getElementById('cf-title').textContent = `Four closed-form scores for ${NAME[sel]}`;
+  const dep = C.dependents[sel] || [], terms = C.terms[sel], list = a => a.length ? a.map(i => NAME[i]).join(', ') : 'nobody';
+  const card = (name, val, body) => `<div class="box pad"><span class="cap">${name}</span><div class="score"><span class="val">${val}</span></div>${body}</div>`;
+  const an = terms && terms.length ? terms.map(t => `${t.subs} subscribers ÷ ${t.pubs} publisher${t.pubs > 1 ? 's' : ''} of ${NAME[t.topic]}`).join(' + ') : null;
+  const rt = terms && terms.length ? terms.map(t => `${t.rate} Hz × ${t.subs} ÷ ${t.pubs} on ${NAME[t.topic]}`).join(' + ') : null;
+  document.getElementById('cf').innerHTML =
+    card('InDeg · direct dependents', C.scores.InDeg[sel].toFixed(0), `<p class="note">Depends on it directly: <b>${list(dep)}</b>.</p>`) +
+    card('Reach · transitive dependents', f3(C.scores.Reach[sel]), `<p class="note">Reachable by following dependencies: <b>${list(reach)}</b>. ${reach.length} of the ${IDS.length - 1} other components.</p>`) +
+    card('Analytic I* · first wave of the cascade', terms ? C.scores['Analytic-I*'][sel].toFixed(1) : 'n/a', `<p class="note">${terms ? (an ? `For each topic it publishes, subscribers divided by publishers: <b>${an}</b>.` : 'It publishes nothing, so no subscriber loses a feed in the first wave.') : 'Defined for applications only; a library publishes through the applications that use it.'}</p>`) +
+    card('Rate-weighted · first-order delivery loss', terms ? C.scores['Rate-weighted'][sel].toFixed(0) : 'n/a', `<p class="note">${terms ? (rt ? `The same sum weighted by declared rate: <b>${rt}</b> deliveries per second.` : 'It publishes nothing, so no deliveries are lost.') : 'Defined for applications only.'}</p>`);
+  const I = D.inputs, row = I.app_rows[sel];
+  document.getElementById('feat').innerHTML = row ? I.app_keys.map((k, j) => `<div><span class="k">${esc(k)}</span><span class="v">${f2(row[j])}</span><span class="track"><span class="fill" style="width:${row[j] * 100}%"></span></span></div>`).join('') : `<p class="note" style="grid-column:1/-1">The table shows Application rows. ${NAME[sel]} is a Library node, with ${I.feature_dims.Library} features of its own.</p>`;
+  const T = D.trained, best = Math.max(...Object.values(T.mean));
+  document.getElementById('gnn-title').textContent = `HGT-QoS scores ${NAME[sel]} at ${f3(T.mean[sel])}, rank ${rankOf(T.mean, sel)} of ${IDS.length}`;
+  document.getElementById('seeds').innerHTML = `<thead><tr><th>Seed</th><th>Composite</th><th class="num">Reliability head</th><th class="num">Maintainability head</th></tr></thead><tbody>` +
+    T.seeds.map(s => { const r = T.runs[s][sel]; return `<tr><td class="mono">${s}</td><td>${bar(r.composite, 1)}</td><td class="num">${f3(r.reliability)}</td><td class="num">${f3(r.maintainability)}</td></tr>`; }).join('') +
+    `<tr><td><b>Mean ± sd</b></td><td><b class="mono">${f3(T.mean[sel])} ± ${f3(T.std[sel])}</b></td><td></td><td></td></tr></tbody>`;
+  const ranks = T.seeds.map(s => 1 + IDS.filter(j => T.runs[s][j].composite > T.runs[s][sel].composite + 1e-9).length);
+  document.getElementById('gnn-note').innerHTML = `Across the five seeds ${NAME[sel]} is ranked ${Math.min(...ranks) === Math.max(...ranks) ? `<b>${ranks[0]}</b> every time` : `between <b>${Math.min(...ranks)}</b> and <b>${Math.max(...ranks)}</b>`}. Several features are zero for every application here because <code>mini_atm.json</code> declares no code metrics.`;
+}
+document.addEventListener('click', e => { const t = e.target.closest('[data-id]'); if (t && D.trained.mean[t.dataset.id] != null) { sel = t.dataset.id; renderSel(); } });
+renderStatic(); renderSel();
+</script>

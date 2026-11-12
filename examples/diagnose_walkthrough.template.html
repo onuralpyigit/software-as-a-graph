@@ -1,0 +1,150 @@
+<title>Diagnose Walkthrough</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: a component picker drives a bottom-up derivation: terms, sub-scores, roll-up, level, explanation. */
+/*BASE_CSS*/
+.roll { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
+@media (max-width: 760px) { .roll { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.node { padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.node .l { font: 600 0.7rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.node .v { font: 600 1.5rem var(--mono); line-height: 1.1; }
+.node.out { border-color: var(--accent); border-width: 2px; }
+.band { fill: var(--line-soft); } .fence { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.dot { fill: var(--surface); stroke: var(--muted); stroke-width: 1.3; cursor: pointer; }
+.dot.on { fill: var(--accent); stroke: var(--accent); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">software-as-a-graph · step 4 · diagnose</div>
+    <h1>Diagnose Walkthrough</h1>
+    <p class="lede">Diagnose does not predict anything. It reads the structural metrics and explains, in the terms of the ISO quality model, why a component is risky: is it a hub others lean on, a single point whose loss splits the system, or a bottleneck that is costly to change? Every number here follows from a fixed formula, shown term by term.</p>
+  </header>
+
+  <div class="picker"><span class="cap">Component</span><div class="chips" id="chips"></div></div>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">1 · three sub-scores</div>
+      <h2 id="s1-title"></h2>
+      <p>Each sub-score is a weighted sum of structural metrics, normalised against the rest of the system so that 1.0 means "the most extreme component here". The weights are fixed in advance; nothing is fitted to this system.</p>
+    </div>
+    <div class="three" id="subs"></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">2 · the roll-up</div>
+      <h2>Two fixed combinations turn three sub-scores into one</h2>
+      <p>Fault tolerance and availability combine into reliability. Reliability and maintainability combine into Q(v).</p>
+    </div>
+    <div class="roll" id="roll"></div>
+    <div class="formula" id="formula"></div>
+    <p class="note" id="roll-note"></p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">3 · the level</div>
+      <h2 id="s3-title"></h2>
+      <p>Levels are relative. The quartiles of Q(v) across the system set the boundaries, and a component is critical only if it sits beyond the upper fence. There are no absolute cut-offs.</p>
+    </div>
+    <div class="box fig scroll"><svg id="strip" viewBox="0 0 760 130" role="img" aria-label="Q scores of all components against the level boundaries"></svg></div>
+    <div class="box scroll"><table id="all"></table></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">4 · the explanation</div>
+      <h2 id="s4-title"></h2>
+      <p>For components rated high or critical, the scores are turned into a named pattern, the metric that drives each elevated dimension, a first action and the role it belongs to.</p>
+    </div>
+    <div class="two">
+      <div class="box pad" id="explain"></div>
+      <div class="box pad" id="verdict"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Reading the result</div>
+      <h2>What this run shows</h2>
+    </div>
+    <ul class="plain" id="take"></ul>
+  </section>
+
+  <footer>
+    <p><b>How this was produced.</b> <code>python examples/run_diagnose_walkthrough.py</code> on <code>examples/mini_atm.json</code>: <code>Client.analyze(layer="system")</code> then <code>Client.diagnose</code>. The quality model returns only totals, so the script retraces each term from the model's own normalisation table and weights and checks that the terms sum to the reported sub-scores.</p>
+    <p>Fifteen components give coarse quartiles: one component moving changes a boundary. The page shows how a diagnosis is derived, not how well it matches reality; that is the Validate step's job.</p>
+  </footer>
+</div>
+
+<script>
+const D = /*DATA*/;
+/*BASE_JS*/
+const IDS = ORDER.filter(i => D.components[i]);
+let sel = 'A2';
+const DIM = { fault_tolerance: ['FT', 'Fault tolerance', 'How much of the system leans on it'], availability: ['A', 'Availability', 'Whether losing it splits the system'], maintainability: ['M', 'Maintainability', 'How costly it is to change'] };
+
+function drawStrip() {
+  const s = document.getElementById('strip'); s.textContent = '';
+  const F = D.fences, qs = IDS.map(i => D.components[i].overall), lo = Math.min(...qs) - 0.02, hi = Math.max(...qs, F.upper_fence) + 0.03, L = 20, W = 720, x = v => L + W * (v - lo) / (hi - lo);
+  const bands = [[lo, F.q1, 'minimal'], [F.q1, F.median, 'low'], [F.median, F.q3, 'medium'], [F.q3, F.upper_fence, 'high'], [F.upper_fence, hi, 'critical']];
+  bands.forEach(([a, b, name], i) => { if (i % 2 === 0) el('rect', { class: 'band', x: x(a), y: 30, width: x(b) - x(a), height: 50 }, s); el('text', { class: 'lbl', x: (x(a) + x(b)) / 2, y: 24, 'text-anchor': 'middle' }, s, name); });
+  for (const [v, lab] of [[F.q1, 'Q1'], [F.median, 'median'], [F.q3, 'Q3'], [F.upper_fence, 'fence']]) { el('line', { class: 'fence', x1: x(v), x2: x(v), y1: 30, y2: 92 }, s); el('text', { class: 'lbl', x: x(v), y: 104, 'text-anchor': 'middle' }, s, `${lab} ${f3(v)}`); }
+  const seen = {};
+  for (const i of [...IDS].sort((a, b) => D.components[a].overall - D.components[b].overall)) {
+    const q = D.components[i].overall, k = Math.round(x(q) / 16), row = seen[k] = (seen[k] || 0) + 1, cy = 42 + ((row - 1) % 3) * 14;
+    const c = el('circle', { class: 'dot' + (i === sel ? ' on' : ''), cx: x(q), cy, r: 5.5, 'data-id': i }, s); el('title', {}, c, `${i} ${NAME[i]}: ${f3(q)}`);
+    if (i === sel) el('text', { class: 'ptl', x: x(q), y: 122, 'text-anchor': 'middle', style: 'fill: var(--accent); font-weight: 600' }, s, `${i} ${f3(q)}`);
+  }
+}
+
+function render() {
+  const c = D.components[sel], W = D.weights;
+  document.getElementById('chips').innerHTML = IDS.map(i => `<button class="chip" data-id="${i}" aria-pressed="${i === sel}">${i} ${esc(NAME[i])}</button>`).join('');
+  document.getElementById('s1-title').textContent = `Where ${NAME[sel]}'s scores come from`;
+  document.getElementById('subs').innerHTML = Object.keys(DIM).map(d => {
+    const rows = c.terms[d], top = [...rows].sort((a, b) => b[1] * b[2] - a[1] * a[2])[0];
+    return `<div class="box scroll"><table><thead><tr><th>${DIM[d][1]}<div style="font:400 0.74rem var(--body);text-transform:none;letter-spacing:0;margin-top:2px">${DIM[d][2]}</div></th><th class="num">Input</th><th class="num">× Weight</th><th class="num">=</th></tr></thead><tbody>` +
+      rows.map(([lab, v, w]) => `<tr><td>${esc(lab)}${lab === top[0] && v * w > 0 ? ' <span class="pill accent">largest</span>' : ''}</td><td class="h" style="${heat(v, 1)}">${f3(v)}</td><td class="num">${f2(w)}</td><td class="num">${f3(v * w)}</td></tr>`).join('') +
+      `<tr><td><b>${DIM[d][0]}(${sel})</b></td><td></td><td></td><td class="num"><b>${f3(c[d])}</b></td></tr></tbody></table></div>`; }).join('');
+  const node = (l, v, cls) => `<div class="box node ${cls || ''}"><span class="l">${l}</span><span class="v">${f3(v)}</span></div>`;
+  document.getElementById('roll').innerHTML = node('Fault tolerance', c.fault_tolerance) + node('Availability', c.availability) + node('Reliability', c.reliability) + node('Maintainability', c.maintainability) + node('Q(v)', c.overall, 'out');
+  document.getElementById('formula').innerHTML = `R = ${f2(W.r_alpha)} × ${f3(c.fault_tolerance)} + ${f2(1 - W.r_alpha)} × ${f3(c.availability)} = ${f3(c.reliability)}<br>Q = ${f2(W.q_reliability)} × ${f3(c.reliability)} + ${f2(W.q_maintainability)} × ${f3(c.maintainability)} = ${f3(c.overall)}`;
+  const P = D.qos_profile.reliability;
+  document.getElementById('roll-note').innerHTML = `Availability carries ${f2(1 - W.r_alpha)} of reliability, so a component with high fault tolerance and near-zero availability still ends with a modest R. The declared Q weights are ${f2(D.declared.q_reliability)} and ${f2(D.declared.q_maintainability)}; this run used ${f2(W.q_reliability)} and ${f2(W.q_maintainability)} because the model shifts toward reliability when the system's topics lean that way (${P.reliable} of ${D.qos_profile.total_topics} topics here are RELIABLE).`;
+  const F = D.fences;
+  document.getElementById('s3-title').textContent = `Q = ${f3(c.overall)} places ${NAME[sel]} at "${c.level}"`;
+  drawStrip();
+  const dims = [['fault_tolerance', 'FT'], ['availability', 'A'], ['reliability', 'R'], ['maintainability', 'M'], ['overall', 'Q']], max = {};
+  for (const [k] of dims) max[k] = Math.max(...IDS.map(i => D.components[i][k]));
+  document.getElementById('all').innerHTML = `<thead><tr><th>Component</th><th>Type</th>${dims.map(d => `<th class="num">${d[1]}</th>`).join('')}<th>Level</th></tr></thead><tbody>` +
+    [...IDS].sort((a, b) => D.components[b].overall - D.components[a].overall).map(i => { const x = D.components[i]; return `<tr class="pick ${i === sel ? 'on' : ''}" data-id="${i}"><td>${who(i)}</td><td>${x.type === 'Node' ? 'Host' : x.type}</td>${dims.map(([k]) => `<td class="h" style="${heat(x[k], max[k])}">${f3(x[k])}</td>`).join('')}<td>${level(x.level)}</td></tr>`; }).join('') + '</tbody>';
+  const e = D.explain[sel], probs = D.problems.filter(p => p.entity_id.split(' -> ').includes(sel));
+  document.getElementById('s4-title').textContent = e ? `${NAME[sel]}: ${e.pattern}` : `${NAME[sel]} is rated ${c.level}, so no explanation is generated`;
+  document.getElementById('explain').innerHTML = e ? `<span class="cap">Pattern</span><p class="note"><b>${esc(e.pattern)}</b> ${level(e.level)}</p><p class="note">${esc(e.one_line)}</p><p class="note">${esc(e.top_risk)}</p>
+    <span class="cap">What drives each elevated dimension</span>${e.dimensions.map(d => `<p class="note"><b>${esc(d.dimension)}</b> ${f3(d.score)} ${level(d.level)}: driven by ${esc(d.driving_metric)} (${d.driving_value}). ${esc(d.risk_sentence)}</p>`).join('')}
+    <span class="cap">First action</span><p class="note">${esc(e.priority_action)}</p>${(e.stakeholders || []).length ? `<p class="note">For: ${e.stakeholders.map(esc).join(', ')}</p>` : ''}`
+    : `<span class="cap">Nothing to explain</span><p class="note">Explanations are written for components rated high or critical: ${Object.keys(D.explain).map(i => NAME[i]).join(', ')}. Pick one of them to see its pattern, drivers and first action.</p>`;
+  const sev = s => `<span class="pill ${s === 'CRITICAL' ? 'critical' : s === 'HIGH' ? 'high' : 'medium'}">${s.toLowerCase()}</span>`;
+  const groups = {}; for (const p of D.problems) (groups[p.name + '|' + p.severity + '|' + p.recommendation] = groups[p.name + '|' + p.severity + '|' + p.recommendation] || []).push(p.entity_id);
+  document.getElementById('verdict').innerHTML = `<span class="cap">Anti-patterns on ${esc(NAME[sel])}</span><p class="note">${probs.length ? probs.map(p => `${sev(p.severity)} <b>${esc(p.name)}</b>`).join('<br>') : 'None.'}</p>
+    <span class="cap">Anti-patterns in the whole system</span>${Object.entries(groups).map(([k, ids]) => { const [n, s, r] = k.split('|'); return `<p class="note">${sev(s)} <b>${esc(n)}</b>: ${ids.map(esc).join(', ')}. ${esc(r)}</p>`; }).join('')}
+    <span class="cap">System verdict</span><p class="note"><b>${D.report.deployment_blocked ? 'Deployment blocked.' : 'Deployment allowed.'}</b> ${esc(D.report.reason)}</p>`;
+}
+function renderTake() {
+  const F = D.fences, crit = IDS.filter(i => D.components[i].level === 'critical'), a0 = IDS.filter(i => D.components[i].availability < 0.1).length;
+  document.getElementById('take').innerHTML = [
+    `<b>The diagnosis is fully traceable.</b> Every Q(v) on this page decomposes into ${Object.values(D.components[IDS[0]].terms).flat().length} weighted terms, and the script checks that they sum to what the model reported.`,
+    `<b>Availability is near zero for every component here</b> (${a0} of ${IDS.length} below 0.1). The cut-vertex score is zero for every component, so the term that carries most of reliability contributes little, and fault tolerance decides the order.`,
+    `<b>Levels are relative to this system.</b> ${crit.map(i => NAME[i]).join(', ')} is critical because its Q of ${f3(D.components[crit[0]].overall)} exceeds the fence at ${f3(F.upper_fence)}, not because of any absolute threshold.`,
+    `<b>The shipped fence is Q3 + ${F.k} × IQR.</b> docs/diagnosis.md and docs/structural-analysis.md state 1.5 × IQR. With 1.5 the fence here would be ${f3(F.q3 + 1.5 * F.iqr)} and nothing would be rated critical. The code and the documents disagree, and one of them should be corrected.`,
+    `<b>The explanation text is thin for topics.</b> The tracks topic is called a hub with "0 downstream components", because its dependents are counted on dependency edges and topics have none.`,
+    `<b>The blocking verdict comes from one finding</b>, a single-point-of-failure flag on display. Display has no dependents and a cut-vertex score of zero, so the flag deserves a second look before anyone acts on it.`,
+  ].map(i => `<li>${i}</li>`).join('');
+}
+document.addEventListener('click', e => { const t = e.target.closest('[data-id]'); if (t && D.components[t.dataset.id]) { sel = t.dataset.id; render(); } });
+render(); renderTake();
+</script>

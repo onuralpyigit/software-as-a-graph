@@ -1,0 +1,338 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Anti-Patterns and Prescribe Walkthrough</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: catalogue tiles, then findings to candidate edits, then the counterfactual ledger as the centrepiece. */
+
+:root {
+  --bg: #f2f5f7; --surface: #ffffff; --ink: #16212b; --muted: #5a6877; --line: #cbd4dc; --line-soft: #e3e8ed;
+  --accent: #0b6a94; --accent-soft: #d9ebf3;
+  --fail: #bf3b2b; --fail-soft: #f9ddd7;
+  --ok: #2b7a4b; --ok-soft: #dcefe3;
+  --warn: #9a6a12; --warn-soft: #f7e8c6;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c;
+  --ok: #63c08a; --ok-soft: #173826;
+  --warn: #e3b550; --warn-soft: #43350f; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c;
+  --ok: #63c08a; --ok-soft: #173826;
+  --warn: #e3b550; --warn-soft: #43350f; color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 46px; }
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: 2.3rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.55rem; font-weight: 600; }
+p { margin: 0; max-width: 70ch; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+.lede { font-size: 1.05rem; color: var(--muted); margin-top: 10px; }
+.eyebrow, .cap { font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.eyebrow { color: var(--accent); margin-bottom: 6px; } .cap { color: var(--muted); font-weight: 600; }
+section { display: flex; flex-direction: column; gap: 16px; }
+.sec-head { display: flex; flex-direction: column; gap: 8px; }
+.sec-head p, .note { color: var(--muted); } .note { font-size: 0.9rem; }
+.sec-head p b, .note b, li b { color: var(--ink); font-weight: 600; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.pad { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.scroll { overflow-x: auto; }
+.two { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.half { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+@media (max-width: 900px) { .two, .half, .three { grid-template-columns: minmax(0, 1fr); } }
+ul.plain { margin: 0; padding-left: 1.15em; display: flex; flex-direction: column; gap: 8px; max-width: 78ch; color: var(--muted); }
+.fig svg { display: block; width: 100%; min-width: 600px; height: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+th { font: 600 0.7rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num, td.h { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+td.c, th.c { text-align: center; }
+td.wrapcell { white-space: normal; min-width: 15em; }
+tbody tr.pick { cursor: pointer; } tbody tr.pick:hover td { background: var(--line-soft); } tbody tr.on td { background: var(--accent-soft); }
+.pill { display: inline-block; font: 600 0.68rem var(--mono); letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.pill.critical { background: var(--fail); border-color: var(--fail); color: var(--surface); }
+.pill.high, .pill.no { background: var(--fail-soft); border-color: var(--fail); color: var(--fail); }
+.pill.medium, .pill.warn { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.pill.ok { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.pill.accent { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.bar { display: grid; grid-template-columns: 3.4em minmax(40px, 1fr); gap: 8px; align-items: center; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.track { height: 9px; background: var(--line-soft); border-radius: 2px; overflow: hidden; }
+.fill { height: 100%; background: var(--accent); display: block; } .fill.f { background: var(--fail); }
+.card { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.card .rk { font: 600 0.74rem var(--mono); color: var(--accent); letter-spacing: 0.05em; }
+.card .who { font: 600 1.05rem var(--display); }
+.card .join { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 2px; display: flex; flex-direction: column; gap: 5px; font-size: 0.86rem; color: var(--muted); }
+.score { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.score .val { font: 600 1.9rem var(--mono); line-height: 1; } .score .sub { font-size: 0.82rem; color: var(--muted); }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; color: var(--muted); align-items: center; }
+.key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ln { width: 22px; height: 0; border-top: 1.6px solid var(--muted); display: inline-block; } .ln.dash { border-top-style: dashed; } .ln.dot { border-top-style: dotted; }
+.sw { width: 12px; height: 12px; display: inline-block; border-radius: 2px; background: var(--accent); }
+.picker { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding-block: 10px; display: flex; gap: 14px; align-items: center; }
+.chips { display: flex; gap: 6px; overflow-x: auto; min-width: 0; padding-bottom: 2px; }
+.chip { font: 500 0.82rem var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; cursor: pointer; white-space: nowrap; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.formula { font-family: var(--mono); font-size: 0.86rem; background: var(--bg); border: 1px solid var(--line-soft); border-radius: 4px; padding: 8px 10px; overflow-x: auto; white-space: nowrap; }
+footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: 0.84rem; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+footer p { max-width: 92ch; }
+
+svg text { font-family: var(--body); fill: var(--ink); }
+.n rect, .n polygon { fill: var(--surface); stroke: var(--muted); stroke-width: 1.3; }
+.n.host > rect { fill: var(--bg); stroke: var(--line); stroke-dasharray: 5 3; }
+.n.lib rect { stroke-dasharray: 3 2; }
+.n.pickable { cursor: pointer; }
+.n.sel > rect, .n.sel > polygon { stroke: var(--accent); stroke-width: 2.6; }
+.n.hot > rect, .n.hot > polygon { fill: var(--fail-soft); stroke: var(--fail); stroke-width: 1.8; }
+.n.mark > rect, .n.mark > polygon { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.8; }
+.n.dim { opacity: 0.4; }
+.nm { font-size: 12px; font-weight: 600; text-anchor: middle; }
+.sb { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); text-anchor: middle; }
+.hl { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+.bdg rect { fill: var(--ink); } .bdg text { fill: var(--bg); font-family: var(--mono); font-size: 9.5px; font-weight: 600; text-anchor: middle; }
+.e { stroke: var(--muted); stroke-width: 1.2; fill: none; } .e.routes { stroke-dasharray: 5 4; } .e.uses { stroke-dasharray: 1.5 3.5; stroke-linecap: round; stroke-width: 1.6; }
+.ah { fill: var(--muted); }
+.link { stroke: var(--muted); stroke-width: 3; }
+.lbl { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+.axis { stroke: var(--line); } .grid { stroke: var(--line-soft); } .diag { stroke: var(--muted); stroke-dasharray: 4 3; }
+.pt { fill: var(--accent); fill-opacity: 0.6; stroke: var(--accent); }
+.ptl { font-family: var(--mono); font-size: 10px; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.tile { padding: 9px 11px; display: flex; flex-direction: column; gap: 3px; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.tile .id { font: 600 0.72rem var(--mono); letter-spacing: 0.04em; color: var(--muted); }
+.tile .n { font: 600 1.25rem var(--mono); line-height: 1.1; }
+.tile.off { opacity: 0.55; } .tile.off .n { font-size: 0.86rem; font-weight: 400; color: var(--muted); }
+.tile[aria-pressed="true"] { border-color: var(--accent); border-width: 2px; padding: 8px 10px; }
+.zero { stroke: var(--muted); stroke-width: 1; }
+.eb { cursor: pointer; }
+.eb rect.acc { fill: var(--ok); } .eb rect.rej { fill: var(--warn); } .eb rect.neg { fill: var(--fail); }
+.eb .hit { fill: transparent; } .eb.on .hit { fill: var(--accent-soft); }
+.nb { stroke: var(--ink); stroke-width: 1.4; }
+.rowtxt { font-family: var(--mono); font-size: 10.5px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">software-as-a-graph · step 4 and step 7 · anti-patterns and prescribe</div>
+    <h1>Anti-Patterns and Prescribe Walkthrough</h1>
+    <p class="lede">Finding a structural smell is the easy half. The harder half is knowing whether a proposed fix actually helps. This page scans a small air-traffic scenario for 19 known anti-patterns, turns the findings into candidate edits, and then lets counterfactual simulation decide which edits survive.</p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">1 · detect</div>
+      <h2 id="s1-title"></h2>
+      <p id="s1-text"></p>
+    </div>
+    <div class="tiles" id="tiles"></div>
+    <div class="box pad" id="pattern"></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">2 · propose</div>
+      <h2 id="s2-title"></h2>
+      <p>Three operators can change the architecture automatically. Only five catalogue patterns feed one of them; guidance for the other fourteen is advisory. Components the quality model rates critical or high can also trigger an operator directly.</p>
+    </div>
+    <div class="three" id="ops"></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">3 · verify</div>
+      <h2 id="s3-title"></h2>
+      <p>Each candidate is applied alone to a copy of the system and every component is failed again, at three propagation thresholds and three seeds. The edit is accepted only if the average impact falls by more than the seed-to-seed noise at <b>every</b> threshold. Each bar below is one candidate at its worst threshold; the tick is the noise it had to beat.</p>
+    </div>
+    <div class="two">
+      <div class="box fig scroll">
+        <div class="keys"><span class="key"><span class="sw" style="background:var(--ok)"></span>accepted</span><span class="key"><span class="sw" style="background:var(--warn)"></span>rejected: within noise or no effect</span><span class="key"><span class="sw" style="background:var(--fail)"></span>rejected: made things worse</span><span class="key"><span class="ln" style="border-top-color:var(--ink);transform:rotate(90deg);width:10px"></span>noise bar κ·σ</span></div>
+        <svg id="ledger" viewBox="0 0 640 400" role="img" aria-label="Impact change of every candidate edit against its noise bar"></svg>
+      </div>
+      <div class="box pad" id="edit"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">4 · apply</div>
+      <h2 id="s4-title"></h2>
+      <p>The accepted edits are applied together and the whole system is simulated once more. The policy as a whole is kept only if the risk index falls.</p>
+    </div>
+    <div class="two">
+      <div class="box scroll"><table id="outcome"></table></div>
+      <div class="box pad" id="applied"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Reading the result</div>
+      <h2>What the closed loop did here</h2>
+    </div>
+    <ul class="plain" id="take"></ul>
+  </section>
+
+  <footer>
+    <p><b>How this was produced.</b> <code>python examples/run_prescribe_walkthrough.py</code> on <code>data/scenarios/atm_system_tiny.json</code>: <code>Client.predict(mode="rm")</code> for the quality scores and the anti-pattern scan, then <code>Client.prescribe</code> with default settings (κ = 1, thresholds 0.1, 0.2 and 0.5, three seeds).</p>
+    <p>The edits are structural proposals: a split topic or a new host has costs the simulator does not price. Treat an accepted edit as "worth an engineer's attention", not as a change to merge.</p>
+  </footer>
+</div>
+
+<script>
+const D = {"scenario":{"file":"data/scenarios/atm_system_tiny.json","scale":{"apps":10,"topics":11,"brokers":2,"nodes":3,"libs":3},"names":{"N0":"weather-node","N1":"fdps-main","N2":"fdps-main-1","B0":"solace-surveillance","B1":"solace-surveillance-1","T0":"radar.tracks","T1":"radar.tracks-1","T2":"flight.plans","T3":"trajectory.predicted","T4":"radar.tracks-2","T5":"weather.updates","T6":"radar.tracks-3","T7":"radar.tracks-4","T8":"flight.plans-1","T9":"flight.plans-2","T10":"flight.plans-3","A0":"conflict-detector","A1":"conflict-detector-1","A2":"clearance-router","A3":"trajectory-predictor","A4":"trajectory-predictor-1","A5":"flight-plan-processor","A6":"weather-analyzer","A7":"flight-plan-processor-1","A8":"flight-plan-processor-2","A9":"trajectory-predictor-2","L0":"asterix-parser","L1":"icao-protocol","L2":"asterix-parser-1"}},"catalog":[{"id":"SPOF","name":"Single Point of Failure (SPOF)","severity":"CRITICAL","category":"Availability","description":"A component whose removal disconnects the dependency graph, making downstream subscribers unreachable.","recommendation":"Introduce redundancy, active-passive failover, or clustered broker configurations.","count":3,"sample":["A3","A4","A5"],"operator":"node_reallocation"},{"id":"BRIDGE_EDGE","name":"Bridge Edge (Critical Link)","severity":"HIGH","category":"Availability","description":"A dependency edge whose removal increases the number of connected components.","recommendation":"Add redundant connections or alternative paths.","count":0,"sample":[],"operator":null},{"id":"BOTTLENECK_EDGE","name":"Bottleneck Dependency","severity":"HIGH","category":"Availability","description":"An edge carrying an anomalously high percentage of shortest paths.","recommendation":"Consider caching, load balancing, or async patterns.","count":5,"sample":["A2->A3","A3->A6","A3->A7","A4->A0","A4->A2"],"operator":"topic_split"},{"id":"BROKER_OVERLOAD","name":"Broker Saturation","severity":"HIGH","category":"Availability","description":"A broker handling a disproportionate share of message routing relative to its peers, or the sole broker in the system.","recommendation":"Partition the topic namespace across brokers, deploy a broker cluster, or introduce hierarchical/edge brokers to reduce the central broker's connection count.","count":0,"sample":[],"operator":null},{"id":"FAILURE_HUB","name":"Critical Failure Propagation Hub","severity":"CRITICAL","category":"Reliability","description":"A component with critical reliability risk whose failure cascades widely.","recommendation":"Health checks, circuit breakers in dependents, and retry policies.","count":0,"sample":[],"operator":"topic_split"},{"id":"CONCENTRATION_RISK","name":"Concentration Risk","severity":"MEDIUM","category":"Reliability","description":"Top 3 components hold > 50% of transitive system importance (PageRank).","recommendation":"Distribute load via domain partitioning or message brokers.","count":1,"sample":["SYSTEM"],"operator":null},{"id":"DEEP_PIPELINE","name":"Deep Processing Pipeline","severity":"HIGH","category":"Reliability","description":"A long directed source-to-sink chain in the application dependency graph exceeding the layer's adaptive depth threshold.","recommendation":"Merge adjacent stages sharing an ownership boundary, parallelize independent stages, and instrument per-stage latency SLOs.","count":746,"sample":["A5 -> A2 -> A3 -> A4 -> A0 -> L1","A5 -> A2 -> A3 -> A4 -> L2 -> L0","A5 -> A2 -> A3 -> A4 -> L2 -> L1","A5 -> A2 -> A3 -> A6 -> A1 -> L0","A5 -> A2 -> A3 -> A6 -> A1 -> L1","A5 -> A2 -> A3 -> A6 -> A4 -> A0 -> L1"],"operator":null},{"id":"TOPIC_FANOUT","name":"Topic Fan-Out Explosion","severity":"MEDIUM","category":"Reliability","description":"A topic with an anomalously large subscriber count relative to other topics in the system.","recommendation":"Segment the topic by semantic sub-topic, introduce a topic router, or replace fan-out with a shared-state store where appropriate.","count":0,"sample":[],"operator":null},{"id":"QOS_MISMATCH","name":"QoS Policy Mismatch","severity":"MEDIUM","category":"Reliability","description":"A dependency edge where the publisher's QoS weight is substantially lower than the subscriber's expected QoS weight.","recommendation":"Establish a QoS policy registry with CI validation, introduce a QoS-bridging relay component, or standardize on predefined QoS profiles.","count":0,"sample":[],"operator":null},{"id":"GOD_COMPONENT","name":"God Component / Central Bottleneck","severity":"CRITICAL","category":"Maintainability","description":"A component with extreme betweenness centrality and high coupling.","recommendation":"Decompose into smaller services using the Strangler Fig pattern.","count":0,"sample":[],"operator":"topic_split"},{"id":"HUB_AND_SPOKE","name":"Hub-and-Spoke Anti-Pattern","severity":"MEDIUM","category":"Maintainability","description":"A hub node where its neighbors do not communicate directly (low clustering).","recommendation":"Add direct links between neighbors for redundant paths.","count":0,"sample":[],"operator":"topic_split"},{"id":"CHATTY_PAIR","name":"Chatty Pair","severity":"MEDIUM","category":"Maintainability","description":"Two application components with a reciprocal, high-weight dependency in both directions via separate topics.","recommendation":"Introduce a mediator component, apply event-carried state transfer, or replace conversational exchange with Tell-Don't-Ask.","count":0,"sample":[],"operator":null},{"id":"ORPHANED_TOPIC","name":"Orphaned Topic","severity":"MEDIUM","category":"Maintainability","description":"A topic with no publishers or no subscribers.","recommendation":"Connect or remove publisher-only orphans; diagnose the missing publisher for subscriber-only orphans (deployment, naming, or version mismatch).","count":1,"sample":["T10"],"operator":null},{"id":"UNSTABLE_INTERFACE","name":"Unstable Interface","severity":"MEDIUM","category":"Maintainability","description":"A component with high maintainability risk driven by near-equal, high-path-complexity in/out coupling (high CouplingRisk_enh).","recommendation":"Apply the Stable Abstractions Principle, introduce schema versioning/a schema registry, and invert unstable dependencies onto a shared aggregation topic.","count":2,"sample":["A2","A3"],"operator":null},{"id":"CYCLE","name":"Dependency Cycle","severity":"HIGH","category":"Architecture","description":"Circular dependency detected between two or more components.","recommendation":"Break the cycle via interfaces or event-driven decoupling.","count":3,"sample":["A2 -> A3 -> A4 -> A6 -> A7 -> A8 -> A9","B0 -> B1","N0 -> N1 -> N2"],"operator":null},{"id":"CHAIN","name":"Chain Topology","severity":"MEDIUM","category":"Architecture","description":"Fragile chain of components where any failure isolates the entire sequence.","recommendation":"Introduce redundant paths or bypasses to reduce sequence depth.","count":0,"sample":[],"operator":null},{"id":"ISOLATED","name":"Isolated Component","severity":"MEDIUM","category":"Architecture","description":"Component has no dependencies in this layer.","recommendation":"Verify deployment, configuration, and integration status.","count":11,"sample":["T0","T1","T10","T2","T3","T4"],"operator":null},{"id":"SYSTEMIC_RISK","name":"Systemic Risk Pattern","severity":"CRITICAL","category":"Architecture","description":"Significant portion of the system is classified as CRITICAL.","recommendation":"Architecture review and remediation roadmap.","count":0,"sample":[],"operator":null},{"id":"COMPOUND_RISK","name":"Compound Architectural Risk","severity":"CRITICAL","category":"Architecture","description":"Component is simultaneously a structural SPOF and a high-criticality God Component or Failure Hub.","recommendation":"Urgent: Prioritize decoupling and redundancy for this specific component.","count":0,"sample":[],"operator":null}],"failed_patterns":[],"levels":{"critical":1,"high":6,"medium":8,"low":8,"minimal":6},"report":{"critical_count":1,"high_count":6,"deployment_blocked":true,"reason":"3 CRITICAL anti-patterns detected (Single Point of Failure (SPOF))."},"edits":[{"kind":"topic_split","target":"T1","accepted":false,"reason":"delta 0.000203 <= kappa*sigma 0.001011 at threshold 0.1","kappa":1.0,"worst_delta":0.000203,"worst_margin":-0.000808,"per_threshold":{"0.1":{"mean_delta":0.000203,"sigma_seed":0.001011},"0.2":{"mean_delta":0.000203,"sigma_seed":0.001011},"0.5":{"mean_delta":0.000203,"sigma_seed":0.001011}},"detail":{"topic":"T1","publishers":["A2","A4"],"subscribers":["A2","A4","A5","A6"]}},{"kind":"topic_split","target":"T3","accepted":true,"reason":"","kappa":1.0,"worst_delta":0.000562,"worst_margin":0.000551,"per_threshold":{"0.1":{"mean_delta":0.000562,"sigma_seed":1.1e-05},"0.2":{"mean_delta":0.000562,"sigma_seed":1.1e-05},"0.5":{"mean_delta":0.000562,"sigma_seed":1.1e-05}},"detail":{"topic":"T3","publishers":["A3","A4"],"subscribers":["A2","A3","A7","A8","A9"]}},{"kind":"topic_split","target":"T6","accepted":false,"reason":"delta 0.000405 <= kappa*sigma 0.001011 at threshold 0.1","kappa":1.0,"worst_delta":0.000405,"worst_margin":-0.000606,"per_threshold":{"0.1":{"mean_delta":0.000405,"sigma_seed":0.001011},"0.2":{"mean_delta":0.000405,"sigma_seed":0.001011},"0.5":{"mean_delta":0.000405,"sigma_seed":0.001011}},"detail":{"topic":"T6","publishers":["A2","A4"],"subscribers":["A2","A5","A7","A9"]}},{"kind":"topic_split","target":"T7","accepted":false,"reason":"delta -0.000585 <= kappa*sigma 0.000000 at threshold 0.1","kappa":1.0,"worst_delta":-0.000585,"worst_margin":-0.000585,"per_threshold":{"0.1":{"mean_delta":-0.000585,"sigma_seed":0.0},"0.2":{"mean_delta":-0.000585,"sigma_seed":0.0},"0.5":{"mean_delta":-0.000585,"sigma_seed":0.0}},"detail":{"topic":"T7","publishers":["A1","A8","A9"],"subscribers":["A2","A6","A7"]}},{"kind":"topic_split","target":"T8","accepted":true,"reason":"","kappa":1.0,"worst_delta":0.000517,"worst_margin":0.000509,"per_threshold":{"0.1":{"mean_delta":0.000517,"sigma_seed":8e-06},"0.2":{"mean_delta":0.000517,"sigma_seed":8e-06},"0.5":{"mean_delta":0.000517,"sigma_seed":8e-06}},"detail":{"topic":"T8","publishers":["A3","A6","A7"],"subscribers":["A3","A7"]}},{"kind":"topic_split","target":"T9","accepted":false,"reason":"delta 0.000801 <= kappa*sigma 0.000974 at threshold 0.1","kappa":1.0,"worst_delta":0.000801,"worst_margin":-0.000173,"per_threshold":{"0.1":{"mean_delta":0.000801,"sigma_seed":0.000974},"0.2":{"mean_delta":0.000801,"sigma_seed":0.000974},"0.5":{"mean_delta":0.000801,"sigma_seed":0.000974}},"detail":{"topic":"T9","publishers":["A1","A3","A6"],"subscribers":["A2","A5","A6","A9"]}},{"kind":"node_reallocation","target":"A1","accepted":false,"reason":"delta -0.002931 <= kappa*sigma 0.000057 at threshold 0.1","kappa":1.0,"worst_delta":-0.002931,"worst_margin":-0.002987,"per_threshold":{"0.1":{"mean_delta":-0.002931,"sigma_seed":5.7e-05},"0.2":{"mean_delta":-0.002931,"sigma_seed":5.7e-05},"0.5":{"mean_delta":-0.002931,"sigma_seed":5.7e-05}},"detail":{"component":"A1","from_node":"N0","to_node":"N0_A1"}},{"kind":"node_reallocation","target":"A3","accepted":false,"reason":"delta 0.000303 <= kappa*sigma 0.000340 at threshold 0.5","kappa":1.0,"worst_delta":0.000303,"worst_margin":-3.7e-05,"per_threshold":{"0.1":{"mean_delta":0.000326,"sigma_seed":0.00032},"0.2":{"mean_delta":0.000326,"sigma_seed":0.00032},"0.5":{"mean_delta":0.000303,"sigma_seed":0.00034}},"detail":{"component":"A3","from_node":"N0","to_node":"N0_A3"}},{"kind":"node_reallocation","target":"A5","accepted":false,"reason":"delta -0.001361 <= kappa*sigma 0.000250 at threshold 0.1","kappa":1.0,"worst_delta":-0.001361,"worst_margin":-0.001611,"per_threshold":{"0.1":{"mean_delta":-0.001361,"sigma_seed":0.00025},"0.2":{"mean_delta":-0.001361,"sigma_seed":0.00025},"0.5":{"mean_delta":-0.001361,"sigma_seed":0.00025}},"detail":{"component":"A5","from_node":"N0","to_node":"N0_A5"}},{"kind":"node_reallocation","target":"A7","accepted":false,"reason":"delta -0.003572 <= kappa*sigma 0.000071 at threshold 0.1","kappa":1.0,"worst_delta":-0.003572,"worst_margin":-0.003643,"per_threshold":{"0.1":{"mean_delta":-0.003572,"sigma_seed":7.1e-05},"0.2":{"mean_delta":-0.003572,"sigma_seed":7.1e-05},"0.5":{"mean_delta":-0.003572,"sigma_seed":7.1e-05}},"detail":{"component":"A7","from_node":"N0","to_node":"N0_A7"}},{"kind":"node_reallocation","target":"A9","accepted":false,"reason":"delta -0.000629 <= kappa*sigma 0.000057 at threshold 0.1","kappa":1.0,"worst_delta":-0.000629,"worst_margin":-0.000686,"per_threshold":{"0.1":{"mean_delta":-0.000629,"sigma_seed":5.7e-05},"0.2":{"mean_delta":-0.000629,"sigma_seed":5.7e-05},"0.5":{"mean_delta":-0.000629,"sigma_seed":5.7e-05}},"detail":{"component":"A9","from_node":"N0","to_node":"N0_A9"}},{"kind":"node_reallocation","target":"A2","accepted":false,"reason":"delta -0.000229 <= kappa*sigma 0.000026 at threshold 0.1","kappa":1.0,"worst_delta":-0.000229,"worst_margin":-0.000255,"per_threshold":{"0.1":{"mean_delta":-0.000229,"sigma_seed":2.6e-05},"0.2":{"mean_delta":-0.000229,"sigma_seed":2.6e-05},"0.5":{"mean_delta":-0.000229,"sigma_seed":2.6e-05}},"detail":{"component":"A2","from_node":"N1","to_node":"N1_A2"}},{"kind":"node_reallocation","target":"A3","accepted":false,"reason":"delta -0.000167 <= kappa*sigma 0.000096 at threshold 0.1","kappa":1.0,"worst_delta":-0.000167,"worst_margin":-0.000262,"per_threshold":{"0.1":{"mean_delta":-0.000167,"sigma_seed":9.6e-05},"0.2":{"mean_delta":-0.000167,"sigma_seed":9.6e-05},"0.5":{"mean_delta":-0.000167,"sigma_seed":9.6e-05}},"detail":{"component":"A3","from_node":"N1","to_node":"N1_A3"}},{"kind":"node_reallocation","target":"A4","accepted":false,"reason":"delta -0.000749 <= kappa*sigma 0.000055 at threshold 0.5","kappa":1.0,"worst_delta":-0.000749,"worst_margin":-0.000803,"per_threshold":{"0.1":{"mean_delta":-0.000745,"sigma_seed":4.8e-05},"0.2":{"mean_delta":-0.000745,"sigma_seed":4.8e-05},"0.5":{"mean_delta":-0.000749,"sigma_seed":5.5e-05}},"detail":{"component":"A4","from_node":"N1","to_node":"N1_A4"}},{"kind":"node_reallocation","target":"A5","accepted":false,"reason":"delta -0.001140 <= kappa*sigma 0.000081 at threshold 0.1","kappa":1.0,"worst_delta":-0.00114,"worst_margin":-0.001221,"per_threshold":{"0.1":{"mean_delta":-0.00114,"sigma_seed":8.1e-05},"0.2":{"mean_delta":-0.00114,"sigma_seed":8.1e-05},"0.5":{"mean_delta":-0.00114,"sigma_seed":8.1e-05}},"detail":{"component":"A5","from_node":"N1","to_node":"N1_A5"}},{"kind":"node_reallocation","target":"A6","accepted":false,"reason":"delta -0.002352 <= kappa*sigma 0.000063 at threshold 0.1","kappa":1.0,"worst_delta":-0.002352,"worst_margin":-0.002415,"per_threshold":{"0.1":{"mean_delta":-0.002352,"sigma_seed":6.3e-05},"0.2":{"mean_delta":-0.002352,"sigma_seed":6.3e-05},"0.5":{"mean_delta":-0.002352,"sigma_seed":6.3e-05}},"detail":{"component":"A6","from_node":"N1","to_node":"N1_A6"}},{"kind":"node_reallocation","target":"A8","accepted":false,"reason":"delta -0.001351 <= kappa*sigma 0.000091 at threshold 0.1","kappa":1.0,"worst_delta":-0.001351,"worst_margin":-0.001442,"per_threshold":{"0.1":{"mean_delta":-0.001351,"sigma_seed":9.1e-05},"0.2":{"mean_delta":-0.001351,"sigma_seed":9.1e-05},"0.5":{"mean_delta":-0.001351,"sigma_seed":9.1e-05}},"detail":{"component":"A8","from_node":"N1","to_node":"N1_A8"}},{"kind":"node_reallocation","target":"A9","accepted":false,"reason":"delta -0.001796 <= kappa*sigma 0.000076 at threshold 0.1","kappa":1.0,"worst_delta":-0.001796,"worst_margin":-0.001872,"per_threshold":{"0.1":{"mean_delta":-0.001796,"sigma_seed":7.6e-05},"0.2":{"mean_delta":-0.001796,"sigma_seed":7.6e-05},"0.5":{"mean_delta":-0.001796,"sigma_seed":7.6e-05}},"detail":{"component":"A9","from_node":"N1","to_node":"N1_A9"}},{"kind":"node_reallocation","target":"B0","accepted":false,"reason":"delta -0.003090 <= kappa*sigma 0.000092 at threshold 0.1","kappa":1.0,"worst_delta":-0.00309,"worst_margin":-0.003182,"per_threshold":{"0.1":{"mean_delta":-0.00309,"sigma_seed":9.2e-05},"0.2":{"mean_delta":-0.00309,"sigma_seed":9.2e-05},"0.5":{"mean_delta":-0.00309,"sigma_seed":9.2e-05}},"detail":{"component":"B0","from_node":"N1","to_node":"N1_B0"}},{"kind":"node_reallocation","target":"B1","accepted":false,"reason":"delta -0.003329 <= kappa*sigma 0.000083 at threshold 0.1","kappa":1.0,"worst_delta":-0.003329,"worst_margin":-0.003412,"per_threshold":{"0.1":{"mean_delta":-0.003329,"sigma_seed":8.3e-05},"0.2":{"mean_delta":-0.003329,"sigma_seed":8.3e-05},"0.5":{"mean_delta":-0.003329,"sigma_seed":8.3e-05}},"detail":{"component":"B1","from_node":"N1","to_node":"N1_B1"}},{"kind":"node_reallocation","target":"A2","accepted":true,"reason":"","kappa":1.0,"worst_delta":0.005557,"worst_margin":0.004583,"per_threshold":{"0.1":{"mean_delta":0.005557,"sigma_seed":0.000974},"0.2":{"mean_delta":0.005557,"sigma_seed":0.000974},"0.5":{"mean_delta":0.005557,"sigma_seed":0.000974}},"detail":{"component":"A2","from_node":"N2","to_node":"N2_A2"}},{"kind":"node_reallocation","target":"A4","accepted":true,"reason":"","kappa":1.0,"worst_delta":0.008631,"worst_margin":0.007657,"per_threshold":{"0.1":{"mean_delta":0.008631,"sigma_seed":0.000974},"0.2":{"mean_delta":0.008631,"sigma_seed":0.000974},"0.5":{"mean_delta":0.008631,"sigma_seed":0.000974}},"detail":{"component":"A4","from_node":"N2","to_node":"N2_A4"}},{"kind":"node_reallocation","target":"A6","accepted":true,"reason":"","kappa":1.0,"worst_delta":0.007125,"worst_margin":0.006962,"per_threshold":{"0.1":{"mean_delta":0.007125,"sigma_seed":0.000163},"0.2":{"mean_delta":0.007125,"sigma_seed":0.000163},"0.5":{"mean_delta":0.007125,"sigma_seed":0.000163}},"detail":{"component":"A6","from_node":"N2","to_node":"N2_A6"}},{"kind":"node_reallocation","target":"A7","accepted":true,"reason":"","kappa":1.0,"worst_delta":0.006723,"worst_margin":0.005749,"per_threshold":{"0.1":{"mean_delta":0.006723,"sigma_seed":0.000974},"0.2":{"mean_delta":0.006723,"sigma_seed":0.000974},"0.5":{"mean_delta":0.006723,"sigma_seed":0.000974}},"detail":{"component":"A7","from_node":"N2","to_node":"N2_A7"}},{"kind":"node_reallocation","target":"A8","accepted":true,"reason":"","kappa":1.0,"worst_delta":0.00318,"worst_margin":0.002206,"per_threshold":{"0.1":{"mean_delta":0.00318,"sigma_seed":0.000974},"0.2":{"mean_delta":0.00318,"sigma_seed":0.000974},"0.5":{"mean_delta":0.00318,"sigma_seed":0.000974}},"detail":{"component":"A8","from_node":"N2","to_node":"N2_A8"}},{"kind":"qos_upgrade","target":"T0","accepted":true,"reason":"","kappa":1.0,"worst_delta":0.001921,"worst_margin":0.001907,"per_threshold":{"0.1":{"mean_delta":0.001921,"sigma_seed":1.4e-05},"0.2":{"mean_delta":0.001921,"sigma_seed":1.4e-05},"0.5":{"mean_delta":0.001921,"sigma_seed":1.4e-05}},"detail":{"topic":"T0","original_reliability":"BEST_EFFORT","original_durability":"VOLATILE","target_reliability":"RELIABLE","target_durability":"TRANSIENT"}},{"kind":"qos_upgrade","target":"T1","accepted":false,"reason":"delta 0.000688 <= kappa*sigma 0.000974 at threshold 0.1","kappa":1.0,"worst_delta":0.000688,"worst_margin":-0.000286,"per_threshold":{"0.1":{"mean_delta":0.000688,"sigma_seed":0.000974},"0.2":{"mean_delta":0.000688,"sigma_seed":0.000974},"0.5":{"mean_delta":0.000688,"sigma_seed":0.000974}},"detail":{"topic":"T1","original_reliability":"BEST_EFFORT","original_durability":"TRANSIENT_LOCAL","target_reliability":"RELIABLE","target_durability":"TRANSIENT"}},{"kind":"qos_upgrade","target":"T4","accepted":false,"reason":"delta -0.000152 <= kappa*sigma 0.000004 at threshold 0.1","kappa":1.0,"worst_delta":-0.000152,"worst_margin":-0.000156,"per_threshold":{"0.1":{"mean_delta":-0.000152,"sigma_seed":4e-06},"0.2":{"mean_delta":-0.000152,"sigma_seed":4e-06},"0.5":{"mean_delta":-0.000152,"sigma_seed":4e-06}},"detail":{"topic":"T4","original_reliability":"RELIABLE","original_durability":"VOLATILE","target_reliability":"RELIABLE","target_durability":"TRANSIENT"}},{"kind":"qos_upgrade","target":"T5","accepted":false,"reason":"delta -0.000634 <= kappa*sigma 0.000012 at threshold 0.1","kappa":1.0,"worst_delta":-0.000634,"worst_margin":-0.000646,"per_threshold":{"0.1":{"mean_delta":-0.000634,"sigma_seed":1.2e-05},"0.2":{"mean_delta":-0.000634,"sigma_seed":1.2e-05},"0.5":{"mean_delta":-0.000634,"sigma_seed":1.2e-05}},"detail":{"topic":"T5","original_reliability":"RELIABLE","original_durability":"VOLATILE","target_reliability":"RELIABLE","target_durability":"TRANSIENT"}},{"kind":"qos_upgrade","target":"T6","accepted":false,"reason":"delta -0.001502 <= kappa*sigma 0.000010 at threshold 0.1","kappa":1.0,"worst_delta":-0.001502,"worst_margin":-0.001512,"per_threshold":{"0.1":{"mean_delta":-0.001502,"sigma_seed":1e-05},"0.2":{"mean_delta":-0.001502,"sigma_seed":1e-05},"0.5":{"mean_delta":-0.001502,"sigma_seed":1e-05}},"detail":{"topic":"T6","original_reliability":"BEST_EFFORT","original_durability":"VOLATILE","target_reliability":"RELIABLE","target_durability":"TRANSIENT"}},{"kind":"qos_upgrade","target":"T7","accepted":false,"reason":"delta -0.001179 <= kappa*sigma 0.000008 at threshold 0.1","kappa":1.0,"worst_delta":-0.001179,"worst_margin":-0.001188,"per_threshold":{"0.1":{"mean_delta":-0.001179,"sigma_seed":8e-06},"0.2":{"mean_delta":-0.001179,"sigma_seed":8e-06},"0.5":{"mean_delta":-0.001179,"sigma_seed":8e-06}},"detail":{"topic":"T7","original_reliability":"RELIABLE","original_durability":"VOLATILE","target_reliability":"RELIABLE","target_durability":"TRANSIENT"}},{"kind":"qos_upgrade","target":"T9","accepted":false,"reason":"delta -0.000481 <= kappa*sigma 0.000002 at threshold 0.1","kappa":1.0,"worst_delta":-0.000481,"worst_margin":-0.000483,"per_threshold":{"0.1":{"mean_delta":-0.000481,"sigma_seed":2e-06},"0.2":{"mean_delta":-0.000481,"sigma_seed":2e-06},"0.5":{"mean_delta":-0.000481,"sigma_seed":2e-06}},"detail":{"topic":"T9","original_reliability":"RELIABLE","original_durability":"VOLATILE","target_reliability":"RELIABLE","target_durability":"TRANSIENT"}}],"candidate_policy":{"topic_splits":[{"topic":"T1","publishers":["A2","A4"],"subscribers":["A2","A4","A5","A6"]},{"topic":"T3","publishers":["A3","A4"],"subscribers":["A2","A3","A7","A8","A9"]},{"topic":"T6","publishers":["A2","A4"],"subscribers":["A2","A5","A7","A9"]},{"topic":"T7","publishers":["A1","A8","A9"],"subscribers":["A2","A6","A7"]},{"topic":"T8","publishers":["A3","A6","A7"],"subscribers":["A3","A7"]},{"topic":"T9","publishers":["A1","A3","A6"],"subscribers":["A2","A5","A6","A9"]}],"node_reallocations":[{"component":"A1","from_node":"N0","to_node":"N0_A1"},{"component":"A3","from_node":"N0","to_node":"N0_A3"},{"component":"A5","from_node":"N0","to_node":"N0_A5"},{"component":"A7","from_node":"N0","to_node":"N0_A7"},{"component":"A9","from_node":"N0","to_node":"N0_A9"},{"component":"A2","from_node":"N1","to_node":"N1_A2"},{"component":"A3","from_node":"N1","to_node":"N1_A3"},{"component":"A4","from_node":"N1","to_node":"N1_A4"},{"component":"A5","from_node":"N1","to_node":"N1_A5"},{"component":"A6","from_node":"N1","to_node":"N1_A6"},{"component":"A8","from_node":"N1","to_node":"N1_A8"},{"component":"A9","from_node":"N1","to_node":"N1_A9"},{"component":"B0","from_node":"N1","to_node":"N1_B0"},{"component":"B1","from_node":"N1","to_node":"N1_B1"},{"component":"A2","from_node":"N2","to_node":"N2_A2"},{"component":"A4","from_node":"N2","to_node":"N2_A4"},{"component":"A6","from_node":"N2","to_node":"N2_A6"},{"component":"A7","from_node":"N2","to_node":"N2_A7"},{"component":"A8","from_node":"N2","to_node":"N2_A8"}],"qos_upgrades":[{"topic":"T0","original_reliability":"BEST_EFFORT","original_durability":"VOLATILE","target_reliability":"RELIABLE","target_durability":"TRANSIENT"},{"topic":"T1","original_reliability":"BEST_EFFORT","original_durability":"TRANSIENT_LOCAL","target_reliability":"RELIABLE","target_durability":"TRANSIENT"},{"topic":"T4","original_reliability":"RELIABLE","original_durability":"VOLATILE","target_reliability":"RELIABLE","target_durability":"TRANSIENT"},{"topic":"T5","original_reliability":"RELIABLE","original_durability":"VOLATILE","target_reliability":"RELIABLE","target_durability":"TRANSIENT"},{"topic":"T6","original_reliability":"BEST_EFFORT","original_durability":"VOLATILE","target_reliability":"RELIABLE","target_durability":"TRANSIENT"},{"topic":"T7","original_reliability":"RELIABLE","original_durability":"VOLATILE","target_reliability":"RELIABLE","target_durability":"TRANSIENT"},{"topic":"T9","original_reliability":"RELIABLE","original_durability":"VOLATILE","target_reliability":"RELIABLE","target_durability":"TRANSIENT"}]},"policy":{"topic_splits":[{"topic":"T3","publishers":["A3","A4"],"subscribers":["A2","A3","A7","A8","A9"]},{"topic":"T8","publishers":["A3","A6","A7"],"subscribers":["A3","A7"]}],"node_reallocations":[{"component":"A2","from_node":"N2","to_node":"N2_A2"},{"component":"A4","from_node":"N2","to_node":"N2_A4"},{"component":"A6","from_node":"N2","to_node":"N2_A6"},{"component":"A7","from_node":"N2","to_node":"N2_A7"},{"component":"A8","from_node":"N2","to_node":"N2_A8"}],"qos_upgrades":[{"topic":"T0","original_reliability":"BEST_EFFORT","original_durability":"VOLATILE","target_reliability":"RELIABLE","target_durability":"TRANSIENT"}]},"applied":["Split topic 'T3' into sub-topics per publisher: A3, A4","Split topic 'T8' into sub-topics per publisher: A3, A6, A7","Moved process 'A2' from SPOF node 'N2' to isolated node 'N2_A2'","Moved process 'A4' from SPOF node 'N2' to isolated node 'N2_A4'","Moved process 'A6' from SPOF node 'N2' to isolated node 'N2_A6'","Moved process 'A7' from SPOF node 'N2' to isolated node 'N2_A7'","Moved process 'A8' from SPOF node 'N2' to isolated node 'N2_A8'","Hardened QoS on topic 'T0': Reliability -> RELIABLE, Durability -> TRANSIENT"],"accepted":true,"sri":[0.342,0.3326],"metrics":{"before":{"sri":0.342,"avg_reachability_loss":0.3124651135161192,"avg_fragmentation":0.006647399402980528,"avg_throughput_loss":0.3188943703350641},"after":{"sri":0.3326,"avg_reachability_loss":0.250071910930182,"avg_fragmentation":0.0,"avg_throughput_loss":0.23317083779917205}}};
+
+const NS = 'http://www.w3.org/2000/svg';
+const NAME = { A1: 'radar', A2: 'tracker', A3: 'conflict-detector', A4: 'flight-plan', A5: 'display', A6: 'recorder', B1: 'sensor-broker', B2: 'ops-broker', T1: 'radar.plots', T2: 'tracks', T3: 'conflict.alerts', T4: 'flight.plans', N1: 'sensor-host', N2: 'ops-host', L1: 'track-model' };
+const ORDER = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'L1', 'B1', 'B2', 'N1', 'N2', 'T1', 'T2', 'T3', 'T4'];
+const f2 = v => v == null ? '–' : v.toFixed(2), f3 = v => v == null ? '–' : v.toFixed(3), f4 = v => v == null ? '–' : v.toFixed(4);
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const who = id => `<span class="mono">${esc(id)}</span> ${esc(NAME[id] || '')}`;
+const sum = a => a.reduce((x, y) => x + y, 0);
+function el(tag, attrs, parent, text) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; }
+const heat = (v, max) => `background: color-mix(in srgb, var(--accent) ${Math.round(Math.max(0, Math.min(1, max ? v / max : 0)) * 55)}%, transparent)`;
+const bar = (v, max, cls) => `<span class="bar"><span>${f3(v)}</span><span class="track"><span class="fill ${cls || ''}" style="width:${Math.max(0, Math.min(1, max ? v / max : 0)) * 100}%"></span></span></span>`;
+const LEVEL = { critical: 'critical', high: 'high', medium: 'medium' };
+const level = l => `<span class="pill ${LEVEL[String(l).toLowerCase()] || ''}">${esc(String(l).toLowerCase())}</span>`;
+const verdict = (ok, yes, no) => ok == null ? '<span class="pill">not measured</span>' : `<span class="pill ${ok ? 'ok' : 'no'}">${ok ? (yes || 'pass') : (no || 'fail')}</span>`;
+
+/* The mini-ATM raw structural graph. state: {id: 'sel' | 'hot' | 'mark' | 'dim'}, badges: {id: text}, sub: {id: text}. */
+const MINI = {
+  B1: { t: 'Broker', x: 210, y: 46, w: 110, h: 36 }, B2: { t: 'Broker', x: 490, y: 46, w: 110, h: 36 },
+  T1: { t: 'Topic', x: 130, y: 150, w: 100, h: 36 }, T2: { t: 'Topic', x: 290, y: 150, w: 100, h: 36 }, T3: { t: 'Topic', x: 530, y: 150, w: 100, h: 36 }, T4: { t: 'Topic', x: 650, y: 150, w: 100, h: 36 },
+  A1: { t: 'Application', x: 68, y: 282, w: 100, h: 38 }, A2: { t: 'Application', x: 193, y: 282, w: 100, h: 38 }, A6: { t: 'Application', x: 350, y: 282, w: 100, h: 38 },
+  A3: { t: 'Application', x: 470, y: 282, w: 106, h: 38 }, A5: { t: 'Application', x: 590, y: 282, w: 100, h: 38 }, A4: { t: 'Application', x: 710, y: 282, w: 100, h: 38 },
+  L1: { t: 'Library', x: 330, y: 388, w: 100, h: 36 },
+};
+const MINI_HOST = { N1: { x: 8, y: 248, w: 242, h: 92 }, N2: { x: 288, y: 248, w: 484, h: 92 } };
+const MINI_EDGES = [['A1', 'T1', 'flow'], ['A2', 'T2', 'flow'], ['A3', 'T3', 'flow'], ['A4', 'T4', 'flow'], ['T1', 'A2', 'flow'], ['T2', 'A3', 'flow'], ['T2', 'A5', 'flow'], ['T3', 'A5', 'flow'], ['T4', 'A5', 'flow'], ['T1', 'A6', 'flow'], ['T2', 'A6', 'flow'], ['T4', 'A6', 'flow'],
+  ['B1', 'T1', 'routes'], ['B1', 'T2', 'routes'], ['B2', 'T2', 'routes'], ['B2', 'T3', 'routes'], ['B2', 'T4', 'routes'], ['A2', 'L1', 'uses'], ['A3', 'L1', 'uses']];
+function drawMiniAtm(svg, opts = {}) {
+  const { state = {}, badges = {}, sub = {}, pickable = false } = opts;
+  svg.textContent = ''; svg.setAttribute('viewBox', '0 0 780 420');
+  const badge = (g, x, y, text) => { const w = String(text).length * 6.2 + 9, b = el('g', { class: 'bdg' }, g); el('rect', { x: x - w, y: y - 8, width: w, height: 15, rx: 3 }, b); el('text', { x: x - w / 2, y: y + 3.4 }, b, text); };
+  for (const h in MINI_HOST) {
+    const b = MINI_HOST[h], g = el('g', { class: `n host ${state[h] || ''} ${pickable ? 'pickable' : ''}`, 'data-id': h }, svg);
+    el('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 6 }, g);
+    el('text', { class: 'hl', x: h === 'N2' ? b.x + b.w - 10 : b.x + 10, y: b.y + b.h - 9, 'text-anchor': h === 'N2' ? 'end' : 'start' }, g, `${h} · ${NAME[h]}${sub[h] ? ' · ' + sub[h] : ''}`);
+    if (badges[h]) badge(g, b.x + b.w - 4, b.y + 2, badges[h]);
+  }
+  el('line', { class: 'link', x1: 250, y1: 294, x2: 288, y2: 294 }, svg);
+  const clip = (a, b, pad) => { const dx = b.x - a.x, dy = b.y - a.y, k = Math.min(dx ? (a.w / 2 + pad) / Math.abs(dx) : Infinity, dy ? (a.h / 2 + pad) / Math.abs(dy) : Infinity); return { x: a.x + dx * k, y: a.y + dy * k }; };
+  for (const [u, v, kind] of MINI_EDGES) {
+    const p1 = clip(MINI[u], MINI[v], 1), p2 = clip(MINI[v], MINI[u], kind === 'flow' ? 3 : 1);
+    el('line', { class: 'e ' + (kind === 'flow' ? '' : kind), x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }, svg);
+    if (kind === 'flow') { const a = Math.atan2(p2.y - p1.y, p2.x - p1.x), z = 7, w = 0.42; el('polygon', { class: 'ah', points: `${p2.x},${p2.y} ${p2.x - z * Math.cos(a - w)},${p2.y - z * Math.sin(a - w)} ${p2.x - z * Math.cos(a + w)},${p2.y - z * Math.sin(a + w)}` }, svg); }
+  }
+  for (const id in MINI) {
+    const n = MINI[id], g = el('g', { class: `n ${n.t === 'Library' ? 'lib' : ''} ${state[id] || ''} ${pickable ? 'pickable' : ''}`, 'data-id': id }, svg), x = n.x - n.w / 2, y = n.y - n.h / 2;
+    if (n.t === 'Broker') { const c = 9; el('polygon', { points: [[x + c, y], [x + n.w - c, y], [x + n.w, y + c], [x + n.w, y + n.h - c], [x + n.w - c, y + n.h], [x + c, y + n.h], [x, y + n.h - c], [x, y + c]].map(p => p.join(',')).join(' ') }, g); }
+    else el('rect', { x, y, width: n.w, height: n.h, rx: n.t === 'Topic' ? n.h / 2 : 5 }, g);
+    el('text', { class: 'nm', x: n.x, y: n.y - 1 }, g, NAME[id]); el('text', { class: 'sb', x: n.x, y: n.y + 11.5 }, g, sub[id] ? `${id} · ${sub[id]}` : id);
+    if (badges[id]) badge(g, n.x + n.w / 2 + 5, y - 1, badges[id]);
+  }
+}
+
+Object.assign(NAME, D.scenario.names);
+for (const k of Object.keys(NAME)) if (!D.scenario.names[k]) delete NAME[k];
+const KIND = { topic_split: 'Split topic', node_reallocation: 'Move to own host', qos_upgrade: 'Upgrade QoS' };
+const sev = s => `<span class="pill ${s === 'CRITICAL' ? 'critical' : s === 'HIGH' ? 'high' : 'medium'}">${s.toLowerCase()}</span>`;
+const ent = id => id.split(/ -> |->/).map(x => NAME[x] ? `${x} ${NAME[x]}` : x).join(' → ');
+const fired = D.catalog.filter(c => c.count), E = D.edits;
+let selP = fired[0].id, selE = E.findIndex(e => e.accepted);
+const state = e => e.accepted ? 'acc' : e.worst_delta < 0 ? 'neg' : 'rej';
+const noise = e => e.worst_delta - e.worst_margin;
+
+function renderPatterns() {
+  const sc = D.scenario.scale, total = sum(D.catalog.map(c => c.count));
+  document.getElementById('s1-title').textContent = `${fired.length} of ${D.catalog.length} catalogue patterns are present`;
+  document.getElementById('s1-text').innerHTML = `The scenario is the smallest in the corpus: ${sc.apps} applications, ${sc.topics} topics, ${sc.brokers} brokers, ${sc.nodes} hosts and ${sc.libs} libraries. Each tile is one pattern; select one to see what it means and where it was found.`;
+  const order = ['Availability', 'Reliability', 'Maintainability', 'Architecture'];
+  document.getElementById('tiles').innerHTML = [...D.catalog].sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category)).map(c => `<button class="box tile ${c.count ? '' : 'off'}" data-pattern="${c.id}" aria-pressed="${c.id === selP}"><span class="id">${c.category.toUpperCase()}</span><span>${esc(c.name)}</span><span class="n">${c.count ? c.count + (c.count === 1 ? ' finding' : ' findings') : 'not found'}</span></button>`).join('');
+  const c = D.catalog.find(x => x.id === selP);
+  document.getElementById('pattern').innerHTML = `<span class="cap">${esc(c.id)} ${sev(c.severity)}</span><p class="note"><b>${esc(c.name)}.</b> ${esc(c.description)}</p>
+    <p class="note"><b>Guidance:</b> ${esc(c.recommendation)}</p>
+    <p class="note">${c.count ? `<b>Found on:</b> ${c.sample.map(s => esc(ent(s))).join('; ')}${c.count > c.sample.length ? `, and ${c.count - c.sample.length} more` : ''}.` : 'Not found in this scenario.'}</p>
+    <p class="note">${c.operator ? `Feeds the automated operator <b>${KIND[c.operator].toLowerCase()}</b>.` : 'No automated operator: this guidance is advisory.'}</p>
+    ${c.id === 'DEEP_PIPELINE' && c.count > 100 ? `<p class="note"><b>${c.count} findings on ${sc.apps} applications is over-detection.</b> The detector reports every distinct source-to-sink path, so near-identical chains are counted separately. This is a known scaling issue, already noted in the examples README for the larger ATM system.</p>` : ''}`;
+}
+
+function renderOps() {
+  const by = k => E.filter(e => e.kind === k), P = D.candidate_policy, feeds = k => D.catalog.filter(c => c.operator === k && c.count).map(c => `${c.name} (${c.count})`);
+  document.getElementById('s2-title').textContent = `Findings and risk levels become ${E.length} candidate edits`;
+  const card = (k, what, ex) => { const a = by(k); return `<div class="box pad"><span class="cap">${KIND[k]}</span><div class="score"><span class="val">${a.length}</span><span class="sub">candidates</span></div><p class="note">${what}</p><p class="note"><b>Fed here by:</b> ${feeds(k).join(', ') || 'risk level only'}.</p><p class="note"><b>Example:</b> ${ex}</p></div>`; };
+  const ts = P.topic_splits[0], nr = P.node_reallocations[0], qu = P.qos_upgrades[0];
+  document.getElementById('ops').innerHTML =
+    card('topic_split', 'Give each publisher of a shared topic its own sub-topic, so one publisher failing no longer degrades the others’ subscribers.', ts ? `${esc(ent(ts.topic))}, published by ${ts.publishers.length} applications, into ${ts.publishers.length} sub-topics.` : 'none') +
+    card('node_reallocation', 'Move a component off a shared host onto one of its own, so a host failure takes fewer things with it.', nr ? `${esc(ent(nr.component))} from ${esc(nr.from_node)} to a new host ${esc(nr.to_node)}.` : 'none') +
+    card('qos_upgrade', 'Raise a topic’s delivery contract so losses on it are retried or retained.', qu ? `${esc(ent(qu.topic))} from ${qu.original_reliability.toLowerCase().replace('_', ' ')} / ${qu.original_durability.toLowerCase()} to ${qu.target_reliability.toLowerCase()} / ${qu.target_durability.toLowerCase()}.` : 'none');
+}
+
+function renderLedger() {
+  const s = document.getElementById('ledger'); s.textContent = '';
+  const rowH = 17, top = 26, L = 150, Rg = 16, W = 640, H = top + E.length * rowH + 30, m = Math.max(...E.map(e => Math.max(Math.abs(e.worst_delta), noise(e)))) * 1.08, x = v => L + (W - L - Rg) * (v + m) / (2 * m);
+  s.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  el('text', { class: 'lbl', x: x(-m / 2), y: 14, 'text-anchor': 'middle' }, s, '← impact rose (worse)'); el('text', { class: 'lbl', x: x(m / 2), y: 14, 'text-anchor': 'middle' }, s, 'impact fell (better) →');
+  E.forEach((e, i) => {
+    const y = top + i * rowH, g = el('g', { class: 'eb' + (i === selE ? ' on' : ''), 'data-edit': i }, s);
+    el('rect', { class: 'hit', x: 0, y, width: W, height: rowH }, g);
+    el('text', { class: 'rowtxt', x: 8, y: y + 12 }, g, `${KIND[e.kind]} · ${e.target}`);
+    const a = x(0), b = x(e.worst_delta);
+    el('rect', { class: state(e), x: Math.min(a, b), y: y + 4, width: Math.max(Math.abs(b - a), 1.5), height: rowH - 8 }, g);
+    if (noise(e) > 0) el('line', { class: 'nb', x1: x(noise(e)), x2: x(noise(e)), y1: y + 2, y2: y + rowH - 2 }, g);
+  });
+  el('line', { class: 'zero', x1: x(0), x2: x(0), y1: top - 4, y2: top + E.length * rowH + 2 }, s);
+  for (const v of [-m, -m / 2, 0, m / 2, m]) el('text', { class: 'lbl', x: x(v), y: H - 10, 'text-anchor': 'middle' }, s, (v > 0 ? '+' : '') + v.toFixed(4));
+  const e = E[selE], acc = E.filter(x => x.accepted).length;
+  document.getElementById('s3-title').textContent = `${acc} of ${E.length} candidates survive the counterfactual test`;
+  const d = e.detail, what = e.kind === 'topic_split' ? `Split ${esc(ent(d.topic))} into one sub-topic for each of its ${d.publishers.length} publishers (${d.publishers.join(', ')}).` : e.kind === 'node_reallocation' ? `Move ${esc(ent(d.component))} from ${esc(d.from_node)} to a host of its own.` : `Upgrade ${esc(ent(d.topic))} to ${d.target_reliability.toLowerCase()} / ${d.target_durability.toLowerCase()}.`;
+  const why = e.accepted ? 'The reduction exceeds the noise bar at every threshold.' : e.worst_delta < 0 ? 'At its worst threshold the edit increased average impact, so it is rejected outright.' : e.worst_delta === 0 ? 'The edit changed nothing the simulator measures.' : 'There is a reduction, but at one threshold or more it does not exceed the seed-to-seed noise.';
+  document.getElementById('edit').innerHTML = `<span class="cap">Selected candidate</span><p class="note"><b>${KIND[e.kind]}.</b> ${what}</p>
+    <div class="score"><span class="pill ${e.accepted ? 'ok' : 'no'}">${e.accepted ? 'accepted' : 'rejected'}</span><span class="sub">${why}</span></div>
+    <table><thead><tr><th>Propagation threshold</th><th class="num">Mean Δ impact</th><th class="num">Noise κ·σ</th><th></th></tr></thead><tbody>${Object.entries(e.per_threshold).map(([t, r]) => { const ok = r.mean_delta > e.kappa * r.sigma_seed; return `<tr><td class="mono">θ = ${t}</td><td class="num">${(r.mean_delta > 0 ? '+' : '') + r.mean_delta.toFixed(5)}</td><td class="num">${(e.kappa * r.sigma_seed).toFixed(5)}</td><td>${verdict(ok, 'clears', 'does not')}</td></tr>`; }).join('')}</tbody></table>
+    <p class="note">Select any bar to inspect that candidate. A positive Δ means average impact fell.</p>`;
+}
+
+function renderOutcome() {
+  const B = D.metrics.before, A = D.metrics.after, ROWS = [['sri', 'System risk index'], ['avg_reachability_loss', 'Average reachability loss'], ['avg_throughput_loss', 'Average throughput loss'], ['avg_fragmentation', 'Average fragmentation']];
+  document.getElementById('outcome').innerHTML = `<thead><tr><th>After a single failure, averaged over all components</th><th class="num">Before</th><th class="num">After</th><th class="num">Change</th></tr></thead><tbody>` +
+    ROWS.map(([k, l]) => { const d = A[k] - B[k]; return `<tr><td>${l}</td><td class="num">${f4(B[k])}</td><td class="num">${f4(A[k])}</td><td class="num">${d === 0 ? '' : (d > 0 ? '+' : '−') + Math.abs(d).toFixed(4)}</td></tr>`; }).join('') + '</tbody>';
+  const n = D.applied.length;
+  document.getElementById('s4-title').textContent = `The ${n} accepted edits together lower the risk index from ${D.sri[0].toFixed(4)} to ${D.sri[1].toFixed(4)}`;
+  document.getElementById('applied').innerHTML = `<span class="cap">Whole-policy gate</span><div class="score"><span class="pill ${D.accepted ? 'ok' : 'no'}">${D.accepted ? 'kept' : 'not kept'}</span><span class="sub">the risk index ${D.accepted ? 'fell' : 'did not fall'}</span></div>
+    <span class="cap">What was applied</span><ul class="plain" style="font-size:0.86rem">${D.applied.map(a => `<li>${esc(a)}</li>`).join('')}</ul>`;
+}
+
+function renderTake() {
+  const acc = E.filter(e => e.accepted).length, neg = E.filter(e => e.worst_delta < 0).length, nil = E.filter(e => !e.accepted && e.worst_delta === 0).length, small = E.length - acc - neg - nil, dp = D.catalog.find(c => c.id === 'DEEP_PIPELINE'), rel = (D.sri[0] - D.sri[1]) / D.sri[0] * 100;
+  document.getElementById('take').innerHTML = [
+    `<b>${E.length - acc} of ${E.length} suggestions were wrong or unproven.</b> Only ${acc} were accepted. ${neg} would have increased impact, ${small} showed a gain too small to tell from noise${nil ? `, and ${nil} changed nothing` : ''}.`,
+    `<b>A plausible rule is not a verified fix.</b> "Move the component off the shared host" was proposed ${E.filter(e => e.kind === 'node_reallocation').length} times and survived ${E.filter(e => e.kind === 'node_reallocation' && e.accepted).length} times. Without the counterfactual step all of them would look equally reasonable.`,
+    `<b>The gain is real but modest:</b> the risk index falls by ${rel.toFixed(1)}%, with reachability loss down from ${f3(D.metrics.before.avg_reachability_loss)} to ${f3(D.metrics.after.avg_reachability_loss)}.`,
+    (() => { const z = E.filter(e => e.accepted && noise(e) === 0).length, tight = E.filter(e => e.accepted).sort((x, y) => x.worst_margin - y.worst_margin)[0]; return z ? `<b>${z} of the ${acc} accepted edits pass against a noise bar of zero.</b> Their runs were identical across seeds, so any positive reduction is accepted, however small. The documentation records this as a known limitation.` : `<b>Every accepted edit cleared a measured noise bar.</b> The narrowest was ${KIND[tight.kind].toLowerCase()} on ${tight.target}, with a reduction of ${tight.worst_delta.toFixed(5)} against noise of ${noise(tight).toFixed(5)}.`; })(),
+    `<b>Detection volume needs care.</b> ${dp && dp.count > 100 ? `One pattern produced ${dp.count} of the ${sum(D.catalog.map(c => c.count))} findings.` : ''} The deployment verdict rests on ${D.catalog.find(c => c.id === 'SPOF').count} critical findings, not on that count.`,
+    `<b>Only some patterns lead anywhere automatic.</b> ${D.catalog.filter(c => c.operator).length} of ${D.catalog.length} catalogue patterns feed an operator; for the rest the output is advice.`,
+  ].map(i => `<li>${i}</li>`).join('');
+}
+
+document.addEventListener('click', e => {
+  const p = e.target.closest('[data-pattern]'); if (p) { selP = p.dataset.pattern; renderPatterns(); return; }
+  const b = e.target.closest('[data-edit]'); if (b) { selE = +b.dataset.edit; renderLedger(); }
+});
+renderPatterns(); renderOps(); renderLedger(); renderOutcome(); renderTake();
+</script>

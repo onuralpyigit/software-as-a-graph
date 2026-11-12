@@ -1,0 +1,169 @@
+<title>Triage Walkthrough</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: the bridge first, then one change followed through pull-request time, the gate and staging. */
+/*BASE_CSS*/
+.prnote { border-left: 3px solid var(--accent); padding: 10px 14px; background: var(--bg); border-radius: 0 4px 4px 0; font-size: 0.88rem; display: flex; flex-direction: column; gap: 6px; }
+.prnote .hd { font: 600 0.74rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.up { color: var(--fail); font-weight: 600; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">software-as-a-graph · triage</div>
+    <h1>Triage Walkthrough</h1>
+    <p class="lede">A ranking says which components matter. A diagnosis says why. Triage is where the two meet, and where the method decides how loudly to speak: a note on a pull request, a warning, or a block. This page shows the join, then follows one small change through each tier.</p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">1 · the bridge</div>
+      <h2>A shortlist from one pathway, a root cause from the other, joined by id</h2>
+      <p>The ranking supplies the top three. Each is then looked up in the deterministic quality profile for its pattern, level, first action and owner. A trained model carries no cause of its own, so nothing is ever read off its weights. With no trained model the quality score supplies the ranking too; that is the cold start.</p>
+    </div>
+    <div id="bridge"></div>
+    <p class="note" id="bridge-note"></p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">2 · a change arrives</div>
+      <h2>Display starts sending operator commands back upstream</h2>
+      <p id="change-text"></p>
+    </div>
+    <div class="two">
+      <div class="box fig scroll">
+        <div class="keys"><span class="key"><span class="sw" style="background:var(--fail-soft);border:1.5px solid var(--fail)"></span>new publisher</span><span class="key"><span class="sw" style="background:var(--accent-soft);border:1.5px solid var(--accent)"></span>new subscribers</span><span>the new topic is not drawn</span></div>
+        <svg id="graph" role="img" aria-label="Mini-ATM with the components touched by the change"></svg>
+      </div>
+      <div class="box pad" id="change-side"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">3 · tier 1 · pull-request time</div>
+      <h2>Closed-form references produce a note, not a verdict</h2>
+      <p>At commit time only training-free references run: the count of direct dependents and the rate-weighted first-order expansion. They cost almost nothing, so they can run on every push. Their output is an informational comment listing the services the change makes more critical.</p>
+    </div>
+    <div class="two">
+      <div class="box scroll"><table id="tier1"></table></div>
+      <div class="box pad" id="tier1-side"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">4 · the gate</div>
+      <h2>Block on what the change introduces, not on what was already there</h2>
+      <p>An absolute gate fails any system with a critical finding, which here means the baseline too. The delta-aware gate compares the candidate's findings with the merge-base's and counts only the new ones.</p>
+    </div>
+    <div class="two">
+      <div class="box scroll"><table id="gate"></table></div>
+      <div class="box pad" id="gate-side"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">5 · tier 2 · staging time</div>
+      <h2>Targeted simulation measures what the change actually does</h2>
+      <p>Simulation is slower, so it runs later and only where tier 1 pointed. Each application is failed in turn on the baseline and on the candidate, and the cascade impact is compared.</p>
+    </div>
+    <div class="two">
+      <div class="box scroll"><table id="tier2"></table></div>
+      <div class="box pad" id="tier2-side"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Reading the result</div>
+      <h2>What the tiers did with one change</h2>
+    </div>
+    <ul class="plain" id="take"></ul>
+  </section>
+
+  <footer>
+    <p><b>How this was produced.</b> <code>python examples/run_triage_walkthrough.py</code> on <code>examples/mini_atm.json</code> and a copy with one topic added: <code>Client.diagnose(k=3)</code> and <code>Client.triage</code> for the bridge, <code>derive_flow_projection</code> and the rate-weighted closed form for tier 1, <code>saag.analysis.delta_gate.delta_gate</code> for the gate, and <code>FaultInjector</code> with five seeds for tier 2.</p>
+    <p>The method does not fix a tier-2 blocking threshold; that is a service-level decision for the team. The change was chosen to be clearly harmful, so the tiers agree. On a real system most changes are less clear, which is why reachability rankings are kept as notes and not as blocking gates.</p>
+  </footer>
+</div>
+
+<script>
+const D = /*DATA*/;
+/*BASE_JS*/
+NAME[D.change.topic] = D.change.name;
+const APPS = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6'];
+const entity = id => id.split(/ -> |->/).map(x => NAME[x] || x).join(id.includes('->') && !id.includes(' -> ') ? ' → ' : ' → ');
+const sev = s => `<span class="pill ${s === 'CRITICAL' ? 'critical' : s === 'HIGH' ? 'high' : 'medium'}">${s.toLowerCase()}</span>`;
+
+(function bridge() {
+  const cards = (t, label) => `<div class="sec-head" style="margin:6px 0 8px"><span class="cap">${label}</span></div><div class="three">` + t.entries.map(e => `<div class="box card"><span class="rk">RANK ${e.rank} · SCORE ${f3(e.ranking_score)}</span><span class="who">${who(e.component_id)}</span>
+    <div class="join"><span><b style="color:var(--ink)">${esc(e.pattern)}</b> ${level(e.level)}</span><span>${esc(e.priority_action)}</span><span>For: ${e.roles.map(esc).join(', ')}</span></div></div>`).join('') + '</div>';
+  const B = D.bridge;
+  document.getElementById('bridge').innerHTML = (B.trained ? cards(B.trained, `Ranked by the trained model (source: ${esc(B.trained.ranking_source)}), application layer`) : '') + cards(B.cold, `Cold start: ranked by the quality score (source: ${esc(B.cold.ranking_source)}), whole system`);
+  const t = B.trained;
+  document.getElementById('bridge-note').innerHTML = t ? `The two shortlists differ, and the join makes the difference visible. The trained model puts ${NAME[t.entries[0].component_id]} first, yet its quality profile is only "${t.entries[0].level.toLowerCase()}": the model expects wide impact where the structural profile sees little risk. A reviewer gets both facts and decides. The populations also differ: the trained model ranks the ${t.population} application-layer components, the cold start all ${B.cold.population}.` : 'No trained checkpoint was found, so only the cold-start bridge is shown.';
+})();
+
+(function change() {
+  const C = D.change, state = { [C.publisher]: 'hot' }; for (const s of C.subscribers) state[s] = 'mark';
+  drawMiniAtm(document.getElementById('graph'), { state, badges: { [C.publisher]: 'publishes ' + C.topic, ...Object.fromEntries(C.subscribers.map(s => [s, 'subscribes'])) } });
+  document.getElementById('change-text').innerHTML = `The pull request adds one topic, <b>${esc(C.name)}</b>, at ${C.rate} Hz. ${NAME[C.publisher]} publishes it; ${C.subscribers.map(s => NAME[s]).join(' and ')} subscribe; ${NAME[C.broker]} routes it. It looks like a small feature. It also closes a loop: display now depends on tracker, and tracker on display.`;
+  document.getElementById('change-side').innerHTML = `<span class="cap">The diff</span>
+    <div class="formula">+ topic ${esc(C.topic)} ${esc(C.name)} (RELIABLE, ${C.rate} Hz)<br>+ ${C.publisher} PUBLISHES_TO ${esc(C.topic)}<br>${C.subscribers.map(s => `+ ${s} SUBSCRIBES_TO ${esc(C.topic)}`).join('<br>')}<br>+ ${C.broker} ROUTES ${esc(C.topic)}</div>
+    <span class="cap">Before the change</span><p class="note">${NAME[C.publisher]} only consumes. Nothing depends on it, so its failure reaches nobody.</p>
+    <span class="cap">After the change</span><p class="note">${C.subscribers.map(s => NAME[s]).join(' and ')} now wait on ${NAME[C.publisher]}, which in turn waits on them.</p>`;
+})();
+
+(function tier1() {
+  const T = D.tier1, d = k => a => T.after[k][a] - T.before[k][a];
+  const cell = (k, a, dp) => { const x = d(k)(a); return `<td class="num">${T.before[k][a].toFixed(dp)}</td><td class="num">${T.after[k][a].toFixed(dp)}</td><td class="num ${x > 0 ? 'up' : ''}">${x > 0 ? '+' + x.toFixed(dp) : x < 0 ? x.toFixed(dp) : ''}</td>`; };
+  document.getElementById('tier1').innerHTML = `<thead><tr><th rowspan="2">Application</th><th colspan="3" class="c">Direct dependents</th><th colspan="3" class="c">Rate-weighted loss, deliveries/s</th></tr><tr><th class="num">Before</th><th class="num">After</th><th class="num">Δ</th><th class="num">Before</th><th class="num">After</th><th class="num">Δ</th></tr></thead><tbody>` +
+    APPS.map(a => `<tr><td>${who(a)}</td>${cell('indeg', a, 0)}${cell('rate', a, 0)}</tr>`).join('') + '</tbody>';
+  const risen = APPS.filter(a => d('indeg')(a) > 0 || d('rate')(a) > 0), top = [...APPS].sort((a, b) => T.after.rate[b] - T.after.rate[a]).slice(0, 5);
+  document.getElementById('tier1-side').innerHTML = `<span class="cap">Cost</span><div class="score"><span class="val">${T.ms.toFixed(2)} ms</span><span class="sub">for both references on the candidate</span></div>
+    <span class="cap">The comment it would post</span>
+    <div class="prnote"><span class="hd">Informational · does not block</span><span>This change makes <b>${risen.map(a => NAME[a]).join(', ')}</b> more critical: direct dependents ${risen.map(a => `${T.before.indeg[a]} → ${T.after.indeg[a]}`).join(', ')}.</span><span>Most critical services after the change, by rate-weighted loss: ${top.map(a => NAME[a]).join(', ')}.</span></div>
+    <p class="note">The references see that ${risen.map(a => NAME[a]).join(', ')} gained dependents. They are first-order, so they do not see what the loop does to everything else. That is what tier 2 is for.</p>`;
+})();
+
+(function gate() {
+  const G = D.gate, A = D.absolute, row = (f, kind, cls) => `<tr><td>${esc(f.name)}</td><td>${esc(entity(f.entity_id))}</td><td>${sev(f.severity)}</td><td><span class="pill ${cls}">${kind}</span></td></tr>`;
+  document.getElementById('gate').innerHTML = `<thead><tr><th>New finding</th><th>Where</th><th>Severity</th><th>Delta gate</th></tr></thead><tbody>` +
+    G.blocking.map(f => row(f, 'blocks', 'no')).join('') + G.near_fence.map(f => row(f, 'warning: near fence', 'warn')).join('') + G.advisory.map(f => row(f, 'advisory', 'warn')).join('') +
+    `<tr><td colspan="3" style="color:var(--muted)">${G.carried} findings carried over from the merge-base</td><td><span class="pill">ignored</span></td></tr></tbody>`;
+  const code = { 0: 'clean', 1: 'warning', 2: 'block' }[G.exit_code], bott = G.advisory.filter(f => f.name.includes('Bottleneck')).length;
+  document.getElementById('gate-side').innerHTML = `<span class="cap">Absolute gate</span>
+    <p class="note">Baseline: ${verdict(!A.before, 'allowed', 'blocked')} with ${A.n_before} findings. Candidate: ${verdict(!A.after, 'allowed', 'blocked')} with ${A.n_after}. It cannot tell the two apart: the baseline was already blocked on an existing finding.</p>
+    <span class="cap">Delta-aware gate</span>
+    <div class="score"><span class="val">exit ${G.exit_code}</span><span class="sub">${code}</span></div>
+    <p class="note"><b>${G.blocking.length} new findings block</b>: they are critical or high and the merge-base did not have them. ${G.carried} pre-existing findings are carried and do not count.</p>
+    ${bott ? `<p class="note"><b>${bott} new bottleneck-edge findings only warn.</b> That pattern flags 10 to 15% of all edges and moves on edges a change never touched, so in delta mode it never blocks.</p>` : ''}
+    <p class="note">A team can also register a dated waiver for a specific finding; none is used here.</p>`;
+})();
+
+(function tier2() {
+  const T = D.tier2, C = D.change, touched = new Set([C.publisher, ...C.subscribers]);
+  document.getElementById('tier2').innerHTML = `<thead><tr><th>Application failed</th><th>I* before</th><th>I* after</th><th class="num">Δ</th><th></th></tr></thead><tbody>` +
+    APPS.map(a => { const b = T.before[a].istar, x = T.after[a].istar, d = x - b; return `<tr><td>${who(a)}</td><td>${bar(b, 1)}</td><td>${bar(x, 1, d > 0.05 ? 'f' : '')}</td><td class="num ${d > 0.05 ? 'up' : ''}">${d > 0.0005 ? '+' + f3(d) : d < -0.0005 ? f3(d) : ''}</td><td>${touched.has(a) ? '<span class="pill accent">touched</span>' : ''}</td></tr>`; }).join('') + '</tbody>';
+  const rise = APPS.map(a => [a, T.after[a].istar - T.before[a].istar]).sort((x, y) => y[1] - x[1]), big = rise.filter(r => r[1] > 0.05), outside = big.filter(r => !touched.has(r[0]));
+  document.getElementById('tier2-side').innerHTML = `<span class="cap">What simulation adds</span>
+    <p class="note"><b>${big.length} of ${APPS.length} applications become more critical</b>, by up to ${f3(rise[0][1])} (${NAME[rise[0][0]]}).</p>
+    ${outside.length ? `<p class="note"><b>${outside.map(r => NAME[r[0]]).join(', ')} was not touched by the change</b> and tier 1 reported no change for it. Its impact rises from ${f3(T.before[outside[0][0]].istar)} to ${f3(T.after[outside[0][0]].istar)}: when it fails, display now fails too, and display has become a publisher that others wait on.</p>` : ''}
+    <p class="note">This is the effect a first-order count cannot see and a cascade simulation can. Whether a rise of this size blocks a release is a threshold the team sets; the method supplies the measurement.</p>`;
+})();
+
+(function take() {
+  const G = D.gate, T2 = D.tier2, rise = APPS.filter(a => T2.after[a].istar - T2.before[a].istar > 0.05).length;
+  document.getElementById('take').innerHTML = [
+    `<b>The bridge keeps "which" and "why" separate.</b> A shortlist entry always shows the ranking score beside a deterministic profile, so a disagreement between them is visible and not averaged away.`,
+    `<b>Tier 1 was cheap and partly right.</b> In ${D.tier1.ms.toFixed(2)} ms it named display as newly critical. It missed the knock-on effect on components the change did not touch.`,
+    `<b>The absolute gate was no help.</b> It blocked the baseline and the candidate alike. The delta-aware gate isolated ${G.blocking.length} blocking findings that the change introduced and ignored ${G.carried} that pre-date it.`,
+    `<b>Tier 2 found the real damage.</b> ${rise} of ${APPS.length} applications became more critical once the loop was simulated.`,
+    `<b>Each tier speaks at a different volume.</b> A note at commit time, a gate on new structural findings, and a measured impact at staging. None of them blocks a build on a ranking alone.`,
+  ].map(i => `<li>${i}</li>`).join('');
+})();
+</script>

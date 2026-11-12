@@ -1,0 +1,187 @@
+<title>Model Walkthrough</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: the pipeline of Step 1 in order: input, topic weight, component weight, derived edges, layers. */
+/*BASE_CSS*/
+.pickrow { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+td.cellpick { cursor: pointer; } td.cellpick:hover { outline: 2px solid var(--accent); outline-offset: -2px; }
+td.cellon { outline: 2.5px solid var(--ink); outline-offset: -2.5px; }
+td.off { color: var(--line); }
+.layer { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.layer .t { font: 600 1.05rem var(--display); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">software-as-a-graph · step 1 · model</div>
+    <h1>Model Walkthrough</h1>
+    <p class="lede">Everything the method later predicts, diagnoses or simulates starts from one file describing an architecture. Model turns that file into a weighted graph in two moves: it weighs what is declared, then derives who depends on whom. This page follows both moves on a 15-component air-traffic system, and every number is recomputed and checked against what the repository stored.</p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">1 · the input</div>
+      <h2 id="s1-title"></h2>
+      <p>The file states facts an architect already has: which applications publish and subscribe to which topics, which broker routes each topic, what runs on which host, which library is used by whom, and each topic's delivery contract. Nothing here is measured at run time.</p>
+    </div>
+    <div class="two">
+      <div class="box fig scroll">
+        <div class="keys"><span class="key"><span class="ln"></span>publishes / subscribes</span><span class="key"><span class="ln dash"></span>routes</span><span class="key"><span class="ln dot"></span>uses</span><span>labels show the weight each component ends up with</span></div>
+        <svg id="graph" role="img" aria-label="Mini-ATM raw structural graph with weights"></svg>
+      </div>
+      <div class="box scroll"><table id="raw"></table></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">2 · weigh the topics</div>
+      <h2 id="s2-title"></h2>
+      <p>A topic's weight says how much it matters if it is lost. Three declared properties decide it: the delivery contract, the payload size and the publish rate. The contract dominates.</p>
+    </div>
+    <div class="pickrow"><span class="cap">Topic</span><div class="chips" id="topic-chips"></div></div>
+    <div class="two">
+      <div class="box scroll"><table id="topic"></table></div>
+      <div class="box pad" id="topic-side"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">3 · weigh the components</div>
+      <h2>Components inherit weight from what they touch</h2>
+      <p>An application has no contract of its own. It takes its weight from its topics, a broker from the topics it routes, a library from the applications that use it, and a host from the heaviest thing running on it.</p>
+    </div>
+    <div class="box scroll"><table id="comps"></table></div>
+    <p class="note" id="comps-note"></p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">4 · derive the dependencies</div>
+      <h2 id="s4-title"></h2>
+      <p>Data flows from publisher to subscriber; dependency runs the other way. Rules read the raw structure and write a <code>DEPENDS_ON</code> edge from each dependent to what it depends on. Select a rule to filter the matrix, and a cell to see how that edge was derived and weighted.</p>
+    </div>
+    <div class="pickrow"><span class="cap">Rule</span><div class="chips" id="rule-chips"></div></div>
+    <div class="two">
+      <div class="box scroll"><table id="matrix"></table></div>
+      <div class="box pad" id="edge"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">5 · project the layers</div>
+      <h2>Four views of the same graph, each for a different question</h2>
+      <p>Later steps never analyse everything at once by default. They pick a layer, which keeps some component types and some dependency rules.</p>
+    </div>
+    <div class="half" id="layers"></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Reading the result</div>
+      <h2>What the model now holds, and what it deliberately keeps apart</h2>
+    </div>
+    <ul class="plain" id="take"></ul>
+  </section>
+
+  <footer>
+    <p><b>How this was produced.</b> <code>python examples/run_model_walkthrough.py</code> on <code>examples/mini_atm.json</code>: <code>MemoryRepository.save_graph</code> and <code>derive_dependencies</code>. The repository returns finished weights only, so the script recomputes each topic weight, component weight and edge weight with the public helpers in <code>saag/core/models.py</code> and asserts that they match.</p>
+    <p>Two of the seven derivation rules do not fire here: mini-ATM has one broker per host, so no broker-to-broker edge, and no switches or routers, so no host-to-device edge.</p>
+  </footer>
+</div>
+
+<script>
+const D = /*DATA*/;
+/*BASE_JS*/
+const K = D.constants, T = D.topics, C = D.components, E = D.edges;
+const RULE = { app_to_app: ['Subscriber → publisher', 'A subscriber depends on whoever publishes the topic it reads.', 'union'], app_to_broker: ['Application → broker', 'An application depends on the broker that routes a topic it uses.', 'union'], app_to_lib: ['Application → library', 'An application depends on a library it uses.', 'harmonic'], node_to_node: ['Host → host', 'A host depends on another host when something it runs depends on something there.', 'max'], node_to_broker: ['Host → broker', 'A host depends on a broker when something it runs depends on that broker.', 'max'] };
+const HOW = { union: 'probabilistic union: 1 − ∏(1 − w)', harmonic: 'harmonic mean of the two component weights', max: 'worst case: the largest lifted weight' };
+const RULES = Object.keys(RULE).filter(r => E.some(e => e.rule === r));
+let selT = 'T2', selR = 'app_to_app', selE = null;
+
+(function input() {
+  const n = sum(Object.values(D.raw_counts)), w = {}; for (const id in D.types) w[id] = 'w ' + f2((T[id] || C[id]).weight);
+  drawMiniAtm(document.getElementById('graph'), { sub: w });
+  document.getElementById('s1-title').textContent = `One file: ${Object.keys(D.types).length} components and ${n} declared relationships`;
+  const LAB = { PUBLISHES_TO: 'An application publishes a topic', SUBSCRIBES_TO: 'An application subscribes to a topic', ROUTES: 'A broker routes a topic', RUNS_ON: 'A component runs on a host', USES: 'An application uses a library', CONNECTS_TO: 'Two hosts are linked' };
+  const types = {}; for (const t of Object.values(D.types)) types[t] = (types[t] || 0) + 1;
+  document.getElementById('raw').innerHTML = `<thead><tr><th>Declared in the file</th><th class="num">Count</th></tr></thead><tbody>` +
+    Object.entries(types).map(([t, k]) => `<tr><td>${t === 'Node' ? 'Host' : t} components</td><td class="num">${k}</td></tr>`).join('') +
+    Object.entries(D.raw_counts).map(([k, v]) => `<tr><td>${LAB[k]} <span class="mono" style="color:var(--muted)">${k}</span></td><td class="num">${v}</td></tr>`).join('') + '</tbody>';
+})();
+
+function renderTopic() {
+  document.getElementById('topic-chips').innerHTML = Object.keys(T).map(t => `<button class="chip" data-topic="${t}" aria-pressed="${t === selT}">${t} ${esc(NAME[t])}</button>`).join('');
+  const t = T[selT], q = t.qos, raw = K.beta * t.qos_score + K.alpha * t.size_norm + K.psi * t.freq_norm;
+  document.getElementById('s2-title').textContent = `${NAME[selT]} weighs ${f3(t.weight)}`;
+  const qrow = (lab, [val, score, w]) => `<tr><td>${lab}: <span class="mono">${val.toLowerCase().replace('_', ' ')}</span></td><td class="h" style="${heat(score, 1)}">${f2(score)}</td><td class="num">${f2(w)}</td><td class="num">${f3(score * w)}</td></tr>`;
+  document.getElementById('topic').innerHTML = `<thead><tr><th>Delivery contract</th><th class="num">Score</th><th class="num">× Weight</th><th class="num">=</th></tr></thead><tbody>
+    ${qrow('Reliability', q.reliability)}${qrow('Durability', q.durability)}${qrow('Priority', q.priority)}
+    <tr><td><b>QoS score</b></td><td></td><td></td><td class="num"><b>${f3(t.qos_score)}</b></td></tr>
+    <tr><td colspan="4" class="cap" style="background:var(--bg)">Then three terms make the weight</td></tr>
+    <tr><td>QoS score</td><td class="h" style="${heat(t.qos_score, 1)}">${f3(t.qos_score)}</td><td class="num">${f2(K.beta)}</td><td class="num">${f3(K.beta * t.qos_score)}</td></tr>
+    <tr><td>Size: ${t.size} bytes, log-scaled to 1 MiB</td><td class="h" style="${heat(t.size_norm, 1)}">${f3(t.size_norm)}</td><td class="num">${f2(K.alpha)}</td><td class="num">${f3(K.alpha * t.size_norm)}</td></tr>
+    <tr><td>Rate: ${t.frequency} Hz, log-scaled to 1 kHz</td><td class="h" style="${heat(t.freq_norm, 1)}">${f3(t.freq_norm)}</td><td class="num">${f2(K.psi)}</td><td class="num">${f3(K.psi * t.freq_norm)}</td></tr>
+    <tr><td><b>w(${selT})</b></td><td></td><td></td><td class="num"><b>${f3(t.weight)}</b></td></tr></tbody>`;
+  const order = Object.keys(T).sort((a, b) => T[b].weight - T[a].weight);
+  document.getElementById('topic-side').innerHTML = `<span class="cap">All four topics</span>${order.map(k => `<div class="bar" style="grid-template-columns: 9em 3.4em minmax(40px,1fr)"><span style="font-family:var(--body)">${esc(NAME[k])}</span><span>${f3(T[k].weight)}</span><span class="track"><span class="fill" style="width:${T[k].weight * 100}%"></span></span></div>`).join('')}
+    <p class="note"><b>Durability carries ${f2(q.durability[2])} of the QoS score</b>, more than reliability and priority together. That is why ${NAME[order[0]]}, a persistent topic at ${T[order[0]].frequency} Hz, outweighs ${NAME[order[order.length - 1]]}, a volatile best-effort topic at ${T[order[order.length - 1]].frequency} Hz.</p>
+    <p class="note">The weight says how costly a loss is, not how busy the topic is. Rate contributes at most ${f2(K.psi)}.</p>`;
+}
+
+(function comps() {
+  const LAB = { power_mean: 'Power mean (p = 3) of its topics', library: 'Heaviest user, amplified by fan-in', max: 'Heaviest resident' }, ids = ORDER.filter(i => C[i]);
+  document.getElementById('comps').innerHTML = `<thead><tr><th>Component</th><th>Type</th><th>How its weight is formed</th><th>From</th><th>Weight</th></tr></thead><tbody>` +
+    ids.map(i => `<tr><td>${who(i)}</td><td>${D.types[i] === 'Node' ? 'Host' : D.types[i]}</td><td>${LAB[C[i].rule]}</td><td class="wrapcell">${C[i].inputs.map(([k, w]) => `${NAME[k]} ${f2(w)}`).join(', ')}${C[i].note ? `<br><span class="mono" style="color:var(--muted)">${esc(C[i].note)}</span>` : ''}</td><td>${bar(C[i].weight, 1)}</td></tr>`).join('') + '</tbody>';
+  const a = C.A2, lo = Math.min(...a.inputs.map(x => x[1])), hi = Math.max(...a.inputs.map(x => x[1]));
+  document.getElementById('comps-note').innerHTML = `<b>Why a power mean.</b> ${NAME.A2} touches a light topic (${f2(lo)}) and a heavy one (${f2(hi)}). A plain average would give ${f3((lo + hi) / 2)} and let the light topic dilute the heavy one; the maximum would ignore how many topics it handles. The power mean gives ${f3(a.weight)}, pulled toward the heavy topic without ignoring the light one. <b>The library ends up heavier than either application that uses it</b>, because a fault in shared code takes all its users down at once.`;
+})();
+
+function renderEdges() {
+  const counts = {}; for (const e of E) counts[e.rule] = (counts[e.rule] || 0) + 1;
+  document.getElementById('s4-title').textContent = `${sum(Object.values(D.raw_counts))} declared relationships become ${E.length} dependencies`;
+  document.getElementById('rule-chips').innerHTML = RULES.map(r => `<button class="chip" data-rule="${r}" aria-pressed="${r === selR}">${RULE[r][0]} · ${counts[r]}</button>`).join('');
+  const rows = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'N1', 'N2'], cols = ['A1', 'A2', 'A3', 'A4', 'L1', 'B1', 'B2', 'N1', 'N2'], at = {};
+  for (const e of E) at[e.source + '>' + e.target] = e;
+  const shown = E.filter(e => e.rule === selR);
+  if (!selE || !shown.includes(at[selE])) selE = shown[0].source + '>' + shown[0].target;
+  document.getElementById('matrix').innerHTML = `<thead><tr><th>depends on →</th>${cols.map(c => `<th class="c">${c}</th>`).join('')}</tr></thead><tbody>` +
+    rows.map(r => `<tr><td>${who(r)}</td>${cols.map(c => { const e = at[r + '>' + c]; if (!e) return '<td></td>'; const on = e.rule === selR; return `<td class="c h ${on ? 'cellpick' : 'off'} ${r + '>' + c === selE ? 'cellon' : ''}" ${on ? `data-edge="${r}>${c}" style="${heat(e.weight, 1)}"` : ''}>${e.weight.toFixed(2)}</td>`; }).join('')}</tr>`).join('') + '</tbody>';
+  const e = at[selE], R = RULE[e.rule];
+  const terms = e.how === 'max' ? e.terms.map(([k, w]) => { const [a, b] = k.split('>'); return `${NAME[a]} → ${NAME[b]} (${f3(w)})`; }) : e.how === 'harmonic' ? e.terms.map(([k, w]) => `${NAME[k]} (${f3(w)})`) : e.terms.map(([k, w]) => `${NAME[k]} (${f3(w)})`);
+  const calc = e.how === 'union' ? `1 − ${e.terms.map(([, w]) => `(1 − ${f3(w)})`).join(' × ')} = ${f3(e.weight)}` : e.how === 'harmonic' ? `2 × ${f3(e.terms[0][1])} × ${f3(e.terms[1][1])} ÷ (${f3(e.terms[0][1])} + ${f3(e.terms[1][1])}) = ${f3(e.weight)}` : `max(${e.terms.map(([, w]) => f3(w)).join(', ')}) = ${f3(e.weight)}`;
+  document.getElementById('edge').innerHTML = `<span class="cap">${R[0]}</span><p class="note">${R[1]}</p>
+    <span class="cap">Selected edge</span><div class="score"><span class="val">${f3(e.weight)}</span><span class="sub">${esc(NAME[e.source])} depends on ${esc(NAME[e.target])}</span></div>
+    <p class="note"><b>${e.how === 'union' ? 'Through' : e.how === 'harmonic' ? 'Between' : 'Lifted from'}:</b> ${terms.join(e.how === 'harmonic' ? ' and ' : '; ')}.</p>
+    <div class="formula">${calc}</div>
+    <p class="note">Weighted by the ${HOW[e.how]}. ${e.how === 'union' ? 'Each shared topic is an independent way to be affected, so more shared topics mean tighter coupling.' : e.how === 'max' ? 'A host is exposed to the single most critical thing it carries. Multiplying those exposures together would push nearly every host edge to 1.' : 'A critical application calling a trivial library is only loosely coupled to it, and the harmonic mean reflects that.'}</p>`;
+}
+
+(function layers() {
+  const L = D.layers, INFO = { app: ['Application layer', 'Which service failures cascade to other services?'], infra: ['Infrastructure layer', 'Which hosts depend on which?'], mw: ['Middleware layer', 'Which brokers carry the most?'], system: ['System layer', 'The whole picture, every type and rule.'] };
+  document.getElementById('layers').innerHTML = Object.keys(INFO).map(k => `<div class="box layer"><span class="cap">--layer ${k}</span><span class="t">${INFO[k][0]}</span><p class="note">${INFO[k][1]}</p>
+    <p class="note"><b>Scores:</b> ${Object.entries(L[k].components).map(([t, n]) => `${n} ${t === 'Node' ? 'host' : t.toLowerCase()}${n > 1 ? 's' : ''}`).join(', ')}.</p>
+    <p class="note"><b>Keeps:</b> ${Object.entries(L[k].edges).map(([r, n]) => `${n} ${RULE[r][0].toLowerCase()}`).join(', ')}.</p></div>`).join('');
+})();
+
+(function take() {
+  const heavy = Object.keys(T).sort((a, b) => T[b].weight - T[a].weight)[0], light = Object.keys(T).sort((a, b) => T[a].weight - T[b].weight)[0];
+  document.getElementById('take').innerHTML = [
+    `<b>Weights come from declared contracts, not from traffic.</b> ${NAME[heavy]} is the heaviest topic at ${f2(T[heavy].weight)} while publishing at ${T[heavy].frequency} Hz; ${NAME[light]} is the lightest at ${f2(T[light].weight)} while publishing at ${T[light].frequency} Hz.`,
+    `<b>Dependencies are derived, never declared.</b> No one wrote "display depends on tracker". ${E.length} such edges follow from ${sum(Object.values(D.raw_counts))} structural facts by ${RULES.length} of the seven rules.`,
+    `<b>How weights combine depends on what is being combined.</b> Independent topics combine as a probabilistic union, host-level exposure as a worst case, and an application-library pair as a harmonic mean.`,
+    `<b>Two graphs now exist side by side.</b> The raw structural graph is what the simulators fail components on. The derived dependency graph is what the analysis and prediction steps read. Keeping them apart is what stops a prediction from being graded on its own inputs.`,
+    `<b>Every number on this page was recomputed.</b> The script rebuilds each weight with the library's public helper functions and stops if any differs from what the repository stored.`,
+  ].map(i => `<li>${i}</li>`).join('');
+})();
+
+document.addEventListener('click', ev => {
+  const t = ev.target.closest('[data-topic]'); if (t) { selT = t.dataset.topic; renderTopic(); return; }
+  const r = ev.target.closest('[data-rule]'); if (r) { selR = r.dataset.rule; selE = null; renderEdges(); return; }
+  const c = ev.target.closest('[data-edge]'); if (c) { selE = c.dataset.edge; renderEdges(); }
+});
+renderTopic(); renderEdges();
+</script>

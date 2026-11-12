@@ -199,6 +199,43 @@ What the run shows on this system: 26 derived dependencies; a trained ranking an
 
 ---
 
+## Workflow Walkthroughs, One Page Each
+
+Six scripts each take one workflow apart on a small system and build an interactive page from real output. Every script `run_<name>_walkthrough.py` fills `<name>_walkthrough.template.html` and writes `<name>_walkthrough.html`; the shared palette, helpers and mini-ATM diagram live in `walkthrough_page.py`.
+
+| Workflow | Script | What the page shows |
+|:---|:---|:---|
+| Predict (Step 3) | `run_predict_walkthrough.py` | Closed-form references term by term, HGT-QoS across five seeds, the dual engine, the cold-start fallback, and each ranking against simulated I\* |
+| Diagnose (Step 4) | `run_diagnose_walkthrough.py` | FT, A and M as weighted terms, the roll-up to R and Q(v), the level fences and the generated explanation |
+| Triage | `run_triage_walkthrough.py` | The Triage Bridge with a trained ranking and in cold start, then one change followed through the pull-request note, the delta-aware gate and a targeted simulation |
+| Validate (Step 6) | `run_validate_walkthrough.py` | Alignment, rank agreement, bootstrap uncertainty, critical-set overlap, dimensions, gates and health indices |
+| Anti-patterns and Prescribe (Steps 4 and 7) | `run_prescribe_walkthrough.py` | Which catalogue patterns fire, the candidate edits they produce, and which survive counterfactual simulation |
+| Before and after deployment | `run_deployment_walkthrough.py` | Placement planning with held-out verification, then the chosen placement run on the in-process testbed, calibrated and compared with simulation |
+
+```bash
+python examples/run_predict_walkthrough.py
+python examples/run_diagnose_walkthrough.py
+python examples/run_triage_walkthrough.py
+PYTHONHASHSEED=0 python examples/run_validate_walkthrough.py
+python examples/run_prescribe_walkthrough.py
+python examples/run_deployment_walkthrough.py
+```
+
+All use `mini_atm.json` except the prescribe walkthrough, which uses `data/scenarios/atm_system_tiny.json` because mini-ATM triggers too few patterns. None needs Neo4j or Docker. The predict walkthrough needs the HGT-QoS checkpoints in the ignored `output/realworld_zeroshot/hgl_qos`; the triage walkthrough uses one of them when present and otherwise shows the cold-start bridge only. The deployment walkthrough runs a 24-second testbed in local mode and keeps its run in the ignored `output/deployment_walkthrough/`.
+
+What the runs surfaced, beyond the mechanics:
+
+- **Predict.** On mini-ATM, Reach orders the applications exactly as the simulator does; HGT-QoS correlates at 0.81 and RM Q(v) at −0.32 with I\*. Six applications are too few to read as accuracy.
+- **Diagnose.** The shipped level fence is Q3 + 0.75 × IQR (`QualityAnalyzer(k_factor=0.75)`), while `docs/diagnosis.md` and `docs/structural-analysis.md` state 1.5 × IQR. With 1.5 nothing on mini-ATM would be rated critical.
+- **Triage.** A one-topic change that closes a feedback loop is caught at every tier: the references flag the new publisher, the delta-aware gate blocks on three new findings while ignoring six pre-existing ones, and targeted simulation shows four of six applications becoming more critical, one of them untouched by the change.
+- **Validate.** ρ is identical on every run, but the bootstrap interval's lower bound moves with Python's hash seed (roughly −0.03 to 0.07 on mini-ATM), which is why the command above fixes `PYTHONHASHSEED`.
+- **Anti-patterns and Prescribe.** On `atm_system_tiny`, 8 of 19 patterns fire; `DEEP_PIPELINE` alone reports 746 findings on ten applications (the over-detection noted below for the larger ATM system). Of 32 candidate edits, 8 are accepted and 19 would have increased impact.
+- **Deployment.** The optimizer's blast proxy correlates at −0.04 with the held-out simulator across placements, and no reliability gain is claimed. Running the recommended placement shows a replicated application stalling after a single host crash because the only relay for its input was on the same host.
+
+Each page says what it is not: these are small systems chosen to make the mechanics visible, not evidence about accuracy.
+
+---
+
 ## Step 6: Validation Pipeline
 
 - **`run_validation.py`**: Executes the Step 6 Validation phase. It runs the programmatic validation pipeline on the Complete System (`system`) layer, comparing the topological quality predictions against the simulation-derived ground truths.

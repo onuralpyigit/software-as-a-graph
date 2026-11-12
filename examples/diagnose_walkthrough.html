@@ -1,0 +1,310 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Diagnose Walkthrough</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: a component picker drives a bottom-up derivation: terms, sub-scores, roll-up, level, explanation. */
+
+:root {
+  --bg: #f2f5f7; --surface: #ffffff; --ink: #16212b; --muted: #5a6877; --line: #cbd4dc; --line-soft: #e3e8ed;
+  --accent: #0b6a94; --accent-soft: #d9ebf3;
+  --fail: #bf3b2b; --fail-soft: #f9ddd7;
+  --ok: #2b7a4b; --ok-soft: #dcefe3;
+  --warn: #9a6a12; --warn-soft: #f7e8c6;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c;
+  --ok: #63c08a; --ok-soft: #173826;
+  --warn: #e3b550; --warn-soft: #43350f; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c;
+  --ok: #63c08a; --ok-soft: #173826;
+  --warn: #e3b550; --warn-soft: #43350f; color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 46px; }
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: 2.3rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.55rem; font-weight: 600; }
+p { margin: 0; max-width: 70ch; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+.lede { font-size: 1.05rem; color: var(--muted); margin-top: 10px; }
+.eyebrow, .cap { font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.eyebrow { color: var(--accent); margin-bottom: 6px; } .cap { color: var(--muted); font-weight: 600; }
+section { display: flex; flex-direction: column; gap: 16px; }
+.sec-head { display: flex; flex-direction: column; gap: 8px; }
+.sec-head p, .note { color: var(--muted); } .note { font-size: 0.9rem; }
+.sec-head p b, .note b, li b { color: var(--ink); font-weight: 600; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.pad { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.scroll { overflow-x: auto; }
+.two { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.half { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+@media (max-width: 900px) { .two, .half, .three { grid-template-columns: minmax(0, 1fr); } }
+ul.plain { margin: 0; padding-left: 1.15em; display: flex; flex-direction: column; gap: 8px; max-width: 78ch; color: var(--muted); }
+.fig svg { display: block; width: 100%; min-width: 600px; height: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+th { font: 600 0.7rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num, td.h { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+td.c, th.c { text-align: center; }
+td.wrapcell { white-space: normal; min-width: 15em; }
+tbody tr.pick { cursor: pointer; } tbody tr.pick:hover td { background: var(--line-soft); } tbody tr.on td { background: var(--accent-soft); }
+.pill { display: inline-block; font: 600 0.68rem var(--mono); letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.pill.critical { background: var(--fail); border-color: var(--fail); color: var(--surface); }
+.pill.high, .pill.no { background: var(--fail-soft); border-color: var(--fail); color: var(--fail); }
+.pill.medium, .pill.warn { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.pill.ok { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.pill.accent { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.bar { display: grid; grid-template-columns: 3.4em minmax(40px, 1fr); gap: 8px; align-items: center; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.track { height: 9px; background: var(--line-soft); border-radius: 2px; overflow: hidden; }
+.fill { height: 100%; background: var(--accent); display: block; } .fill.f { background: var(--fail); }
+.card { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.card .rk { font: 600 0.74rem var(--mono); color: var(--accent); letter-spacing: 0.05em; }
+.card .who { font: 600 1.05rem var(--display); }
+.card .join { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 2px; display: flex; flex-direction: column; gap: 5px; font-size: 0.86rem; color: var(--muted); }
+.score { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.score .val { font: 600 1.9rem var(--mono); line-height: 1; } .score .sub { font-size: 0.82rem; color: var(--muted); }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; color: var(--muted); align-items: center; }
+.key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ln { width: 22px; height: 0; border-top: 1.6px solid var(--muted); display: inline-block; } .ln.dash { border-top-style: dashed; } .ln.dot { border-top-style: dotted; }
+.sw { width: 12px; height: 12px; display: inline-block; border-radius: 2px; background: var(--accent); }
+.picker { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding-block: 10px; display: flex; gap: 14px; align-items: center; }
+.chips { display: flex; gap: 6px; overflow-x: auto; min-width: 0; padding-bottom: 2px; }
+.chip { font: 500 0.82rem var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; cursor: pointer; white-space: nowrap; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.formula { font-family: var(--mono); font-size: 0.86rem; background: var(--bg); border: 1px solid var(--line-soft); border-radius: 4px; padding: 8px 10px; overflow-x: auto; white-space: nowrap; }
+footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: 0.84rem; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+footer p { max-width: 92ch; }
+
+svg text { font-family: var(--body); fill: var(--ink); }
+.n rect, .n polygon { fill: var(--surface); stroke: var(--muted); stroke-width: 1.3; }
+.n.host > rect { fill: var(--bg); stroke: var(--line); stroke-dasharray: 5 3; }
+.n.lib rect { stroke-dasharray: 3 2; }
+.n.pickable { cursor: pointer; }
+.n.sel > rect, .n.sel > polygon { stroke: var(--accent); stroke-width: 2.6; }
+.n.hot > rect, .n.hot > polygon { fill: var(--fail-soft); stroke: var(--fail); stroke-width: 1.8; }
+.n.mark > rect, .n.mark > polygon { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.8; }
+.n.dim { opacity: 0.4; }
+.nm { font-size: 12px; font-weight: 600; text-anchor: middle; }
+.sb { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); text-anchor: middle; }
+.hl { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+.bdg rect { fill: var(--ink); } .bdg text { fill: var(--bg); font-family: var(--mono); font-size: 9.5px; font-weight: 600; text-anchor: middle; }
+.e { stroke: var(--muted); stroke-width: 1.2; fill: none; } .e.routes { stroke-dasharray: 5 4; } .e.uses { stroke-dasharray: 1.5 3.5; stroke-linecap: round; stroke-width: 1.6; }
+.ah { fill: var(--muted); }
+.link { stroke: var(--muted); stroke-width: 3; }
+.lbl { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+.axis { stroke: var(--line); } .grid { stroke: var(--line-soft); } .diag { stroke: var(--muted); stroke-dasharray: 4 3; }
+.pt { fill: var(--accent); fill-opacity: 0.6; stroke: var(--accent); }
+.ptl { font-family: var(--mono); font-size: 10px; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+
+.roll { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
+@media (max-width: 760px) { .roll { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.node { padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.node .l { font: 600 0.7rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.node .v { font: 600 1.5rem var(--mono); line-height: 1.1; }
+.node.out { border-color: var(--accent); border-width: 2px; }
+.band { fill: var(--line-soft); } .fence { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.dot { fill: var(--surface); stroke: var(--muted); stroke-width: 1.3; cursor: pointer; }
+.dot.on { fill: var(--accent); stroke: var(--accent); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">software-as-a-graph · step 4 · diagnose</div>
+    <h1>Diagnose Walkthrough</h1>
+    <p class="lede">Diagnose does not predict anything. It reads the structural metrics and explains, in the terms of the ISO quality model, why a component is risky: is it a hub others lean on, a single point whose loss splits the system, or a bottleneck that is costly to change? Every number here follows from a fixed formula, shown term by term.</p>
+  </header>
+
+  <div class="picker"><span class="cap">Component</span><div class="chips" id="chips"></div></div>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">1 · three sub-scores</div>
+      <h2 id="s1-title"></h2>
+      <p>Each sub-score is a weighted sum of structural metrics, normalised against the rest of the system so that 1.0 means "the most extreme component here". The weights are fixed in advance; nothing is fitted to this system.</p>
+    </div>
+    <div class="three" id="subs"></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">2 · the roll-up</div>
+      <h2>Two fixed combinations turn three sub-scores into one</h2>
+      <p>Fault tolerance and availability combine into reliability. Reliability and maintainability combine into Q(v).</p>
+    </div>
+    <div class="roll" id="roll"></div>
+    <div class="formula" id="formula"></div>
+    <p class="note" id="roll-note"></p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">3 · the level</div>
+      <h2 id="s3-title"></h2>
+      <p>Levels are relative. The quartiles of Q(v) across the system set the boundaries, and a component is critical only if it sits beyond the upper fence. There are no absolute cut-offs.</p>
+    </div>
+    <div class="box fig scroll"><svg id="strip" viewBox="0 0 760 130" role="img" aria-label="Q scores of all components against the level boundaries"></svg></div>
+    <div class="box scroll"><table id="all"></table></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">4 · the explanation</div>
+      <h2 id="s4-title"></h2>
+      <p>For components rated high or critical, the scores are turned into a named pattern, the metric that drives each elevated dimension, a first action and the role it belongs to.</p>
+    </div>
+    <div class="two">
+      <div class="box pad" id="explain"></div>
+      <div class="box pad" id="verdict"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Reading the result</div>
+      <h2>What this run shows</h2>
+    </div>
+    <ul class="plain" id="take"></ul>
+  </section>
+
+  <footer>
+    <p><b>How this was produced.</b> <code>python examples/run_diagnose_walkthrough.py</code> on <code>examples/mini_atm.json</code>: <code>Client.analyze(layer="system")</code> then <code>Client.diagnose</code>. The quality model returns only totals, so the script retraces each term from the model's own normalisation table and weights and checks that the terms sum to the reported sub-scores.</p>
+    <p>Fifteen components give coarse quartiles: one component moving changes a boundary. The page shows how a diagnosis is derived, not how well it matches reality; that is the Validate step's job.</p>
+  </footer>
+</div>
+
+<script>
+const D = {"components":{"T2":{"type":"Topic","terms":{"fault_tolerance":[["Fan-out criticality",1.0,0.5],["Cascade depth potential",0.8214,0.5]],"availability":[["Cut-vertex score",0.0,0.25],["QoS-weighted cut vertex",0.0,0.2],["Bridge ratio",0.0,0.2],["Connectivity loss",0.0,0.25],["QoS weight",0.5,0.1]],"maintainability":[["Betweenness",0.4286,0.35],["Outgoing dependency weight",0.2143,0.3],["Code-quality penalty",0.0,0.15],["Coupling risk",0.0,0.12],["Low clustering",1.0,0.08]]},"level":"critical","levels":{"fault_tolerance":"critical","availability":"low","reliability":"critical","maintainability":"minimal","overall":"critical"},"fault_tolerance":0.9107,"availability":0.05,"reliability":0.3599,"maintainability":0.2943,"overall":0.35},"N2":{"type":"Node","terms":{"fault_tolerance":[["Reverse PageRank",1.0,0.45],["Direct dependents",0.5,0.3],["Cascade depth potential",0.0,0.25]],"availability":[["Cut-vertex score",0.0,0.25],["QoS-weighted cut vertex",0.0,0.2],["Bridge ratio",0.0,0.2],["Connectivity loss",0.0,0.25],["QoS weight",0.9286,0.1]],"maintainability":[["Betweenness",0.4286,0.35],["Outgoing dependency weight",0.7857,0.3],["Code-quality penalty",0.0,0.15],["Coupling risk",0.622,0.12],["Low clustering",0.3333,0.08]]},"level":"high","levels":{"fault_tolerance":"high","availability":"high","reliability":"high","maintainability":"high","overall":"high"},"fault_tolerance":0.6,"availability":0.0929,"reliability":0.2754,"maintainability":0.487,"overall":0.3072},"A2":{"type":"Application","terms":{"fault_tolerance":[["Reverse PageRank",0.6429,0.45],["Direct dependents",0.8571,0.3],["Cascade depth potential",0.0,0.25]],"availability":[["Cut-vertex score",0.0,0.25],["QoS-weighted cut vertex",0.0,0.2],["Bridge ratio",0.0,0.2],["Connectivity loss",0.0587,0.25],["QoS weight",0.2143,0.1]],"maintainability":[["Betweenness",1.0,0.35],["Outgoing dependency weight",0.7143,0.3],["Code-quality penalty",0.0,0.15],["Coupling risk",0.9554,0.12],["Low clustering",0.5238,0.08]]},"level":"high","levels":{"fault_tolerance":"low","availability":"low","reliability":"medium","maintainability":"critical","overall":"high"},"fault_tolerance":0.5464,"availability":0.0361,"reliability":0.2198,"maintainability":0.7208,"overall":0.295},"A4":{"type":"Application","terms":{"fault_tolerance":[["Reverse PageRank",0.5714,0.45],["Direct dependents",0.7143,0.3],["Cascade depth potential",0.3214,0.25]],"availability":[["Cut-vertex score",0.0,0.25],["QoS-weighted cut vertex",0.0,0.2],["Bridge ratio",0.0,0.2],["Connectivity loss",0.0,0.25],["QoS weight",0.9286,0.1]],"maintainability":[["Betweenness",0.4286,0.35],["Outgoing dependency weight",0.5714,0.3],["Code-quality penalty",0.0,0.15],["Coupling risk",0.7333,0.12],["Low clustering",0.3333,0.08]]},"level":"high","levels":{"fault_tolerance":"medium","availability":"high","reliability":"medium","maintainability":"medium","overall":"high"},"fault_tolerance":0.5518,"availability":0.0929,"reliability":0.2581,"maintainability":0.4361,"overall":0.2848},"T1":{"type":"Topic","terms":{"fault_tolerance":[["Fan-out criticality",0.8464,0.5],["Cascade depth potential",0.6953,0.5]],"availability":[["Cut-vertex score",0.0,0.25],["QoS-weighted cut vertex",0.0,0.2],["Bridge ratio",0.0,0.2],["Connectivity loss",0.0,0.25],["QoS weight",0.0,0.1]],"maintainability":[["Betweenness",0.4286,0.35],["Outgoing dependency weight",0.2143,0.3],["Code-quality penalty",0.0,0.15],["Coupling risk",0.0,0.12],["Low clustering",1.0,0.08]]},"level":"medium","levels":{"fault_tolerance":"critical","availability":"minimal","reliability":"high","maintainability":"minimal","overall":"medium"},"fault_tolerance":0.7709,"availability":0.0,"reliability":0.2775,"maintainability":0.2943,"overall":0.28},"B2":{"type":"Broker","terms":{"fault_tolerance":[["Reverse PageRank",0.2143,0.45],["Direct dependents",0.9643,0.3],["Cascade depth potential",0.8839,0.25]],"availability":[["Cut-vertex score",0.0,0.25],["QoS-weighted cut vertex",0.0,0.2],["Bridge ratio",0.0,0.2],["Connectivity loss",0.0587,0.25],["QoS weight",0.6786,0.1]],"maintainability":[["Betweenness",0.4286,0.35],["Outgoing dependency weight",0.2143,0.3],["Code-quality penalty",0.0,0.15],["Coupling risk",0.0,0.12],["Low clustering",0.6667,0.08]]},"level":"medium","levels":{"fault_tolerance":"high","availability":"high","reliability":"high","maintainability":"minimal","overall":"medium"},"fault_tolerance":0.6067,"availability":0.0825,"reliability":0.2712,"maintainability":0.2676,"overall":0.2707},"A3":{"type":"Application","terms":{"fault_tolerance":[["Reverse PageRank",0.7143,0.45],["Direct dependents",0.5,0.3],["Cascade depth potential",0.0,0.25]],"availability":[["Cut-vertex score",0.0,0.25],["QoS-weighted cut vertex",0.0,0.2],["Bridge ratio",0.0,0.2],["Connectivity loss",0.0037,0.25],["QoS weight",0.4286,0.1]],"maintainability":[["Betweenness",0.9286,0.35],["Outgoing dependency weight",0.8571,0.3],["Code-quality penalty",0.0,0.15],["Coupling risk",0.4458,0.12],["Low clustering",0.4,0.08]]},"level":"medium","levels":{"fault_tolerance":"low","availability":"low","reliability":"low","maintainability":"critical","overall":"medium"},"fault_tolerance":0.4714,"availability":0.0438,"reliability":0.1977,"maintainability":0.6676,"overall":0.2682},"N1":{"type":"Node","terms":{"fault_tolerance":[["Reverse PageRank",0.9286,0.45],["Direct dependents",0.5,0.3],["Cascade depth potential",0.0,0.25]],"availability":[["Cut-vertex score",0.0,0.25],["QoS-weighted cut vertex",0.0,0.2],["Bridge ratio",0.0,0.2],["Connectivity loss",0.0,0.25],["QoS weight",0.2143,0.1]],"maintainability":[["Betweenness",0.4286,0.35],["Outgoing dependency weight",0.6429,0.3],["Code-quality penalty",0.0,0.15],["Coupling risk",0.5597,0.12],["Low clustering",0.3333,0.08]]},"level":"low","levels":{"fault_tolerance":"medium","availability":"minimal","reliability":"low","maintainability":"medium","overall":"low"},"fault_tolerance":0.5679,"availability":0.0214,"reliability":0.2181,"maintainability":0.4367,"overall":0.2509},"A5":{"type":"Application","terms":{"fault_tolerance":[["Reverse PageRank",0.8571,0.45],["Direct dependents",0.1786,0.3],["Cascade depth potential",0.0,0.25]],"availability":[["Cut-vertex score",0.0,0.25],["QoS-weighted cut vertex",0.0,0.2],["Bridge ratio",0.0,0.2],["Connectivity loss",0.0037,0.25],["QoS weight",0.6786,0.1]],"maintainability":[["Betweenness",0.4286,0.35],["Outgoing dependency weight",1.0,0.3],["Code-quality penalty",0.0,0.15],["Coupling risk",0.0,0.12],["Low clustering",0.4,0.08]]},"level":"low","levels":{"fault_tolerance":"low","availability":"medium","reliability":"low","maintainability":"high","overall":"low"},"fault_tolerance":0.4393,"availability":0.0688,"reliability":0.2022,"maintainability":0.482,"overall":0.2441},"B1":{"type":"Broker","terms":{"fault_tolerance":[["Reverse PageRank",0.2143,0.45],["Direct dependents",0.9643,0.3],["Cascade depth potential",0.7997,0.25]],"availability":[["Cut-vertex score",0.0,0.25],["QoS-weighted cut vertex",0.0,0.2],["Bridge ratio",0.0,0.2],["Connectivity loss",0.0587,0.25],["QoS weight",0.2143,0.1]],"maintainability":[["Betweenness",0.4286,0.35],["Outgoing dependency weight",0.2143,0.3],["Code-quality penalty",0.0,0.15],["Coupling risk",0.0,0.12],["Low clustering",0.6667,0.08]]},"level":"low","levels":{"fault_tolerance":"medium","availability":"low","reliability":"medium","maintainability":"minimal","overall":"low"},"fault_tolerance":0.5857,"availability":0.0361,"reliability":0.2339,"maintainability":0.2676,"overall":0.239},"A6":{"type":"Application","terms":{"fault_tolerance":[["Reverse PageRank",0.7857,0.45],["Direct dependents",0.1786,0.3],["Cascade depth potential",0.0,0.25]],"availability":[["Cut-vertex score",0.0,0.25],["QoS-weighted cut vertex",0.0,0.2],["Bridge ratio",0.0,0.2],["Connectivity loss",0.0175,0.25],["QoS weight",0.5714,0.1]],"maintainability":[["Betweenness",0.4286,0.35],["Outgoing dependency weight",0.9286,0.3],["Code-quality penalty",0.0,0.15],["Coupling risk",0.0,0.12],["Low clustering",0.5,0.08]]},"level":"low","levels":{"fault_tolerance":"minimal","availability":"medium","reliability":"minimal","maintainability":"medium","overall":"low"},"fault_tolerance":0.4071,"availability":0.0615,"reliability":0.1859,"maintainability":0.4686,"overall":0.2283},"A1":{"type":"Application","terms":{"fault_tolerance":[["Reverse PageRank",0.5,0.45],["Direct dependents",0.7143,0.3],["Cascade depth potential",0.3036,0.25]],"availability":[["Cut-vertex score",0.0,0.25],["QoS-weighted cut vertex",0.0,0.2],["Bridge ratio",0.0,0.2],["Connectivity loss",0.0,0.25],["QoS weight",0.0714,0.1]],"maintainability":[["Betweenness",0.4286,0.35],["Outgoing dependency weight",0.5,0.3],["Code-quality penalty",0.0,0.15],["Coupling risk",0.7333,0.12],["Low clustering",0.0,0.08]]},"level":"minimal","levels":{"fault_tolerance":"low","availability":"minimal","reliability":"minimal","maintainability":"low","overall":"minimal"},"fault_tolerance":0.5152,"availability":0.0071,"reliability":0.19,"maintainability":0.388,"overall":0.2197},"L1":{"type":"Library","terms":{"fault_tolerance":[["Reverse PageRank",0.2143,0.45],["Direct dependents",0.7143,0.3],["Cascade depth potential",0.4643,0.25]],"availability":[["Cut-vertex score",0.0,0.25],["QoS-weighted cut vertex",0.0,0.2],["Bridge ratio",0.0,0.2],["Connectivity loss",0.0,0.25],["QoS weight",0.7857,0.1]],"maintainability":[["Betweenness",0.4286,0.35],["Outgoing dependency weight",0.2143,0.3],["Code-quality penalty",0.0,0.15],["Coupling risk",0.0,0.12],["Low clustering",0.0,0.08]]},"level":"minimal","levels":{"fault_tolerance":"minimal","availability":"medium","reliability":"low","maintainability":"minimal","overall":"minimal"},"fault_tolerance":0.4268,"availability":0.0786,"reliability":0.2039,"maintainability":0.2143,"overall":0.2055},"T4":{"type":"Topic","terms":{"fault_tolerance":[["Fan-out criticality",0.1927,0.5],["Cascade depth potential",0.1583,0.5]],"availability":[["Cut-vertex score",0.0,0.25],["QoS-weighted cut vertex",0.0,0.2],["Bridge ratio",0.0,0.2],["Connectivity loss",0.0,0.25],["QoS weight",0.9286,0.1]],"maintainability":[["Betweenness",0.4286,0.35],["Outgoing dependency weight",0.2143,0.3],["Code-quality penalty",0.0,0.15],["Coupling risk",0.0,0.12],["Low clustering",1.0,0.08]]},"level":"minimal","levels":{"fault_tolerance":"minimal","availability":"high","reliability":"minimal","maintainability":"minimal","overall":"minimal"},"fault_tolerance":0.1755,"availability":0.0929,"reliability":0.1226,"maintainability":0.2943,"overall":0.1484},"T3":{"type":"Topic","terms":{"fault_tolerance":[["Fan-out criticality",0.1527,0.5],["Cascade depth potential",0.1254,0.5]],"availability":[["Cut-vertex score",0.0,0.25],["QoS-weighted cut vertex",0.0,0.2],["Bridge ratio",0.0,0.2],["Connectivity loss",0.0,0.25],["QoS weight",0.3571,0.1]],"maintainability":[["Betweenness",0.4286,0.35],["Outgoing dependency weight",0.2143,0.3],["Code-quality penalty",0.0,0.15],["Coupling risk",0.0,0.12],["Low clustering",1.0,0.08]]},"level":"minimal","levels":{"fault_tolerance":"minimal","availability":"minimal","reliability":"minimal","maintainability":"minimal","overall":"minimal"},"fault_tolerance":0.1391,"availability":0.0357,"reliability":0.0729,"maintainability":0.2943,"overall":0.1061}},"weights":{"r_alpha":0.36,"q_reliability":0.85,"q_maintainability":0.15},"declared":{"q_reliability":0.8,"q_maintainability":0.2},"qos_profile":{"durability":{"volatile":1,"transient_local":2,"persistent":1},"reliability":{"best_effort":1,"reliable":3},"priority":{"medium":1,"high":2,"low":1},"total_topics":4},"fences":{"k":0.75,"q1":0.224,"median":0.2509,"q3":0.2824,"iqr":0.0584,"upper_fence":0.3262},"distribution":{"critical":1,"high":3,"medium":3,"low":4,"minimal":4},"explain":{"T2":{"pattern":"Fault-Tolerance Hub","level":"CRITICAL","one_line":"T2 is a fault-tolerance hub \u2014 failure cascades broadly.","top_risk":"0 downstream components depend on it transitively. Its failure silences their data flows.","dimensions":[{"dimension":"Reliability","score":0.36,"level":"CRITICAL","driving_metric":"Reverse PageRank","driving_value":0.027,"plain_meaning":"This component has many incoming dependencies (0 direct). Primary driver: fraction of the system reachable from this component.","risk_sentence":"Unplanned downtime here will broadly impact downstream services."}],"priority_action":"Add circuit breakers and health checks in all direct dependents.","anti_patterns":["Isolated Component"],"stakeholders":[]},"N2":{"pattern":"Composite Risk","level":"HIGH","one_line":"N2 has elevated risk across multiple dimensions without a single dominant cause.","top_risk":"No one metric dominates, but the combination across R and M puts it above the system's population threshold.","dimensions":[{"dimension":"Reliability","score":0.275,"level":"HIGH","driving_metric":"Reverse PageRank","driving_value":0.225,"plain_meaning":"This component has many incoming dependencies (1 direct). Primary driver: fraction of the system reachable from this component.","risk_sentence":"Unplanned downtime here will broadly impact downstream services."},{"dimension":"Maintainability","score":0.487,"level":"HIGH","driving_metric":"Weighted out-degree","driving_value":2.256,"plain_meaning":"It acts as a structural bridge with 3 outgoing dependencies. Primary driver: number and priority of interface dependencies.","risk_sentence":"Modifying this component carries a high risk of unintended side-effects."},{"dimension":"Availability","score":0.093,"level":"HIGH","driving_metric":"Directed SPOF score","driving_value":0.0,"plain_meaning":"It is an articulation point in the architecture. Primary driver: fraction of connectivity lost if it is removed.","risk_sentence":"If this component fails, sections of the system will be entirely disconnected."}],"priority_action":"Review coupling and redundancy together; no single fix resolves this.","anti_patterns":[],"stakeholders":[]},"A2":{"pattern":"Bottleneck","level":"HIGH","one_line":"A2 is a change bottleneck \u2014 interface changes are expensive.","top_risk":"7 components must be updated whenever its interface changes. This is the highest maintenance cost in the system.","dimensions":[{"dimension":"Maintainability","score":0.721,"level":"CRITICAL","driving_metric":"Weighted out-degree","driving_value":1.957,"plain_meaning":"It acts as a structural bridge with 4 outgoing dependencies. Primary driver: number and priority of interface dependencies.","risk_sentence":"Modifying this component carries a high risk of unintended side-effects."}],"priority_action":"Extract a stable interface; reduce outgoing dependency count.","anti_patterns":[],"stakeholders":[]},"A4":{"pattern":"Composite Risk","level":"HIGH","one_line":"A4 has elevated risk across multiple dimensions without a single dominant cause.","top_risk":"No one metric dominates, but the combination across R and M puts it above the system's population threshold.","dimensions":[{"dimension":"Availability","score":0.093,"level":"HIGH","driving_metric":"Directed SPOF score","driving_value":0.0,"plain_meaning":"It is an articulation point in the architecture. Primary driver: fraction of connectivity lost if it is removed.","risk_sentence":"If this component fails, sections of the system will be entirely disconnected."}],"priority_action":"Review coupling and redundancy together; no single fix resolves this.","anti_patterns":[],"stakeholders":[]}},"problems":[{"entity_id":"A5","severity":"CRITICAL","name":"Single Point of Failure (SPOF)","category":"Availability","description":"A component whose removal disconnects the dependency graph, making downstream subscribers unreachable.","recommendation":"Introduce redundancy, active-passive failover, or clustered broker configurations."},{"entity_id":"N1 -> N2","severity":"HIGH","name":"Dependency Cycle","category":"Architecture","description":"Circular dependency detected between two or more components.","recommendation":"Break the cycle via interfaces or event-driven decoupling."},{"entity_id":"T1","severity":"MEDIUM","name":"Isolated Component","category":"Architecture","description":"Component has no dependencies in this layer.","recommendation":"Verify deployment, configuration, and integration status."},{"entity_id":"T2","severity":"MEDIUM","name":"Isolated Component","category":"Architecture","description":"Component has no dependencies in this layer.","recommendation":"Verify deployment, configuration, and integration status."},{"entity_id":"T3","severity":"MEDIUM","name":"Isolated Component","category":"Architecture","description":"Component has no dependencies in this layer.","recommendation":"Verify deployment, configuration, and integration status."},{"entity_id":"T4","severity":"MEDIUM","name":"Isolated Component","category":"Architecture","description":"Component has no dependencies in this layer.","recommendation":"Verify deployment, configuration, and integration status."}],"report":{"critical_count":1,"high_count":3,"deployment_blocked":true,"reason":"1 CRITICAL anti-patterns detected (Single Point of Failure (SPOF))."}};
+
+const NS = 'http://www.w3.org/2000/svg';
+const NAME = { A1: 'radar', A2: 'tracker', A3: 'conflict-detector', A4: 'flight-plan', A5: 'display', A6: 'recorder', B1: 'sensor-broker', B2: 'ops-broker', T1: 'radar.plots', T2: 'tracks', T3: 'conflict.alerts', T4: 'flight.plans', N1: 'sensor-host', N2: 'ops-host', L1: 'track-model' };
+const ORDER = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'L1', 'B1', 'B2', 'N1', 'N2', 'T1', 'T2', 'T3', 'T4'];
+const f2 = v => v == null ? '–' : v.toFixed(2), f3 = v => v == null ? '–' : v.toFixed(3), f4 = v => v == null ? '–' : v.toFixed(4);
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const who = id => `<span class="mono">${esc(id)}</span> ${esc(NAME[id] || '')}`;
+const sum = a => a.reduce((x, y) => x + y, 0);
+function el(tag, attrs, parent, text) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; }
+const heat = (v, max) => `background: color-mix(in srgb, var(--accent) ${Math.round(Math.max(0, Math.min(1, max ? v / max : 0)) * 55)}%, transparent)`;
+const bar = (v, max, cls) => `<span class="bar"><span>${f3(v)}</span><span class="track"><span class="fill ${cls || ''}" style="width:${Math.max(0, Math.min(1, max ? v / max : 0)) * 100}%"></span></span></span>`;
+const LEVEL = { critical: 'critical', high: 'high', medium: 'medium' };
+const level = l => `<span class="pill ${LEVEL[String(l).toLowerCase()] || ''}">${esc(String(l).toLowerCase())}</span>`;
+const verdict = (ok, yes, no) => ok == null ? '<span class="pill">not measured</span>' : `<span class="pill ${ok ? 'ok' : 'no'}">${ok ? (yes || 'pass') : (no || 'fail')}</span>`;
+
+/* The mini-ATM raw structural graph. state: {id: 'sel' | 'hot' | 'mark' | 'dim'}, badges: {id: text}, sub: {id: text}. */
+const MINI = {
+  B1: { t: 'Broker', x: 210, y: 46, w: 110, h: 36 }, B2: { t: 'Broker', x: 490, y: 46, w: 110, h: 36 },
+  T1: { t: 'Topic', x: 130, y: 150, w: 100, h: 36 }, T2: { t: 'Topic', x: 290, y: 150, w: 100, h: 36 }, T3: { t: 'Topic', x: 530, y: 150, w: 100, h: 36 }, T4: { t: 'Topic', x: 650, y: 150, w: 100, h: 36 },
+  A1: { t: 'Application', x: 68, y: 282, w: 100, h: 38 }, A2: { t: 'Application', x: 193, y: 282, w: 100, h: 38 }, A6: { t: 'Application', x: 350, y: 282, w: 100, h: 38 },
+  A3: { t: 'Application', x: 470, y: 282, w: 106, h: 38 }, A5: { t: 'Application', x: 590, y: 282, w: 100, h: 38 }, A4: { t: 'Application', x: 710, y: 282, w: 100, h: 38 },
+  L1: { t: 'Library', x: 330, y: 388, w: 100, h: 36 },
+};
+const MINI_HOST = { N1: { x: 8, y: 248, w: 242, h: 92 }, N2: { x: 288, y: 248, w: 484, h: 92 } };
+const MINI_EDGES = [['A1', 'T1', 'flow'], ['A2', 'T2', 'flow'], ['A3', 'T3', 'flow'], ['A4', 'T4', 'flow'], ['T1', 'A2', 'flow'], ['T2', 'A3', 'flow'], ['T2', 'A5', 'flow'], ['T3', 'A5', 'flow'], ['T4', 'A5', 'flow'], ['T1', 'A6', 'flow'], ['T2', 'A6', 'flow'], ['T4', 'A6', 'flow'],
+  ['B1', 'T1', 'routes'], ['B1', 'T2', 'routes'], ['B2', 'T2', 'routes'], ['B2', 'T3', 'routes'], ['B2', 'T4', 'routes'], ['A2', 'L1', 'uses'], ['A3', 'L1', 'uses']];
+function drawMiniAtm(svg, opts = {}) {
+  const { state = {}, badges = {}, sub = {}, pickable = false } = opts;
+  svg.textContent = ''; svg.setAttribute('viewBox', '0 0 780 420');
+  const badge = (g, x, y, text) => { const w = String(text).length * 6.2 + 9, b = el('g', { class: 'bdg' }, g); el('rect', { x: x - w, y: y - 8, width: w, height: 15, rx: 3 }, b); el('text', { x: x - w / 2, y: y + 3.4 }, b, text); };
+  for (const h in MINI_HOST) {
+    const b = MINI_HOST[h], g = el('g', { class: `n host ${state[h] || ''} ${pickable ? 'pickable' : ''}`, 'data-id': h }, svg);
+    el('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 6 }, g);
+    el('text', { class: 'hl', x: h === 'N2' ? b.x + b.w - 10 : b.x + 10, y: b.y + b.h - 9, 'text-anchor': h === 'N2' ? 'end' : 'start' }, g, `${h} · ${NAME[h]}${sub[h] ? ' · ' + sub[h] : ''}`);
+    if (badges[h]) badge(g, b.x + b.w - 4, b.y + 2, badges[h]);
+  }
+  el('line', { class: 'link', x1: 250, y1: 294, x2: 288, y2: 294 }, svg);
+  const clip = (a, b, pad) => { const dx = b.x - a.x, dy = b.y - a.y, k = Math.min(dx ? (a.w / 2 + pad) / Math.abs(dx) : Infinity, dy ? (a.h / 2 + pad) / Math.abs(dy) : Infinity); return { x: a.x + dx * k, y: a.y + dy * k }; };
+  for (const [u, v, kind] of MINI_EDGES) {
+    const p1 = clip(MINI[u], MINI[v], 1), p2 = clip(MINI[v], MINI[u], kind === 'flow' ? 3 : 1);
+    el('line', { class: 'e ' + (kind === 'flow' ? '' : kind), x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }, svg);
+    if (kind === 'flow') { const a = Math.atan2(p2.y - p1.y, p2.x - p1.x), z = 7, w = 0.42; el('polygon', { class: 'ah', points: `${p2.x},${p2.y} ${p2.x - z * Math.cos(a - w)},${p2.y - z * Math.sin(a - w)} ${p2.x - z * Math.cos(a + w)},${p2.y - z * Math.sin(a + w)}` }, svg); }
+  }
+  for (const id in MINI) {
+    const n = MINI[id], g = el('g', { class: `n ${n.t === 'Library' ? 'lib' : ''} ${state[id] || ''} ${pickable ? 'pickable' : ''}`, 'data-id': id }, svg), x = n.x - n.w / 2, y = n.y - n.h / 2;
+    if (n.t === 'Broker') { const c = 9; el('polygon', { points: [[x + c, y], [x + n.w - c, y], [x + n.w, y + c], [x + n.w, y + n.h - c], [x + n.w - c, y + n.h], [x + c, y + n.h], [x, y + n.h - c], [x, y + c]].map(p => p.join(',')).join(' ') }, g); }
+    else el('rect', { x, y, width: n.w, height: n.h, rx: n.t === 'Topic' ? n.h / 2 : 5 }, g);
+    el('text', { class: 'nm', x: n.x, y: n.y - 1 }, g, NAME[id]); el('text', { class: 'sb', x: n.x, y: n.y + 11.5 }, g, sub[id] ? `${id} · ${sub[id]}` : id);
+    if (badges[id]) badge(g, n.x + n.w / 2 + 5, y - 1, badges[id]);
+  }
+}
+
+const IDS = ORDER.filter(i => D.components[i]);
+let sel = 'A2';
+const DIM = { fault_tolerance: ['FT', 'Fault tolerance', 'How much of the system leans on it'], availability: ['A', 'Availability', 'Whether losing it splits the system'], maintainability: ['M', 'Maintainability', 'How costly it is to change'] };
+
+function drawStrip() {
+  const s = document.getElementById('strip'); s.textContent = '';
+  const F = D.fences, qs = IDS.map(i => D.components[i].overall), lo = Math.min(...qs) - 0.02, hi = Math.max(...qs, F.upper_fence) + 0.03, L = 20, W = 720, x = v => L + W * (v - lo) / (hi - lo);
+  const bands = [[lo, F.q1, 'minimal'], [F.q1, F.median, 'low'], [F.median, F.q3, 'medium'], [F.q3, F.upper_fence, 'high'], [F.upper_fence, hi, 'critical']];
+  bands.forEach(([a, b, name], i) => { if (i % 2 === 0) el('rect', { class: 'band', x: x(a), y: 30, width: x(b) - x(a), height: 50 }, s); el('text', { class: 'lbl', x: (x(a) + x(b)) / 2, y: 24, 'text-anchor': 'middle' }, s, name); });
+  for (const [v, lab] of [[F.q1, 'Q1'], [F.median, 'median'], [F.q3, 'Q3'], [F.upper_fence, 'fence']]) { el('line', { class: 'fence', x1: x(v), x2: x(v), y1: 30, y2: 92 }, s); el('text', { class: 'lbl', x: x(v), y: 104, 'text-anchor': 'middle' }, s, `${lab} ${f3(v)}`); }
+  const seen = {};
+  for (const i of [...IDS].sort((a, b) => D.components[a].overall - D.components[b].overall)) {
+    const q = D.components[i].overall, k = Math.round(x(q) / 16), row = seen[k] = (seen[k] || 0) + 1, cy = 42 + ((row - 1) % 3) * 14;
+    const c = el('circle', { class: 'dot' + (i === sel ? ' on' : ''), cx: x(q), cy, r: 5.5, 'data-id': i }, s); el('title', {}, c, `${i} ${NAME[i]}: ${f3(q)}`);
+    if (i === sel) el('text', { class: 'ptl', x: x(q), y: 122, 'text-anchor': 'middle', style: 'fill: var(--accent); font-weight: 600' }, s, `${i} ${f3(q)}`);
+  }
+}
+
+function render() {
+  const c = D.components[sel], W = D.weights;
+  document.getElementById('chips').innerHTML = IDS.map(i => `<button class="chip" data-id="${i}" aria-pressed="${i === sel}">${i} ${esc(NAME[i])}</button>`).join('');
+  document.getElementById('s1-title').textContent = `Where ${NAME[sel]}'s scores come from`;
+  document.getElementById('subs').innerHTML = Object.keys(DIM).map(d => {
+    const rows = c.terms[d], top = [...rows].sort((a, b) => b[1] * b[2] - a[1] * a[2])[0];
+    return `<div class="box scroll"><table><thead><tr><th>${DIM[d][1]}<div style="font:400 0.74rem var(--body);text-transform:none;letter-spacing:0;margin-top:2px">${DIM[d][2]}</div></th><th class="num">Input</th><th class="num">× Weight</th><th class="num">=</th></tr></thead><tbody>` +
+      rows.map(([lab, v, w]) => `<tr><td>${esc(lab)}${lab === top[0] && v * w > 0 ? ' <span class="pill accent">largest</span>' : ''}</td><td class="h" style="${heat(v, 1)}">${f3(v)}</td><td class="num">${f2(w)}</td><td class="num">${f3(v * w)}</td></tr>`).join('') +
+      `<tr><td><b>${DIM[d][0]}(${sel})</b></td><td></td><td></td><td class="num"><b>${f3(c[d])}</b></td></tr></tbody></table></div>`; }).join('');
+  const node = (l, v, cls) => `<div class="box node ${cls || ''}"><span class="l">${l}</span><span class="v">${f3(v)}</span></div>`;
+  document.getElementById('roll').innerHTML = node('Fault tolerance', c.fault_tolerance) + node('Availability', c.availability) + node('Reliability', c.reliability) + node('Maintainability', c.maintainability) + node('Q(v)', c.overall, 'out');
+  document.getElementById('formula').innerHTML = `R = ${f2(W.r_alpha)} × ${f3(c.fault_tolerance)} + ${f2(1 - W.r_alpha)} × ${f3(c.availability)} = ${f3(c.reliability)}<br>Q = ${f2(W.q_reliability)} × ${f3(c.reliability)} + ${f2(W.q_maintainability)} × ${f3(c.maintainability)} = ${f3(c.overall)}`;
+  const P = D.qos_profile.reliability;
+  document.getElementById('roll-note').innerHTML = `Availability carries ${f2(1 - W.r_alpha)} of reliability, so a component with high fault tolerance and near-zero availability still ends with a modest R. The declared Q weights are ${f2(D.declared.q_reliability)} and ${f2(D.declared.q_maintainability)}; this run used ${f2(W.q_reliability)} and ${f2(W.q_maintainability)} because the model shifts toward reliability when the system's topics lean that way (${P.reliable} of ${D.qos_profile.total_topics} topics here are RELIABLE).`;
+  const F = D.fences;
+  document.getElementById('s3-title').textContent = `Q = ${f3(c.overall)} places ${NAME[sel]} at "${c.level}"`;
+  drawStrip();
+  const dims = [['fault_tolerance', 'FT'], ['availability', 'A'], ['reliability', 'R'], ['maintainability', 'M'], ['overall', 'Q']], max = {};
+  for (const [k] of dims) max[k] = Math.max(...IDS.map(i => D.components[i][k]));
+  document.getElementById('all').innerHTML = `<thead><tr><th>Component</th><th>Type</th>${dims.map(d => `<th class="num">${d[1]}</th>`).join('')}<th>Level</th></tr></thead><tbody>` +
+    [...IDS].sort((a, b) => D.components[b].overall - D.components[a].overall).map(i => { const x = D.components[i]; return `<tr class="pick ${i === sel ? 'on' : ''}" data-id="${i}"><td>${who(i)}</td><td>${x.type === 'Node' ? 'Host' : x.type}</td>${dims.map(([k]) => `<td class="h" style="${heat(x[k], max[k])}">${f3(x[k])}</td>`).join('')}<td>${level(x.level)}</td></tr>`; }).join('') + '</tbody>';
+  const e = D.explain[sel], probs = D.problems.filter(p => p.entity_id.split(' -> ').includes(sel));
+  document.getElementById('s4-title').textContent = e ? `${NAME[sel]}: ${e.pattern}` : `${NAME[sel]} is rated ${c.level}, so no explanation is generated`;
+  document.getElementById('explain').innerHTML = e ? `<span class="cap">Pattern</span><p class="note"><b>${esc(e.pattern)}</b> ${level(e.level)}</p><p class="note">${esc(e.one_line)}</p><p class="note">${esc(e.top_risk)}</p>
+    <span class="cap">What drives each elevated dimension</span>${e.dimensions.map(d => `<p class="note"><b>${esc(d.dimension)}</b> ${f3(d.score)} ${level(d.level)}: driven by ${esc(d.driving_metric)} (${d.driving_value}). ${esc(d.risk_sentence)}</p>`).join('')}
+    <span class="cap">First action</span><p class="note">${esc(e.priority_action)}</p>${(e.stakeholders || []).length ? `<p class="note">For: ${e.stakeholders.map(esc).join(', ')}</p>` : ''}`
+    : `<span class="cap">Nothing to explain</span><p class="note">Explanations are written for components rated high or critical: ${Object.keys(D.explain).map(i => NAME[i]).join(', ')}. Pick one of them to see its pattern, drivers and first action.</p>`;
+  const sev = s => `<span class="pill ${s === 'CRITICAL' ? 'critical' : s === 'HIGH' ? 'high' : 'medium'}">${s.toLowerCase()}</span>`;
+  const groups = {}; for (const p of D.problems) (groups[p.name + '|' + p.severity + '|' + p.recommendation] = groups[p.name + '|' + p.severity + '|' + p.recommendation] || []).push(p.entity_id);
+  document.getElementById('verdict').innerHTML = `<span class="cap">Anti-patterns on ${esc(NAME[sel])}</span><p class="note">${probs.length ? probs.map(p => `${sev(p.severity)} <b>${esc(p.name)}</b>`).join('<br>') : 'None.'}</p>
+    <span class="cap">Anti-patterns in the whole system</span>${Object.entries(groups).map(([k, ids]) => { const [n, s, r] = k.split('|'); return `<p class="note">${sev(s)} <b>${esc(n)}</b>: ${ids.map(esc).join(', ')}. ${esc(r)}</p>`; }).join('')}
+    <span class="cap">System verdict</span><p class="note"><b>${D.report.deployment_blocked ? 'Deployment blocked.' : 'Deployment allowed.'}</b> ${esc(D.report.reason)}</p>`;
+}
+function renderTake() {
+  const F = D.fences, crit = IDS.filter(i => D.components[i].level === 'critical'), a0 = IDS.filter(i => D.components[i].availability < 0.1).length;
+  document.getElementById('take').innerHTML = [
+    `<b>The diagnosis is fully traceable.</b> Every Q(v) on this page decomposes into ${Object.values(D.components[IDS[0]].terms).flat().length} weighted terms, and the script checks that they sum to what the model reported.`,
+    `<b>Availability is near zero for every component here</b> (${a0} of ${IDS.length} below 0.1). The cut-vertex score is zero for every component, so the term that carries most of reliability contributes little, and fault tolerance decides the order.`,
+    `<b>Levels are relative to this system.</b> ${crit.map(i => NAME[i]).join(', ')} is critical because its Q of ${f3(D.components[crit[0]].overall)} exceeds the fence at ${f3(F.upper_fence)}, not because of any absolute threshold.`,
+    `<b>The shipped fence is Q3 + ${F.k} × IQR.</b> docs/diagnosis.md and docs/structural-analysis.md state 1.5 × IQR. With 1.5 the fence here would be ${f3(F.q3 + 1.5 * F.iqr)} and nothing would be rated critical. The code and the documents disagree, and one of them should be corrected.`,
+    `<b>The explanation text is thin for topics.</b> The tracks topic is called a hub with "0 downstream components", because its dependents are counted on dependency edges and topics have none.`,
+    `<b>The blocking verdict comes from one finding</b>, a single-point-of-failure flag on display. Display has no dependents and a cut-vertex score of zero, so the flag deserves a second look before anyone acts on it.`,
+  ].map(i => `<li>${i}</li>`).join('');
+}
+document.addEventListener('click', e => { const t = e.target.closest('[data-id]'); if (t && D.components[t.dataset.id]) { sel = t.dataset.id; render(); } });
+render(); renderTake();
+</script>
