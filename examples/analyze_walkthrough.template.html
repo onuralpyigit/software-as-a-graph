@@ -152,7 +152,7 @@ function render() {
     `<b>The layer changes the answer.</b> The same component has different values on the system layer and the application layer, because the graph it is measured on is different.`,
     `<b>Only ${R.scoring} of the ${F.length} fields feed the quality score.</b> The rest serve detection, the trained model or display.`,
     `<b>Flagged as a cut point on the system layer: ${aps.map(i => NAME[i]).join(', ') || 'none'}.</b> ${aps.length ? 'The continuous cut-vertex score for the same components is zero, so the boolean flag and the score disagree here; the flag is what the single-point-of-failure detector reads.' : ''}`,
-    `<b>A small system leaves much of the vector empty.</b> With no code metrics, hardware figures or network devices declared, a quarter of the fields carry no information here.`,
+    `<b>A small system leaves much of the vector empty.</b> With no code metrics, hardware figures or network devices declared, ${F.filter(m => !m.varies).length} of the ${F.length} fields carry no information here.`,
   ].map(i => `<li>${i}</li>`).join('');
 })();
 

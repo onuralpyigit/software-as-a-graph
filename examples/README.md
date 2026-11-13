@@ -201,10 +201,13 @@ What the run shows on this system: 26 derived dependencies; a trained ranking an
 
 ## Workflow Walkthroughs, One Page Each
 
-Six scripts each take one workflow apart on a small system and build an interactive page from real output. Every script `run_<name>_walkthrough.py` fills `<name>_walkthrough.template.html` and writes `<name>_walkthrough.html`; the shared palette, helpers and mini-ATM diagram live in `walkthrough_page.py`.
+Nine scripts each take one workflow apart on a small system and build an interactive page from real output. Every script `run_<name>_walkthrough.py` fills `<name>_walkthrough.template.html` and writes `<name>_walkthrough.html`; the shared palette, helpers and mini-ATM diagram live in `walkthrough_page.py`.
 
 | Workflow | Script | What the page shows |
 |:---|:---|:---|
+| Model (Step 1) | `run_model_walkthrough.py` | Topic weights from QoS, size and rate; component weights; each derived `DEPENDS_ON` edge with its rule and weight; the four layer projections |
+| Analyze (Step 2) | `run_analyze_walkthrough.py` | The structural metric vector one metric at a time, which later step reads each field, and eight metrics reproduced with NetworkX |
+| Simulate (Step 5) | `run_simulate_walkthrough.py` | The label artifact, what its options change, the checks it must pass before training, and the oracle's single, pairwise, event, Monte Carlo and edge runs |
 | Predict (Step 3) | `run_predict_walkthrough.py` | Closed-form references term by term, HGT-QoS across five seeds, the dual engine, the cold-start fallback, and each ranking against simulated I\* |
 | Diagnose (Step 4) | `run_diagnose_walkthrough.py` | FT, A and M as weighted terms, the roll-up to R and Q(v), the level fences and the generated explanation |
 | Triage | `run_triage_walkthrough.py` | The Triage Bridge with a trained ranking and in cold start, then one change followed through the pull-request note, the delta-aware gate and a targeted simulation |
@@ -213,6 +216,9 @@ Six scripts each take one workflow apart on a small system and build an interact
 | Before and after deployment | `run_deployment_walkthrough.py` | Placement planning with held-out verification, then the chosen placement run on the in-process testbed, calibrated and compared with simulation |
 
 ```bash
+python examples/run_model_walkthrough.py
+python examples/run_analyze_walkthrough.py
+python examples/run_simulate_walkthrough.py
 python examples/run_predict_walkthrough.py
 python examples/run_diagnose_walkthrough.py
 python examples/run_triage_walkthrough.py
@@ -223,8 +229,13 @@ python examples/run_deployment_walkthrough.py
 
 All use `mini_atm.json` except the prescribe walkthrough, which uses `data/scenarios/atm_system_tiny.json` because mini-ATM triggers too few patterns. None needs Neo4j or Docker. The predict walkthrough needs the HGT-QoS checkpoints in the ignored `output/realworld_zeroshot/hgl_qos`; the triage walkthrough uses one of them when present and otherwise shows the cold-start bridge only. The deployment walkthrough runs a 24-second testbed in local mode and keeps its run in the ignored `output/deployment_walkthrough/`.
 
+The Simulate walkthrough covers simulation as a workflow; `run_simulator_walkthrough.py` (above) shows what each engine does inside a single failure.
+
 What the runs surfaced, beyond the mechanics:
 
+- **Model.** The script recomputes every topic weight, component weight and edge weight with the public helpers in `saag/core/models.py` and stops if any differs from the repository; all match. 28 declared relationships yield 26 dependencies through 5 of the 7 rules; mini-ATM has no co-hosted brokers and no network devices.
+- **Analyze.** Each component gets 38 numeric fields, of which 27 vary on mini-ATM and 19 feed the quality score. PageRank, reverse PageRank and betweenness are the dependency-weighted variants, not the textbook ones: computed unweighted they differ by up to 0.019. Display is flagged as a directed cut vertex while its continuous cut-vertex score is 0.0, as is every component's.
+- **Simulate.** The label checks refuse 4 of 5 artifacts offered (wrong topology, wrong labeler, missing label, retest ρ below 0.70). On mini-ATM the propagation threshold barely moves the labels (at most 0.017), while 30 of 45 failure pairs do more damage than the worse member alone.
 - **Predict.** On mini-ATM, Reach orders the applications exactly as the simulator does; HGT-QoS correlates at 0.81 and RM Q(v) at −0.32 with I\*. Six applications are too few to read as accuracy.
 - **Diagnose.** The shipped level fence is Q3 + 0.75 × IQR (`QualityAnalyzer(k_factor=0.75)`), while `docs/diagnosis.md` and `docs/structural-analysis.md` state 1.5 × IQR. With 1.5 nothing on mini-ATM would be rated critical.
 - **Triage.** A one-topic change that closes a feedback loop is caught at every tier: the references flag the new publisher, the delta-aware gate blocks on three new findings while ignoring six pre-existing ones, and targeted simulation shows four of six applications becoming more critical, one of them untouched by the change.
