@@ -1,0 +1,377 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Simulate Walkthrough</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: two jobs of simulation in turn. Labels: artifact, options, safety checks. Oracle: its run modes. */
+
+:root {
+  --bg: #f2f5f7; --surface: #ffffff; --ink: #16212b; --muted: #5a6877; --line: #cbd4dc; --line-soft: #e3e8ed;
+  --accent: #0b6a94; --accent-soft: #d9ebf3;
+  --fail: #bf3b2b; --fail-soft: #f9ddd7;
+  --ok: #2b7a4b; --ok-soft: #dcefe3;
+  --warn: #9a6a12; --warn-soft: #f7e8c6;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c;
+  --ok: #63c08a; --ok-soft: #173826;
+  --warn: #e3b550; --warn-soft: #43350f; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c;
+  --ok: #63c08a; --ok-soft: #173826;
+  --warn: #e3b550; --warn-soft: #43350f; color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 46px; }
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: 2.3rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.55rem; font-weight: 600; }
+p { margin: 0; max-width: 70ch; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+.lede { font-size: 1.05rem; color: var(--muted); margin-top: 10px; }
+.eyebrow, .cap { font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.eyebrow { color: var(--accent); margin-bottom: 6px; } .cap { color: var(--muted); font-weight: 600; }
+section { display: flex; flex-direction: column; gap: 16px; }
+.sec-head { display: flex; flex-direction: column; gap: 8px; }
+.sec-head p, .note { color: var(--muted); } .note { font-size: 0.9rem; }
+.sec-head p b, .note b, li b { color: var(--ink); font-weight: 600; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.pad { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.scroll { overflow-x: auto; }
+.two { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.half { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+@media (max-width: 900px) { .two, .half, .three { grid-template-columns: minmax(0, 1fr); } }
+ul.plain { margin: 0; padding-left: 1.15em; display: flex; flex-direction: column; gap: 8px; max-width: 78ch; color: var(--muted); }
+.fig svg { display: block; width: 100%; min-width: 600px; height: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+th { font: 600 0.7rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num, td.h { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+td.c, th.c { text-align: center; }
+td.wrapcell { white-space: normal; min-width: 15em; }
+tbody tr.pick { cursor: pointer; } tbody tr.pick:hover td { background: var(--line-soft); } tbody tr.on td { background: var(--accent-soft); }
+.pill { display: inline-block; font: 600 0.68rem var(--mono); letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.pill.critical { background: var(--fail); border-color: var(--fail); color: var(--surface); }
+.pill.high, .pill.no { background: var(--fail-soft); border-color: var(--fail); color: var(--fail); }
+.pill.medium, .pill.warn { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.pill.ok { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.pill.accent { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.bar { display: grid; grid-template-columns: 3.4em minmax(40px, 1fr); gap: 8px; align-items: center; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.track { height: 9px; background: var(--line-soft); border-radius: 2px; overflow: hidden; }
+.fill { height: 100%; background: var(--accent); display: block; } .fill.f { background: var(--fail); }
+.card { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.card .rk { font: 600 0.74rem var(--mono); color: var(--accent); letter-spacing: 0.05em; }
+.card .who { font: 600 1.05rem var(--display); }
+.card .join { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 2px; display: flex; flex-direction: column; gap: 5px; font-size: 0.86rem; color: var(--muted); }
+.score { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.score .val { font: 600 1.9rem var(--mono); line-height: 1; } .score .sub { font-size: 0.82rem; color: var(--muted); }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; color: var(--muted); align-items: center; }
+.key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ln { width: 22px; height: 0; border-top: 1.6px solid var(--muted); display: inline-block; } .ln.dash { border-top-style: dashed; } .ln.dot { border-top-style: dotted; }
+.sw { width: 12px; height: 12px; display: inline-block; border-radius: 2px; background: var(--accent); }
+.picker { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding-block: 10px; display: flex; gap: 14px; align-items: center; }
+.chips { display: flex; gap: 6px; overflow-x: auto; min-width: 0; padding-bottom: 2px; }
+.chip { font: 500 0.82rem var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; cursor: pointer; white-space: nowrap; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.formula { font-family: var(--mono); font-size: 0.86rem; background: var(--bg); border: 1px solid var(--line-soft); border-radius: 4px; padding: 8px 10px; overflow-x: auto; white-space: nowrap; }
+footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: 0.84rem; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+footer p { max-width: 92ch; }
+
+svg text { font-family: var(--body); fill: var(--ink); }
+.n rect, .n polygon { fill: var(--surface); stroke: var(--muted); stroke-width: 1.3; }
+.n.host > rect { fill: var(--bg); stroke: var(--line); stroke-dasharray: 5 3; }
+.n.lib rect { stroke-dasharray: 3 2; }
+.n.pickable { cursor: pointer; }
+.n.sel > rect, .n.sel > polygon { stroke: var(--accent); stroke-width: 2.6; }
+.n.hot > rect, .n.hot > polygon { fill: var(--fail-soft); stroke: var(--fail); stroke-width: 1.8; }
+.n.mark > rect, .n.mark > polygon { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.8; }
+.n.dim { opacity: 0.4; }
+.nm { font-size: 12px; font-weight: 600; text-anchor: middle; }
+.sb { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); text-anchor: middle; }
+.hl { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+.bdg rect { fill: var(--ink); } .bdg text { fill: var(--bg); font-family: var(--mono); font-size: 9.5px; font-weight: 600; text-anchor: middle; }
+.e { stroke: var(--muted); stroke-width: 1.2; fill: none; } .e.routes { stroke-dasharray: 5 4; } .e.uses { stroke-dasharray: 1.5 3.5; stroke-linecap: round; stroke-width: 1.6; }
+.ah { fill: var(--muted); }
+.link { stroke: var(--muted); stroke-width: 3; }
+.lbl { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+.axis { stroke: var(--line); } .grid { stroke: var(--line-soft); } .diag { stroke: var(--muted); stroke-dasharray: 4 3; }
+.pt { fill: var(--accent); fill-opacity: 0.6; stroke: var(--accent); }
+.ptl { font-family: var(--mono); font-size: 10px; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+
+.pickrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; font-size: 0.86rem; }
+.kv .k { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
+.kv .v { font-family: var(--mono); font-size: 0.8rem; overflow-wrap: anywhere; }
+.verdict { display: grid; grid-template-columns: 6.5em minmax(0, 1fr); gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line-soft); align-items: start; }
+.verdict:last-child { border-bottom: 0; }
+.verdict .msg { font: 400 0.78rem var(--mono); color: var(--muted); overflow-wrap: anywhere; margin-top: 3px; }
+.hbar { fill: var(--accent); opacity: 0.8; }
+.mark { stroke: var(--fail); stroke-width: 1.6; } .marktxt { font-family: var(--mono); font-size: 10px; fill: var(--fail); }
+.divider { border-top: 2px solid var(--ink); padding-top: 18px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">software-as-a-graph · step 5 · simulate</div>
+    <h1>Simulate Walkthrough</h1>
+    <p class="lede">Simulation fails components on the declared architecture and measures the damage. It does two separate jobs: it writes the labels a predictor is trained on, and it acts as the referee a prediction is validated against. Different engines do each job, and they are never swapped. This page follows both jobs on a 15-component air-traffic system.</p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Job 1 · labels · 1 · the artifact</div>
+      <h2 id="s1-title"></h2>
+      <p>The fault injector fails each labelled component in turn, over five seeds, and records how much of their input the subscribers lose. What it writes is not just a score per component: the file carries enough provenance to be checked before anyone trains on it.</p>
+    </div>
+    <div class="two">
+      <div class="box scroll"><table id="labels"></table></div>
+      <div class="box pad"><span class="cap">What the artifact records about itself</span><div class="kv" id="header"></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Job 1 · labels · 2 · the options</div>
+      <h2>Three settings change what a label means</h2>
+      <p>The published labels use one fixed configuration. The other settings exist for sensitivity studies and ablations, and a label made with them is a different quantity. Pick a setting to see how the labels move.</p>
+    </div>
+    <div class="pickrow"><span class="cap">Setting</span><div class="chips" id="opt-chips"></div></div>
+    <div class="two">
+      <div class="box scroll"><table id="opt"></table></div>
+      <div class="box pad" id="opt-side"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Job 1 · labels · 3 · before training</div>
+      <h2 id="s3-title"></h2>
+      <p>A label file that looks fine can still be wrong for the job: measured on another topology, written by the other engine, missing the label asked for, or too noisy to reproduce. The prediction step runs these checks and refuses to train rather than warn. Here the same checks are offered one good artifact and four bad ones.</p>
+    </div>
+    <div class="box" id="safety"></div>
+  </section>
+
+  <section class="divider">
+    <div class="sec-head">
+      <div class="eyebrow">Job 2 · referee · 4 · one at a time</div>
+      <h2>The validation oracle fails every application, broker and host</h2>
+      <p>The failure simulator scores each failure as system-wide loss: severed paths, fragmentation, lost throughput and broken flows. This is the number Q(v) is validated against.</p>
+    </div>
+    <div class="two">
+      <div class="box scroll"><table id="single"></table></div>
+      <div class="box pad" id="single-side"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Job 2 · referee · 5 · together</div>
+      <h2>Failures that happen together</h2>
+      <p>Real outages are rarely one component. The oracle can fail every pair, or named groups that share a cause.</p>
+    </div>
+    <div class="two">
+      <div class="box fig scroll"><svg id="pairs" viewBox="0 0 560 420" role="img" aria-label="Impact of every pair of failures"></svg></div>
+      <div class="box pad" id="pairs-side"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Job 2 · referee · 6 · uncertainty and links</div>
+      <h2>Repeated trials, and the cost of losing a single link</h2>
+      <p>When cascades are probabilistic, repeated trials give a distribution instead of a number. Removing one relationship while both ends stay up measures what that link carries.</p>
+    </div>
+    <div class="two">
+      <div class="box fig"><svg id="mc" viewBox="0 0 520 230" role="img" aria-label="Monte Carlo distribution of impact"></svg><div class="pad" id="mc-side" style="padding-top:0"></div></div>
+      <div class="box scroll"><table id="edges"></table></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Reading the result</div>
+      <h2>What the two jobs show</h2>
+    </div>
+    <ul class="plain" id="take"></ul>
+  </section>
+
+  <footer>
+    <p><b>How this was produced.</b> <code>python examples/run_simulate_walkthrough.py</code> on <code>examples/mini_atm.json</code>: <code>FaultInjector</code> with five seeds and each option shown, the checks in <code>saag/prediction/label_artifacts.py</code>, and <code>SimulationService</code>'s exhaustive, pairwise, named-event and Monte Carlo runs plus <code>FailureSimulator.simulate_edge_removal_sweep</code>. For what each engine does inside a single failure, see the Mini-ATM Failure Lab.</p>
+    <p>The bad artifacts in step 3 are made by editing the genuine one, or by pointing it at the corpus file <code>atm_system_tiny.json</code>.</p>
+  </footer>
+</div>
+
+<script>
+const D = {"label":{"header":{"labeler":"FaultInjector","schema_version":"2.2","graph_id":"mini_atm","topology_fingerprint":"08cb458e8f485650","seeds_used":[42,123,456,789,2024],"labeled_node_types":["Application","Broker","Library"],"unlabeled_node_ids":["N1","N2","T1","T2","T3","T4"],"degenerate_node_types":[],"label_stability":{"n_seeds":5,"k_frac":0.2,"n_nodes":9,"mean_std":0.0,"max_std":0.0,"test_retest_spearman":1.0,"topk_jaccard":1.0}},"canonical":{"A1":{"score":0.8333,"std":0.0},"A2":{"score":0.5,"std":0.0},"A3":{"score":0.0833,"std":0.0},"A4":{"score":0.1667,"std":0.0},"A5":{"score":0.0,"std":0.0},"A6":{"score":0.0,"std":0.0},"B1":{"score":0.8333,"std":0.0},"B2":{"score":0.5375,"std":0.0},"L1":{"score":0.5,"std":0.0}},"threshold":{"0.1":{"A1":{"score":0.8333,"std":0.0},"A2":{"score":0.5,"std":0.0},"A3":{"score":0.0833,"std":0.0},"A4":{"score":0.1667,"std":0.0},"A5":{"score":0.0,"std":0.0},"A6":{"score":0.0,"std":0.0},"B1":{"score":0.8333,"std":0.0},"B2":{"score":0.5375,"std":0.0},"L1":{"score":0.5,"std":0.0}},"0.2":{"A1":{"score":0.8333,"std":0.0},"A2":{"score":0.5,"std":0.0},"A3":{"score":0.0833,"std":0.0},"A4":{"score":0.1667,"std":0.0},"A5":{"score":0.0,"std":0.0},"A6":{"score":0.0,"std":0.0},"B1":{"score":0.8333,"std":0.0},"B2":{"score":0.5375,"std":0.0},"L1":{"score":0.5,"std":0.0}},"0.5":{"A1":{"score":0.8167,"std":0.0373},"A2":{"score":0.5,"std":0.0},"A3":{"score":0.0833,"std":0.0},"A4":{"score":0.1667,"std":0.0},"A5":{"score":0.0,"std":0.0},"A6":{"score":0.0,"std":0.0},"B1":{"score":0.8333,"std":0.0},"B2":{"score":0.5375,"std":0.0},"L1":{"score":0.5,"std":0.0}},"1.0":{"A1":{"score":0.8167,"std":0.0373},"A2":{"score":0.5,"std":0.0},"A3":{"score":0.0833,"std":0.0},"A4":{"score":0.1667,"std":0.0},"A5":{"score":0.0,"std":0.0},"A6":{"score":0.0,"std":0.0},"B1":{"score":0.8167,"std":0.0373},"B2":{"score":0.5375,"std":0.0},"L1":{"score":0.5,"std":0.0}}},"qos":{"ladder":{"A1":{"score":0.8333,"std":0.0},"A2":{"score":0.5,"std":0.0},"A3":{"score":0.0833,"std":0.0},"A4":{"score":0.1667,"std":0.0},"A5":{"score":0.0,"std":0.0},"A6":{"score":0.0,"std":0.0},"B1":{"score":0.8333,"std":0.0},"B2":{"score":0.5375,"std":0.0},"L1":{"score":0.5,"std":0.0}},"wt":{"A1":{"score":0.7727,"std":0.0},"A2":{"score":0.5,"std":0.0},"A3":{"score":0.0833,"std":0.0},"A4":{"score":0.1667,"std":0.0},"A5":{"score":0.0,"std":0.0},"A6":{"score":0.0,"std":0.0},"B1":{"score":0.7727,"std":0.0},"B2":{"score":0.4668,"std":0.0},"L1":{"score":0.5,"std":0.0}},"none":{"A1":{"score":0.8333,"std":0.0},"A2":{"score":0.5,"std":0.0},"A3":{"score":0.0833,"std":0.0},"A4":{"score":0.1667,"std":0.0},"A5":{"score":0.0,"std":0.0},"A6":{"score":0.0,"std":0.0},"B1":{"score":0.8333,"std":0.0},"B2":{"score":0.4583,"std":0.0},"L1":{"score":0.5,"std":0.0}}},"cdf":{"labels":{"A1":{"score":0.8167,"std":0.0373,"seeds":{"42":0.75,"123":0.8333,"456":0.8333,"789":0.8333,"2024":0.8333}},"A2":{"score":0.5,"std":0.0,"seeds":{"42":0.5,"123":0.5,"456":0.5,"789":0.5,"2024":0.5}},"A3":{"score":0.0833,"std":0.0,"seeds":{"42":0.0833,"123":0.0833,"456":0.0833,"789":0.0833,"2024":0.0833}},"A4":{"score":0.1667,"std":0.0,"seeds":{"42":0.1667,"123":0.1667,"456":0.1667,"789":0.1667,"2024":0.1667}},"A5":{"score":0.0,"std":0.0,"seeds":{"42":0.0,"123":0.0,"456":0.0,"789":0.0,"2024":0.0}},"A6":{"score":0.0,"std":0.0,"seeds":{"42":0.0,"123":0.0,"456":0.0,"789":0.0,"2024":0.0}},"B1":{"score":0.8333,"std":0.0,"seeds":{"42":0.8333,"123":0.8333,"456":0.8333,"789":0.8333,"2024":0.8333}},"B2":{"score":0.5375,"std":0.0,"seeds":{"42":0.5375,"123":0.5375,"456":0.5375,"789":0.5375,"2024":0.5375}},"L1":{"score":0.5,"std":0.0,"seeds":{"42":0.5,"123":0.5,"456":0.5,"789":0.5,"2024":0.5}}},"stability":{"n_seeds":5,"k_frac":0.2,"n_nodes":9,"mean_std":0.004141,"max_std":0.037268,"test_retest_spearman":0.995754,"topk_jaccard":1.0}}},"safety":[{"case":"The artifact as written, on the topology it was measured on","accepted":true,"message":""},{"case":"The same artifact offered for a different topology","accepted":false,"message":"Labels were measured on topology 08cb458e8f485650 (graph_id 'mini_atm'), but this topology is 67ac758d880dea79. Re-run the labeler on this topology."},{"case":"An artifact written by the Validate-stage oracle","accepted":false,"message":"'FailureSimulator' is not a Predict-stage labeler."},{"case":"A label the artifact does not carry","accepted":false,"message":"FaultInjector artifacts carry only 'impact_score', not 'i_flow'."},{"case":"Labels that agree with themselves at rho = 0.41 across seeds","accepted":false,"message":"Label 'impact_score' agrees with itself across seeds at only rho = 0.410, below the minimum of 0.70. Use longer runs or more seeds, or pass --allow-unstable-labels."}],"oracle":{"single":{"N1":0.7462,"N2":0.7105,"A2":0.316,"A5":0.2961,"B2":0.2711,"A4":0.271,"A3":0.2069,"A6":0.1775,"B1":0.0653,"A1":0.0532},"pairs":{"N1+N2":0.7462,"N1+B1":0.7462,"N1+B2":0.7462,"N1+A1":0.7462,"N1+A2":0.7462,"N1+A3":0.7462,"N1+A4":0.7462,"N1+A5":0.7462,"N1+A6":0.7462,"N2+A1":0.7462,"N2+A2":0.7462,"N2+B1":0.7339,"N2+B2":0.7105,"N2+A3":0.7105,"N2+A4":0.7105,"N2+A5":0.7105,"N2+A6":0.7105,"A2+A4":0.5744,"A5+A6":0.5662,"B2+A2":0.5504,"A2+A5":0.5287,"A3+A4":0.4779,"A4+A5":0.4779,"B2+A5":0.4518,"A2+A6":0.4409,"A2+A3":0.4396,"B2+A6":0.4223,"B1+B2":0.399,"B2+A4":0.3968,"B2+A3":0.389,"A3+A6":0.3844,"A3+A5":0.3669,"B1+A5":0.3614,"A4+A6":0.3593,"A1+A2":0.3517,"A1+A5":0.3493,"B1+A4":0.3363,"B1+A2":0.3268,"B2+A1":0.3243,"A1+A4":0.3242,"B1+A3":0.2722,"A1+A3":0.2601,"B1+A6":0.2376,"A1+A6":0.2131,"B1+A1":0.09},"events":{"both brokers":0.399,"both consumers":0.5662,"sensor side":0.3517},"event_members":{"both brokers":["B1","B2"],"sensor side":["A1","A2"],"both consumers":["A5","A6"]},"monte_carlo":{"target":"A2","cascade_probability":0.5,"n_trials":300,"mean":0.3082,"std":0.0061,"ci":[0.3034,0.316],"hist":[186,0,0,0,0,0,0,0,0,0,0,0,0,0,0,114],"edges":[0.3034,0.3042,0.305,0.3058,0.3066,0.3074,0.3082,0.309,0.3097,0.3105,0.3113,0.3121,0.3129,0.3137,0.3145,0.3152,0.316],"deterministic":0.316},"edge_criticality":[{"source":"A2","target":"T2","relationship":"PUBLISHES_TO","impact":0.2233,"level":"medium","evaluated":true},{"source":"A4","target":"T4","relationship":"PUBLISHES_TO","impact":0.2184,"level":"medium","evaluated":true},{"source":"A3","target":"T3","relationship":"PUBLISHES_TO","impact":0.1164,"level":"medium","evaluated":true},{"source":"A5","target":"T3","relationship":"SUBSCRIBES_TO","impact":0.1164,"level":"medium","evaluated":true},{"source":"B2","target":"T4","relationship":"ROUTES","impact":0.0927,"level":"low","evaluated":true},{"source":"B2","target":"T3","relationship":"ROUTES","impact":0.0694,"level":"low","evaluated":true},{"source":"A5","target":"T4","relationship":"SUBSCRIBES_TO","impact":0.0629,"level":"low","evaluated":true},{"source":"A6","target":"T4","relationship":"SUBSCRIBES_TO","impact":0.0629,"level":"low","evaluated":true},{"source":"A3","target":"T2","relationship":"SUBSCRIBES_TO","impact":0.0499,"level":"low","evaluated":true},{"source":"A5","target":"T2","relationship":"SUBSCRIBES_TO","impact":0.0499,"level":"low","evaluated":true},{"source":"A6","target":"T2","relationship":"SUBSCRIBES_TO","impact":0.0499,"level":"low","evaluated":true},{"source":"A1","target":"T1","relationship":"PUBLISHES_TO","impact":0.0429,"level":"low","evaluated":true},{"source":"B1","target":"T2","relationship":"ROUTES","impact":0.0368,"level":"low","evaluated":true},{"source":"B2","target":"T2","relationship":"ROUTES","impact":0.0368,"level":"low","evaluated":true},{"source":"B1","target":"T1","relationship":"ROUTES","impact":0.0182,"level":"low","evaluated":true},{"source":"A2","target":"T1","relationship":"SUBSCRIBES_TO","impact":0.0123,"level":"low","evaluated":true},{"source":"A6","target":"T1","relationship":"SUBSCRIBES_TO","impact":0.0123,"level":"low","evaluated":true},{"source":"A1","target":"N1","relationship":"RUNS_ON","impact":0.0,"level":"minimal","evaluated":true},{"source":"A2","target":"L1","relationship":"USES","impact":0.0,"level":"minimal","evaluated":true},{"source":"A2","target":"N1","relationship":"RUNS_ON","impact":0.0,"level":"minimal","evaluated":true},{"source":"A3","target":"L1","relationship":"USES","impact":0.0,"level":"minimal","evaluated":true},{"source":"A3","target":"N2","relationship":"RUNS_ON","impact":0.0,"level":"minimal","evaluated":true},{"source":"A4","target":"N2","relationship":"RUNS_ON","impact":0.0,"level":"minimal","evaluated":true},{"source":"A5","target":"N2","relationship":"RUNS_ON","impact":0.0,"level":"minimal","evaluated":true},{"source":"A6","target":"N2","relationship":"RUNS_ON","impact":0.0,"level":"minimal","evaluated":true},{"source":"B1","target":"N1","relationship":"RUNS_ON","impact":0.0,"level":"minimal","evaluated":true},{"source":"B2","target":"N2","relationship":"RUNS_ON","impact":0.0,"level":"minimal","evaluated":true},{"source":"N1","target":"N2","relationship":"CONNECTS_TO","impact":0.0,"level":"minimal","evaluated":true}]},"min_retest":0.7,"thresholds":[0.1,0.2,0.5,1.0]};
+
+const NS = 'http://www.w3.org/2000/svg';
+const NAME = { A1: 'radar', A2: 'tracker', A3: 'conflict-detector', A4: 'flight-plan', A5: 'display', A6: 'recorder', B1: 'sensor-broker', B2: 'ops-broker', T1: 'radar.plots', T2: 'tracks', T3: 'conflict.alerts', T4: 'flight.plans', N1: 'sensor-host', N2: 'ops-host', L1: 'track-model' };
+const ORDER = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'L1', 'B1', 'B2', 'N1', 'N2', 'T1', 'T2', 'T3', 'T4'];
+const f2 = v => v == null ? '–' : v.toFixed(2), f3 = v => v == null ? '–' : v.toFixed(3), f4 = v => v == null ? '–' : v.toFixed(4);
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const who = id => `<span class="mono">${esc(id)}</span> ${esc(NAME[id] || '')}`;
+const sum = a => a.reduce((x, y) => x + y, 0);
+function el(tag, attrs, parent, text) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; }
+const heat = (v, max) => `background: color-mix(in srgb, var(--accent) ${Math.round(Math.max(0, Math.min(1, max ? v / max : 0)) * 55)}%, transparent)`;
+const bar = (v, max, cls) => `<span class="bar"><span>${f3(v)}</span><span class="track"><span class="fill ${cls || ''}" style="width:${Math.max(0, Math.min(1, max ? v / max : 0)) * 100}%"></span></span></span>`;
+const LEVEL = { critical: 'critical', high: 'high', medium: 'medium' };
+const level = l => `<span class="pill ${LEVEL[String(l).toLowerCase()] || ''}">${esc(String(l).toLowerCase())}</span>`;
+const verdict = (ok, yes, no) => ok == null ? '<span class="pill">not measured</span>' : `<span class="pill ${ok ? 'ok' : 'no'}">${ok ? (yes || 'pass') : (no || 'fail')}</span>`;
+
+/* The mini-ATM raw structural graph. state: {id: 'sel' | 'hot' | 'mark' | 'dim'}, badges: {id: text}, sub: {id: text}. */
+const MINI = {
+  B1: { t: 'Broker', x: 210, y: 46, w: 110, h: 36 }, B2: { t: 'Broker', x: 490, y: 46, w: 110, h: 36 },
+  T1: { t: 'Topic', x: 130, y: 150, w: 100, h: 36 }, T2: { t: 'Topic', x: 290, y: 150, w: 100, h: 36 }, T3: { t: 'Topic', x: 530, y: 150, w: 100, h: 36 }, T4: { t: 'Topic', x: 650, y: 150, w: 100, h: 36 },
+  A1: { t: 'Application', x: 68, y: 282, w: 100, h: 38 }, A2: { t: 'Application', x: 193, y: 282, w: 100, h: 38 }, A6: { t: 'Application', x: 350, y: 282, w: 100, h: 38 },
+  A3: { t: 'Application', x: 470, y: 282, w: 106, h: 38 }, A5: { t: 'Application', x: 590, y: 282, w: 100, h: 38 }, A4: { t: 'Application', x: 710, y: 282, w: 100, h: 38 },
+  L1: { t: 'Library', x: 330, y: 388, w: 100, h: 36 },
+};
+const MINI_HOST = { N1: { x: 8, y: 248, w: 242, h: 92 }, N2: { x: 288, y: 248, w: 484, h: 92 } };
+const MINI_EDGES = [['A1', 'T1', 'flow'], ['A2', 'T2', 'flow'], ['A3', 'T3', 'flow'], ['A4', 'T4', 'flow'], ['T1', 'A2', 'flow'], ['T2', 'A3', 'flow'], ['T2', 'A5', 'flow'], ['T3', 'A5', 'flow'], ['T4', 'A5', 'flow'], ['T1', 'A6', 'flow'], ['T2', 'A6', 'flow'], ['T4', 'A6', 'flow'],
+  ['B1', 'T1', 'routes'], ['B1', 'T2', 'routes'], ['B2', 'T2', 'routes'], ['B2', 'T3', 'routes'], ['B2', 'T4', 'routes'], ['A2', 'L1', 'uses'], ['A3', 'L1', 'uses']];
+function drawMiniAtm(svg, opts = {}) {
+  const { state = {}, badges = {}, sub = {}, pickable = false } = opts;
+  svg.textContent = ''; svg.setAttribute('viewBox', '0 0 780 420');
+  const badge = (g, x, y, text) => { const w = String(text).length * 6.2 + 9, b = el('g', { class: 'bdg' }, g); el('rect', { x: x - w, y: y - 8, width: w, height: 15, rx: 3 }, b); el('text', { x: x - w / 2, y: y + 3.4 }, b, text); };
+  for (const h in MINI_HOST) {
+    const b = MINI_HOST[h], g = el('g', { class: `n host ${state[h] || ''} ${pickable ? 'pickable' : ''}`, 'data-id': h }, svg);
+    el('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 6 }, g);
+    el('text', { class: 'hl', x: h === 'N2' ? b.x + b.w - 10 : b.x + 10, y: b.y + b.h - 9, 'text-anchor': h === 'N2' ? 'end' : 'start' }, g, `${h} · ${NAME[h]}${sub[h] ? ' · ' + sub[h] : ''}`);
+    if (badges[h]) badge(g, b.x + b.w - 4, b.y + 2, badges[h]);
+  }
+  el('line', { class: 'link', x1: 250, y1: 294, x2: 288, y2: 294 }, svg);
+  const clip = (a, b, pad) => { const dx = b.x - a.x, dy = b.y - a.y, k = Math.min(dx ? (a.w / 2 + pad) / Math.abs(dx) : Infinity, dy ? (a.h / 2 + pad) / Math.abs(dy) : Infinity); return { x: a.x + dx * k, y: a.y + dy * k }; };
+  for (const [u, v, kind] of MINI_EDGES) {
+    const p1 = clip(MINI[u], MINI[v], 1), p2 = clip(MINI[v], MINI[u], kind === 'flow' ? 3 : 1);
+    el('line', { class: 'e ' + (kind === 'flow' ? '' : kind), x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }, svg);
+    if (kind === 'flow') { const a = Math.atan2(p2.y - p1.y, p2.x - p1.x), z = 7, w = 0.42; el('polygon', { class: 'ah', points: `${p2.x},${p2.y} ${p2.x - z * Math.cos(a - w)},${p2.y - z * Math.sin(a - w)} ${p2.x - z * Math.cos(a + w)},${p2.y - z * Math.sin(a + w)}` }, svg); }
+  }
+  for (const id in MINI) {
+    const n = MINI[id], g = el('g', { class: `n ${n.t === 'Library' ? 'lib' : ''} ${state[id] || ''} ${pickable ? 'pickable' : ''}`, 'data-id': id }, svg), x = n.x - n.w / 2, y = n.y - n.h / 2;
+    if (n.t === 'Broker') { const c = 9; el('polygon', { points: [[x + c, y], [x + n.w - c, y], [x + n.w, y + c], [x + n.w, y + n.h - c], [x + n.w - c, y + n.h], [x + c, y + n.h], [x, y + n.h - c], [x, y + c]].map(p => p.join(',')).join(' ') }, g); }
+    else el('rect', { x, y, width: n.w, height: n.h, rx: n.t === 'Topic' ? n.h / 2 : 5 }, g);
+    el('text', { class: 'nm', x: n.x, y: n.y - 1 }, g, NAME[id]); el('text', { class: 'sb', x: n.x, y: n.y + 11.5 }, g, sub[id] ? `${id} · ${sub[id]}` : id);
+    if (badges[id]) badge(g, n.x + n.w / 2 + 5, y - 1, badges[id]);
+  }
+}
+
+const L = D.label, O = D.oracle, H = L.header, IDS = ORDER.filter(i => L.canonical[i]);
+let opt = 'threshold';
+
+(function artifact() {
+  document.getElementById('s1-title').textContent = `${IDS.length} components labelled, ${H.unlabeled_node_ids.length} deliberately left out`;
+  document.getElementById('labels').innerHTML = `<thead><tr><th>Component failed</th><th>Cascade impact I*</th><th class="num">Spread over ${H.seeds_used.length} seeds</th></tr></thead><tbody>` +
+    [...IDS].sort((a, b) => L.canonical[b].score - L.canonical[a].score).map(i => `<tr><td>${who(i)}</td><td>${bar(L.canonical[i].score, 1)}</td><td class="num">${f3(L.canonical[i].std)}</td></tr>`).join('') + '</tbody>';
+  const S = H.label_stability, row = (k, v) => `<span class="k">${k}</span><span class="v">${v}</span>`;
+  document.getElementById('header').innerHTML = row('labeler', esc(H.labeler)) + row('schema', esc(H.schema_version)) + row('graph', esc(H.graph_id)) + row('topology fingerprint', esc(H.topology_fingerprint)) +
+    row('seeds', H.seeds_used.join(', ')) + row('labelled types', H.labeled_node_types.join(', ')) + row('not labelled', H.unlabeled_node_ids.join(', ')) +
+    row('retest ρ', `${f3(S.test_retest_spearman)} (worst agreement between any two seeds)`) + row('largest seed spread', f3(S.max_std)) + row('types scored all zero', H.degenerate_node_types.join(', ') || 'none') +
+    `<span></span><span class="note" style="font-family:var(--body);font-size:0.84rem">Hosts and topics are listed as not labelled, never written as zero: a component nobody measured must not look like one measured to be harmless.</span>`;
+})();
+
+function renderOpt() {
+  const OPTS = { threshold: 'Propagation threshold', qos: 'QoS factor', cdf: 'Failure model' };
+  document.getElementById('opt-chips').innerHTML = Object.keys(OPTS).map(k => `<button class="chip" data-opt="${k}" aria-pressed="${k === opt}">${OPTS[k]}</button>`).join('');
+  let cols, side;
+  if (opt === 'threshold') {
+    const keys = Object.keys(L.threshold), pub = keys.find(k => Number(k) === 0.2), last = keys[keys.length - 1];
+    const moved = IDS.filter(i => keys.some(k => Math.abs(L.threshold[k][i].score - L.threshold[pub][i].score) > 1e-3));
+    cols = keys.map(k => [`θ = ${k}`, L.threshold[k], k === pub]);
+    side = `<span class="cap">Propagation threshold θ</span><p class="note">A subscriber may fail once it has lost this share of its input. The published value is 0.2; 1.0 means "fail only when starved".</p><p class="note"><b>On this system it barely matters.</b> Only ${moved.map(i => NAME[i]).join(' and ')} move, by at most ${Math.max(...moved.map(i => Math.max(...keys.map(k => Math.abs(L.threshold[k][i].score - L.threshold[pub][i].score))))).toFixed(3)}, because most subscribers here lose either nothing or everything. The documentation reports far bigger effects on larger systems.</p>`;
+  } else if (opt === 'qos') {
+    cols = Object.keys(L.qos).map(m => [m === 'ladder' ? 'ladder (published)' : m === 'wt' ? 'topic weight' : 'none', L.qos[m], m === 'ladder']);
+    side = `<span class="cap">QoS factor</span><p class="note">How a topic's delivery contract scales its feed loss. The published "ladder" boosts reliable and high-priority topics; "topic weight" uses w(t) from Step 1; "none" ignores QoS entirely and is the topology-only arm of the label ablation.</p><p class="note"><b>The ops-broker moves most:</b> ${f3(L.qos.ladder.B2.score)} with the ladder, ${f3(L.qos.wt.B2.score)} with the topic weight, ${f3(L.qos.none.B2.score)} with none. It is one of two routers for tracks, so its label depends on how a partial loss on a reliable topic is valued.</p>`;
+  } else {
+    cols = [['step (published)', L.canonical, true], ['threshold distribution', L.cdf.labels, false]];
+    const c = L.cdf.labels.A1;
+    side = `<span class="cap">Failure model</span><p class="note">The published model is a step: past θ a subscriber fails with a fixed probability. The alternative gives each subscriber its own tolerance, drawn between 0.1 and 0.5, so the seeds now disagree where a tolerance matters.</p><p class="note"><b>Radar's label becomes uncertain:</b> per seed it is ${Object.values(c.seeds).map(v => f2(v)).join(', ')}. The retest ρ drops to ${f3(L.cdf.stability.test_retest_spearman)}, still above the ${D.min_retest} the trainer requires.</p>`;
+  }
+  document.getElementById('opt').innerHTML = `<thead><tr><th>Component</th>${cols.map(([h, , pub]) => `<th class="num" style="${pub ? 'color:var(--accent)' : ''}">${h}</th>`).join('')}</tr></thead><tbody>` +
+    IDS.map(i => `<tr><td>${who(i)}</td>${cols.map(([, v, pub]) => { const base = cols.find(c => c[2])[1][i].score, x = v[i].score, moved = Math.abs(x - base) > 1e-3; return `<td class="h" style="${heat(x, 1)};${moved ? 'font-weight:600;color:var(--fail)' : ''}">${f3(x)}${v[i].std ? `<span style="color:var(--muted);font-weight:400"> ±${f2(v[i].std)}</span>` : ''}</td>`; }).join('')}</tr>`).join('') + '</tbody>';
+  document.getElementById('opt-side').innerHTML = side + `<p class="note">Values that differ from the published configuration are shown in red.</p>`;
+}
+
+(function safety() {
+  const S = D.safety, refused = S.filter(s => !s.accepted).length;
+  document.getElementById('s3-title').textContent = `${refused} of ${S.length} artifacts are refused, each with the reason`;
+  document.getElementById('safety').innerHTML = S.map(s => `<div class="verdict"><span class="pill ${s.accepted ? 'ok' : 'no'}">${s.accepted ? 'accepted' : 'refused'}</span><div><b style="font-weight:600">${esc(s.case)}</b>${s.message ? `<div class="msg">${esc(s.message)}</div>` : ''}</div></div>`).join('');
+})();
+
+(function single() {
+  const S = O.single, ids = Object.keys(S).sort((a, b) => S[b] - S[a]), both = ids.filter(i => L.canonical[i]);
+  document.getElementById('single').innerHTML = `<thead><tr><th>Component failed</th><th>System-wide loss I_comp</th><th>Cascade label I*</th></tr></thead><tbody>` +
+    ids.map(i => `<tr><td>${who(i)}</td><td>${bar(S[i], 1)}</td><td>${L.canonical[i] ? bar(L.canonical[i].score, 1) : '<span style="color:var(--muted)">not labelled</span>'}</td></tr>`).join('') + '</tbody>';
+  document.getElementById('single-side').innerHTML = `<span class="cap">Two engines, two answers</span>
+    <p class="note"><b>The hosts top the oracle's list</b> because a host failure takes everything on it down at once. The labeller does not label hosts at all in this configuration.</p>
+    <p class="note"><b>Radar is near the top of I* and at the bottom of I_comp.</b> Losing it starves everything downstream, which I* counts; but its only topic is best-effort and light, so the system-wide loss the oracle weighs by QoS is small.</p>
+    <p class="note">This is why each stage keeps its own engine. A predictor trained on I* and validated on I* would be graded on its own target; the codebase enforces the split with a test.</p>`;
+})();
+
+(function pairs() {
+  const P = O.pairs, S = O.single, ids = Object.keys(S).sort((a, b) => S[b] - S[a]), s = document.getElementById('pairs'), L0 = 92, T0 = 30, cell = 42;
+  s.setAttribute('viewBox', `0 0 ${L0 + cell * ids.length + 20} ${T0 + cell * ids.length + 20}`);
+  const get = (a, b) => P[a + '+' + b] ?? P[b + '+' + a];
+  ids.forEach((a, i) => {
+    el('text', { class: 'lbl', x: L0 - 6, y: T0 + i * cell + cell / 2 + 3, 'text-anchor': 'end' }, s, `${a} ${NAME[a].slice(0, 9)}`);
+    el('text', { class: 'lbl', x: L0 + i * cell + cell / 2, y: T0 - 8, 'text-anchor': 'middle' }, s, a);
+    ids.forEach((b, j) => {
+      const v = a === b ? S[a] : get(a, b), extra = a === b ? 0 : v - Math.max(S[a], S[b]);
+      const r = el('rect', { x: L0 + j * cell + 1, y: T0 + i * cell + 1, width: cell - 2, height: cell - 2, rx: 2, style: `fill: color-mix(in srgb, var(--accent) ${Math.round(v * 80)}%, var(--surface)); stroke: ${a === b ? 'var(--ink)' : extra > 0.02 ? 'var(--fail)' : 'none'}; stroke-width: ${a === b ? 1 : 2}` }, s);
+      el('title', {}, r, a === b ? `${a} alone: ${f3(v)}` : `${a} + ${b}: ${f3(v)} (worse of the two alone: ${f3(Math.max(S[a], S[b]))})`);
+      el('text', { class: 'lbl', x: L0 + j * cell + cell / 2, y: T0 + i * cell + cell / 2 + 3, 'text-anchor': 'middle', style: `fill: var(${v > 0.5 ? '--surface' : '--ink'}); font-size: 9.5px` }, s, v.toFixed(2));
+    });
+  });
+  const synergy = Object.entries(P).map(([k, v]) => { const [a, b] = k.split('+'); return [k, v, v - Math.max(S[a], S[b])]; }).sort((x, y) => y[2] - x[2]), top = synergy[0], E = O.events;
+  document.getElementById('pairs-side').innerHTML = `<span class="cap">Reading the grid</span>
+    <p class="note">The diagonal is each component alone. A red outline marks a pair that does more damage than the worse of its two members alone.</p>
+    <p class="note"><b>${synergy.filter(x => x[2] > 0.02).length} of ${synergy.length} pairs do more than the worse member alone.</b> Anything paired with ${NAME[ids[0]]} scores what it scores alone, because that host already takes the rest down. <b>The largest joint effect</b> is ${top[0].split('+').map(x => NAME[x]).join(' with ')}: ${f3(top[1])} together against ${f3(top[1] - top[2])} for the worse alone.</p>
+    <span class="cap">Named events</span>
+    <table><thead><tr><th>Event</th><th>Fails</th><th>Impact</th></tr></thead><tbody>${Object.keys(E).map(k => `<tr><td>${esc(k)}</td><td>${O.event_members[k].map(x => NAME[x]).join(', ')}</td><td>${bar(E[k], 1)}</td></tr>`).join('')}</tbody></table>
+    <p class="note">Losing both consumers together costs more than losing both brokers: six of the eight delivery paths end at one of the two.</p>`;
+})();
+
+(function mc() {
+  const M = O.monte_carlo, s = document.getElementById('mc'), Lx = 40, T = 20, W = 450, Hh = 140, max = Math.max(...M.hist), lo = M.edges[0], hi = M.edges[M.edges.length - 1], x = v => Lx + W * (v - lo) / (hi - lo || 1), bw = W / M.hist.length;
+  M.hist.forEach((n, i) => { if (n) el('rect', { class: 'hbar', x: Lx + i * bw + 1, y: T + Hh - Hh * n / max, width: bw - 2, height: Hh * n / max }, s); });
+  el('line', { class: 'axis', x1: Lx, x2: Lx + W, y1: T + Hh, y2: T + Hh }, s);
+  for (const v of [lo, (lo + hi) / 2, hi]) el('text', { class: 'lbl', x: x(v), y: T + Hh + 14, 'text-anchor': 'middle' }, s, v.toFixed(4));
+  el('text', { class: 'lbl', x: Lx + W / 2, y: T + Hh + 32, 'text-anchor': 'middle' }, s, `I_comp of ${NAME[M.target]} over ${M.n_trials} trials, cascade probability ${M.cascade_probability}`);
+  el('line', { class: 'mark', x1: x(M.mean), x2: x(M.mean), y1: T - 6, y2: T + Hh }, s); el('text', { class: 'marktxt', x: x(M.mean) + 4, y: T - 8 }, s, `mean ${f3(M.mean)}`);
+  const two = M.hist.filter(n => n).length === 2;
+  document.getElementById('mc-side').innerHTML = `<p class="note"><b>Mean ${f3(M.mean)}, 95% interval ${f3(M.ci[0])} to ${f3(M.ci[1])}.</b> ${two ? `Every trial landed on one of two values: the cascade either reached a second component or it did not.` : ''} The deterministic sweep, where every hop fires with its QoS weight as probability, gives ${f3(M.deterministic)}.</p>`;
+  const E = O.edge_criticality.filter(e => e.evaluated).sort((a, b) => b.impact - a.impact), max2 = Math.max(...E.map(e => e.impact));
+  document.getElementById('edges').innerHTML = `<thead><tr><th>Relationship removed</th><th>Type</th><th>Impact</th><th>Level</th></tr></thead><tbody>` +
+    E.slice(0, 10).map(e => `<tr><td>${esc(NAME[e.source] || e.source)} → ${esc(NAME[e.target] || e.target)}</td><td class="mono" style="font-size:0.74rem">${e.relationship}</td><td>${bar(e.impact, max2)}</td><td>${level(e.level)}</td></tr>`).join('') +
+    `<tr><td colspan="4" style="color:var(--muted);white-space:normal">Top 10 of ${E.length} relationships measured. Each is removed alone with no cascade: the question is what the link carries, not what fails after it.</td></tr></tbody>`;
+})();
+
+(function take() {
+  const S = D.safety, refused = S.filter(s => !s.accepted).length;
+  document.getElementById('take').innerHTML = [
+    `<b>Simulation writes evidence, not just numbers.</b> The label file records which engine wrote it, on which topology, with which seeds and how well those seeds agree.`,
+    `<b>Bad labels are refused, not warned about.</b> ${refused} of ${S.length} artifacts offered here were stopped by the same checks the training step runs, each with a reason a person can act on.`,
+    `<b>Unmeasured is kept apart from zero.</b> Hosts and topics are listed as not labelled instead of scoring 0.0, and the same rule holds in validation.`,
+    `<b>Options change the quantity, not just the value.</b> A label made with a different QoS factor or failure model is a different label. The published configuration is fixed for that reason.`,
+    `<b>The two engines disagree, on purpose.</b> The labeller counts cascade starvation, the oracle weighs system-wide loss by QoS. Keeping them apart is what lets validation be a real test.`,
+    `<b>Joint failures can be measured directly.</b> Pairwise and named-event runs answer questions a single-failure sweep cannot.`,
+  ].map(i => `<li>${i}</li>`).join('');
+})();
+
+document.addEventListener('click', e => { const t = e.target.closest('[data-opt]'); if (t) { opt = t.dataset.opt; renderOpt(); } });
+renderOpt();
+</script>

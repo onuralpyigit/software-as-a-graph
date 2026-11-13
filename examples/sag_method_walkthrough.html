@@ -1,0 +1,385 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>SaG Method Walkthrough</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: one pipeline map, then seven numbered stages, each a short claim, a figure and the stage's real output. */
+:root {
+  --bg: #f2f5f7; --surface: #ffffff; --ink: #16212b; --muted: #5a6877; --line: #cbd4dc; --line-soft: #e3e8ed;
+  --accent: #0b6a94; --accent-soft: #d9ebf3;
+  --fail: #bf3b2b; --fail-soft: #f9ddd7;
+  --ok: #2b7a4b; --ok-soft: #dcefe3;
+  --warn: #9a6a12; --warn-soft: #f7e8c6;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c;
+  --ok: #63c08a; --ok-soft: #173826;
+  --warn: #e3b550; --warn-soft: #43350f; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c;
+  --ok: #63c08a; --ok-soft: #173826;
+  --warn: #e3b550; --warn-soft: #43350f; color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 48px; }
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: 2.3rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.55rem; font-weight: 600; }
+p { margin: 0; max-width: 70ch; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+.lede { font-size: 1.05rem; color: var(--muted); margin-top: 10px; }
+.eyebrow, .cap { font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.eyebrow { color: var(--accent); margin-bottom: 6px; } .cap { color: var(--muted); font-weight: 600; }
+section { display: flex; flex-direction: column; gap: 16px; }
+.sec-head { display: flex; flex-direction: column; gap: 8px; }
+.sec-head p, .note { color: var(--muted); } .note { font-size: 0.9rem; }
+.sec-head p b, .note b, li b { color: var(--ink); font-weight: 600; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.pad { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.scroll { overflow-x: auto; }
+.two { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.half { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 900px) { .two, .half, .three { grid-template-columns: minmax(0, 1fr); } }
+ul.plain { margin: 0; padding-left: 1.15em; display: flex; flex-direction: column; gap: 8px; max-width: 78ch; color: var(--muted); }
+.fig svg { display: block; width: 100%; min-width: 600px; height: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+th { font: 600 0.7rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+td.h { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+td.c, th.c { text-align: center; }
+.wrapcell { white-space: normal; min-width: 16em; }
+.pill { display: inline-block; font: 600 0.68rem var(--mono); letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); }
+.pill.critical { background: var(--fail); border-color: var(--fail); color: var(--surface); }
+.pill.high { background: var(--fail-soft); border-color: var(--fail); color: var(--fail); }
+.pill.medium { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.pill.ok { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.pill.no { background: var(--fail-soft); border-color: var(--fail); color: var(--fail); }
+.bar { display: grid; grid-template-columns: 3.4em minmax(40px, 1fr); gap: 8px; align-items: center; }
+.track { height: 9px; background: var(--line-soft); border-radius: 2px; overflow: hidden; }
+.fill { height: 100%; background: var(--accent); display: block; }
+.card { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.card .rk { font: 600 0.74rem var(--mono); color: var(--accent); letter-spacing: 0.05em; }
+.card .who { font: 600 1.05rem var(--display); }
+.card .join { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 2px; display: flex; flex-direction: column; gap: 5px; font-size: 0.86rem; color: var(--muted); }
+.score { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.score .val { font: 600 1.9rem var(--mono); line-height: 1; } .score .sub { font-size: 0.82rem; color: var(--muted); }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; color: var(--muted); }
+.key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ln { width: 22px; height: 0; border-top: 1.6px solid var(--muted); display: inline-block; } .ln.dash { border-top-style: dashed; } .ln.dot { border-top-style: dotted; }
+.sw { width: 12px; height: 12px; display: inline-block; border-radius: 2px; background: var(--accent); }
+
+svg text { font-family: var(--body); fill: var(--ink); }
+.n rect, .n polygon { fill: var(--surface); stroke: var(--muted); stroke-width: 1.3; }
+.n.host > rect { fill: var(--bg); stroke: var(--line); stroke-dasharray: 5 3; }
+.n.lib rect { stroke-dasharray: 3 2; }
+.nm { font-size: 12px; font-weight: 600; text-anchor: middle; }
+.sb { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); text-anchor: middle; }
+.hl { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+.e { stroke: var(--muted); stroke-width: 1.2; fill: none; } .e.routes { stroke-dasharray: 5 4; } .e.uses { stroke-dasharray: 1.5 3.5; stroke-linecap: round; stroke-width: 1.6; }
+.ah { fill: var(--muted); }
+.link { stroke: var(--muted); stroke-width: 3; }
+.lbl { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+.axis { stroke: var(--line); } .grid { stroke: var(--line-soft); } .diag { stroke: var(--muted); stroke-dasharray: 4 3; }
+.pt { fill: var(--accent); fill-opacity: 0.6; stroke: var(--accent); }
+.ptl { font-family: var(--mono); font-size: 10px; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.stg rect { fill: var(--surface); stroke: var(--muted); stroke-width: 1.3; }
+.stg.a rect { stroke: var(--accent); stroke-width: 1.8; } .stg.o rect { stroke: var(--warn); stroke-width: 1.8; }
+.stg .t { font-family: var(--display); font-size: 14px; font-weight: 600; text-anchor: middle; }
+.stg .s { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); text-anchor: middle; }
+.flow { stroke: var(--muted); stroke-width: 1.4; fill: none; } .flow.dashed { stroke-dasharray: 5 4; }
+footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: 0.84rem; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+footer p { max-width: 92ch; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">software-as-a-graph · the method, end to end</div>
+    <h1>SaG Method Walkthrough</h1>
+    <p class="lede">The claim behind the method is that a component's position in the dependency graph predicts what happens when it fails, before anything is deployed. This page runs every stage of the pipeline on one 15-component air-traffic system and shows what each stage actually produced.</p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">The map</div>
+      <h2>Two pathways rank and explain; simulation checks both and gates every fix</h2>
+      <p>Predict and Diagnose share no parameters. Predict says <b>which</b> components matter, Diagnose says <b>why</b>, and the triage bridge joins them by component id. Simulation never feeds either one at run time: it produces training labels offline and acts as the referee.</p>
+    </div>
+    <div class="box fig scroll"><svg id="map" viewBox="0 0 900 250" role="img" aria-label="Pipeline map"></svg></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Stage 1 · Model</div>
+      <h2>The architecture becomes a weighted graph, and dependencies are derived from it</h2>
+      <p>The input is what an architect already has: who publishes and subscribes to which topic, which broker routes it, what runs where. Each topic gets a weight from its QoS contract, and components inherit weight from the topics they touch. Rules then derive who <b>depends on</b> whom: a subscriber depends on its publisher, an application on its broker and library, a host on the brokers its residents use.</p>
+    </div>
+    <div class="two">
+      <div class="box fig scroll">
+        <div class="keys"><span class="key"><span class="ln"></span>publishes / subscribes</span><span class="key"><span class="ln dash"></span>routes</span><span class="key"><span class="ln dot"></span>uses</span><span>w = QoS-derived weight</span></div>
+        <svg id="raw" viewBox="0 0 780 420" role="img" aria-label="Raw structural graph"></svg>
+      </div>
+      <div class="box scroll">
+        <div class="keys"><span id="dep-count"></span></div>
+        <table id="matrix"></table>
+      </div>
+    </div>
+    <p class="note">Read the matrix by row: tracker depends on radar, both brokers and the library. Darker cells are heavier dependencies. Simulation never reads these derived edges; it works on the raw graph on the left.</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Stage 2 · Analyze</div>
+      <h2>Each component gets a vector of structural metrics, and nothing else</h2>
+      <p>This stage is deterministic and closed-form. It measures position: how much of the system reaches a component, how many depend on it, whether it sits between others, how heavy its dependencies are. No scores, no judgement yet.</p>
+    </div>
+    <div class="box scroll"><table id="metrics"></table></div>
+    <p class="note" id="metrics-note"></p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Stage 3 · Predict · pathway B</div>
+      <h2>A ranking of likely blast radius, from a trained model or a closed-form reference</h2>
+      <p>The trained model here is HGT-QoS, fitted on twelve other systems and applied to this one unseen. Beside it is Reach, the count of transitive dependents, which needs no training. The top three form the shortlist passed on to triage.</p>
+    </div>
+    <div class="two">
+      <div class="box scroll"><table id="predict"></table></div>
+      <div class="box pad" id="predict-note"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Stage 4 · Diagnose · pathway A</div>
+      <h2>A deterministic quality profile explains the risk, and triage joins it to the ranking</h2>
+      <p>The quality model turns the metric vector into reliability (fault tolerance and availability) and maintainability, combines them into Q(v), and assigns one of five levels. It also scans for architectural anti-patterns. No learning is involved.</p>
+    </div>
+    <div class="two">
+      <div class="box scroll"><table id="rm"></table></div>
+      <div class="box pad" id="diag-side"></div>
+    </div>
+    <div class="sec-head"><span class="cap">The triage bridge: top three from pathway B, each joined to its pathway A profile by id</span></div>
+    <div class="three" id="triage"></div>
+    <p class="note" id="triage-note"></p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Stage 5 · Simulate</div>
+      <h2>Each component is failed in turn on the raw graph to get ground truth</h2>
+      <p>Two engines answer two different questions. I* is the cascade impact used as the training label for pathway B. I_comp is the system-wide loss used as the oracle for pathway A. The <a href="https://claude.ai/artifact/TSKwMvCTmR8DN56aL3sph4">Mini-ATM Failure Lab</a> shows both step by step.</p>
+    </div>
+    <div class="box scroll"><table id="sim"></table></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Stage 6 · Validate</div>
+      <h2>Predicted scores are compared with simulated impact and held to declared gates</h2>
+      <p>Validation correlates Q(v) with I_comp for every component both sides scored, then checks a fixed set of gates. A gate that could not be measured is reported as not measured, never as a failure.</p>
+    </div>
+    <div class="two">
+      <div class="box fig"><svg id="scatter" viewBox="0 0 520 360" role="img" aria-label="Predicted quality score against simulated impact"></svg></div>
+      <div class="box scroll"><table id="gates"></table></div>
+    </div>
+    <p class="note" id="val-note"></p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Stage 7 · Prescribe</div>
+      <h2>Fixes are proposed, then accepted only if a counterfactual simulation confirms them</h2>
+      <p>Each candidate edit is applied to a copy of the graph and re-simulated. It is accepted only when the impact reduction exceeds seed noise at <b>every</b> propagation threshold. An edit that looks sensible but cannot be distinguished from noise is rejected.</p>
+    </div>
+    <div class="two">
+      <div class="box scroll"><table id="edits"></table></div>
+      <div class="box pad" id="presc-side"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Reading the whole run</div>
+      <h2>What this small system shows about the method</h2>
+    </div>
+    <ul class="plain" id="take"></ul>
+  </section>
+
+  <footer>
+    <p><b>How this was produced.</b> <code>saag.Client</code> on a <code>MemoryRepository</code> loaded with <code>examples/mini_atm.json</code>: <code>analyze</code>, <code>predict</code> (HGT-QoS checkpoint, seed 42, app layer), <code>diagnose</code> with <code>k=3</code>, <code>validate</code> and <code>prescribe</code> on the system layer, plus <code>FaultInjector</code> with five seeds and the <code>FailureSimulator</code> system sweep. All options are defaults. Stage 8, Visualize, renders these same results as a dashboard and is not shown.</p>
+    <p>Regenerate this page with <code>python examples/run_method_walkthrough.py</code>. Fifteen components is far below the 50 to 300 the method was developed on. Correlations over six to ten components have very wide intervals, so read this as a demonstration of how the stages connect, not as evidence of accuracy. Related pages: <a href="https://claude.ai/artifact/AQNLJpbvvkbTFQSU4V4d1d">Predictor Proving Ground</a> and <a href="https://claude.ai/artifact/P93d63HFUfg9dU5yuTBnX2">Mini-ATM Testbed Run</a>.</p>
+  </footer>
+</div>
+
+<script>
+const D = {"model":{"components":{"N1":{"type":"Node","w":0.4718},"N2":{"type":"Node","w":0.745},"B1":{"type":"Broker","w":0.4718},"B2":{"type":"Broker","w":0.6421},"T1":{"type":"Topic","w":0.1462},"T2":{"type":"Topic","w":0.5915},"T3":{"type":"Topic","w":0.5577},"T4":{"type":"Topic","w":0.745},"A1":{"type":"Application","w":0.1462},"A2":{"type":"Application","w":0.4718},"A3":{"type":"Application","w":0.5751},"A4":{"type":"Application","w":0.745},"A5":{"type":"Application","w":0.6421},"A6":{"type":"Application","w":0.5924},"L1":{"type":"Library","w":0.7119}},"raw":[["A1","N1","RUNS_ON",1.0],["A2","N1","RUNS_ON",1.0],["B1","N1","RUNS_ON",1.0],["A3","N2","RUNS_ON",1.0],["A4","N2","RUNS_ON",1.0],["A5","N2","RUNS_ON",1.0],["A6","N2","RUNS_ON",1.0],["B2","N2","RUNS_ON",1.0],["B1","T1","ROUTES",0.1462],["B1","T2","ROUTES",0.5915],["B2","T2","ROUTES",0.5915],["B2","T3","ROUTES",0.5577],["B2","T4","ROUTES",0.745],["A1","T1","PUBLISHES_TO",0.1462],["A2","T2","PUBLISHES_TO",0.5915],["A3","T3","PUBLISHES_TO",0.5577],["A4","T4","PUBLISHES_TO",0.745],["A2","T1","SUBSCRIBES_TO",0.1462],["A3","T2","SUBSCRIBES_TO",0.5915],["A5","T2","SUBSCRIBES_TO",0.5915],["A5","T3","SUBSCRIBES_TO",0.5577],["A5","T4","SUBSCRIBES_TO",0.745],["A6","T1","SUBSCRIBES_TO",0.1462],["A6","T2","SUBSCRIBES_TO",0.5915],["A6","T4","SUBSCRIBES_TO",0.745],["N1","N2","CONNECTS_TO",1.0],["A2","L1","USES",1.0],["A3","L1","USES",1.0]],"dep":[["A2","A1","app_to_app",0.1462],["A6","A1","app_to_app",0.1462],["A3","A2","app_to_app",0.5915],["A5","A2","app_to_app",0.5915],["A6","A2","app_to_app",0.5915],["A5","A3","app_to_app",0.5577],["A5","A4","app_to_app",0.745],["A6","A4","app_to_app",0.745],["A2","B1","app_to_broker",0.6513],["A6","B1","app_to_broker",0.6513],["A1","B1","app_to_broker",0.1462],["A5","B1","app_to_broker",0.5915],["A3","B1","app_to_broker",0.5915],["A2","B2","app_to_broker",0.5915],["A6","B2","app_to_broker",0.8959],["A5","B2","app_to_broker",0.9539],["A3","B2","app_to_broker",0.8193],["A4","B2","app_to_broker",0.745],["N2","N1","node_to_node",0.6513],["N1","N2","node_to_node",0.5915],["N1","B1","node_to_broker",0.6513],["N2","B1","node_to_broker",0.6513],["N1","B2","node_to_broker",0.5915],["N2","B2","node_to_broker",0.9539],["A2","L1","app_to_lib",0.5675],["A3","L1","app_to_lib",0.6362]]},"analyze":{"keys":["reverse_pagerank","in_degree_raw","out_degree_raw","betweenness","ap_c_directed","cdi","blast_radius","dependency_weight_in","dependency_weight_out","clustering_coefficient"],"metrics":{"N1":{"reverse_pagerank":0.2243,"in_degree_raw":1.0,"out_degree_raw":3.0,"betweenness":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":3.0,"dependency_weight_in":0.6513,"dependency_weight_out":1.8343,"clustering_coefficient":0.6667},"N2":{"reverse_pagerank":0.2251,"in_degree_raw":1.0,"out_degree_raw":3.0,"betweenness":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":3.0,"dependency_weight_in":0.5915,"dependency_weight_out":2.2565,"clustering_coefficient":0.6667},"B1":{"reverse_pagerank":0.0268,"in_degree_raw":7.0,"out_degree_raw":0.0,"betweenness":0.0,"ap_c_directed":0.0,"cdi":0.0587,"blast_radius":0.0,"dependency_weight_in":3.9343,"dependency_weight_out":0.0,"clustering_coefficient":0.3333},"B2":{"reverse_pagerank":0.0268,"in_degree_raw":7.0,"out_degree_raw":0.0,"betweenness":0.0,"ap_c_directed":0.0,"cdi":0.0587,"blast_radius":0.0,"dependency_weight_in":5.5512,"dependency_weight_out":0.0,"clustering_coefficient":0.3333},"T1":{"reverse_pagerank":0.0268,"in_degree_raw":0.0,"out_degree_raw":0.0,"betweenness":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":0.0,"dependency_weight_in":0.0,"dependency_weight_out":0.0,"clustering_coefficient":0.0},"T2":{"reverse_pagerank":0.0268,"in_degree_raw":0.0,"out_degree_raw":0.0,"betweenness":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":0.0,"dependency_weight_in":0.0,"dependency_weight_out":0.0,"clustering_coefficient":0.0},"T3":{"reverse_pagerank":0.0268,"in_degree_raw":0.0,"out_degree_raw":0.0,"betweenness":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":0.0,"dependency_weight_in":0.0,"dependency_weight_out":0.0,"clustering_coefficient":0.0},"T4":{"reverse_pagerank":0.0268,"in_degree_raw":0.0,"out_degree_raw":0.0,"betweenness":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":0.0,"dependency_weight_in":0.0,"dependency_weight_out":0.0,"clustering_coefficient":0.0},"A1":{"reverse_pagerank":0.0276,"in_degree_raw":2.0,"out_degree_raw":1.0,"betweenness":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":1.0,"dependency_weight_in":0.2925,"dependency_weight_out":0.1462,"clustering_coefficient":1.0},"A2":{"reverse_pagerank":0.0554,"in_degree_raw":3.0,"out_degree_raw":4.0,"betweenness":0.0165,"ap_c_directed":0.0,"cdi":0.0587,"blast_radius":4.0,"dependency_weight_in":1.7746,"dependency_weight_out":1.9566,"clustering_coefficient":0.4762},"A3":{"reverse_pagerank":0.0613,"in_degree_raw":1.0,"out_degree_raw":4.0,"betweenness":0.0055,"ap_c_directed":0.0,"cdi":0.0037,"blast_radius":5.0,"dependency_weight_in":0.5577,"dependency_weight_out":2.6386,"clustering_coefficient":0.6},"A4":{"reverse_pagerank":0.0298,"in_degree_raw":2.0,"out_degree_raw":1.0,"betweenness":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":1.0,"dependency_weight_in":1.4901,"dependency_weight_out":0.745,"clustering_coefficient":0.6667},"A5":{"reverse_pagerank":0.1146,"in_degree_raw":0.0,"out_degree_raw":5.0,"betweenness":0.0,"ap_c_directed":0.0,"cdi":0.0037,"blast_radius":7.0,"dependency_weight_in":0.0,"dependency_weight_out":3.4398,"clustering_coefficient":0.6},"A6":{"reverse_pagerank":0.0743,"in_degree_raw":0.0,"out_degree_raw":5.0,"betweenness":0.0,"ap_c_directed":0.0,"cdi":0.0175,"blast_radius":6.0,"dependency_weight_in":0.0,"dependency_weight_out":3.0299,"clustering_coefficient":0.5},"L1":{"reverse_pagerank":0.0268,"in_degree_raw":2.0,"out_degree_raw":0.0,"betweenness":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":0.0,"dependency_weight_in":1.2038,"dependency_weight_out":0.0,"clustering_coefficient":1.0}},"summary":{"nodes":15.0,"edges":26.0,"density":0.1238,"avg_degree":3.4667,"avg_clustering":0.4562,"is_connected":0.0,"num_components":5.0,"num_articulation_points":0.0,"num_bridges":0.0,"diameter":3.0,"avg_path_length":1.6,"assortativity":-0.287}},"predict":{"mode":"gnn_only","gnn":{"L1":0.7373,"A4":0.6986,"A2":0.6547,"A1":0.6224,"A3":0.4176,"A6":0.108,"A5":0.0994},"refs":{"Reach":{"A1":0.6667,"A2":0.5,"A3":0.1667,"A4":0.3333,"A5":0.0,"A6":0.0,"L1":0.6667},"InDeg":{"A1":2.0,"A2":3.0,"A3":1.0,"A4":2.0,"A5":0.0,"A6":0.0,"L1":2.0},"Analytic-I*":{"A1":2.0,"A2":3.0,"A3":1.0,"A4":2.0,"A5":0.0,"A6":0.0}}},"triage_gnn":{"layer":"system","k":3,"ranking_source":"gnn","population":7,"entries":[{"component_id":"L1","rank":1,"ranking_score":0.7373,"component_type":"Library","pattern":"Composite Risk","level":"LOW","elevated_dimensions":[],"priority_action":"Review coupling and redundancy together; no single fix resolves this.","roles":["Architect"]},{"component_id":"A4","rank":2,"ranking_score":0.6986,"component_type":"Application","pattern":"Composite Risk","level":"LOW","elevated_dimensions":[{"dimension":"Availability","score":0.1,"level":"HIGH","driving_metric":"Directed SPOF score","driving_value":0.0,"plain_meaning":"It is an articulation point in the architecture. Primary driver: fraction of connectivity lost if it is removed.","risk_sentence":"If this component fails, sections of the system will be entirely disconnected."}],"priority_action":"Review coupling and redundancy together; no single fix resolves this.","roles":["DevOps"]},{"component_id":"A2","rank":3,"ranking_score":0.6547,"component_type":"Application","pattern":"Composite Risk","level":"CRITICAL","elevated_dimensions":[{"dimension":"Reliability","score":0.293,"level":"CRITICAL","driving_metric":"In-degree centrality","driving_value":0.5,"plain_meaning":"This component has many incoming dependencies (3 direct). Primary driver: number of components directly depending on it.","risk_sentence":"Unplanned downtime here will broadly impact downstream services."},{"dimension":"Maintainability","score":0.662,"level":"CRITICAL","driving_metric":"Weighted out-degree","driving_value":0.714,"plain_meaning":"It acts as a structural bridge with 2 outgoing dependencies. Primary driver: number and priority of interface dependencies.","risk_sentence":"Modifying this component carries a high risk of unintended side-effects."},{"dimension":"Availability","score":0.128,"level":"CRITICAL","driving_metric":"Connectivity Degradation Index","driving_value":0.444,"plain_meaning":"It is an articulation point in the architecture. Primary driver: increase in average path length without it.","risk_sentence":"If this component fails, sections of the system will be entirely disconnected."}],"priority_action":"Review coupling and redundancy together; no single fix resolves this.","roles":["SRE","Architect","DevOps"]}]},"diagnose":{"components":[{"id":"T2","type":"Topic","fault_tolerance":0.9107,"availability":0.05,"reliability":0.3599,"maintainability":0.2943,"overall":0.35,"level":"critical"},{"id":"N2","type":"Node","fault_tolerance":0.6,"availability":0.0929,"reliability":0.2754,"maintainability":0.487,"overall":0.3072,"level":"high"},{"id":"A2","type":"Application","fault_tolerance":0.5464,"availability":0.0361,"reliability":0.2198,"maintainability":0.7208,"overall":0.295,"level":"high"},{"id":"A4","type":"Application","fault_tolerance":0.5518,"availability":0.0929,"reliability":0.2581,"maintainability":0.4361,"overall":0.2848,"level":"high"},{"id":"T1","type":"Topic","fault_tolerance":0.7709,"availability":0.0,"reliability":0.2775,"maintainability":0.2943,"overall":0.28,"level":"medium"},{"id":"B2","type":"Broker","fault_tolerance":0.6067,"availability":0.0825,"reliability":0.2712,"maintainability":0.2676,"overall":0.2707,"level":"medium"},{"id":"A3","type":"Application","fault_tolerance":0.4714,"availability":0.0438,"reliability":0.1977,"maintainability":0.6676,"overall":0.2682,"level":"medium"},{"id":"N1","type":"Node","fault_tolerance":0.5679,"availability":0.0214,"reliability":0.2181,"maintainability":0.4367,"overall":0.2509,"level":"low"},{"id":"A5","type":"Application","fault_tolerance":0.4393,"availability":0.0688,"reliability":0.2022,"maintainability":0.482,"overall":0.2441,"level":"low"},{"id":"B1","type":"Broker","fault_tolerance":0.5857,"availability":0.0361,"reliability":0.2339,"maintainability":0.2676,"overall":0.239,"level":"low"},{"id":"A6","type":"Application","fault_tolerance":0.4071,"availability":0.0615,"reliability":0.1859,"maintainability":0.4686,"overall":0.2283,"level":"low"},{"id":"A1","type":"Application","fault_tolerance":0.5152,"availability":0.0071,"reliability":0.19,"maintainability":0.388,"overall":0.2197,"level":"minimal"},{"id":"L1","type":"Library","fault_tolerance":0.4268,"availability":0.0786,"reliability":0.2039,"maintainability":0.2143,"overall":0.2055,"level":"minimal"},{"id":"T4","type":"Topic","fault_tolerance":0.1755,"availability":0.0929,"reliability":0.1226,"maintainability":0.2943,"overall":0.1484,"level":"minimal"},{"id":"T3","type":"Topic","fault_tolerance":0.1391,"availability":0.0357,"reliability":0.0729,"maintainability":0.2943,"overall":0.1061,"level":"minimal"}],"weights":{"r_alpha":0.36,"q_reliability":0.85,"q_maintainability":0.15},"problems":[{"entity_id":"A5","severity":"CRITICAL","name":"Single Point of Failure (SPOF)","category":"Availability","recommendation":"Introduce redundancy, active-passive failover, or clustered broker configurations."},{"entity_id":"N1 -> N2","severity":"HIGH","name":"Dependency Cycle","category":"Architecture","recommendation":"Break the cycle via interfaces or event-driven decoupling."},{"entity_id":"T1","severity":"MEDIUM","name":"Isolated Component","category":"Architecture","recommendation":"Verify deployment, configuration, and integration status."},{"entity_id":"T2","severity":"MEDIUM","name":"Isolated Component","category":"Architecture","recommendation":"Verify deployment, configuration, and integration status."},{"entity_id":"T3","severity":"MEDIUM","name":"Isolated Component","category":"Architecture","recommendation":"Verify deployment, configuration, and integration status."},{"entity_id":"T4","severity":"MEDIUM","name":"Isolated Component","category":"Architecture","recommendation":"Verify deployment, configuration, and integration status."}],"report":{"total_components":15,"critical_count":1,"high_count":3,"deployment_blocked":true,"reason":"1 CRITICAL anti-patterns detected (Single Point of Failure (SPOF))."},"explain":[{"component_id":"T2","pattern":"Fault-Tolerance Hub","level":"CRITICAL","one_line":"T2 is a fault-tolerance hub \u2014 failure cascades broadly.","top_risk":"0 downstream components depend on it transitively. Its failure silences their data flows."},{"component_id":"N2","pattern":"Composite Risk","level":"HIGH","one_line":"N2 has elevated risk across multiple dimensions without a single dominant cause.","top_risk":"No one metric dominates, but the combination across R and M puts it above the system's population threshold."},{"component_id":"A2","pattern":"Bottleneck","level":"HIGH","one_line":"A2 is a change bottleneck \u2014 interface changes are expensive.","top_risk":"7 components must be updated whenever its interface changes. This is the highest maintenance cost in the system."},{"component_id":"A4","pattern":"Composite Risk","level":"HIGH","one_line":"A4 has elevated risk across multiple dimensions without a single dominant cause.","top_risk":"No one metric dominates, but the combination across R and M puts it above the system's population threshold."}],"triage_rm":{"layer":"system","k":3,"ranking_source":"rm","population":15,"entries":[{"component_id":"T2","rank":1,"ranking_score":0.35,"component_type":"Topic","pattern":"Fault-Tolerance Hub","level":"CRITICAL","elevated_dimensions":[{"dimension":"Reliability","score":0.36,"level":"CRITICAL","driving_metric":"Reverse PageRank","driving_value":0.027,"plain_meaning":"This component has many incoming dependencies (0 direct). Primary driver: fraction of the system reachable from this component.","risk_sentence":"Unplanned downtime here will broadly impact downstream services."}],"priority_action":"Add circuit breakers and health checks in all direct dependents.","roles":["SRE"]},{"component_id":"N2","rank":2,"ranking_score":0.3072,"component_type":"Node","pattern":"Composite Risk","level":"HIGH","elevated_dimensions":[{"dimension":"Reliability","score":0.275,"level":"HIGH","driving_metric":"Reverse PageRank","driving_value":0.225,"plain_meaning":"This component has many incoming dependencies (1 direct). Primary driver: fraction of the system reachable from this component.","risk_sentence":"Unplanned downtime here will broadly impact downstream services."},{"dimension":"Maintainability","score":0.487,"level":"HIGH","driving_metric":"Weighted out-degree","driving_value":2.256,"plain_meaning":"It acts as a structural bridge with 3 outgoing dependencies. Primary driver: number and priority of interface dependencies.","risk_sentence":"Modifying this component carries a high risk of unintended side-effects."},{"dimension":"Availability","score":0.093,"level":"HIGH","driving_metric":"Directed SPOF score","driving_value":0.0,"plain_meaning":"It is an articulation point in the architecture. Primary driver: fraction of connectivity lost if it is removed.","risk_sentence":"If this component fails, sections of the system will be entirely disconnected."}],"priority_action":"Review coupling and redundancy together; no single fix resolves this.","roles":["SRE","Architect","DevOps"]},{"component_id":"A2","rank":3,"ranking_score":0.295,"component_type":"Application","pattern":"Bottleneck","level":"HIGH","elevated_dimensions":[{"dimension":"Maintainability","score":0.721,"level":"CRITICAL","driving_metric":"Weighted out-degree","driving_value":1.957,"plain_meaning":"It acts as a structural bridge with 4 outgoing dependencies. Primary driver: number and priority of interface dependencies.","risk_sentence":"Modifying this component carries a high risk of unintended side-effects."}],"priority_action":"Extract a stable interface; reduce outgoing dependency count.","roles":["Architect"]}]}},"simulate":{"istar":{"A1":0.8333,"A2":0.5,"A3":0.0833,"A4":0.1667,"A5":0.0,"A6":0.0,"B1":0.8333,"B2":0.5375,"N1":0.8333,"N2":0.5375,"L1":0.5},"icomp":{"N1":{"comp":0.7462,"IR":0.6072,"IM":0.1527},"N2":{"comp":0.7105,"IR":0.5206,"IM":0.144},"A2":{"comp":0.316,"IR":0.2608,"IM":0.2418},"A5":{"comp":0.2961,"IR":0.1736,"IM":0.0},"B2":{"comp":0.2711,"IR":0.0992,"IM":0.4708},"A4":{"comp":0.271,"IR":0.1749,"IM":0.2033},"A3":{"comp":0.2069,"IR":0.1396,"IM":0.1473},"A6":{"comp":0.1775,"IR":0.1153,"IM":0.0},"B1":{"comp":0.0653,"IR":0.0208,"IM":0.4194},"A1":{"comp":0.0532,"IR":0.0296,"IM":0.1709}}},"validate":{"targets":{"spearman":0.7,"f1_score":0.75,"top_5_overlap":0.6,"predictive_gain":0.03,"weighted_kappa_cta":0.7,"bottleneck_precision_target":0.7,"gnn_spearman":0.85,"gnn_macro_f1":0.88,"gnn_ndcg_10":0.9,"precision":0.8,"max_interdim_correlation":0.4,"node_type_rho_default":0.7},"system":{"passed":false,"summary":{"spearman":0.6848,"f1_score":0.5,"top_5_overlap":0.6,"rmse":0.3572,"reliability_spearman":0.2727,"maintainability_spearman":-0.5305,"availability_spearman":0.2805,"composite_spearman":0.6364,"predictive_gain":0.3636,"system_health":{"H_R":0.7819,"H_M":0.5987,"H_FT":0.5054,"H_A":0.9374,"SRI":0.3097,"RCI":0.1302}},"gates":{"spearman":false,"overlap_at_q3":false,"top5_overlap":true,"predictive_gain":true,"kappa_cta":false,"bottleneck_precision":null},"n":{"predicted_count":15,"actual_count":10,"matched_count":10},"ci":[0.044,1.0],"strat":{"Application":{"n":6,"spearman":0.8286,"target_rho":0.75,"passed":true}},"warnings":["5 predicted components not in actual scores"]},"app":{"passed":true,"summary":{"spearman":0.8286,"f1_score":1.0,"top_5_overlap":1.0,"rmse":0.2713,"reliability_spearman":0.8857,"maintainability_spearman":0.116,"availability_spearman":0.8857,"composite_spearman":0.4857,"predictive_gain":-0.4,"system_health":{"H_R":0.7978,"H_M":0.604,"H_FT":0.5734,"H_A":0.924,"SRI":0.2991,"RCI":0.1415}},"gates":{"spearman":true,"overlap_at_q3":true,"top5_overlap":true,"predictive_gain":false,"kappa_cta":false,"bottleneck_precision":null},"n":{"predicted_count":7,"actual_count":6,"matched_count":6},"ci":[0.0323,1.0],"strat":{"Application":{"n":6,"spearman":0.8286,"target_rho":0.75,"passed":true}},"warnings":["1 predicted components not in actual scores","Low statistical power (n=6 < 10)"]}},"prescribe":{"original_sri":0.3097,"mutated_sri":0.3044,"sri_improvement":0.0053,"original_metrics":{"sri":0.3097,"avg_reachability_loss":0.40007350839447414,"avg_fragmentation":0.0,"avg_throughput_loss":0.42016616843874155},"mutated_metrics":{"sri":0.3044,"avg_reachability_loss":0.3748664260611583,"avg_fragmentation":0.0,"avg_throughput_loss":0.3608375561502443},"policy":{"topic_splits":[],"node_reallocations":[{"component":"A5","from_node":"N2","to_node":"N2_A5"},{"component":"A6","from_node":"N2","to_node":"N2_A6"}],"qos_upgrades":[]},"applied_changes":["Moved process 'A5' from SPOF node 'N2' to isolated node 'N2_A5'","Moved process 'A6' from SPOF node 'N2' to isolated node 'N2_A6'"],"remediated_component_impact_deltas":{"A6":{"before":0.1774576417326116,"after":0.1774576417326116,"reduction_frac":0.0},"A5":{"before":0.29606855499264056,"after":0.29606855499264056,"reduction_frac":0.0}},"mean_cascade_impact_reduction":0.0,"accepted":true,"edit_verdicts":[{"schema":2,"kind":"node_reallocation","target":"A2","kappa":1.0,"accepted":false,"reason":"delta 0.000000 <= kappa*sigma 0.000000 at threshold 0.1","worst_delta":0.0,"worst_margin":0.0,"per_threshold":{"0.1":{"mean_delta":0.0,"sigma_seed":0.0},"0.2":{"mean_delta":0.0,"sigma_seed":0.0},"0.5":{"mean_delta":0.0,"sigma_seed":0.0}}},{"schema":2,"kind":"node_reallocation","target":"B1","kappa":1.0,"accepted":false,"reason":"delta 0.000000 <= kappa*sigma 0.000000 at threshold 0.1","worst_delta":0.0,"worst_margin":0.0,"per_threshold":{"0.1":{"mean_delta":0.0,"sigma_seed":0.0},"0.2":{"mean_delta":0.0,"sigma_seed":0.0},"0.5":{"mean_delta":0.0,"sigma_seed":0.0}}},{"schema":2,"kind":"node_reallocation","target":"A4","kappa":1.0,"accepted":false,"reason":"delta 0.000000 <= kappa*sigma 0.000000 at threshold 0.1","worst_delta":0.0,"worst_margin":0.0,"per_threshold":{"0.1":{"mean_delta":0.0,"sigma_seed":0.0},"0.2":{"mean_delta":0.0,"sigma_seed":0.0},"0.5":{"mean_delta":0.0,"sigma_seed":0.0}}},{"schema":2,"kind":"node_reallocation","target":"A5","kappa":1.0,"accepted":true,"reason":"","worst_delta":0.010757394908,"worst_margin":0.010757394908,"per_threshold":{"0.1":{"mean_delta":0.010757394908,"sigma_seed":0.0},"0.2":{"mean_delta":0.010757394908,"sigma_seed":0.0},"0.5":{"mean_delta":0.010757394908,"sigma_seed":0.0}}},{"schema":2,"kind":"node_reallocation","target":"A6","kappa":1.0,"accepted":true,"reason":"","worst_delta":0.01250761126,"worst_margin":0.01250761126,"per_threshold":{"0.1":{"mean_delta":0.01250761126,"sigma_seed":0.0},"0.2":{"mean_delta":0.01250761126,"sigma_seed":0.0},"0.5":{"mean_delta":0.01250761126,"sigma_seed":0.0}}},{"schema":2,"kind":"node_reallocation","target":"B2","kappa":1.0,"accepted":false,"reason":"delta 0.000000 <= kappa*sigma 0.000000 at threshold 0.1","worst_delta":0.0,"worst_margin":0.0,"per_threshold":{"0.1":{"mean_delta":0.0,"sigma_seed":0.0},"0.2":{"mean_delta":0.0,"sigma_seed":0.0},"0.5":{"mean_delta":0.0,"sigma_seed":0.0}}},{"schema":2,"kind":"qos_upgrade","target":"T1","kappa":1.0,"accepted":false,"reason":"delta 0.002979 <= kappa*sigma 0.005836 at threshold 0.5","worst_delta":0.002979084944,"worst_margin":-0.002856819068,"per_threshold":{"0.1":{"mean_delta":0.003665550434,"sigma_seed":0.004806622256},"0.2":{"mean_delta":0.003665550434,"sigma_seed":0.004806622256},"0.5":{"mean_delta":0.002979084944,"sigma_seed":0.005835904013}}}],"n_candidate_edits":7,"n_accepted_edits":2,"n_rejected_edits":5,"candidate_policy":{"topic_splits":[],"node_reallocations":[{"component":"A2","from_node":"N1","to_node":"N1_A2"},{"component":"B1","from_node":"N1","to_node":"N1_B1"},{"component":"A4","from_node":"N2","to_node":"N2_A4"},{"component":"A5","from_node":"N2","to_node":"N2_A5"},{"component":"A6","from_node":"N2","to_node":"N2_A6"},{"component":"B2","from_node":"N2","to_node":"N2_B2"}],"qos_upgrades":[{"topic":"T1","original_reliability":"BEST_EFFORT","original_durability":"VOLATILE","target_reliability":"RELIABLE","target_durability":"TRANSIENT"}]}}};
+const NS = 'http://www.w3.org/2000/svg';
+const NAME = { A1: 'radar', A2: 'tracker', A3: 'conflict-detector', A4: 'flight-plan', A5: 'display', A6: 'recorder', B1: 'sensor-broker', B2: 'ops-broker', T1: 'radar.plots', T2: 'tracks', T3: 'conflict.alerts', T4: 'flight.plans', N1: 'sensor-host', N2: 'ops-host', L1: 'track-model' };
+const ORDER = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'L1', 'B1', 'B2', 'N1', 'N2', 'T1', 'T2', 'T3', 'T4'];
+const f2 = v => v == null ? '–' : v.toFixed(2), f3 = v => v == null ? '–' : v.toFixed(3);
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const who = id => `<span class="mono">${id}</span> ${esc(NAME[id] || '')}`;
+function el(tag, attrs, parent, text) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; }
+const heat = (v, max) => `background: color-mix(in srgb, var(--accent) ${Math.round(Math.max(0, Math.min(1, max ? v / max : 0)) * 55)}%, transparent)`;
+const bar = (v, max) => `<span class="bar"><span>${f3(v)}</span><span class="track"><span class="fill" style="width:${Math.max(0, Math.min(1, v / max)) * 100}%"></span></span></span>`;
+
+/* ---------- map ---------- */
+(function () {
+  const s = document.getElementById('map');
+  const stage = (x, y, w, t, sub, cls) => { const g = el('g', { class: 'stg ' + (cls || '') }, s); el('rect', { x, y, width: w, height: 46, rx: 5 }, g); el('text', { class: 't', x: x + w / 2, y: y + 20 }, g, t); el('text', { class: 's', x: x + w / 2, y: y + 35 }, g, sub); };
+  const arrow = (d, cls) => el('path', { class: 'flow ' + (cls || ''), d, 'marker-end': 'url(#arr)' }, s);
+  const defs = el('defs', {}, s), m = el('marker', { id: 'arr', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+  el('path', { d: 'M0 0 L10 5 L0 10 z', style: 'fill: var(--muted)' }, m);
+  stage(10, 30, 130, '1 Model', 'graph + derived deps'); stage(180, 30, 130, '2 Analyze', 'metric vector M(v)');
+  stage(360, 4, 170, '3 Predict', 'pathway B: which', 'a'); stage(360, 62, 170, '4 Diagnose', 'pathway A: why', 'a');
+  stage(580, 30, 130, 'Triage', 'joined by id'); stage(760, 30, 130, '7 Prescribe', 'candidate edits');
+  stage(180, 180, 130, '5 Simulate', 'fail each component', 'o'); stage(460, 180, 130, '6 Validate', 'gates', 'o'); stage(760, 180, 130, 'Counterfactual', 're-simulate edit', 'o');
+  arrow('M140 53 H178'); arrow('M310 45 C335 45 335 27 358 27'); arrow('M310 61 C335 61 335 85 358 85');
+  arrow('M530 27 C555 27 555 45 578 45'); arrow('M530 85 C555 85 555 61 578 61'); arrow('M710 53 H758');
+  arrow('M75 76 V203 H178'); arrow('M310 203 H458'); arrow('M445 108 C445 150 500 150 510 178'); arrow('M825 76 V178'); arrow('M760 203 H592', 'dashed');
+  arrow('M245 180 C245 130 330 20 358 16', 'dashed');
+  el('text', { class: 'lbl', x: 84, y: 150 }, s, 'raw edges only'); el('text', { class: 'lbl', x: 232, y: 132, 'text-anchor': 'end' }, s, 'labels, offline'); el('text', { class: 'lbl', x: 676, y: 196, 'text-anchor': 'middle' }, s, 'accept or reject');
+})();
+
+/* ---------- stage 1 ---------- */
+const N = {
+  B1: { t: 'Broker', x: 210, y: 46, w: 110, h: 36 }, B2: { t: 'Broker', x: 490, y: 46, w: 110, h: 36 },
+  T1: { t: 'Topic', x: 130, y: 150, w: 100, h: 36 }, T2: { t: 'Topic', x: 290, y: 150, w: 100, h: 36 }, T3: { t: 'Topic', x: 530, y: 150, w: 100, h: 36 }, T4: { t: 'Topic', x: 650, y: 150, w: 100, h: 36 },
+  A1: { t: 'Application', x: 68, y: 282, w: 100, h: 38 }, A2: { t: 'Application', x: 193, y: 282, w: 100, h: 38 }, A6: { t: 'Application', x: 350, y: 282, w: 100, h: 38 },
+  A3: { t: 'Application', x: 470, y: 282, w: 106, h: 38 }, A5: { t: 'Application', x: 590, y: 282, w: 100, h: 38 }, A4: { t: 'Application', x: 710, y: 282, w: 100, h: 38 },
+  L1: { t: 'Library', x: 330, y: 388, w: 100, h: 36 },
+};
+const HOST = { N1: { x: 8, y: 248, w: 242, h: 92 }, N2: { x: 288, y: 248, w: 484, h: 92 } };
+(function () {
+  const s = document.getElementById('raw'), C = D.model.components;
+  for (const h in HOST) { const b = HOST[h], g = el('g', { class: 'n host' }, s); el('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 6 }, g); el('text', { class: 'hl', x: h === 'N2' ? b.x + b.w - 10 : b.x + 10, y: b.y + b.h - 9, 'text-anchor': h === 'N2' ? 'end' : 'start' }, g, `${h} · ${NAME[h]} · w ${f2(C[h].w)}`); }
+  el('line', { class: 'link', x1: 250, y1: 294, x2: 288, y2: 294 }, s);
+  const clip = (a, b, pad) => { const dx = b.x - a.x, dy = b.y - a.y, k = Math.min(dx ? (a.w / 2 + pad) / Math.abs(dx) : Infinity, dy ? (a.h / 2 + pad) / Math.abs(dy) : Infinity); return { x: a.x + dx * k, y: a.y + dy * k }; };
+  for (const [u, v, kind] of D.model.raw) {
+    if (!N[u] || !N[v]) continue;
+    const flow = kind === 'PUBLISHES_TO' || kind === 'SUBSCRIBES_TO', a = kind === 'SUBSCRIBES_TO' ? N[v] : N[u], b = kind === 'SUBSCRIBES_TO' ? N[u] : N[v];
+    const p1 = clip(a, b, 1), p2 = clip(b, a, flow ? 3 : 1);
+    el('line', { class: 'e ' + (kind === 'ROUTES' ? 'routes' : kind === 'USES' ? 'uses' : ''), x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }, s);
+    if (flow) { const an = Math.atan2(p2.y - p1.y, p2.x - p1.x), z = 7, w = 0.42; el('polygon', { class: 'ah', points: `${p2.x},${p2.y} ${p2.x - z * Math.cos(an - w)},${p2.y - z * Math.sin(an - w)} ${p2.x - z * Math.cos(an + w)},${p2.y - z * Math.sin(an + w)}` }, s); }
+  }
+  for (const id in N) {
+    const n = N[id], g = el('g', { class: 'n ' + (n.t === 'Library' ? 'lib' : '') }, s), x = n.x - n.w / 2, y = n.y - n.h / 2;
+    if (n.t === 'Broker') { const c = 9; el('polygon', { points: [[x + c, y], [x + n.w - c, y], [x + n.w, y + c], [x + n.w, y + n.h - c], [x + n.w - c, y + n.h], [x + c, y + n.h], [x, y + n.h - c], [x, y + c]].map(p => p.join(',')).join(' ') }, g); }
+    else el('rect', { x, y, width: n.w, height: n.h, rx: n.t === 'Topic' ? n.h / 2 : 5 }, g);
+    el('text', { class: 'nm', x: n.x, y: n.y - 1 }, g, NAME[id]); el('text', { class: 'sb', x: n.x, y: n.y + 11.5 }, g, `${id} · w ${f2(C[id].w)}`);
+  }
+  const rows = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'N1', 'N2'], cols = ['A1', 'A2', 'A3', 'A4', 'L1', 'B1', 'B2', 'N1', 'N2'], w = {};
+  for (const [u, v, , x] of D.model.dep) w[u + '>' + v] = x;
+  const kinds = {}; for (const [, , k] of D.model.dep) kinds[k] = (kinds[k] || 0) + 1;
+  document.getElementById('dep-count').textContent = `${D.model.dep.length} derived DEPENDS_ON edges: ` + Object.entries(kinds).map(([k, n]) => `${n} ${k.replace(/_/g, ' ')}`).join(', ');
+  document.getElementById('matrix').innerHTML = `<thead><tr><th>depends on →</th>${cols.map(c => `<th class="c">${c}</th>`).join('')}</tr></thead><tbody>` +
+    rows.map(r => `<tr><td>${who(r)}</td>${cols.map(c => { const x = w[r + '>' + c]; return `<td class="c h" style="${x != null ? heat(x, 1) : ''}">${x != null ? x.toFixed(2) : ''}</td>`; }).join('')}</tr>`).join('') + '</tbody>';
+})();
+
+/* ---------- stage 2 ---------- */
+(function () {
+  const A = D.analyze, LAB = { reverse_pagerank: 'Reverse PageRank', in_degree_raw: 'Dependents', out_degree_raw: 'Dependencies', betweenness: 'Betweenness', ap_c_directed: 'Cut-vertex score', cdi: 'Connectivity loss', blast_radius: 'Reachable', dependency_weight_in: 'Weight in', dependency_weight_out: 'Weight out', clustering_coefficient: 'Clustering' };
+  const ids = ORDER.filter(i => A.metrics[i] && D.model.components[i].type !== 'Topic'), max = {}; for (const k of A.keys) max[k] = Math.max(...ids.map(i => A.metrics[i][k] || 0));
+  document.getElementById('metrics').innerHTML = `<thead><tr><th>Component</th>${A.keys.map(k => `<th class="num">${LAB[k]}</th>`).join('')}</tr></thead><tbody>` +
+    ids.map(i => `<tr><td>${who(i)}</td>${A.keys.map(k => { const v = A.metrics[i][k]; return `<td class="h" style="${heat(v, max[k])}">${Number.isInteger(v) ? v : v.toFixed(3)}</td>`; }).join('')}</tr>`).join('') + '</tbody>';
+  document.getElementById('metrics-note').innerHTML = `Ten fields of the metric vector, for the eleven non-topic components. Each column is shaded against its own maximum. The dependency graph has ${A.summary.nodes} nodes and ${A.summary.edges} edges, with density ${f3(A.summary.density)}.`;
+})();
+
+/* ---------- stage 3 ---------- */
+(function () {
+  const P = D.predict, ids = Object.keys(P.gnn).sort((a, b) => P.gnn[b] - P.gnn[a]), top = new Set(ids.slice(0, 3)), rmax = Math.max(...Object.values(P.refs.Reach));
+  const rk = (obj, id) => 1 + Object.values(obj).filter(v => v > obj[id] + 1e-9).length;
+  document.getElementById('predict').innerHTML = `<thead><tr><th>Component</th><th>HGT-QoS (trained)</th><th class="num">Rank</th><th>Reach (closed form)</th><th class="num">Rank</th><th></th></tr></thead><tbody>` +
+    ids.map(i => `<tr><td>${who(i)}</td><td>${bar(P.gnn[i], 1)}</td><td class="num">${rk(P.gnn, i)}</td><td>${bar(P.refs.Reach[i] ?? 0, rmax)}</td><td class="num">${rk(P.refs.Reach, i)}</td><td>${top.has(i) ? '<span class="pill ok">top 3</span>' : ''}</td></tr>`).join('') + '</tbody>';
+  document.getElementById('predict-note').innerHTML = `<span class="cap">What to notice</span>
+    <p class="note"><b>The two rankers agree on the bottom and disagree on the top.</b> Both put the two pure consumers last. The trained model puts the shared library and flight-plan above radar; Reach puts radar and the library first.</p>
+    <p class="note"><b>The model ran through the SDK.</b> <code>client.predict(mode="gnn", gnn_checkpoint=…)</code> returned <code>prediction_mode = ${esc(P.mode)}</code>. Without a checkpoint the same call returns the quality model's Q(v), the cold-start fallback.</p>
+    <p class="note">Which ranker to trust on which shape is the subject of the Predictor Proving Ground.</p>`;
+})();
+
+/* ---------- stage 4 ---------- */
+(function () {
+  const G = D.diagnose, dims = [['fault_tolerance', 'FT'], ['availability', 'A'], ['reliability', 'R'], ['maintainability', 'M'], ['overall', 'Q']], max = {};
+  for (const [k] of dims) max[k] = Math.max(...G.components.map(c => c[k]));
+  const lv = l => `<span class="pill ${l === 'critical' ? 'critical' : l === 'high' ? 'high' : l === 'medium' ? 'medium' : ''}">${l}</span>`;
+  document.getElementById('rm').innerHTML = `<thead><tr><th>Component</th>${dims.map(d => `<th class="num">${d[1]}</th>`).join('')}<th>Level</th></tr></thead><tbody>` +
+    G.components.map(c => `<tr><td>${who(c.id)}</td>${dims.map(([k]) => `<td class="h" style="${heat(c[k], max[k])}">${f3(c[k])}</td>`).join('')}<td>${lv(c.level)}</td></tr>`).join('') + '</tbody>';
+  const sev = s => `<span class="pill ${s === 'CRITICAL' ? 'critical' : s === 'HIGH' ? 'high' : 'medium'}">${s.toLowerCase()}</span>`;
+  const groups = {}; for (const p of G.problems) (groups[p.name + '|' + p.severity] = groups[p.name + '|' + p.severity] || []).push(p.entity_id);
+  document.getElementById('diag-side').innerHTML = `<span class="cap">How Q(v) is composed</span>
+    <p class="note">R = ${f2(G.weights.r_alpha)} · FT + ${f2(1 - G.weights.r_alpha)} · A, then Q = ${f2(G.weights.q_reliability)} · R + ${f2(G.weights.q_maintainability)} · M. QoS adaptation shifted the Q weights toward reliability from their declared 0.80 / 0.20; three of the four topics here are RELIABLE.</p>
+    <span class="cap">Anti-patterns found</span>
+    ${Object.entries(groups).map(([k, ids]) => { const [name, s] = k.split('|'); return `<p class="note">${sev(s)} <b>${esc(name)}</b>: ${ids.map(esc).join(', ')}</p>`; }).join('')}
+    <span class="cap">Verdict</span>
+    <p class="note"><b>${G.report.deployment_blocked ? 'Deployment blocked.' : 'Deployment allowed.'}</b> ${esc(G.report.reason)} ${G.report.critical_count} component is rated critical and ${G.report.high_count} high.</p>
+    <p class="note">This verdict is advisory. The method's own guidance is to post such findings as a note on a pull request and reserve blocking for targeted staging-time simulation.</p>`;
+  const T = D.triage_gnn;
+  document.getElementById('triage').innerHTML = T.entries.map(e => `<div class="box card"><span class="rk">PATHWAY B · RANK ${e.rank} · SCORE ${f3(e.ranking_score)}</span><span class="who">${who(e.component_id)}</span>
+    <div class="join"><span><b style="color:var(--ink)">Pathway A profile:</b> ${esc(e.pattern)} ${lv(e.level.toLowerCase())}</span><span>${esc(e.priority_action)}</span><span>For: ${e.roles.map(esc).join(', ')}</span></div></div>`).join('');
+  document.getElementById('triage-note').innerHTML = `The ranking source is recorded as <code>${esc(T.ranking_source)}</code>; with no checkpoint it would be <code>rm</code>. Where the two pathways disagree it shows: the trained model ranks ${NAME[T.entries[0].component_id]} first while its quality profile is only ${T.entries[0].level.toLowerCase()}. The bridge reports both and never reads a cause off the model's weights.`;
+})();
+
+/* ---------- stage 5 ---------- */
+(function () {
+  const S = D.simulate, ids = ORDER.filter(i => S.istar[i] != null || S.icomp[i]);
+  document.getElementById('sim').innerHTML = `<thead><tr><th>Component failed</th><th>I* cascade impact (trains pathway B)</th><th>I_comp system loss (referee for pathway A)</th><th class="num">I_R</th><th class="num">I_M</th></tr></thead><tbody>` +
+    ids.map(i => { const c = S.icomp[i]; return `<tr><td>${who(i)}</td><td>${S.istar[i] != null ? bar(S.istar[i], 1) : '<span style="color:var(--muted)">not labelled</span>'}</td><td>${c ? bar(c.comp, 1) : '<span style="color:var(--muted)">not swept</span>'}</td><td class="num">${c ? f3(c.IR) : '–'}</td><td class="num">${c ? f3(c.IM) : '–'}</td></tr>`; }).join('') + '</tbody>';
+})();
+
+/* ---------- stage 6 ---------- */
+(function () {
+  const V = D.validate, sys = V.system, app = V.app, q = Object.fromEntries(D.diagnose.components.map(c => [c.id, c.overall])), ic = D.simulate.icomp, ids = Object.keys(ic);
+  const s = document.getElementById('scatter'), L = 52, T = 16, W = 440, H = 290, xmax = 0.4, ymax = 0.8, x = v => L + W * v / xmax, y = v => T + H * (1 - v / ymax);
+  for (let i = 0; i <= 4; i++) { const xv = xmax * i / 4, yv = ymax * i / 4; el('line', { class: 'grid', x1: x(xv), x2: x(xv), y1: y(0), y2: y(ymax) }, s); el('line', { class: 'grid', x1: x(0), x2: x(xmax), y1: y(yv), y2: y(yv) }, s); el('text', { class: 'lbl', x: x(xv), y: y(0) + 14, 'text-anchor': 'middle' }, s, xv.toFixed(1)); el('text', { class: 'lbl', x: L - 6, y: y(yv) + 3, 'text-anchor': 'end' }, s, yv.toFixed(1)); }
+  el('text', { class: 'lbl', x: x(xmax / 2), y: y(0) + 32, 'text-anchor': 'middle' }, s, 'predicted Q(v), stage 4'); el('text', { class: 'lbl', x: 14, y: y(ymax / 2), 'text-anchor': 'middle', transform: `rotate(-90 14 ${y(ymax / 2)})` }, s, 'simulated I_comp, stage 5');
+  for (const i of ids) { el('circle', { class: 'pt', cx: x(q[i]), cy: y(ic[i].comp), r: 5 }, s); el('text', { class: 'ptl', x: x(q[i]) + 8, y: y(ic[i].comp) + 3.5 }, s, i); }
+  const G = [['spearman', 'Spearman ρ', 'spearman', V.targets.spearman], ['top5_overlap', 'Top-5 overlap', 'top_5_overlap', V.targets.top_5_overlap], ['predictive_gain', 'Predictive gain', 'predictive_gain', V.targets.predictive_gain], ['overlap_at_q3', 'Overlap at upper quartile', null, null], ['kappa_cta', 'Weighted κ', null, V.targets.weighted_kappa_cta], ['bottleneck_precision', 'Bottleneck precision', null, V.targets.bottleneck_precision_target]];
+  const gate = g => g === true ? '<span class="pill ok">pass</span>' : g === false ? '<span class="pill no">fail</span>' : '<span class="pill">not measured</span>';
+  const val = (lay, k) => k && lay.summary[k] != null ? f3(lay.summary[k]) : '';
+  document.getElementById('gates').innerHTML = `<thead><tr><th rowspan="2">Gate</th><th rowspan="2" class="num">Target</th><th colspan="2" class="c">System layer, n = ${sys.n.matched_count}</th><th colspan="2" class="c">App layer, n = ${app.n.matched_count}</th></tr><tr><th class="num">Value</th><th></th><th class="num">Value</th><th></th></tr></thead><tbody>` +
+    G.map(([k, lab, sk, t]) => `<tr><td>${lab}</td><td class="num">${t != null ? '≥ ' + t : ''}</td><td class="num">${val(sys, sk)}</td><td>${gate(sys.gates[k])}</td><td class="num">${val(app, sk)}</td><td>${gate(app.gates[k])}</td></tr>`).join('') +
+    `<tr><td><b>Layer verdict</b></td><td></td><td></td><td>${gate(sys.passed)}</td><td></td><td>${gate(app.passed)}</td></tr></tbody>`;
+  document.getElementById('val-note').innerHTML = `<b>The system layer misses the correlation gate narrowly: ρ = ${f3(sys.summary.spearman)} against a target of ${V.targets.spearman}.</b> With ${sys.n.matched_count} components the 95% interval runs from ${f2(sys.ci[0])} to ${f2(sys.ci[1])}, so neither a pass nor a fail would mean much here. Restricted to applications the correlation is ${f3(sys.strat.Application.spearman)}. The dimension-level picture is uneven: reliability correlates at ${f2(sys.summary.reliability_spearman)} and maintainability at ${f2(sys.summary.maintainability_spearman)} on the system layer. The app layer carries its own warning: ${esc(app.warnings[app.warnings.length - 1].toLowerCase())}.`;
+})();
+
+/* ---------- stage 7 ---------- */
+(function () {
+  const P = D.prescribe, KIND = { node_reallocation: 'Move to its own host', qos_upgrade: 'Upgrade QoS', topic_split: 'Split topic' };
+  document.getElementById('edits').innerHTML = `<thead><tr><th>Candidate edit</th><th>Target</th><th class="num">Worst Δ impact</th><th class="num">Noise bar κ·σ</th><th>Verdict</th></tr></thead><tbody>` +
+    P.edit_verdicts.map(e => `<tr><td>${KIND[e.kind] || esc(e.kind)}</td><td>${who(e.target)}</td><td class="num">${e.worst_delta.toFixed(4)}</td><td class="num">${(e.worst_delta - e.worst_margin).toFixed(4)}</td><td>${e.accepted ? '<span class="pill ok">accepted</span>' : '<span class="pill no">rejected</span>'}</td></tr>`).join('') + '</tbody>';
+  const q = P.edit_verdicts.find(e => e.kind === 'qos_upgrade');
+  document.getElementById('presc-side').innerHTML = `<span class="cap">System risk index</span>
+    <div class="score"><span class="val">${P.original_sri.toFixed(4)} → ${P.mutated_sri.toFixed(4)}</span><span class="sub">before and after the accepted edits</span></div>
+    <p class="note"><b>${P.n_accepted_edits} of ${P.n_candidate_edits} candidates accepted.</b> ${P.applied_changes.map(esc).join('. ')}.</p>
+    <p class="note"><b>Four moves changed nothing</b> in the counterfactual run (Δ = 0), so they were rejected however reasonable they looked.</p>
+    ${q ? `<p class="note"><b>The QoS upgrade did reduce impact, and was still rejected.</b> Its reduction stayed below the seed-noise bar at ${Object.values(q.per_threshold).filter(v => v.mean_delta <= q.kappa * v.sigma_seed).length} of the ${Object.keys(q.per_threshold).length} propagation thresholds; at the worst one it was ${q.worst_delta.toFixed(4)} against a bar of ${(q.worst_delta - q.worst_margin).toFixed(4)}. An improvement that cannot be told from noise does not count.</p>` : ''}
+    <p class="note">The gain is small in absolute terms, ${(P.sri_improvement).toFixed(4)} on the index. The accepted moves pass because their runs were deterministic, so any reduction above zero clears a zero noise bar.</p>`;
+})();
+
+/* ---------- closing ---------- */
+(function () {
+  const V = D.validate.system, P = D.prescribe;
+  document.getElementById('take').innerHTML = [
+    `<b>Every stage ran from one architecture file</b>, with no deployment, no runtime data and no database. That is the method's premise in practice.`,
+    `<b>The two pathways are visibly different instruments.</b> The trained ranker and the quality model order the same components differently, and triage keeps both views side by side instead of merging them.`,
+    `<b>Simulation is the referee, not an input.</b> Neither ranking saw the simulated impacts; they meet only in stage 6.`,
+    `<b>Validation is honest about what it could not establish.</b> The system layer fails its correlation gate at ${f3(V.summary.spearman)}, one gate is reported as not measured, and the app layer warns of low statistical power.`,
+    `<b>Prescription is conservative by construction.</b> ${P.n_rejected_edits} of ${P.n_candidate_edits} suggested fixes were rejected by counterfactual simulation, one of them despite a measurable improvement.`,
+    `<b>Some generated wording is rough at this scale.</b> The explanation layer describes the tracks topic as a hub with "0 downstream components", which reads oddly beside its critical rating.`,
+    `<b>This is a demonstration, not a result.</b> Fifteen components cannot support an accuracy claim in either direction.`,
+  ].map(i => `<li>${i}</li>`).join('');
+})();
+</script>

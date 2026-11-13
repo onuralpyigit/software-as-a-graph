@@ -1,0 +1,324 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Analyze Walkthrough</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: a metric picker drives a shaded system diagram; then the full vector, its downstream roles and the checks. */
+
+:root {
+  --bg: #f2f5f7; --surface: #ffffff; --ink: #16212b; --muted: #5a6877; --line: #cbd4dc; --line-soft: #e3e8ed;
+  --accent: #0b6a94; --accent-soft: #d9ebf3;
+  --fail: #bf3b2b; --fail-soft: #f9ddd7;
+  --ok: #2b7a4b; --ok-soft: #dcefe3;
+  --warn: #9a6a12; --warn-soft: #f7e8c6;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c;
+  --ok: #63c08a; --ok-soft: #173826;
+  --warn: #e3b550; --warn-soft: #43350f; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c;
+  --ok: #63c08a; --ok-soft: #173826;
+  --warn: #e3b550; --warn-soft: #43350f; color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 46px; }
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: 2.3rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.55rem; font-weight: 600; }
+p { margin: 0; max-width: 70ch; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+.lede { font-size: 1.05rem; color: var(--muted); margin-top: 10px; }
+.eyebrow, .cap { font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.eyebrow { color: var(--accent); margin-bottom: 6px; } .cap { color: var(--muted); font-weight: 600; }
+section { display: flex; flex-direction: column; gap: 16px; }
+.sec-head { display: flex; flex-direction: column; gap: 8px; }
+.sec-head p, .note { color: var(--muted); } .note { font-size: 0.9rem; }
+.sec-head p b, .note b, li b { color: var(--ink); font-weight: 600; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.pad { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.scroll { overflow-x: auto; }
+.two { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.half { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+@media (max-width: 900px) { .two, .half, .three { grid-template-columns: minmax(0, 1fr); } }
+ul.plain { margin: 0; padding-left: 1.15em; display: flex; flex-direction: column; gap: 8px; max-width: 78ch; color: var(--muted); }
+.fig svg { display: block; width: 100%; min-width: 600px; height: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+th { font: 600 0.7rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num, td.h { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+td.c, th.c { text-align: center; }
+td.wrapcell { white-space: normal; min-width: 15em; }
+tbody tr.pick { cursor: pointer; } tbody tr.pick:hover td { background: var(--line-soft); } tbody tr.on td { background: var(--accent-soft); }
+.pill { display: inline-block; font: 600 0.68rem var(--mono); letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.pill.critical { background: var(--fail); border-color: var(--fail); color: var(--surface); }
+.pill.high, .pill.no { background: var(--fail-soft); border-color: var(--fail); color: var(--fail); }
+.pill.medium, .pill.warn { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.pill.ok { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.pill.accent { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.bar { display: grid; grid-template-columns: 3.4em minmax(40px, 1fr); gap: 8px; align-items: center; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.track { height: 9px; background: var(--line-soft); border-radius: 2px; overflow: hidden; }
+.fill { height: 100%; background: var(--accent); display: block; } .fill.f { background: var(--fail); }
+.card { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.card .rk { font: 600 0.74rem var(--mono); color: var(--accent); letter-spacing: 0.05em; }
+.card .who { font: 600 1.05rem var(--display); }
+.card .join { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 2px; display: flex; flex-direction: column; gap: 5px; font-size: 0.86rem; color: var(--muted); }
+.score { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.score .val { font: 600 1.9rem var(--mono); line-height: 1; } .score .sub { font-size: 0.82rem; color: var(--muted); }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; color: var(--muted); align-items: center; }
+.key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ln { width: 22px; height: 0; border-top: 1.6px solid var(--muted); display: inline-block; } .ln.dash { border-top-style: dashed; } .ln.dot { border-top-style: dotted; }
+.sw { width: 12px; height: 12px; display: inline-block; border-radius: 2px; background: var(--accent); }
+.picker { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding-block: 10px; display: flex; gap: 14px; align-items: center; }
+.chips { display: flex; gap: 6px; overflow-x: auto; min-width: 0; padding-bottom: 2px; }
+.chip { font: 500 0.82rem var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; cursor: pointer; white-space: nowrap; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.formula { font-family: var(--mono); font-size: 0.86rem; background: var(--bg); border: 1px solid var(--line-soft); border-radius: 4px; padding: 8px 10px; overflow-x: auto; white-space: nowrap; }
+footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: 0.84rem; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+footer p { max-width: 92ch; }
+
+svg text { font-family: var(--body); fill: var(--ink); }
+.n rect, .n polygon { fill: var(--surface); stroke: var(--muted); stroke-width: 1.3; }
+.n.host > rect { fill: var(--bg); stroke: var(--line); stroke-dasharray: 5 3; }
+.n.lib rect { stroke-dasharray: 3 2; }
+.n.pickable { cursor: pointer; }
+.n.sel > rect, .n.sel > polygon { stroke: var(--accent); stroke-width: 2.6; }
+.n.hot > rect, .n.hot > polygon { fill: var(--fail-soft); stroke: var(--fail); stroke-width: 1.8; }
+.n.mark > rect, .n.mark > polygon { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.8; }
+.n.dim { opacity: 0.4; }
+.nm { font-size: 12px; font-weight: 600; text-anchor: middle; }
+.sb { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); text-anchor: middle; }
+.hl { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+.bdg rect { fill: var(--ink); } .bdg text { fill: var(--bg); font-family: var(--mono); font-size: 9.5px; font-weight: 600; text-anchor: middle; }
+.e { stroke: var(--muted); stroke-width: 1.2; fill: none; } .e.routes { stroke-dasharray: 5 4; } .e.uses { stroke-dasharray: 1.5 3.5; stroke-linecap: round; stroke-width: 1.6; }
+.ah { fill: var(--muted); }
+.link { stroke: var(--muted); stroke-width: 3; }
+.lbl { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+.axis { stroke: var(--line); } .grid { stroke: var(--line-soft); } .diag { stroke: var(--muted); stroke-dasharray: 4 3; }
+.pt { fill: var(--accent); fill-opacity: 0.6; stroke: var(--accent); }
+.ptl { font-family: var(--mono); font-size: 10px; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+
+.pickrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.mgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
+.mbtn { text-align: left; font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 6px 9px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.mbtn .k { font: 500 0.78rem var(--mono); } .mbtn .g { font-size: 0.72rem; color: var(--muted); }
+.mbtn:hover { border-color: var(--accent); } .mbtn[aria-pressed="true"] { border-color: var(--accent); border-width: 2px; padding: 5px 8px; }
+.mbtn.flat { opacity: 0.5; }
+.role { display: inline-block; font: 600 0.64rem var(--mono); letter-spacing: 0.04em; text-transform: uppercase; padding: 1px 5px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); margin-right: 3px; }
+.role.scoring { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.role.detection { border-color: var(--warn); color: var(--warn); background: var(--warn-soft); }
+.role.gnn_feature { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">software-as-a-graph · step 2 · analyze</div>
+    <h1>Analyze Walkthrough</h1>
+    <p class="lede">Analyze measures position and nothing else. For every component it computes a vector of structural metrics on the dependency graph: how much leans on it, what it sits between, how redundant its surroundings are. It assigns no score and makes no judgement; those come later and read from this vector. This page lets you look at the metrics one at a time on a 15-component system.</p>
+  </header>
+
+  <div class="picker"><span class="cap">Layer</span><div class="chips" id="layer-chips"></div><span class="cap" style="margin-left:8px">Metric</span><b id="sel-name" class="mono"></b></div>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">1 · one metric at a time</div>
+      <h2 id="s1-title"></h2>
+      <p id="s1-text"></p>
+    </div>
+    <div class="two">
+      <div class="box fig scroll">
+        <div class="keys"><span class="key">low <span style="display:inline-block;width:70px;height:10px;border:1px solid var(--line);border-radius:2px;background:linear-gradient(90deg,var(--surface),var(--accent))"></span> high</span><span>dimmed components are outside this layer</span></div>
+        <svg id="graph" role="img" aria-label="Mini-ATM shaded by the selected metric"></svg>
+      </div>
+      <div class="box scroll"><table id="rank"></table></div>
+    </div>
+    <div class="mgrid" id="metrics"></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">2 · the whole vector</div>
+      <h2 id="s2-title"></h2>
+      <p>Each row is a component and each column a metric, shaded against its own column maximum. Metrics that take the same value for every component on this system are left out; they are listed at the end.</p>
+    </div>
+    <div class="box scroll"><table id="matrix"></table></div>
+    <p class="note" id="flat-note"></p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">3 · who reads it</div>
+      <h2 id="s3-title"></h2>
+      <p>The vector is wider than any one consumer needs. The code keeps a registry of which later step actually reads each field, so that "how many metrics does the model use" has one answer.</p>
+    </div>
+    <div class="two">
+      <div class="box scroll"><table id="roles"></table></div>
+      <div class="box pad" id="roles-side"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">4 · are these the textbook quantities?</div>
+      <h2>Eight metrics reproduced independently</h2>
+      <p>The script rebuilds the layer's dependency graph and recomputes eight metrics with NetworkX alone, then checks them against the analyzer's values.</p>
+    </div>
+    <div class="two">
+      <div class="box scroll"><table id="checks"></table></div>
+      <div class="box pad" id="checks-side"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">5 · the graph as a whole</div>
+      <h2>A summary of the layer's shape</h2>
+    </div>
+    <div class="box scroll"><table id="summary"></table></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Reading the result</div>
+      <h2>What Analyze does and does not decide</h2>
+    </div>
+    <ul class="plain" id="take"></ul>
+  </section>
+
+  <footer>
+    <p><b>How this was produced.</b> <code>python examples/run_analyze_walkthrough.py</code> on <code>examples/mini_atm.json</code>: <code>Client.analyze</code> for the system and application layers. Field descriptions are read from the comments on <code>StructuralMetrics</code> and roles from <code>saag/core/metric_registry.py</code>; nothing is restated by hand.</p>
+    <p>Several fields are zero for every component here because <code>mini_atm.json</code> declares no code metrics, no host hardware and no network devices.</p>
+  </footer>
+</div>
+
+<script>
+const D = {"fields":[{"name":"pagerank","group":"Centrality","text":"Global importance in dependency graph","roles":["detection","gnn_feature"],"varies":true},{"name":"reverse_pagerank","group":"Centrality","text":"Influence on failure propagation","roles":["gnn_feature","scoring"],"varies":true},{"name":"betweenness","group":"Centrality","text":"Bridge/bottleneck centrality","roles":["detection","gnn_feature","scoring"],"varies":true},{"name":"closeness","group":"Centrality","text":"Average distance to all nodes","roles":["gnn_feature"],"varies":true},{"name":"eigenvector","group":"Centrality","text":"Influence via neighbor importance","roles":["gnn_feature"],"varies":true},{"name":"degree","group":"Degree","text":"Total degree centrality (normalized)","roles":["descriptive"],"varies":true},{"name":"in_degree","group":"Degree","text":"Normalized in-degree (who depends on this)","roles":["gnn_feature"],"varies":true},{"name":"out_degree","group":"Degree","text":"Normalized out-degree (this depends on)","roles":["gnn_feature"],"varies":true},{"name":"in_degree_raw","group":"Degree","text":"Raw in-degree count","roles":["detection","scoring"],"varies":true},{"name":"out_degree_raw","group":"Degree","text":"Raw out-degree count","roles":["detection","scoring"],"varies":true},{"name":"clustering_coefficient","group":"Resilience","text":"Local redundancy (higher = more alternatives)","roles":["gnn_feature","scoring"],"varies":true},{"name":"bridge_count","group":"Resilience","text":"Number of bridges touching this node","roles":["descriptive"],"varies":false},{"name":"bridge_ratio","group":"Resilience","text":"Fraction of edges that are bridges","roles":["gnn_feature","scoring"],"varies":false},{"name":"ap_c_directed","group":"Resilience","text":"Directed SPOF severity","roles":["gnn_feature","scoring"],"varies":false},{"name":"cdi","group":"Resilience","text":"Connectivity Degradation Index","roles":["gnn_feature","scoring"],"varies":true},{"name":"blast_radius","group":"Resilience","text":"Number of nodes that become unreachable if this node is removed","roles":["descriptive"],"varies":true},{"name":"cascade_depth","group":"Resilience","text":"Longest failure propagation path from this node","roles":["descriptive"],"varies":true},{"name":"publisher_spof","group":"Resilience","text":"Sole-publisher risk: qos_weight * min(sub_count/5, 1) if sole pub","roles":["descriptive"],"varies":true},{"name":"pubsub_degree","group":"Pub-Sub Topology","text":"Topics this app publishes to OR subscribes to","roles":["descriptive"],"varies":true},{"name":"pubsub_betweenness","group":"Pub-Sub Topology","text":"Betweenness in the pub-sub bipartite graph","roles":["descriptive"],"varies":true},{"name":"broker_exposure","group":"Pub-Sub Topology","text":"Distinct brokers routing touched topics","roles":["descriptive"],"varies":true},{"name":"fan_out_criticality","group":"Pub-Sub Topology","text":"Topic fan-out (Topic nodes only): log1p(Hz)\u00b7sub_count / max","roles":["gnn_feature","scoring"],"varies":true},{"name":"topic_frequency_hz","group":"Pub-Sub Topology","text":"Raw message rate in Hz (Topic nodes only; 0.0 for all other types)","roles":["descriptive"],"varies":true},{"name":"mpci","group":"Pub-Sub Topology","text":"Multi-path coupling intensity","roles":["gnn_feature","scoring"],"varies":true},{"name":"path_complexity","group":"Pub-Sub Topology","text":"Efferent path count complexity: mean(log2(1+path_count))","roles":["gnn_feature","scoring"],"varies":true},{"name":"coupling_risk_enh","group":"Pub-Sub Topology","text":"CouplingRisk_enh(v): Martin instability enriched by path_complexity","roles":["detection"],"varies":false},{"name":"topic_subscriber_count","group":"Pub-Sub Topology","text":"Raw SUBSCRIBES_TO count (Topic nodes only; 0 for all other types)","roles":["detection","gnn_feature"],"varies":true},{"name":"topic_publisher_count","group":"Pub-Sub Topology","text":"Raw PUBLISHES_TO count (Topic nodes only; 0 for all other types)","roles":["detection","gnn_feature"],"varies":true},{"name":"max_link_utilization","group":"Network Load","text":"Worst offered-load / capacity_mbps over the vertex's CONNECTS_TO links","roles":["descriptive"],"varies":false},{"name":"link_load_mbps","group":"Network Load","text":"Baseline pub-sub traffic on the vertex's CONNECTS_TO links, Mbps","roles":["descriptive"],"varies":false},{"name":"loc_norm","group":"Code Quality","text":"Normalised Lines-of-Code (population min-max) \u2208 [0,1]","roles":["gnn_feature","scoring"],"varies":false},{"name":"complexity_norm","group":"Code Quality","text":"Normalised cyclomatic complexity \u2208 [0,1]","roles":["gnn_feature","scoring"],"varies":false},{"name":"instability_code","group":"Code Quality","text":"Martin instability Ce/(Ca+Ce) \u2208 [0,1] (raw ratio)","roles":["gnn_feature","scoring"],"varies":false},{"name":"lcom_norm","group":"Code Quality","text":"Normalised Lack of Cohesion of Methods \u2208 [0,1]","roles":["gnn_feature","scoring"],"varies":false},{"name":"code_quality_penalty","group":"Code Quality","text":"CQP = 0.10\u00b7LOC + 0.35\u00b7Complexity + 0.30\u00b7Instability + 0.25\u00b7LCOM","roles":["gnn_feature","scoring"],"varies":false},{"name":"weight","group":"Weights","text":"Intrinsic component weight","roles":["detection","gnn_feature","scoring"],"varies":true},{"name":"dependency_weight_in","group":"Weights","text":"Sum of incoming dependency weights","roles":["gnn_feature","scoring"],"varies":true},{"name":"dependency_weight_out","group":"Weights","text":"Sum of outgoing dependency weights","roles":["gnn_feature","scoring"],"varies":true}],"layers":{"system":{"values":{"N1":{"pagerank":0.057,"reverse_pagerank":0.2243,"betweenness":0.0,"closeness":0.0714,"eigenvector":0.2892,"degree":0.1429,"in_degree":0.0714,"out_degree":0.2143,"in_degree_raw":1.0,"out_degree_raw":3.0,"clustering_coefficient":0.6667,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":3.0,"cascade_depth":1.0,"publisher_spof":0.0,"pubsub_degree":0.0,"pubsub_betweenness":0.0,"broker_exposure":0.0,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.4286,"path_complexity":1.195,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.4718,"dependency_weight_in":0.6513,"dependency_weight_out":1.8343},"N2":{"pagerank":0.0583,"reverse_pagerank":0.2251,"betweenness":0.0,"closeness":0.0714,"eigenvector":0.2756,"degree":0.1429,"in_degree":0.0714,"out_degree":0.2143,"in_degree_raw":1.0,"out_degree_raw":3.0,"clustering_coefficient":0.6667,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":3.0,"cascade_depth":1.0,"publisher_spof":0.0,"pubsub_degree":0.0,"pubsub_betweenness":0.0,"broker_exposure":0.0,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.0,"path_complexity":2.4406,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.745,"dependency_weight_in":0.5915,"dependency_weight_out":2.2565},"B1":{"pagerank":0.1573,"reverse_pagerank":0.0268,"betweenness":0.0,"closeness":0.5,"eigenvector":0.5927,"degree":0.25,"in_degree":0.5,"out_degree":0.0,"in_degree_raw":7.0,"out_degree_raw":0.0,"clustering_coefficient":0.3333,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0587,"blast_radius":0.0,"cascade_depth":0.0,"publisher_spof":0.0,"pubsub_degree":0.0,"pubsub_betweenness":0.0,"broker_exposure":0.0,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.3571,"path_complexity":0.0,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.4718,"dependency_weight_in":3.9343,"dependency_weight_out":0.0},"B2":{"pagerank":0.1803,"reverse_pagerank":0.0268,"betweenness":0.0,"closeness":0.5,"eigenvector":0.6993,"degree":0.25,"in_degree":0.5,"out_degree":0.0,"in_degree_raw":7.0,"out_degree_raw":0.0,"clustering_coefficient":0.3333,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0587,"blast_radius":0.0,"cascade_depth":0.0,"publisher_spof":0.0,"pubsub_degree":0.0,"pubsub_betweenness":0.0,"broker_exposure":0.0,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.5,"path_complexity":0.0,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.6421,"dependency_weight_in":5.5512,"dependency_weight_out":0.0},"T1":{"pagerank":0.0427,"reverse_pagerank":0.0268,"betweenness":0.0,"closeness":0.0,"eigenvector":0.0,"degree":0.0,"in_degree":0.0,"out_degree":0.0,"in_degree_raw":0.0,"out_degree_raw":0.0,"clustering_coefficient":0.0,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":0.0,"cascade_depth":0.0,"publisher_spof":0.0,"pubsub_degree":0.0,"pubsub_betweenness":0.0,"broker_exposure":0.0,"fan_out_criticality":0.8464,"topic_frequency_hz":20.0,"mpci":0.0,"path_complexity":0.0,"coupling_risk_enh":0.0,"topic_subscriber_count":2.0,"topic_publisher_count":1.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.1462,"dependency_weight_in":0.0,"dependency_weight_out":0.0},"T2":{"pagerank":0.0427,"reverse_pagerank":0.0268,"betweenness":0.0,"closeness":0.0,"eigenvector":0.0,"degree":0.0,"in_degree":0.0,"out_degree":0.0,"in_degree_raw":0.0,"out_degree_raw":0.0,"clustering_coefficient":0.0,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":0.0,"cascade_depth":0.0,"publisher_spof":0.0,"pubsub_degree":0.0,"pubsub_betweenness":0.0,"broker_exposure":0.0,"fan_out_criticality":1.0,"topic_frequency_hz":10.0,"mpci":0.0,"path_complexity":0.0,"coupling_risk_enh":0.0,"topic_subscriber_count":3.0,"topic_publisher_count":1.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.5915,"dependency_weight_in":0.0,"dependency_weight_out":0.0},"T3":{"pagerank":0.0427,"reverse_pagerank":0.0268,"betweenness":0.0,"closeness":0.0,"eigenvector":0.0,"degree":0.0,"in_degree":0.0,"out_degree":0.0,"in_degree_raw":0.0,"out_degree_raw":0.0,"clustering_coefficient":0.0,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":0.0,"cascade_depth":0.0,"publisher_spof":0.0,"pubsub_degree":0.0,"pubsub_betweenness":0.0,"broker_exposure":0.0,"fan_out_criticality":0.1527,"topic_frequency_hz":2.0,"mpci":0.0,"path_complexity":0.0,"coupling_risk_enh":0.0,"topic_subscriber_count":1.0,"topic_publisher_count":1.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.5577,"dependency_weight_in":0.0,"dependency_weight_out":0.0},"T4":{"pagerank":0.0427,"reverse_pagerank":0.0268,"betweenness":0.0,"closeness":0.0,"eigenvector":0.0,"degree":0.0,"in_degree":0.0,"out_degree":0.0,"in_degree_raw":0.0,"out_degree_raw":0.0,"clustering_coefficient":0.0,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":0.0,"cascade_depth":0.0,"publisher_spof":0.0,"pubsub_degree":0.0,"pubsub_betweenness":0.0,"broker_exposure":0.0,"fan_out_criticality":0.1927,"topic_frequency_hz":1.0,"mpci":0.0,"path_complexity":0.0,"coupling_risk_enh":0.0,"topic_subscriber_count":2.0,"topic_publisher_count":1.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.745,"dependency_weight_in":0.0,"dependency_weight_out":0.0},"A1":{"pagerank":0.0486,"reverse_pagerank":0.0276,"betweenness":0.0,"closeness":0.2143,"eigenvector":0.0,"degree":0.1071,"in_degree":0.1429,"out_degree":0.0714,"in_degree_raw":2.0,"out_degree_raw":1.0,"clustering_coefficient":1.0,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":1.0,"cascade_depth":0.1462,"publisher_spof":0.0585,"pubsub_degree":0.3333,"pubsub_betweenness":0.0,"broker_exposure":0.5,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.0,"path_complexity":1.0,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.1462,"dependency_weight_in":0.2925,"dependency_weight_out":0.1462},"A2":{"pagerank":0.0653,"reverse_pagerank":0.0554,"betweenness":0.0165,"closeness":0.2143,"eigenvector":0.0,"degree":0.25,"in_degree":0.2143,"out_degree":0.2857,"in_degree_raw":3.0,"out_degree_raw":4.0,"clustering_coefficient":0.4762,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0587,"blast_radius":4.0,"cascade_depth":0.6513,"publisher_spof":0.3549,"pubsub_degree":0.6667,"pubsub_betweenness":0.0963,"broker_exposure":0.75,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.0,"path_complexity":1.1462,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.4718,"dependency_weight_in":1.7746,"dependency_weight_out":1.9566},"A3":{"pagerank":0.0486,"reverse_pagerank":0.0613,"betweenness":0.0055,"closeness":0.0714,"eigenvector":0.0,"degree":0.1786,"in_degree":0.0714,"out_degree":0.2857,"in_degree_raw":1.0,"out_degree_raw":4.0,"clustering_coefficient":0.6,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0037,"blast_radius":5.0,"cascade_depth":1.2428,"publisher_spof":0.1115,"pubsub_degree":0.6667,"pubsub_betweenness":0.0593,"broker_exposure":0.75,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.0,"path_complexity":1.1462,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.5751,"dependency_weight_in":0.5577,"dependency_weight_out":2.6386},"A4":{"pagerank":0.0595,"reverse_pagerank":0.0298,"betweenness":0.0,"closeness":0.1429,"eigenvector":0.0,"degree":0.1071,"in_degree":0.1429,"out_degree":0.0714,"in_degree_raw":2.0,"out_degree_raw":1.0,"clustering_coefficient":0.6667,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":1.0,"cascade_depth":0.745,"publisher_spof":0.298,"pubsub_degree":0.3333,"pubsub_betweenness":0.0,"broker_exposure":0.5,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.0,"path_complexity":1.0,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.745,"dependency_weight_in":1.4901,"dependency_weight_out":0.745},"A5":{"pagerank":0.0427,"reverse_pagerank":0.1146,"betweenness":0.0,"closeness":0.0,"eigenvector":0.0,"degree":0.1786,"in_degree":0.0,"out_degree":0.3571,"in_degree_raw":0.0,"out_degree_raw":5.0,"clustering_coefficient":0.6,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0037,"blast_radius":7.0,"cascade_depth":1.8005,"publisher_spof":0.0,"pubsub_degree":1.0,"pubsub_betweenness":0.2185,"broker_exposure":0.6667,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.0,"path_complexity":1.2,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.6421,"dependency_weight_in":0.0,"dependency_weight_out":3.4398},"A6":{"pagerank":0.0427,"reverse_pagerank":0.0743,"betweenness":0.0,"closeness":0.0,"eigenvector":0.0,"degree":0.1786,"in_degree":0.0,"out_degree":0.3571,"in_degree_raw":0.0,"out_degree_raw":5.0,"clustering_coefficient":0.5,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0175,"blast_radius":6.0,"cascade_depth":1.4901,"publisher_spof":0.0,"pubsub_degree":1.0,"pubsub_betweenness":0.3204,"broker_exposure":0.6667,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.0,"path_complexity":1.234,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.5924,"dependency_weight_in":0.0,"dependency_weight_out":3.0299},"L1":{"pagerank":0.0688,"reverse_pagerank":0.0268,"betweenness":0.0,"closeness":0.2143,"eigenvector":0.0,"degree":0.0714,"in_degree":0.1429,"out_degree":0.0,"in_degree_raw":2.0,"out_degree_raw":0.0,"clustering_coefficient":1.0,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":0.0,"cascade_depth":0.0,"publisher_spof":0.0,"pubsub_degree":0.0,"pubsub_betweenness":0.0,"broker_exposure":0.0,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.0,"path_complexity":0.0,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.7119,"dependency_weight_in":1.2038,"dependency_weight_out":0.0}},"types":{"N1":"Node","N2":"Node","B1":"Broker","B2":"Broker","T1":"Topic","T2":"Topic","T3":"Topic","T4":"Topic","A1":"Application","A2":"Application","A3":"Application","A4":"Application","A5":"Application","A6":"Application","L1":"Library"},"flags":{"N1":{"articulation":false,"directed_ap":false,"isolated":false},"N2":{"articulation":false,"directed_ap":false,"isolated":false},"B1":{"articulation":false,"directed_ap":false,"isolated":false},"B2":{"articulation":false,"directed_ap":false,"isolated":false},"T1":{"articulation":false,"directed_ap":false,"isolated":true},"T2":{"articulation":false,"directed_ap":false,"isolated":true},"T3":{"articulation":false,"directed_ap":false,"isolated":true},"T4":{"articulation":false,"directed_ap":false,"isolated":true},"A1":{"articulation":false,"directed_ap":false,"isolated":false},"A2":{"articulation":false,"directed_ap":false,"isolated":false},"A3":{"articulation":false,"directed_ap":false,"isolated":false},"A4":{"articulation":false,"directed_ap":false,"isolated":false},"A5":{"articulation":false,"directed_ap":true,"isolated":false},"A6":{"articulation":false,"directed_ap":false,"isolated":false},"L1":{"articulation":false,"directed_ap":false,"isolated":false}},"edges":[["N1","N2",0.5915],["N1","B1",0.6513],["N1","B2",0.5915],["N2","N1",0.6513],["N2","B1",0.6513],["N2","B2",0.9539],["A1","B1",0.1462],["A2","A1",0.1462],["A2","B1",0.6513],["A2","B2",0.5915],["A2","L1",0.5675],["A3","A2",0.5915],["A3","B1",0.5915],["A3","B2",0.8193],["A3","L1",0.6362],["A4","B2",0.745],["A5","A2",0.5915],["A5","A3",0.5577],["A5","A4",0.745],["A5","B1",0.5915],["A5","B2",0.9539],["A6","A1",0.1462],["A6","A2",0.5915],["A6","A4",0.745],["A6","B1",0.6513],["A6","B2",0.8959]],"summary":{"nodes":15.0,"edges":26.0,"density":0.1238,"avg_degree":3.4667,"avg_clustering":0.4562,"num_components":5.0,"num_articulation_points":0.0,"num_bridges":0.0,"diameter":3.0,"avg_path_length":1.6,"assortativity":-0.287}},"app":{"values":{"A1":{"pagerank":0.1256,"reverse_pagerank":0.0783,"betweenness":0.0,"closeness":0.5,"eigenvector":0.3762,"degree":0.1667,"in_degree":0.3333,"out_degree":0.0,"in_degree_raw":2.0,"out_degree_raw":0.0,"clustering_coefficient":1.0,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":0.0,"cascade_depth":0.0,"publisher_spof":0.0585,"pubsub_degree":0.3333,"pubsub_betweenness":0.0,"broker_exposure":0.5,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.0,"path_complexity":0.0,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.1462,"dependency_weight_in":0.2925,"dependency_weight_out":0.0},"A2":{"pagerank":0.1831,"reverse_pagerank":0.1429,"betweenness":0.1,"closeness":0.5,"eigenvector":0.3818,"degree":0.4167,"in_degree":0.5,"out_degree":0.3333,"in_degree_raw":3.0,"out_degree_raw":2.0,"clustering_coefficient":0.3,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.4436,"blast_radius":2.0,"cascade_depth":0.5675,"publisher_spof":0.3549,"pubsub_degree":0.6667,"pubsub_betweenness":0.0963,"broker_exposure":0.75,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.0,"path_complexity":1.0,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.4718,"dependency_weight_in":1.7746,"dependency_weight_out":0.7138},"A3":{"pagerank":0.1081,"reverse_pagerank":0.154,"betweenness":0.0333,"closeness":0.1667,"eigenvector":0.3772,"degree":0.25,"in_degree":0.1667,"out_degree":0.3333,"in_degree_raw":1.0,"out_degree_raw":2.0,"clustering_coefficient":0.6667,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":3.0,"cascade_depth":1.159,"publisher_spof":0.1115,"pubsub_degree":0.6667,"pubsub_betweenness":0.0593,"broker_exposure":0.75,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.0,"path_complexity":1.0,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.5751,"dependency_weight_in":0.5577,"dependency_weight_out":1.2278},"A4":{"pagerank":0.1523,"reverse_pagerank":0.0783,"betweenness":0.0,"closeness":0.3333,"eigenvector":0.3807,"degree":0.1667,"in_degree":0.3333,"out_degree":0.0,"in_degree_raw":2.0,"out_degree_raw":0.0,"clustering_coefficient":0.0,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":0.0,"cascade_depth":0.0,"publisher_spof":0.298,"pubsub_degree":0.3333,"pubsub_betweenness":0.0,"broker_exposure":0.5,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.0,"path_complexity":0.0,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.745,"dependency_weight_in":1.4901,"dependency_weight_out":0.0},"A5":{"pagerank":0.0865,"reverse_pagerank":0.2829,"betweenness":0.0,"closeness":0.0,"eigenvector":0.3751,"degree":0.25,"in_degree":0.0,"out_degree":0.5,"in_degree_raw":0.0,"out_degree_raw":3.0,"clustering_coefficient":0.3333,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0311,"blast_radius":5.0,"cascade_depth":1.7168,"publisher_spof":0.0,"pubsub_degree":1.0,"pubsub_betweenness":0.2185,"broker_exposure":0.6667,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.0,"path_complexity":1.0,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.6421,"dependency_weight_in":0.0,"dependency_weight_out":1.8943},"A6":{"pagerank":0.0865,"reverse_pagerank":0.1853,"betweenness":0.0,"closeness":0.0,"eigenvector":0.3751,"degree":0.25,"in_degree":0.0,"out_degree":0.5,"in_degree_raw":0.0,"out_degree_raw":3.0,"clustering_coefficient":0.3333,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0311,"blast_radius":4.0,"cascade_depth":1.159,"publisher_spof":0.0,"pubsub_degree":1.0,"pubsub_betweenness":0.3204,"broker_exposure":0.6667,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.0,"path_complexity":1.0,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.5924,"dependency_weight_in":0.0,"dependency_weight_out":1.4828},"L1":{"pagerank":0.2578,"reverse_pagerank":0.0783,"betweenness":0.0,"closeness":0.5,"eigenvector":0.3797,"degree":0.1667,"in_degree":0.3333,"out_degree":0.0,"in_degree_raw":2.0,"out_degree_raw":0.0,"clustering_coefficient":1.0,"bridge_count":0.0,"bridge_ratio":0.0,"ap_c_directed":0.0,"cdi":0.0,"blast_radius":0.0,"cascade_depth":0.0,"publisher_spof":0.0,"pubsub_degree":0.0,"pubsub_betweenness":0.0,"broker_exposure":0.0,"fan_out_criticality":0.0,"topic_frequency_hz":0.0,"mpci":0.0,"path_complexity":0.0,"coupling_risk_enh":0.0,"topic_subscriber_count":0.0,"topic_publisher_count":0.0,"max_link_utilization":0.0,"link_load_mbps":0.0,"loc_norm":0.0,"complexity_norm":0.0,"instability_code":0.0,"lcom_norm":0.0,"code_quality_penalty":0.0,"weight":0.7119,"dependency_weight_in":1.2038,"dependency_weight_out":0.0}},"types":{"A1":"Application","A2":"Application","A3":"Application","A4":"Application","A5":"Application","A6":"Application","L1":"Library"},"flags":{"A1":{"articulation":false,"directed_ap":false,"isolated":false},"A2":{"articulation":false,"directed_ap":false,"isolated":false},"A3":{"articulation":false,"directed_ap":false,"isolated":false},"A4":{"articulation":false,"directed_ap":false,"isolated":false},"A5":{"articulation":false,"directed_ap":true,"isolated":false},"A6":{"articulation":false,"directed_ap":false,"isolated":false},"L1":{"articulation":false,"directed_ap":false,"isolated":false}},"edges":[["A2","A1",0.1462],["A2","L1",0.5675],["A3","A2",0.5915],["A3","L1",0.6362],["A5","A2",0.5915],["A5","A3",0.5577],["A5","A4",0.745],["A6","A1",0.1462],["A6","A2",0.5915],["A6","A4",0.745]],"summary":{"nodes":7.0,"edges":10.0,"density":0.2381,"avg_degree":2.8571,"avg_clustering":0.519,"num_components":1.0,"num_articulation_points":0.0,"num_bridges":0.0,"diameter":3.0,"avg_path_length":1.5714,"assortativity":-0.068}}},"checks":[{"metric":"in_degree_raw","reference":"count of incoming dependency edges","gap":0.0,"unweighted_gap":null},{"metric":"out_degree_raw","reference":"count of outgoing dependency edges","gap":0.0,"unweighted_gap":null},{"metric":"dependency_weight_in","reference":"sum of incoming edge weights","gap":0.0,"unweighted_gap":null},{"metric":"dependency_weight_out","reference":"sum of outgoing edge weights","gap":0.0,"unweighted_gap":null},{"metric":"clustering_coefficient","reference":"local clustering on the undirected graph","gap":0.0,"unweighted_gap":null},{"metric":"pagerank","reference":"PageRank weighted by dependency weight","gap":0.0,"unweighted_gap":0.0185},{"metric":"reverse_pagerank","reference":"weighted PageRank on the reversed graph","gap":0.0,"unweighted_gap":0.003},{"metric":"betweenness","reference":"betweenness with distance = 1 / dependency weight","gap":0.0,"unweighted_gap":0.0027}],"role_counts":{"scoring":19,"detection":8,"gnn_feature":24,"descriptive":11}};
+
+const NS = 'http://www.w3.org/2000/svg';
+const NAME = { A1: 'radar', A2: 'tracker', A3: 'conflict-detector', A4: 'flight-plan', A5: 'display', A6: 'recorder', B1: 'sensor-broker', B2: 'ops-broker', T1: 'radar.plots', T2: 'tracks', T3: 'conflict.alerts', T4: 'flight.plans', N1: 'sensor-host', N2: 'ops-host', L1: 'track-model' };
+const ORDER = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'L1', 'B1', 'B2', 'N1', 'N2', 'T1', 'T2', 'T3', 'T4'];
+const f2 = v => v == null ? '–' : v.toFixed(2), f3 = v => v == null ? '–' : v.toFixed(3), f4 = v => v == null ? '–' : v.toFixed(4);
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const who = id => `<span class="mono">${esc(id)}</span> ${esc(NAME[id] || '')}`;
+const sum = a => a.reduce((x, y) => x + y, 0);
+function el(tag, attrs, parent, text) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; }
+const heat = (v, max) => `background: color-mix(in srgb, var(--accent) ${Math.round(Math.max(0, Math.min(1, max ? v / max : 0)) * 55)}%, transparent)`;
+const bar = (v, max, cls) => `<span class="bar"><span>${f3(v)}</span><span class="track"><span class="fill ${cls || ''}" style="width:${Math.max(0, Math.min(1, max ? v / max : 0)) * 100}%"></span></span></span>`;
+const LEVEL = { critical: 'critical', high: 'high', medium: 'medium' };
+const level = l => `<span class="pill ${LEVEL[String(l).toLowerCase()] || ''}">${esc(String(l).toLowerCase())}</span>`;
+const verdict = (ok, yes, no) => ok == null ? '<span class="pill">not measured</span>' : `<span class="pill ${ok ? 'ok' : 'no'}">${ok ? (yes || 'pass') : (no || 'fail')}</span>`;
+
+/* The mini-ATM raw structural graph. state: {id: 'sel' | 'hot' | 'mark' | 'dim'}, badges: {id: text}, sub: {id: text}. */
+const MINI = {
+  B1: { t: 'Broker', x: 210, y: 46, w: 110, h: 36 }, B2: { t: 'Broker', x: 490, y: 46, w: 110, h: 36 },
+  T1: { t: 'Topic', x: 130, y: 150, w: 100, h: 36 }, T2: { t: 'Topic', x: 290, y: 150, w: 100, h: 36 }, T3: { t: 'Topic', x: 530, y: 150, w: 100, h: 36 }, T4: { t: 'Topic', x: 650, y: 150, w: 100, h: 36 },
+  A1: { t: 'Application', x: 68, y: 282, w: 100, h: 38 }, A2: { t: 'Application', x: 193, y: 282, w: 100, h: 38 }, A6: { t: 'Application', x: 350, y: 282, w: 100, h: 38 },
+  A3: { t: 'Application', x: 470, y: 282, w: 106, h: 38 }, A5: { t: 'Application', x: 590, y: 282, w: 100, h: 38 }, A4: { t: 'Application', x: 710, y: 282, w: 100, h: 38 },
+  L1: { t: 'Library', x: 330, y: 388, w: 100, h: 36 },
+};
+const MINI_HOST = { N1: { x: 8, y: 248, w: 242, h: 92 }, N2: { x: 288, y: 248, w: 484, h: 92 } };
+const MINI_EDGES = [['A1', 'T1', 'flow'], ['A2', 'T2', 'flow'], ['A3', 'T3', 'flow'], ['A4', 'T4', 'flow'], ['T1', 'A2', 'flow'], ['T2', 'A3', 'flow'], ['T2', 'A5', 'flow'], ['T3', 'A5', 'flow'], ['T4', 'A5', 'flow'], ['T1', 'A6', 'flow'], ['T2', 'A6', 'flow'], ['T4', 'A6', 'flow'],
+  ['B1', 'T1', 'routes'], ['B1', 'T2', 'routes'], ['B2', 'T2', 'routes'], ['B2', 'T3', 'routes'], ['B2', 'T4', 'routes'], ['A2', 'L1', 'uses'], ['A3', 'L1', 'uses']];
+function drawMiniAtm(svg, opts = {}) {
+  const { state = {}, badges = {}, sub = {}, pickable = false } = opts;
+  svg.textContent = ''; svg.setAttribute('viewBox', '0 0 780 420');
+  const badge = (g, x, y, text) => { const w = String(text).length * 6.2 + 9, b = el('g', { class: 'bdg' }, g); el('rect', { x: x - w, y: y - 8, width: w, height: 15, rx: 3 }, b); el('text', { x: x - w / 2, y: y + 3.4 }, b, text); };
+  for (const h in MINI_HOST) {
+    const b = MINI_HOST[h], g = el('g', { class: `n host ${state[h] || ''} ${pickable ? 'pickable' : ''}`, 'data-id': h }, svg);
+    el('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 6 }, g);
+    el('text', { class: 'hl', x: h === 'N2' ? b.x + b.w - 10 : b.x + 10, y: b.y + b.h - 9, 'text-anchor': h === 'N2' ? 'end' : 'start' }, g, `${h} · ${NAME[h]}${sub[h] ? ' · ' + sub[h] : ''}`);
+    if (badges[h]) badge(g, b.x + b.w - 4, b.y + 2, badges[h]);
+  }
+  el('line', { class: 'link', x1: 250, y1: 294, x2: 288, y2: 294 }, svg);
+  const clip = (a, b, pad) => { const dx = b.x - a.x, dy = b.y - a.y, k = Math.min(dx ? (a.w / 2 + pad) / Math.abs(dx) : Infinity, dy ? (a.h / 2 + pad) / Math.abs(dy) : Infinity); return { x: a.x + dx * k, y: a.y + dy * k }; };
+  for (const [u, v, kind] of MINI_EDGES) {
+    const p1 = clip(MINI[u], MINI[v], 1), p2 = clip(MINI[v], MINI[u], kind === 'flow' ? 3 : 1);
+    el('line', { class: 'e ' + (kind === 'flow' ? '' : kind), x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }, svg);
+    if (kind === 'flow') { const a = Math.atan2(p2.y - p1.y, p2.x - p1.x), z = 7, w = 0.42; el('polygon', { class: 'ah', points: `${p2.x},${p2.y} ${p2.x - z * Math.cos(a - w)},${p2.y - z * Math.sin(a - w)} ${p2.x - z * Math.cos(a + w)},${p2.y - z * Math.sin(a + w)}` }, svg); }
+  }
+  for (const id in MINI) {
+    const n = MINI[id], g = el('g', { class: `n ${n.t === 'Library' ? 'lib' : ''} ${state[id] || ''} ${pickable ? 'pickable' : ''}`, 'data-id': id }, svg), x = n.x - n.w / 2, y = n.y - n.h / 2;
+    if (n.t === 'Broker') { const c = 9; el('polygon', { points: [[x + c, y], [x + n.w - c, y], [x + n.w, y + c], [x + n.w, y + n.h - c], [x + n.w - c, y + n.h], [x + c, y + n.h], [x, y + n.h - c], [x, y + c]].map(p => p.join(',')).join(' ') }, g); }
+    else el('rect', { x, y, width: n.w, height: n.h, rx: n.t === 'Topic' ? n.h / 2 : 5 }, g);
+    el('text', { class: 'nm', x: n.x, y: n.y - 1 }, g, NAME[id]); el('text', { class: 'sb', x: n.x, y: n.y + 11.5 }, g, sub[id] ? `${id} · ${sub[id]}` : id);
+    if (badges[id]) badge(g, n.x + n.w / 2 + 5, y - 1, badges[id]);
+  }
+}
+
+const F = D.fields, byName = Object.fromEntries(F.map(f => [f.name, f]));
+let layer = 'system', sel = 'reverse_pagerank';
+const fmt = v => Number.isInteger(v) ? String(v) : Math.abs(v) < 0.001 && v !== 0 ? v.toExponential(1) : v.toFixed(3);
+const roles = f => f.roles.map(r => `<span class="role ${r}">${r.replace('_', ' ')}</span>`).join('') || '<span class="role">none</span>';
+const varies = (name, L) => new Set(Object.values(L.values).map(r => r[name])).size > 1;
+
+function render() {
+  const L = D.layers[layer], ids = ORDER.filter(i => L.values[i]), f = byName[sel], col = ids.map(i => L.values[i][sel]), max = Math.max(...col), min = Math.min(...col);
+  document.getElementById('layer-chips').innerHTML = Object.keys(D.layers).map(k => `<button class="chip" data-layer="${k}" aria-pressed="${k === layer}">${k === 'system' ? 'system: all 15 components' : 'application: 6 applications and the library'}</button>`).join('');
+  document.getElementById('sel-name').textContent = sel;
+  const state = {}; for (const i of ORDER) if (!L.values[i]) state[i] = 'dim';
+  const svg = document.getElementById('graph');
+  drawMiniAtm(svg, { state, pickable: false, sub: Object.fromEntries(ids.map(i => [i, fmt(L.values[i][sel])])) });
+  for (const i of ids) {
+    const v = max > min ? (L.values[i][sel] - min) / (max - min) : 0, g = svg.querySelector(`[data-id="${i}"]`); if (!g) continue;
+    const shape = g.querySelector('rect, polygon'); shape.style.fill = `color-mix(in srgb, var(--accent) ${Math.round(v * 70)}%, var(--surface))`;
+  }
+  const top = [...ids].sort((a, b) => L.values[b][sel] - L.values[a][sel]);
+  document.getElementById('s1-title').textContent = max > min ? `${sel}: highest on ${NAME[top[0]]}` : `${sel}: the same for every component in this layer`;
+  document.getElementById('s1-text').innerHTML = `<b>${esc(f.text)}.</b> Group: ${esc(f.group)}. Read downstream by: ${roles(f)}`;
+  document.getElementById('rank').innerHTML = `<thead><tr><th>Component</th><th>${esc(sel)}</th></tr></thead><tbody>` + top.map(i => `<tr><td>${who(i)}</td><td>${max > 0 ? `<span class="bar" style="grid-template-columns:4.6em minmax(40px,1fr)"><span>${fmt(L.values[i][sel])}</span><span class="track"><span class="fill" style="width:${Math.max(0, L.values[i][sel]) / max * 100}%"></span></span></span>` : fmt(L.values[i][sel])}</td></tr>`).join('') + '</tbody>';
+  document.getElementById('metrics').innerHTML = F.map(m => `<button class="mbtn ${varies(m.name, L) ? '' : 'flat'}" data-metric="${m.name}" aria-pressed="${m.name === sel}"><span class="k">${m.name}</span><span class="g">${esc(m.group)}${varies(m.name, L) ? '' : ' · constant here'}</span></button>`).join('');
+  const live = F.filter(m => varies(m.name, L)), flat = F.filter(m => !varies(m.name, L)), cmax = {}; for (const m of live) cmax[m.name] = Math.max(...ids.map(i => Math.abs(L.values[i][m.name])));
+  document.getElementById('s2-title').textContent = `${F.length} numbers per component, ${live.length} of them informative on this layer`;
+  document.getElementById('matrix').innerHTML = `<thead><tr><th>Component</th>${live.map(m => `<th class="num" style="writing-mode:vertical-rl;transform:rotate(180deg);text-align:left;padding:6px 4px;${m.name === sel ? 'color:var(--accent)' : ''}">${m.name}</th>`).join('')}</tr></thead><tbody>` +
+    ids.map(i => `<tr><td>${who(i)}</td>${live.map(m => { const v = L.values[i][m.name]; return `<td class="h" style="${heat(Math.abs(v), cmax[m.name])};padding:6px 5px;font-size:0.76rem" title="${m.name} = ${v}">${Number.isInteger(v) ? v : v.toFixed(2)}</td>`; }).join('')}</tr>`).join('') + '</tbody>';
+  document.getElementById('flat-note').innerHTML = `<b>Constant on this layer (${flat.length}):</b> ${flat.map(m => `<span class="mono">${m.name}</span>`).join(', ')}.`;
+  const S = L.summary, LAB = { nodes: 'Components', edges: 'Dependency edges', density: 'Density', avg_degree: 'Average degree', avg_clustering: 'Average clustering', diameter: 'Diameter', avg_path_length: 'Average path length', num_components: 'Connected pieces', num_articulation_points: 'Articulation points', num_bridges: 'Bridges', assortativity: 'Degree assortativity' };
+  document.getElementById('summary').innerHTML = `<thead><tr>${Object.keys(LAB).filter(k => S[k] != null).map(k => `<th class="num">${LAB[k]}</th>`).join('')}</tr></thead><tbody><tr>${Object.keys(LAB).filter(k => S[k] != null).map(k => `<td class="num">${fmt(S[k])}</td>`).join('')}</tr></tbody>`;
+}
+
+(function fixed() {
+  const R = D.role_counts, LAB = { scoring: ['Scoring', 'Read by the quality model; moves Q(v)'], detection: ['Detection', 'Read by an anti-pattern detector'], gnn_feature: ['GNN feature', 'A node feature for the trained model'], descriptive: ['Descriptive', 'Exported and displayed; moves no score'] };
+  document.getElementById('s3-title').textContent = `${R.scoring} of ${F.length} fields move a quality score`;
+  document.getElementById('roles').innerHTML = `<thead><tr><th>Metric</th><th>Group</th><th>Read by</th></tr></thead><tbody>` + F.map(m => `<tr class="pick" data-metric="${m.name}"><td class="mono">${m.name}</td><td>${esc(m.group)}</td><td>${roles(m)}</td></tr>`).join('') + '</tbody>';
+  document.getElementById('roles-side').innerHTML = `<span class="cap">Fields by consumer</span>` + Object.keys(LAB).map(k => `<div class="bar" style="grid-template-columns: 7em 2em minmax(40px,1fr)"><span style="font-family:var(--body)">${LAB[k][0]}</span><span>${R[k]}</span><span class="track"><span class="fill" style="width:${R[k] / F.length * 100}%"></span></span></div><p class="note" style="margin-top:-6px">${LAB[k][1]}.</p>`).join('') +
+    `<p class="note">A field can have more than one consumer, so the counts overlap. The registry exists because four different metric counts had been published in the documentation before it; each row here is one field and one declared answer.</p>
+    <p class="note"><b>A metric that moves no score is not unused.</b> It may feed a detector or the trained model, or exist only to be shown. It should not be described as shaping a criticality score.</p>`;
+  const C = D.checks, weighted = C.filter(c => c.unweighted_gap != null);
+  document.getElementById('checks').innerHTML = `<thead><tr><th>Metric</th><th>Reproduced as</th><th></th></tr></thead><tbody>` + C.map(c => `<tr><td class="mono">${c.metric}</td><td>${esc(c.reference)}</td><td><span class="pill ok">matches</span></td></tr>`).join('') + '</tbody>';
+  document.getElementById('checks-side').innerHTML = `<span class="cap">What the check shows</span>
+    <p class="note"><b>All eight match</b>, to within ${Math.max(...C.map(c => c.gap)).toFixed(4)}.</p>
+    <p class="note"><b>The centralities are weighted, not the plain textbook versions.</b> PageRank follows dependency weight, and betweenness treats a heavier dependency as a shorter path. Computed unweighted, the same metrics differ by up to ${Math.max(...weighted.map(c => c.unweighted_gap)).toFixed(3)} here.</p>
+    <p class="note">This is where the QoS contract from Step 1 enters the analysis: a component reached through critical topics counts for more than one reached through best-effort ones.</p>
+    <p class="note">Metrics specific to this method, such as the connectivity degradation index or multi-path coupling intensity, have no library counterpart and are not checked here.</p>`;
+  const Ls = D.layers.system.values, rp = Object.keys(Ls).sort((a, b) => Ls[b].reverse_pagerank - Ls[a].reverse_pagerank)[0], bt = Object.keys(Ls).sort((a, b) => Ls[b].betweenness - Ls[a].betweenness)[0], flags = D.layers.system.flags, aps = Object.keys(flags).filter(i => flags[i].directed_ap || flags[i].articulation);
+  document.getElementById('take').innerHTML = [
+    `<b>Analyze decides nothing.</b> It produces ${F.length} numbers per component and stops. Whether a component is critical is a question for Diagnose and Predict, which read this vector.`,
+    `<b>Different metrics point at different components.</b> On the system layer, reverse PageRank is highest on ${NAME[rp]} and betweenness on ${NAME[bt]}. No single metric is "the" criticality.`,
+    `<b>The layer changes the answer.</b> The same component has different values on the system layer and the application layer, because the graph it is measured on is different.`,
+    `<b>Only ${R.scoring} of the ${F.length} fields feed the quality score.</b> The rest serve detection, the trained model or display.`,
+    `<b>Flagged as a cut point on the system layer: ${aps.map(i => NAME[i]).join(', ') || 'none'}.</b> ${aps.length ? 'The continuous cut-vertex score for the same components is zero, so the boolean flag and the score disagree here; the flag is what the single-point-of-failure detector reads.' : ''}`,
+    `<b>A small system leaves much of the vector empty.</b> With no code metrics, hardware figures or network devices declared, ${F.filter(m => !m.varies).length} of the ${F.length} fields carry no information here.`,
+  ].map(i => `<li>${i}</li>`).join('');
+})();
+
+document.addEventListener('click', e => {
+  const l = e.target.closest('[data-layer]'); if (l) { layer = l.dataset.layer; render(); return; }
+  const m = e.target.closest('[data-metric]'); if (m) { sel = m.dataset.metric; render(); }
+});
+render();
+</script>

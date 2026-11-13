@@ -168,6 +168,83 @@ python examples/run_simulator_walkthrough.py
 
 The four scores answer different questions and rank the components differently. `radar` (`A1`) tops I\* (0.833) but has the lowest I_comp (0.053), because its only topic is best-effort and carries little QoS weight. `display` (`A5`) scores 0 on I\* as a pure sink but 0.296 on I_comp, because three of the eight delivery paths end there.
 
+### Container Testbed Walkthrough (Mini-ATM Testbed Run)
+
+- **`run_testbed_walkthrough.py`**: Runs the [container testbed](../docs/simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) on `mini_atm.json` twice, each time with one fault (the `B1` relay stopped for 12 s; host `N1` killed with `docker kill`). For each run it calibrates from the telemetry, runs the fidelity comparison with declared and with calibrated parameters, and sets the observed trace beside the simulator's.
+- **`mini_atm_testbed_run.template.html`** / **`mini_atm_testbed_run.html`**: The page template and the generated interactive walkthrough.
+
+```bash
+python examples/run_testbed_walkthrough.py           # two Docker runs, about three minutes
+python examples/run_testbed_walkthrough.py --reuse   # rebuild the page from the last runs, no Docker
+```
+
+Needs Docker with the compose plugin; the first run builds an image that downloads `python:3.11-slim` and `cyclonedds`. The testbed directories and telemetry go to the ignored `output/testbed_walkthrough/`.
+
+On this topology the simulator reproduces who stalls and who recovers (stall-set Jaccard 1.0 in both runs) and the delivery rates (within 8% per reader), but not latency: the median p95 error is about 0.6 with declared parameters. Each scenario is run once, so this is a smoke test, not a fidelity estimate. The page also notes one input-format mismatch: `mini_atm.json` declares deadlines only inside each topic's `qos` block, which the simulator reads and the testbed plan does not.
+
+---
+
+## The Method End to End (SaG Method Walkthrough)
+
+- **`run_method_walkthrough.py`**: Runs every pipeline stage on `mini_atm.json` through the SDK (Model, Analyze, Predict, Diagnose with the triage bridge, Simulate, Validate, Prescribe) and builds a page showing what each stage produced.
+- **`sag_method_walkthrough.template.html`** / **`sag_method_walkthrough.html`**: The page template and the generated walkthrough.
+
+```bash
+python examples/run_method_walkthrough.py
+```
+
+Stage 3 loads a trained HGT-QoS checkpoint from the ignored `output/realworld_zeroshot/hgl_qos/seed_42`; pass `--checkpoint` to use another. The script stops if GNN inference does not actually run.
+
+What the run shows on this system: 26 derived dependencies; a trained ranking and a quality-model ranking that disagree at the top, kept side by side by triage; a system-layer validation that misses its correlation gate narrowly (ρ = 0.685 against 0.70 with n = 10); and a prescription step that accepts 2 of 7 candidate fixes after counterfactual simulation. Fifteen components cannot support an accuracy claim either way; the page demonstrates how the stages connect.
+
+---
+
+## Workflow Walkthroughs, One Page Each
+
+Nine scripts each take one workflow apart on a small system and build an interactive page from real output. Every script `run_<name>_walkthrough.py` fills `<name>_walkthrough.template.html` and writes `<name>_walkthrough.html`; the shared palette, helpers and mini-ATM diagram live in `walkthrough_page.py`.
+
+| Workflow | Script | What the page shows |
+|:---|:---|:---|
+| Model (Step 1) | `run_model_walkthrough.py` | Topic weights from QoS, size and rate; component weights; each derived `DEPENDS_ON` edge with its rule and weight; the four layer projections |
+| Analyze (Step 2) | `run_analyze_walkthrough.py` | The structural metric vector one metric at a time, which later step reads each field, and eight metrics reproduced with NetworkX |
+| Simulate (Step 5) | `run_simulate_walkthrough.py` | The label artifact, what its options change, the checks it must pass before training, and the oracle's single, pairwise, event, Monte Carlo and edge runs |
+| Predict (Step 3) | `run_predict_walkthrough.py` | Closed-form references term by term, HGT-QoS across five seeds, the dual engine, the cold-start fallback, and each ranking against simulated I\* |
+| Diagnose (Step 4) | `run_diagnose_walkthrough.py` | FT, A and M as weighted terms, the roll-up to R and Q(v), the level fences and the generated explanation |
+| Triage | `run_triage_walkthrough.py` | The Triage Bridge with a trained ranking and in cold start, then one change followed through the pull-request note, the delta-aware gate and a targeted simulation |
+| Validate (Step 6) | `run_validate_walkthrough.py` | Alignment, rank agreement, bootstrap uncertainty, critical-set overlap, dimensions, gates and health indices |
+| Anti-patterns and Prescribe (Steps 4 and 7) | `run_prescribe_walkthrough.py` | Which catalogue patterns fire, the candidate edits they produce, and which survive counterfactual simulation |
+| Before and after deployment | `run_deployment_walkthrough.py` | Placement planning with held-out verification, then the chosen placement run on the in-process testbed, calibrated and compared with simulation |
+
+```bash
+python examples/run_model_walkthrough.py
+python examples/run_analyze_walkthrough.py
+python examples/run_simulate_walkthrough.py
+python examples/run_predict_walkthrough.py
+python examples/run_diagnose_walkthrough.py
+python examples/run_triage_walkthrough.py
+PYTHONHASHSEED=0 python examples/run_validate_walkthrough.py
+python examples/run_prescribe_walkthrough.py
+python examples/run_deployment_walkthrough.py
+```
+
+All use `mini_atm.json` except the prescribe walkthrough, which uses `data/scenarios/atm_system_tiny.json` because mini-ATM triggers too few patterns. None needs Neo4j or Docker. The predict walkthrough needs the HGT-QoS checkpoints in the ignored `output/realworld_zeroshot/hgl_qos`; the triage walkthrough uses one of them when present and otherwise shows the cold-start bridge only. The deployment walkthrough runs a 24-second testbed in local mode and keeps its run in the ignored `output/deployment_walkthrough/`.
+
+The Simulate walkthrough covers simulation as a workflow; `run_simulator_walkthrough.py` (above) shows what each engine does inside a single failure.
+
+What the runs surfaced, beyond the mechanics:
+
+- **Model.** The script recomputes every topic weight, component weight and edge weight with the public helpers in `saag/core/models.py` and stops if any differs from the repository; all match. 28 declared relationships yield 26 dependencies through 5 of the 7 rules; mini-ATM has no co-hosted brokers and no network devices.
+- **Analyze.** Each component gets 38 numeric fields, of which 27 vary on mini-ATM and 19 feed the quality score. PageRank, reverse PageRank and betweenness are the dependency-weighted variants, not the textbook ones: computed unweighted they differ by up to 0.019. Display is flagged as a directed cut vertex while its continuous cut-vertex score is 0.0, as is every component's.
+- **Simulate.** The label checks refuse 4 of 5 artifacts offered (wrong topology, wrong labeler, missing label, retest ρ below 0.70). On mini-ATM the propagation threshold barely moves the labels (at most 0.017), while 30 of 45 failure pairs do more damage than the worse member alone.
+- **Predict.** On mini-ATM, Reach orders the applications exactly as the simulator does; HGT-QoS correlates at 0.81 and RM Q(v) at −0.32 with I\*. Six applications are too few to read as accuracy.
+- **Diagnose.** The shipped level fence is Q3 + 0.75 × IQR (`QualityAnalyzer(k_factor=0.75)`), while `docs/diagnosis.md` and `docs/structural-analysis.md` state 1.5 × IQR. With 1.5 nothing on mini-ATM would be rated critical.
+- **Triage.** A one-topic change that closes a feedback loop is caught at every tier: the references flag the new publisher, the delta-aware gate blocks on three new findings while ignoring six pre-existing ones, and targeted simulation shows four of six applications becoming more critical, one of them untouched by the change.
+- **Validate.** ρ is identical on every run, but the bootstrap interval's lower bound moves with Python's hash seed (roughly −0.03 to 0.07 on mini-ATM), which is why the command above fixes `PYTHONHASHSEED`.
+- **Anti-patterns and Prescribe.** On `atm_system_tiny`, 8 of 19 patterns fire; `DEEP_PIPELINE` alone reports 746 findings on ten applications (the over-detection noted below for the larger ATM system). Of 32 candidate edits, 8 are accepted and 19 would have increased impact.
+- **Deployment.** The optimizer's blast proxy correlates at −0.04 with the held-out simulator across placements, and no reliability gain is claimed. Running the recommended placement shows a replicated application stalling after a single host crash because the only relay for its input was on the same host.
+
+Each page says what it is not: these are small systems chosen to make the mechanics visible, not evidence about accuracy.
+
 ---
 
 ## Step 6: Validation Pipeline

@@ -1,0 +1,231 @@
+<title>Deployment Walkthrough</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: two halves. Before: spec, candidates, verdict. After: the chosen placement run for real, then measured. */
+/*BASE_CSS*/
+.racks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.rack { border: 1px dashed var(--line); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.rack > .cap { color: var(--accent); }
+.host { background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.host.down { border-color: var(--fail); background: var(--fail-soft); }
+.host .hn { font: 600 0.8rem var(--mono); display: flex; justify-content: space-between; gap: 8px; }
+.host .hn span { font-weight: 400; color: var(--muted); }
+.comps { display: flex; flex-wrap: wrap; gap: 4px; min-height: 1.6em; }
+.comp { font: 500 0.76rem var(--mono); border: 1px solid var(--muted); border-radius: 3px; padding: 1px 6px; background: var(--surface); white-space: nowrap; }
+.comp.standby { border-style: dashed; color: var(--muted); }
+.comp.broker { border-color: var(--accent); color: var(--accent); }
+.fig.plain svg { min-width: 0; }
+.cand { cursor: pointer; } .cand circle { stroke-width: 1.5; }
+.cand.front circle, .cand.tie circle, .cand.max circle { fill: var(--accent); stroke: var(--accent); fill-opacity: 0.7; }
+.cand.baseline circle { fill: var(--surface); stroke: var(--muted); }
+.cand.bad circle { stroke-dasharray: 2 2; }
+.cand.on circle { stroke: var(--ink); stroke-width: 3; }
+.err { stroke: var(--muted); stroke-width: 1; }
+.obs { fill: var(--accent); } .sim { stroke: var(--ink); stroke-width: 1.6; fill: none; }
+.band { fill: var(--fail-soft); opacity: 0.7; } .bandline { stroke: var(--fail); stroke-width: 1.2; stroke-dasharray: 4 3; } .bandtxt { font-family: var(--mono); font-size: 10px; fill: var(--fail); }
+.okline { stroke: var(--ok); stroke-width: 1.2; stroke-dasharray: 4 3; } .oktxt { font-family: var(--mono); font-size: 10px; fill: var(--ok); }
+.rowlbl { font-size: 11.5px; font-weight: 600; }
+.divider { border-top: 2px solid var(--ink); padding-top: 18px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">software-as-a-graph · before and after deployment</div>
+    <h1>Deployment Walkthrough</h1>
+    <p class="lede">The method works on an architecture before it runs. This page follows one system across that line. Before deployment, it decides where each component should run and is honest about what that buys. After deployment, it measures the running system and checks its own predictions against it.</p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Before · 1 · the question</div>
+      <h2>Eight components, four hosts, two racks: where should everything run?</h2>
+      <p>The topology says what talks to what. A deployment spec adds what the topology cannot know: how much each host holds, how often hosts and whole racks fail, which components need a standby, and that replicas must sit in different racks.</p>
+    </div>
+    <div class="two">
+      <div class="box pad"><span class="cap">The infrastructure in the spec</span><div class="racks" id="spec-racks"></div></div>
+      <div class="box scroll"><table id="spec-table"></table></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Before · 2 · candidates</div>
+      <h2 id="s2-title"></h2>
+      <p>An exact optimizer trades cross-host traffic against a first-order estimate of blast radius. That estimate is a proxy, so every candidate, and five simple baselines, is re-scored on a different instrument: the failure simulator, run over every host and rack outage. Select a point to see its placement.</p>
+    </div>
+    <div class="two">
+      <div class="box fig plain">
+        <div class="keys"><span class="key"><svg width="12" height="12"><circle cx="6" cy="6" r="4.5" style="fill:var(--accent);opacity:.7"/></svg>optimizer</span><span class="key"><svg width="12" height="12"><circle cx="6" cy="6" r="4.5" style="fill:var(--surface);stroke:var(--muted);stroke-width:1.5"/></svg>baseline</span><span class="key">dashed outline: breaks a constraint</span><span class="key">whisker: noise bar</span></div>
+        <svg id="scatter" viewBox="0 0 560 360" role="img" aria-label="Candidates by cross-host traffic and simulated expected impact"></svg>
+      </div>
+      <div class="box pad" id="cand"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Before · 3 · the verdict</div>
+      <h2 id="s3-title"></h2>
+    </div>
+    <div class="two">
+      <div class="box scroll"><table id="cands"></table></div>
+      <div class="box pad" id="verdict"></div>
+    </div>
+  </section>
+
+  <section class="divider">
+    <div class="sec-head">
+      <div class="eyebrow">After · 4 · run it</div>
+      <h2 id="s4-title"></h2>
+      <p id="s4-text"></p>
+    </div>
+    <div class="two">
+      <div class="box fig scroll">
+        <div class="keys"><span class="key"><span class="sw"></span>observed</span><span class="key"><span class="ln" style="border-top-color:var(--ink);border-top-width:2px"></span>simulated</span><span>publications per second</span></div>
+        <svg id="timeline" viewBox="0 0 700 300" role="img" aria-label="Publications per second after a host crash, observed and simulated"></svg>
+      </div>
+      <div class="box pad" id="run-side"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">After · 5 · measure it</div>
+      <h2>The parameters that were guessed before deployment can now be measured</h2>
+      <p>Before deployment, rates, service times and trigger behaviour are declared or assumed. A running system emits telemetry from which they can be fitted, and the simulator can be compared with what actually happened.</p>
+    </div>
+    <div class="half">
+      <div class="box scroll"><table id="calib"></table></div>
+      <div class="box scroll"><table id="fid"></table></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Reading the result</div>
+      <h2>What changed across the deployment line</h2>
+    </div>
+    <ul class="plain" id="take"></ul>
+  </section>
+
+  <footer>
+    <p><b>How this was produced.</b> <code>python examples/run_deployment_walkthrough.py</code>: <code>examples/mini_atm.json</code> with two more hosts and an inline deployment spec, <code>Client.deploy</code> with default settings, then <code>saag.testbed.orchestrate</code> in local mode (real threads and queues in one process, no containers) with one host crash, followed by <code>calibrate</code> and <code>fidelity</code>.</p>
+    <p>Resource figures and failure probabilities in the spec are illustrative. The testbed run is a single 24-second run, so its numbers are one measurement each.</p>
+  </footer>
+</div>
+
+<script>
+const D = /*DATA*/;
+/*BASE_JS*/
+Object.assign(NAME, D.hosts);
+const P = D.pre, Q = D.post, C = P.candidates, HOSTS = Object.keys(D.spec.nodes).sort();
+const RACKS = {}; for (const h of HOSTS) (RACKS[D.spec.nodes[h].domain] = RACKS[D.spec.nodes[h].domain] || []).push(h);
+const COMPS = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'B1', 'B2'];
+const rec = C.find(c => c.name === P.recommended), best = C.find(c => c.name === P.best_baseline);
+let sel = P.recommended;
+const feasible = c => !Object.keys(c.violations).length;
+const LABEL = { random: 'random', ffd: 'first-fit bin packing', k8s_spread: 'topology spread', indeg_spread: 'dependency-count spread', traffic_only: 'traffic only', authored: 'as authored' };
+const label = c => c.kind === 'baseline' ? LABEL[c.name] || c.name : c.name.replace('front_', 'optimizer ').replace('tie_', 'optimizer tie ').replace('max_blast', 'optimizer, max blast');
+
+function racks(placement, down) {
+  const on = {}; for (const h of HOSTS) on[h] = [];
+  if (placement) for (const c of COMPS) (placement[c] || []).forEach((h, i) => on[h].push([c, i]));
+  return Object.entries(RACKS).map(([r, hs]) => `<div class="rack"><span class="cap">${esc(r)} · fails together p = ${D.spec.domain_p[r].p}</span>${hs.map(h => `<div class="host ${h === down ? 'down' : ''}"><div class="hn">${h} ${esc(NAME[h])}<span>${placement ? on[h].length + ' placed' : D.spec.node_default.cpu + ' CPU · p = ' + D.spec.node_default.p}</span></div>${placement ? `<div class="comps">${on[h].map(([c, i]) => `<span class="comp ${c[0] === 'B' ? 'broker' : ''} ${i ? 'standby' : ''}" title="${esc(NAME[c])}">${c}${i ? ' standby' : ''}</span>`).join('') || '<span class="comp standby">empty</span>'}</div>` : ''}</div>`).join('')}</div>`).join('');
+}
+
+(function spec() {
+  const S = D.spec;
+  document.getElementById('spec-racks').innerHTML = racks(null);
+  document.getElementById('spec-table').innerHTML = `<thead><tr><th>What the spec adds</th><th>Value</th></tr></thead><tbody>
+    <tr><td>Host capacity</td><td>${S.node_default.cpu} CPU, usable up to ${Math.round(S.constraints.max_utilization * 100)}%</td></tr>
+    <tr><td>Each application / broker needs</td><td>${S.app_default.cpu} CPU / ${S.broker_default.cpu} CPU</td></tr>
+    <tr><td>A host fails</td><td>with probability ${S.node_default.p}</td></tr>
+    <tr><td>A whole rack fails</td><td>with probability ${Object.values(S.domain_p)[0].p}</td></tr>
+    <tr><td>Run as two replicas</td><td>${Object.keys(S.replicas).map(a => NAME[a]).join(', ')}</td></tr>
+    <tr><td>Replicas must be in different</td><td>${S.constraints.anti_affinity === 'domain' ? 'racks' : 'hosts'}</td></tr>
+    <tr><td>Outage events simulated</td><td>${Object.keys(P.events).length}: each host and each rack</td></tr></tbody>`;
+})();
+
+function renderCand() {
+  const s = document.getElementById('scatter'); s.textContent = '';
+  const L = 58, T = 18, W = 470, H = 280, xs = C.map(c => c.cross_host), ys = C.map(c => c.impact), xmin = Math.floor(Math.min(...xs) * 10) / 10, xmax = Math.ceil(Math.max(...xs) * 10) / 10, ymin = Math.floor(Math.min(...ys) * 200) / 200, ymax = Math.ceil((Math.max(...ys) + P.noise_floor) * 200) / 200;
+  const x = v => L + W * (v - xmin) / (xmax - xmin), y = v => T + H * (1 - (v - ymin) / (ymax - ymin));
+  for (let i = 0; i <= 4; i++) { const xv = xmin + (xmax - xmin) * i / 4, yv = ymin + (ymax - ymin) * i / 4; el('line', { class: 'grid', x1: x(xv), x2: x(xv), y1: y(ymin), y2: y(ymax) }, s); el('line', { class: 'grid', x1: x(xmin), x2: x(xmax), y1: y(yv), y2: y(yv) }, s); el('text', { class: 'lbl', x: x(xv), y: y(ymin) + 14, 'text-anchor': 'middle' }, s, Math.round(xv * 100) + '%'); el('text', { class: 'lbl', x: L - 6, y: y(yv) + 3, 'text-anchor': 'end' }, s, yv.toFixed(3)); }
+  el('text', { class: 'lbl', x: x((xmin + xmax) / 2), y: y(ymin) + 32, 'text-anchor': 'middle' }, s, 'traffic that crosses hosts (lower is cheaper)');
+  el('text', { class: 'lbl', x: 13, y: y((ymin + ymax) / 2), 'text-anchor': 'middle', transform: `rotate(-90 13 ${y((ymin + ymax) / 2)})` }, s, 'expected impact of an outage (lower is safer)');
+  for (const c of C) {
+    const g = el('g', { class: `cand ${c.kind} ${feasible(c) ? '' : 'bad'} ${c.name === sel ? 'on' : ''}`, 'data-cand': c.name }, s);
+    if (c.noise_bar) el('line', { class: 'err', x1: x(c.cross_host), x2: x(c.cross_host), y1: y(c.impact - c.noise_bar), y2: y(Math.min(ymax, c.impact + c.noise_bar)) }, g);
+    const dot = el('circle', { cx: x(c.cross_host), cy: y(c.impact), r: c.name === P.recommended || c.name === P.best_baseline ? 7 : 5.5 }, g); el('title', {}, dot, `${label(c)}: impact ${c.impact.toFixed(4)}, cross-host ${Math.round(c.cross_host * 100)}%`);
+    if (c.name === P.recommended) el('text', { class: 'ptl', x: x(c.cross_host) + 10, y: y(c.impact) + 12, style: 'fill: var(--accent); font-weight: 600' }, g, 'recommended');
+    if (c.name === P.best_baseline) el('text', { class: 'ptl', x: x(c.cross_host) + 10, y: y(c.impact) - 6 }, g, 'best baseline');
+  }
+  const c = C.find(k => k.name === sel), ev = Object.entries(c.per_event), em = Math.max(...C.flatMap(k => Object.values(k.per_event)));
+  document.getElementById('s2-title').textContent = `${C.length} placements, each scored twice`;
+  document.getElementById('cand').innerHTML = `<span class="cap">Selected: ${esc(label(c))}</span>
+    <div class="racks">${racks(c.placement)}</div>
+    <p class="note">Cross-host traffic <b>${Math.round(c.cross_host * 100)}%</b> · proxy blast <b>${c.blast.toFixed(3)}</b> · simulated expected impact <b>${c.impact.toFixed(4)}</b>${c.verdict ? ` · against the best baseline: <b>${c.verdict}</b>` : ''}.</p>
+    ${feasible(c) ? '' : `<p class="note"><span class="pill no">infeasible</span> Breaks ${Object.entries(c.violations).map(([k, n]) => `${n} ${k} constraint${n > 1 ? 's' : ''}`).join(' and ')}.</p>`}
+    <table><thead><tr><th>If this fails</th><th>Simulated impact</th></tr></thead><tbody>${ev.map(([e, v]) => `<tr><td class="mono">${esc(e)}</td><td>${bar(v, em, v === Math.max(...ev.map(k => k[1])) ? 'f' : '')}</td></tr>`).join('')}</tbody></table>`;
+}
+
+(function verdict() {
+  const rows = [...C].sort((a, b) => a.impact - b.impact);
+  document.getElementById('cands').innerHTML = `<thead><tr><th>Placement</th><th class="num">Cross-host</th><th class="num">Proxy blast</th><th class="num">Simulated impact</th><th>vs best baseline</th></tr></thead><tbody>` +
+    rows.map(c => `<tr class="pick" data-cand="${c.name}"><td>${esc(label(c))}${c.name === P.recommended ? ' <span class="pill accent">recommended</span>' : ''}${c.name === P.best_baseline ? ' <span class="pill">best baseline</span>' : ''}</td><td class="num">${Math.round(c.cross_host * 100)}%</td><td class="num">${c.blast.toFixed(3)}</td><td class="num">${c.impact.toFixed(4)}</td><td>${feasible(c) ? (c.verdict ? `<span class="pill ${c.verdict === 'better' ? 'ok' : c.verdict === 'worse' ? 'no' : ''}">${c.verdict}</span>` : '') : '<span class="pill no">infeasible</span>'}</td></tr>`).join('') + '</tbody>';
+  const opt = C.filter(c => c.kind !== 'baseline'), lowBlast = [...opt].sort((a, b) => a.blast - b.blast)[0], worstOpt = [...opt].sort((a, b) => b.impact - a.impact)[0], auth = C.find(c => c.name === 'authored');
+  document.getElementById('s3-title').textContent = P.claim ? 'A placement is recommended, with a reliability gain beyond noise' : 'A placement is recommended, and no reliability gain is claimed';
+  document.getElementById('verdict').innerHTML = `<span class="cap">Recommendation</span><p class="note"><b>${esc(label(rec))}</b>, simulated impact ${rec.impact.toFixed(4)}, against ${best.impact.toFixed(4)} for the best baseline (${esc(label(best))}).</p>
+    <span class="cap">Reliability claim</span><div class="score"><span class="pill ${P.claim ? 'ok' : ''}">${P.claim ? 'claimed' : 'not claimed'}</span><span class="sub">noise bar ${P.noise_floor.toFixed(4)}</span></div>
+    <p class="note">${P.claim ? 'The gain exceeds the noise bar against both the best baseline and dependency-count spreading.' : `The difference of ${Math.abs(rec.impact - best.impact).toFixed(4)} is smaller than the noise bar, so the two are tied. The stage says so, and recommends the placement for being feasible and no worse, not for being safer.`}</p>
+    <span class="cap">Why the second scoring matters</span>
+    <p class="note">The optimizer's proxy and the simulator barely agree here: rank correlation <b>${P.proxy_oracle_rho.toFixed(2)}</b> across placements. ${lowBlast.name === worstOpt.name ? `The placement the proxy liked best (blast ${lowBlast.blast.toFixed(3)}) is the one the simulator ranks worst among the optimizer's candidates.` : `The placement the proxy liked best (blast ${lowBlast.blast.toFixed(3)}) has a simulated impact of ${lowBlast.impact.toFixed(4)}, above the recommendation's.`}</p>
+    ${auth && !feasible(auth) ? `<p class="note"><b>The placement as authored is not deployable under this spec</b>: it breaks ${Object.entries(auth.violations).map(([k, n]) => `${n} ${k}`).join(' and ')} constraint(s). It has no standby copies and puts too much on one host.</p>` : ''}`;
+})();
+
+(function after() {
+  const pl = rec.placement, s = document.getElementById('timeline'), n = Q.duration, apps = Object.keys(Q.rates_hz), L = 46, Rg = 14, W = 700, rowH = 62, top = 26, H = top + rowH * apps.length + 26, x = v => L + (W - L - Rg) * v / n;
+  s.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  el('rect', { class: 'band', x: x(Q.fault_s), y: 14, width: x(n) - x(Q.fault_s), height: H - 36 }, s);
+  apps.forEach((a, i) => {
+    const rate = Q.rates_hz[a], obs = Q.pub.observed[a] || [], sim = Q.pub.simulated[a] || [], y0 = top + rowH * i, base = y0 + rowH - 12, h = rowH - 30, ymax = rate * 1.25, y = v => base - h * Math.min(v, ymax) / ymax, bw = (W - L - Rg) / n;
+    el('line', { class: 'grid', x1: L, x2: W - Rg, y1: y(rate), y2: y(rate) }, s); el('line', { class: 'axis', x1: L, x2: W - Rg, y1: base, y2: base }, s);
+    el('text', { class: 'lbl', x: L - 6, y: y(rate) + 3, 'text-anchor': 'end' }, s, rate + '/s'); el('text', { class: 'lbl', x: L - 6, y: base + 3, 'text-anchor': 'end' }, s, '0');
+    el('text', { class: 'rowlbl', x: L, y: y0 + 8 }, s, `${a} ${NAME[a]} · primary on ${pl[a][0]}${pl[a][1] ? ', standby on ' + pl[a][1] : ''}`);
+    for (let t = 0; t < n; t++) { const o = obs[t] || 0, m = sim[t] || 0; if (o > 0) el('rect', { class: 'obs', x: (x(t) + 1).toFixed(1), y: y(o).toFixed(1), width: (bw - 2).toFixed(1), height: (base - y(o)).toFixed(1) }, s); el('line', { class: 'sim', x1: x(t) + 0.5, x2: x(t + 1) - 0.5, y1: y(m), y2: y(m) }, s); }
+  });
+  el('line', { class: 'bandline', x1: x(Q.fault_s), x2: x(Q.fault_s), y1: 14, y2: H - 22 }, s); el('text', { class: 'bandtxt', x: x(Q.fault_s) + 4, y: 11 }, s, `${Q.target} crashes`);
+  for (const st of Q.states) { el('line', { class: 'okline', x1: x(st.t), x2: x(st.t), y1: 26, y2: H - 22 }, s); el('text', { class: 'oktxt', x: x(st.t) + 4, y: 24 }, s, `${st.app} ${st.state}`); }
+  for (let v = 0; v <= n; v += 4) el('text', { class: 'lbl', x: x(v), y: H - 8, 'text-anchor': 'middle' }, s, v + ' s');
+  const lost = COMPS.filter(c => pl[c].length === 1 && pl[c][0] === Q.target), moved = COMPS.filter(c => pl[c].length > 1 && pl[c][0] === Q.target), take = Q.states.find(k => k.state === 'takeover');
+  const soleRelay = Object.entries(Q.routers).filter(([, r]) => r.length === 1 && lost.includes(r[0])).map(([t]) => t), st = Q.stalled.observed;
+  document.getElementById('s4-title').textContent = take && st.includes(take.app) ? 'The standby took over, and the application still fell silent' : `Host ${Q.target} crashes and ${st.length} application${st.length === 1 ? '' : 's'} fall silent`;
+  document.getElementById('s4-text').innerHTML = `The recommended placement is started as real processes: every application and broker relay runs as its own thread with real queues and timers. At ${Q.fault_s} s the host carrying ${NAME.A2}'s primary copy, <b>${Q.target}</b>, is crashed.`;
+  document.getElementById('run-side').innerHTML = `<span class="cap">The placement, with ${Q.target} down</span><div class="racks">${racks(pl, Q.target)}</div>
+    <span class="cap">What happened</span>
+    <p class="note"><b>Lost with the host:</b> ${lost.map(c => NAME[c]).join(', ') || 'nothing unreplicated'}.${moved.length ? ` <b>Failed over:</b> ${moved.map(c => NAME[c]).join(', ')}${take ? `, whose standby took over at ${take.t.toFixed(1)} s` : ''}.` : ''}</p>
+    ${take && st.includes(take.app) && soleRelay.length ? `<p class="note"><b>The failover worked and did not help.</b> ${NAME[take.app]}'s standby is alive, but its only input, ${soleRelay.map(t => NAME[t]).join(', ')}, has a single broker relay, and that relay was on the crashed host. With no input the standby publishes nothing, and ${st.filter(a => a !== take.app).map(a => NAME[a]).join(', ') || 'nothing else'} starves behind it.</p>` : `<p class="note">Silent at the end of the run: ${st.map(a => NAME[a]).join(', ') || 'none'}.</p>`}
+    <p class="note"><b>The simulator predicted the same silent set</b>: observed ${st.map(a => NAME[a]).join(', ') || 'none'}; simulated ${Q.stalled.simulated.map(a => NAME[a]).join(', ') || 'none'} (overlap ${Q.stall_jaccard.toFixed(1)}).</p>`;
+  const ok = b => `<span class="${b ? '' : 'no'}" style="${b ? 'color:var(--ok);font-weight:600' : ''}">${b ? '✓' : '✗'}</span>`;
+  document.getElementById('calib').innerHTML = `<thead><tr><th>Fitted from telemetry</th><th class="num">Declared</th><th class="num">Measured</th><th class="num">Error</th></tr></thead><tbody>` +
+    Object.entries(Q.rates).map(([t, [d, f]]) => `<tr><td>${NAME[t]} rate</td><td class="num">${d.toFixed(2)} Hz</td><td class="num">${f.toFixed(2)} Hz</td><td class="num">${(Math.abs(f - d) / d * 100).toFixed(1)}%</td></tr>`).join('') +
+    Object.entries(Q.service).map(([a, [d, f, k]]) => `<tr><td>${NAME[a]} service time (n = ${k})</td><td class="num">${d.toFixed(1)} ms</td><td class="num">${f.toFixed(1)} ms</td><td class="num">${(Math.abs(f - d) / d * 100).toFixed(1)}%</td></tr>`).join('') +
+    Object.entries(Q.policy).filter(([, [, f]]) => f).map(([a, [d, f]]) => `<tr><td>${NAME[a]} trigger policy</td><td class="num">${d}</td><td class="num">${f}</td><td class="num">${ok(d === f)}</td></tr>`).join('') + '</tbody>';
+  const M = [['topic_rate', 'Topic rate'], ['delivery_rate', 'Delivery rate per reader'], ['latency_p50', 'Latency p50'], ['latency_p95', 'Latency p95']];
+  document.getElementById('fid').innerHTML = `<thead><tr><th>Simulator against the running system, before the fault</th><th class="num">n</th><th class="num">Median error</th><th class="num">In tolerance</th></tr></thead><tbody>` +
+    M.map(([k, l]) => { const m = Q.fidelity[k]; return `<tr><td>${l}</td><td class="num">${m.n_compared}</td><td class="num">${f3(m.median_rel_error)}</td><td class="num"><span class="pill ${m.share_within_tolerance === 1 ? 'ok' : 'no'}">${Math.round(m.share_within_tolerance * 100)}%</span></td></tr>`; }).join('') + '</tbody>';
+  const svc = Math.max(...Object.values(Q.service).map(([d, f]) => Math.abs(f - d) / d * 100)), take2 = Q.states.find(k => k.state === 'takeover');
+  document.getElementById('take').innerHTML = [
+    `<b>Before deployment the method was candid about a null result.</b> It recommended a placement and ${P.claim ? 'claimed a gain beyond noise' : 'declined to claim it was safer, because the difference from the best baseline was inside the noise bar'}.`,
+    `<b>The optimizer's own objective could not be trusted as a score.</b> Its blast-radius proxy correlated at ${P.proxy_oracle_rho.toFixed(2)} with the simulator across these placements, which is why every reliability statement is graded by the simulator.`,
+    take2 && st.includes(take2.app) ? `<b>Running the placement showed something no score had named.</b> Replicating ${NAME[take2.app]} across racks satisfied the spec, yet a single host outage still silenced it, because the one relay for its input sat on that host. Co-locating a replicated consumer with its unreplicated supplier is worth checking in any placement.` : `<b>Running the placement confirmed the predicted failure behaviour</b> for a crash of ${Q.target}.`,
+    `<b>The simulator agreed with the running system on what failed</b>, and on rates and deliveries. Latency agreed less well, as in the container testbed runs.`,
+    `<b>After deployment, guesses become measurements.</b> Topic rates came back within ${Math.max(...Object.values(Q.rates).map(([d, f]) => Math.abs(f - d) / d * 100)).toFixed(1)}% and service times within ${svc.toFixed(0)}% of what was declared; on a real system these would replace the declared values.`,
+    `<b>This was a 24-second, single-seed, in-process run</b> of an illustrative spec. It demonstrates the loop from plan to measurement, not a result about this system.`,
+  ].map(i => `<li>${i}</li>`).join('');
+})();
+
+document.addEventListener('click', e => { const t = e.target.closest('[data-cand]'); if (t) { sel = t.dataset.cand; renderCand(); } });
+renderCand();
+</script>

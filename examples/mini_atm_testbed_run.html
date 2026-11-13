@@ -1,0 +1,347 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Mini-ATM Testbed Run</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: pipeline strip, deployment diagram, then one run picker driving observed-versus-simulated timelines and their readouts. */
+:root {
+  --bg: #f2f5f7; --surface: #ffffff; --ink: #16212b; --muted: #5a6877; --line: #cbd4dc; --line-soft: #e3e8ed;
+  --accent: #0b6a94; --accent-soft: #d9ebf3;
+  --fail: #bf3b2b; --fail-soft: #f9ddd7;
+  --ok: #2b7a4b; --ok-soft: #dcefe3;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c;
+  --ok: #63c08a; --ok-soft: #173826; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
+  --accent: #5fbbe0; --accent-soft: #15364a;
+  --fail: #f07360; --fail-soft: #4b221c;
+  --ok: #63c08a; --ok-soft: #173826; color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 44px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: 2.3rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.55rem; font-weight: 600; }
+p { margin: 0; max-width: 70ch; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+.lede { font-size: 1.05rem; color: var(--muted); margin-top: 10px; }
+.eyebrow, .cap { font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.eyebrow { color: var(--accent); margin-bottom: 6px; } .cap { color: var(--muted); font-weight: 600; }
+section { display: flex; flex-direction: column; gap: 16px; }
+.sec-head { display: flex; flex-direction: column; gap: 8px; }
+.sec-head p, .note { color: var(--muted); } .note { font-size: 0.9rem; }
+.sec-head p b, .note b, li b { color: var(--ink); font-weight: 600; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.pad { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.scroll { overflow-x: auto; }
+.two { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.half { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .two, .half { grid-template-columns: minmax(0, 1fr); } }
+ul.plain { margin: 0; padding-left: 1.15em; display: flex; flex-direction: column; gap: 8px; max-width: 78ch; color: var(--muted); }
+
+.pipe { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 900px) { .pipe { grid-template-columns: minmax(0, 1fr); } }
+.stage { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.stage .n { font: 600 0.74rem var(--mono); color: var(--accent); letter-spacing: 0.06em; }
+.stage .t { font: 600 1.02rem var(--display); }
+.stage .d { font-size: 0.84rem; color: var(--muted); }
+.stage code { font-size: 0.74rem; color: var(--ink); overflow-wrap: anywhere; }
+
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+th { font: 600 0.72rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+.yes { color: var(--ok); font-weight: 600; } .no { color: var(--fail); font-weight: 600; }
+
+.picker { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding-block: 10px; display: flex; gap: 14px; align-items: center; }
+.chips { display: flex; gap: 6px; overflow-x: auto; min-width: 0; padding-bottom: 2px; }
+.chip { font: 500 0.84rem var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--fail); border-color: var(--fail); color: var(--surface); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; color: var(--muted); }
+.key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.sw { width: 12px; height: 10px; display: inline-block; background: var(--accent); border-radius: 1px; }
+.sw.sim { height: 0; border-top: 2px solid var(--ink); background: none; width: 16px; }
+.sw.band { background: var(--fail-soft); border: 1px solid var(--fail); }
+.fig svg { display: block; width: 100%; min-width: 620px; height: auto; }
+.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font: 400 0.82rem var(--mono); }
+.log b { color: var(--fail); font-weight: 600; }
+.score { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.score .val { font: 600 1.9rem var(--mono); line-height: 1; }
+.score .sub { font-size: 0.82rem; color: var(--muted); }
+
+svg text { font-family: var(--mono); fill: var(--ink); }
+.lbl { font-size: 10px; fill: var(--muted); }
+.rowlbl { font-family: var(--body); font-size: 11.5px; font-weight: 600; }
+.axis { stroke: var(--line); } .grid { stroke: var(--line-soft); }
+.obs { fill: var(--accent); }
+.sim { stroke: var(--ink); stroke-width: 1.6; fill: none; }
+.band { fill: var(--fail-soft); opacity: 0.7; }
+.bandline { stroke: var(--fail); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.bandtxt { font-size: 10px; fill: var(--fail); }
+.cont { fill: var(--bg); stroke: var(--muted); stroke-width: 1.3; stroke-dasharray: 6 3; }
+.res { fill: var(--surface); stroke: var(--muted); stroke-width: 1.2; }
+.res.relay { stroke: var(--accent); stroke-width: 1.6; }
+.orch { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.4; }
+.bus { stroke: var(--accent); stroke-width: 3; }
+.wire { stroke: var(--muted); stroke-width: 1.2; fill: none; }
+.wire.chaos { stroke: var(--fail); stroke-dasharray: 4 3; }
+.nm { font-family: var(--body); font-size: 11.5px; font-weight: 600; text-anchor: middle; }
+.sb { font-size: 9px; fill: var(--muted); text-anchor: middle; }
+.ttl { font-size: 10.5px; font-weight: 600; fill: var(--muted); }
+footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: 0.84rem; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+footer p { max-width: 92ch; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">software-as-a-graph · saag/testbed</div>
+    <h1>Mini-ATM Testbed Run</h1>
+    <p class="lede">The simulators grade themselves against quantities the framework computes. The testbed produces something independent: the same scenario running as real processes in containers, talking over real DDS, with a real fault injected. This page follows two such runs of the 15-component mini-ATM system and sets each beside the simulator's version of the same run.</p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">How it works</div>
+      <h2>From a scenario file to a fidelity report in five commands</h2>
+    </div>
+    <div class="pipe">
+      <div class="box stage"><span class="n">1 · BUILD</span><span class="t">Deployment plan</span><span class="d">Hosts, residents, topic QoS, each app's trigger policy and service time. Writes a Dockerfile and a compose file.</span><code>testbed build --input mini_atm.json --duration 40 --qos-semantics dds</code></div>
+      <div class="box stage"><span class="n">2 · RUN</span><span class="t">Containers and chaos</span><span class="d">One container per host. Stub applications publish and consume over Cyclone DDS while the orchestrator applies the faults on schedule.</span><code>testbed run --faults faults.json --mode docker</code></div>
+      <div class="box stage"><span class="n">3 · RECORD</span><span class="t">Telemetry</span><span class="d">Every publish, delivery and DDS status change is written as an OpenTelemetry-shaped event, one file per host.</span><code>telemetry/N1.jsonl, N2.jsonl</code></div>
+      <div class="box stage"><span class="n">4 · CALIBRATE</span><span class="t">Fit parameters</span><span class="d">Topic rates, service-time distributions and trigger policies are fitted from the steady state before the fault.</span><code>testbed calibrate</code></div>
+      <div class="box stage"><span class="n">5 · COMPARE</span><span class="t">Fidelity</span><span class="d">The simulator runs the same scenario, faults and duration. The two traces are compared. A report, never a gate.</span><code>testbed fidelity [--calibrated]</code></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">What gets built</div>
+      <h2>Two containers, six stub applications, two broker relays</h2>
+      <p>DDS has no broker, so each broker is emulated as a relay: writers publish to an ingress partition and the routing relay republishes to the egress partition that readers use. That makes a broker outage real. <b>tracks</b> has two relays; the lowest-id relay with a live heartbeat does the routing.</p>
+    </div>
+    <div class="two">
+      <div class="box fig scroll"><svg id="deploy" viewBox="0 0 780 330" role="img" aria-label="Testbed deployment diagram"></svg></div>
+      <div class="box scroll"><table id="apps"></table></div>
+    </div>
+    <div class="box scroll"><table id="topics"></table></div>
+  </section>
+
+  <div class="picker">
+    <span class="cap">Run</span>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">The run</div>
+      <h2 id="r-title"></h2>
+      <p id="r-blurb"></p>
+    </div>
+    <div class="two">
+      <div class="box fig scroll">
+        <div class="keys"><span class="key"><span class="sw"></span>observed on the testbed</span><span class="key"><span class="sw sim"></span>simulated</span><span class="key"><span class="sw band"></span>fault active</span><span>publications per second</span></div>
+        <svg id="pubs" viewBox="0 0 700 300" role="img" aria-label="Publications per second, observed and simulated"></svg>
+      </div>
+      <div class="box pad">
+        <span class="cap">What the orchestrator did</span>
+        <ul class="log" id="chaos"></ul>
+        <span class="cap" style="margin-top:6px">Applications that fell silent</span>
+        <div class="score"><span class="val" id="jac"></span><span class="sub">stall-set Jaccard, observed against simulated</span></div>
+        <p class="note" id="stall"></p>
+        <p class="note" id="r-note"></p>
+      </div>
+    </div>
+    <div class="box fig scroll">
+      <div class="keys"><span>deliveries per second to each reader; darker is more, each pair of rows shares one scale</span></div>
+      <svg id="heat" viewBox="0 0 780 400" role="img" aria-label="Deliveries per second per reader, observed and simulated"></svg>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Fidelity</div>
+      <h2>How closely did the simulator match?</h2>
+      <p>Steady state is compared over the window before the fault, after a 2 s warm-up. Errors are relative, per topic or per reader. The second pair of columns repeats the comparison with the simulator fed the parameters fitted from this run's own telemetry.</p>
+    </div>
+    <div class="half">
+      <div class="box scroll"><table id="fid"></table></div>
+      <div class="box scroll"><table id="lat"></table></div>
+    </div>
+    <div class="half">
+      <div class="box scroll"><table id="dds"></table></div>
+      <div class="box pad" id="fid-notes"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Calibration</div>
+      <h2>What the telemetry gives back</h2>
+      <p>The calibrator sees only the trace. Here it is checked against the values the deployment plan declared, which the stub applications were actually running with.</p>
+    </div>
+    <div class="half">
+      <div class="box scroll"><table id="cal-svc"></table></div>
+      <div class="box scroll"><table id="cal-pol"></table></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Reading the result</div>
+      <h2>What these two runs do and do not show</h2>
+    </div>
+    <ul class="plain" id="take"></ul>
+  </section>
+
+  <footer>
+    <p><b>How this was produced.</b> <code>python cli/simulate_graph.py testbed build | run | calibrate | fidelity</code> on <code>examples/mini_atm.json</code>, 40 s per run, seed 0, Docker mode with Cyclone DDS 11.0.1, DDS QoS semantics. The simulated traces come from <code>saag.testbed.orchestrate.simulate_like</code>, the function the fidelity command uses.</p>
+    <p>Regenerate this page with <code>python examples/run_testbed_walkthrough.py</code>. Each scenario was run once on one machine, so every number here is a single measurement. Treat the page as a demonstration of the mechanism and a smoke test, not as a fidelity estimate.</p>
+  </footer>
+</div>
+
+<script>
+const D = {"run_a":{"meta":{"duration_s":40.0,"faults":[{"target":"B1","mode":"transient_crash","start_s":15.0,"duration_s":12,"params":{}}],"mode":"docker"},"chaos":[{"t":15.0009,"what":"control file B1.json = {\"crashed\": true}"},{"t":27.0009,"what":"control file B1.json = {}"}],"side":{"observed":{"pub":{"A3":[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,0,0,0,0,0,0,0,0,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2],"A1":[20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20],"A2":[10,9,10,10,10,10,10,10,10,10,9,10,10,10,10,5,0,0,0,0,0,0,0,0,0,0,0,8,9,10,10,10,10,10,9,10,8,10,9,9],"A4":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},"dlv":{"A6|T1":[18,16,25,21,20,16,23,21,19,20,19,21,19,21,19,4,0,0,0,0,0,0,0,0,0,0,0,19,17,21,21,20,21,19,21,17,23,20,18,22],"A5|T2":[10,9,9,10,11,10,10,10,9,11,9,9,10,10,9,3,0,0,0,0,0,0,0,0,0,0,0,7,10,10,9,11,9,10,10,9,9,10,7,11],"A6|T2":[10,9,9,11,10,9,11,10,10,10,9,10,10,10,9,2,0,0,0,0,0,0,0,0,0,0,0,8,9,10,10,10,10,9,10,9,9,10,8,10],"A3|T2":[9,10,6,14,10,10,5,10,13,10,11,8,11,11,4,7,0,0,0,0,0,0,0,0,0,0,0,8,9,10,9,11,9,10,10,9,6,13,8,10],"A2|T1":[19,15,24,18,24,17,22,21,19,20,18,22,21,18,20,4,0,0,0,0,0,0,0,0,0,0,0,17,19,21,22,19,21,19,20,18,22,19,20,14],"A6|T4":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"A5|T3":[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,0,0,0,0,0,0,0,0,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2],"A5|T4":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},"stalled":[],"lat_p50":{"T3":130.941,"T4":196.1195,"T1":78.8635,"T2":103.3595}},"simulated":{"pub":{"A1":[19,20,21,20,20,20,20,20,20,19,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,21,20,20],"A2":[9,9,10,10,11,9,10,10,9,10,10,10,10,9,10,1,0,0,0,0,0,0,0,0,0,0,0,9,10,9,10,10,10,10,9,9,10,10,10,9],"A3":[1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2],"A4":[0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},"dlv":{"A2|T1":[16,23,20,20,17,22,19,20,18,24,17,19,23,19,19,3,0,0,0,0,0,0,0,0,0,0,0,20,17,22,19,20,19,21,18,15,24,21,19,13],"A5|T2":[8,7,13,9,10,10,10,10,9,10,9,11,10,9,9,1,0,0,0,0,0,0,0,0,0,0,0,9,10,8,11,10,10,10,9,9,9,11,10,9],"A6|T2":[8,10,10,10,10,9,10,9,10,10,10,10,10,9,10,0,0,0,0,0,0,0,0,0,0,0,0,9,10,9,10,10,9,11,9,9,9,11,10,9],"A6|T1":[19,20,19,21,18,21,21,20,20,20,18,20,22,19,21,0,0,0,0,0,0,0,0,0,0,0,0,19,21,18,20,22,20,18,21,21,19,21,20,19],"A3|T2":[8,10,10,7,8,13,10,10,10,9,8,11,12,9,8,2,0,0,0,0,0,0,0,0,0,0,0,9,8,10,10,11,8,12,5,13,9,10,9,11],"A5|T3":[1,0,1,3,4,2,2,2,1,3,2,2,1,3,2,2,0,0,0,0,0,0,0,0,0,0,0,1,0,4,2,2,1,3,2,2,2,2,2,2],"A5|T4":[0,1,0,1,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"A6|T4":[0,1,0,1,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},"stalled":[],"lat_p50":{"T2":85.6875,"T1":72.1791,"T3":442.595,"T4":238.2558}}},"fidelity":{"stall_jaccard":1.0,"metrics":{"delivery_rate":{"median_rel_error":0.0154,"max_rel_error":0.0769,"n_compared":8.0,"share_within_tolerance":1.0},"latency_p50":{"median_rel_error":0.1929,"max_rel_error":2.3801,"n_compared":4.0,"share_within_tolerance":0.75},"latency_p95":{"median_rel_error":0.6222,"max_rel_error":2.9752,"n_compared":4.0,"share_within_tolerance":0.5},"topic_rate":{"median_rel_error":0.0,"max_rel_error":0.0078,"n_compared":4.0,"share_within_tolerance":1.0}}},"dds":{"cache_replaced_dropped_samples":{"observed":0,"simulated":1,"jaccard":0.0},"cache_samples_peak":{"observed":0,"simulated":8,"jaccard":0.0},"liveliness_alive_count":{"observed":8,"simulated":8,"jaccard":1.0},"liveliness_not_alive_count":{"observed":0,"simulated":0,"jaccard":null},"offered_deadline_missed":{"observed":0,"simulated":2,"jaccard":0.0},"requested_deadline_missed":{"observed":0,"simulated":6,"jaccard":0.0},"requested_incompatible_qos":{"observed":0,"simulated":0,"jaccard":null},"sample_lost":{"observed":0,"simulated":0,"jaccard":null},"sample_rejected":{"observed":0,"simulated":0,"jaccard":null}},"dds_excluded":12,"fidelity_calibrated":{"stall_jaccard":1.0,"metrics":{"delivery_rate":{"median_rel_error":0.0039,"max_rel_error":0.0163,"n_compared":8.0,"share_within_tolerance":1.0},"latency_p50":{"median_rel_error":0.1742,"max_rel_error":1.5349,"n_compared":4.0,"share_within_tolerance":0.75},"latency_p95":{"median_rel_error":0.1611,"max_rel_error":1.0389,"n_compared":4.0,"share_within_tolerance":0.75},"topic_rate":{"median_rel_error":0.0116,"max_rel_error":0.0769,"n_compared":4.0,"share_within_tolerance":0.75}}},"profile":{"rates":{"T1":[20.0,20.0],"T2":[10.0,9.9231],"T3":[2.0,2.0],"T4":[1.0,1.0]},"service":{"A2":[32.5,29.5763,"exponential",264],"A3":[65.0,69.5544,"exponential",123],"A5":[50.0,49.7309,"exponential",166],"A6":[20.9677,21.9063,"exponential",405]},"policy":{"A1":["periodic","periodic"],"A2":["any_of","any_of"],"A3":["any_of","any_of"],"A4":["periodic","periodic"],"A5":["any_of",null],"A6":["any_of",null]}}},"run_b":{"meta":{"duration_s":40.0,"faults":[{"target":"N1","mode":"crash","start_s":20.0,"duration_s":null,"params":{}}],"mode":"docker"},"chaos":[{"t":20.2133,"what":"docker kill saag-N1"}],"side":{"observed":{"pub":{"A1":[20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A3":[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,2,2,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A2":[10,9,10,10,10,10,10,10,10,10,9,10,10,10,10,10,10,10,10,10,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A4":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},"dlv":{"A6|T1":[19,15,25,21,20,16,23,21,19,20,19,21,19,21,19,20,19,23,19,21,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A5|T2":[9,10,9,10,11,10,10,10,9,11,9,9,10,10,9,11,9,10,12,10,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A6|T2":[9,10,9,11,10,9,11,10,10,10,9,10,10,10,9,10,10,11,9,11,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A3|T2":[9,10,6,13,11,10,5,10,13,10,11,8,11,11,4,14,11,11,10,10,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A2|T1":[19,15,24,18,24,17,22,21,19,20,18,22,21,18,20,21,17,22,22,20,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A6|T4":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"A5|T3":[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,2,2,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A5|T4":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},"stalled":["A1","A2","A3"],"lat_p50":{"T3":176.7144,"T4":178.2246,"T1":80.6625,"T2":103.5361}},"simulated":{"pub":{"A1":[19,20,21,20,20,20,20,20,20,19,20,20,20,20,20,20,20,20,20,20,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A2":[9,9,10,10,11,9,10,10,9,10,10,10,10,9,10,10,10,9,8,10,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A3":[1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A4":[0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},"dlv":{"A2|T1":[16,23,20,20,17,22,19,20,18,24,17,19,23,19,19,23,17,23,17,20,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A5|T2":[8,7,13,9,10,10,10,10,9,10,9,11,10,9,9,11,10,9,9,10,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A6|T2":[8,10,10,10,10,9,10,9,10,10,10,10,10,9,10,10,10,9,9,10,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A6|T1":[19,20,19,21,18,21,21,20,20,20,18,20,22,19,21,19,20,21,18,22,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A3|T2":[8,10,10,7,8,13,10,10,10,9,8,11,12,9,8,12,9,10,8,11,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A5|T3":[1,0,1,3,4,2,2,2,1,3,2,2,1,3,2,1,3,2,1,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"A5|T4":[0,1,0,1,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"A6|T4":[0,1,0,1,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},"stalled":["A1","A2","A3"],"lat_p50":{"T2":83.1245,"T1":72.5327,"T3":412.4254,"T4":226.0373}}},"fidelity":{"stall_jaccard":1.0,"metrics":{"delivery_rate":{"median_rel_error":0.0194,"max_rel_error":0.0571,"n_compared":8.0,"share_within_tolerance":1.0},"latency_p50":{"median_rel_error":0.2327,"max_rel_error":1.3339,"n_compared":4.0,"share_within_tolerance":0.5},"latency_p95":{"median_rel_error":0.6124,"max_rel_error":2.8005,"n_compared":4.0,"share_within_tolerance":0.5},"topic_rate":{"median_rel_error":0.0112,"max_rel_error":0.0286,"n_compared":4.0,"share_within_tolerance":1.0}}},"dds":{"cache_samples_peak":{"observed":0,"simulated":7,"jaccard":0.0},"liveliness_alive_count":{"observed":6,"simulated":6,"jaccard":1.0},"liveliness_not_alive_count":{"observed":0,"simulated":0,"jaccard":null},"offered_deadline_missed":{"observed":0,"simulated":1,"jaccard":0.0},"requested_deadline_missed":{"observed":0,"simulated":5,"jaccard":0.0},"requested_incompatible_qos":{"observed":0,"simulated":0,"jaccard":null},"sample_lost":{"observed":0,"simulated":0,"jaccard":null},"sample_rejected":{"observed":0,"simulated":0,"jaccard":null}},"dds_excluded":14,"fidelity_calibrated":{"stall_jaccard":1.0,"metrics":{"delivery_rate":{"median_rel_error":0.0263,"max_rel_error":0.0857,"n_compared":8.0,"share_within_tolerance":1.0},"latency_p50":{"median_rel_error":0.2133,"max_rel_error":0.6963,"n_compared":4.0,"share_within_tolerance":0.5},"latency_p95":{"median_rel_error":0.1864,"max_rel_error":0.215,"n_compared":4.0,"share_within_tolerance":1.0},"topic_rate":{"median_rel_error":0.0168,"max_rel_error":0.0857,"n_compared":4.0,"share_within_tolerance":0.75}}},"profile":{"rates":{"T1":[20.0,20.0],"T2":[10.0,9.9444],"T3":[2.0,1.9444],"T4":[1.0,1.0]},"service":{"A2":[32.5,32.1332,"exponential",366],"A3":[65.0,66.4635,"exponential",179],"A5":[50.0,52.537,"exponential",232],"A6":[20.9677,21.8349,"exponential",563]},"policy":{"A1":["periodic","periodic"],"A2":["any_of","any_of"],"A3":["any_of","any_of"],"A4":["periodic","periodic"],"A5":["any_of",null],"A6":["any_of",null]}}},"plan":{"hosts":{"N1":{"apps":["A1","A2"],"brokers":["B1"]},"N2":{"apps":["A3","A4","A5","A6"],"brokers":["B2"]}},"brokers":{"B1":{"routes":["T1","T2"],"service_mean_s":0.021666666666666667},"B2":{"routes":["T2","T3","T4"],"service_mean_s":0.05}},"apps":{"A1":{"policy":"periodic","publishes":["T1"],"subscribes":[],"service_mean_s":0.0,"staleness_s":{}},"A2":{"policy":"any_of","publishes":["T2"],"subscribes":["T1"],"service_mean_s":0.0325,"staleness_s":{"T1":0.15}},"A3":{"policy":"any_of","publishes":["T3"],"subscribes":["T2"],"service_mean_s":0.065,"staleness_s":{"T2":0.3}},"A4":{"policy":"periodic","publishes":["T4"],"subscribes":[],"service_mean_s":0.0,"staleness_s":{}},"A5":{"policy":"any_of","publishes":[],"subscribes":["T2","T3","T4"],"service_mean_s":0.05,"staleness_s":{"T2":0.3,"T3":1.5,"T4":3.0}},"A6":{"policy":"any_of","publishes":[],"subscribes":["T1","T2","T4"],"service_mean_s":0.020967741935483872,"staleness_s":{"T1":0.15,"T2":0.3,"T4":3.0}}},"topics":{"T1":{"rate_hz":20.0,"reliability":"BEST_EFFORT","durability":"VOLATILE","routers":["B1"],"publishers":["A1"],"deadline_ms":null},"T2":{"rate_hz":10.0,"reliability":"RELIABLE","durability":"TRANSIENT_LOCAL","routers":["B1","B2"],"publishers":["A2"],"deadline_ms":null},"T3":{"rate_hz":2.0,"reliability":"RELIABLE","durability":"TRANSIENT_LOCAL","routers":["B2"],"publishers":["A3"],"deadline_ms":null},"T4":{"rate_hz":1.0,"reliability":"RELIABLE","durability":"PERSISTENT","routers":["B2"],"publishers":["A4"],"deadline_ms":null}}}};
+const NS = 'http://www.w3.org/2000/svg';
+const NAME = { A1: 'radar', A2: 'tracker', A3: 'conflict-detector', A4: 'flight-plan', A5: 'display', A6: 'recorder', B1: 'sensor-broker', B2: 'ops-broker', T1: 'radar.plots', T2: 'tracks', T3: 'conflict.alerts', T4: 'flight.plans', N1: 'sensor-host', N2: 'ops-host' };
+const RUNS = {
+  run_a: { chip: 'Broker B1 down for 12 s', title: 'A broker relay stops for twelve seconds, then comes back',
+    blurb: 'The sensor-broker relay is told to stop through a control file at 15 s and to resume at 27 s. Its container keeps running. radar.plots has no other relay.',
+    note: 'Radar keeps publishing throughout, but nothing relays its plots. Tracker’s input goes stale after 0.15 s, so it stops publishing; conflict-detector follows. Both resume within a second of the relay returning. Flight-plan is periodic and routed by the other relay, so it never notices. Nothing is silent at the end of the run, so both stall sets are empty.' },
+  run_b: { chip: 'Host N1 killed at 20 s', title: 'A whole host is killed and stays down',
+    blurb: 'The orchestrator runs docker kill on the sensor-host container at 20 s. Radar, tracker and the sensor-broker relay die with it.',
+    note: 'Radar and tracker stop because their container is gone. Conflict-detector is on the surviving host and stops for a different reason: its only input, tracks, goes stale. Flight-plan carries on. The simulator predicts the same three silent applications.' },
+};
+const f3 = v => v == null ? '–' : v.toFixed(3), f1 = v => v == null ? '–' : v.toFixed(1);
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+function el(tag, attrs, parent, text) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; }
+let sel = 'run_a';
+
+/* ---------- deployment ---------- */
+function drawDeploy() {
+  const s = document.getElementById('deploy');
+  const box = (x, y, w, h, cls, name, sub) => { el('rect', { x, y, width: w, height: h, rx: 5, class: cls }, s); el('text', { class: 'nm', x: x + w / 2, y: y + h / 2 + (sub ? -1 : 4) }, s, name); if (sub) el('text', { class: 'sb', x: x + w / 2, y: y + h / 2 + 11 }, s, sub); };
+  el('rect', { x: 270, y: 10, width: 240, height: 44, rx: 5, class: 'orch' }, s);
+  el('text', { class: 'nm', x: 390, y: 29 }, s, 'orchestrator'); el('text', { class: 'sb', x: 390, y: 43 }, s, 'starts agents together, applies faults');
+  el('rect', { x: 14, y: 84, width: 250, height: 176, rx: 7, class: 'cont' }, s); el('text', { class: 'ttl', x: 24, y: 100 }, s, 'container saag-N1 · sensor-host');
+  el('rect', { x: 516, y: 84, width: 250, height: 176, rx: 7, class: 'cont' }, s); el('text', { class: 'ttl', x: 526, y: 100 }, s, 'container saag-N2 · ops-host');
+  box(28, 112, 106, 38, 'res', 'radar', 'A1 · periodic'); box(144, 112, 106, 38, 'res', 'tracker', 'A2 · any_of');
+  box(86, 200, 106, 38, 'res relay', 'relay B1', 'routes T1, T2');
+  box(530, 112, 106, 38, 'res', 'conflict-det.', 'A3 · any_of'); box(646, 112, 106, 38, 'res', 'flight-plan', 'A4 · periodic');
+  box(530, 156, 106, 38, 'res', 'display', 'A5 · sink'); box(646, 156, 106, 38, 'res', 'recorder', 'A6 · sink');
+  box(588, 206, 106, 38, 'res relay', 'relay B2', 'routes T2, T3, T4');
+  el('line', { class: 'bus', x1: 290, y1: 170, x2: 490, y2: 170 }, s);
+  el('text', { class: 'nm', x: 390, y: 160 }, s, 'DDS domain'); el('text', { class: 'sb', x: 390, y: 186 }, s, 'Cyclone DDS on a Docker bridge network');
+  el('text', { class: 'sb', x: 390, y: 199 }, s, 'ingress → relay → egress per topic');
+  el('line', { class: 'wire', x1: 264, y1: 170, x2: 290, y2: 170 }, s); el('line', { class: 'wire', x1: 490, y1: 170, x2: 516, y2: 170 }, s);
+  el('path', { class: 'wire chaos', d: 'M270 32 H139 V84' }, s); el('path', { class: 'wire chaos', d: 'M510 32 H641 V84' }, s);
+  el('text', { class: 'bandtxt', x: 264, y: 25, 'text-anchor': 'end' }, s, 'docker kill · pause · tc netem'); el('text', { class: 'bandtxt', x: 516, y: 25 }, s, 'control files for app and relay faults');
+  el('path', { class: 'wire', d: 'M139 260 V296 H330' }, s); el('path', { class: 'wire', d: 'M641 260 V296 H450' }, s);
+  el('rect', { x: 330, y: 278, width: 120, height: 36, rx: 5, class: 'res' }, s); el('text', { class: 'nm', x: 390, y: 294 }, s, 'telemetry/'); el('text', { class: 'sb', x: 390, y: 306 }, s, 'N1.jsonl · N2.jsonl');
+}
+function staticTables() {
+  const P = D.plan, hostOf = {}; for (const h in P.hosts) for (const a of P.hosts[h].apps) hostOf[a] = h;
+  document.getElementById('apps').innerHTML = `<thead><tr><th>Stub application</th><th>Host</th><th>Trigger</th><th class="num">Service</th></tr></thead><tbody>` +
+    Object.keys(P.apps).map(a => { const p = P.apps[a]; return `<tr><td><span class="mono">${a}</span> ${NAME[a]}</td><td class="mono">${hostOf[a]}</td><td>${p.publishes.length ? p.policy : 'sink'}</td><td class="num">${p.service_mean_s ? (p.service_mean_s * 1000).toFixed(1) + ' ms' : '–'}</td></tr>`; }).join('') + '</tbody>';
+  const readers = {}; for (const a in P.apps) for (const t of P.apps[a].subscribes) (readers[t] = readers[t] || []).push(a);
+  document.getElementById('topics').innerHTML = `<thead><tr><th>Topic</th><th class="num">Rate</th><th>DDS QoS</th><th>Publisher</th><th>Readers</th><th>Relays</th></tr></thead><tbody>` +
+    Object.keys(P.topics).map(t => { const p = P.topics[t]; return `<tr><td><span class="mono">${t}</span> ${NAME[t]}</td><td class="num">${p.rate_hz} Hz</td><td>${p.reliability.toLowerCase().replace('_', ' ')}, ${p.durability.toLowerCase().replace('_', ' ')}</td><td>${p.publishers.map(a => NAME[a]).join(', ')}</td><td>${(readers[t] || []).map(a => NAME[a]).join(', ')}</td><td class="mono">${p.routers.join(', ')}</td></tr>`; }).join('') + '</tbody>';
+}
+
+/* ---------- run charts ---------- */
+function faultSpan(r) { const f = r.meta.faults[0]; return [f.start_s, f.duration_s == null ? r.meta.duration_s : f.start_s + f.duration_s]; }
+function drawPubs(r) {
+  const s = document.getElementById('pubs'); s.textContent = '';
+  const n = r.meta.duration_s, L = 46, Rg = 14, W = 700, rowH = 62, top = 22, H = top + rowH * 4 + 26, x = v => L + (W - L - Rg) * v / n, [f0, f1] = faultSpan(r);
+  s.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  el('rect', { class: 'band', x: x(f0), y: 12, width: x(f1) - x(f0), height: H - 34 }, s);
+  ['A1', 'A2', 'A3', 'A4'].forEach((a, i) => {
+    const rate = D.plan.topics[D.plan.apps[a].publishes[0]].rate_hz, obs = r.side.observed.pub[a] || [], sim = r.side.simulated.pub[a] || [];
+    const y0 = top + rowH * i, base = y0 + rowH - 12, h = rowH - 30, ymax = rate * 1.25, y = v => base - h * Math.min(v, ymax) / ymax, bw = (W - L - Rg) / n;
+    el('line', { class: 'grid', x1: L, x2: W - Rg, y1: y(rate), y2: y(rate) }, s); el('line', { class: 'axis', x1: L, x2: W - Rg, y1: base, y2: base }, s);
+    el('text', { class: 'lbl', x: L - 6, y: y(rate) + 3, 'text-anchor': 'end' }, s, rate + '/s'); el('text', { class: 'lbl', x: L - 6, y: base + 3, 'text-anchor': 'end' }, s, '0');
+    el('text', { class: 'rowlbl', x: L, y: y0 + 8 }, s, `${a} ${NAME[a]} → ${NAME[D.plan.apps[a].publishes[0]]}`);
+    for (let t = 0; t < n; t++) {
+      const o = obs[t] || 0, m = sim[t] || 0;
+      if (o > 0) el('rect', { class: 'obs', x: (x(t) + 1).toFixed(1), y: y(o).toFixed(1), width: (bw - 2).toFixed(1), height: (base - y(o)).toFixed(1) }, s);
+      el('line', { class: 'sim', x1: x(t) + 0.5, x2: x(t + 1) - 0.5, y1: y(m), y2: y(m) }, s);
+    }
+  });
+  for (const v of [f0, f1]) if (v < n) el('line', { class: 'bandline', x1: x(v), x2: x(v), y1: 12, y2: H - 22 }, s);
+  el('text', { class: 'bandtxt', x: x(f0) + 4, y: 10 }, s, `fault from ${f0} s`);
+  for (let v = 0; v <= n; v += 10) el('text', { class: 'lbl', x: x(v), y: H - 8, 'text-anchor': 'middle' }, s, v + ' s');
+}
+function drawHeat(r) {
+  const s = document.getElementById('heat'); s.textContent = '';
+  const keys = Object.keys(r.side.observed.dlv).sort((a, b) => a.split('|')[1].localeCompare(b.split('|')[1]) || a.localeCompare(b));
+  const n = r.meta.duration_s, L = 250, Rg = 14, W = 780, ch = 11, gap = 9, top = 16, H = top + keys.length * (2 * ch + gap) + 22, cw = (W - L - Rg) / n, [f0, f1] = faultSpan(r);
+  s.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  keys.forEach((k, i) => {
+    const [a, t] = k.split('|'), o = r.side.observed.dlv[k], m = r.side.simulated.dlv[k] || [], mx = Math.max(1, ...o, ...m), y = top + i * (2 * ch + gap);
+    el('text', { class: 'rowlbl', x: 8, y: y + ch + 3 }, s, `${NAME[a]} ← ${NAME[t]}`);
+    el('text', { class: 'lbl', x: L - 6, y: y + ch - 2, 'text-anchor': 'end' }, s, 'observed'); el('text', { class: 'lbl', x: L - 6, y: y + 2 * ch - 2, 'text-anchor': 'end' }, s, 'simulated');
+    [o, m].forEach((arr, j) => { for (let c = 0; c < n; c++) { const v = (arr[c] || 0) / mx; el('rect', { x: (L + c * cw).toFixed(1), y: y + j * ch, width: (cw - 1).toFixed(1), height: ch - 1, style: `fill: color-mix(in srgb, var(--accent) ${Math.round(v * 100)}%, var(--line-soft))` }, s); } });
+  });
+  for (const v of [f0, f1]) if (v < n) el('line', { class: 'bandline', x1: L + v * cw, x2: L + v * cw, y1: 6, y2: H - 18 }, s);
+  for (let v = 0; v <= n; v += 10) el('text', { class: 'lbl', x: L + v * cw, y: H - 5, 'text-anchor': 'middle' }, s, v + ' s');
+}
+
+/* ---------- readouts ---------- */
+const METRICS = [['topic_rate', 'Topic rate'], ['delivery_rate', 'Delivery rate per reader'], ['latency_p50', 'Latency p50'], ['latency_p95', 'Latency p95']];
+function renderRun() {
+  const r = D[sel], R = RUNS[sel];
+  document.getElementById('chips').innerHTML = Object.keys(RUNS).map(k => `<button class="chip" data-run="${k}" aria-pressed="${k === sel}">${RUNS[k].chip}</button>`).join('');
+  document.getElementById('r-title').textContent = R.title; document.getElementById('r-blurb').textContent = R.blurb; document.getElementById('r-note').textContent = R.note;
+  document.getElementById('chaos').innerHTML = r.chaos.map(c => `<li><b>t = ${c.t.toFixed(2)} s</b> ${esc(c.what)}</li>`).join('');
+  document.getElementById('jac').textContent = r.fidelity.stall_jaccard.toFixed(1);
+  const list = a => a.length ? a.map(x => NAME[x]).join(', ') : 'none';
+  document.getElementById('stall').innerHTML = `Observed: <b>${list(r.side.observed.stalled)}</b>. Simulated: <b>${list(r.side.simulated.stalled)}</b>. An application counts as stalled if it published before the fault and is silent at the end of the run.`;
+  drawPubs(r); drawHeat(r);
+  const pct = v => v == null ? '–' : Math.round(v * 100) + '%';
+  document.getElementById('fid').innerHTML = `<thead><tr><th rowspan="2">Steady state</th><th rowspan="2" class="num">n</th><th colspan="2" class="num">Declared parameters</th><th colspan="2" class="num">Calibrated</th></tr><tr><th class="num">Median err</th><th class="num">In tolerance</th><th class="num">Median err</th><th class="num">In tolerance</th></tr></thead><tbody>` +
+    METRICS.map(([k, lab]) => { const a = r.fidelity.metrics[k], b = r.fidelity_calibrated.metrics[k], cls = v => v === 1 ? 'yes' : 'no'; return `<tr><td>${lab}</td><td class="num">${a.n_compared}</td><td class="num">${f3(a.median_rel_error)}</td><td class="num ${cls(a.share_within_tolerance)}">${pct(a.share_within_tolerance)}</td><td class="num">${f3(b.median_rel_error)}</td><td class="num ${cls(b.share_within_tolerance)}">${pct(b.share_within_tolerance)}</td></tr>`; }).join('') + '</tbody>';
+  const lo = r.side.observed.lat_p50, ls = r.side.simulated.lat_p50;
+  document.getElementById('lat').innerHTML = `<thead><tr><th>Median latency before the fault</th><th class="num">Observed</th><th class="num">Simulated</th><th class="num">Ratio</th></tr></thead><tbody>` +
+    Object.keys(D.plan.topics).map(t => { const q = ls[t] / lo[t]; return `<tr><td><span class="mono">${t}</span> ${NAME[t]}</td><td class="num">${f1(lo[t])} ms</td><td class="num">${f1(ls[t])} ms</td><td class="num ${q > 1.75 || q < 0.57 ? 'no' : ''}">${q.toFixed(2)}×</td></tr>`; }).join('') + '</tbody>';
+  const fired = Object.entries(r.dds).filter(([, v]) => v.observed || v.simulated);
+  document.getElementById('dds').innerHTML = `<thead><tr><th>DDS status over the run</th><th class="num">Entities, observed</th><th class="num">Entities, simulated</th><th class="num">Same entities</th></tr></thead><tbody>` +
+    fired.map(([k, v]) => `<tr><td class="mono">${k}</td><td class="num">${v.observed}</td><td class="num">${v.simulated}</td><td class="num ${v.jaccard === 1 ? 'yes' : 'no'}">${v.jaccard === 1 ? 'yes' : 'no'}</td></tr>`).join('') + '</tbody>';
+  const worst = Object.keys(lo).map(t => [t, ls[t] / lo[t]]).sort((a, b) => Math.abs(Math.log(b[1])) - Math.abs(Math.log(a[1])))[0];
+  document.getElementById('fid-notes').innerHTML = `<span class="cap">Reading these tables</span>
+    <p class="note"><b>Rates and deliveries agree closely</b>, within ${(r.fidelity.metrics.delivery_rate.max_rel_error * 100).toFixed(0)}% for every reader.</p>
+    <p class="note"><b>Latency is where the two differ.</b> The largest gap is on ${NAME[worst[0]]}, where the simulator's median is ${worst[1].toFixed(1)}× the observed one. Calibration narrows the p95 error.</p>
+    <p class="note"><b>Deadline statuses fire only in the simulation.</b> The deployment plan carries no deadline for any topic, because the testbed reads a topic-level <code>deadline_ms</code> and <code>mini_atm.json</code> declares deadlines only inside <code>qos</code>, where the simulator does read them. The ${r.dds_excluded} relay endpoints exist only on the testbed and are left out of the comparison.</p>`;
+  const p = r.profile, ok = b => `<span class="${b ? 'yes' : 'no'}">${b ? '✓' : '✗'}</span>`;
+  document.getElementById('cal-svc').innerHTML = `<thead><tr><th>Quantity</th><th class="num">Declared</th><th class="num">Fitted</th><th class="num">Error</th></tr></thead><tbody>` +
+    Object.entries(p.rates).map(([t, [d, f]]) => `<tr><td>${NAME[t]} rate</td><td class="num">${d.toFixed(2)} Hz</td><td class="num">${f.toFixed(2)} Hz</td><td class="num">${(Math.abs(f - d) / d * 100).toFixed(1)}%</td></tr>`).join('') +
+    Object.entries(p.service).map(([a, [d, f, dist, n]]) => `<tr><td>${NAME[a]} service mean <span class="lblx" style="color:var(--muted)">(${dist}, n = ${n})</span></td><td class="num">${d.toFixed(1)} ms</td><td class="num">${f.toFixed(1)} ms</td><td class="num">${(Math.abs(f - d) / d * 100).toFixed(1)}%</td></tr>`).join('') + '</tbody>';
+  document.getElementById('cal-pol').innerHTML = `<thead><tr><th>Trigger policy</th><th>Declared</th><th>Inferred</th><th></th></tr></thead><tbody>` +
+    Object.entries(p.policy).map(([a, [d, f]]) => { const sink = !D.plan.apps[a].publishes.length; return `<tr><td>${NAME[a]}</td><td>${sink ? 'sink' : d}</td><td>${f || 'no answer'}</td><td>${f ? ok(f === d) : '<span style="color:var(--muted)">nothing to observe</span>'}</td></tr>`; }).join('') + '</tbody>';
+}
+function renderTake() {
+  const a = D.run_a, b = D.run_b;
+  document.getElementById('take').innerHTML = [
+    `<b>The mechanism works end to end on a topology this small.</b> Build, two 40 s container runs, calibration and comparison all completed; each run took about a minute of wall time.`,
+    `<b>The simulator reproduced who stalls and who recovers.</b> In the broker run both sides show tracker and conflict-detector pausing and resuming; in the host-kill run both name the same three silent applications.`,
+    `<b>It did not reproduce latency.</b> Median p95 error with declared parameters is ${f3(a.fidelity.metrics.latency_p95.median_rel_error)} and ${f3(b.fidelity.metrics.latency_p95.median_rel_error)}, with only half the topics inside tolerance.`,
+    `<b>Calibration recovered what was declared.</b> Topic rates came back within ${Math.max(...[a, b].flatMap(r => Object.values(r.profile.rates).map(([d, f]) => Math.abs(f - d) / d * 100))).toFixed(1)}% and service means within ${Math.max(...[a, b].flatMap(r => Object.values(r.profile.service).map(([d, f]) => Math.abs(f - d) / d * 100))).toFixed(1)}%. Every trigger policy it answered was right; the two sinks got no answer.`,
+    `<b>One input-format mismatch surfaced.</b> Deadlines declared only inside a topic's <code>qos</code> block reach the simulator but not the testbed plan. Scenario-corpus files declare them in both places, so they are unaffected.`,
+    `<b>These are single runs.</b> One seed, one machine, 40 seconds. They show that the pieces connect and roughly agree, nothing more.`,
+  ].map(i => `<li>${i}</li>`).join('');
+}
+document.addEventListener('click', e => { const t = e.target.closest('[data-run]'); if (t && D[t.dataset.run]) { sel = t.dataset.run; renderRun(); } });
+drawDeploy(); staticTables(); renderRun(); renderTake();
+</script>
