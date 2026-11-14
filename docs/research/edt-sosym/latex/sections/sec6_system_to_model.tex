@@ -1,0 +1,71 @@
+\section{System to Model: Telemetry and Calibration}
+\label{sec:s2m}
+
+A pre-deployment model has to guess the runtime parameters that drive its behavioural simulation:
+\begin{itemize}[leftmargin=*,nosep]
+  \item how often each topic is really published;
+  \item how long each application takes to serve a message;
+  \item whether an application emits on its own schedule or only when its inputs are fresh.
+\end{itemize}
+After deployment, or on the counterpart, these can be measured. The system-to-model transformation turns a trace into a \emph{calibrated profile} that overrides the declared values in the queue-flow simulator (R5). Its design rests on two principles. First, every fitted value records where it came from. Second, the calibrator abstains rather than guesses when the trace does not determine a parameter.
+
+\subsection{Trace schema}
+
+Telemetry is a stream of JSON-lines events shaped like OpenTelemetry log records. Every event has a timestamp on a clock shared by all agents, an event name, and attributes that use OpenTelemetry's messaging conventions where they exist (\texttt{service.name}, \texttt{messaging.\allowbreak destination.\allowbreak name}, \texttt{messaging.\allowbreak message.\allowbreak id}). Six event kinds are defined:
+\begin{itemize}[leftmargin=*,nosep]
+  \item \emph{publish}, for an emission;
+  \item \emph{deliver}, for a sample processed within its deadline, with latency and service time;
+  \item \emph{deadline miss}, for a sample that was processed and then dropped as late; it carries its service time too;
+  \item \emph{drop}, for a queue overflow;
+  \item \emph{state}, for a component state change such as crash, recovery or replica takeover;
+  \item \emph{status}, for periodic DDS status counts.
+\end{itemize}
+
+The queue-flow simulator writes the \emph{same} schema when asked to record events. This is the single most useful decision in the system-to-model path. Calibration and fidelity comparison are written once and applied to simulated and observed traces alike. A difference between the two can then never be an artefact of two parsers.
+
+\subsection{The calibrator}
+
+The calibrator fits three groups of parameters on the fault-free, post-warm-up window of a trace.
+
+\paragraph{Topic rates.} The fitted rate of a topic is its emissions per second, counted over all of its publishers.
+
+\paragraph{Service-time distributions.} For each application the calibrator records the mean and coefficient of variation of its measured service times. It reports an exponential family when the CV lies in $[0.7, 1.3]$ and a lognormal family otherwise, and it fits only when at least five samples exist. Service times are taken from delivered samples \emph{and} from samples dropped as late. A late sample was still served, and fitting only the on-time survivors biases the mean low. On the ATM scenario, this bias put one application's mean 45\% low before the schema carried service times on deadline misses.
+
+\paragraph{Trigger policies.} An application with inputs either emits periodically regardless of its inputs (\emph{periodic}), stops only when all inputs are stale (\emph{any-of}), or stops as soon as one input is stale (\emph{all-of}). The calibrator infers which by splitting time into three input states: all fresh, some stale, and all stale. In each state it compares the application's realised emission rate with its active rate. A state counts as evidence only if it lasted long enough to expect at least three emissions, and emission shares in an ambiguous middle band count as no evidence either way. If the trace never puts the application through a discriminating outage, the calibrator abstains. For a single-input application, the two reactive policies coincide, and the calibrator reports the simpler one.
+
+\paragraph{What the calibrator refuses to write.} The behavioural profile also has slots used by other simulators. One is a per-edge \emph{failure correlation}, which is a cascade-propagation probability in the multi-layer failure simulator. Another is a starvation tolerance. A measured message-drop rate looks superficially like the former, but it is a different quantity, and no trace event measures the latter. The calibrator writes neither. In a twin, a model slot filled with a plausible but semantically wrong measurement is worse than an empty slot, because it is indistinguishable from a real calibration.
+
+\subsection{Identifiability: what telemetry can and cannot recover}
+\label{sec:identifiability}
+
+Calibration is only useful if it recovers the right values. To test this, we simulated the 74-component ATM scenario with \emph{known} parameters under the runtime-label settings, calibrated the resulting trace, and compared the fitted values with the known ones (Table~\ref{tab:identifiability}). The experiment is an automated test in the framework, so it is re-run on every change to the calibrator.
+
+\begin{table}[t]
+\centering
+\caption{Parameter recovery on the ATM scenario: simulate with known parameters, calibrate the trace, compare (60\,s trace).}
+\label{tab:identifiability}
+\small
+\begin{tabularx}{\textwidth}{@{}l l Y@{}}
+\toprule
+Parameter & Recovered? & Evidence \\
+\midrule
+Topic rates & yes & median relative error 3\% \\
+Service mean and CV & yes & median relative error 1\%; every application within sampling noise (at most 3.6 standard errors, 30 applications); a uniform distribution is returned as lognormal with its true CV of 0.115 \\
+Trigger policy & yes, when observable & 16--17 of the 17 applications with inputs and outputs receive an answer, and every answer is correct, for true staleness windows of 2, 3 or 6 periods (the calibrator assumes 3) \\
+Staleness window & no & no estimator; the trace does not determine it \\
+Burst ratio & no & no estimator; the trace does not determine it \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The negative rows are results, not omissions. They tell the twin's users that post-deployment data cannot narrow the plausible range of two behavioural parameters. Any conclusion sensitive to those parameters must keep carrying their uncertainty after deployment. Applications that never experienced a partial input outage receive no policy, which is correct behaviour rather than a gap.
+
+An identifiability table of this kind is cheap to produce once the simulator and the counterpart share a trace schema, and we recommend it as a standard artefact for calibrated twins. It separates three kinds of parameter:
+\begin{itemize}[leftmargin=*,nosep]
+  \item parameters that data can pin down;
+  \item parameters that data can pin down only under particular operating conditions (here, trigger policies need an outage);
+  \item parameters that data cannot pin down at all.
+\end{itemize}
+Without such a table, a calibrated twin silently presents all three as equally ``calibrated''.
+
+The identifiability test uses a simulated trace as ground truth, so it checks the estimators, not the counterpart. Applying the calibrator to counterpart traces, and asking whether calibration improves fidelity, is hypothesis H5 of the fidelity study (\S\ref{sec:protocol}).

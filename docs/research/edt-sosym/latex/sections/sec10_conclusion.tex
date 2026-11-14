@@ -1,0 +1,21 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We engineered an architectural digital twin for distributed publish--subscribe systems as a family of transformations around one graph metamodel:
+\begin{itemize}[leftmargin=*,nosep]
+  \item a structural view for simulation and a derived view for analysis, kept consistent by executable invariants;
+  \item a model-to-system transformation that generates a running Docker and Cyclone DDS counterpart, driven by the same fault vocabulary as the simulators;
+  \item a system-to-model calibration path whose limits are measured;
+  \item a fidelity-assessment method that separates evidence from agreement by construction, with a pre-registered study protocol.
+\end{itemize}
+
+The system is a digital model with a generated counterpart and a batch digital shadow, and we have stated it at exactly that level. The results so far support the method:
+\begin{itemize}[leftmargin=*,nosep]
+  \item the artefacts agree on dependency semantics rule by rule;
+  \item rates and service times are recovered within a few percent, and two parameters are shown not to be recoverable;
+  \item on the smoke test, the counterpart reproduced the simulator's stall sets and DDS liveliness exactly;
+  \item the counterpart exposed a real gap, slow DDS rediscovery after long partitions, which the twin could not have found by checking itself against its own simulators.
+\end{itemize}
+The pre-registered fidelity study will report \tbd{H1 headline}, interpreted under the claim table fixed in advance.
+
+The next step is the one that turns the shadow into a twin: continuous ingestion and drift detection on topology, parameters and behaviour, with re-calibration for identifiable parameters and engineer-approved model repair for topology. We have argued that this order is forced: drift detection presupposes calibration and a fidelity metric with known noise. We expect that order to apply to other pre-deployment twins whose physical side must, at first, be generated from the model itself.

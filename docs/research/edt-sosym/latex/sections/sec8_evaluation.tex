@@ -1,0 +1,167 @@
+\section{Evaluation}
+\label{sec:evaluation}
+
+We evaluate the twin against four research questions, one per engineering challenge of \S\ref{sec:intro}:
+\begin{description}[leftmargin=1em,style=nextline]
+  \item[RQ1 (consistency).] Do all twin artefacts derived from one model instance agree on its semantics?
+  \item[RQ2 (calibration).] Which runtime parameters can the system-to-model path recover from telemetry?
+  \item[RQ3 (fidelity).] How faithfully do the twin's simulators reproduce the generated counterpart's behaviour, and where do they diverge?
+  \item[RQ4 (cost).] What do the twin's services and its counterpart cost to run, and does that fit a delivery pipeline?
+\end{description}
+Every number below is tagged with its provenance:
+\begin{itemize}[leftmargin=*,nosep]
+  \item \textbf{[P]}: measured on the open-source prototype, regenerable from a committed artefact;
+  \item \textbf{[S]}: from the pre-registered fidelity study, pending (\tbd{study run});
+  \item \textbf{[I]}: from the industrial setting, pending clearance (\tbd{cleared data}).
+\end{itemize}
+A number from one source is never presented as evidence for another.
+
+\subsection{Subjects}
+
+We use the committed scenario corpus of the framework~\citep{sag-software}. Every scenario regenerates byte-identically from its generator configuration, which is itself an executable invariant. The subjects are:
+\begin{itemize}[leftmargin=*,nosep]
+  \item the 74-component ATM scenario (\texttt{atm});
+  \item a five-member ATM scale family from 29 to 444 components, with QoS mix, fan-out shape and criticality proportion held fixed;
+  \item eleven scenarios from other domains, including autonomous vehicles, IoT, financial trading, healthcare and industrial control;
+  \item two small pilot scenarios (\texttt{tiny\_system}: 4 hosts, 12 applications, 2 brokers; and an integration-hub scenario with 20 publishing applications), which are excluded from the study population.
+\end{itemize}
+
+\subsection{RQ1: Consistency across twin artefacts}
+\label{sec:consistency}
+
+Consistency between artefacts is checked by executable invariants that run in the framework's continuous-integration suite (Table~\ref{tab:invariants}). Breaking one fails the build, not merely a review.
+
+\begin{table}[t]
+\centering
+\caption{Executable invariants that keep the twin's artefacts consistent [P]. Each is an automated test in the framework's suite.}
+\label{tab:invariants}
+\small
+\begin{tabularx}{\textwidth}{@{}l Y p{0.12\textwidth}@{}}
+\toprule
+Req. & Invariant & Checks \\
+\midrule
+R2 & The simulator's re-derivation of \textsc{depends\_on} from raw relations yields the same arc set as the repository, rule by rule (Rules 1--7). It ignores failed edges and does not double-count shared topics. & 10 tests \\
+R2 & The in-memory and graph-database repositories agree on derived edges for all rules. & 3 tests \\
+R3 & Simulation code never imports the analysis or prediction packages, and never reads derived edges. & guard test \\
+R3 & The labelling simulator and the validation simulator are never substituted for each other within a pipeline stage. & contract test \\
+R1 & Every committed scenario regenerates byte-identically from its configuration, and a manifest matches the files on disk. & corpus test \\
+R4 & Plan, QoS mapping, compose file, chaos compilation (including partitions under network gating) and the in-process counterpart are checked against the simulator. An in-process counterpart run must cascade like the simulator, and its DDS-status semantics must agree with the simulator's. & 32 tests \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{A consistency failure we found.} The invariants are not decorative. For a long time, the simulator's re-derivation implemented only one of the seven rules. The rules it lacked are exactly the ones that give applications, brokers and hosts any dependents. As a result, the change-propagation impact $I_M$ was identically zero for every component the validation scored, and the validation gates that depend on it reported failures that were really unmeasured quantities. The fix was twofold: full re-derivation, guarded by the rule-by-rule parity test, and a rule that an unmeasured gate value is reported as \emph{not measured} rather than coerced to zero. For twin engineering, the lesson is that a single model instance is necessary but not sufficient for R2. Every consumer that re-derives semantics is a place where artefacts can drift apart without any visible error.
+
+\paragraph{A known, documented divergence.} Not every disagreement has been removed. When a topic is reachable both directly and through a library, the in-memory repository counts it twice in the Rule~1 edge weight, while the graph-database repository does not. The resulting difference affects no pairs on \texttt{atm}, 64 pairs on a microservices scenario ($\Delta w \le 0.248$) and 139 on the autonomous-vehicle scenario ($\Delta w \le 0.374$) [P]. Fixing it would move published downstream numbers, so it is documented rather than silently changed. The simulator deliberately matches the graph-database semantics. We report it as an example of the consistency debt that a model-centred twin accumulates and must make visible.
+
+\textbf{Answer to RQ1.} All artefacts are derived from one instance, and their agreement on dependency semantics is enforced rule by rule. One historical inconsistency was caught and closed by these checks. One residual divergence in edge weights is measured and documented rather than hidden.
+
+\subsection{RQ2: Calibration identifiability}
+
+Table~\ref{tab:identifiability} (\S\ref{sec:identifiability}) gives the result [P]:
+\begin{itemize}[leftmargin=*,nosep]
+  \item topic rates are recovered within 3\% median error;
+  \item service-time means and CVs within 1\%;
+  \item trigger policies are always correct when the trace contains a discriminating outage, and abstained on otherwise;
+  \item staleness windows and burst ratios are not identifiable.
+\end{itemize}
+On the counterpart itself, the in-process calibration round trip recovers rates and service means, and identifies trigger policies, under an automated test [P]. Whether calibrating on counterpart telemetry improves simulator fidelity is H5 [S]: \tbd{H5 result: per-scenario median per-reader delivery error, S2 vs.\ S3}.
+
+\textbf{Answer to RQ2.} Telemetry recovers the rate and service parameters that dominate queue-flow behaviour. It recovers reactive behaviour only when outages occur, and it cannot recover staleness or burstiness. The twin must keep carrying the uncertainty of those two parameters after deployment.
+
+\subsection{RQ3: Fidelity of the simulators to the counterpart}
+
+\paragraph{Smoke test.} We ran \texttt{tiny\_system} on the Docker counterpart (4 containers, 12 applications, 2 broker relays, 1\,Hz) with declared parameters, and simulated the same runs [P]. Each row of Table~\ref{tab:smoke} is a single run, so the results show that the pipeline works end to end. They are not a fidelity estimate.
+
+\begin{table}[t]
+\centering
+\caption{Smoke test on \texttt{tiny\_system} (Docker counterpart, single runs) [P]. Errors are median relative errors between simulated and observed traces (delivery: per reader). The host crash is a \texttt{docker kill}; $J$ is the Jaccard index.}
+\label{tab:smoke}
+\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Run & Topic rate & Delivery & Latency p50 / p95 & Stall-set $J$ \\
+\midrule
+Fault-free, 40\,s & 0.000 & 0.000 & 0.14 / 0.11 & --- \\
+Host crash at 20\,s & 0.000 & 0.059 & 0.40 / 0.14 & 1.0 \\
+Broker crash at 20\,s (failover) & 0.000 & 0.059 & 0.34 / 0.18 & 1.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Under both faults, the simulator and the counterpart agree exactly on which readers stall. Topic rates match exactly, which is expected, because they come from the shared plan (Table~\ref{tab:independence}). Delivery agrees within 6\%. Latency errors are larger, as expected for a one-machine emulation. The p95 errors stay within their 35\% tolerance in every run. The p50 errors stay within their 25\% tolerance in the fault-free run but exceed it under both faults. In the host-crash run with DDS semantics, the middleware status counters agree as follows:
+\begin{itemize}[leftmargin=*,nosep]
+  \item \emph{liveliness alive count}: the same 15 readers on both sides, with exactly equal values;
+  \item \emph{requested deadline missed}: the same single reader, with 9 misses observed against 7 simulated;
+  \item \emph{offered deadline missed}: the same 3 writers, with about 7\% count error;
+  \item \emph{lost and rejected samples, liveliness not-alive count}: zero on both sides.
+\end{itemize}
+
+\paragraph{A fidelity gap the counterpart exposed.} We then ran a two-host chain behind one switch, with network gating, CPU-bound service and payload carrying, and crashed the switch from 10\,s to 20\,s [P]. Deliveries stopped within 0.2\,s of the cut, as in the simulator. They resumed about 6\,s \emph{after} the partition was lifted, whereas the simulator reconnects instantly. The cause is middleware behaviour that the model does not represent. During a partition longer than a participant's lease, Cyclone DDS expires the remote participants and has to rediscover them afterwards. In the same run, the burned service time matched the plan: a median of 21.3\,ms against an exponential median of 22.5\,ms.
+
+This finding is the kind of result the counterpart exists to produce. It falls in the independent row of Table~\ref{tab:independence}: discovery and liveliness belong to the middleware, not to the shared plan. It is invisible to any oracle the framework computes about itself. It also has a direct consequence for the twin's users. Fault-response predictions for partitions longer than a liveliness lease underestimate the outage by the rediscovery time, and we now state this as a known limitation of the behavioural model. A twin that only checked itself against its own simulators could not have found it.
+
+\paragraph{Pre-registered study.} Table~\ref{tab:study} is the reporting template of the study in \S\ref{sec:protocol}. Its cells are left empty until the protocol is frozen and the sweep is complete.
+
+\begin{table}[t]
+\centering
+\caption{Fidelity study results [S]: reporting template, to be filled after the frozen protocol has run. $n$ is the number of included scenarios; $C_s$ is the noise ceiling.}
+\label{tab:study}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth} >{\raggedright\arraybackslash}Y >{\raggedright\arraybackslash}p{0.16\textwidth} >{\raggedright\arraybackslash}p{0.16\textwidth}@{}}
+\toprule
+Quantity & Statistic & Value & Decision \\
+\midrule
+Included scenarios & $n$ (and $\kappa$ per scenario) & \tbd{n} & --- \\
+Pilot capacity and margin & $B_h$, $\delta$ & \tbd{$B_h$, $\delta$} & --- \\
+H1: S2 vs.\ S0 & HL median of $d_s$ [95\% CI], $p$, TOST $p$ & \tbd{H1} & \tbd{outcome} \\
+H2: S0 vs.\ 0.70 & HL, Holm-adjusted $p$ & \tbd{H2} & \tbd{} \\
+H3: S2 vs.\ R & HL, Holm-adjusted $p$ & \tbd{H3} & \tbd{} \\
+H4: S0 vs.\ R & HL, Holm-adjusted $p$ & \tbd{H4} & \tbd{} \\
+H5: S3 vs.\ S2 delivery error & HL, Holm-adjusted $p$ & \tbd{H5} & \tbd{} \\
+Noise ceiling & median $C_s$ (range) & \tbd{$C_s$} & --- \\
+Instrument check (arm N) & median $\rho_s(\mathrm{N})$ & \tbd{N} & within $\pm 0.10$? \\
+Brokers and hosts (S2, S3) & $\rho$, stall-set Jaccard & \tbd{S2, S3} & descriptive \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Answer to RQ3 (provisional).} On the smoke test, the twin reproduces which components a fault silences, and reproduces the DDS liveliness status exactly. Its first divergence is attributable to middleware rediscovery after long partitions, a behaviour the model omits. Whether the current simulator ranks fault impact closer to the observed system than the published configuration does is \tbd{H1 headline per the decision table}. The study's own pilot predicts that \emph{inconclusive} is a likely outcome on scenarios dominated by many low-impact publishers.
+
+\subsection{RQ4: Cost of the twin's services and counterpart}
+
+Table~\ref{tab:cost} summarises costs [P].
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Analytical services.} Analysis, static checks and the two graph simulators cost milliseconds to about a second up to several hundred components. For the ATM scale family, a complete gate invocation (analysis plus all structural checks) grows roughly in proportion to size, with no cliff: from 0.01\,s at 29 components to 1.01\,s at 444, mean over five seeds.
+  \item \textbf{Queue-flow simulation.} This costs seconds per faulted component and 12.7 CPU-hours for an exhaustive five-seed sweep over the corpus. It therefore suits targeted, second-tier use on shortlisted components rather than every commit.
+  \item \textbf{The counterpart.} The counterpart is the most expensive artefact by far. The study's protocol projects about 46 machine-hours per observed condition at $\kappa=1$: at most 683 targets, three repetitions each, about 80\,s per run including start-up. It is a validation instrument for the twin, not a per-change service.
+\end{itemize}
+Industrial pipeline measurements are pending clearance: \tbd{[I] gate latency and finding counts from the programme pipeline}.
+
+\begin{table}[t]
+\centering
+\caption{Cost of twin services and counterpart [P]. Graph-simulator timings are medians of three runs on an idle machine. Treat them as orders of magnitude.}
+\label{tab:cost}
+\small
+\begin{tabularx}{\textwidth}{@{}l Y l@{}}
+\toprule
+Artefact & Workload & Cost \\
+\midrule
+Gate (analysis + structural checks) & ATM family, 29 / 74 / 148 / 296 / 444 components & 0.01 / 0.05 / 0.13 / 0.53 / 1.01\,s \\
+Cascade simulator ($I^*$) & 5-seed sweep, \texttt{atm} / \texttt{av} (74 / 152 components) & 0.08 / 0.35\,s \\
+Multi-layer simulator ($\Icomp$) & exhaustive sweep, \texttt{atm} / \texttt{av} & 0.06 / 0.45\,s \\
+Queue-flow simulator ($\Idyn$) & per faulted component, 60 simulated s, \texttt{atm} / \texttt{av} & 1.5 / 4.3\,s \\
+Queue-flow simulator ($\Idyn$) & 5 seeds, whole corpus & 12.7 CPU-h (355.6\,Wh) \\
+Counterpart (Docker + DDS) & one faulted run incl.\ start-up & $\approx$80\,s \\
+Counterpart (Docker + DDS) & full study, one condition, $\kappa=1$ & $\approx$46\,h (projected) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Answer to RQ4.} The twin's services form a cost ladder:
+\begin{itemize}[leftmargin=*,nosep]
+  \item graph analysis and graph simulation (sub-second), which fit every change;
+  \item queue-flow simulation (seconds per fault), which fits a shortlist;
+  \item the generated counterpart (machine-hours), which fits periodic fidelity assessment of the twin itself.
+\end{itemize}
+This ladder is what makes the two-tier use of \S\ref{sec:services} practical.

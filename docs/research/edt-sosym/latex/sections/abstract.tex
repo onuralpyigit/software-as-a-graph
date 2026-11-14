@@ -1,0 +1,21 @@
+\textbf{Context.} Distributed systems built on publish--subscribe middleware such as DDS, ROS~2 or Kafka fail in ways that only show once the assembled system is running. These failures include cascades through shared topics, broker and host outages, and partitions. Engineering teams need a digital counterpart of the \emph{architecture} that can answer what-if questions before deployment and can be checked against the running system afterwards. Such architectural digital twins are still built ad hoc.
+
+\textbf{Objective.} We present an engineering method for an architectural digital twin of publish--subscribe systems. A single typed graph model is the source of every twin artefact: the analysis views, four failure simulators, and an executable container-based testbed that stands in for the physical system.
+
+\textbf{Method.} The method has four parts.
+\begin{enumerate}[nosep,leftmargin=*]
+\item A graph metamodel separates structural relations from derived dependencies.
+\item A model-to-system transformation generates a Docker and Cyclone DDS deployment from the model. A single fault vocabulary drives both the simulators and container-level chaos actions.
+\item A system-to-model path turns OpenTelemetry-shaped traces into calibrated simulator parameters.
+\item A fidelity-assessment method compares simulated and observed behaviour in steady state, under faults, and in middleware status. It states explicitly which agreements are independent evidence and which hold by construction.
+\end{enumerate}
+We place each capability on a digital model, shadow and twin maturity ladder and claim only the levels that are built.
+
+\textbf{Results.} Model consistency is enforced by executable invariants: the simulators re-derive all seven dependency rules from raw relations and must match the repository edge set.
+\begin{itemize}[nosep,leftmargin=*]
+\item \emph{Calibration.} Topic rates are recovered within 3\% median error and service times within 1\%, and inferred trigger policies are never wrong. Two behavioural parameters are not identifiable from telemetry, and we report them as such.
+\item \emph{Smoke test.} On a four-container system, simulated and observed fault responses agree exactly at the stall-set level. The test also exposes a fidelity gap: DDS peer rediscovery after a partition takes about 6\,s, which the simulator does not model.
+\item \emph{Fidelity study.} A pre-registered study across twelve scenarios is \tbd{outcome of H1 and secondary family}.
+\end{itemize}
+
+\textbf{Conclusion.} An architectural digital twin can be engineered as a family of model transformations around one metamodel, with fidelity treated as a measured, bounded property rather than an assumption. We report the remaining step from batch digital shadow to live twin, drift-triggered re-calibration, as designed but not yet built.

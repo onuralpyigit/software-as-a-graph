@@ -1,0 +1,107 @@
+\section{Fidelity Assessment}
+\label{sec:fidelity}
+
+Fidelity, the degree to which the virtual entity reproduces its physical counterpart, is among the least operationalised characteristics of digital twins~\citep{jones2020characterising}. For an architectural twin, the question is concrete: when the same fault hits the twin's simulation and the counterpart, do they show the same damage? This section defines what we compare (\S\ref{sec:dimensions}), what such a comparison can and cannot show (\S\ref{sec:independence}), and how we fix the analysis before seeing results (\S\ref{sec:protocol}).
+
+\subsection{Three fidelity dimensions}
+\label{sec:dimensions}
+
+All comparisons are computed from two traces in the shared schema of \S\ref{sec:s2m}: one simulated, one observed. Each fidelity report records its tolerances. It is a report and never a gate (R6), because a gate on an unvalidated fidelity metric would turn the metric's noise into release decisions.
+
+\paragraph{Steady state.} Five metrics are computed, each as a per-element error against a declared tolerance (Table~\ref{tab:tolerances}):
+\begin{itemize}[leftmargin=*,nosep]
+  \item the publication rate of each topic;
+  \item the delivery rate of each reader--topic pair;
+  \item the p50 and p95 latency of each topic;
+  \item the share of samples that miss their deadline.
+\end{itemize}
+The report gives the median error and the share of elements within tolerance.
+
+\begin{table}[t]
+\centering
+\caption{Default steady-state tolerances. Relative error for rates and latencies; absolute difference for the deadline-miss share.}
+\label{tab:tolerances}
+\small
+\begin{tabular}{@{}lr@{}}
+\toprule
+Metric & Tolerance \\
+\midrule
+Topic publication rate & 5\% \\
+Reader delivery rate & 10\% \\
+Latency p50 / p95 & 25\% / 35\% \\
+Deadline-miss share & 0.05 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Fault response.} For a fault on component $v$, the \emph{observed impact} $\Iobs(v)$ follows the definition of the simulator's $\Idyn$: the pre-fault minus the post-fault delivery rate, summed over surviving readers. The faulted component's own receipts are excluded, the value is not clamped, and the simulator's guard band is used. Computing $\Iobs$ from a trace with the simulator's definition makes the two directly comparable. On the ATM scenario, $\Iobs$ computed from a simulated trace differs from the engine's internal $\Idyn$ by at most 0.0002. At 1\,Hz on the smallest scenario the difference is about 0.03, because whole samples are counted. Two comparisons follow:
+\begin{itemize}[leftmargin=*,nosep]
+  \item rank agreement between simulated and observed impact across faulted components, measured by Spearman's $\rho$ and top-$K$ Jaccard;
+  \item for each single fault, the Jaccard index between the sets of readers that stall in simulation and in observation (the \emph{stall set}).
+\end{itemize}
+
+\paragraph{Middleware status.} When the simulator runs with DDS semantics, it maintains the DDS status counters for every application entity:
+\begin{itemize}[leftmargin=*,nosep]
+  \item liveliness alive and not-alive counts;
+  \item requested and offered deadline misses;
+  \item lost and rejected samples.
+\end{itemize}
+The report compares, for each counter, the set of entities with non-zero values on each side and the per-entity counts. The broker relays' own endpoints exist only on the counterpart, so they are excluded, and their number is reported.
+
+\subsection{Independence analysis: what the counterpart can show}
+\label{sec:independence}
+
+The counterpart is generated from the same model, and partly by the same functions, as the simulators' configuration. Some agreement is therefore guaranteed by construction, and reporting it as fidelity would be circular. This is the conceptual-validity trap that the simulation-validation literature warns about~\citep{sargent2013verification}. Before any study, we classified every part of the counterpart by whether it is independent of the simulator (Table~\ref{tab:independence}).
+
+\begin{table}[t]
+\centering
+\caption{Which parts of the counterpart are independent of the simulator. Only agreement on the independent parts counts as fidelity evidence.}
+\label{tab:independence}
+\small
+\begin{tabularx}{\textwidth}{@{}Y l Y@{}}
+\toprule
+Counterpart part & Independent? & Consequence \\
+\midrule
+DDS delivery, discovery and liveliness; OS scheduling; real elapsed time; container kills and network partitions & yes & what fidelity results can speak to \\
+Topic rates, mean service times, queue bounds, failover rule, placement & no (same plan) & agreement is not evidence \\
+Trigger policies (reactive behaviour) & no (shared function) & agreement between a reactive simulator and a reactive counterpart is circular \\
+Late-sample handling & no (agents are told the rule) & a counterpart in the simulator's own late-drop mode is never treated as truth \\
+Application logic & no (stubs) & no result covers real application behaviour \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The table bounds every claim the twin can make from its counterpart. \emph{The strongest attainable conclusion concerns timing and transport fidelity on an emulated system under declared behaviour.} No outcome can show that a production system behaves this way. We regard producing this table as a necessary step whenever a twin's physical side is itself generated from the twin's model, a situation that pre-deployment twins cannot avoid.
+
+\subsection{A pre-registered fidelity study}
+\label{sec:protocol}
+
+Fidelity studies have many forks: which scenarios, which faults, which simulator configuration, which metric, which threshold. Each fork is a chance to find agreement after the fact. We therefore wrote the analysis down, including the expected likely outcome, before running any comparison, and we freeze it in the repository before any study number exists~\citep{sag-software}. We summarise the protocol here. The complete document lists every exclusion rule, rerun rule and amendment procedure.
+
+\paragraph{Population and capacity.} The unit of analysis is the \emph{scenario}. Components, seeds and repetitions are not independent units, and treating them as such would be pseudo-replication. The candidate population has twelve scenarios: eleven generated domains and the ATM scenario. The counterpart runs Python stubs on a single machine, so scenarios whose busiest host exceeds a measured capacity are rate-scaled. Every topic rate is multiplied by $\kappa \le 1$, and every service time and deadline is divided by $\kappa$. This preserves utilisation, but not the ratio of transport delay to service time. Latency results therefore count only at $\kappa = 1$, and scenarios need $\kappa \ge 0.2$ to enter. A scenario also enters only if, in a fault-free run, its rate error stays within 5\% and its CPU p95 stays within 80\% of one core in every container. Both conditions are decided before any fault run.
+
+\paragraph{Observed conditions.} The confirmatory condition (O-open) makes every application periodic. This removes behaviour as a source of difference between simulator configurations, because the trigger policy is shared (Table~\ref{tab:independence}). The reactive condition is reported descriptively only.
+
+\paragraph{Arms.} Seven arms are compared against $\Iobs$:
+\begin{itemize}[leftmargin=*,nosep]
+  \item \textbf{S0}, the published queue-flow configuration;
+  \item \textbf{S1}, S0 with DDS deadline semantics;
+  \item \textbf{S2}, the current model: S1 plus host stations, per-process randomness and replica awareness;
+  \item \textbf{S3}, S2 calibrated from a separate fault-free run;
+  \item \textbf{S4}, S2 with reactive behaviour, scored in the reactive condition only;
+  \item \textbf{R}, a closed-form first-order reference with no simulation, ranking a publisher by the declared rate it contributes to each topic times the topic's readership;
+  \item \textbf{N}, S2's scores with shuffled targets, as an instrument check.
+\end{itemize}
+The data used for calibration never come from evaluated runs (R5 vs.\ R6, \S\ref{sec:requirements}).
+
+\paragraph{Hypotheses.} The primary hypothesis is \textbf{H1}: under O-open, S2 ranks publishing applications closer to $\Iobs$ than S0 does. It is tested by a one-sided exact Wilcoxon signed-rank test~\citep{wilcoxon1945individual} on per-scenario differences in Spearman $\rho$, at $\alpha = 0.05$. The analysis reports a Hodges--Lehmann effect size with a confidence interval and a TOST equivalence test against a margin $\delta$ derived from a noise pilot. A decision table fixed in advance maps the test results onto four headlines: \emph{better}, \emph{equivalent}, \emph{inconclusive} and \emph{worse}. A secondary, Holm-corrected family asks four questions:
+\begin{itemize}[leftmargin=*,nosep]
+  \item \textbf{H2}: does S0 clear an absolute rank-agreement level of 0.70?
+  \item \textbf{H3}: does S2 beat its own first-order reference R?
+  \item \textbf{H4}: does S0 beat R?
+  \item \textbf{H5}: does calibration reduce per-reader delivery error (S2 vs.\ S3)?
+\end{itemize}
+
+\paragraph{Noise ceiling.} No simulator can be expected to agree with the counterpart better than the counterpart agrees with itself. Every per-scenario $\rho$ is therefore reported next to a noise ceiling: the mean leave-one-repetition-out rank agreement of $\Iobs$ with itself. In the pilot scenario this ceiling was only 0.56. A few publishers had clearly high impact, while the remaining 17 had $\Iobs$ between about 0.006 and 0.035 and were ordered differently in every repetition. The protocol therefore records \emph{inconclusive} as a likely outcome in advance. An inconclusive result is to be reported as such, and never as evidence that the two configurations are equal.
+
+\paragraph{What each result permits.} The protocol pairs each outcome with the claim it licenses. For example, a \emph{better} H1 licenses ``the current model matches emulated rankings better under declared behaviour''. It does not license ``labels are more accurate for real systems''. A failed H3 licenses ``against this counterpart, simulation adds no ranking value over a closed-form formula''. It does not license ``simulation never adds value''. We regard such a claim table as part of a twin's fidelity specification, not as a statistical nicety. It is what keeps a fidelity number from being quoted in a context it does not cover.

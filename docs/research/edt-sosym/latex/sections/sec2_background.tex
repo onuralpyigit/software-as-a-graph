@@ -1,0 +1,42 @@
+\section{Background and Related Work}
+\label{sec:background}
+
+\subsection{Digital twins: definitions and maturity}
+
+\citet{grieves2017digital} described the digital twin as a virtual representation of a physical product, linked to it by data and information flows across the life cycle. Their aim was to expose emergent behaviour before it occurs in the field. Industrial surveys have since broadened the term to production systems, processes and services~\citep{tao2019}. \citet{jones2020characterising} consolidated the literature into thirteen characteristics, among them the physical and virtual entities, their states, the twinning process and its rate, and the \emph{fidelity} of the virtual entity. They identified fidelity as one of the field's open knowledge gaps.
+
+Two distinctions shape how we present our work. The first is due to \citet{kritzinger2018digital}, who classified twins by how data flows between the physical and virtual objects:
+\begin{itemize}[leftmargin=*]
+  \item in a \emph{digital model}, both directions are manual;
+  \item in a \emph{digital shadow}, data flows automatically from the physical to the virtual object only;
+  \item in a \emph{digital twin}, data flows automatically in both directions.
+\end{itemize}
+They also observed that work at the full-twin level was scarce. The second distinction is due to \citet{wright2020tell}: a digital twin needs an existing physical counterpart, and a model without one remains a model. Both distinctions matter for a \emph{pre-deployment} twin, whose physical system may not exist yet. We adopt Kritzinger's ladder to state precisely what our system is (\S\ref{sec:maturity}). We answer Wright and Davidson's objection by making the physical counterpart explicit: an emulated system generated from the model. We also bound what that substitution can prove (\S\ref{sec:fidelity}).
+
+ISO 23247-1 gives manufacturing-oriented terms and requirements for digital-twin frameworks, including accuracy, data acquisition and communication~\citep{iso23247}. Our requirements in \S\ref{sec:requirements} are written for software architectures, but they cover analogous concerns.
+
+\subsection{Model-driven engineering of digital twins}
+
+Model-driven engineering raises models to primary development artefacts~\citep{schmidt2006mde}, and several works argue that it is the natural basis for engineering twins. \citet{bordeleau2020towards} identify three challenges for model-driven twin engineering:
+\begin{itemize}[leftmargin=*]
+  \item managing heterogeneous models across disciplines;
+  \item bidirectional synchronisation between twin and system;
+  \item collaborative development across the life cycle.
+\end{itemize}
+\citet{eramo2022conceptualizing} propose a conceptual framework that combines heterogeneous models with their evolving data over a twin's life cycle. \citet{kirchhof2020model} generate a twin's information system from architecture models (MontiArc) and class diagrams, so that the integration between the cyber-physical system and its twin is synthesised rather than hand-written. TwinOps~\citep{hugues2020twinops} combines model-based engineering, digital twins and DevOps, using AADL and Modelica models with an IoT platform. The mapping study by \citet{dalibor2022cross} covers 356 publications and documents both the breadth of twin applications and the scarcity of systematic engineering methods and rigorous evaluations.
+
+Our work shares the model-driven stance, with one difference in emphasis. In \citet{kirchhof2020model}, the generated artefact is the twin's \emph{information system}. In our work, the generated artefact is the twin's \emph{physical stand-in}, an executable deployment, so the model must be precise enough to run. The challenge of bidirectional synchronisation~\citep{bordeleau2020towards} appears in our design as two concrete transformations, model-to-system (\S\ref{sec:m2s}) and system-to-model (\S\ref{sec:s2m}), and we make the coupling between them auditable.
+
+\subsection{Runtime models and twins of software systems}
+
+The models@run.time line of work treats a model as a causally connected self-representation of a running software system, used for adaptation~\citep{blair2009models}. An architectural twin is related but has a different purpose. Its primary use is \emph{offline}: what-if analysis and verification before a change reaches the system, not adapting the live system. Its link to the running system is calibration rather than reflection.
+
+Architecture-based dependability and performance models have a long history. These include architecture-based reliability assessment~\citep{gosevapopstojanova2001architecture}, the AADL Error Model Annex~\citep{delange2014aadl}, and the Palladio component model for performance prediction~\citep{becker2009palladio}. Static recovery of run-time architectures from robotics configurations~\citep{timperley2022rosdiscover} addresses model construction. These approaches provide the \emph{model} half of a twin. They usually stop short of a generated executable counterpart, and of measuring how well the model predicts observed behaviour. \citet{yigit2025graph} introduced the graph-based dependency derivation for publish--subscribe systems that our metamodel extends (\S\ref{sec:metamodel}).
+
+\subsection{Testbeds, emulation and chaos engineering}
+
+Container- and namespace-based emulation makes it possible to run realistic distributed systems on one machine. Mininet's ``network in a laptop'' is a well-known example from networking~\citep{lantz2010network}. Chaos engineering injects faults into running systems to build confidence in their resilience~\citep{basiri2016chaos}. Our testbed combines the two: it generates an emulated deployment from the architecture model, and it injects faults described in the same vocabulary as the simulator's. The goal is not resilience testing of a production system. The goal is an observed reference for the twin's simulators.
+
+\subsection{Validating simulation models}
+
+Validating simulation models is a mature discipline~\citep{sargent2013verification,kleijnen2015design}. It distinguishes conceptual-model validity, operational validity and data validity, and it warns against comparing a model with a reference that shares its assumptions. We transfer this discipline to the twin setting in \S\ref{sec:fidelity}. The comparison is made against an emulated system, so we separately list which parts of that system are independent of the simulator and which are not.

@@ -1,0 +1,128 @@
+\section{The Architectural Digital Twin}
+\label{sec:twin}
+
+Figure~\ref{fig:architecture} shows the twin as a set of artefacts around one model instance, together with the transformations that connect them. This section defines the model (\S\ref{sec:metamodel}), the services the twin offers (\S\ref{sec:services}) and its maturity (\S\ref{sec:maturity}). \S\S\ref{sec:m2s}--\ref{sec:fidelity} cover the transformations to and from the executable counterpart.
+
+\begin{figure}[t]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  art/.style={draw, rounded corners=2pt, align=center, minimum height=8mm, inner sep=3pt, fill=white},
+  mdl/.style={art, fill=blue!8, very thick},
+  phys/.style={art, fill=orange!12},
+  svc/.style={art, fill=green!8},
+  trans/.style={-{Latex[length=2mm]}, thick},
+  dtrans/.style={-{Latex[length=2mm]}, thick, dashed},
+  lbl/.style={font=\scriptsize, align=center, fill=white, inner sep=1pt}
+]
+\node[mdl] (m) at (0,0) {Architecture model instance $\mathcal{G}$\\ \scriptsize(scenario JSON, metamodel of \S\ref{sec:metamodel})};
+\node[phys] (plan) at (-8,-2) {Deployment plan\\ \scriptsize hosts, QoS, policies};
+\node[art]  (faults) at (-4.2,-2) {Fault specs\\ \scriptsize one vocabulary};
+\node[art]  (gs) at (0,-2) {Structural view $\Gs$\\ \scriptsize raw relations};
+\node[art]  (ga) at (5,-2) {Analysis view $\Ga(\ell)$\\ \scriptsize derived \textsc{depends\_on}};
+\node[phys] (tb) at (-8,-4) {Executable counterpart\\ \scriptsize Docker + Cyclone DDS};
+\node[art]  (cal) at (-4.2,-4) {Calibrated\\ \scriptsize profile};
+\node[art]  (sim) at (0,-4) {Simulators\\ \scriptsize $I^*$, $\Icomp$, $\Idyn$, $I_M$};
+\node[svc]  (svc) at (5,-4) {Twin services\\ \scriptsize what-if, placement, gating};
+\node[art]  (tel) at (-8,-6) {Telemetry\\ \scriptsize OTel-shaped traces};
+\node[art]  (fid) at (0,-6) {Fidelity report\\ \scriptsize steady state, fault response, DDS status};
+
+\draw[trans] (m) -| node[lbl, pos=0.25]{M2S} (plan);
+\draw[trans] (m) -- node[lbl]{import} (gs);
+\draw[trans] (m) -| node[lbl, pos=0.25]{derive (7 rules)} (ga);
+\draw[trans] (plan) -- node[lbl]{compose} (tb);
+\draw[trans] (faults) -- (tb);
+\draw[trans] (faults) -- (sim);
+\draw[trans] (gs) -- (sim);
+\draw[trans] (ga) -- (svc);
+\draw[trans] (sim) -- (svc);
+\draw[trans] (tb) -- (tel);
+\draw[trans] (tel) -- node[lbl]{S2M} (cal);
+\draw[dtrans] (cal) -- (sim);
+\draw[trans] (tel) -- (fid);
+\draw[trans] (sim) -- (fid);
+\end{tikzpicture}}
+\caption{Artefacts and transformations of the architectural digital twin. Blue: the single model instance. Orange: the executable counterpart that plays the physical role. Green: services offered to engineers. M2S and S2M are the model-to-system (\S\ref{sec:m2s}) and system-to-model (\S\ref{sec:s2m}) transformations. The dashed edge is optional: a simulator run is calibrated only when requested. The same fault specifications drive both simulation and the counterpart.}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{Metamodel: one instance, two views}
+\label{sec:metamodel}
+
+\begin{definition}[Architecture model]
+An architecture model is a typed, weighted, directed multigraph $\mathcal{G} = (V, E, \tau_V, \tau_E, w_V, w_E)$ with the following parts.
+\begin{itemize}[leftmargin=*,nosep]
+  \item \emph{Vertex types} $\tau_V : V \to \{\textsf{Application}, \textsf{Library}, \textsf{Topic}, \textsf{Broker}, \textsf{Node}, \textsf{NetworkDevice}\}$.
+  \item \emph{Edges} $E = E_s \cup E_d$, with structural relations
+  \[\tau_E(E_s) \subseteq \{\textsc{publishes\_to}, \textsc{subscribes\_to}, \textsc{routes}, \textsc{runs\_on}, \textsc{connects\_to}, \textsc{uses}\}\]
+  and derived relations $\tau_E(E_d) = \{\textsc{depends\_on}\}$.
+  \item \emph{Weights} $w_V$ and $w_E$ map into $[0.01, 1]$.
+\end{itemize}
+Topics carry a QoS contract: reliability, durability, history depth, deadline, transport priority, payload size and rate. Hosts may carry capacities, and \textsc{connects\_to} edges may carry interface and link capacity.
+\end{definition}
+
+The metamodel keeps two views of each instance:
+\begin{itemize}[leftmargin=*]
+  \item The \textbf{structural view} $\Gs = (V, E_s)$ holds the relations as declared.
+  \item The \textbf{analysis view} $\Ga(\ell)$ holds the \textsc{depends\_on} edges, derived by seven rules and filtered by one of four layer projections $\ell \in \{\text{app}, \text{infra}, \text{mw}, \text{system}\}$.
+\end{itemize}
+The rules invert data flow into dependency, and their outcomes are:
+\begin{enumerate}[leftmargin=*,nosep]
+  \item a subscriber depends on the publishers of its topics, including through library chains;
+  \item an application depends on the broker routing its topics;
+  \item and 4. both of these are lifted to the hosting nodes;
+  \setcounter{enumi}{4}
+  \item an application depends on the libraries it uses;
+  \item brokers on the same host share fate;
+  \item when the model declares network devices, a host depends on the devices that separate it from a host it depends on.
+\end{enumerate}
+Rules~1--2 combine several shared topics by probabilistic union, and Rules~3--4 by a worst-case lift. The rules extend those of \citet{yigit2025graph}. Their derivation and weighting are documented with the open-source framework~\citep{sag-software}, and we do not repeat them here.
+
+For twin engineering, the important property is not the rules themselves but who may consume which view. \emph{Analysis consumes $\Ga$. Simulation consumes $\Gs$ only} (requirement R3). A simulator that read \textsc{depends\_on} would score components by the very abstraction the analysis services use. Its agreement with those services would then be a tautology, not evidence. Two simulators still need dependency arcs:
+\begin{itemize}[leftmargin=*,nosep]
+  \item the change-propagation simulator;
+  \item the fault injector, for library chains.
+\end{itemize}
+These \emph{re-derive} the arcs from $\Gs$ with their own implementation of the rules. That would open a consistency risk, but executable invariants close it (\S\ref{sec:consistency}).
+
+\subsection{Twin services}
+\label{sec:services}
+
+The twin answers three kinds of engineering question. Each is answered on the model and, where needed, graded by a simulator other than the one that produced the answer.
+\begin{description}[leftmargin=1em,style=nextline]
+  \item[What-if failure analysis.] Four simulators, all on $\Gs$, measure the damage of failing each component:
+  \begin{itemize}[leftmargin=*,nosep]
+    \item $I^*$: cascade reachability through publishers, brokers, hosts and libraries;
+    \item $\Icomp$: a multi-layer composite of reachability, fragmentation and throughput loss;
+    \item $\Idyn$: the drop in delivery rate in a discrete-event queue-flow simulation built on SimPy~\citep{team2020simpy};
+    \item $I_M$: upstream change ripple.
+  \end{itemize}
+  Their construction and their use as ranking oracles are reported in \citet{yigit2026jss}. Here they are the twin's \emph{behavioural models}.
+  \item[Placement verification.] Given a deployment specification (host capacities, failure rates, failure domains, pinning, replica counts and topic deadlines), an exact optimiser proposes placements. Each placement is then re-scored on a held-out, replica-aware failure simulation over every host and failure-domain outage. A reliability gain is claimed only when it clears a measured noise bar. The optimiser's own objective is never used as evidence for the placement it chose.
+  \item[Change gating.] For a candidate change, the twin is rebuilt from the candidate version and compared with the twin of the merge base. The gate blocks only on structural findings the change \emph{introduces}, such as a new single point of failure or a new dependency cycle. Pre-existing debt is not re-reported as a failure. Impact rankings are deliberately kept out of the blocking path: they must flag a large share of components to reach high recall~\citep{yigit2026jss}. They feed a non-blocking note on the change, and targeted simulation of the shortlisted components is the second tier.
+\end{description}
+
+\subsection{Maturity: what is built and what is designed}
+\label{sec:maturity}
+
+\citet{kritzinger2018digital} classify twins by whether the data flows between the physical and virtual objects are manual or automatic. We apply their ladder to the twin and add one row that their manufacturing setting does not need: a generated physical stand-in. Table~\ref{tab:maturity} is the authoritative statement of what this paper claims. Throughout, the present tense describes built capabilities only. Designed capabilities are written in the requirements voice and confined to \S\ref{sec:livetwin}.
+
+\begin{table}[t]
+\centering
+\caption{Maturity of the architectural twin on the ladder of \citet{kritzinger2018digital}. ``Counterpart'' is the emulated system of \S\ref{sec:m2s} or, for the twin level, a deployed system.}
+\label{tab:maturity}
+\small
+\begin{tabularx}{\textwidth}{@{}l Y Y l@{}}
+\toprule
+Level & Model $\to$ counterpart & Counterpart $\to$ model & Status \\
+\midrule
+Digital model & The model is authored or extracted from engineering artefacts; analysis and simulation run on it. & None. & built \\
+Generated counterpart & The model is compiled automatically into a running DDS deployment, with faults compiled into chaos actions (\S\ref{sec:m2s}). & None. & built \\
+Digital shadow (batch) & As above. & Telemetry is calibrated automatically into simulator parameters, and fidelity is reported automatically (\S\S\ref{sec:s2m}--\ref{sec:fidelity}). Both are \emph{invoked per run} by an engineer. & built \\
+Digital twin & Accepted decisions (re-placement, configuration change) are pushed to the counterpart. & Continuous ingestion; drift detection on topology and parameters triggers re-calibration or model repair (\S\ref{sec:livetwin}). & designed \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Two remarks keep the table honest. First, both transformations are automatic, yet the system is not a twin in Kritzinger's sense. The loop is closed by an engineer for each run, not by the system in operation, and the counterpart is an emulation, not the deployed system. Second, Wright and Davidson's test, that a twin needs a physical counterpart~\citep{wright2020tell}, is met only by the emulation. We therefore treat everything the counterpart shows as evidence about the twin's fidelity to \emph{middleware, timing and transport behaviour under declared application behaviour}. We do not treat it as evidence about real applications (\S\ref{sec:independence}).
