@@ -1,0 +1,101 @@
+% manuscript.tex -- Software and Systems Modeling (SoSyM)
+% Rolling Theme Section: Engineering of Digital Twins (EDTConf journal-first track)
+% Manuscript type at submission: "Theme Section Paper"
+%
+% ---------------------------------------------------------------------------
+% SUBMISSION FORMAT NOTE
+% ---------------------------------------------------------------------------
+% SoSyM is published by Springer and imposes no page limit or template for
+% theme-section submissions (PDF accepted). This file uses the standard
+% article class so it compiles without external class bundles. To switch to
+% the Springer Nature template, replace the preamble with
+% \documentclass[sn-mathphys-ay]{sn-jnl} and move the title/author block
+% to \title / \author / \affil; the sections need no change.
+% ---------------------------------------------------------------------------
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{lineno}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage[round,authoryear]{natbib}
+\usepackage{tabularx}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\usepackage{multirow}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,shapes.geometric,calc}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=blue!70!black,
+    urlcolor=blue!70!black
+}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+
+% Placeholder for results that do not exist yet. Every use must have a
+% matching entry in ../README.md, "Pending evidence".
+\newcommand{\tbd}[1]{\textcolor{red!70!black}{\textbf{[TBD: #1]}}}
+
+\newcommand{\SaG}{SaG}
+\newcommand{\Iobs}{I_{\mathrm{obs}}}
+\newcommand{\Idyn}{I_{\mathrm{dyn}}}
+\newcommand{\Icomp}{I_{\mathrm{comp}}}
+\newcommand{\Gs}{G_{\mathrm{struct}}}
+\newcommand{\Ga}{G_{\mathrm{an}}}
+
+\title{\Large\bfseries Engineering an Architectural Digital Twin for Distributed Publish--Subscribe Systems: One Graph Model for Analysis, Simulation, and an Executable Container Testbed}
+
+\author{
+  Ibrahim Onuralp Yigit\thanks{Corresponding author. E-mail: \texttt{[CORRESPONDING-AUTHOR-EMAIL]}. ORCID: \texttt{[0000-0000-0000-0000]}.}
+  \and
+  Feza Buzluca\thanks{ORCID: \texttt{[0000-0000-0000-0000]}.}
+  \\[6pt]
+  \normalsize [DEPARTMENT], [INSTITUTION] \\
+  \normalsize [STREET ADDRESS], [CITY], [POSTAL CODE], [COUNTRY]
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\input{sections/abstract.tex}
+\end{abstract}
+
+\noindent\textbf{Keywords:} Digital twin engineering; Architectural models; Model-driven engineering; Publish--subscribe middleware; DDS; Fault injection; Simulation fidelity; Calibration; Container-based testbed.
+
+\linenumbers
+
+\input{sections/sec1_introduction.tex}
+\input{sections/sec2_background.tex}
+\input{sections/sec3_requirements.tex}
+\input{sections/sec4_twin.tex}
+\input{sections/sec5_model_to_system.tex}
+\input{sections/sec6_system_to_model.tex}
+\input{sections/sec7_fidelity.tex}
+\input{sections/sec8_evaluation.tex}
+\input{sections/sec9_discussion.tex}
+\input{sections/sec10_conclusion.tex}
+
+\input{sections/declarations.tex}
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}

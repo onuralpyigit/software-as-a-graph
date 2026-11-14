@@ -1,0 +1,37 @@
+\section{Introduction}
+\label{sec:intro}
+
+Publish--subscribe middleware is common in safety- and mission-critical software: air traffic management (ATM), autonomous vehicles, industrial control and financial trading. Examples include the OMG Data Distribution Service~\citep{omg2015dds}, ROS~2~\citep{macenski2022robot}, Kafka~\citep{kreps2011kafka} and MQTT~\citep{oasis2019mqtt}. The style decouples producers from consumers in space, time and synchronisation~\citep{eugster2003faces}. That decoupling is what makes these systems easy to evolve and hard to reason about. A subscriber depends on every publisher of every topic it consumes, but no line of code says so. When a broker, a host or a publisher fails, the damage travels against the direction of data flow, through dependencies that exist only in the assembled system.
+
+These failures are non-local. Unit tests, which see one component in isolation, cannot reveal them. Reproducing them needs the full deployment (hosts, middleware configuration, QoS contracts and placement), and that is precisely the resource a delivery pipeline cannot hold for every change~\citep{humble2010continuous}. Teams therefore fall back on partial staging environments and on expert judgement about which components matter. In practice, the most consequential architectural questions are answered without an executable counterpart of the architecture. Which component's failure strands the most subscribers? Does a placement put two replicas in the same failure domain? Will a partition longer than a liveliness lease recover on its own?
+
+The digital-twin idea answers this situation: a virtual counterpart, connected to its physical system, that can be queried, simulated and kept up to date~\citep{grieves2017digital,tao2019}. The software-engineering literature also observes that digital twins are still mostly built ad hoc, without systematic engineering methods~\citep{dalibor2022cross,bordeleau2020towards}. Most reported twins mirror physical assets such as machines, vehicles and buildings. Far fewer mirror a \emph{software architecture}, and the ones that do rarely say how faithful the twin is, or how the faithfulness was measured.
+
+\paragraph{Problem.} We address the engineering of an \emph{architectural digital twin} for distributed publish--subscribe systems. Its virtual side is a typed model of components, topics, brokers, hosts and network devices together with the relations between them. Its services are what-if failure analysis, placement verification and change gating before deployment. Building such a twin raises four engineering challenges:
+\begin{itemize}[leftmargin=*]
+  \item \textbf{One source of truth.} Analysis, simulation and the executable counterpart must describe the same system. Otherwise every disagreement is ambiguous: it could be a defect in the system or a drift between artefacts.
+  \item \textbf{A physical counterpart before deployment.} The system the twin mirrors may not exist yet. Something must play the physical role so that the twin can be exercised and checked.
+  \item \textbf{A path back from the system.} Pre-deployment models guess runtime parameters such as rates, service times and reactive behaviour. A twin needs a disciplined way to replace those guesses with measurements, and to say which guesses cannot be replaced.
+  \item \textbf{Fidelity as a measured property.} A twin is only as useful as the trust its users can place in it~\citep{wright2020tell}. That trust has to be earned against observed behaviour, and the comparison itself must not be rigged by shared construction.
+\end{itemize}
+
+\paragraph{Approach.} We report how we engineered such a twin around one graph metamodel, as part of the open-source Software-as-a-Graph (\SaG) framework~\citep{sag-software}. Every twin artefact is derived from the same model instance:
+\begin{itemize}[leftmargin=*]
+  \item a \emph{structural} view for simulation and a \emph{derived dependency} view for analysis;
+  \item four failure simulators;
+  \item a \emph{generated} container-based testbed, which runs the modelled system as real Cyclone DDS processes (one Docker container per modelled host) under the same faults the simulators inject.
+\end{itemize}
+The testbed emits OpenTelemetry-shaped telemetry. A calibrator turns that telemetry back into simulator parameters, and a fidelity report compares simulated with observed behaviour.
+
+\paragraph{Contributions.}
+\begin{description}[leftmargin=1em,style=nextline]
+  \item[C1: The metamodel as the twin's single source of truth (\S\ref{sec:twin}).] The metamodel has two views: a structural one, consumed by simulation, and a derived one, consumed by analysis. Executable invariants check that every consumer re-derives the same dependency semantics.
+  \item[C2: A model-to-system transformation (\S\ref{sec:m2s}).] It generates a runnable DDS deployment from the model. It emulates brokers on a brokerless middleware and maps model-level QoS to DDS policies. A single fault vocabulary is compiled both into simulator events and into container-level chaos actions.
+  \item[C3: A system-to-model calibration path, with an identifiability analysis (\S\ref{sec:s2m}).] The analysis states which model parameters telemetry can recover and which it cannot.
+  \item[C4: A fidelity-assessment method for architectural twins (\S\ref{sec:fidelity}).] It covers three fidelity dimensions. An explicit independence analysis separates genuine evidence from agreement that holds by construction, and a pre-registered study protocol fixes the analysis before any comparison is computed.
+\end{description}
+We also position the twin on the maturity ladder of \citet{kritzinger2018digital}: digital model, digital shadow, digital twin. We claim only the levels that are implemented (\S\ref{sec:maturity}). The present system is a digital model with a batch digital shadow. The step to a live twin, drift-triggered re-calibration, is specified and discussed in \S\ref{sec:discussion} but not built.
+
+\paragraph{Relation to prior work by the authors.} The dependency-derivation idea first appeared, in a reduced form, in \citet{yigit2025graph}. The simulators and their use as ranking oracles for criticality prediction are the subject of a companion manuscript under review~\citep{yigit2026jss}. This paper does not restate those results. It contributes the twin-engineering method around them: the model-to-system and system-to-model transformations, the testbed, the calibration and the fidelity method. None of these appear in the earlier work.
+
+\paragraph{Outline.} \S\ref{sec:background} reviews digital-twin concepts and related work. \S\ref{sec:requirements} states the engineering requirements. \S\ref{sec:twin} presents the twin and its maturity, and \S\S\ref{sec:m2s}--\ref{sec:fidelity} present contributions C2--C4. \S\ref{sec:evaluation} evaluates the twin against four research questions. \S\ref{sec:discussion} discusses lessons, the path to a live twin, and threats to validity, and \S\ref{sec:conclusion} concludes.

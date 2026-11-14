@@ -1,0 +1,130 @@
+\section{Model to System: Generating the Executable Counterpart}
+\label{sec:m2s}
+
+The twin needs a physical side before the real system exists (R4). We generate one: the model instance is compiled into a deployment in which every modelled host is a Docker container and every modelled application and broker is a process that speaks real DDS. The physical side is therefore whatever the model says it is, which is the source both of its value and of its limits. This section describes the transformation in three stages (Figure~\ref{fig:m2s}) and then the trace links that make its output auditable.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[font=\small,
+  box/.style={draw, rounded corners=2pt, align=center, minimum height=9mm, inner sep=3pt},
+  ar/.style={-{Latex[length=2mm]}, thick}]
+\node[box, fill=blue!8] (g) {Model $\mathcal{G}$\\\scriptsize scenario JSON};
+\node[box, right=10mm of g] (p) {Deployment plan\\\scriptsize \texttt{deployment.json}};
+\node[box, right=10mm of p] (c) {Build context\\\scriptsize Dockerfile, compose file,\\\scriptsize pinned framework copy};
+\node[box, right=10mm of c, fill=orange!12] (r) {Running system\\\scriptsize one container per host};
+\node[box, below=8mm of p] (f) {Fault specifications};
+\node[box, below=8mm of c] (a) {Chaos plan\\\scriptsize timed actions};
+\draw[ar] (g) -- node[above,font=\scriptsize]{resolve} (p);
+\draw[ar] (p) -- node[above,font=\scriptsize]{emit} (c);
+\draw[ar] (c) -- node[above,font=\scriptsize]{up} (r);
+\draw[ar] (f) -- node[above,font=\scriptsize]{compile} (a);
+\draw[ar] (p) -- (a);
+\draw[ar] (a) -| (r);
+\end{tikzpicture}
+\caption{The model-to-system transformation. Everything an agent needs is resolved once into the plan, so all containers agree on it. The chaos plan is compiled from the same fault specifications the simulators consume.}
+\label{fig:m2s}
+\end{figure}
+
+\subsection{Stage 1: resolving a deployment plan}
+
+The first stage resolves the model into a \emph{deployment plan}: a self-contained document from which every per-host agent reads its configuration, so that no agent re-interprets the model on its own. The plan fixes four groups of facts.
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Topics.} The plan records each topic's rate, QoS contract, payload size, publishers and routing brokers.
+  \item \textbf{Applications.} The plan records each application's inputs and outputs, its hosts and its trigger policy. The trigger policy says when an application emits: on its own period, or only when its inputs are fresh. Policies are taken from the model, or resolved by the same function the simulator's reactive behaviour model uses. With \emph{open-loop} planning, every application emits on schedule, which is the assumption of the published queue-flow simulator. The plan also records a staleness window for each required input and a mean service time. That time is set so that each application station runs at a declared target utilisation, 0.65 by default, of its input load.
+  \item \textbf{Brokers.} The plan records the routed topics and service times of each broker.
+  \item \textbf{Hosts.} The plan records the residents of each host. An application with several \textsc{runs\_on} edges gets one instance per host, and a component with none is placed on a default host. Under CPU-bound emulation, the plan also records each container's CPU cap, which is the model's declared core count, or else one core per resident station.
+\end{itemize}
+
+The plan is the only place where model semantics become run-time configuration. It is produced by the same functions that configure the simulator. A disagreement between twin and counterpart therefore points at timing and transport, not at a second, divergent reading of the model.
+
+\subsection{Stage 2: mapping model concepts to DDS}
+
+Some model concepts have no direct DDS counterpart. Three mappings deserve discussion.
+
+\paragraph{QoS.} Model-level QoS maps onto DDS policies as shown in Table~\ref{tab:qosmap}. The mapping is kept as plain data, separate from the middleware binding. It can therefore be unit-tested without DDS installed, and it can be reviewed as a modelling decision rather than buried in code.
+
+\begin{table}[t]
+\centering
+\caption{Mapping from model-level topic QoS to DDS policies in the generated counterpart.}
+\label{tab:qosmap}
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Model attribute & DDS policy \\
+\midrule
+reliability & \textsc{Reliable} (max.\ blocking 100\,ms) / \textsc{BestEffort} \\
+durability & \textsc{Volatile} / \textsc{TransientLocal} / \textsc{Transient} / \textsc{Persistent} \\
+history depth & \textsc{KeepLast}($d$), with $d=100$ when absent \\
+deadline & \textsc{Deadline}, only when declared \\
+transport priority & \textsc{TransportPriority} (low 0 \ldots\ critical 3) \\
+payload size & zero-filled payload of that size (optional) \\
+--- & \textsc{Liveliness} \textsc{Automatic}, lease 1\,s (plan-wide) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Brokers on a brokerless middleware.} DDS is peer-to-peer, but the metamodel has a \textsf{Broker} type with \textsc{routes} edges, because systems built on Kafka, MQTT or enterprise buses depend on brokers. Dropping brokers would make an entire class of modelled failures unobservable. Each broker is therefore emulated as a relay process. Writers publish into an \emph{ingress} partition, and the routing broker republishes into the \emph{egress} partition that readers use. When several brokers route a topic, the lowest-identifier broker whose heartbeat is still within its lease (1\,s) is active. A broker outage thus becomes a real loss of delivery, with real failover, on a middleware that has no brokers of its own. The relays' own DDS endpoints exist only on the counterpart, so they are excluded from status comparisons and counted separately (\S\ref{sec:fidelity}).
+
+\paragraph{Replicas.} An application with several hosts runs one instance per host. The lowest-identifier live instance is active. The others are warm standbys: they track input freshness but neither serve nor emit, and they take over after a 1\,s lease. This is the counterpart of the simulator's replica-aware semantics, in which a host outage moves an application rather than killing it. It is also what makes the twin's placement-verification service (\S\ref{sec:services}) testable on the counterpart.
+
+The stub applications behave like the simulator's application model, in real time:
+\begin{itemize}[leftmargin=*,nosep]
+  \item one publisher thread per output topic;
+  \item a single worker thread serving all inputs, which is the simulator's shared station;
+  \item bounded receive queues with the model's overflow policy;
+  \item deadline checks on end-to-end latency.
+\end{itemize}
+Samples are taken by a poller thread blocked on a DDS WaitSet, never by middleware listener callbacks. We learned this the hard way: a Python listener runs on the middleware's receive thread while that thread holds the reader's lock and waits for the interpreter lock, which stalls reception under load. Such details are invisible in the model. Yet they decide whether the counterpart measures the middleware or the emulation harness, which is why we report them.
+
+\subsection{Stage 3: emitting a build context}
+
+The plan is emitted as a build context: a Dockerfile, a compose file with one container per host on a shared bridge network (so DDS discovery works), and a copy of the framework itself. Copying the framework pins the image to the exact code that wrote the plan, so a counterpart cannot silently run a newer emulator than the one the plan was written for. The middleware version is pinned (Cyclone DDS 11.0.1) and changed only deliberately. Containers receive the \texttt{NET\_ADMIN} capability so that the chaos layer can partition them.
+
+Two emulation options are opt-in at build time:
+\begin{itemize}[leftmargin=*]
+  \item \textbf{CPU-bound service.} Each stub burns its service time on the CPU instead of sleeping, and each container is capped at its plan CPU count. Co-located applications then really compete for a host, as they do in the simulator's host model. The build refuses to run when the requested utilisation exceeds the machine's cores, so an overloaded emulator is never mistaken for an overloaded system.
+  \item \textbf{Payload carrying.} Each topic's declared payload size is put on the wire. Serialisation costs about 12\,ns per byte in our setup, about 0.4\,ms for 32\,KiB.
+\end{itemize}
+
+\subsection{One fault vocabulary, two back-ends}
+\label{sec:faults}
+
+Faults are specified once, as a list of fault specifications. Each one gives a target, a mode, a start time and a duration; link flaps also carry the parameters of a Gilbert--Elliott schedule. The same list is consumed by the simulators and by the counterpart's chaos compiler (Table~\ref{tab:chaos}). For a link flap, both back-ends draw the bad periods from the same seeded schedule.
+
+\begin{table}[t]
+\centering
+\caption{Compilation of fault specifications into actions on the counterpart. Application-level faults reach a process inside a container through a control file that the host agent polls every 0.1\,s.}
+\label{tab:chaos}
+\small
+\begin{tabularx}{\textwidth}{@{}l Y@{}}
+\toprule
+Fault (target, mode) & Counterpart action \\
+\midrule
+Host crash & \texttt{docker kill} of the host's container \\
+Host transient crash & \texttt{docker kill}, later \texttt{docker start}; residents restart fresh, telemetry is appended \\
+Host freeze & \texttt{docker pause} / \texttt{unpause} \\
+Host slowdown & slowdown control file for every resident \\
+Application or broker crash, transient crash, freeze, slowdown, omission, babbling & control file read by the agent, reset when the fault ends \\
+Link flap & a \emph{partition} during each bad period: blocked containers drop ingress traffic (unicast and multicast) from each other's addresses with \texttt{tc}, so DDS discovery and liveliness see the cut \\
+Network-device crash (with network gating) & a partition of every host pair that \textsc{connects\_to} no longer connects \\
+Buffer leak, redelivery storm & reported as \emph{unsupported}, never silently skipped \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Network gating.} Without network gating, a link flap blocks exactly the two hosts at its ends. With gating, the chaos compiler removes cut links and crashed hosts or devices from the \textsc{connects\_to} graph and blocks every host pair that is no longer connected. This is the same reachability rule the simulator applies, implemented once in a shared module. A model whose topology already separates some hosts is partitioned before traffic starts, so the counterpart cannot be more connected than its model.
+
+Reporting unsupported faults is a small design decision that matters for a twin. Suppose a fault were silently dropped on one back-end. The fidelity report would then compare a faulted simulation with an unfaulted counterpart, and the twin would look either better or worse than it is.
+
+\subsection{Trace links}
+\label{sec:tracelinks}
+
+Every artefact of a counterpart run can be traced to the model element that produced it:
+\begin{itemize}[leftmargin=*]
+  \item containers are named after modelled hosts;
+  \item DDS topic names are derived from modelled topic identifiers;
+  \item each telemetry event carries the identifier of the modelled component that emitted it and of the modelled topic involved;
+  \item control files are named after the targeted component.
+\end{itemize}
+A run directory therefore contains the plan, the build context, the per-host telemetry, the run metadata, the calibrated profile and the fidelity report. Any fidelity finding can be followed back to a model element and forward to the container that exhibited it. This auditability is what the model-driven twin literature asks for when it calls for traceable synchronisation between twin and system~\citep{bordeleau2020towards}. Here it is a by-product of generating, rather than hand-building, the counterpart.

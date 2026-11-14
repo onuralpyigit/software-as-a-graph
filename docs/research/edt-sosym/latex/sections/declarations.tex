@@ -1,0 +1,28 @@
+\section*{Declarations}
+
+\paragraph{Funding:} This work was supported in part by the Scientific and Technological Research Council of T\"urkiye (T\"UB\.ITAK), grant number [GRANT-NUMBER].
+
+\paragraph{Competing Interests:} The authors declare that they have no competing financial or non-financial interests that are directly or indirectly related to the work submitted for publication.
+
+\paragraph{Related Work by the Authors and Overlap Disclosure:} The following works by the same authors are related to this paper.
+\begin{itemize}[leftmargin=*]
+  \item \emph{Published.} \citet{yigit2025graph} introduced a reduced dependency-derivation method for publish--subscribe systems. This paper restates the extended metamodel in one condensed subsection (\S\ref{sec:metamodel}) and cites it.
+  \item \emph{Under review.} A companion manuscript~\citep{yigit2026jss}, under review at the Journal of Systems and Software, develops the failure simulators as ranking oracles for learned criticality prediction. This paper uses those simulators as the twin's behavioural models, cites them, and reports none of that manuscript's results.
+  \item \emph{Not in any other manuscript.} The model-to-system transformation and generated counterpart, the telemetry calibration and its identifiability analysis, the fidelity-assessment method and independence analysis, the smoke-test and partition results, the maturity analysis and the requirements condensation are reported here for the first time.
+\end{itemize}
+We disclose this so the editor can assess the overlap directly. \tbd{update if the companion manuscripts' status changes before submission}
+
+\paragraph{Data Availability:} The framework, including the counterpart generator, calibrator and fidelity report, is open source~\citep{sag-software}. Scenario topologies, generator configurations, the fidelity-study protocol, the runner and analysis scripts, raw telemetry traces and result artefacts will be archived at [REPOSITORY-URL], persistent identifier \tbd{mint Zenodo DOI for the fidelity-study archive}. The counterpart for one scenario is regenerated and run with:
+\begin{verbatim}
+S=python cli/simulate_graph.py; OUT=output/testbed/tiny
+$S testbed build --input data/scenarios/tiny_system.json \
+    --output $OUT --duration 50 --qos-semantics dds
+$S testbed run --output $OUT --duration 50 \
+    --faults faults.json --mode docker
+$S testbed calibrate --output $OUT
+$S testbed fidelity --output $OUT --calibrated
+\end{verbatim}
+
+\paragraph{Author Contributions:} [To be completed via the submission interface, per the journal's Submitting Declarations requirements.]
+
+\paragraph{Ethics Approval:} Not applicable.
