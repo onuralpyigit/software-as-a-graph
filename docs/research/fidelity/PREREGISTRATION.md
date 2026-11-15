@@ -184,6 +184,49 @@ A negative HL with a CI excluding 0 is reported as **Worse**, using a two-sided 
 
 **Recording.** B_h, δ, the included scenarios and their κ are written into this section in the freezing commit.
 
+### Pilot results (2026-11-15, at commit `8b6dfd42`, not yet frozen)
+
+Recorded before freezing. The freezing commit confirms them or replaces them, with a reason. No run below was compared with a simulator. Artifacts are in `results/fidelity_study/` (`pilot/`, `capacity.json`).
+
+**Load ramps** (`fidelity_study.py ramp`, fault-free, 40 s per step, stopping at the first failing step):
+
+| Pilot | Multipliers | Highest passing load, msg/s | First failing load, msg/s | Cause |
+|---|---|---:|---:|---|
+| `tiny_system` | 1–100, then 150, 200 | 4,550 (CPU p95 76%) | 6,067 | CPU p95 88% |
+| `integration_hub_migration_system` | 1, 2, 5, 10, then 6–9 | 2,756 (CPU p95 73%) | 3,100 | CPU p95 80.4% |
+
+The second ramp was refined between 5× and 10× because the default grid left B_h between 1,722 and 3,445, and that interval decided whether `atm` and `av` run at κ = 1. Rate error was 0 at every step. CPU was the binding limit in both pilots.
+
+- **B_h = 2,756 msg/s.**
+
+**Noise** (`fidelity_study.py noise`, κ = 1, 20 publishing Applications × 3 repetitions, 60 of 60 runs valid): leave-one-repetition-out ρ = 0.854, 0.914, 0.901.
+
+- **SD = 0.032, so δ = max(0.05, 0.032) = 0.05.**
+- **Noise ceiling on this scenario: 0.89.** This contradicts the 0.56 cited in §6 and §13 decision 3. The I_obs shape matches: three publishers stand clear, and the other 17 lie between 0.018 and 0.038. But this run orders those 17 consistently (ρ 0.76–0.86 within that group alone). The earlier pilot's traces are not archived, and the one later testbed change (`edecd389`) states that crashes behave as before, so the difference is unexplained. §6 and §13 must be revised before freezing.
+
+**Inclusion** (`fidelity_study.py capacity --capacity 2756`, one 60 / κ s fault-free run each, gate as in §2):
+
+| Scenario | κ | Median rate error | Peak container CPU p95 | Included |
+|---|---:|---:|---:|:---:|
+| healthcare | 1 | 0 | 13% | yes |
+| iot_smart_city | 1 | 0 | 22% | yes |
+| hub_and_spoke | 1 | 0 | 30% | yes |
+| microservices | 1 | 0 | 34% | yes |
+| realtime_gaming | 1 | 0 | 40% | yes |
+| logistics_fleet | 1 | 0 | 56% | yes |
+| atm | 1 | 0 | 58% | yes |
+| industrial_scada | 1 | 0 | 63% | yes |
+| telecom_ran | 1 | 0 | 75% | yes |
+| av | 1 | 0 | 92.6% | **no**: CPU gate |
+| enterprise | 1 | 0.345 (max 0.82) | 75% | **no**: rate gate |
+| financial_trading | 0.150 | — | — | **no**: κ < 0.2 |
+
+- **n = 9**, all at κ = 1, so latency results count for every included scenario (§2).
+- `av` stays below B_h in msg/s yet saturates one container: per-message CPU cost differs across scenarios, so B_h does not predict the CPU gate everywhere. Running `av` at a lower κ is not in §2 and would need an amendment before freezing.
+- `enterprise` fails on rate (41 containers on a 20-core machine) with moderate CPU. The cause was not diagnosed.
+
+**Machine time.** 508 targets (the §4 rule) × 3 repetitions × 2 conditions, plus 11 fault-free runs per scenario, is 3,147 runs. At the noise pilot's measured 69 s per run that is about 60 hours, or about 70 hours at the §4 estimate of 80 s, before §10 reruns. This is under the 14-day limit, so the application cap stays at 30.
+
 ## 9. Attainable-p floor (exact Wilcoxon signed-rank)
 
 "k smallest losses" means the losing scenarios are the k with the smallest |d_s|.
