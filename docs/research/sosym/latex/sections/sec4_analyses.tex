@@ -1,0 +1,112 @@
+\section{Model Analyses}
+\label{sec:analyses}
+
+\sag{} organises its analyses as pipeline steps over the model: \emph{Model} (import and derivation, Section~\ref{sec:modeling}), \emph{Analyze} (structural metrics and RM scores), \emph{Diagnose} (anti-patterns and the quality gate), \emph{Simulate} (failure cascades), \emph{Validate} (comparison of predictions with simulation), and \emph{Prescribe} (verified refactoring). Optional steps cover learned prediction, triage and deployment planning (Section~\ref{sec:analyses:more}). Every step reads the model through the same repository port and writes JSON results that the next step and the presentation layer consume.
+
+\subsection{Structural quality: the RM model}
+\label{sec:analyses:rm}
+
+For each vertex of the chosen layer projection, \code{Analyze} computes a vector of structural metrics (reverse PageRank, in/out degree, betweenness, clustering, directed articulation score, bridge ratio, connectivity degradation, multi-path coupling, topic fan-out, QoS-weighted degrees, path complexity) and a Code Quality Penalty $\mathrm{CQP}(v)$ that folds four code metrics (size, complexity, cohesion, code-level instability) of applications and libraries into $[0,1]$. These feed a three-level model grounded in ISO/IEC~25010 (Figure~\ref{fig:rm_hierarchy}):
+\begin{align}
+R(v) &= \alpha\,FT(v) + (1-\alpha)\,A(v), \qquad \alpha = 0.36, \\
+Q(v) &= 0.80\,R(v) + 0.20\,M(v),
+\end{align}
+where Fault Tolerance $FT$ estimates cascade reach (dominated by reverse PageRank and in-degree), Availability $A$ estimates single-point-of-failure exposure (articulation, bridge and connectivity-degradation terms), and Maintainability $M$ estimates change cost (betweenness, efferent QoS weight, CQP, coupling balance). The complete formulas are in Appendix~\ref{app:formulas}. The weights are not tuned to any oracle: they are a declared re-parameterisation of an earlier AHP weighting, and a test asserts the algebraic relationship. Each vertex is classified into five levels with box-plot fences over the layer's score distribution, so classifications are relative to the system under analysis.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    box/.style={draw, rounded corners, align=center, font=\footnotesize, inner sep=2.5pt},
+    role/.style={draw, rounded corners, align=center, font=\scriptsize\itshape, fill=gray!8, inner sep=2pt},
+    >={Stealth[length=2mm]}, node distance=5mm and 5mm
+]
+\node[box, fill=purple!8, minimum width=4.6cm] (q) {Criticality $Q(v) = 0.80\,R + 0.20\,M$};
+\node[box, fill=blue!8, below left=6mm and 0mm of q, minimum width=3.0cm] (r) {Reliability $R = 0.36\,FT + 0.64\,A$};
+\node[box, fill=orange!10, below right=6mm and 0mm of q, minimum width=3.0cm] (m) {Maintainability $M$ \\ \scriptsize betweenness, $w_{\text{out}}$, CQP, coupling};
+\node[box, below left=5mm and -6mm of r, minimum width=1.7cm] (ft) {Fault Tolerance $FT$ \\ \scriptsize cascade reach};
+\node[box, below right=5mm and -6mm of r, minimum width=1.7cm] (a) {Availability $A$ \\ \scriptsize SPOF exposure};
+\node[role, below=3mm of ft] (rft) {reliability engineer};
+\node[role, below=3mm of a] (ra) {operations / SRE};
+\node[role, below=12mm of m] (rm) {software architect};
+\draw[->] (q) -- (r); \draw[->] (q) -- (m);
+\draw[->] (r) -- (ft); \draw[->] (r) -- (a);
+\draw[->] (ft) -- (rft); \draw[->] (a) -- (ra); \draw[->] (m) -- (rm);
+\end{tikzpicture}
+\caption{The RM model and the engineering role each dimension is reported to.}
+\label{fig:rm_hierarchy}
+\end{figure}
+
+What the tool offers here is less the scores than their decomposition. Each component's report lists the weighted terms that produced each dimension, the dimension that dominates its criticality, and the role that should look at it; a template-based explanation engine (\code{saag/explanation/}) turns this into prose. A projection onto ISO/IEC~25019 quality-in-use harms is available for presentation, but because the projection matrix is row-stochastic it is algebraically a reweighting of $Q$, and the tool and this paper do not treat it as a separate score.
+
+On mini-ATM at the system layer, the only component classified CRITICAL is the topic \code{tracks} ($FT = 0.91$): three applications subscribe to it and two brokers route it. Three components follow as HIGH: the ops host, the tracker and the flight-plan application. The first two lead, for different reasons. The ops host is rated on reliability, because most applications run on it. The tracker's level comes from Maintainability: its $M = 0.72$ is the highest in the model, because it sits between the sensor and operations sides and uses the shared library. A single scalar would rank the two side by side; the decomposition says that one needs redundancy and the other needs decoupling.
+
+\subsection{Anti-pattern detection}
+\label{sec:analyses:catalog}
+
+The \code{AntiPatternDetector} implements the nineteen patterns of Table~\ref{tab:catalog}, each a declarative \code{PatternSpec} (identifier, severity, category, description, risk, recommendation) paired with a detection function over the analysed graph. Thresholds are, wherever possible, relative: a value is anomalous if it exceeds the box-plot fence $Q_3 + k\,\mathrm{IQR}$ of its layer's distribution ($k = 1.5$ in the detector). This makes the catalog scale-free but also means it can only flag what stands out \emph{within} a system; a pattern such as \code{BROKER\_OVERLOAD} cannot fire when all brokers are equally overloaded. Findings have one of four scopes: a component, an edge, a component pair, or the system as a whole.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\caption{The nineteen-pattern catalog. \textbf{Op.}: refactoring operator the pattern feeds directly (\textsc{split} topic splitting, \textsc{realloc} anti-affinity reallocation); patterns without one are advisory. \textbf{Fires}: the pattern produced at least one finding on the thirteen-model corpus of Section~\ref{sec:application} at the system layer.}
+\label{tab:catalog}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.9cm}lll>{\raggedright\arraybackslash}Xlc}
+\toprule
+\textbf{Pattern} & \textbf{Sev.} & \textbf{Category} & \textbf{Scope} & \textbf{Detection signal} & \textbf{Op.} & \textbf{Fires} \\
+\midrule
+\code{SPOF} & CRIT & Availability & Comp. & Directed articulation point of the dependency graph & \textsc{realloc} & \trig{SPOF} \\
+\code{FAILURE\_HUB} & CRIT & Reliability & Comp. & Critical reliability with wide downstream cascade & \textsc{split} & \trig{FAILURE_HUB} \\
+\code{GOD\_COMPONENT} & CRIT & Maintainability & Comp. & Extreme betweenness and high coupling & \textsc{split} & \trig{GOD_COMPONENT} \\
+\code{SYSTEMIC\_RISK} & CRIT & Architecture & System & Large share of components classified CRITICAL & -- & \trig{SYSTEMIC_RISK} \\
+\code{COMPOUND\_RISK} & CRIT & Architecture & Comp. & SPOF that is also a God Component or Failure Hub & -- & \trig{COMPOUND_RISK} \\
+\code{BRIDGE\_EDGE} & HIGH & Availability & Edge & Bridge of the undirected dependency graph & -- & \trig{BRIDGE_EDGE} \\
+\code{BOTTLENECK\_EDGE} & HIGH & Availability & Edge & Edge-betweenness outlier & \textsc{split} & \trig{BOTTLENECK_EDGE} \\
+\code{BROKER\_OVERLOAD} & HIGH & Availability & Comp. & Broker with disproportionate routing share, or sole broker & -- & \trig{BROKER_OVERLOAD} \\
+\code{DEEP\_PIPELINE} & HIGH & Reliability & System & Source-to-sink chain longer than an adaptive depth & -- & \trig{DEEP_PIPELINE} \\
+\code{CYCLE} & HIGH & Architecture & System & Strongly connected component & -- & \trig{CYCLE} \\
+\code{CONCENTRATION\_RISK} & MED & Reliability & System & Top-3 components hold $>50\%$ of PageRank & -- & \trig{CONCENTRATION_RISK} \\
+\code{TOPIC\_FANOUT} & MED & Reliability & Comp. & Subscriber-count outlier among topics & -- & \trig{TOPIC_FANOUT} \\
+\code{QOS\_MISMATCH} & MED & Reliability & Edge & Publisher QoS weight well below subscriber's & -- & \trig{QOS_MISMATCH} \\
+\code{HUB\_AND\_SPOKE} & MED & Maintainability & Comp. & Hub whose neighbours are not connected (low clustering) & \textsc{split} & \trig{HUB_AND_SPOKE} \\
+\code{CHATTY\_PAIR} & MED & Maintainability & Pair & Reciprocal high-weight dependency via separate topics & -- & \trig{CHATTY_PAIR} \\
+\code{ORPHANED\_TOPIC} & MED & Maintainability & Comp. & Topic without publishers or without subscribers & -- & \trig{ORPHANED_TOPIC} \\
+\code{UNSTABLE\_INTERFACE} & MED & Maintainability & Comp. & Balanced, high-complexity in/out coupling & -- & \trig{UNSTABLE_INTERFACE} \\
+\code{CHAIN} & MED & Architecture & System & Degree-bounded linear chain & -- & \trig{CHAIN} \\
+\code{ISOLATED} & MED & Architecture & Comp. & No dependencies in the layer & -- & \trig{ISOLATED} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Two of the patterns are specific to pub--sub semantics and have no counterpart in code-level smell tools. \code{QOS\_MISMATCH} flags a dependency where the publisher offers a weaker contract than the subscriber requests; in DDS this is not a degraded connection but no connection, discovered only at run time. \code{CHATTY\_PAIR} flags two applications that depend on each other through two different topics: coupled as tightly as a synchronous call, but hidden behind indirection. On mini-ATM, the catalog reports six findings at the system layer: the display as a \code{SPOF}, a \code{CYCLE} between the two hosts (each runs an application the other depends on), and all four topics as \code{ISOLATED}. The last is a false positive of the system projection: topics are scored by the RM model but are not endpoints of any derivation rule, so they have no \code{DEPENDS\_ON} edges in the graph the detector inspects. We report it as found rather than hide it, and return to it in Section~\ref{sec:limitations}. At the \code{mw} layer the catalog flags both brokers as single points of failure and compound risks and two application--broker links as bridges, which is the answer to the architect's first question: each broker is the only route for some of the topics it carries.
+
+\subsection{Quality gate}
+\label{sec:analyses:gate}
+
+\code{saag-diagnose} turns findings into a CI verdict: exit code 0 if nothing is found, 1 if only MEDIUM findings exist, 2 if any CRITICAL or HIGH finding exists (or a detector crashed). Applied as an absolute gate, this blocks almost every realistic system on its existing debt (Section~\ref{sec:app:ci}). The \emph{delta-aware} mode (\code{--baseline}) instead compares the candidate model's findings with those of the merge-base, keyed by (pattern, entity type, entity id), and blocks only on new CRITICAL/HIGH keys. Two refinements came from applying it: a new finding whose metric is within a fence margin (default 10\%) of its threshold is downgraded to a warning, because global metrics such as edge betweenness move on edges a change never touched; and new \code{BOTTLENECK\_EDGE} findings only warn in delta mode. A YAML or JSON \emph{waiver register} (\code{--waivers}) records accepted risks with pattern, entity, reason, approver and expiry date; expired waivers are reported and no longer applied.
+
+\subsection{Failure simulation}
+\label{sec:analyses:sim}
+
+The \code{Simulate} step provides the oracle that the other analyses are checked against. \code{FailureSimulator} removes one component (or a pair, or a sampled set) from the \emph{structural} graph and propagates the failure through publish, subscribe, routing and hosting relations, reporting the impact $I(v)$ as a weighted composite of reachability loss, fragmentation, throughput loss and flow disruption. A separate \code{FaultInjector} produces training labels for the learned predictor. The two are kept apart by design and by test (Section~\ref{sec:arch:invariants}). Message-flow and event-driven simulators, a runtime-rate sweep, and an emulated CycloneDDS testbed that runs a model's applications as real processes with chaos injection are available for deeper studies.
+
+\subsection{Verified refactoring}
+\label{sec:analyses:prescribe}
+
+\code{Prescribe} compiles findings and criticality levels into candidate edits drawn from three graph-mutation operators (\code{saag/prescription/rules.py}):
+\begin{enumerate}\tightlist
+  \item \textbf{Topic split} rewrites topic $t$ into per-publisher sub-topics, re-pointing subscribers. It is proposed when $t$ multiplexes several publishers into several subscribers, when $t$ is critical and has several publishers, or when it feeds a component flagged by \code{GOD\_COMPONENT}, \code{FAILURE\_HUB}, \code{HUB\_AND\_SPOKE} or \code{BOTTLENECK\_EDGE}.
+  \item \textbf{Anti-affinity reallocation} moves every process but one off a host that runs several processes, when the host or one of its processes is a SPOF or classified critical.
+  \item \textbf{QoS hardening} raises a topic to \code{RELIABLE} and non-volatile durability when the topic or one of its endpoints is critical.
+\end{enumerate}
+The operators are rules, and rules can be wrong. Each candidate edit $\delta$ is therefore applied alone to a fresh copy of the model, dependencies are re-derived, and the exhaustive single-failure simulation is run at propagation thresholds $\Theta = \{0.1, 0.2, 0.5\}$ and seeds $S = \{42, 123, 456\}$. The edit is admitted only if its mean impact reduction exceeds the seed-to-seed spread at every threshold,
+\begin{equation}
+\overline{\Delta I}_\theta(\delta) > \kappa\, \sigma_{\text{seed},\theta}(\delta) \quad \forall \theta \in \Theta, \qquad \kappa = 1.
+\label{eq:accept}
+\end{equation}
+Admitted edits are then applied together and the combined model is evaluated again; the tool reports the oracle-measured impact change of the combined policy and a System Risk Index (SRI) change computed from the RM dimensions. Because the SRI is computed from the same scores that proposed the candidates, the tool reports it as a consistency check and treats the simulated impact change as the outcome. Individually admitted edits can interact: the combined policy can be worse than its parts, and the report says so when it is (Section~\ref{sec:app:synthetic}).
+
+\subsection{Further analyses}
+\label{sec:analyses:more}
+
+Three further analyses share the model and are described only briefly because they are evaluated elsewhere. \emph{Predict} trains heterogeneous graph neural networks on simulation labels and is the subject of the companion learning study. \emph{Triage} intersects a ranking's top-$K$ shortlist with the RM diagnosis to produce per-component root-cause profiles, falling back to RM alone when no trained model exists. \emph{Deploy} (\code{saag-deploy}) plans the placement of applications on hosts and network domains with a mixed-integer program and greedy baselines, and grades placements only on held-out replica-aware simulation, never on the proxy it optimises.

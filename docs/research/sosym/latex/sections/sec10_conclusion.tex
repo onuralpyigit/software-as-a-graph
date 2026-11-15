@@ -1,24 +1,8 @@
 \section{Conclusion and Future Work}
 \label{sec:conclusion}
 
-\subsection{Conclusion}
-\label{sec:conclusion:summary}
+We presented Software-as-a-Graph, an open-source tool for modeling publish--subscribe architectures as typed multigraphs and analysing them: deriving the dependency structure that pub--sub hides, scoring components with an explainable Reliability--Maintainability model, detecting nineteen pub--sub anti-patterns, gating changes in CI against their merge-base, simulating failure cascades, and proposing refactorings that are admitted only if their benefit survives counterfactual simulation. The tool is built around a hexagonal core with a persistent and an in-memory model repository, is used through a CLI, a Python API, a REST service, a web application and self-contained reports, and protects its results with invariants enforced by about 1,600 tests.
 
-This tool paper presented \textbf{Software-as-a-Graph (SaG)}, an open-source, extensible Model-Driven Engineering framework for graph-based architectural modeling, diagnostic quality analysis, and counterfactually verified refactoring of distributed publish--subscribe software systems. By formalizing a domain-specific, typed multigraph metamodel ($V, E, \tau_V, \tau_E, w_V, w_E$) across four architectural layers, SaG bridges source-level code metrics (CQP) with macro-architectural risk, evaluating system health against ISO/IEC 25010 and ISO/IEC 25019 standards and formalizing nineteen publish--subscribe architectural anti-patterns.
+Applied to a running example, five models of open-source systems and a synthetic corpus, the tool produces explained diagnoses within seconds for models of a few hundred elements, a delta-aware gate that separates new from existing findings, and verified refactoring policies in which a substantial share of rule-generated edits is rejected. The lessons we draw are mostly about trust in a modeling tool: state the view on which a metric is meaningful, make unmeasured values unrepresentable, test transformation rules on the model at hand, and tie every number to the artefact that produced it.
 
-To remediate architectural technical debt, SaG implements a closed-loop prescriptive engine driven by three graph-mutation operators. Adopting a strict \textbf{``verify-before-transform''} discipline, the tool simulates candidate mutations within in-memory sandboxes against a discrete-event cascade oracle, admitting only edits whose risk reduction clears stochastic seed noise. SaG's hexagonal architecture features a dual-repository pattern that pairs persistent Neo4j storage with an ultra-fast in-memory repository (\texttt{MemoryRepository}), supporting multi-modal interfaces spanning interactive web dashboards, Python SDKs, modular CLIs, REST APIs, and automated CI/CD quality gates.
-
-Evaluated across eight benchmark scenarios and three transcribed real-world open-source systems (Autoware.Universe, Train-Ticket, Cloud IoT Mesh), SaG demonstrates high diagnostic screening sensitivity, superior discrimination on real-world modular architectures ($\kappa = +0.296$), a $71.0\%$ refactoring admission rate, and sub-second diagnostic gating latency. Crucially, we synthesize five transferable lessons learnt spanning metamodel substrate adequacy, in-memory sandboxing, simulation-in-the-loop verification, explanatory attribution versus ranking saturation, and multi-modal tool ergonomics to inform future tool builders in the systems modeling community.
-
-\subsection{Future Work}
-\label{sec:conclusion:future_work}
-
-We identify several promising avenues for future tool evolution:
-\begin{enumerate}
-    \item \textbf{Layer-Aware Automated Availability Metrics:} Implementing multi-layer path analysis to automatically evaluate Availability predicates on Middleware or Infrastructure projections where cut structures are physically present.
-    \item \textbf{Search-Based Multi-Objective Optimization (SBSE):} Expanding the current rule-based candidate compiler into a hybrid multi-objective search algorithm (e.g., NSGA-II) that optimizes failure impact, hardware migration cost, and network bandwidth under budget constraints.
-    \item \textbf{Combinatorial Subset Verification:} Replacing the current greedy all-admitted policy gate with forward-selection subset verification to prevent sub-additive compositional regressions.
-    \item \textbf{External Tool Benchmarking:} Executing comparative evaluations against general-purpose architectural smell detectors (e.g., Arcan, Designite) running over projected dependency graphs.
-    \item \textbf{Automated Model Ingestion from IDLs and Traces:} Developing automated model extractors that directly parse ROS~2 package manifests, DDS XML QoS profiles, and Kafka topic definitions into SaG multigraphs.
-    \item \textbf{LLM-Assisted Refactoring Implementation:} Integrating large language models with SaG's verified graph mutation blueprints to automatically synthesize infrastructure-as-code diffs (Kubernetes manifests, Docker Compose files) for immediate deployment.
-\end{enumerate}
+Future work follows from the limitations: model extraction from ROS~2, DDS and Kafka configuration; layer-aware Availability that selects the projection on which cut structure exists; subset selection for refactoring policies instead of greedy composition; an Ecore/EMF export so that the metamodel and rules can be used from model-driven tool chains; exposing the diagnose and prescribe steps in the REST service; and a study with practitioners of how the reports and gate are used in review.

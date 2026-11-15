@@ -1,10 +1,12 @@
-\section{Tool Architecture and Implementation Techniques}
-\label{sec:tool_architecture}
+\section{Tool Architecture and Implementation}
+\label{sec:architecture}
 
-\subsection{Hexagonal Ports-and-Adapters Architecture and Dual-Repository Design}
-\label{sec:tool:hexagonal}
+\sag{} is written in Python (about 65k lines in the core package \code{saag/}, the CLI and the REST service) with a TypeScript/React front end (about 24k lines). Figure~\ref{fig:hexagonal_arch} shows its structure.
 
-To decouple domain modeling and verification algorithms from underlying storage technologies, SaG is implemented according to a \textbf{hexagonal (ports-and-adapters) architecture} \citep{martin2003agile}. As illustrated in Figure~\ref{fig:hexagonal_arch}, core modeling services interact with graph storage exclusively through an abstract port interface, \texttt{IGraphRepository}.
+\subsection{Hexagonal structure}
+\label{sec:arch:hexagonal}
+
+The core follows a ports-and-adapters (hexagonal) layout \citep{martin2003agile}. Domain services (\code{QualityAnalyzer} and \code{StructuralAnalyzer} for scoring, \code{AntiPatternDetector}, \code{FailureSimulator} and \code{FaultInjector}, \code{PrescribeService} with \code{EditVerifier}, the GNN models, the deployment planner) depend only on the abstract port \code{IGraphRepository} (\code{saag/core/ports/graph\_repository.py}) and on plain data classes. One use-case class per pipeline step (\code{ModelGraphUseCase}, \code{AnalyzeGraphUseCase}, \code{DiagnosticUseCase}, \code{SimulateGraphUseCase}, \code{ValidateGraphUseCase}, \code{PrescribeGraphUseCase}, \code{PredictGraphUseCase}, \code{TriageUseCase}, \code{DeployGraphUseCase}, \code{VisualizeGraphUseCase}, and others) forms the boundary that every front end calls. The front ends are thin: the \code{Client} and fluent \code{Pipeline} facades of the Python API, the CLI scripts, and the FastAPI service, whose routers delegate JSON serialisation to presenter classes.
 
 \begin{figure}[htbp]
 \centering
@@ -12,100 +14,66 @@ To decouple domain modeling and verification algorithms from underlying storage 
     box/.style={draw, rounded corners, align=center, font=\footnotesize, inner sep=3pt},
     port/.style={draw, dashed, rounded corners, fill=yellow!10, align=center, font=\scriptsize, inner sep=2.5pt},
     adapter/.style={draw, rounded corners, fill=blue!8, align=center, font=\scriptsize, inner sep=3pt},
+    fe/.style={draw, rounded corners, fill=green!8, align=center, font=\scriptsize, inner sep=3pt, minimum width=2.1cm},
     arr/.style={-{Stealth[length=2mm]}, thick},
     node distance=5mm and 6mm
 ]
-\node[box, fill=purple!10, minimum width=6.5cm, minimum height=2.2cm] (core) {
-    \textbf{Core Domain Layer} \\
-    \scriptsize $\bullet$ \texttt{MultiLayerGraph} Metamodel \quad $\bullet$ \texttt{DiagnosticEngine} \\
-    \scriptsize $\bullet$ \texttt{AntipatternDetector} \quad $\bullet$ \texttt{PrescriptionCompiler} \\
-    \scriptsize $\bullet$ \texttt{CascadeSimulator} \quad $\bullet$ \texttt{ClosedLoopVerifier}
+\node[box, fill=purple!10, text width=5.6cm] (core) {
+    \textbf{Domain services} \\[1pt]
+    \scriptsize \code{QualityAnalyzer}, \code{StructuralAnalyzer}, \code{AntiPatternDetector}, \code{delta\_gate}, \code{FailureSimulator}, \code{FaultInjector}, \code{PrescribeService}, \code{EditVerifier}, \code{GraphEvaluator}, GNN models, \code{DeploymentMILP}
 };
-
-\node[port, right=7mm of core, minimum width=2.6cm] (port) {
-    \textbf{\texttt{IGraphRepository}} \\
-    \textit{(Abstract Port)}
+\node[box, fill=orange!10, above=6mm of core, text width=5.6cm] (uc) {
+    \textbf{Use cases} \\ \scriptsize Model, Analyze, Diagnose, Simulate, Validate, Prescribe, Predict, Triage, Deploy, Visualize
 };
-
-\node[adapter, above right=1mm and 7mm of port, minimum width=3.4cm] (neo4j) {
-    \textbf{\texttt{Neo4jRepository}} \\
-    \scriptsize Bolt Driver / Cypher Queries \\
-    \scriptsize Persistent Storage \& Viz
-};
-
-\node[adapter, below right=1mm and 7mm of port, minimum width=3.4cm] (mem) {
-    \textbf{\texttt{MemoryRepository}} \\
-    \scriptsize Fast In-Memory Graph \\
-    \scriptsize Isolated Sandboxed Mutation
-};
-
+\node[fe, above left=6mm and -18mm of uc] (cli) {CLI \\ \code{saag}, \code{saag-*}};
+\node[fe, right=2mm of cli] (py) {Python API \\ \code{Client}, \code{Pipeline}};
+\node[fe, right=2mm of py] (rest) {REST (FastAPI) \\ + presenters};
+\node[fe, right=2mm of rest] (web) {Web UI \\ (Next.js)};
+\node[port, right=8mm of core, text width=2.3cm] (port) {\textbf{\code{IGraphRepository}} \\ \textit{port}};
+\node[adapter, above right=0mm and 6mm of port, text width=3.0cm] (neo4j) {\textbf{\code{Neo4jRepository}} \\ Cypher over Bolt; persistent, browsable};
+\node[adapter, below right=0mm and 6mm of port, text width=3.0cm] (mem) {\textbf{\code{MemoryRepository}} \\ Python dicts; throw-away copies};
+\draw[arr] (cli.south) -- (cli.south |- uc.north);
+\draw[arr] (py.south) -- (py.south |- uc.north);
+\draw[arr] (rest.south) -- (rest.south |- uc.north);
+\draw[arr] (web) -- (rest);
+\draw[arr] (uc) -- (core);
 \draw[arr] (core) -- (port);
 \draw[arr] (port) |- (neo4j);
 \draw[arr] (port) |- (mem);
 \end{tikzpicture}
-\caption{Hexagonal architecture of SaG: domain services access graph representations via the \texttt{IGraphRepository} port, supported by dual persistent and in-memory repository adapters.}
+\caption{Architecture of \sag{}. Front ends call one use case per pipeline step; domain services reach model storage only through the \code{IGraphRepository} port.}
 \label{fig:hexagonal_arch}
 \end{figure}
 
-The framework provides two specialized repository adapters, forming a **Dual-Repository Pattern**:
-\begin{enumerate}
-    \item \textbf{\texttt{Neo4jRepository}:} A graph database adapter utilizing the official Bolt driver to communicate with a Neo4j cluster. This adapter supports declarative Cypher queries, persistent graph schemas, and interactive visual exploration during architectural review.
-    \item \textbf{\texttt{MemoryRepository}:} A pure in-memory graph repository engineered in Python using vectorized adjacency tables and thread-safe copy-on-write semantics. While Neo4j excels at persistence, executing thousands of speculative graph mutations against an external database incurs prohibitive I/O and transaction serialization overhead. \texttt{MemoryRepository} allows the prescriptive engine to fork, mutate, and simulate counterfactual architectures in microseconds, enabling over 14,000 discrete-event simulation sweeps to complete in under 3~hours (Section~\ref{sec:results:performance}).
-\end{enumerate}
+\subsection{Two repository adapters}
+\label{sec:arch:repos}
 
-\subsection{The Seven Pipeline Stages}
-\label{sec:tool:stages}
+\code{IGraphRepository} has two implementations, chosen for opposite workloads.
 
-SaG operationalizes model analysis through a sequential, seven-stage processing pipeline:
-\begin{enumerate}
-    \item \textbf{Stage 1 (Model Ingestion):} Ingests declarative Architecture-as-Code descriptors (JSON or YAML) and associated static code analysis metrics (LOC, WMC, LCOM, coupling instability).
-    \item \textbf{Stage 2 (Topological Projection):} Synthesizes the multi-layer graph $G$ and evaluates the seven derivation rules to generate the directed \texttt{DEPENDS\_ON} analysis graph $G_{\text{analysis}}$.
-    \item \textbf{Stage 3 (Diagnostic Quality Attribution):} Computes CQP for application nodes, evaluates the fourteen structural graph metrics, derives $FT$, $A$, and $M$ quality scores, and projects them into ISO/IEC 25019 stakeholder harm vectors ($\mathbf{h}_{\text{QiU}}$).
-    \item \textbf{Stage 4 (Anti-Pattern Detection):} Executes the 19-pattern detection engine across Application, Middleware, Infrastructure, and System projections using adaptive box-plot fences.
-    \item \textbf{Stage 5 (Refactoring Candidate Compilation):} Compiles detected \texttt{CRITICAL} and \texttt{HIGH} findings into targeted candidate graph-mutation operators.
-    \item \textbf{Stage 6 (Counterfactual Verification):} Executes isolated, multi-seed cascade simulation sweeps within \texttt{MemoryRepository} sandboxes to filter out ineffective or noisy edits.
-    \item \textbf{Stage 7 (Presentation and Gating):} Emits verified architectural refactoring blueprints and CI/CD quality gate verdicts across standardized exit codes.
-\end{enumerate}
+\code{Neo4jRepository} stores the model in Neo4j through the official Bolt driver and derives \code{DEPENDS\_ON} edges with Cypher \code{MATCH}/\code{MERGE} queries. It is what the web front end and the REST service use: the model persists between sessions, and an analyst can open the Neo4j browser and query the model directly.
 
-\subsection{Graph-Mutation Refactoring Operators}
-\label{sec:prescribe:operators}
+\code{MemoryRepository} keeps the same model in plain Python dictionaries and implements the same derivation rules in Python. It was first written as a test double, so that the test suite could run without a database; it became a production component when the refactoring engine needed to create, mutate and simulate thousands of model copies. In \code{Prescribe}, each candidate edit is applied to a deep copy of the model's JSON, loaded into a fresh \code{MemoryRepository}, its dependencies re-derived, and the copy simulated; edits are verified in parallel worker processes. Routing these copies through a database would have meant thousands of create--derive--delete transactions per scenario. With the in-memory adapter a copy is created and discarded within the worker that simulates it, and no copy can contaminate another or the baseline (measurements in Section~\ref{sec:app:synthetic}).
 
-The prescriptive engine implements three typed graph-mutation operators:
-\begin{enumerate}
-    \item \textbf{Logical Topic Splitting (Operator 1):} Addresses \texttt{TOPIC\_FANOUT}, \texttt{GOD\_COMPONENT}, and \texttt{FAILURE\_HUB}. This operator decomposes a high-congestion topic $T$ into dedicated sub-topics $\{T_a : a \in P(T)\}$, updating publisher and subscriber edge endpoints to isolate message streams and bound cascade reach.
-    \item \textbf{Physical Anti-Affinity Reallocation (Operator 2):} Addresses \texttt{SPOF}, \texttt{BROKER\_OVERLOAD}, and \texttt{COMPOUND\_RISK}. This operator migrates co-located critical components from a shared host node $N_{\text{from}}$ to an isolated host $N_{\text{to}}$, updating \texttt{RUNS\_ON} and \texttt{HOSTED\_ON} relationships to eliminate single-hardware failure domains.
-    \item \textbf{Transport QoS Contract Hardening (Operator 3):} Addresses volatile message channels operating under \texttt{BEST\_EFFORT} or non-persistent contracts, updating transport specifications to \texttt{RELIABLE} and \texttt{TRANSIENT\_LOCAL} with bounded history depths.
-\end{enumerate}
+Keeping several implementations of the derivation rules (Cypher, the in-memory adapter, and the simulator's own re-derivation) is the price of this design, and they have drifted: the simulator once implemented only one of the rules (Section~\ref{sec:lessons}, Lesson~2), and the two adapters still weight one Rule~1 corner case differently, which is documented as a known divergence. The test suite compares the simulator's arc set with the in-memory adapter's on the whole corpus.
 
-\paragraph{Automation Footprint Disclosure.}
-Exactly \textbf{five of the nineteen patterns} directly trigger an automated mutation operator (\texttt{SPOF} $\to$ Operator 2; \texttt{GOD\_COMPONENT}, \texttt{BOTTLENECK\_EDGE}, \texttt{FAILURE\_HUB}, \texttt{HUB\_AND\_SPOKE} $\to$ Operator 1). Operator 3 triggers from generic criticality tier membership. The remaining fourteen patterns provide advisory recommendations for human review. In practice, Operator 2 fires from RM criticality tier membership and \texttt{SPOF} findings, while Operator 1 fires on congestion, RM-critical topics, or bottleneck findings; Section~\ref{sec:results:prescriptive} reports the resulting per-operator breakdown.
+\subsection{Pipeline and data flow}
+\label{sec:arch:pipeline}
 
-\subsection{Closed-Loop Counterfactual Verification Engine}
-\label{sec:optimization_objective}
+The steps of Section~\ref{sec:analyses} communicate through the repository and through JSON artefacts on disk, not through in-memory calls between services. \code{Simulate} writes its impact scores to a file that \code{Predict} reads as training labels and \code{Validate} reads as ground truth. This has two consequences: any step can be rerun alone, and a result file can be inspected, versioned or replaced by an external tool. To make files safe to exchange, artefacts carry provenance: the reproduction scripts stamp each result with the commit and a digest of the scenario corpus, and label files carry a topology fingerprint that is checked before training.
 
-The prescriptive engine couples candidate compilation with closed-loop simulation verification. The idealized architectural optimization objective can be expressed as:
-\begin{equation}
-\min_{\Delta} \sum_{v \in V} I^*_{\Delta(G)}(v) \quad \text{subject to} \quad \mathrm{Cost}(\Delta) \le \mathcal{B}
-\label{eq:ideal_objective}
-\end{equation}
-where $\Delta(G)$ represents an architectural transformation producing mutated topology $G' = \Delta(G)$, and $I^*$ is the simulated failure impact. 
+\subsection{Invariants enforced by tests}
+\label{sec:arch:invariants}
 
-Rather than executing an unconstrained search over the combinatorial space of graph transformations, SaG implements a **two-level verification-gated screening rule**:
-\begin{enumerate}
-    \item \textbf{Per-Edit Counterfactual Acceptance Filter (Level 1):} Each candidate refactoring edit $\delta$ is applied in isolation to a sandboxed copy of $G$ inside \texttt{MemoryRepository}. The engine executes discrete-event failure cascade simulations across propagation thresholds $\Theta = \{0.1, 0.2, 0.5\}$ and random seeds $S = \{42, 123, 456\}$. An edit is retained if and only if its measured cascade-impact reduction exceeds simulator seed noise at every threshold:
-    \begin{equation}
-    \overline{\Delta I}_\theta(\delta) > \kappa \cdot \sigma_{\text{seed},\theta}(\delta) \quad \forall \theta \in \Theta
-    \end{equation}
-    where $\kappa = 1.0$ is the noise-rejection margin parameter.
-    \item \textbf{Whole-Policy Acceptance Gate (Level 2):} The surviving set of admitted edits $\Delta_{\text{admitted}}$ is applied jointly to $G$. The composite policy is accepted if and only if the net System Risk Index improves:
-    \begin{equation}
-    \Delta\mathrm{SRI} = \mathrm{SRI}_{\text{baseline}} - \mathrm{SRI}_{\text{mutated}} > 0
-    \end{equation}
-\end{enumerate}
-
-\subsection{Substrate Independence and View Isolation}
-\label{sec:prescribe:verification}
-
-Candidate generation and per-edit verification are decoupled at the foundational modeling level: candidates are compiled from the projected dependency graph $G_{\text{analysis}}$ and diagnostic RM scores, while simulation verification is executed on the structural graph $G_{\text{structural}}$ within \texttt{MemoryRepository}. Consequently, the per-edit acceptance statistic $\overline{\Delta I}$ is evaluated by an independent discrete-event cascade simulator that shares no computational substrate with the RM score that proposed the candidate. 
-
-This independence does not extend to the second-level gate, where $\Delta\mathrm{SRI}$ is evaluated on RM dimensions ($\mathrm{SRI} = 0.5\,\bar{R}_w + 0.5\,\bar{M}_w$). We therefore treat cascade impact reduction $\overline{\Delta I}_{\text{policy}}$ as the primary outcome measure and $\Delta\mathrm{SRI}$ as an internal consistency check (Section~\ref{sec:results:prescriptive}).
+A research tool that produces numbers for papers fails silently: a wrong number looks exactly like a right one. Over time we turned the properties the results depend on into tests that fail the build. The suite has about 1,600 test functions in 130 files; a fast subset runs in under fifteen seconds before every merge. The architectural invariants are:
+\begin{itemize}\tightlist
+  \item \emph{Simulation never reads derived edges.} \code{saag/simulation/} operates only on structural edges, so that the oracle shares no computation with the scores it is used to check (\code{test\_independence\_guarantee.py}).
+  \item \emph{Labeler and oracle are not interchangeable.} \code{FaultInjector} produces training labels, \code{FailureSimulator} produces validation ground truth, and neither may stand in for the other (\code{test\_groundtruth\_contract.py}).
+  \item \emph{Predict does not import Simulate}; labels flow through files (\code{test\_predict\_simulate\_separation.py}).
+  \item \emph{The simulator's re-derivation matches the repository's} for all seven rules (\code{test\_simulation\_dependency\_derivation.py}).
+  \item \emph{An unmeasured quality gate is \code{None}, not 0.0} (validation model tests).
+  \item \emph{A label file is checked before training}: wrong labeler, missing label, mismatched topology fingerprint or insufficient retest reliability are refused (\code{test\_label\_safety.py}).
+  \item \emph{The committed corpus is exactly what its configurations generate}: every scenario regenerates byte-identically from its YAML file and matches a SHA-256 manifest (\code{test\_scenario\_corpus.py}).
+  \item \emph{Declared weights stay consistent with their derivation}: the RM composite weights with the AHP vector they re-parameterise, and the topic-QoS weights with their pairwise-comparison matrix (\code{test\_quality\_model.py}, \code{test\_ahp\_shrinkage.py}).
+  \item \emph{A refactoring is accepted only under Eq.~\eqref{eq:accept}} at every threshold (\code{test\_prescription.py}).
+\end{itemize}
+Most of these exist because the property was once violated; Section~\ref{sec:lessons} tells three of those stories.

@@ -1,0 +1,156 @@
+\section{The \sag{} Modeling Language}
+\label{sec:modeling}
+
+This section introduces the modeling language through a running example, then defines its abstract syntax (metamodel), concrete syntax, derivation rules and layer projections.
+
+\subsection{Running example: mini-ATM}
+\label{sec:modeling:example}
+
+Mini-ATM is a fifteen-element air-traffic surveillance system that ships with the tool and is used by all its walkthroughs (\code{examples/mini\_atm.json}). A \emph{radar} application publishes raw plots on topic \code{radar.plots}; a \emph{tracker} fuses them and publishes \code{tracks}; a \emph{conflict-detector} consumes tracks and publishes \code{conflict.alerts}; a \emph{flight-plan} service publishes \code{flight.plans}; a \emph{display} consumes tracks, alerts and plans; a \emph{recorder} archives plots, tracks and plans. Tracker and conflict-detector share a library, \emph{track-model}. Two brokers route the topics; \code{tracks} is routed by both. Radar, tracker and the sensor broker run on \emph{sensor-host}; everything else runs on \emph{ops-host}; the two hosts are connected. Only \code{radar.plots} uses a \code{BEST\_EFFORT}, \code{VOLATILE} QoS contract. Figure~\ref{fig:miniatm} shows the model.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  app/.style={draw, rounded corners, fill=blue!10, font=\scriptsize, align=center, minimum width=1.7cm, minimum height=7mm, inner sep=1.5pt},
+  topic/.style={draw, ellipse, fill=yellow!20, font=\scriptsize, align=center, inner sep=1pt},
+  lib/.style={draw, fill=cyan!12, font=\scriptsize, align=center, inner sep=2pt},
+  pub/.style={-{Stealth[length=1.6mm]}, thick},
+  sub/.style={-{Stealth[length=1.6mm]}, densely dashed},
+  use/.style={-{Stealth[length=1.4mm]}, gray}
+]
+% main surveillance chain
+\node[app] (radar) at (0,0) {radar\\[-1pt]{\tiny sensor-host}};
+\node[topic] (t1) at (2.35,0) {radar.plots\\[-1pt]{\tiny B1, best-effort}};
+\node[app] (tracker) at (4.7,0) {tracker\\[-1pt]{\tiny sensor-host}};
+\node[topic] (t2) at (7.05,0) {tracks\\[-1pt]{\tiny B1, B2}};
+\node[app] (cd) at (9.5,0) {conflict-detector\\[-1pt]{\tiny ops-host}};
+\node[topic] (t3) at (12.0,0) {conflict.alerts\\[-1pt]{\tiny B2}};
+\node[app] (disp) at (14.2,-1.6) {display\\[-1pt]{\tiny ops-host}};
+% second row
+\node[app] (rec) at (4.7,-1.6) {recorder\\[-1pt]{\tiny ops-host}};
+\node[app] (fp) at (9.5,-3.0) {flight-plan\\[-1pt]{\tiny ops-host}};
+\node[topic] (t4) at (12.0,-3.0) {flight.plans\\[-1pt]{\tiny B2}};
+\node[lib] (lib) at (7.05,1.5) {track-model};
+% publish
+\draw[pub] (radar) -- (t1);
+\draw[pub] (tracker) -- (t2);
+\draw[pub] (cd) -- (t3);
+\draw[pub] (fp) -- (t4);
+% subscribe (arrow from subscriber to topic)
+\draw[sub] (tracker) -- (t1);
+\draw[sub] (cd) -- (t2);
+\draw[sub] (disp) -- (t3);
+\draw[sub] (disp) -- (t4);
+\draw[sub] (disp.west) -- ++(-1.2,0) -- (t2.south east);
+\draw[sub] (rec) -- (t1.south east);
+\draw[sub] (rec) -- (t2.south west);
+\draw[sub] (rec.south) |- (t4.west);
+% uses
+\draw[use] (tracker) -- (lib);
+\draw[use] (cd) -- (lib);
+\end{tikzpicture}
+\caption{Mini-ATM, the running example (6 applications, 1 library, 4 topics, 2 brokers, 2 hosts). Solid arrows: \code{PUBLISHES\_TO}; dashed arrows (from subscriber to topic): \code{SUBSCRIBES\_TO}; grey: \code{USES}. Each application shows its host (\code{RUNS\_ON}); each topic shows the brokers that route it (\code{ROUTES}, B1 = sensor-broker on sensor-host, B2 = ops-broker on ops-host). The two hosts are connected (\code{CONNECTS\_TO}).}
+\label{fig:miniatm}
+\end{figure}
+
+The questions an architect would ask of this design are typical of the domain: is the sensor host a single point of failure for the display? Is \code{tracks}, consumed by three applications and routed by two brokers, a bottleneck or a redundancy? Does the best-effort contract on \code{radar.plots} matter, given who consumes it? The remainder of the paper answers these with the tool.
+
+\subsection{Abstract syntax: the metamodel}
+\label{sec:modeling:metamodel}
+
+A \sag{} model is a typed, attributed, directed multigraph
+\begin{equation}
+G = (V, E, \tau_V, \tau_E, w_V, w_E),
+\end{equation}
+with vertex types $T_V = \{\code{Application}, \code{Library}, \code{Topic}, \code{Broker}, \code{Node}, \code{NetworkDevice}\}$ and edge types $T_E = \{\code{PUBLISHES\_TO}, \code{SUBSCRIBES\_TO}, \code{ROUTES}, \code{RUNS\_ON}, \code{USES}, \code{CONNECTS\_TO}, \code{DEPENDS\_ON}\}$. The first six edge types are \emph{structural}: they are declared in the input. \code{DEPENDS\_ON} is \emph{derived}: it is computed from the structural edges by the rules in Section~\ref{sec:modeling:rules} and never accepted from the input. Figure~\ref{fig:metamodel} shows the metamodel as a class diagram with the attributes the analyses read.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  cls/.style={draw, rectangle split, rectangle split parts=2, font=\scriptsize, align=left, fill=white, inner sep=2pt, text width=3.5cm},
+  rel/.style={-{Stealth[length=1.6mm]}, thin},
+  lab/.style={font=\tiny, inner sep=1pt}
+]
+\node[cls] (app) at (0,0) {\textbf{Application}\nodepart{second}app\_type, criticality\\code metrics: loc, wmc, lcom, $C_a$, $C_e$};
+\node[cls] (topic) at (7.5,0) {\textbf{Topic}\nodepart{second}size, frequency [Hz]\\qos: reliability, durability, priority, deadline, history depth};
+\node[cls] (lib) at (0,-2.6) {\textbf{Library}\nodepart{second}version, code metrics};
+\node[cls] (broker) at (7.5,-2.6) {\textbf{Broker}\nodepart{second}name};
+\node[cls] (dev) at (0,-5.0) {\textbf{NetworkDevice}\nodepart{second}role (switch, router)};
+\node[cls] (node) at (7.5,-5.0) {\textbf{Node}\nodepart{second}name};
+\draw[rel] ([yshift=3mm]app.east) -- node[lab, above]{PUBLISHES\_TO} ([yshift=3mm]topic.west);
+\draw[rel] ([yshift=-1mm]app.east) -- node[lab, below]{SUBSCRIBES\_TO} ([yshift=-1mm]topic.west);
+\draw[rel] (app) -- node[lab, left]{USES} (lib);
+\draw[rel] (broker) -- node[lab, right]{ROUTES} (topic);
+\draw[rel] (broker) -- node[lab, right]{RUNS\_ON} (node);
+\draw[rel] (app.west) -- ++(-0.5,0) |- node[lab, below, pos=0.75]{RUNS\_ON} ([yshift=-5mm]node.south) -- (node.south);
+\draw[thin] (dev.east) -- node[lab, above]{CONNECTS\_TO (undirected;} node[lab, below]{interfaces, capacity\_mbps)} (node.west);
+\end{tikzpicture}
+\caption{The \sag{} metamodel (structural part). Every vertex carries a derived weight $w_V \in [0,1]$; every edge a weight $w_E$. Libraries may also publish and subscribe, like applications (not drawn). \code{CONNECTS\_TO} also links \code{Node}--\code{Node} and \code{NetworkDevice}--\code{NetworkDevice}. \code{DEPENDS\_ON}, not shown, is derived (Table~\ref{tab:rules}).}
+\label{fig:metamodel}
+\end{figure}
+
+\paragraph{Weights.} Topic weight combines a QoS score, normalised message size and normalised rate, $w(t) = \beta\, \mathrm{QoS}(t) + \alpha\, \mathrm{size}(t) + \psi\, \mathrm{freq}(t)$; the QoS score is a weighted sum of reliability, durability and transport priority whose weights (0.24, 0.62, 0.14) are the priority vector of a stated AHP pairwise-comparison matrix with consistency ratio below 0.10. Component weights aggregate the weights of the topics a component touches. Derived edges carry a weight computed by the rule that created them (probabilistic union over mediating topics for Rules 1--2, worst case for Rules 3, 4 and 7, harmonic mean or host weight for Rules 5--6). All weight helpers are public functions in \code{saag/core/models.py}, and the model walkthrough recomputes every weight of mini-ATM from them and checks it against the repository.
+
+\subsection{Concrete syntax}
+\label{sec:modeling:syntax}
+
+Models are written as JSON (Listing~\ref{lst:json}): one array per vertex type and one per structural relation. The same format is produced by the scenario generator from a short YAML configuration (domain, scale, QoS mix, seed), by the real-world adapter for the open-source models in Section~\ref{sec:app:realworld}, and by \code{saag-import}'s export; it can therefore be written by hand, generated, or extracted from code by an external front end such as the CodeQL extractor of \citet{caliskan2026uyms}.
+
+\begin{lstlisting}[caption={Excerpt of the mini-ATM model in \sag{}'s JSON concrete syntax.}, label={lst:json}]
+{ "applications": [ {"id": "A1", "name": "radar", "app_type": "sensor", "criticality": "HIGH"}, ... ],
+  "topics": [ {"id": "T1", "name": "radar.plots", "size": 512, "frequency": 20.0,
+               "qos": {"reliability": "BEST_EFFORT", "durability": "VOLATILE",
+                       "transport_priority": "MEDIUM", "deadline_ms": 200, "history_depth": 5}}, ... ],
+  "brokers": [...], "nodes": [...], "libraries": [...],
+  "relationships": {
+     "publishes_to":  [{"from": "A1", "to": "T1"}, ...],
+     "subscribes_to": [{"from": "A2", "to": "T1"}, ...],
+     "routes": [{"from": "B1", "to": "T1"}, ...],   "runs_on": [{"from": "A1", "to": "N1"}, ...],
+     "uses":   [{"from": "A2", "to": "L1"}, ...],   "connects_to": [{"from": "N1", "to": "N2"}] } }
+\end{lstlisting}
+
+\subsection{Derived dependencies}
+\label{sec:modeling:rules}
+
+Pub--sub components do not reference each other, so the dependency structure that failure analysis needs must be derived. \sag{} derives \code{DEPENDS\_ON} edges with the seven rules of Table~\ref{tab:rules}. An edge $u \to v$ means \emph{$u$ depends on $v$}: if $v$ fails, $u$ is affected, so failures propagate against edge direction.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{The seven \code{DEPENDS\_ON} derivation rules. The last column gives the number of edges each rule derives on mini-ATM (26 in total from 28 structural relations).}
+\label{tab:rules}
+\begin{tabularx}{\textwidth}{l l >{\raggedright\arraybackslash}X r}
+\toprule
+\textbf{Rule} & \textbf{Derived edge} & \textbf{Structural pattern} & \textbf{mini-ATM} \\
+\midrule
+1 \code{app\_to\_app} & subscriber $\to$ publisher & both touch topic $t$ (also through \code{USES} chains of up to three libraries) & 8 \\
+2 \code{app\_to\_broker} & application $\to$ broker & application publishes or subscribes to a topic the broker routes & 10 \\
+3 \code{node\_to\_node} & host $B \to$ host $A$ & an application on $B$ depends on one on $A$, $A \neq B$ & 2 \\
+4 \code{node\_to\_broker} & host $\to$ broker & an application on the host depends on the broker & 4 \\
+5 \code{app\_to\_lib} & component $\to$ library & direct \code{USES} & 2 \\
+6 \code{broker\_to\_broker} & broker $\leftrightarrow$ broker & both run on the same host & 0 \\
+7 \code{node\_to\_device} & host $\to$ network device & host $B$ depends on host $A$ and every network path from $B$ to $A$ crosses the device & 0 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Rules 1--6 are implemented twice, as Cypher in the Neo4j adapter and in Python in the in-memory adapter, and a third time inside the simulator, which may not read derived edges (Section~\ref{sec:arch:invariants}). Rule~7 is a separator test that Cypher cannot express, so all three call one shared helper in \code{saag/core/network.py}. A regression test asserts that the simulator's derivation produces the same arc set as the in-memory adapter on every corpus model; the remaining known divergence between the two adapters (how Rule~1 weights a topic reachable both directly and through a library) is documented rather than silently tolerated.
+
+\subsection{Layer projections}
+\label{sec:modeling:layers}
+
+Analyses run on one of four projections of the derived graph, each defined by the dependency subtypes it keeps and the vertex types it reports on:
+\begin{itemize}\tightlist
+  \item \code{app}: Rules 1 and 5; reports Applications and Libraries.
+  \item \code{infra}: Rules 3 and 7; reports Nodes and NetworkDevices.
+  \item \code{mw}: Rules 2, 4 and 6; reports Brokers.
+  \item \code{system}: all seven rules; reports every vertex type.
+\end{itemize}
+The layer is an explicit argument of every analysis command. This matters because some metrics are only meaningful on some layers:
+
+\begin{proposition}[Substrate adequacy]
+\label{prop:substrate}
+A score term defined by a cut predicate (articulation point, bridge) is constant on every vertex of a layer projection that has no cut vertex (respectively no bridge). A composite score that gives such a term weight $\omega$ then has at most $1-\omega$ of its range available to discriminate vertices on that projection.
+\end{proposition}
+
+The statement is elementary, but it had practical consequences for the tool: the application projection of a pub--sub system is often densely connected through shared topics and has few or no cut vertices, so the Availability dimension of Section~\ref{sec:analyses:rm} carries little signal there, while the \code{mw} and \code{system} projections, where brokers and hosts mediate many paths, do contain cut structure. This is why the layer is an explicit argument of every analysis rather than a hidden setting (Section~\ref{sec:lessons}, Lesson~1).

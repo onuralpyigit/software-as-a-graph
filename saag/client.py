@@ -376,11 +376,7 @@ class Client:
         gnn_checkpoint = kwargs.get("gnn_checkpoint") or kwargs.get("gnn_model")
         analysis_service = AnalysisService(self.repo)
         prediction_service = PredictionService(gnn_checkpoint_dir=gnn_checkpoint)
-        if hasattr(self.repo, 'driver'):
-             simulation_service = SimulationService(self.repo)
-        else:
-             simulation_service = None # or some fallback
-             
+        simulation_service = SimulationService(self.repo)
         validation_service = ValidationService(analysis_service, prediction_service, simulation_service)
         
         viz_service = VisualizationService(

@@ -1,0 +1,119 @@
+\section{Application in Scenarios}
+\label{sec:application}
+
+This section reports what the tool does when applied, at four levels: the running example end to end, five architecture models of open-source systems, a synthetic corpus used for scale and refactoring measurements, and a CI scenario. The accuracy of the RM model and the catalog against the simulation oracle is studied in depth in a companion manuscript (Section~\ref{sec:intro:prior}); here we report the agreement figures the tool's own validation step produces, as context for a user, and concentrate on behaviour, cost and usefulness.
+
+\subsection{Protocol}
+\label{sec:app:protocol}
+
+All numbers in this section were produced for this paper by the scripts below, run on the release at commit \code{\ProvCommit} with corpus digest \code{\ProvCorpus} on a 20-core workstation (Python 3.11, in-memory repository; Neo4j is not needed). Each result file carries a provenance stamp, and \code{docs/research/sosym/scripts/make\_numbers.py} generates every number in the text and tables from those files.
+\begin{lstlisting}
+PYTHONPATH=. python reproduce/detection_validation.py --layer app     # Sec. 7.4 (agreement)
+PYTHONPATH=. python reproduce/detection_validation.py --layer system
+PYTHONPATH=. python reproduce/detection_seed_sweep.py                 # Sec. 7.3, 7.4 (cost, catalog)
+PYTHONPATH=. python reproduce/run_prescribe_all.py --kappa 1.0        # Sec. 7.4 (refactoring)
+PYTHONPATH=. python docs/research/sosym/scripts/ci_scenario.py         # Sec. 7.5
+\end{lstlisting}
+The cascade oracle is \code{FailureSimulator}'s composite impact under exhaustive single-component removal at propagation threshold 0.2; the seed sweep repeats each model at five seeds (42, 123, 456, 789, 2024). \code{DEEP\_PIPELINE} is excluded from these runs because of its path enumeration (Lesson~6).
+
+\subsection{Running example end to end}
+\label{sec:app:example}
+
+On mini-ATM, \code{Model} turns 28 declared relations into 26 \code{DEPENDS\_ON} edges through five of the seven rules (Table~\ref{tab:rules}). \code{Analyze} and \code{Diagnose} at the \code{system} layer classify the topic \code{tracks} as the only CRITICAL element and report six findings; at the \code{mw} layer, both brokers as single points of failure (Section~\ref{sec:analyses}). The whole Model--Analyze--Diagnose sequence takes well under a second. Mini-ATM is too small to trigger the refactoring operators usefully, so the Prescribe walkthrough uses the 10-application ATM scenario of the corpus: there, \ExPrescribeCandidates{} candidate edits are compiled and \ExPrescribeAccepted{} are admitted; \ExPrescribeWorse{} of the rejected edits would have \emph{increased} mean simulated impact at one or more propagation thresholds. The CI change of Section~\ref{sec:app:ci} also uses mini-ATM. Each step is documented by one of the walkthrough pages (Figure~\ref{fig:screens}d), which a reader can regenerate with the commands in \code{examples/README.md}.
+
+\subsection{Architecture models of open-source systems}
+\label{sec:app:realworld}
+
+The repository contains five hand-authored architecture models of open-source systems, written from the projects' public documentation: the Autoware.Universe autonomous-driving stack (ROS~2/DDS), the Train-Ticket microservice benchmark, a cloud e-commerce mesh modelled after Google's Online Boutique (with Kafka, RabbitMQ, Redis Pub/Sub and NATS brokers), the EdgeX Foundry IoT platform, and Home Assistant. They are not extracted from code (Section~\ref{sec:lim:threats}). Table~\ref{tab:realworld} shows what the tool reports on each at the \code{system} layer.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\caption{\sag{} on the five open-source architecture models (\code{system} layer; means over five seeds where seed-dependent). \textbf{Comp.}: components; \textbf{Rel.}: declared structural relations; \textbf{Patterns}: distinct catalog patterns that fire; \textbf{Flagged}: components named directly by a component-scoped finding; \textbf{Gate}: diagnosis time (analysis plus detection); \textbf{Exit}: absolute gate verdict.}
+\label{tab:realworld}
+\begin{tabular}{lrrrrrrc}
+\toprule
+\textbf{Model} & \textbf{Comp.} & \textbf{Rel.} & \textbf{Findings} & \textbf{Patterns} & \textbf{Flagged} & \textbf{Gate (s)} & \textbf{Exit} \\
+\midrule
+\RealWorldRows
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two observations matter to a user. First, the tool's output is small enough to read: \RealWorldFlaggedRange{} of components are named directly by a finding, so a reviewer gets a short list rather than a ranking of everything. Second, on these models the catalog agrees with the cascade oracle better than on the synthetic corpus (Cohen's $\kappa$ \KappaTranscribed{} versus \KappaGenerated{}; precision \PrecTranscribed{} versus \PrecGenerated{}), and implicates fewer components (\ImplTranscribed{} versus \ImplGenerated{}). Our interpretation is that the generator produces denser, more uniform dependency structure than hand-designed architectures, so relative fences single out less; synthetic results should be read as a pessimistic case for the catalog. Every model nonetheless receives exit code~2 from the absolute gate, which motivates the delta-aware mode (Section~\ref{sec:app:ci}).
+
+\subsection{Synthetic corpus: cost, agreement and refactoring}
+\label{sec:app:synthetic}
+
+The eight synthetic scenarios span six domains and 29 to 520 components (Table~\ref{tab:scale}); they are generated from committed YAML configurations and regenerate byte-identically.
+
+\paragraph{Cost.} Table~\ref{tab:scale} lists diagnosis time against model size. Time is dominated by the structural analysis (shortest paths and betweenness); the eighteen active detectors together take \DetectorSecondsMax{}~s or less on every model. Models up to about 300 components are diagnosed in a few seconds, which fits a pre-merge check; the 520-component scenario takes about \GateSecondsMax{}~s at the \code{system} layer.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Diagnosis cost by model size (\code{system} layer; mean $\pm$ s.d.\ over five seeds), synthetic and open-source models.}
+\label{tab:scale}
+\begin{tabular}{llrrrr}
+\toprule
+\textbf{Model} & \textbf{Corpus} & \textbf{Comp.} & \textbf{Analyze (s)} & \textbf{Detect (s)} & \textbf{Total (s)} \\
+\midrule
+\ScaleRows
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Agreement with the oracle.} The tool's validation step compares any ranking with the simulated impact. At the \code{app} layer, the RM composite $Q(v)$ reaches a mean Spearman $\rho$ of \RhoQApp{} with the oracle, against \RhoBetwApp{} for betweenness and \RhoDegApp{} for degree centrality; $Q$ is higher than degree in \QBeatsDegApp{} of eight scenarios (Wilcoxon signed-rank $p = \QvsDegP$). At the \code{system} layer, where components of different types are pooled, the figures must be read per type: \RhoQSysApp{} for applications, \RhoQSysNode{} for hosts and \RhoQSysBroker{} for brokers; the RM model is therefore informative for applications and weak for infrastructure components. As Lesson~5 recounts, these figures differ from those our earlier drafts reported on a previous corpus and simulator version. The catalog is a sensitive but imprecise screen on synthetic models: it implicates \ImplGenerated{} of components with recall \RecGenerated{} and precision \PrecGenerated{}, largely because edge-scoped findings (\code{BOTTLENECK\_EDGE}, \code{QOS\_MISMATCH}) implicate both endpoints.
+
+\paragraph{Refactoring.} Table~\ref{tab:prescribe} reports the refactoring engine on the seven synthetic scenarios large enough to trigger it. Of \PrescribeCandidates{} compiled candidate edits, \PrescribeAccepted{} (\PrescribeAcceptedPct{}) pass the acceptance test; the rest are within seed noise or harmful. Survival differs by operator (Table~\ref{tab:operators}). The combined policy reduces mean simulated impact in \PrescribeImprovedScenarios{} of seven scenarios (mean change \PrescribeMeanDeltaI{}) and increases it in \PrescribeRegressedScenarios{}, despite every edit having been admitted individually; the SRI consistency check improves in \PrescribeSRIImproved{} of seven. The full sweep, \PrescribeSimulations{} single-failure simulation sweeps over all candidates, thresholds and seeds, took \PrescribeWallClock{} of wall-clock time on 20 cores using the in-memory repository.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{Verified refactoring on the synthetic scenarios. $\overline{\Delta I}$: mean fractional reduction of simulated impact on remediated components after applying all admitted edits (positive is better); $\Delta$SRI: consistency check; \textbf{Time}: wall-clock for the scenario.}
+\label{tab:prescribe}
+\begin{tabular}{lrrrrrr}
+\toprule
+\textbf{Scenario} & \textbf{Cand.} & \textbf{Adm.} & \textbf{Adm.\ \%} & $\overline{\Delta I}$ & $\Delta$SRI & \textbf{Time} \\
+\midrule
+\PrescribeRows
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Candidate edits and admissions by refactoring operator (all seven scenarios).}
+\label{tab:operators}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Operator} & \textbf{Candidates} & \textbf{Admitted} & \textbf{Survival} \\
+\midrule
+\OperatorRows
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{CI scenario}
+\label{sec:app:ci}
+
+\paragraph{A change to mini-ATM.} Suppose the display starts publishing operator commands on a new topic that the tracker and conflict-detector consume, a plausible feature that closes a feedback loop. The absolute gate blocks both before and after the change (exit~2), so it cannot tell the reviewer anything about the change. The delta-aware gate compares \CIMiniBase{} findings on the merge-base with \CIMiniCand{} on the candidate: it carries the \CIMiniCarried{} pre-existing findings silently, blocks on \CIMiniBlocking{} new ones (the tracker and recorder becoming single points of failure, and a new dependency cycle through tracker, conflict-detector and display), and reports \CIMiniAdvisory{} new findings as warnings (three new bottleneck edges and the new topic). Waiving one blocking finding in the register leaves the other blocking findings in force; the waiver is recorded with its approver and expiry.
+
+\paragraph{Random edits on the corpus.} To see how the two modes behave on routine changes, we applied \CIEdits{} random single-subscription additions to each model under 150 components and gated each change both ways (Table~\ref{tab:ci}); \code{DEEP\_PIPELINE}, whose path enumeration does not terminate on the larger models, was disabled for this experiment as for the others. The absolute gate returns exit~2 for \CIAbsBlockPct{} of changes, because the models already contain HIGH findings; the delta-aware gate blocks \CIDeltaBlockPct{}, warns on \CIDeltaWarnPct{} and passes \CIDeltaPassPct{}. The delta-aware blocks all fall on the open-source models (23 of their 50 changes); on the synthetic models, which carry 39 to 1,993 findings before the change, no change is blocked, plausibly because an added subscription rarely creates a finding of a kind not already present there. A blocking verdict in delta mode names the new findings that caused it, which is the information a reviewer needs.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Gate verdicts for random single-subscription additions (\code{system} layer). Counts of exit codes 2 / 1 / 0.}
+\label{tab:ci}
+\begin{tabular}{llrrcc}
+\toprule
+\textbf{Model} & \textbf{Corpus} & \textbf{Comp.} & \textbf{Edits} & \textbf{Absolute} & \textbf{Delta-aware} \\
+\midrule
+\CIRows
+\bottomrule
+\end{tabular}
+\end{table}

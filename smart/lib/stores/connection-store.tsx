@@ -21,6 +21,7 @@ interface ConnectionContextType extends ConnectionState {
 const ConnectionContext = createContext<ConnectionContextType | undefined>(undefined)
 
 const STORAGE_KEY = 'neo4j-connection-config'
+const PASSWORD_KEY = 'neo4j-connection-password'
 
 export function ConnectionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ConnectionState>({
@@ -51,7 +52,13 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
       try {
-        const config = JSON.parse(saved) as Neo4jConfig
+        const { password: legacyPassword, ...persisted } = JSON.parse(saved) as Neo4jConfig
+        if (legacyPassword !== undefined) {
+          // Entries written before the password moved to sessionStorage: strip it
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted))
+        }
+        const password = sessionStorage.getItem(PASSWORD_KEY) ?? legacyPassword ?? ''
+        const config = { ...persisted, password } as Neo4jConfig
         // Auto-connect on load, but don't block if it fails
         connect(config).catch((error) => {
           console.error('Auto-connect failed:', error)
@@ -122,9 +129,11 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
       // Fetch initial stats
       const stats = await apiClient.getGraphStats()
 
-      // Save config to localStorage (without password for security)
-      const configToSave = { ...config }
+      // Save config to localStorage without the password; the password lives in
+      // sessionStorage so reloads reconnect but it is gone when the tab closes
+      const { password, ...configToSave } = config
       localStorage.setItem(STORAGE_KEY, JSON.stringify(configToSave))
+      sessionStorage.setItem(PASSWORD_KEY, password)
 
       setState({
         status: 'connected',
@@ -156,6 +165,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
   const disconnect = () => {
     localStorage.removeItem(STORAGE_KEY)
+    sessionStorage.removeItem(PASSWORD_KEY)
     apiClient.clearCredentials()  // Clear credentials from API client
     setState({
       status: 'disconnected',

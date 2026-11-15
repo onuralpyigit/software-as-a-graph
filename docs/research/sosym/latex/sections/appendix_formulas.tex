@@ -1,0 +1,65 @@
+\section{RM Model Formulas}
+\label{app:formulas}
+
+This appendix lists the formulas implemented by \code{QualityAnalyzer} and \code{StructuralAnalyzer} (\code{saag/analysis/}) with their shipped default weights (\code{saag/analysis/weight\_calculator.py}). They are reproduced so that the model can be re-implemented; their validation is not the subject of this paper.
+
+\paragraph{Code Quality Penalty.} For Applications and Libraries, four code metrics are min--max normalised within each component type (a zero-variance population maps to 0, so missing data is not penalised as worst-case debt). With $\text{instability\_code}(v) = C_e(v)/(C_a(v)+C_e(v))$:
+\begin{equation}
+\mathrm{CQP}(v) = 0.10\,\text{loc}_{\text{norm}}(v) + 0.35\,\text{complexity}_{\text{norm}}(v) + 0.30\,\text{instability\_code}(v) + 0.25\,\text{lcom}_{\text{norm}}(v).
+\end{equation}
+
+\paragraph{Structural inputs.}
+Let $\varepsilon = 10^{-9}$. The model computes the following structural metrics on $G_l$:
+\begin{itemize}
+    \item $\mathrm{RPR}(v)$: PageRank on the transposed graph $G_l^{\mathsf T}$, rank-normalized over the population. Because \texttt{DEPENDS\_ON} edges point dependent~$\to$~dependency, failure propagates \emph{against} edge direction; reverse PageRank is thus the true cascade-reach estimator.
+    \item $\mathrm{DG}_{\text{in}}(v) = \deg^{-}(v) / (|V_l| - 1)$ and $\mathrm{DG}_{\text{out}}(v) = \deg^{+}(v) / (|V_l| - 1)$.
+    \item \textbf{Multi-Path Coupling Index:} $\mathrm{MPCI}(v) = \sum_{e \in \mathrm{In}(v)} \max(\mathrm{paths}(e) - 1,\, 0) \,/\, (|V_l| - 1)$, where $\mathrm{paths}(e)$ counts distinct pub--sub channels realizing dependency $e$.
+    \item \textbf{Fan-Out Criticality} (Topic vertices): $\mathrm{FOC}(t) = \ln(1 + f(t))\, s(t) \,/\, \max_{t'} [\ln(1 + f(t'))\, s(t')]$, for publication frequency $f(t)$ in Hz and subscriber count $s(t)$.
+    \item \textbf{Directed Articulation Score:} $\mathrm{AP}_{c,\text{directed}}(v) = \max(\mathrm{AP}_c^{\text{out}}(v), \mathrm{AP}_c^{\text{in}}(v))$, where $\mathrm{AP}_{c}^{\text{out}}(v) = 1 - L(G_l \setminus \{v\})/(|V_l|-1)$ and $L(H)$ is the order of the largest connected component of $H$.
+    \item \textbf{Bridge Ratio:} $\mathrm{BR}(v) = |\{e \in \mathrm{bridges}(G_l^{\text{und}}) : v \in e\}| / \deg^{\text{und}}(v)$.
+    \item \textbf{Connectivity Degradation Index:} $\mathrm{CDI}(v) = \min\!\big( [\bar{d}(G_l \setminus \{v\}) - \bar{d}(G_l)] / \bar{d}(G_l),\; 1 \big)$, for $\bar{d}$ the average shortest-path length over reachable pairs.
+    \item $\mathrm{BT}(v)$: betweenness centrality; $\mathrm{CC}(v)$: clustering coefficient; $\mathrm{PC}(v)$: normalized path complexity; $w(v)$: normalized QoS component weight; $w_{\text{out}}(v)$: normalized summed efferent QoS weight.
+\end{itemize}
+
+\paragraph{Quality dimensions.}
+\begin{enumerate}
+    \item \textbf{Fault Tolerance ($FT$).} Estimates cascade reach. For Application, Library, Broker, and Node vertices, an enhanced cascade-depth potential $\mathrm{CDPot}$ discounts vertices that forward more than they absorb, amplified by multi-path coupling:
+    \begin{equation}
+    \begin{aligned}
+    \mathrm{CDPot}_{\text{base}}(v) &= \frac{\mathrm{RPR}(v) + \mathrm{DG}_{\text{in}}(v)}{2}\left(1 - \min\!\left(\frac{\deg^{+}(v)}{\max(\deg^{-}(v),\varepsilon)},\, 1\right)\right) \\
+    \mathrm{CDPot}(v) &= \min\!\big(\mathrm{CDPot}_{\text{base}}(v)\,(1 + \mathrm{MPCI}(v)),\; 1\big) \\
+    FT(v) &= 0.45\,\mathrm{RPR}(v) + 0.30\,\mathrm{DG}_{\text{in}}(v) + 0.25\,\mathrm{CDPot}(v)
+    \end{aligned}
+    \end{equation}
+    For Topic vertices, the blast surface is the subscriber set moderated by publisher redundancy:
+    \begin{equation}
+    FT_{\text{topic}}(t) = 0.50\,\mathrm{FOC}(t) + 0.50\,\mathrm{FOC}(t)\big(1 - \min(w_{\text{in}}(t), 1)\big)
+    \end{equation}
+    \item \textbf{Availability ($A$).} Evaluates single-point-of-failure exposure. The interaction term $\mathrm{QSPOF}(v) = \mathrm{AP}_{c,\text{directed}}(v)\cdot w(v)$ deliberately incorporates QoS weight so structural SPOF risk is not masked at low weight:
+    \begin{equation}
+    \begin{aligned}
+    A(v) = & \; 0.25\,\mathrm{AP}_{c,\text{directed}}(v) + 0.20\,\mathrm{QSPOF}(v) \\
+           & + 0.20\,\mathrm{BR}(v) + 0.25\,\mathrm{CDI}(v) + 0.10\,w(v)
+    \end{aligned}
+    \end{equation}
+    \item \textbf{Maintainability ($M$).} Blends betweenness, efferent QoS out-degree, CQP, coupling risk, and inverse clustering. With $\iota(v) = \deg^{+}(v) / (\deg^{-}(v) + \deg^{+}(v) + \varepsilon)$:
+    \begin{equation}
+    \begin{aligned}
+    \mathrm{CouplingRisk\_enh}(v) &= \min\!\big(1,\; \big[1 - |2\iota(v) - 1|\big]\,(1 + 0.10\,\mathrm{PC}(v))\big) \\
+    M(v) = & \; 0.35\,\mathrm{BT}(v) + 0.30\,w_{\text{out}}(v) + 0.15\,\mathrm{CQP}(v) \\
+           & + 0.12\,\mathrm{CouplingRisk\_enh}(v) + 0.08\,(1-\mathrm{CC}(v))
+    \end{aligned}
+    \end{equation}
+    \item \textbf{Reliability Composite ($R$).} Blends Fault Tolerance and Availability with $\alpha = 0.36$:
+    \begin{equation}
+    R(v) = \alpha \cdot FT(v) + (1-\alpha) \cdot A(v)
+    \end{equation}
+\end{enumerate}
+
+\paragraph{Composite and quality-in-use projection.}
+$Q(v) = 0.80\,R(v) + 0.20\,M(v)$. The diagnostic vector $\mathbf{s}_{\text{RM}}(v) = [R(v), M(v)]^T$ projects into ISO/IEC 25019 Quality-in-Use stakeholder harm scores $[H_{\text{Ben}}, H_{\text{Risk}}, H_{\text{Acc}}]^T$ via transformation matrix $\mathbf{M}_{\text{RM} \to \text{QiU}}$:
+\begin{equation}
+\mathbf{h}_{\text{QiU}}(v) = \mathbf{M}_{\text{RM} \to \text{QiU}} \cdot \mathbf{s}_{\text{RM}}(v) = \begin{bmatrix} 0.75 & 0.25 \\ 0.80 & 0.20 \\ 0.60 & 0.40 \end{bmatrix} \begin{bmatrix} R(v) \\ M(v) \end{bmatrix}
+\end{equation}
+$\mathbf{M}_{\text{RM} \to \text{QiU}}$ is row-stochastic, providing a declared re-presentation of RM in stakeholder-facing terms for routing findings to responsible engineering roles. Components are classified into five levels (\texttt{CRITICAL}, \texttt{HIGH}, \texttt{MEDIUM}, \texttt{LOW}, \texttt{MINIMAL}) by box-plot fences over the layer's $Q$ distribution: \texttt{CRITICAL} above $Q_3 + k\,\mathrm{IQR}$ with the shipped $k = 0.75$, \texttt{HIGH} above $Q_3$, \texttt{MEDIUM} above the median, \texttt{LOW} above $Q_1$; below twelve components fixed percentiles are used instead.
+

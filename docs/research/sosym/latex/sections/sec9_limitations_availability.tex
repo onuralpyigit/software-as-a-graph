@@ -1,0 +1,33 @@
+\section{Limitations, Threats to Validity, and Availability}
+\label{sec:limitations}
+
+\subsection{Limitations of the tool}
+\label{sec:lim:tool}
+
+\begin{itemize}\tightlist
+  \item \emph{Input.} \sag{} analyses a declared model. Its results are only as good as that model, and the tool does not yet extract models from ROS~2 launch files, DDS XML profiles or Kafka configurations; the CodeQL extractor of \citet{caliskan2026uyms} is a separate front end.
+  \item \emph{Structure, not behaviour.} The RM model and the catalog are structural. Load, timing and queueing enter only through QoS-derived weights and the optional message-flow simulator; \code{BROKER\_OVERLOAD} is relative to peer brokers, not to capacity.
+  \item \emph{Known false positives.} At the \code{system} layer every topic is reported as \code{ISOLATED}, because topics are not endpoints of derived dependencies (Section~\ref{sec:analyses:catalog}); edge-scoped findings implicate both endpoints, which makes the catalog sensitive but imprecise (Section~\ref{sec:app:synthetic}).
+  \item \emph{Refactoring.} The three operators are fixed and greedy; the engine admits edits individually and does not search for the best subset, so the combined policy can regress (Lesson~4).
+  \item \emph{Front ends.} The step CLIs require Neo4j (the Python API and the reproduction scripts do not); the web application offers a 2D graph explorer only; the REST service does not yet expose the diagnose, prescribe and deploy steps.
+  \item \emph{Packaging.} The prescribe CLI imports a helper from the reproduction package, which is not part of the installable distribution; it works from a source checkout.
+\end{itemize}
+
+\subsection{Threats to validity of the application study}
+\label{sec:lim:threats}
+
+\emph{Construct validity.} Agreement is measured against \sag{}'s own failure simulator. The simulator operates on structural edges only and shares no code path with the scores (an invariant enforced by test), but it is still a model of failure propagation, not observed failures. The SRI used by the whole-policy check is computed from RM dimensions and is therefore reported only as a consistency check.
+\emph{External validity.} The synthetic scenarios come from our generator, and the five open-source systems are hand-authored architecture models \emph{modelled after} the projects' documentation, not extracted from their code; they are not production deployments. We have no user study; the interface design rationale in Section~\ref{sec:usage} is a design argument, not measured usability.
+\emph{Conclusion validity.} With eight scenarios, per-scenario statistics have wide uncertainty, and we report descriptive results and one paired test only.
+\emph{Reproducibility.} Timings were measured on one 20-core workstation and depend on hardware.
+
+\subsection{Availability}
+\label{sec:availability}
+
+\sag{} is open source under the GNU General Public License v3 (or later).
+\begin{itemize}\tightlist
+  \item \textbf{Source code:} \url{https://github.com/onuralpyigit/software-as-a-graph} \citep{sag-software}, including the core package, CLI, REST service, web application, walkthroughs, documentation (one guide per pipeline step and a full CLI reference) and the test suite.
+  \item \textbf{Archived release:} the version described in this paper is archived on Zenodo, DOI \texttt{[TODO: mint DOI for the tool release]}.
+  \item \textbf{Installation:} \code{pip install -e .} (Python $\ge$ 3.10) for the package and CLI; \code{docker compose up} for Neo4j, the REST service and the web application in one container.
+  \item \textbf{Reproduction:} the scenario corpus, generator configurations and the scripts that produce every number in Section~\ref{sec:application} are in the repository (\code{data/scenarios/}, \code{reproduce/}); Section~\ref{sec:app:protocol} lists the commands.
+\end{itemize}

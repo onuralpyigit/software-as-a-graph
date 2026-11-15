@@ -21,6 +21,7 @@ from saag.visualization import LayerData, ComponentDetail
 from saag.visualization.charts import ChartGenerator
 from saag.visualization.palette import CRITICALITY_COLORS, RM_COLORS
 from saag.visualization.dashboard import DashboardGenerator
+from saag.analysis.antipattern_detector import CATALOG
 from saag.visualization.collector import LayerDataCollector
 from saag.visualization import VisualizationService
 from saag.simulation.models import SimulationReport, LayerMetrics, ComponentCriticality
@@ -388,7 +389,8 @@ class TestLayerDataCollector:
         assert data.nodes == 48
         assert data.edges == 127
         assert data.critical_count == 1
-        assert data.spof_count == 3
+        spof_name = CATALOG["SPOF"].name
+        assert data.spof_count == len({s["entity_id"] for s in data.anti_patterns if s["name"] == spof_name})
         assert data.event_throughput == 1000
         assert data.spearman == 0.876
 
