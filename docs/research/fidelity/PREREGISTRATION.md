@@ -139,7 +139,15 @@ I\* and I_comp measure other constructs and are not arms. Their rank agreement w
 
 A negative HL with a CI excluding 0 is reported as **Worse**, using a two-sided p-value.
 
-**Inconclusive is a likely outcome, stated in advance.** On the pilot's `integration_hub_migration_system`, the mean leave-one-repetition-out ρ of I_obs on itself was only 0.56. Three publishers stood clear of the others, and the other 17 had I_obs of about 0.006–0.035, ordered differently from one repetition to the next. Scenarios shaped like this one limit how far either model's ρ_s can rise and how small d_s can be measured. An Inconclusive result is reported as the table states it, and is not evidence that the two models are equal. Repetitions are not added after any comparison has been seen.
+**Inconclusive remains possible, stated in advance.** On the pilot's `integration_hub_migration_system` (§8), the mean leave-one-repetition-out ρ of I_obs on itself was 0.89 (SD 0.032). Three publishers stand clear of the others. The other 17 lie between 0.018 and 0.038, yet are ordered consistently across repetitions (ρ 0.76–0.86 within that group alone). On this scenario, observed noise leaves room for ρ_s up to about 0.89 and resolves differences near δ = 0.05.
+
+An earlier pilot run on the same scenario gave 0.56, with the 17 low-impact publishers reordered from one repetition to the next. Its traces were not archived and the difference is unexplained. So the ceiling is measured again on every scenario in the study (C_s, §7), not assumed from the pilot.
+
+Inconclusive is still possible for two reasons:
+- other scenarios may be noisier than this pilot;
+- with n = 9 included scenarios (§8), only a few losses are tolerated (§9).
+
+An Inconclusive result is reported as the table states it, and is not evidence that the two models are equal. Repetitions are not added after any comparison has been seen.
 
 ## 7. Secondary and descriptive analyses
 
@@ -202,7 +210,7 @@ The second ramp was refined between 5× and 10× because the default grid left B
 **Noise** (`fidelity_study.py noise`, κ = 1, 20 publishing Applications × 3 repetitions, 60 of 60 runs valid): leave-one-repetition-out ρ = 0.854, 0.914, 0.901.
 
 - **SD = 0.032, so δ = max(0.05, 0.032) = 0.05.**
-- **Noise ceiling on this scenario: 0.89.** This contradicts the 0.56 cited in §6 and §13 decision 3. The I_obs shape matches: three publishers stand clear, and the other 17 lie between 0.018 and 0.038. But this run orders those 17 consistently (ρ 0.76–0.86 within that group alone). The earlier pilot's traces are not archived, and the one later testbed change (`edecd389`) states that crashes behave as before, so the difference is unexplained. §6 and §13 must be revised before freezing.
+- **Noise ceiling on this scenario: 0.89.** An earlier pilot gave 0.56. The I_obs shape matches: three publishers stand clear, and the other 17 lie between 0.018 and 0.038. But this run orders those 17 consistently (ρ 0.76–0.86 within that group alone). The earlier pilot's traces are not archived, and the one later testbed change (`edecd389`) states that crashes behave as before, so the difference is unexplained. §6 and §13 decision 3 use this figure and record the earlier one.
 
 **Inclusion** (`fidelity_study.py capacity --capacity 2756`, one 60 / κ s fault-free run each, gate as in §2):
 
@@ -278,4 +286,4 @@ Settled by the study's author before freezing:
 
 1. **Scaling floor: κ ≥ 0.2.** It keeps enough samples per window. At the pilot's capacity limit it is expected to exclude `financial_trading`, subject to the §2 capacity check.
 2. **Primary arm: S2, the full current model.** H1 tests the model as a whole, so a win cannot be credited to one of its parts. S1 versus S0 is reported descriptively, to show how much of the gap comes from the DDS rule alone.
-3. **Repetitions: 3 per target per condition.** The noise pilot showed that I_obs orders low-impact publishers poorly between repetitions. More repetitions were rejected because they multiply an already long sweep and would not separate that group reliably. §6 records Inconclusive as a likely outcome instead.
+3. **Repetitions: 3 per target per condition.** The recorded noise pilot (§8) gave a ceiling of 0.89, with low-impact publishers ordered consistently across 3 repetitions. Each extra repetition would add about 20 hours of machine time (§8) without a matching gain in rank stability. This decision was first taken on an earlier pilot that gave 0.56, for a different reason: more repetitions would not separate the low-impact group. The decision is unchanged and its reason is replaced; §6 records both figures.
