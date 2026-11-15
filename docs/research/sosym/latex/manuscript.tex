@@ -4,15 +4,13 @@
 % ---------------------------------------------------------------------------
 % SUBMISSION FORMAT NOTE
 % ---------------------------------------------------------------------------
-% SoSyM is published by Springer. The journal accepts submissions formatted
-% with the Springer Nature template (\documentclass{sn-jnl}) or traditional
-% Springer journal class (\documentclass{svjour3}).
+% SoSyM is published by Springer and accepts the Springer Nature template
+% (\documentclass{sn-jnl}). The article class below keeps local builds free of
+% external class bundles; README.md lists the three edits needed to switch.
 %
-% The article class below is configured for local compilation and editing
-% without requiring external non-standard class bundles. Everything else
-% (author-year citations, alphabetised bibliography, structured abstract,
-% keywords, formal definitions, and sectioning) is aligned with the SoSyM
-% Guide for Authors.
+% Every empirical number in Section 7 is a macro defined in numbers.tex, which
+% make_numbers.py generates from the provenance-stamped artifacts under
+% results/sosym/. Do not type a result into a section file by hand.
 % ---------------------------------------------------------------------------
 
 \documentclass[11pt,a4paper]{article}
@@ -22,10 +20,9 @@
 \usepackage{lmodern}
 \usepackage{geometry}
 \geometry{margin=1in}
-\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
 \usepackage{graphicx}
 \usepackage{booktabs}
-\usepackage{longtable}
 \usepackage{array}
 \usepackage{lineno}
 \usepackage{xcolor}
@@ -33,8 +30,9 @@
 \usepackage{microtype}
 \usepackage[round,authoryear]{natbib}
 \usepackage{tabularx}
+\usepackage{listings}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning,fit,backgrounds}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,shapes.multipart,shapes.geometric,shapes.misc}
 
 \hypersetup{
     colorlinks=true,
@@ -43,13 +41,34 @@
     urlcolor=blue!70!black
 }
 
-\providecommand{\tightlist}{%
-  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    columns=fullflexible,
+    keepspaces=true,
+    frame=single,
+    framerule=0.3pt,
+    breaklines=true,
+    xleftmargin=2pt,
+    xrightmargin=2pt
+}
+
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\newtheorem{proposition}{Proposition}
+\newcommand{\sag}{SaG}
+\newcommand{\code}[1]{\texttt{#1}}
+
+% Screenshot helper: builds without the PNG (draws a framed placeholder) so the
+% manuscript compiles before figures/ is populated.
+\newcommand{\screenshot}[2]{%
+  \IfFileExists{figures/#1}{\includegraphics[width=#2]{figures/#1}}%
+  {\fbox{\parbox[c][4cm][c]{#2}{\centering\small missing: \detokenize{figures/#1}}}}}
+
+\input{numbers.tex}
 
 % ---------------------------------------------------------------------------
-% Title page. SoSyM operates SINGLE-BLIND peer review for tool papers.
+% Title page. Single-blind review.
 % ---------------------------------------------------------------------------
-\title{\Large\bfseries Software-as-a-Graph: A Model-Driven Framework for Graph-Based Architectural Modeling, Diagnostic Analysis, and Counterfactual Refactoring of Publish--Subscribe Systems}
+\title{\Large\bfseries Software-as-a-Graph: An Open-Source Tool for Multi-Layer Graph Modeling, Quality Diagnosis, and Simulation-Verified Refactoring of Publish--Subscribe Architectures}
 
 \author{
   Ibrahim Onuralp Yigit\thanks{Corresponding author. E-mail: \texttt{[CORRESPONDING-AUTHOR-EMAIL]}. ORCID: \texttt{[0000-0000-0000-0000]}.}
@@ -60,7 +79,7 @@
   \normalsize [STREET ADDRESS], [CITY], [POSTAL CODE], [COUNTRY]
 }
 
-\date{\today}
+\date{}
 
 \begin{document}
 
@@ -70,24 +89,27 @@
 \input{sections/abstract.tex}
 \end{abstract}
 
-\textbf{Keywords:} Model-driven engineering; Software and systems modeling; Architectural models; Graph metamodeling; Anti-pattern detection; Counterfactual refactoring; Publish--subscribe middleware; Simulation-based verification; Tool paper.
+\textbf{Keywords:} Architecture modeling; Graph metamodel; Publish--subscribe middleware; Anti-pattern detection; Model refactoring; Simulation-based verification; Quality gates; Tool paper.
 
 \linenumbers
 
 \input{sections/sec1_introduction.tex}
 \input{sections/sec2_related_work.tex}
-\input{sections/sec3_graph_metamodel.tex}
-\input{sections/sec4_antipattern_catalog.tex}
+\input{sections/sec3_modeling_language.tex}
+\input{sections/sec4_analyses.tex}
 \input{sections/sec5_tool_architecture.tex}
-\input{sections/sec6_tool_usability.tex}
-\input{sections/sec7_empirical_application.tex}
+\input{sections/sec6_tool_usage.tex}
+\input{sections/sec7_application.tex}
 \input{sections/sec8_community_and_lessons_learnt.tex}
-\input{sections/sec9_discussion_availability.tex}
+\input{sections/sec9_limitations_availability.tex}
 \input{sections/sec10_conclusion.tex}
 
 \input{sections/declarations.tex}
 
 \bibliographystyle{plainnat}
 \bibliography{refs}
+
+\appendix
+\input{sections/appendix_formulas.tex}
 
 \end{document}

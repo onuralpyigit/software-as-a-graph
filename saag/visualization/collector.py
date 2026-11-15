@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 
 from .models import LayerData, ComponentDetail
-from saag.analysis.antipattern_detector import AntiPatternDetector
+from saag.analysis.antipattern_detector import CATALOG, AntiPatternDetector
 from saag.core.layers import AnalysisLayer, LAYER_DEFINITIONS
 
 
@@ -353,30 +353,35 @@ class LayerDataCollector:
             data.problems_count = len(smells)
             
             # Map smells back to components in details
+            # A finding is a JSON-file dict (pattern_id, components) or a
+            # DetectedProblem dict (display name, entity_id); normalise both to a
+            # catalog ID and the component ids it names. An Edge finding's id is
+            # "u->v" (or "u<->v" for a chatty pair) and names both endpoints.
+            id_by_name = {spec.name: pid for pid, spec in CATALOG.items()}
             smell_map: Dict[str, List[str]] = {}
             for s in smells:
-                # s can be a dict (from JSON) or DetectedSmell object (from detector)
-                pattern_id = (
-                    s.get("pattern_id") or s.get("name")
-                    if isinstance(s, dict)
-                    else (getattr(s, "pattern_id", None) or getattr(s, "name", "UNKNOWN"))
-                )
-                comp_ids = (
-                    s.get("component_ids", []) or s.get("components", [])
-                    if isinstance(s, dict)
-                    else (getattr(s, "component_ids", []) or getattr(s, "components", []))
-                )
-                
+                get = s.get if isinstance(s, dict) else (lambda k, d=None, s=s: getattr(s, k, d))
+                pattern_id = get("pattern_id") or id_by_name.get(get("name")) or get("name") or "UNKNOWN"
+                entity_id = get("entity_id")
+                if entity_id and get("entity_type") == "Edge":
+                    entity_ids = entity_id.split("<->" if "<->" in entity_id else "->")
+                else:
+                    entity_ids = [entity_id] if entity_id else []
+                comp_ids = get("component_ids") or get("components") or entity_ids
                 for c_id in comp_ids:
-                    if c_id not in smell_map:
-                        smell_map[c_id] = []
-                    if pattern_id and pattern_id not in smell_map[c_id]:
+                    smell_map.setdefault(c_id, [])
+                    if pattern_id not in smell_map[c_id]:
                         smell_map[c_id].append(pattern_id)
-            
+
+            # The SPOF card and badges report the catalog's SPOF findings, which
+            # also cover directed articulation points and the Availability fence;
+            # undirected articulation points alone disagreed with the findings list.
+            spof_ids = {c_id for c_id, patterns in smell_map.items() if "SPOF" in patterns}
+            data.spof_count = len(spof_ids)
             for detail in data.component_details:
-                if detail.id in smell_map:
-                    detail.anti_patterns = list(dict.fromkeys(smell_map[detail.id]))
-                    
+                detail.anti_patterns = smell_map.get(detail.id, [])
+                detail.spof = detail.id in spof_ids
+
         except Exception as e:
             self.logger.error(f"Anti-pattern detection failed for layer {layer}: {e}")
             self.logger.exception("Anti-pattern detection failure details")

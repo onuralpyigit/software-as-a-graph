@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Software-as-a-Graph (SaG)"
+abstract: "Open-source tool for multi-layer graph modeling, quality diagnosis, failure simulation and simulation-verified refactoring of publish-subscribe architectures."
+type: software
+authors:
+  - family-names: "Yiğit"
+    given-names: "İbrahim Onuralp"
+  - family-names: "Buzluca"
+    given-names: "Feza"
+license: GPL-3.0-or-later
+version: 1.0.0
+repository-code: "https://github.com/onuralpyigit/software-as-a-graph"
+keywords:
+  - architecture modeling
+  - publish-subscribe
+  - graph metamodel
+  - anti-pattern detection
+  - model refactoring
