@@ -138,11 +138,16 @@ def test_significance_decisions():
     assert instrument_ok(0.02) and not instrument_ok(0.3) and not instrument_ok(None)
 
 
-def test_study_runner_refuses_until_frozen():
-    from reproduce.fidelity_study import require_frozen
+def test_study_runner_refuses_until_frozen(tmp_path, monkeypatch):
+    import reproduce.fidelity_study as fs
 
+    prereg = tmp_path / "PREREGISTRATION.md"
+    monkeypatch.setattr(fs, "PREREG", prereg)
+    prereg.write_text("# Pre-registration\n\n**Status: DRAFT, not yet frozen.**\n")
     with pytest.raises(SystemExit):
-        require_frozen()
+        fs.require_frozen()
+    prereg.write_text("# Pre-registration\n\n**Status: FROZEN 2026-11-16 abc1234.**\n")
+    fs.require_frozen()
 
 
 def test_analysis_refuses_a_partial_study(tmp_path):

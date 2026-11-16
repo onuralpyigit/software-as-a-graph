@@ -1,6 +1,6 @@
 # Pre-registration: Do the Current Simulators Match Observed Behaviour Better?
 
-**Status: DRAFT, not yet frozen.**
+**Status: FROZEN 2026-11-16 9f84aad9.**
 
 - **What freezing means.** The file is registered when it is committed with this line changed to `FROZEN <date> <commit>`. That commit must come before any study number exists.
 - **The only runs allowed before freezing** are the pilot runs in §8. They measure capacity and noise only, never agreement between a simulator and the testbed.
@@ -192,9 +192,9 @@ An Inconclusive result is reported as the table states it, and is not evidence t
 
 **Recording.** B_h, δ, the included scenarios and their κ are written into this section in the freezing commit.
 
-### Pilot results (2026-11-16, not yet frozen)
+### Pilot results (2026-11-16)
 
-Recorded before freezing. The freezing commit confirms them or replaces them, with a reason. No run below was compared with a simulator. Artifacts are in `results/fidelity_study/` (`pilot/`, `capacity.json`).
+Recorded before freezing and confirmed unchanged by the freezing commit. No run below was compared with a simulator. Artifacts are in `results/fidelity_study/` (`pilot/`, `capacity.json`).
 
 **Testbed version.** These runs use per-app replica heartbeats (`runtime.replica_partition`). A first round on 2026-11-15 used one shared heartbeat partition. That round's every replicated instance heard every other app's heartbeats, N² × 5 deliveries per second that `study.host_loads` does not count. On `enterprise` (190 replica instances) standbys lost their peers' heartbeats and published beside them all run. The first round is archived in `results/fidelity_study/pre-heartbeat-fix/`; its figures are listed at the end of this subsection.
 

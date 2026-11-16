@@ -70,7 +70,7 @@ Both engines write the same trace format, so [`fidelity.py`](../../../saag/valid
 3. **No fixed success thresholds.** There is no "ρ > 0.8" target. If fewer than 6 scenarios pass the gate, report descriptively. Inconclusive is stated in advance as a likely outcome and is not evidence of equivalence.
 4. **Claim scope.** The strongest allowed conclusion is about *timing and transport fidelity on an emulated DDS system under declared behaviour*. Not "physical reality", not production, not label correctness.
 
-**Status.** The pre-registration is **DRAFT, not frozen**. The tooling is built and the Docker path has been exercised on `tiny_system`. `sweep` and `simulate` refuse to run until the file is frozen. Until then, papers can describe the testbed and the protocol but cannot cite a Link 2 result.
+**Status.** The pre-registration is **frozen** (2026-11-16). Its §8 records the pilot: B_h = 3,033 msg/s, δ = 0.05, and 9 included scenarios. The sweep and the simulator arms may now run. Until they finish and the analysis has run, papers can describe the testbed and the protocol but cannot cite a Link 2 result.
 
 ---
 

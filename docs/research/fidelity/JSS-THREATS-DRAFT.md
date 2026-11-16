@@ -43,7 +43,7 @@ On the five system models alone ($n = 5$, below the pre-registered minimum of si
 ## Why it is worded this way
 
 - **No pass thresholds.** Version B reports ρ only next to the noise ceiling and the Eq. 7 reference, and takes the verdict from the pre-registered decision table.
-- **"Pre-registered" appears only in Version B.** The pre-registration is still a draft, so Version A does not claim it.
+- **"Pre-registered" appears only in Version B.** Version A is for the period before results exist, and claims no study result.
 - **"All labels are simulated" stays.** It remains true in both versions.
 
 ## Check before applying
