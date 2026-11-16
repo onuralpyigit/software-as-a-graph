@@ -50,6 +50,11 @@ DEFAULT_QUEUE = 100
 _BURN_BLOCK = bytes(16384)
 
 
+def replica_partition(app: str) -> str:
+    """The heartbeat partition shared by the instances of one replicated app."""
+    return f"replica.{app}"
+
+
 def burn_cpu(seconds: float) -> None:
     """Spend *seconds* of this thread's CPU time, releasing the GIL as it goes.
 
@@ -229,8 +234,12 @@ class AppRuntime:
             transport.subscribe(t, topic_partitions(self.topics[t])[1], self.topics[t],
                                 lambda s, t=t: self._on_sample(t, s), owner=owner)
         if len(self.replicas) > 1:
-            self._hb = transport.writer(HEARTBEAT_TOPIC, DIRECT, {"reliability": "BEST_EFFORT"})
-            transport.subscribe(HEARTBEAT_TOPIC, DIRECT, {"reliability": "BEST_EFFORT"},
+            # One partition per app: an instance hears only its own replicas. On the
+            # shared DIRECT partition every replica heard every other app's heartbeats
+            # (N^2 deliveries), lost its peer's under that load and took over beside it.
+            hb = replica_partition(app)
+            self._hb = transport.writer(HEARTBEAT_TOPIC, hb, {"reliability": "BEST_EFFORT"})
+            transport.subscribe(HEARTBEAT_TOPIC, hb, {"reliability": "BEST_EFFORT"},
                                 self._on_heartbeat)
 
     @property

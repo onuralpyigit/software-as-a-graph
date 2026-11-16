@@ -1,6 +1,6 @@
 # Pre-registration: Do the Current Simulators Match Observed Behaviour Better?
 
-**Status: DRAFT, not yet frozen.**
+**Status: FROZEN 2026-11-16 9f84aad9.**
 
 - **What freezing means.** The file is registered when it is committed with this line changed to `FROZEN <date> <commit>`. That commit must come before any study number exists.
 - **The only runs allowed before freezing** are the pilot runs in §8. They measure capacity and noise only, never agreement between a simulator and the testbed.
@@ -139,7 +139,15 @@ I\* and I_comp measure other constructs and are not arms. Their rank agreement w
 
 A negative HL with a CI excluding 0 is reported as **Worse**, using a two-sided p-value.
 
-**Inconclusive is a likely outcome, stated in advance.** On the pilot's `integration_hub_migration_system`, the mean leave-one-repetition-out ρ of I_obs on itself was only 0.56. Three publishers stood clear of the others, and the other 17 had I_obs of about 0.006–0.035, ordered differently from one repetition to the next. Scenarios shaped like this one limit how far either model's ρ_s can rise and how small d_s can be measured. An Inconclusive result is reported as the table states it, and is not evidence that the two models are equal. Repetitions are not added after any comparison has been seen.
+**Inconclusive remains possible, stated in advance.** On the pilot's `integration_hub_migration_system` (§8), the mean leave-one-repetition-out ρ of I_obs on itself was 0.90 (SD 0.007). Three publishers stand clear of the others. The other 17 lie between 0.014 and 0.038, yet are ordered consistently across repetitions (ρ 0.84–0.86 within that group alone). On this scenario, observed noise leaves room for ρ_s up to about 0.90 and resolves differences near δ = 0.05. A first round on the testbed before its replica-heartbeat fix gave 0.89 (§8).
+
+An earlier pilot run on the same scenario gave 0.56, with the 17 low-impact publishers reordered from one repetition to the next. Its traces were not archived and the difference is unexplained. So the ceiling is measured again on every scenario in the study (C_s, §7), not assumed from the pilot.
+
+Inconclusive is still possible for two reasons:
+- other scenarios may be noisier than this pilot;
+- with n = 9 included scenarios (§8), only a few losses are tolerated (§9).
+
+An Inconclusive result is reported as the table states it, and is not evidence that the two models are equal. Repetitions are not added after any comparison has been seen.
 
 ## 7. Secondary and descriptive analyses
 
@@ -183,6 +191,54 @@ A negative HL with a CI excluding 0 is reported as **Worse**, using a two-sided 
 - **Machine time:** the projected total, using the §4 rule.
 
 **Recording.** B_h, δ, the included scenarios and their κ are written into this section in the freezing commit.
+
+### Pilot results (2026-11-16)
+
+Recorded before freezing and confirmed unchanged by the freezing commit. No run below was compared with a simulator. Artifacts are in `results/fidelity_study/` (`pilot/`, `capacity.json`).
+
+**Testbed version.** These runs use per-app replica heartbeats (`runtime.replica_partition`). A first round on 2026-11-15 used one shared heartbeat partition. That round's every replicated instance heard every other app's heartbeats, N² × 5 deliveries per second that `study.host_loads` does not count. On `enterprise` (190 replica instances) standbys lost their peers' heartbeats and published beside them all run. The first round is archived in `results/fidelity_study/pre-heartbeat-fix/`; its figures are listed at the end of this subsection.
+
+**Load ramps** (`fidelity_study.py ramp`, fault-free, 40 s per step, stopping at the first failing step):
+
+| Pilot | Multipliers | Highest passing load, msg/s | First failing load, msg/s | Cause |
+|---|---|---:|---:|---|
+| `tiny_system` | 1, 2, 5, 10, 20, 50, 100, 150 | 3,033 (CPU p95 74%) | 4,550 | CPU p95 87% |
+| `integration_hub_migration_system` | 1, 2, 5–10, 12 | 3,445 (CPU p95 76%) | 4,134 | CPU p95 85% |
+
+Rate error was 0 at every step; CPU was the binding limit in both pilots. A finer `tiny_system` grid between 3,033 and 4,550 would change no candidate's κ.
+
+- **B_h = 3,033 msg/s.**
+- **CPU noise.** `tiny_system` at 100× drew CPU p95 57% in the first round and 74% here, though the heartbeat change barely touches it (8 replica instances). The CPU gate therefore carries run-to-run noise of about ±15 points.
+
+**Noise** (`fidelity_study.py noise`, κ = 1, 20 publishing Applications × 3 repetitions, 60 of 60 runs valid, about 71 s per run): leave-one-repetition-out ρ = 0.899, 0.902, 0.913.
+
+- **SD = 0.007, so δ = max(0.05, 0.007) = 0.05.**
+- **Noise ceiling on this scenario: 0.90.** Three publishers stand clear of the others, and the other 17 lie between 0.014 and 0.038, ordered consistently (ρ 0.84–0.86 within that group alone). An earlier pilot gave 0.56; its traces are not archived and the difference is unexplained. §6 and §13 decision 3 use this figure and record the earlier one.
+
+**Inclusion** (`fidelity_study.py capacity --capacity 3033`, one 60 / κ s fault-free run each, gate as in §2):
+
+| Scenario | κ | Median rate error | Peak container CPU p95 | Included |
+|---|---:|---:|---:|:---:|
+| healthcare | 1 | 0 | 8% | yes |
+| iot_smart_city | 1 | 0 | 11% | yes |
+| microservices | 1 | 0 | 25% | yes |
+| hub_and_spoke | 1 | 0 | 36% | yes |
+| industrial_scada | 1 | 0 | 38% | yes |
+| telecom_ran | 1 | 0 | 43% | yes |
+| logistics_fleet | 1 | 0 | 43% | yes |
+| realtime_gaming | 1 | 0 | 44% | yes |
+| atm | 1 | 0 | 69% | yes |
+| av | 1 | 0 | 108% | **no**: CPU gate |
+| enterprise | 1 | 0.10 (max 0.66) | 67% | **no**: rate gate |
+| financial_trading | 0.165 | — | — | **no**: κ < 0.2 |
+
+- **n = 9**, all at κ = 1, so latency results count for every included scenario (§2). No included scenario had a replica takeover before the end of its run, and in each one every publishing host's data reached at least one other host.
+- `av` stays below B_h in msg/s yet saturates one container (N1, 92.6% in the first round): per-message CPU cost differs across scenarios, so B_h does not predict the CPU gate everywhere. Running `av` at a lower κ is not in §2 and would need an amendment before freezing.
+- `enterprise` fails for two reasons. (1) Split-brain: 30 replicated apps publish from both instances. Takeovers now occur only in the first 7 s (17, against 247 spread over the whole run in the first round). (2) Discovery: 6 of 39 publishing hosts (N0, N2, N7, N29, N31, N32) exchanged no data with any other host for the whole run, and N5's data reached no one; every replicated app whose primary is on N0 is among the 30. The start barrier waits until every host has created its DDS entities, not until they have matched. The first round had one such host (N5). No other scenario has any. Making `enterprise` runnable needs a match-aware start barrier and is not attempted before freezing.
+
+**First round (shared heartbeat partition, 2026-11-15).** B_h = 2,756 (`integration_hub_migration_system` passed at 2,756, failed at 3,100; `tiny_system` passed at 4,550). Noise ceiling 0.89, SD 0.032, δ = 0.05. The same 9 scenarios were included, with peak CPU p95 up to 75% (telecom_ran); `av` failed at 92.6% CPU and `enterprise` at median rate error 0.345 with split-brain in 70 apps.
+
+**Machine time.** 508 targets (the §4 rule) × 3 repetitions × 2 conditions, plus 11 fault-free runs per scenario, is 3,147 runs. At the noise pilot's measured 71 s per run that is about 62 hours, or about 70 hours at the §4 estimate of 80 s, before §10 reruns. This is under the 14-day limit, so the application cap stays at 30.
 
 ## 9. Attainable-p floor (exact Wilcoxon signed-rank)
 
@@ -235,4 +291,4 @@ Settled by the study's author before freezing:
 
 1. **Scaling floor: κ ≥ 0.2.** It keeps enough samples per window. At the pilot's capacity limit it is expected to exclude `financial_trading`, subject to the §2 capacity check.
 2. **Primary arm: S2, the full current model.** H1 tests the model as a whole, so a win cannot be credited to one of its parts. S1 versus S0 is reported descriptively, to show how much of the gap comes from the DDS rule alone.
-3. **Repetitions: 3 per target per condition.** The noise pilot showed that I_obs orders low-impact publishers poorly between repetitions. More repetitions were rejected because they multiply an already long sweep and would not separate that group reliably. §6 records Inconclusive as a likely outcome instead.
+3. **Repetitions: 3 per target per condition.** The recorded noise pilot (§8) gave a ceiling of 0.90, with low-impact publishers ordered consistently across 3 repetitions. Each extra repetition would add about 20 hours of machine time (§8) without a matching gain in rank stability. This decision was first taken on an earlier pilot that gave 0.56, for a different reason: more repetitions would not separate the low-impact group. The decision is unchanged and its reason is replaced; §6 records both figures.
