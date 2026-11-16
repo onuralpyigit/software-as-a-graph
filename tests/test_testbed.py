@@ -342,6 +342,44 @@ def test_replicated_app_survives_its_host_via_standby(tmp_path):
     assert takeovers and all(3.0 <= e["t"] < 5.0 for e in takeovers)
 
 
+def test_replica_heartbeats_stay_within_their_app(tmp_path):
+    """Each heartbeat reaches only its own app's replicas, not every replicated app.
+
+    On one shared partition the deliveries grew as N^2; on enterprise (190
+    replicas) standbys lost their peer's heartbeats and published beside it.
+    """
+    from saag.testbed.runtime import HEARTBEAT_TOPIC, AppRuntime, LocalTransport, TelemetrySink
+
+    class Recording(LocalTransport):
+        """Tags each heartbeat subscription with the instance being constructed."""
+        current = None
+        received = {}
+
+        def subscribe(self, topic, partition, qos, callback, owner=None):
+            if topic == HEARTBEAT_TOPIC:
+                got = self.received.setdefault(self.current, [])
+                callback = lambda s, got=got: got.append(s["publisher"])  # noqa: E731
+            super().subscribe(topic, partition, qos, callback, owner)
+
+    path = scenario(tmp_path, brokers=False)
+    data = json.loads(path.read_text())
+    data["relationships"]["runs_on"] += [{"from": "P", "to": "H1"}, {"from": "S", "to": "H2"}]
+    path.write_text(json.dumps(data))
+    plan = build_deployment(path)
+    transport = Recording()
+    runtimes = []
+    for app in ("S", "P"):
+        for host in plan["apps"][app]["hosts"]:
+            transport.current = f"{app}@{host}"
+            runtimes.append(AppRuntime(app, plan, transport, TelemetrySink(), host=host))
+    for rt in runtimes:
+        rt._hb({"msg_id": 0, "publisher": rt.instance, "created": 0.0, "size": 0})
+    assert len(transport.received) == 4
+    for instance, got in transport.received.items():
+        app = instance.split("@")[0]
+        assert sorted(got) == sorted(f"{app}@{h}" for h in plan["apps"][app]["hosts"])
+
+
 def test_telemetry_survives_a_hard_kill(tmp_path):
     """Records reach the file as written: `docker kill` must not empty a host's log."""
     from saag.testbed.runtime import TelemetrySink
