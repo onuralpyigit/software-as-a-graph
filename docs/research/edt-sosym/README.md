@@ -66,11 +66,11 @@ The fidelity pre-registration ([../fidelity/PREREGISTRATION.md](../fidelity/PRER
 
 | # | Placeholder (file) | What fills it | How |
 |---|---|---|---|
-| 1 | `B_h`, `δ` (sec8 Table 10) | Pilot capacity and equivalence margin | `python reproduce/fidelity_study.py ramp data/scenarios/tiny_system.json` and the same for `integration_hub_migration_system`; then `python reproduce/fidelity_study.py noise data/scenarios/integration_hub_migration_system.json`. Record the values in §8 of the pre-registration |
-| 2 | `n`, κ per scenario (sec8 Table 10) | Included scenarios | `python reproduce/fidelity_study.py capacity --capacity <B_h>`. Then **freeze** the pre-registration (`FROZEN <date> <commit>`) |
-| 3 | H1–H5, `C_s`, arm N, brokers and hosts (sec8 Table 10; sec8 RQ2 and RQ3 text) | Study results | `python reproduce/fidelity_study.py sweep` (about 46 h per condition at κ=1), then `python reproduce/fidelity_study.py simulate`, then `python reproduce/fidelity_significance.py --delta <δ>` |
+| 1 | ~~`B_h`, `δ` (sec8 Table 10)~~ | **Done:** B_h = 3,033 msg/s, δ = 0.05 (pre-registration §8) | — |
+| 2 | ~~`n`, κ per scenario (sec8 Table 10)~~ | **Done:** n = 9 of 12, all at κ = 1. Pre-registration **frozen 2026-11-16 at `9f84aad9`** | — |
+| 3 | H1–H5, `C_s`, arm N, brokers and hosts (sec8 Table 10; sec8 RQ2 and RQ3 text) | Study results | `python reproduce/fidelity_study.py sweep` (3,147 runs, about 62 h for both conditions), then `python reproduce/fidelity_study.py simulate`, then `python reproduce/fidelity_significance.py --delta <δ>` |
 | 4 | H1 headline (abstract, sec8 RQ3, sec10) | Decision-table outcome | From #3, using the wording in pre-registration §6 and §7, "What each result allows us to say" |
-| 5 | R6 status (sec3 Table 1) | "frozen / run" | After #2 and #3 |
+| 5 | R6 status (sec3 Table 1) | Now "protocol frozen, study [TBD: run]" | After #3 |
 | 6 | `[I]` gate latency and finding counts (sec8 RQ4) | Industrial pipeline numbers | Cleared data from the programme. If clearance is not granted, delete the sentence and the [I] tag |
 | 7 | Zenodo DOI (declarations) | Archive of traces and results | Mint it after #3 |
 | 8 | Overlap note (declarations) | Status of the companion manuscripts | Update just before submission |
@@ -90,6 +90,7 @@ The fidelity pre-registration ([../fidelity/PREREGISTRATION.md](../fidelity/PRER
 ## 5. Verification log (2026-11-14)
 - Compiles: 28 pages, 0 undefined references or citations, one overfull box of 1.5 pt.
 - The numbers were checked against `docs/simulation-extensions.md` §3 (smoke test, identifiability, partition recovery), `docs/failure-simulation.md` §2 and §14 (simulator costs, 12.7 CPU-h), `docs/research/fidelity/PREREGISTRATION.md` (protocol, 0.56 ceiling, 46 h, Wilcoxon floors), `saag/validation/fidelity.py` (tolerances), `saag/testbed/*` (QoS mapping, leases, chaos table), and `middleware2026/industry/draft.md` §5.2.1 (gate cost).
+- **2026-11-17 update:** protocol facts (frozen status, B_h, δ, n = 9 with exclusions, 0.90 ceiling with the earlier 0.56 recorded, 3,147 runs / about 62 h, Wilcoxon floors at n = 9) re-synced with the frozen `PREREGISTRATION.md` (`9f84aad9`) in abstract, sec3, sec7, sec8 and sec9.
 - Verbatim overlap: see the table below.
 
 This counts the draft's 8-word sequences (LaTeX commands stripped) that also occur in each source:

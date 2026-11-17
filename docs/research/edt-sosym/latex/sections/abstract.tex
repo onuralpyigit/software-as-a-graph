@@ -15,7 +15,7 @@ We place each capability on a digital model, shadow and twin maturity ladder and
 \begin{itemize}[nosep,leftmargin=*]
 \item \emph{Calibration.} Topic rates are recovered within 3\% median error and service times within 1\%, and inferred trigger policies are never wrong. Two behavioural parameters are not identifiable from telemetry, and we report them as such.
 \item \emph{Smoke test.} On a four-container system, simulated and observed fault responses agree exactly at the stall-set level. The test also exposes a fidelity gap: DDS peer rediscovery after a partition takes about 6\,s, which the simulator does not model.
-\item \emph{Fidelity study.} A pre-registered study across twelve scenarios is \tbd{outcome of H1 and secondary family}.
+\item \emph{Fidelity study.} A pre-registered study across the nine scenarios that pass its capacity gate is \tbd{outcome of H1 and secondary family}.
 \end{itemize}
 
 \textbf{Conclusion.} An architectural digital twin can be engineered as a family of model transformations around one metamodel, with fidelity treated as a measured, bounded property rather than an assumption. We report the remaining step from batch digital shadow to live twin, drift-triggered re-calibration, as designed but not yet built.
