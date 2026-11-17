@@ -1,6 +1,6 @@
 \textbf{Context.} Distributed systems built on publish--subscribe middleware such as DDS, ROS~2 or Kafka fail in ways that only show once the assembled system is running. These failures include cascades through shared topics, broker and host outages, and partitions. Engineering teams need a digital counterpart of the \emph{architecture} that can answer what-if questions before deployment and can be checked against the running system afterwards. Such architectural digital twins are still built ad hoc.
 
-\textbf{Objective.} We present an engineering method for an architectural digital twin of publish--subscribe systems. A single typed graph model is the source of every twin artefact: the analysis views, four failure simulators, and an executable container-based testbed that stands in for the physical system.
+\textbf{Objective.} We present an engineering method for an architectural digital twin of publish--subscribe systems. A single typed graph model is the source of every twin artefact: the analysis views, four failure simulators, and an executable container-based testbed that stands in for the physical system. The system is built to the level of a batch digital shadow, and every fidelity claim is bounded to middleware, timing and transport behaviour under declared application behaviour.
 
 \textbf{Method.} The method has four parts.
 \begin{enumerate}[nosep,leftmargin=*]
@@ -9,7 +9,7 @@
 \item A system-to-model path turns OpenTelemetry-shaped traces into calibrated simulator parameters.
 \item A fidelity-assessment method compares simulated and observed behaviour in steady state, under faults, and in middleware status. It states explicitly which agreements are independent evidence and which hold by construction.
 \end{enumerate}
-We place each capability on a digital model, shadow and twin maturity ladder and claim only the levels that are built.
+We place each capability on a digital model, shadow and twin maturity ladder and claim only the levels that are built: a digital model, a generated counterpart and a batch digital shadow.
 
 \textbf{Results.} Model consistency is enforced by executable invariants: the simulators re-derive all seven dependency rules from raw relations and must match the repository edge set.
 \begin{itemize}[nosep,leftmargin=*]

@@ -11,8 +11,7 @@ We evaluate the twin against four research questions, one per engineering challe
 Every number below is tagged with its provenance:
 \begin{itemize}[leftmargin=*,nosep]
   \item \textbf{[P]}: measured on the open-source prototype, regenerable from a committed artefact;
-  \item \textbf{[S]}: from the pre-registered fidelity study, pending (\tbd{study run});
-  \item \textbf{[I]}: from the industrial setting, pending clearance (\tbd{cleared data}).
+  \item \textbf{[S]}: from the pre-registered fidelity study, pending (\tbd{study run}).
 \end{itemize}
 A number from one source is never presented as evidence for another.
 
@@ -136,8 +135,6 @@ Table~\ref{tab:cost} summarises costs [P].
   \item \textbf{Queue-flow simulation.} This costs seconds per faulted component and 12.7 CPU-hours for an exhaustive five-seed sweep over the corpus. It therefore suits targeted, second-tier use on shortlisted components rather than every commit.
   \item \textbf{The counterpart.} The counterpart is the most expensive artefact by far. On the nine included scenarios, the study needs 3,147 runs: 508 targets, three repetitions each, in both observed conditions, plus 11 fault-free runs per scenario. At the 71\,s per run measured in the noise pilot, including start-up, this projects to about 62 machine-hours. It is a validation instrument for the twin, not a per-change service.
 \end{itemize}
-Industrial pipeline measurements are pending clearance: \tbd{[I] gate latency and finding counts from the programme pipeline}.
-
 \begin{table}[t]
 \centering
 \caption{Cost of twin services and counterpart [P]. Graph-simulator timings are medians of three runs on an idle machine. Treat them as orders of magnitude.}

@@ -45,27 +45,27 @@ Ten sections and 28 pages. Every section is drafted; only §8 RQ3 and the senten
 
 | § | Section | Content | Status |
 | --- | --- | --- | --- |
-| 1 | Introduction | Pub–sub failures are non-local; four engineering challenges (one source of truth, a physical stand-in before deployment, a path back from the system, fidelity as a measured property); contributions C1–C4; relation to RASSE 2025 and the JSS manuscript | Drafted |
+| 1 | Introduction | Pub–sub failures are non-local; four engineering challenges (one source of truth, a physical stand-in before deployment, a path back from the system, fidelity as a measured property); contributions C1–C4; what we claim on the maturity ladder; fit to the theme-section topics; relation to RASSE 2025, the JSS manuscript and the SoSyM tool paper | Drafted |
 | 2 | Background and related work | DT definitions and the Kritzinger maturity ladder; model-driven DT engineering; runtime models and twins of software; testbeds and chaos engineering; simulation-model validation | Drafted |
 | 3 | Engineering challenge and requirements | Seven requirements R1–R7 condensed from a 112-requirement ATM baseline; why they conflict (R1 vs. R3, R4 vs. R6, R5 vs. R6) | Drafted; R6 says "protocol frozen, study pending" |
 | 4 | The architectural digital twin | Architecture figure; metamodel with structural and derived views; twin services (what-if, placement verification, change gating); maturity table claiming model, generated counterpart and batch shadow | Drafted |
 | 5 | Model to system (C2) | Three-stage generation of the Docker + DDS deployment; broker emulation on brokerless DDS; QoS mapping; one fault vocabulary compiled to simulator events and chaos actions; trace links | Drafted |
 | 6 | System to model (C3) | Shared trace schema; the calibrator; identifiability table (rates, service times, trigger policies recoverable; staleness and burst not) | Drafted |
 | 7 | Fidelity assessment (C4) | Three fidelity dimensions with tolerances; independence analysis; pre-registered study (population, arms S0–S4, R, N, hypotheses H1–H5, noise ceiling, claim table) | Drafted; synced to the frozen protocol |
-| 8 | Evaluation | RQ1 consistency, RQ2 calibration, RQ3 fidelity (smoke test, DDS rediscovery gap, study table), RQ4 cost ladder | RQ3 study results and the industrial [I] numbers pending |
+| 8 | Evaluation | RQ1 consistency, RQ2 calibration, RQ3 fidelity (smoke test, DDS rediscovery gap, study table), RQ4 cost ladder | RQ3 study results pending |
 | 9 | Discussion | Six lessons for twin engineers; the designed step from shadow to twin (drift detection, re-calibration, engineer-approved model repair); threats to validity | Drafted |
 | 10 | Conclusion | Summary of the method and results; the next step (live twin) | H1 headline pending |
 
 ## Evidence status
 
-Three of the four research questions already rest on measured, regenerable evidence; RQ3 needs the study. Every number in the paper is tagged [P] (open-source prototype), [S] (pre-registered study) or [I] (industrial, pending clearance).
+Three of the four research questions already rest on measured, regenerable evidence; RQ3 needs the study. Every number in the paper is tagged [P] (open-source prototype) or [S] (pre-registered study); industrial numbers were removed.
 
 | Research question | Evidence now | Still needed |
 | --- | --- | --- |
 | RQ1 Consistency: do all artefacts agree on the model's semantics? | Rule-by-rule parity tests between simulator and repositories; one historical inconsistency caught and fixed; one residual weight divergence measured and documented [P] | Nothing |
 | RQ2 Calibration: what can telemetry recover? | Identifiability table on the 74-component ATM scenario: rates within 3%, service times within 1%, trigger policies always correct when observable; staleness and burst not identifiable [P] | H5 (does calibration improve fidelity?) from the study [S] |
 | RQ3 Fidelity: how close are simulators to the counterpart? | Smoke test on a 4-container system: exact stall-set agreement, exact DDS liveliness, delivery within 6%; DDS rediscovery gap of about 6 s [P] | H1–H4, noise ceilings and arm N from the study [S] |
-| RQ4 Cost: does the twin fit a delivery pipeline? | Cost ladder: gate 0.01–1.01 s (29–444 components), queue-flow simulation seconds per fault, counterpart about 80 s per run [P] | Industrial gate latency and finding counts [I], or drop the sentence |
+| RQ4 Cost: does the twin fit a delivery pipeline? | Cost ladder: gate 0.01–1.01 s (29–444 components), queue-flow simulation seconds per fault, counterpart about 80 s per run [P] | Nothing (industrial [I] numbers removed) |
 
 **The fidelity study, as frozen on 16 November 2026** ([PREREGISTRATION.md](../fidelity/PREREGISTRATION.md)). Nine of twelve candidate scenarios pass the capacity gate, all at full rate. The pilot measured a noise ceiling of 0.90 and set the equivalence margin δ at 0.05. The sweep is 3,147 runs, about 62 machine-hours. The primary hypothesis H1 asks whether the current simulator ranks fault impact closer to the observed system than the published configuration. A decision table fixed in advance maps the result to *better*, *equivalent*, *inconclusive* or *worse*, and each outcome is publishable.
 
@@ -78,8 +78,8 @@ The largest risk is the definition of "digital twin": the EDTConf program commit
 | "A twin of what?" The physical side is generated stub applications on Docker, not a deployed system | Stated up front; the maturity table claims only model, generated counterpart and batch shadow; the independence table limits claims to middleware, timing and transport behaviour | Put "shadow" in the title, or build a minimal drift detector to climb one rung |
 | Not continuously synchronised, so not a twin in Kritzinger's sense | The live-twin step (R7) is designed in §9.2 in requirements voice, explicitly not claimed | Same as above |
 | Fidelity evidence is thin | The study is pre-registered and frozen; an inconclusive result is still reported as such | Run the study before submission (planned) |
-| Mostly synthetic subjects; only Cyclone DDS | Stated in threats to validity; Kafka, MQTT and ROS 2 listed as unsupported back-ends | Cleared ATM numbers, if the programme approves |
-| Overlap with our other manuscripts | Simulators cited from JSS, not restated; 8-gram verbatim overlap below 1% with JSS, AuSE, the tool paper and the Middleware draft | Disclose the SoSyM tool paper in the cover letter if it is submitted |
+| Mostly synthetic subjects; only Cyclone DDS | Stated in threats to validity; Kafka, MQTT and ROS 2 listed as unsupported back-ends | None in this revision |
+| Overlap with our other manuscripts | Simulators cited from JSS, not restated; 8-gram verbatim overlap below 1% with JSS, the tool paper and the Middleware draft; the tool paper is disclosed as in preparation | Update its status if it is submitted first |
 | One machine, Python stubs | Capacity gate, CPU logging and rate scaling; latency claims limited to full-rate runs | None needed beyond what is stated |
 
 ## Plan to 31 December
@@ -91,7 +91,6 @@ The sweep can start now and runs in parallel with the advisor's review of the dr
 | Advisor reviews draft | 18–28 Nov |
 | Fidelity sweep, 62 h | 18–23 Nov |
 | Fill results into paper | 24 Nov – 1 Dec |
-| ATM clearance decision | 1 Dec |
 | Revise after feedback | 2–11 Dec |
 | DOI and cover letter | 14–17 Dec |
 | **Submit to SoSyM** | **18 Dec** |
@@ -99,11 +98,14 @@ The sweep can start now and runs in parallel with the advisor's review of the dr
 
 ## Decisions for the advisor
 
-Five questions where the answer changes the next six weeks.
+Decided on 2026-11-17 and applied to the draft:
 
-1. **Title and framing.** Keep "Architectural Digital Twin" with the maturity table as the honest qualifier, or say "digital shadow" in the title to pre-empt the definitional objection?
-2. **Drift detector.** Build a minimal parameter-drift detector (R7) before submission, so the paper climbs one maturity rung? It is a small code change but needs its own evaluation and would put the 31 December date at risk.
-3. **Industrial numbers.** Ask the ATM programme for clearance of gate latency and finding counts, or remove the [I] sentence now?
+1. **Title and framing.** Keep "Architectural Digital Twin". The abstract and introduction now state up front that the system is a digital model with a generated counterpart and a batch digital shadow, and that fidelity claims are bounded to middleware, timing and transport behaviour.
+2. **Drift detector.** Not built for this submission. R7 stays "designed" in §9.2.
+3. **Industrial numbers.** Removed. The paper rests on [P] and [S] evidence only.
+
+Still open:
+
 4. **Deadline.** Aim for 31 December 2026 (allows two major review rounds before EDTConf 2027), or take more time and aim for 19 April 2027 (one round only)?
 5. **Quartile for graduation.** SoSyM is Q1 by Scopus CiteScore but Q2 in SCImago and Web of Science (JCR). Should we confirm with the institute which index and year ITU uses before committing both SoSyM papers to it?
 

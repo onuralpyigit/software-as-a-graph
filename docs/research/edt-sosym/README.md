@@ -43,7 +43,7 @@ Build: `make -C docs/research/edt-sosym/latex` (pdflatex + bibtex). The draft is
 ### Options to strengthen it (not done)
 - **Run the fidelity study.** This matters most: it turns RQ3 from provisional into an answer. Even an *Inconclusive* H1 is publishable under the pre-registered decision table.
 - **Build a minimal parameter-drift detector.** Rolling calibration against a baseline profile, with noise bands from the study, would move the paper one rung up the maturity ladder and make the "twin" claim stronger. It is a small code change, but it needs its own evaluation.
-- **Add cleared industrial numbers** ([I]) if the ATM programme approves.
+- ~~Add cleared industrial numbers ([I])~~: dropped on 2026-11-17. The paper rests on [P] and [S] evidence only.
 
 ---
 
@@ -54,7 +54,7 @@ Build: `make -C docs/research/edt-sosym/latex` (pdflatex + bibtex). The draft is
 | RASSE 2025 (IEEE, published) | published | The idea of deriving dependencies, cited. The metamodel is restated in one condensed subsection (§4.1) |
 | JSS manuscript (under review) | under review | The four simulators are *cited* as the twin's behavioural models. No JSS result, table or figure is reproduced. Simulator costs (Table 11) come from the framework docs |
 | Middleware 2026 Industry draft | **not submitted** (confirmed by the author) | The framing (static vs. dynamic twin), the 112-requirement baseline and the ATM gate-cost numbers (0.01–1.01 s) are reused, **rewritten**. If that draft is ever submitted, this row must be revisited |
-| SoSyM tool paper (`docs/research/sosym/`) and AuSE | not submitted / in revision | **Nothing reused.** The anti-pattern catalog, CQP, the RM composite and prescription are deliberately left out, so two manuscripts at the same journal do not overlap |
+| SoSyM tool paper (`docs/research/sosym/`) | not submitted; disclosed as in preparation (intro, declarations, cover letter) | **Nothing reused.** The anti-pattern catalog, CQP, the RM composite and prescription are deliberately left out, so two manuscripts at the same journal do not overlap |
 | Testbed, calibration, fidelity, maturity, independence analysis | unpublished | New in this paper |
 
 An 8-gram verbatim-overlap check against all of these sources was run on 2026-11-14. The results are in §5.
@@ -72,9 +72,9 @@ The fidelity pre-registration ([../fidelity/PREREGISTRATION.md](../fidelity/PRER
 | 3 | H1–H5, `C_s`, arm N, brokers and hosts (sec8 Table 10; sec8 RQ2 and RQ3 text) | Study results | `python reproduce/fidelity_study.py sweep` (3,147 runs, about 62 h for both conditions), then `python reproduce/fidelity_study.py simulate`, then `python reproduce/fidelity_significance.py --delta <δ>` |
 | 4 | H1 headline (abstract, sec8 RQ3, sec10) | Decision-table outcome | From #3, using the wording in pre-registration §6 and §7, "What each result allows us to say" |
 | 5 | R6 status (sec3 Table 1) | Now "protocol frozen, study [TBD: run]" | After #3 |
-| 6 | `[I]` gate latency and finding counts (sec8 RQ4) | Industrial pipeline numbers | Cleared data from the programme. If clearance is not granted, delete the sentence and the [I] tag |
+| 6 | ~~`[I]` gate latency and finding counts (sec8 RQ4)~~ | **Removed** on 2026-11-17, with the [I] tag | — |
 | 7 | Zenodo DOI (declarations) | Archive of traces and results | Mint it after #3 |
-| 8 | Overlap note (declarations) | Status of the companion manuscripts | Update just before submission |
+| 8 | ~~Overlap note (declarations)~~ | **Done:** RASSE, JSS and the SoSyM tool paper disclosed | Re-check just before submission (checklist) |
 
 ---
 
@@ -85,6 +85,7 @@ The fidelity pre-registration ([../fidelity/PREREGISTRATION.md](../fidelity/PRER
 - [ ] ScholarOne: manuscript type **"Theme Section Paper"**
 - [ ] Cover letter contains: **"Submission for Theme Section: Engineering of Digital Twins"**
 - [ ] Re-run the overlap check if any companion manuscript changes status
+- [ ] If the SoSyM tool paper is submitted first, update its status in the intro ("Relation to prior work"), the declarations and the cover letter
 
 ---
 
@@ -99,10 +100,9 @@ This counts the draft's 8-word sequences (LaTeX commands stripped) that also occ
 | Source | Draft 8-grams also in source | Share |
 |---|---:|---:|
 | JSS (latex) | 3 / 12057 | 0.0% |
-| AuSE | 70 / 12057 | 0.6% |
 | SoSyM tool paper | 71 / 12057 | 0.6% |
 | Middleware industry | 12 / 12057 | 0.1% |
 | Fidelity pre-registration | 44 / 12057 | 0.4% |
 | RASSE summary | 0 / 12057 | 0.0% |
 
-Most of the AuSE and SoSyM matches come from the boilerplate in the declarations section (funding, competing interests). Overlap in *ideas* with the Middleware draft (framing, requirements, gate cost) is intentional and disclosed in §2.
+Most of the SoSyM tool-paper matches come from the boilerplate in the declarations section (funding, competing interests). Overlap in *ideas* with the Middleware draft (framing, requirements, gate cost) is intentional and disclosed in §2.
