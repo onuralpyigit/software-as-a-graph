@@ -8,9 +8,10 @@
 \begin{itemize}[leftmargin=*]
   \item \emph{Published.} \citet{yigit2025graph} introduced a reduced dependency-derivation method for publish--subscribe systems. This paper restates the extended metamodel in one condensed subsection (\S\ref{sec:metamodel}) and cites it.
   \item \emph{Under review.} A companion manuscript~\citep{yigit2026jss}, under review at the Journal of Systems and Software, develops the failure simulators as ranking oracles for learned criticality prediction. This paper uses those simulators as the twin's behavioural models, cites them, and reports none of that manuscript's results.
+  \item \emph{In preparation.} A tool paper for this journal describes the framework's modeling language, quality diagnosis and refactoring. It shares the metamodel description with this paper but none of the twin method, and this paper reuses no text or results from it.
   \item \emph{Not in any other manuscript.} The model-to-system transformation and generated counterpart, the telemetry calibration and its identifiability analysis, the fidelity-assessment method and independence analysis, the smoke-test and partition results, the maturity analysis and the requirements condensation are reported here for the first time.
 \end{itemize}
-We disclose this so the editor can assess the overlap directly. \tbd{update if the companion manuscripts' status changes before submission}
+We disclose this so the editor can assess the overlap directly.
 
 \paragraph{Data Availability:} The framework, including the counterpart generator, calibrator and fidelity report, is open source~\citep{sag-software}. Scenario topologies, generator configurations, the fidelity-study protocol, the runner and analysis scripts, raw telemetry traces and result artefacts will be archived at [REPOSITORY-URL], persistent identifier \tbd{mint Zenodo DOI for the fidelity-study archive}. The counterpart for one scenario is regenerated and run with:
 \begin{verbatim}

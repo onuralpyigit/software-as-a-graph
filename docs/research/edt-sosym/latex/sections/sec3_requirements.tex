@@ -30,7 +30,7 @@ R2 & \textbf{Semantic consistency.} Every consumer that needs dependency semanti
 R3 & \textbf{Substrate separation.} Behavioural oracles (simulators) operate on structural relations only, never on the derived relations that analysis consumes. A simulated outcome then cannot restate an analysis input. & \S\ref{sec:metamodel} & built \\
 R4 & \textbf{Executable counterpart.} Where the real system is unavailable, the model can be compiled into a running system that exercises the real middleware, under the same faults the simulators inject. & \S\ref{sec:m2s} & built \\
 R5 & \textbf{Calibration from telemetry.} Runtime parameters guessed before deployment can be re-estimated from traces, and the method reports which parameters it cannot estimate. & \S\ref{sec:s2m} & built (batch) \\
-R6 & \textbf{Measured fidelity.} Agreement between twin and counterpart is measured on declared metrics with declared tolerances, and reported as a report, never silently used as a gate. & \S\ref{sec:fidelity} & built; study \tbd{frozen/run} \\
+R6 & \textbf{Measured fidelity.} Agreement between twin and counterpart is measured on declared metrics with declared tolerances, and reported as a report, never silently used as a gate. & \S\ref{sec:fidelity} & built; protocol frozen, study \tbd{run} \\
 R7 & \textbf{Drift detection.} Divergence between the modelled and the observed system (topology or parameters) is detected and triggers re-calibration or model repair. & \S\ref{sec:livetwin} & designed \\
 \bottomrule
 \end{tabularx}

@@ -11,8 +11,7 @@ We evaluate the twin against four research questions, one per engineering challe
 Every number below is tagged with its provenance:
 \begin{itemize}[leftmargin=*,nosep]
   \item \textbf{[P]}: measured on the open-source prototype, regenerable from a committed artefact;
-  \item \textbf{[S]}: from the pre-registered fidelity study, pending (\tbd{study run});
-  \item \textbf{[I]}: from the industrial setting, pending clearance (\tbd{cleared data}).
+  \item \textbf{[S]}: from the pre-registered fidelity study, pending (\tbd{study run}).
 \end{itemize}
 A number from one source is never presented as evidence for another.
 
@@ -101,7 +100,7 @@ Under both faults, the simulator and the counterpart agree exactly on which read
 
 This finding is the kind of result the counterpart exists to produce. It falls in the independent row of Table~\ref{tab:independence}: discovery and liveliness belong to the middleware, not to the shared plan. It is invisible to any oracle the framework computes about itself. It also has a direct consequence for the twin's users. Fault-response predictions for partitions longer than a liveliness lease underestimate the outage by the rediscovery time, and we now state this as a known limitation of the behavioural model. A twin that only checked itself against its own simulators could not have found it.
 
-\paragraph{Pre-registered study.} Table~\ref{tab:study} is the reporting template of the study in \S\ref{sec:protocol}. Its cells are left empty until the protocol is frozen and the sweep is complete.
+\paragraph{Pre-registered study.} Table~\ref{tab:study} is the reporting template of the study in \S\ref{sec:protocol}. The protocol is frozen, and the rows fixed by the pilot are filled in. The result cells stay empty until the sweep is complete.
 
 \begin{table}[t]
 \centering
@@ -112,8 +111,8 @@ This finding is the kind of result the counterpart exists to produce. It falls i
 \toprule
 Quantity & Statistic & Value & Decision \\
 \midrule
-Included scenarios & $n$ (and $\kappa$ per scenario) & \tbd{n} & --- \\
-Pilot capacity and margin & $B_h$, $\delta$ & \tbd{$B_h$, $\delta$} & --- \\
+Included scenarios & $n$ (and $\kappa$ per scenario) & 9 of 12; $\kappa = 1$ for all & --- \\
+Pilot capacity and margin & $B_h$, $\delta$ & 3,033\,msg/s; 0.05 & --- \\
 H1: S2 vs.\ S0 & HL median of $d_s$ [95\% CI], $p$, TOST $p$ & \tbd{H1} & \tbd{outcome} \\
 H2: S0 vs.\ 0.70 & HL, Holm-adjusted $p$ & \tbd{H2} & \tbd{} \\
 H3: S2 vs.\ R & HL, Holm-adjusted $p$ & \tbd{H3} & \tbd{} \\
@@ -126,7 +125,7 @@ Brokers and hosts (S2, S3) & $\rho$, stall-set Jaccard & \tbd{S2, S3} & descript
 \end{tabularx}
 \end{table}
 
-\textbf{Answer to RQ3 (provisional).} On the smoke test, the twin reproduces which components a fault silences, and reproduces the DDS liveliness status exactly. Its first divergence is attributable to middleware rediscovery after long partitions, a behaviour the model omits. Whether the current simulator ranks fault impact closer to the observed system than the published configuration does is \tbd{H1 headline per the decision table}. The study's own pilot predicts that \emph{inconclusive} is a likely outcome on scenarios dominated by many low-impact publishers.
+\textbf{Answer to RQ3 (provisional).} On the smoke test, the twin reproduces which components a fault silences, and reproduces the DDS liveliness status exactly. Its first divergence is attributable to middleware rediscovery after long partitions, a behaviour the model omits. Whether the current simulator ranks fault impact closer to the observed system than the published configuration does is \tbd{H1 headline per the decision table}. The noise pilot leaves room for rank agreement up to about 0.90 and resolves differences near $\delta = 0.05$; \emph{inconclusive} remains possible if the included scenarios are noisier than the pilot.
 
 \subsection{RQ4: Cost of the twin's services and counterpart}
 
@@ -134,10 +133,8 @@ Table~\ref{tab:cost} summarises costs [P].
 \begin{itemize}[leftmargin=*]
   \item \textbf{Analytical services.} Analysis, static checks and the two graph simulators cost milliseconds to about a second up to several hundred components. For the ATM scale family, a complete gate invocation (analysis plus all structural checks) grows roughly in proportion to size, with no cliff: from 0.01\,s at 29 components to 1.01\,s at 444, mean over five seeds.
   \item \textbf{Queue-flow simulation.} This costs seconds per faulted component and 12.7 CPU-hours for an exhaustive five-seed sweep over the corpus. It therefore suits targeted, second-tier use on shortlisted components rather than every commit.
-  \item \textbf{The counterpart.} The counterpart is the most expensive artefact by far. The study's protocol projects about 46 machine-hours per observed condition at $\kappa=1$: at most 683 targets, three repetitions each, about 80\,s per run including start-up. It is a validation instrument for the twin, not a per-change service.
+  \item \textbf{The counterpart.} The counterpart is the most expensive artefact by far. On the nine included scenarios, the study needs 3,147 runs: 508 targets, three repetitions each, in both observed conditions, plus 11 fault-free runs per scenario. At the 71\,s per run measured in the noise pilot, including start-up, this projects to about 62 machine-hours. It is a validation instrument for the twin, not a per-change service.
 \end{itemize}
-Industrial pipeline measurements are pending clearance: \tbd{[I] gate latency and finding counts from the programme pipeline}.
-
 \begin{table}[t]
 \centering
 \caption{Cost of twin services and counterpart [P]. Graph-simulator timings are medians of three runs on an idle machine. Treat them as orders of magnitude.}
@@ -153,7 +150,7 @@ Multi-layer simulator ($\Icomp$) & exhaustive sweep, \texttt{atm} / \texttt{av} 
 Queue-flow simulator ($\Idyn$) & per faulted component, 60 simulated s, \texttt{atm} / \texttt{av} & 1.5 / 4.3\,s \\
 Queue-flow simulator ($\Idyn$) & 5 seeds, whole corpus & 12.7 CPU-h (355.6\,Wh) \\
 Counterpart (Docker + DDS) & one faulted run incl.\ start-up & $\approx$80\,s \\
-Counterpart (Docker + DDS) & full study, one condition, $\kappa=1$ & $\approx$46\,h (projected) \\
+Counterpart (Docker + DDS) & full study, both conditions, 9 scenarios & $\approx$62\,h (projected) \\
 \bottomrule
 \end{tabularx}
 \end{table}
