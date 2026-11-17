@@ -13,6 +13,7 @@
 | [latex/sections/](latex/sections/) | One file per section |
 | [latex/refs.bib](latex/refs.bib) | Bibliography (32 entries) |
 | [cover_letter.md](cover_letter.md) | Cover letter with the line the theme section requires |
+| [outline.md](outline.md) | Executive summary and section outline for advisor review |
 
 Build: `make -C docs/research/edt-sosym/latex` (pdflatex + bibtex). The draft is 28 pages, with no undefined references or citations.
 
