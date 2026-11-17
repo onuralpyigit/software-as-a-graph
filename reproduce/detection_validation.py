@@ -5,7 +5,7 @@ reproduce/detection_validation.py — does the anti-pattern catalog find real ri
 
 Produces ``results/detection_validation.json``.
 
-The AuSE manuscript's RQ1 asks two things of the 19-pattern catalog
+The SaG-Prescribe study's RQ1 (AuSE manuscript, held in reserve) asks two things of the 19-pattern catalog
 (``saag/analysis/antipattern_detector.py``):
 
 1. **Efficacy** — do its findings correspond to components that actually matter
@@ -89,7 +89,7 @@ logger = logging.getLogger("detection_validation")
 
 RESULTS_DIR = Path("results")
 
-#: The eight-scenario detection suite of the AuSE manuscript. Wider than
+#: The eight-scenario detection suite of the SaG-Prescribe / AuSE evaluation. Wider than
 #: ``reproduce.main_table.ALL_SCENARIOS`` (seven), which excludes the
 #: deterministic tiny regression fixture because it carries no
 #: domain-representative signal for the learned predictors.

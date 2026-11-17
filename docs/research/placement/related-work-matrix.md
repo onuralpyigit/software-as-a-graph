@@ -343,9 +343,8 @@ has been seen at abstract level)
 | Constructive (whole-system) placement search | **✗** |
 | Oracle independent of the optimization objective | **✗** Needs a decision: real deployment with failure injection, or a held-out oracle |
 
-**Boundary with AuSE:** AuSE verifies *individual edits* to an existing deployment after
-the fact. This paper *synthesizes a whole placement* under resource constraints. Both
-manuscripts must state this explicitly.
+**Boundary with AuSE / SaG-Prescribe:** The companion SaG-Prescribe study (held in reserve) verifies *individual edits* to an existing deployment after
+the fact. This paper *synthesizes a whole placement* under resource constraints.
 
 ---
 

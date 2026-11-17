@@ -1,7 +1,7 @@
 """Delta-aware CI gate: block only what a change introduces.
 
 Absolute gating blocks every scenario in the corpus on pre-existing debt
-(AuSE §7.2). This gate compares the candidate's anti-pattern findings with the
+(SaG-Prescribe §7.2). This gate compares the candidate's anti-pattern findings with the
 merge-base's and blocks only on a new CRITICAL/HIGH finding -- one whose
 (pattern, entity) the merge-base did not have -- unless a waiver covers it.
 

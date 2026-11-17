@@ -95,7 +95,7 @@ To overcome these limitations, this dissertation formulates **Software-as-a-Grap
 ```
 
 ### Why the Dual-Pathway Formulation is Load-Bearing
-In our Journal of Systems and Software (JSS) paper, Pathway A was condensed to an explanation baseline because the journal's focus was strictly on the empirical question: *"When does graph learning improve cascade ranking?"* Conversely, in our Automated Software Engineering (AuSE) submission, Pathway A serves as the static audit substrate for automated refactoring.
+In our Journal of Systems and Software (JSS) paper, Pathway A was condensed to an explanation baseline because the journal's focus was strictly on the empirical question: *"When does graph learning improve cascade ranking?"* Conversely, in our SaG-Prescribe study (originally drafted for AuSE, held in reserve for future submission), Pathway A serves as the static audit substrate for automated refactoring.
 
 In this doctoral monograph, the dual-pathway architecture is restored to full prominence. It resolves what would otherwise appear as an empirical contradiction:
 - Pathway A's Leave-One-Scenario-Out correlation against cascade simulation is low ($\rho = 0.205$). Under a single-pathway framing, this might be misread as a weak baseline.
@@ -138,7 +138,7 @@ In accordance with Istanbul Technical University (ITU) postgraduate guidelines, 
 | Publication / Submission | Venue & Status | Dissertation Chapters | Candidate Contribution Note |
 |---|---|---|---|
 | **Journal of Systems and Software (JSS)** | Submitted (VSI:AI4MSS, 2026) | Ch. 3, 5, 8, 9, 10 | Primary author. Conceived framework, implemented GNN models, designed reference criterion, executed experiments. |
-| **Automated Software Engineering (AuSE)** | Submitted (SI:CI/CD-DevOps, 2026) | Ch. 4, 7, 9 | Primary author. Designed prescriptive remediation operators, counterfactual verifier, and CI/CD quality gate. |
+| **SaG-Prescribe (AuSE)** | Held in Reserve / Unsubmitted | Ch. 4, 7, 9 | Primary author. Designed prescriptive remediation operators, counterfactual verifier, and CI/CD quality gate. |
 | **IEEE RASSE 2025** | Published (`10.1109/RASSE64831.2025.11315354`) | Ch. 4, 10 | Primary author. Formulated initial structural dependency baseline; superseded and reconciled in Ch. 10. |
 | **UYMS 2026 (Patterns)** | Published (National SE Conf.) | Ch. 2, 3 | Co-authored (Çalışkan, Yiğit, Buzluca). Contributed graph schema and publish-subscribe interaction pattern definitions. |
 | **UYMS 2026 (Visualization)** | Published (National SE Conf.) | Ch. 3, Appendix | Co-authored (Erşen, Çalışkan, Yiğit, Buzluca). Contributed graph export schemas and visual telemetry interfaces. |

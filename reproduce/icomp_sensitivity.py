@@ -50,7 +50,7 @@ CACHE_FILE = RESULTS_DIR / "icomp_scenario_cache.json"
 OUTPUT_FILE = RESULTS_DIR / "icomp_sensitivity.json"
 
 #: The scenario suite, imported rather than restated. This file used to carry
-#: its own copy of the eight-scenario AuSE list, and the duplicate is what let
+#: its own copy of the eight-scenario SaG-Prescribe detection list, and the duplicate is what let
 #: the two drift: Supplementary S1.2 described a corpus that Section 7.3 no
 #: longer used, including a 17-component regression fixture absent from every
 #: other table in the manuscript. One definition, selected by ``--scenarios``.
@@ -354,7 +354,7 @@ def run_morris(
 def main():
     parser = argparse.ArgumentParser(description="Sensitivity sweep of I_comp severity weights")
     parser.add_argument("--scenarios", nargs="+", default=None,
-                        help="Scenarios to sweep. Default: the AuSE detection suite "
+                        help="Scenarios to sweep. Default: the 8-scenario detection suite "
                              f"{DETECTION_SCENARIOS}. Pass the manuscript's own corpus "
                              "explicitly when the sweep is to back a JSS table.")
     parser.add_argument("--cache-file", default=str(CACHE_FILE),

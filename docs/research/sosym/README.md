@@ -71,5 +71,5 @@ The Makefile stops at the first LaTeX error. A missing screenshot builds as a fr
 
 * Mint a Zenodo DOI for the tool release and replace the two `[TODO]` DOI placeholders (§9.3, Declarations).
 * Fill in affiliations, ORCIDs, e-mail and grant number (`manuscript.tex`, `declarations.tex`).
-* Decide on the AuSE overlap statement (Declarations) once the AuSE status is known; see REVISION_NOTES.md.
+* [RESOLVED] AuSE overlap statement resolved: AuSE was not submitted; held in reserve as an unpublished companion study (§Declarations).
 * Switch to the Springer template.

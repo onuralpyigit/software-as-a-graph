@@ -1,6 +1,9 @@
 # SaG-Prescribe: Unifying Diagnostic Pathways with Counterfactual Refactoring for Automated Code Review and Software Quality Evaluation in Distributed Publish–Subscribe Systems
 
-**Target venue:** Automated Software Engineering (AuSE), Springer — Special Issue on *Intelligent Techniques for Automated Code Review and Software Quality Evaluation*.
+> **STATUS: UNSUBMITTED / HELD IN RESERVE FOR FUTURE SUBMISSION**  
+> *Originally drafted for Automated Software Engineering (AuSE), Springer — Special Issue on Intelligent Techniques for Automated Code Review and Software Quality Evaluation. See [STATUS.md](STATUS.md) for details.*
+
+**Original Target venue:** Automated Software Engineering (AuSE), Springer — Special Issue on *Intelligent Techniques for Automated Code Review and Software Quality Evaluation*.
 **Special Issue Mapping:** This submission directly addresses three key thematic pillars of the special issue:
 1. *Software Quality Evaluation and Technical Debt Analysis:* Formalizing a deterministic, explainable **Diagnostic Pathway** that bridges code-level Static Code Analysis (SCA) metrics with architectural topology, grounded in ISO/IEC 25010 and ISO/IEC 25019 Quality-in-Use standards (§3), and establishing a formal 19-pattern architectural anti-pattern and code smell catalog (§4).
 2. *Automated Code Review Assistance and CI/CD Quality Gating:* Operationalizing the Diagnostic Pathway as a sub-second architectural review bot and quality gate for continuous integration workflows (§7).

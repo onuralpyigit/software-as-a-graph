@@ -71,7 +71,7 @@ The **Triage Bridge** (`saag.analysis.triage.triage()` / `TriageUseCase` / `tria
 > - **Tier 1 (Commit/PR Time)**: Triggers lightweight, training-free ranking ($\text{InDeg}$ and $I_{\text{dyn}}^{(1)}$ in $<1\text{ ms}$) to post an informational Top-5 alert on pull requests without blocking developers.
 > - **Tier 2 (Staging/Sprint Review)**: Triggers deep in-silico mutation verification (Section 4), evaluating counterfactual simulation sweeps ($\Delta\text{SRI} > 0$) before promoting major architectural refactorings.
 >
-> *(Note: The complete 19-pattern detection catalog and automated in-silico remediation operators are detailed in the companion AuSE paper, "Automated Identification and In-Silico Remediation of Architectural Smells in Publish-Subscribe Systems", whereas the JSS paper focuses on predictive vs. analytical cascade impact ranking).*
+> *(Note: The complete 19-pattern detection catalog and automated in-silico remediation operators are detailed in the companion SaG-Prescribe study (held in reserve for future submission), whereas the JSS paper focuses on predictive vs. analytical cascade impact ranking).*
 
 
 ---

@@ -12,7 +12,7 @@
 * **Degree / institution:** PhD, Istanbul Technical University, Department of Computer Engineering
 * **Advisor:** Prof. Feza Buzluca
 * **Format:** monograph (not article-compilation), English, ITU LaTeX template — *template not yet obtained*
-* **Publications covered:** JSS (submitted), AuSE (submitted), RASSE 2025 (published), UYMS 2026 ×2 (co-authored)
+* **Publications covered:** JSS (submitted), AuSE / SaG-Prescribe (held in reserve / future submission), RASSE 2025 (published), UYMS 2026 ×2 (co-authored)
 
 ---
 
@@ -31,7 +31,7 @@ the duality in a different direction:
 | Venue | What it does to the duality |
 |---|---|
 | JSS | Demotes Pathway A: *"one primary contribution with a supporting layer, rather than two co-equal pathways"*; RM retitled *The Explanation Layer* (§5) |
-| AuSE | Pathway A is the substrate under audit; the contribution is prescription |
+| AuSE (held in reserve) | Pathway A is the substrate under audit; the contribution is prescription |
 | RASSE 2025 | Predates the split — one analytical criticality score, $\rho = 0.94$ |
 
 **Why the claim is load-bearing rather than cosmetic.** It converts the project's most awkward
@@ -148,7 +148,7 @@ other students and must have their boundaries stated explicitly.
 |---|---|---|---|
 | RASSE 2025 (`10.1109/RASSE64831.2025.11315354`) | published | Ch. 4, Ch. 10 | superseded by Ch. 4's model; reconciled in Ch. 10 |
 | JSS (VSI:AI4MSS) | submitted | Ch. 3, 5, 8, 9 | — |
-| AuSE (CI/CD-DevOps-TD SI) | submitted | Ch. 4, 7, 9 | companion-submission disclosure |
+| AuSE (CI/CD-DevOps-TD SI) | unsubmitted / held in reserve | Ch. 4, 7, 9 | companion study (held in reserve) |
 | UYMS 2026 — structural interaction patterns | published | Ch. 2, 3 | **co-authored (Çalışkan, Yiğit, Buzluca)** |
 | UYMS 2026 — visualization | published | Ch. 3 (appendix) | **co-authored (Erşen, Çalışkan, Yiğit, Buzluca)** |
 | Middleware 2026 research | rejected, dead | — | not claimed |
@@ -184,13 +184,13 @@ relaxed rather than left standing.
 
 ## Sequencing
 
-JSS is due **30 September 2026** and AuSE is near-term. The thesis must not compete with either.
+JSS is due **30 September 2026**. AuSE was not submitted and is held in reserve. The thesis must not compete with JSS.
 
-1. **Now, while both submissions are live.** Only work that draws on code rather than manuscript
+1. **Now, while JSS submission is live.** Only work that draws on code rather than manuscript
    text: obtain the ITU template, build the skeleton and front matter, write the Chapter 1
    publication map, and draft **Chapter 6**. Regenerate the two missing artifacts (below).
 2. **After JSS ships.** Chapters 3, 5, 8, 9 assemble from the frozen-at-submission LaTeX.
-3. **After AuSE ships.** Chapter 4's catalog half, Chapter 7, and Chapter 9's prescription results.
+3. **Prescriptive & Catalog integration.** Chapter 4's catalog half, Chapter 7, and Chapter 9's prescription results can assemble directly from the SaG-Prescribe / AuSE materials held in reserve, unconstrained by external AuSE submission timelines.
 4. **Last.** Chapters 2, 10, 11 — these must see all results before they can be written honestly.
 
 ## Outstanding

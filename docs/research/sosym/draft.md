@@ -183,7 +183,7 @@ here.
     simulators; its contribution is the learning study, which we do not
     repeat.
 
--   A second manuscript under review (*“SaG-Prescribe: Unifying
+-   A companion study held in reserve for future submission (*“SaG-Prescribe: Unifying
     Diagnostic Pathways with Counterfactual Refactoring for Automated
     Code Review and Software Quality Evaluation in Distributed
     Publish–Subscribe Systems”*) evaluates the accuracy of the RM model
@@ -1539,7 +1539,7 @@ review at the *Journal of Systems and Software*, “Software-as-a-Graph:
 When Does Graph Learning Improve Cascade-Impact Ranking in
 Publish–Subscribe Systems?” compares learned and analytical rankers; it
 shares the metamodel, scenario corpus and simulators with this paper.
-(iv) A manuscript under review at *Automated Software Engineering*,
+(iv) An unpublished companion manuscript held in reserve for future submission,
 “SaG-Prescribe: Unifying Diagnostic Pathways with Counterfactual
 Refactoring for Automated Code Review and Software Quality Evaluation in
 Distributed Publish–Subscribe Systems,” evaluates the accuracy of the RM

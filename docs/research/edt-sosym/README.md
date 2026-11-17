@@ -54,7 +54,7 @@ Build: `make -C docs/research/edt-sosym/latex` (pdflatex + bibtex). The draft is
 | RASSE 2025 (IEEE, published) | published | The idea of deriving dependencies, cited. The metamodel is restated in one condensed subsection (§4.1) |
 | JSS manuscript (under review) | under review | The four simulators are *cited* as the twin's behavioural models. No JSS result, table or figure is reproduced. Simulator costs (Table 11) come from the framework docs |
 | Middleware 2026 Industry draft | **not submitted** (confirmed by the author) | The framing (static vs. dynamic twin), the 112-requirement baseline and the ATM gate-cost numbers (0.01–1.01 s) are reused, **rewritten**. If that draft is ever submitted, this row must be revisited |
-| SoSyM tool paper (`docs/research/sosym/`) | not submitted; disclosed as in preparation (intro, declarations, cover letter) | **Nothing reused.** The anti-pattern catalog, CQP, the RM composite and prescription are deliberately left out, so two manuscripts at the same journal do not overlap |
+| SoSyM tool paper (`docs/research/sosym/`) and AuSE (held in reserve) | not submitted / in reserve | **Nothing reused.** The anti-pattern catalog, CQP, the RM composite and prescription are deliberately left out, so manuscripts do not overlap |
 | Testbed, calibration, fidelity, maturity, independence analysis | unpublished | New in this paper |
 
 An 8-gram verbatim-overlap check against all of these sources was run on 2026-11-14. The results are in §5.
