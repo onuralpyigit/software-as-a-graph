@@ -4,13 +4,17 @@ Example script that runs the container testbed (docs/simulation-extensions.md,
 section 3) on the 15-component mini-ATM topology and builds an interactive
 HTML walkthrough.
 
-It performs two real runs, each with one fault: a broker relay that stops for
-twelve seconds, and a host that is killed. For each run it calibrates from the
-telemetry, runs the fidelity comparison with declared and with calibrated
-parameters, and sets the observed trace beside the simulator's.
+It fails, one run each, every component the testbed can really fail -- the six
+applications, both broker relays and both hosts -- with a permanent crash at
+20 s, plus a twelve-second outage of the sensor-broker relay to show recovery.
+For each run it calibrates from the telemetry, runs the fidelity comparison
+with declared and with calibrated parameters, and sets the observed trace
+beside the simulator's. It also runs FaultInjector and FailureSimulator, the
+engines of the Failure Lab (run_simulator_walkthrough.py), so the page can set
+their predictions beside what the containers did.
 
 Needs Docker with the compose plugin; the first run builds an image that
-downloads ``python:3.11-slim`` and ``cyclonedds``. About three minutes in all.
+downloads ``python:3.11-slim`` and ``cyclonedds``. About twelve minutes in all.
 """
 
 import argparse
@@ -27,7 +31,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from run_simulator_walkthrough import run_failure_simulator, run_fault_injector
+
+from saag.core.graph_io import load_graph
+from saag.infrastructure.memory_repo import MemoryRepository
 from saag.simulation.runtime.faults import FaultSpec
+from saag.simulation.service import SimulationService
 from saag.testbed import orchestrate
 from saag.testbed.collect import load_run
 from saag.validation.fidelity import stalled_in_trace
@@ -41,10 +50,11 @@ PAGE_HEAD = ('<!doctype html>\n<meta charset="utf-8">\n'
 
 DURATION_S = 40.0
 WARMUP_S = 2.0
-RUNS = {
-    "run_a": [{"target": "B1", "mode": "transient_crash", "start_s": 15, "duration_s": 12}],
-    "run_b": [{"target": "N1", "mode": "crash", "start_s": 20}],
-}
+FAULT_S = 20.0
+# Topics and the library are not processes on the testbed, so they cannot be failed there.
+RUNS = {c: [{"target": c, "mode": "crash", "start_s": FAULT_S}]
+        for c in ("A1", "A2", "A3", "A4", "A5", "A6", "B1", "B2", "N1", "N2")}
+RUNS["B1_transient"] = [{"target": "B1", "mode": "transient_crash", "start_s": 15, "duration_s": 12}]
 FIDELITY_FIELDS = ("median_rel_error", "max_rel_error", "n_compared", "share_within_tolerance")
 
 
@@ -86,12 +96,13 @@ def collect(run_dir: Path) -> dict:
     meta = json.loads((run_dir / "run.json").read_text())
     plan = json.loads((run_dir / "deployment.json").read_text())
     first_fault = min(f["start_s"] for f in meta["faults"])
+    n = int(meta["duration_s"])
     entry = {
         "meta": {k: meta[k] for k in ("duration_s", "faults", "mode")},
         "chaos": [{"t": r4(c["t"]), "what": " ".join(c["argv"]) if "argv" in c
                    else f"control file {c['control']}.json = {json.dumps(c['state'])}"} for c in meta["chaos_log"]],
-        "side": {"observed": trace_view(load_run(run_dir), int(meta["duration_s"]), first_fault),
-                 "simulated": trace_view(orchestrate.simulate_like(run_dir), int(meta["duration_s"]), first_fault)},
+        "side": {"observed": trace_view(load_run(run_dir), n, first_fault),
+                 "simulated": trace_view(orchestrate.simulate_like(run_dir), n, first_fault)},
     }
     for name in ("fidelity", "fidelity_calibrated"):
         report = json.loads((run_dir / f"{name}.json").read_text())
@@ -113,6 +124,20 @@ def collect(run_dir: Path) -> dict:
         "policy": {a: [plan["apps"][a]["policy"], profile["trigger_policy"].get(a)] for a in plan["apps"]},
     }
     return entry
+
+
+def predictions() -> dict:
+    """What the Failure Lab's FaultInjector (I*) and FailureSimulator (I_comp) say each failure does."""
+    fi = run_fault_injector(load_graph(TOPOLOGY))
+    repo = MemoryRepository()
+    repo.save_graph(json.loads(TOPOLOGY.read_text()), clear=True)
+    fs, _ = run_failure_simulator(SimulationService(repo))
+    return {
+        "fi": {c: {"score": r["score"], "loss": r["loss"],
+                   "failed": sorted({a for w in r["waves"] for a in w["failed"]})} for c, r in fi.items()},
+        "fs": {c: {"comp": r["comp"], "failed": r["failed"],
+                   "hit": sorted({e["id"] for e in r["seq"] if e["depth"] > 0})} for c, r in fs.items()},
+    }
 
 
 def plan_view(run_dir: Path) -> dict:
@@ -140,19 +165,18 @@ def main() -> None:
     if not args.reuse and shutil.which("docker") is None:
         sys.exit("Docker was not found. Install it, or pass --reuse to rebuild the page from an earlier run.")
 
-    data = {}
+    data = {"runs": {}, "pred": predictions()}
     for name, faults in RUNS.items():
         run_dir = args.workdir / name
         if not args.reuse:
             print(f"{name}: {faults[0]['mode']} on {faults[0]['target']} at {faults[0]['start_s']} s ...")
             execute(run_dir, faults)
-        data[name] = collect(run_dir)
-        delivery = data[name]["fidelity"]["metrics"]["delivery_rate"]["median_rel_error"]
-        p95 = data[name]["fidelity"]["metrics"]["latency_p95"]["median_rel_error"]
-        print(f"  stalled observed {data[name]['side']['observed']['stalled']} | "
-              f"simulated {data[name]['side']['simulated']['stalled']} | "
-              f"delivery error {delivery:.3f} | latency p95 error {p95:.3f}")
-    data["plan"] = plan_view(args.workdir / "run_a")
+        run = data["runs"][name] = collect(run_dir)
+        obs, sim = run["side"]["observed"], run["side"]["simulated"]
+        delivery = run["fidelity"]["metrics"]["delivery_rate"]["median_rel_error"]
+        print(f"  I* fails {data['pred']['fi'][faults[0]['target']]['failed']} | "
+              f"silent observed {obs['stalled']} simulated {sim['stalled']} | delivery error {delivery:.3f}")
+    data["plan"] = plan_view(args.workdir / "A1")
 
     page = TEMPLATE.read_text().replace("/*DATA*/", json.dumps(data, separators=(",", ":")))
     args.output.write_text(PAGE_HEAD + page)
