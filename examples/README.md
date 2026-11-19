@@ -170,17 +170,17 @@ The four scores answer different questions and rank the components differently. 
 
 ### Container Testbed Walkthrough (Mini-ATM Testbed Run)
 
-- **`run_testbed_walkthrough.py`**: Runs the [container testbed](../docs/simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) on `mini_atm.json` twice, each time with one fault (the `B1` relay stopped for 12 s; host `N1` killed with `docker kill`). For each run it calibrates from the telemetry, runs the fidelity comparison with declared and with calibrated parameters, and sets the observed trace beside the simulator's.
+- **`run_testbed_walkthrough.py`**: Runs the [container testbed](../docs/simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) on `mini_atm.json` once for every component the testbed can fail, the same picker as the Failure Lab: each application, broker relay and host crashes at 20 s and stays down, plus a 12 s outage of the `B1` relay to show recovery. Topics and the library are not processes, so the page shows them as not emulable. For each run it calibrates from the telemetry, runs the fidelity comparison with declared and with calibrated parameters, and sets the observed trace beside the simulator's. It also runs the Failure Lab's `FaultInjector` (I\*) and `FailureSimulator` (I_comp) and compares which applications each predicts are affected with what the containers did.
 - **`mini_atm_testbed_run.template.html`** / **`mini_atm_testbed_run.html`**: The page template and the generated interactive walkthrough.
 
 ```bash
-python examples/run_testbed_walkthrough.py           # two Docker runs, about three minutes
+python examples/run_testbed_walkthrough.py           # eleven Docker runs, about twelve minutes
 python examples/run_testbed_walkthrough.py --reuse   # rebuild the page from the last runs, no Docker
 ```
 
 Needs Docker with the compose plugin; the first run builds an image that downloads `python:3.11-slim` and `cyclonedds`. The testbed directories and telemetry go to the ignored `output/testbed_walkthrough/`.
 
-On this topology the simulator reproduces who stalls and who recovers (stall-set Jaccard 1.0 in both runs) and the delivery rates (within 8% per reader), but not latency: the median p95 error is about 0.6 with declared parameters. Each scenario is run once, so this is a smoke test, not a fidelity estimate. The page also notes one input-format mismatch: `mini_atm.json` declares deadlines only inside each topic's `qos` block, which the simulator reads and the testbed plan does not.
+On this topology, MessageFlowSimulator configured like the testbed names the same affected applications in all 10 crashes. The Failure Lab's I\* matches in 9: on a `B2` crash, the testbed fails `tracks` over to the `B1` relay, while I\* scores a QoS-scaled loss and fails conflict-detector. I_comp matches in 3, because its minimum rule keeps any subscriber that has a healthy feed left. Delivery rates agree before the fault and latency does not. Each scenario is run once, so this is a smoke test, not a fidelity estimate. The page also notes one input-format mismatch: `mini_atm.json` declares deadlines only inside each topic's `qos` block, which the simulator reads and the testbed plan does not.
 
 ---
 

@@ -2,12 +2,13 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
 <style>
-/* Layout: pipeline strip, deployment diagram, then one run picker driving observed-versus-simulated timelines and their readouts. */
+/* Layout: pipeline strip, deployment diagram, then the Failure Lab picker driving predicted-versus-observed, the timelines and their readouts. */
 :root {
   --bg: #f2f5f7; --surface: #ffffff; --ink: #16212b; --muted: #5a6877; --line: #cbd4dc; --line-soft: #e3e8ed;
   --accent: #0b6a94; --accent-soft: #d9ebf3;
   --fail: #bf3b2b; --fail-soft: #f9ddd7;
   --ok: #2b7a4b; --ok-soft: #dcefe3;
+  --on-fail: #ffffff; --warn: #9a6a12; --warn-soft: #f7e8c6; --host: #e8edf1;
   --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
   --body: "IBM Plex Sans", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
@@ -16,12 +17,14 @@
   --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
   --accent: #5fbbe0; --accent-soft: #15364a;
   --fail: #f07360; --fail-soft: #4b221c;
-  --ok: #63c08a; --ok-soft: #173826; color-scheme: dark } }
+  --ok: #63c08a; --ok-soft: #173826;
+  --on-fail: #1c0a07; --warn: #e3b550; --warn-soft: #43350f; --host: #1c2732; color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #0f151b; --surface: #17202a; --ink: #e5ecf2; --muted: #94a2b1; --line: #344352; --line-soft: #243140;
   --accent: #5fbbe0; --accent-soft: #15364a;
   --fail: #f07360; --fail-soft: #4b221c;
-  --ok: #63c08a; --ok-soft: #173826; color-scheme: dark }
+  --ok: #63c08a; --ok-soft: #173826;
+  --on-fail: #1c0a07; --warn: #e3b550; --warn-soft: #43350f; --host: #1c2732; color-scheme: dark }
 
 body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
@@ -63,15 +66,16 @@ td.num, th.num { font-family: var(--mono); font-variant-numeric: tabular-nums; t
 
 .picker { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding-block: 10px; display: flex; gap: 14px; align-items: center; }
 .chips { display: flex; gap: 6px; overflow-x: auto; min-width: 0; padding-bottom: 2px; }
-.chip { font: 500 0.84rem var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+.chip { font: 500 0.8rem var(--mono); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 5px 9px; cursor: pointer; white-space: nowrap; }
 .chip:hover { border-color: var(--accent); }
-.chip[aria-pressed="true"] { background: var(--fail); border-color: var(--fail); color: var(--surface); }
+.chip[aria-pressed="true"] { background: var(--fail); border-color: var(--fail); color: var(--on-fail); }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .keys { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; color: var(--muted); }
 .key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .sw { width: 12px; height: 10px; display: inline-block; background: var(--accent); border-radius: 1px; }
 .sw.sim { height: 0; border-top: 2px solid var(--ink); background: none; width: 16px; }
 .sw.band { background: var(--fail-soft); border: 1px solid var(--fail); }
+.fig-bar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; color: var(--muted); }
 .fig svg { display: block; width: 100%; min-width: 620px; height: auto; }
 .log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font: 400 0.82rem var(--mono); }
 .log b { color: var(--fail); font-weight: 600; }
@@ -98,6 +102,47 @@ svg text { font-family: var(--mono); fill: var(--ink); }
 .nm { font-family: var(--body); font-size: 11.5px; font-weight: 600; text-anchor: middle; }
 .sb { font-size: 9px; fill: var(--muted); text-anchor: middle; }
 .ttl { font-size: 10.5px; font-weight: 600; fill: var(--muted); }
+/* lab topology, shared with mini_atm_failure_lab */
+#topo text { font-family: var(--body); }
+#topo .n { cursor: pointer; }
+.n rect, .n polygon { fill: var(--surface); stroke: var(--muted); stroke-width: 1.3; }
+.n .nm { font-size: 12px; font-weight: 600; text-anchor: middle; }
+.n .sb { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); text-anchor: middle; }
+.n.host > rect { fill: var(--host); stroke: var(--line); stroke-dasharray: 5 3; }
+.n.host .nm { font-size: 11px; font-family: var(--mono); font-weight: 500; fill: var(--muted); }
+.n.lib rect { stroke-dasharray: 3 2; }
+.n.origin > rect, .n.origin > polygon { fill: var(--fail); stroke: var(--fail); stroke-dasharray: none; }
+.n.origin > .nm, .n.origin > .sb { fill: var(--on-fail); }
+.n.failed > rect, .n.failed > polygon { fill: var(--fail-soft); stroke: var(--fail); stroke-width: 1.8; }
+.n.lost > rect, .n.lost > polygon { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 1.8; }
+.n:hover > rect, .n:hover > polygon { stroke-width: 2.4; }
+.bdg rect { fill: var(--ink); stroke: none; }
+.bdg text { fill: var(--bg); font-family: var(--mono); font-size: 9.5px; font-weight: 600; text-anchor: middle; }
+.e { stroke: var(--muted); stroke-width: 1.3; fill: none; }
+.e.routes { stroke-dasharray: 5 4; } .e.uses { stroke-dasharray: 1.5 3.5; stroke-linecap: round; stroke-width: 1.6; }
+.e.cut { stroke: var(--fail); opacity: 0.55; stroke-dasharray: 2 4; }
+.ah { fill: var(--muted); stroke: none; } .ah.cut { fill: var(--fail); opacity: 0.55; }
+.link { stroke: var(--muted); stroke-width: 3; }
+.st { width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid var(--line); background: var(--surface); display: inline-block; }
+.st.origin { background: var(--fail); border-color: var(--fail); }
+.st.failed { background: var(--fail-soft); border-color: var(--fail); }
+.st.lost { background: var(--warn-soft); border-color: var(--warn); }
+.chip small { font: 400 0.74rem var(--body); color: var(--muted); margin-left: 5px; }
+.chip[aria-pressed="true"] small { color: var(--on-fail); opacity: 0.85; }
+.chip.gap { margin-left: 8px; }
+.chip.off { border-style: dashed; }
+.steps { display: flex; gap: 4px; flex-wrap: wrap; }
+.step { font: 500 0.78rem var(--mono); border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 3px 9px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+.step[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.empty { padding: 22px 18px; color: var(--muted); font-size: 0.92rem; display: flex; flex-direction: column; gap: 10px; }
+.empty p { max-width: 80ch; } .empty b { color: var(--ink); }
+.jac { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.jac div { border: 1px solid var(--line-soft); border-radius: 4px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.jac .v { font: 600 1.4rem var(--mono); line-height: 1.1; }
+.jac .k { font-size: 0.76rem; color: var(--muted); }
+td.miss { color: var(--fail); font-weight: 600; }
+td.dim { color: var(--muted); }
+a { color: var(--accent); }
 footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: 0.84rem; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
 footer p { max-width: 92ch; }
 </style>
@@ -106,7 +151,7 @@ footer p { max-width: 92ch; }
   <header>
     <div class="eyebrow">software-as-a-graph · saag/testbed</div>
     <h1>Mini-ATM Testbed Run</h1>
-    <p class="lede">The simulators grade themselves against quantities the framework computes. The testbed produces something independent: the same scenario running as real processes in containers, talking over real DDS, with a real fault injected. This page follows two such runs of the 15-component mini-ATM system and sets each beside the simulator's version of the same run.</p>
+    <p class="lede">The <a href="mini_atm_failure_lab.html">Failure Lab</a> asks four simulators what happens when one component of the 15-component mini-ATM system fails. This page asks the same question of something independent: the scenario running as real processes in containers, talking over real DDS, with the failure actually injected. Pick a component and the page sets the lab's predictions beside what the containers did.</p>
   </header>
 
   <section>
@@ -116,10 +161,10 @@ footer p { max-width: 92ch; }
     </div>
     <div class="pipe">
       <div class="box stage"><span class="n">1 · BUILD</span><span class="t">Deployment plan</span><span class="d">Hosts, residents, topic QoS, each app's trigger policy and service time. Writes a Dockerfile and a compose file.</span><code>testbed build --input mini_atm.json --duration 40 --qos-semantics dds</code></div>
-      <div class="box stage"><span class="n">2 · RUN</span><span class="t">Containers and chaos</span><span class="d">One container per host. Stub applications publish and consume over Cyclone DDS while the orchestrator applies the faults on schedule.</span><code>testbed run --faults faults.json --mode docker</code></div>
+      <div class="box stage"><span class="n">2 · RUN</span><span class="t">Containers and chaos</span><span class="d">One container per host. Stub applications publish and consume over Cyclone DDS while the orchestrator applies the fault on schedule.</span><code>testbed run --faults faults.json --mode docker</code></div>
       <div class="box stage"><span class="n">3 · RECORD</span><span class="t">Telemetry</span><span class="d">Every publish, delivery and DDS status change is written as an OpenTelemetry-shaped event, one file per host.</span><code>telemetry/N1.jsonl, N2.jsonl</code></div>
       <div class="box stage"><span class="n">4 · CALIBRATE</span><span class="t">Fit parameters</span><span class="d">Topic rates, service-time distributions and trigger policies are fitted from the steady state before the fault.</span><code>testbed calibrate</code></div>
-      <div class="box stage"><span class="n">5 · COMPARE</span><span class="t">Fidelity</span><span class="d">The simulator runs the same scenario, faults and duration. The two traces are compared. A report, never a gate.</span><code>testbed fidelity [--calibrated]</code></div>
+      <div class="box stage"><span class="n">5 · COMPARE</span><span class="t">Fidelity</span><span class="d">MessageFlowSimulator runs the same scenario, fault and duration. The two traces are compared. A report, never a gate.</span><code>testbed fidelity [--calibrated]</code></div>
     </div>
   </section>
 
@@ -137,15 +182,45 @@ footer p { max-width: 92ch; }
   </section>
 
   <div class="picker">
-    <span class="cap">Run</span>
+    <span class="cap">Fail</span>
     <div class="chips" id="chips"></div>
   </div>
 
   <section>
     <div class="sec-head">
-      <div class="eyebrow">The run</div>
+      <div class="eyebrow">Predicted vs observed</div>
       <h2 id="r-title"></h2>
       <p id="r-blurb"></p>
+      <div class="steps" id="b1-mode" hidden></div>
+    </div>
+    <div class="box empty" id="r-off" hidden></div>
+    <div class="two" id="r-cmp">
+      <div class="box fig scroll">
+        <div class="fig-bar">
+          <div class="steps" id="views"></div>
+          <span class="key"><span class="st origin"></span>injected</span>
+          <span class="key"><span class="st failed"></span>silent or every feed lost</span>
+          <span class="key"><span class="st lost"></span>some feeds lost / topic silent</span>
+        </div>
+        <svg id="topo" viewBox="0 0 780 420" role="img" aria-label="Mini-ATM topology coloured by the outcome of the failure"></svg>
+      </div>
+      <div class="box pad">
+        <span class="cap">Who did each source say is affected?</span>
+        <div class="jac" id="jac"></div>
+        <p class="note">Jaccard of each prediction's affected applications against the testbed's, leaving out the failed component and anything on a failed host. 1.0 is the same set; two empty sets also count as 1.0.</p>
+        <p class="note" id="r-note"></p>
+      </div>
+    </div>
+    <div class="box scroll" id="r-tbl-box"><table id="r-tbl"></table></div>
+    <p class="note" id="r-tbl-note"></p>
+  </section>
+
+  <div id="runbody">
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">The run</div>
+      <h2>Observed beside simulated, second by second</h2>
+      <p>The simulated trace is MessageFlowSimulator configured the way the fidelity command configures it: reactive applications, relays in the data path, the same fault at the same time.</p>
     </div>
     <div class="two">
       <div class="box fig scroll">
@@ -156,9 +231,8 @@ footer p { max-width: 92ch; }
         <span class="cap">What the orchestrator did</span>
         <ul class="log" id="chaos"></ul>
         <span class="cap" style="margin-top:6px">Applications that fell silent</span>
-        <div class="score"><span class="val" id="jac"></span><span class="sub">stall-set Jaccard, observed against simulated</span></div>
+        <div class="score"><span class="val" id="stall-j"></span><span class="sub">stall-set Jaccard, observed against simulated</span></div>
         <p class="note" id="stall"></p>
-        <p class="note" id="r-note"></p>
       </div>
     </div>
     <div class="box fig scroll">
@@ -170,7 +244,7 @@ footer p { max-width: 92ch; }
   <section>
     <div class="sec-head">
       <div class="eyebrow">Fidelity</div>
-      <h2>How closely did the simulator match?</h2>
+      <h2>How closely did the simulator match before the fault?</h2>
       <p>Steady state is compared over the window before the fault, after a 2 s warm-up. Errors are relative, per topic or per reader. The second pair of columns repeats the comparison with the simulator fed the parameters fitted from this run's own telemetry.</p>
     </div>
     <div class="half">
@@ -194,37 +268,220 @@ footer p { max-width: 92ch; }
       <div class="box scroll"><table id="cal-pol"></table></div>
     </div>
   </section>
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">All ten failures</div>
+      <h2>How often did each prediction match the containers?</h2>
+      <p>One row per component the testbed can fail, each a permanent crash at 20 s. Click a row to open it above.</p>
+    </div>
+    <div class="box scroll"><table id="all"></table></div>
+  </section>
 
   <section>
     <div class="sec-head">
       <div class="eyebrow">Reading the result</div>
-      <h2>What these two runs do and do not show</h2>
+      <h2>What these runs do and do not show</h2>
     </div>
     <ul class="plain" id="take"></ul>
   </section>
 
   <footer>
-    <p><b>How this was produced.</b> <code>python cli/simulate_graph.py testbed build | run | calibrate | fidelity</code> on <code>examples/mini_atm.json</code>, 40 s per run, seed 0, Docker mode with Cyclone DDS 11.0.1, DDS QoS semantics. The simulated traces come from <code>saag.testbed.orchestrate.simulate_like</code>, the function the fidelity command uses.</p>
-    <p>Regenerate this page with <code>python examples/run_testbed_walkthrough.py</code>. Each scenario was run once on one machine, so every number here is a single measurement. Treat the page as a demonstration of the mechanism and a smoke test, not as a fidelity estimate.</p>
+    <p><b>How this was produced.</b> <code>python cli/simulate_graph.py testbed build | run | calibrate | fidelity</code> on <code>examples/mini_atm.json</code>, 40 s per run, seed 0, Docker mode with Cyclone DDS 11.0.1, DDS QoS semantics. One run per failed component. The simulated traces come from <code>saag.testbed.orchestrate.simulate_like</code>, the function the fidelity command uses. The I* and I_comp predictions are the same <code>FaultInjector</code> and <code>FailureSimulator</code> runs as on the <a href="mini_atm_failure_lab.html">Failure Lab</a>.</p>
+    <p>Regenerate this page with <code>python examples/run_testbed_walkthrough.py</code>. Each failure was run once on one machine, so every number here is a single measurement. Treat the page as a demonstration of the mechanism and a smoke test, not as a fidelity estimate.</p>
   </footer>
 </div>
 
 <script>
 const D = /*DATA*/;
 const NS = 'http://www.w3.org/2000/svg';
-const NAME = { A1: 'radar', A2: 'tracker', A3: 'conflict-detector', A4: 'flight-plan', A5: 'display', A6: 'recorder', B1: 'sensor-broker', B2: 'ops-broker', T1: 'radar.plots', T2: 'tracks', T3: 'conflict.alerts', T4: 'flight.plans', N1: 'sensor-host', N2: 'ops-host' };
-const RUNS = {
-  run_a: { chip: 'Broker B1 down for 12 s', title: 'A broker relay stops for twelve seconds, then comes back',
-    blurb: 'The sensor-broker relay is told to stop through a control file at 15 s and to resume at 27 s. Its container keeps running. radar.plots has no other relay.',
-    note: 'Radar keeps publishing throughout, but nothing relays its plots. Tracker’s input goes stale after 0.15 s, so it stops publishing; conflict-detector follows. Both resume within a second of the relay returning. Flight-plan is periodic and routed by the other relay, so it never notices. Nothing is silent at the end of the run, so both stall sets are empty.' },
-  run_b: { chip: 'Host N1 killed at 20 s', title: 'A whole host is killed and stays down',
-    blurb: 'The orchestrator runs docker kill on the sensor-host container at 20 s. Radar, tracker and the sensor-broker relay die with it.',
-    note: 'Radar and tracker stop because their container is gone. Conflict-detector is on the surviving host and stops for a different reason: its only input, tracks, goes stale. Flight-plan carries on. The simulator predicts the same three silent applications.' },
+/* Topology and picker, as on the Failure Lab. */
+const N = {
+  B1:{t:'Broker',name:'sensor-broker',sub:'B1 · on N1',x:210,y:46,w:110,h:36,host:'N1'},
+  B2:{t:'Broker',name:'ops-broker',sub:'B2 · on N2',x:490,y:46,w:110,h:36,host:'N2'},
+  T1:{t:'Topic',name:'radar.plots',sub:'T1 · 20 Hz',x:130,y:150,w:100,h:36},
+  T2:{t:'Topic',name:'tracks',sub:'T2 · 10 Hz',x:290,y:150,w:100,h:36},
+  T3:{t:'Topic',name:'conflict.alerts',sub:'T3 · 2 Hz',x:530,y:150,w:100,h:36},
+  T4:{t:'Topic',name:'flight.plans',sub:'T4 · 1 Hz',x:650,y:150,w:100,h:36},
+  A1:{t:'Application',name:'radar',sub:'A1',x:68,y:282,w:100,h:38,host:'N1'},
+  A2:{t:'Application',name:'tracker',sub:'A2',x:193,y:282,w:100,h:38,host:'N1'},
+  A6:{t:'Application',name:'recorder',sub:'A6',x:350,y:282,w:100,h:38,host:'N2'},
+  A3:{t:'Application',name:'conflict-detector',sub:'A3',x:470,y:282,w:106,h:38,host:'N2'},
+  A5:{t:'Application',name:'display',sub:'A5',x:590,y:282,w:100,h:38,host:'N2'},
+  A4:{t:'Application',name:'flight-plan',sub:'A4',x:710,y:282,w:100,h:38,host:'N2'},
+  L1:{t:'Library',name:'track-model',sub:'L1 · library',x:330,y:388,w:100,h:36},
+  N1:{t:'Node',name:'sensor-host',box:{x:8,y:248,w:242,h:92},x:129,y:340,w:242,h:10},
+  N2:{t:'Node',name:'ops-host',box:{x:288,y:248,w:484,h:92},x:530,y:340,w:484,h:10},
 };
-const f3 = v => v == null ? '–' : v.toFixed(3), f1 = v => v == null ? '–' : v.toFixed(1);
+const ORDER = ['N1','N2','B1','B2','L1','A1','A2','A3','A4','A5','A6','T1','T2','T3','T4'];
+const APPS = ['A1','A2','A3','A4','A5','A6'];
+const E = [
+  ['A1','T1','flow'],['A2','T2','flow'],['A3','T3','flow'],['A4','T4','flow'],
+  ['T1','A2','flow'],['T2','A3','flow'],['T2','A5','flow'],['T3','A5','flow'],['T4','A5','flow'],['T1','A6','flow'],['T2','A6','flow'],['T4','A6','flow'],
+  ['B1','T1','routes'],['B1','T2','routes'],['B2','T2','routes'],['B2','T3','routes'],['B2','T4','routes'],
+  ['A2','L1','uses'],['A3','L1','uses'],
+];
+const NAME = Object.fromEntries(Object.entries(N).map(([k, v]) => [k, v.name]));
+const f3 = v => v == null ? '–' : v.toFixed(3), f1 = v => v == null ? '–' : v.toFixed(1), f2 = v => v.toFixed(2);
 const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 function el(tag, attrs, parent, text) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; }
-let sel = 'run_a';
+let sel = 'B1', b1mode = 'crash', view = 'testbed';
+
+/* Per-component prose, written from the runs on this page. */
+const NOTE = {
+  A1: 'radar.plots stops. Tracker\'s only input goes stale after 0.15 s, so it stops publishing tracks, and conflict-detector follows. Display ends with 2 of 3 feeds lost, recorder too. That is the lab\'s I* cascade wave for wave. I_comp names nobody: its hop from radar to radar.plots fires with probability 0.146, the QoS weight of that best-effort edge, and did not fire in the lab\'s seeded run.',
+  A2: 'tracks stops, so conflict-detector stops too. Display loses 2 of 3 feeds and recorder 1 of 3, exactly the I* loss values. I_comp marks only conflict-detector: under its minimum rule, a subscriber with one healthy feed left stays up.',
+  A3: 'Only display reads conflict.alerts, so it loses 1 of 3 feeds and nothing else moves. I* agrees. I_comp leaves display up, because it still has two healthy feeds.',
+  A4: 'Display and recorder each lose flight.plans, 1 of their 3 feeds, as I* predicts. I_comp leaves both up for the same reason as before: each keeps two healthy feeds.',
+  A5: 'Display only consumes. Its crash takes no feed from anyone else, and every source agrees that nothing else is affected.',
+  A6: 'Recorder only consumes. Its crash takes no feed from anyone else, and every source agrees that nothing else is affected.',
+  B1: 'Radar keeps publishing, but nothing relays radar.plots any more. Tracker\'s input goes stale, tracks goes quiet even though ops-broker could still route it, and the outcome is the radar crash. I* predicts exactly that. I_comp records no cascade, because tracks keeps a healthy broker and its probabilistic hop to radar.plots did not fire.',
+  B2: 'This is the one failure where I* is wrong about the containers. I* scales the loss of half of tracks\' routing by QoS to 0.69 and fails conflict-detector. On DDS, tracks was already relayed by sensor-broker, the lowest-id relay, so conflict-detector never misses a sample and keeps publishing. Only the two topics with no other relay go quiet: display loses 2 of 3 feeds and recorder 1 of 3.',
+  N1: 'Radar, tracker and sensor-broker die with the container. Conflict-detector, on the surviving host, stops because tracks goes stale. Display and recorder each lose 2 of 3 feeds, and flight-plan carries on. I* matches. I_comp also fails flight-plan: its legacy network rule isolates ops-host, because the only link is declared from N1 to N2. That is a documented asymmetry, and the testbed shows it does not happen.',
+  N2: 'Four applications and ops-broker die with the container. Radar and tracker on sensor-host keep publishing. Tracks has no live reader left, but tracker\'s own input still arrives through sensor-broker, so no surviving application is affected. Every source agrees.',
+  B1_transient: 'The same cascade as the permanent relay crash, read over the last 5 s of the outage. Once the relay returns at 27 s, tracker and conflict-detector resume within a second, as the publications chart shows. The cascade engines model a permanent failure, so their prediction is the crash outcome.',
+};
+const OFF = {
+  L1: 'A library is code linked into tracker and conflict-detector, not a process of its own, so there is nothing on the testbed to stop. The lab\'s engines fail its users outright; the nearest testbed run is a crash of both users, which this page does not include.',
+  T1: 'A topic is a name on the DDS bus, not a process, so there is nothing to stop. Its only publisher is radar and its only relay sensor-broker: see those two runs.',
+  T2: 'A topic is a name on the DDS bus, not a process. tracks has one publisher, tracker, and two relays; see the tracker run, and the two broker runs for its redundancy.',
+  T3: 'A topic is a name on the DDS bus, not a process. Its only publisher is conflict-detector: see that run.',
+  T4: 'A topic is a name on the DDS bus, not a process. Its only publisher is flight-plan: see that run.',
+};
+
+/* ---------- topology (as on the Failure Lab) ---------- */
+function clip(a, b, pad) { const dx = b.x - a.x, dy = b.y - a.y, hw = a.w / 2 + pad, hh = a.h / 2 + pad, s = Math.min(dx ? hw / Math.abs(dx) : Infinity, dy ? hh / Math.abs(dy) : Infinity); return { x: a.x + dx * s, y: a.y + dy * s }; }
+function arrow(svg, p1, p2, cls) { const a = Math.atan2(p2.y - p1.y, p2.x - p1.x), s = 7, w = 0.42; el('polygon', { points: [[p2.x, p2.y], [p2.x - s * Math.cos(a - w), p2.y - s * Math.sin(a - w)], [p2.x - s * Math.cos(a + w), p2.y - s * Math.sin(a + w)]].map(p => p.map(v => v.toFixed(1)).join(',')).join(' '), class: 'ah ' + cls }, svg); }
+function badge(g, x, y, text) { const w = text.length * 6.2 + 9, b = el('g', { class: 'bdg' }, g); el('rect', { x: x - w, y: y - 8, width: w, height: 15, rx: 3 }, b); el('text', { x: x - w / 2, y: y + 3.4 }, b, text); }
+function nodeShape(g, n) {
+  const x = n.x - n.w / 2, y = n.y - n.h / 2;
+  if (n.t === 'Broker') { const c = 9; el('polygon', { points: [[x + c, y], [x + n.w - c, y], [x + n.w, y + c], [x + n.w, y + n.h - c], [x + n.w - c, y + n.h], [x + c, y + n.h], [x, y + n.h - c], [x, y + c]].map(p => p.join(',')).join(' ') }, g); }
+  else el('rect', { x, y, width: n.w, height: n.h, rx: n.t === 'Topic' ? n.h / 2 : 5 }, g);
+}
+const DEAD = { origin: 1, failed: 1, lost: 1 };
+function drawTopo(svg, state = {}, badges = {}) {
+  svg.textContent = '';
+  for (const h of ['N1', 'N2']) {
+    const b = N[h].box, g = el('g', { class: 'n host ' + (state[h] || ''), 'data-id': h }, svg), right = h === 'N2';
+    el('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 6 }, g);
+    el('text', { class: 'nm', x: right ? b.x + b.w - 10 : b.x + 10, y: b.y + b.h - 9, style: 'text-anchor:' + (right ? 'end' : 'start') }, g, h + ' · ' + N[h].name);
+    if (badges[h]) badge(g, b.x + b.w - 4, b.y + 2, badges[h]);
+  }
+  el('line', { class: 'link', x1: 250, y1: 294, x2: 288, y2: 294 }, svg);
+  el('text', { class: 'lbl', x: 269, y: 286, style: 'text-anchor:middle' }, svg, 'link');
+  for (const [u, v, kind] of E) {
+    const cut = DEAD[state[u]] || DEAD[state[v]] || (N[u].host && state[N[u].host] === 'origin') || (N[v].host && state[N[v].host] === 'origin');
+    const p1 = clip(N[u], N[v], 1), p2 = clip(N[v], N[u], kind === 'flow' ? 3 : 1);
+    el('line', { class: 'e ' + kind + (cut ? ' cut' : ''), x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }, svg);
+    if (kind === 'flow') arrow(svg, p1, p2, cut ? 'cut' : '');
+  }
+  for (const id in N) {
+    const n = N[id]; if (n.box) continue;
+    const g = el('g', { class: 'n ' + (n.t === 'Library' ? 'lib ' : '') + (state[id] || ''), 'data-id': id }, svg);
+    nodeShape(g, n);
+    el('text', { class: 'nm', x: n.x, y: n.y - 1 }, g, n.name);
+    el('text', { class: 'sb', x: n.x, y: n.y + 11.5 }, g, n.sub);
+    if (badges[id]) badge(g, n.x + n.w / 2 + 5, n.y - n.h / 2 - 1, badges[id]);
+  }
+}
+
+/* ---------- outcomes ---------- */
+const runKey = () => sel === 'B1' && b1mode === 'transient' ? 'B1_transient' : sel;
+const residents = h => h in D.plan.hosts ? [...D.plan.hosts[h].apps, ...D.plan.hosts[h].brokers] : [];
+function faultSpan(r) { const f = r.meta.faults[0]; return [f.start_s, f.duration_s == null ? r.meta.duration_s : f.start_s + f.duration_s]; }
+/* Outcome of one trace: read over the last 5 s of the fault (the end of the run for a crash). */
+function outcome(r, side, ex = new Set()) {
+  const tr = r.side[side], [f0, f1] = faultSpan(r), w1 = Math.floor(f1), w0 = w1 - 5, any = (arr, a, b) => (arr || []).slice(a, b).some(v => v > 0);
+  const apps = {}, topics = {};
+  for (const a of APPS) {
+    const p = D.plan.apps[a], subs = p.subscribes, lost = subs.filter(t => !any(tr.dlv[a + '|' + t], w0, w1));
+    const silent = p.publishes.length > 0 && any(tr.pub[a], 2, f0) && !any(tr.pub[a], w0, w1);
+    apps[a] = { silent, lost, n: subs.length, loss: subs.length ? lost.length / subs.length : 0, hit: silent || lost.length > 0 };
+  }
+  for (const t in D.plan.topics) {
+    // A topic counts as silent only if it stopped reaching readers that are still up.
+    const keys = Object.keys(tr.dlv).filter(k => k.endsWith('|' + t) && !ex.has(k.split('|')[0]));
+    topics[t] = keys.some(k => any(tr.dlv[k], 2, f0)) && !keys.some(k => any(tr.dlv[k], w0, w1));
+  }
+  return { apps, topics };
+}
+/* Applications each source calls affected, leaving out the failed component and its host's residents. */
+function excluded(c) { return new Set([c, ...residents(c)]); }
+function affected(c, src, r) {
+  const ex = excluded(c), keep = a => !ex.has(a);
+  if (src === 'fi') { const p = D.pred.fi[c]; return new Set(APPS.filter(keep).filter(a => p.failed.includes(a) || (p.loss[a] || 0) > 0)); }
+  if (src === 'fs') { const p = D.pred.fs[c]; return new Set(APPS.filter(keep).filter(a => p.hit.includes(a))); }
+  const o = outcome(r, src === 'mf' ? 'simulated' : 'observed');
+  return new Set(APPS.filter(keep).filter(a => o.apps[a].hit));
+}
+function jaccard(a, b) { const u = new Set([...a, ...b]); if (!u.size) return 1; return [...a].filter(x => b.has(x)).length / u.size; }
+const SRC = [['testbed', 'Testbed'], ['mf', 'MessageFlow'], ['fi', 'I* FaultInjector'], ['fs', 'I_comp FailureSimulator']];
+
+function topoState(c, r) {
+  const st = { [c]: 'origin' }, bd = {};
+  if (N[c].t === 'Node') for (const id of residents(c)) { st[id] = 'failed'; bd[id] = 'host'; }
+  if (view === 'fi') {
+    const p = D.pred.fi[c];
+    for (const a of APPS) if (!st[a]) { if (p.failed.includes(a)) st[a] = 'failed'; else if ((p.loss[a] || 0) > 0) st[a] = 'lost'; if (p.loss[a] > 0) bd[a] = 'loss ' + f2(p.loss[a]); }
+  } else if (view === 'fs') {
+    const p = D.pred.fs[c];
+    for (const id of p.hit) if (!st[id]) st[id] = p.failed.includes(id) ? 'failed' : 'lost';
+  } else {
+    const o = outcome(r, view === 'mf' ? 'simulated' : 'observed', excluded(c));
+    for (const t in o.topics) if (o.topics[t] && !st[t]) st[t] = 'lost';
+    for (const a of APPS) {
+      const x = o.apps[a]; if (st[a] || !x.hit) continue;
+      st[a] = x.silent || x.loss === 1 ? 'failed' : 'lost';
+      bd[a] = x.silent ? 'silent' : `lost ${x.lost.length}/${x.n}`;
+    }
+  }
+  return [st, bd];
+}
+
+/* ---------- picker and comparison ---------- */
+function renderChips() {
+  let prev = null;
+  document.getElementById('chips').innerHTML = ORDER.map(id => { const g = prev && prev !== N[id].t; prev = N[id].t; return `<button class="chip ${g ? 'gap' : ''} ${OFF[id] ? 'off' : ''}" data-id="${id}" aria-pressed="${id === sel}">${id}<small>${esc(NAME[id])}</small></button>`; }).join('');
+}
+function cellFor(src, c, a, r) {
+  const ex = excluded(c);
+  if (a === c) return ['dim', 'failed component'];
+  if (ex.has(a)) return ['dim', 'on the failed host'];
+  if (src === 'fi') { const p = D.pred.fi[c], l = p.loss[a]; return [null, p.failed.includes(a) ? `fails${l > 0 ? ' · loss ' + f2(l) : ''}` : l > 0 ? 'loss ' + f2(l) : 'unaffected']; }
+  if (src === 'fs') { const p = D.pred.fs[c]; return [null, p.failed.includes(a) ? 'failed' : p.hit.includes(a) ? 'degraded' : 'unaffected']; }
+  const x = outcome(r, src === 'mf' ? 'simulated' : 'observed').apps[a];
+  const parts = []; if (x.silent) parts.push('silent'); if (x.lost.length) parts.push(`${x.lost.length} of ${x.n} feeds lost`);
+  return [null, parts.join(' · ') || (D.plan.apps[a].publishes.length ? 'kept publishing' : 'all feeds kept')];
+}
+function renderCmp() {
+  const c = sel, off = OFF[c], r = off ? null : D.runs[runKey()];
+  document.getElementById('r-off').hidden = !off; document.getElementById('r-cmp').hidden = !!off;
+  document.getElementById('r-tbl-box').hidden = !!off; document.getElementById('runbody').hidden = !!off;
+  const modes = document.getElementById('b1-mode'); modes.hidden = c !== 'B1';
+  modes.innerHTML = [['crash', 'permanent crash at 20 s'], ['transient', '12 s outage, then back']].map(([k, l]) => `<button class="step" data-mode="${k}" aria-pressed="${b1mode === k}">${l}</button>`).join('');
+  const kind = N[c].t === 'Node' ? 'host' : N[c].t.toLowerCase();
+  document.getElementById('r-title').textContent = off ? `${c} ${NAME[c]} cannot be failed on the testbed` : runKey() === 'B1_transient' ? `${c} ${NAME[c]} stops for twelve seconds, then comes back` : `${c} ${NAME[c]} crashes at 20 s and stays down`;
+  if (off) {
+    const p = D.pred.fi[c];
+    document.getElementById('r-blurb').textContent = '';
+    document.getElementById('r-off').innerHTML = `<p>${OFF[c]}</p><p>On the <a href="mini_atm_failure_lab.html">Failure Lab</a> the cascade engine still scores it: <b>I*(${c}) = ${f3(p.score)}</b>${D.pred.fs[c] ? `, <b>I_comp(${c}) = ${f3(D.pred.fs[c].comp)}</b>` : ''}. The testbed can only check failures of things that run: applications, broker relays and hosts.</p>`;
+    return;
+  }
+  const how = r.chaos.map(x => x.what.startsWith('docker') ? 'with <code>docker kill</code> on its container' : 'through a control file its agent reads')[0];
+  document.getElementById('r-blurb').innerHTML = `The ${kind} is failed ${how}${N[c].t === 'Node' ? `, taking ${residents(c).map(a => NAME[a]).join(', ')} with it` : ''}. Below, the lab's two cascade engines and the run's MessageFlowSimulator twin say who suffers; the testbed shows who did.`;
+  document.getElementById('views').innerHTML = SRC.map(([k, l]) => `<button class="step" data-view="${k}" aria-pressed="${view === k}">${l}</button>`).join('');
+  const [st, bd] = topoState(c, r); drawTopo(document.getElementById('topo'), st, bd);
+  const obs = affected(c, 'testbed', r);
+  document.getElementById('jac').innerHTML = SRC.slice(1).map(([k, l]) => `<div><span class="v ${jaccard(affected(c, k, r), obs) === 1 ? 'yes' : 'no'}">${f2(jaccard(affected(c, k, r), obs))}</span><span class="k">${l}</span></div>`).join('');
+  document.getElementById('r-note').textContent = NOTE[runKey()];
+  const others = APPS.filter(a => a !== c);
+  document.getElementById('r-tbl').innerHTML = `<thead><tr><th>Application</th>${SRC.slice(1).map(([, l]) => `<th>${l}</th>`).join('')}<th>Testbed, observed</th></tr></thead><tbody>` +
+    others.map(a => { const t = cellFor('testbed', c, a, r), hit = obs.has(a);
+      return `<tr><td><span class="mono">${a}</span> ${NAME[a]}</td>` + SRC.slice(1).map(([k]) => { const [cls, txt] = cellFor(k, c, a, r); const miss = !cls && affected(c, k, r).has(a) !== hit; return `<td class="${cls || (miss ? 'miss' : '')}">${txt}</td>`; }).join('') + `<td class="${t[0] || ''}"><b>${t[1]}</b></td></tr>`; }).join('') + '</tbody>';
+  const [f0, f1] = faultSpan(r);
+  document.getElementById('r-tbl-note').innerHTML = `Testbed and MessageFlow are read over the last 5 s of the fault (${Math.floor(f1) - 5}–${Math.floor(f1)} s): <b>silent</b> means it published before ${f0} s and not in that window; a feed is <b>lost</b> if no message on that topic reached the application in it. I* lists the lab's final feed loss and whether the cascade fails the application; I_comp lists the lab's cascade log. Red marks a prediction that disagrees with the testbed about whether the application was affected.`;
+}
 
 /* ---------- deployment ---------- */
 function drawDeploy() {
@@ -258,7 +515,6 @@ function staticTables() {
 }
 
 /* ---------- run charts ---------- */
-function faultSpan(r) { const f = r.meta.faults[0]; return [f.start_s, f.duration_s == null ? r.meta.duration_s : f.start_s + f.duration_s]; }
 function drawPubs(r) {
   const s = document.getElementById('pubs'); s.textContent = '';
   const n = r.meta.duration_s, L = 46, Rg = 14, W = 700, rowH = 62, top = 22, H = top + rowH * 4 + 26, x = v => L + (W - L - Rg) * v / n, [f0, f1] = faultSpan(r);
@@ -282,11 +538,11 @@ function drawPubs(r) {
 }
 function drawHeat(r) {
   const s = document.getElementById('heat'); s.textContent = '';
-  const keys = Object.keys(r.side.observed.dlv).sort((a, b) => a.split('|')[1].localeCompare(b.split('|')[1]) || a.localeCompare(b));
+  const keys = [...new Set([...Object.keys(r.side.observed.dlv), ...Object.keys(r.side.simulated.dlv)])].sort((a, b) => a.split('|')[1].localeCompare(b.split('|')[1]) || a.localeCompare(b));
   const n = r.meta.duration_s, L = 250, Rg = 14, W = 780, ch = 11, gap = 9, top = 16, H = top + keys.length * (2 * ch + gap) + 22, cw = (W - L - Rg) / n, [f0, f1] = faultSpan(r);
   s.setAttribute('viewBox', `0 0 ${W} ${H}`);
   keys.forEach((k, i) => {
-    const [a, t] = k.split('|'), o = r.side.observed.dlv[k], m = r.side.simulated.dlv[k] || [], mx = Math.max(1, ...o, ...m), y = top + i * (2 * ch + gap);
+    const [a, t] = k.split('|'), o = r.side.observed.dlv[k] || [], m = r.side.simulated.dlv[k] || [], mx = Math.max(1, ...o, ...m), y = top + i * (2 * ch + gap);
     el('text', { class: 'rowlbl', x: 8, y: y + ch + 3 }, s, `${NAME[a]} ← ${NAME[t]}`);
     el('text', { class: 'lbl', x: L - 6, y: y + ch - 2, 'text-anchor': 'end' }, s, 'observed'); el('text', { class: 'lbl', x: L - 6, y: y + 2 * ch - 2, 'text-anchor': 'end' }, s, 'simulated');
     [o, m].forEach((arr, j) => { for (let c = 0; c < n; c++) { const v = (arr[c] || 0) / mx; el('rect', { x: (L + c * cw).toFixed(1), y: y + j * ch, width: (cw - 1).toFixed(1), height: ch - 1, style: `fill: color-mix(in srgb, var(--accent) ${Math.round(v * 100)}%, var(--line-soft))` }, s); } });
@@ -298,46 +554,66 @@ function drawHeat(r) {
 /* ---------- readouts ---------- */
 const METRICS = [['topic_rate', 'Topic rate'], ['delivery_rate', 'Delivery rate per reader'], ['latency_p50', 'Latency p50'], ['latency_p95', 'Latency p95']];
 function renderRun() {
-  const r = D[sel], R = RUNS[sel];
-  document.getElementById('chips').innerHTML = Object.keys(RUNS).map(k => `<button class="chip" data-run="${k}" aria-pressed="${k === sel}">${RUNS[k].chip}</button>`).join('');
-  document.getElementById('r-title').textContent = R.title; document.getElementById('r-blurb').textContent = R.blurb; document.getElementById('r-note').textContent = R.note;
+  if (OFF[sel]) return;
+  const r = D.runs[runKey()];
   document.getElementById('chaos').innerHTML = r.chaos.map(c => `<li><b>t = ${c.t.toFixed(2)} s</b> ${esc(c.what)}</li>`).join('');
-  document.getElementById('jac').textContent = r.fidelity.stall_jaccard.toFixed(1);
+  document.getElementById('stall-j').textContent = r.fidelity.stall_jaccard.toFixed(1);
   const list = a => a.length ? a.map(x => NAME[x]).join(', ') : 'none';
-  document.getElementById('stall').innerHTML = `Observed: <b>${list(r.side.observed.stalled)}</b>. Simulated: <b>${list(r.side.simulated.stalled)}</b>. An application counts as stalled if it published before the fault and is silent at the end of the run.`;
+  document.getElementById('stall').innerHTML = `Observed: <b>${list(r.side.observed.stalled)}</b>. Simulated: <b>${list(r.side.simulated.stalled)}</b>. This is the fidelity command's own stall test: an application counts as stalled if it published before the fault and is silent at the end of the run. Sinks never publish, so they never count; the feed-loss columns above cover them.`;
   drawPubs(r); drawHeat(r);
   const pct = v => v == null ? '–' : Math.round(v * 100) + '%';
   document.getElementById('fid').innerHTML = `<thead><tr><th rowspan="2">Steady state</th><th rowspan="2" class="num">n</th><th colspan="2" class="num">Declared parameters</th><th colspan="2" class="num">Calibrated</th></tr><tr><th class="num">Median err</th><th class="num">In tolerance</th><th class="num">Median err</th><th class="num">In tolerance</th></tr></thead><tbody>` +
     METRICS.map(([k, lab]) => { const a = r.fidelity.metrics[k], b = r.fidelity_calibrated.metrics[k], cls = v => v === 1 ? 'yes' : 'no'; return `<tr><td>${lab}</td><td class="num">${a.n_compared}</td><td class="num">${f3(a.median_rel_error)}</td><td class="num ${cls(a.share_within_tolerance)}">${pct(a.share_within_tolerance)}</td><td class="num">${f3(b.median_rel_error)}</td><td class="num ${cls(b.share_within_tolerance)}">${pct(b.share_within_tolerance)}</td></tr>`; }).join('') + '</tbody>';
   const lo = r.side.observed.lat_p50, ls = r.side.simulated.lat_p50;
   document.getElementById('lat').innerHTML = `<thead><tr><th>Median latency before the fault</th><th class="num">Observed</th><th class="num">Simulated</th><th class="num">Ratio</th></tr></thead><tbody>` +
-    Object.keys(D.plan.topics).map(t => { const q = ls[t] / lo[t]; return `<tr><td><span class="mono">${t}</span> ${NAME[t]}</td><td class="num">${f1(lo[t])} ms</td><td class="num">${f1(ls[t])} ms</td><td class="num ${q > 1.75 || q < 0.57 ? 'no' : ''}">${q.toFixed(2)}×</td></tr>`; }).join('') + '</tbody>';
+    Object.keys(D.plan.topics).filter(t => lo[t] != null && ls[t] != null).map(t => { const q = ls[t] / lo[t]; return `<tr><td><span class="mono">${t}</span> ${NAME[t]}</td><td class="num">${f1(lo[t])} ms</td><td class="num">${f1(ls[t])} ms</td><td class="num ${q > 1.75 || q < 0.57 ? 'no' : ''}">${q.toFixed(2)}×</td></tr>`; }).join('') + '</tbody>';
   const fired = Object.entries(r.dds).filter(([, v]) => v.observed || v.simulated);
   document.getElementById('dds').innerHTML = `<thead><tr><th>DDS status over the run</th><th class="num">Entities, observed</th><th class="num">Entities, simulated</th><th class="num">Same entities</th></tr></thead><tbody>` +
     fired.map(([k, v]) => `<tr><td class="mono">${k}</td><td class="num">${v.observed}</td><td class="num">${v.simulated}</td><td class="num ${v.jaccard === 1 ? 'yes' : 'no'}">${v.jaccard === 1 ? 'yes' : 'no'}</td></tr>`).join('') + '</tbody>';
-  const worst = Object.keys(lo).map(t => [t, ls[t] / lo[t]]).sort((a, b) => Math.abs(Math.log(b[1])) - Math.abs(Math.log(a[1])))[0];
+  const worst = Object.keys(lo).filter(t => ls[t] != null).map(t => [t, ls[t] / lo[t]]).sort((a, b) => Math.abs(Math.log(b[1])) - Math.abs(Math.log(a[1])))[0];
   document.getElementById('fid-notes').innerHTML = `<span class="cap">Reading these tables</span>
     <p class="note"><b>Rates and deliveries agree closely</b>, within ${(r.fidelity.metrics.delivery_rate.max_rel_error * 100).toFixed(0)}% for every reader.</p>
-    <p class="note"><b>Latency is where the two differ.</b> The largest gap is on ${NAME[worst[0]]}, where the simulator's median is ${worst[1].toFixed(1)}× the observed one. Calibration narrows the p95 error.</p>
+    <p class="note"><b>Latency is where the two differ.</b> The largest gap is on ${NAME[worst[0]]}, where the simulator's median is ${worst[1].toFixed(1)}× the observed one.</p>
     <p class="note"><b>Deadline statuses fire only in the simulation.</b> The deployment plan carries no deadline for any topic, because the testbed reads a topic-level <code>deadline_ms</code> and <code>mini_atm.json</code> declares deadlines only inside <code>qos</code>, where the simulator does read them. The ${r.dds_excluded} relay endpoints exist only on the testbed and are left out of the comparison.</p>`;
   const p = r.profile, ok = b => `<span class="${b ? 'yes' : 'no'}">${b ? '✓' : '✗'}</span>`;
   document.getElementById('cal-svc').innerHTML = `<thead><tr><th>Quantity</th><th class="num">Declared</th><th class="num">Fitted</th><th class="num">Error</th></tr></thead><tbody>` +
     Object.entries(p.rates).map(([t, [d, f]]) => `<tr><td>${NAME[t]} rate</td><td class="num">${d.toFixed(2)} Hz</td><td class="num">${f.toFixed(2)} Hz</td><td class="num">${(Math.abs(f - d) / d * 100).toFixed(1)}%</td></tr>`).join('') +
-    Object.entries(p.service).map(([a, [d, f, dist, n]]) => `<tr><td>${NAME[a]} service mean <span class="lblx" style="color:var(--muted)">(${dist}, n = ${n})</span></td><td class="num">${d.toFixed(1)} ms</td><td class="num">${f.toFixed(1)} ms</td><td class="num">${(Math.abs(f - d) / d * 100).toFixed(1)}%</td></tr>`).join('') + '</tbody>';
+    Object.entries(p.service).map(([a, [d, f, dist, n]]) => `<tr><td>${NAME[a]} service mean <span style="color:var(--muted)">(${dist}, n = ${n})</span></td><td class="num">${d.toFixed(1)} ms</td><td class="num">${f.toFixed(1)} ms</td><td class="num">${(Math.abs(f - d) / d * 100).toFixed(1)}%</td></tr>`).join('') + '</tbody>';
   document.getElementById('cal-pol').innerHTML = `<thead><tr><th>Trigger policy</th><th>Declared</th><th>Inferred</th><th></th></tr></thead><tbody>` +
     Object.entries(p.policy).map(([a, [d, f]]) => { const sink = !D.plan.apps[a].publishes.length; return `<tr><td>${NAME[a]}</td><td>${sink ? 'sink' : d}</td><td>${f || 'no answer'}</td><td>${f ? ok(f === d) : '<span style="color:var(--muted)">nothing to observe</span>'}</td></tr>`; }).join('') + '</tbody>';
 }
+
+/* ---------- all failures ---------- */
+const CRASHED = ORDER.filter(c => !OFF[c]);
+function renderAll() {
+  const j = (c, k) => jaccard(affected(c, k, D.runs[c]), affected(c, 'testbed', D.runs[c]));
+  const cell = v => `<td class="num ${v === 1 ? 'yes' : 'no'}">${f2(v)}</td>`;
+  const names = s => s.size ? [...s].map(a => NAME[a]).join(', ') : 'none';
+  document.getElementById('all').innerHTML = `<thead><tr><th>Failed</th><th>Testbed: affected</th><th class="num">MessageFlow</th><th class="num">I*</th><th class="num">I_comp</th></tr></thead><tbody>` +
+    CRASHED.map(c => `<tr class="pick" data-id="${c}" style="cursor:pointer"><td><span class="mono">${c}</span> ${NAME[c]}</td><td style="white-space:normal">${names(affected(c, 'testbed', D.runs[c]))}</td>${cell(j(c, 'mf'))}${cell(j(c, 'fi'))}${cell(j(c, 'fs'))}</tr>`).join('') +
+    `<tr><td colspan="2"><b>Exact matches</b></td>${['mf', 'fi', 'fs'].map(k => `<td class="num"><b>${CRASHED.filter(c => j(c, k) === 1).length} of ${CRASHED.length}</b></td>`).join('')}</tr></tbody>`;
+}
 function renderTake() {
-  const a = D.run_a, b = D.run_b;
+  const j = (c, k) => jaccard(affected(c, k, D.runs[c]), affected(c, 'testbed', D.runs[c])), hits = k => CRASHED.filter(c => j(c, k) === 1).length;
+  const runs = Object.values(D.runs), mx = (f) => Math.max(...runs.map(f));
   document.getElementById('take').innerHTML = [
-    `<b>The mechanism works end to end on a topology this small.</b> Build, two 40 s container runs, calibration and comparison all completed; each run took about a minute of wall time.`,
-    `<b>The simulator reproduced who stalls and who recovers.</b> In the broker run both sides show tracker and conflict-detector pausing and resuming; in the host-kill run both name the same three silent applications.`,
-    `<b>It did not reproduce latency.</b> Median p95 error with declared parameters is ${f3(a.fidelity.metrics.latency_p95.median_rel_error)} and ${f3(b.fidelity.metrics.latency_p95.median_rel_error)}, with only half the topics inside tolerance.`,
-    `<b>Calibration recovered what was declared.</b> Topic rates came back within ${Math.max(...[a, b].flatMap(r => Object.values(r.profile.rates).map(([d, f]) => Math.abs(f - d) / d * 100))).toFixed(1)}% and service means within ${Math.max(...[a, b].flatMap(r => Object.values(r.profile.service).map(([d, f]) => Math.abs(f - d) / d * 100))).toFixed(1)}%. Every trigger policy it answered was right; the two sinks got no answer.`,
-    `<b>One input-format mismatch surfaced.</b> Deadlines declared only inside a topic's <code>qos</code> block reach the simulator but not the testbed plan. Scenario-corpus files declare them in both places, so they are unaffected.`,
-    `<b>These are single runs.</b> One seed, one machine, 40 seconds. They show that the pieces connect and roughly agree, nothing more.`,
+    `<b>The testbed can check ten of the lab's fifteen failures.</b> Applications, broker relays and hosts are processes or containers and can be stopped; topics and the library cannot.`,
+    `<b>MessageFlowSimulator, the testbed's own twin, named the same affected applications in ${hits('mf')} of ${CRASHED.length} failures.</b> It is configured like the testbed (reactive applications, relays in the data path), so this is the closest comparison.`,
+    `<b>The lab's cascade engines matched less often: I* in ${hits('fi')} and I_comp in ${hits('fs')} of ${CRASHED.length}.</b> They answer a different question, a threshold cascade over QoS-weighted feed loss rather than a stream of messages, so a mismatch is a difference in model, not necessarily an error.`,
+    `<b>Before the fault, rates and deliveries agree with the simulator</b> to within ${(mx(r => r.fidelity.metrics.delivery_rate.max_rel_error) * 100).toFixed(0)}% for every reader in every run. Latency does not: the median p95 error with declared parameters reaches ${f3(mx(r => r.fidelity.metrics.latency_p95.median_rel_error))}.`,
+    `<b>Calibration recovered what was declared.</b> Across all runs, topic rates came back within ${mx(r => Math.max(...Object.values(r.profile.rates).map(([d, f]) => Math.abs(f - d) / d * 100))).toFixed(1)}% and service means within ${mx(r => Math.max(...Object.values(r.profile.service).map(([d, f]) => Math.abs(f - d) / d * 100))).toFixed(1)}%.`,
+    `<b>These are single runs.</b> One seed, one machine, 40 seconds per failure. They show that the pieces connect and how the models line up on a small topology, nothing more.`,
   ].map(i => `<li>${i}</li>`).join('');
 }
-document.addEventListener('click', e => { const t = e.target.closest('[data-run]'); if (t && D[t.dataset.run]) { sel = t.dataset.run; renderRun(); } });
-drawDeploy(); staticTables(); renderRun(); renderTake();
+
+function render() { renderChips(); renderCmp(); renderRun(); }
+document.addEventListener('click', e => {
+  const m = e.target.closest('[data-mode]'); if (m) { b1mode = m.dataset.mode; render(); return; }
+  const v = e.target.closest('[data-view]'); if (v) { view = v.dataset.view; renderCmp(); return; }
+  const t = e.target.closest('[data-id]'); if (t && N[t.dataset.id] && t.dataset.id !== sel) {
+    const fromTable = !!t.closest('#all'); sel = t.dataset.id; render();
+    if (fromTable) document.querySelector('.picker').scrollIntoView({ behavior: 'smooth' });
+  }
+});
+drawDeploy(); staticTables(); render(); renderAll(); renderTake();
 </script>

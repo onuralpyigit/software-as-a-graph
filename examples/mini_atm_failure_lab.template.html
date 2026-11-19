@@ -269,6 +269,7 @@ footer p { max-width: 90ch; }
   <footer>
     <p><b>How these numbers were produced.</b> <code>FaultInjector</code> with the five recommended seeds over every node type. <code>SimulationService.run_failure_simulation_exhaustive("system")</code> on a <code>MemoryRepository</code>, plus one single run for the library. <code>MessageFlowSimulator</code> with duration 60 s, fault at 30 s, seed 42, full QoS and target utilisation 0.65. <code>ChangePropagationSimulator</code> on the dependency view that <code>FailureSimulator</code> builds.</p>
     <p>All options are the published defaults. A different run seed can change which probabilistic hops fire in the FailureSimulator runs. The topology is a hand-made demo (<code>examples/mini_atm.json</code>) and is not part of the scenario corpus. Regenerate this page with <code>python examples/run_simulator_walkthrough.py</code>.</p>
+    <p>The <a href="mini_atm_testbed_run.html" style="color:var(--accent)">Testbed Run</a> page fails the same applications, brokers and hosts on real containers over DDS and sets these predictions beside what happened.</p>
   </footer>
 </div>
 
