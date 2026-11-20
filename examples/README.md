@@ -161,6 +161,7 @@ The script asserts each result below, so a change in behaviour makes it fail.
 - **`run_simulator_walkthrough.py`**: Runs all four [simulation engines](../docs/failure-simulation.md#2-which-engine-do-i-need) on it with their published defaults (`FaultInjector`, `FailureSimulator`, `MessageFlowSimulator`, `ChangePropagationSimulator`), prints the four scores per component, and builds the page below.
 - **`mini_atm_failure_lab.template.html`**: The page template; the script injects the engine output into it.
 - **`mini_atm_failure_lab.html`**: The generated interactive walkthrough. Open it in a browser, pick a component to fail, and compare what each engine does with it.
+- **`mini_atm_scenarios.py`**: Nine proof-of-concept incidents that are not a clean crash, shared by both mini-ATM walkthroughs. They cover a slowed tracker, a radar dropping or flooding plots, a flapping inter-host link, a hung broker, both brokers or both sources lost together, a host reboot and a rolling relay restart. The Failure Lab runs each through `MessageFlowSimulator` with the testbed's settings, and through `FailureSimulator` where one of its failure modes expresses it. `FaultInjector` takes single crashes only.
 
 ```bash
 python examples/run_simulator_walkthrough.py
@@ -170,17 +171,18 @@ The four scores answer different questions and rank the components differently. 
 
 ### Container Testbed Walkthrough (Mini-ATM Testbed Run)
 
-- **`run_testbed_walkthrough.py`**: Runs the [container testbed](../docs/simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) on `mini_atm.json` once for every component the testbed can fail, the same picker as the Failure Lab: each application, broker relay and host crashes at 20 s and stays down, plus a 12 s outage of the `B1` relay to show recovery. Topics and the library are not processes, so the page shows them as not emulable. For each run it calibrates from the telemetry, runs the fidelity comparison with declared and with calibrated parameters, and sets the observed trace beside the simulator's. It also runs the Failure Lab's `FaultInjector` (I\*) and `FailureSimulator` (I_comp) and compares which applications each predicts are affected with what the containers did.
+- **`run_testbed_walkthrough.py`**: Runs the [container testbed](../docs/simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) on `mini_atm.json` once for every component the testbed can fail, the same picker as the Failure Lab: each application, broker relay and host crashes at 20 s and stays down, plus a 12 s outage of the `B1` relay to show recovery. Topics and the library are not processes, so the page shows them as not emulable. For each run it calibrates from the telemetry, runs the fidelity comparison with declared and with calibrated parameters, and sets the observed trace beside the simulator's. It also runs the Failure Lab's `FaultInjector` (I\*) and `FailureSimulator` (I_comp) and compares which applications each predicts are affected with what the containers did. Then it runs the nine incidents from `mini_atm_scenarios.py` on the containers. For each it compares the share of traffic delivered while the incident lasts, per reader, and the recovery time after a fault ends, against MessageFlowSimulator.
 - **`mini_atm_testbed_run.template.html`** / **`mini_atm_testbed_run.html`**: The page template and the generated interactive walkthrough.
 
 ```bash
-python examples/run_testbed_walkthrough.py           # eleven Docker runs, about twelve minutes
-python examples/run_testbed_walkthrough.py --reuse   # rebuild the page from the last runs, no Docker
+python examples/run_testbed_walkthrough.py               # twenty Docker runs, about 22 minutes
+python examples/run_testbed_walkthrough.py --only S1,S4  # re-run some, reuse the rest
+python examples/run_testbed_walkthrough.py --reuse       # rebuild the page from the last runs, no Docker
 ```
 
 Needs Docker with the compose plugin; the first run builds an image that downloads `python:3.11-slim` and `cyclonedds`. The testbed directories and telemetry go to the ignored `output/testbed_walkthrough/`.
 
-On this topology, MessageFlowSimulator configured like the testbed names the same affected applications in all 10 crashes. The Failure Lab's I\* matches in 9: on a `B2` crash, the testbed fails `tracks` over to the `B1` relay, while I\* scores a QoS-scaled loss and fails conflict-detector. I_comp matches in 3, because its minimum rule keeps any subscriber that has a healthy feed left. Delivery rates agree before the fault and latency does not. Each scenario is run once, so this is a smoke test, not a fidelity estimate. The page also notes one input-format mismatch: `mini_atm.json` declares deadlines only inside each topic's `qos` block, which the simulator reads and the testbed plan does not.
+On this topology, MessageFlowSimulator configured like the testbed names the same affected applications in all 10 crashes. The Failure Lab's I\* matches in 9: on a `B2` crash, the testbed fails `tracks` over to the `B1` relay, while I\* scores a QoS-scaled loss and fails conflict-detector. I_comp matches in 3, because its minimum rule keeps any subscriber that has a healthy feed left. Delivery rates agree before the fault and latency does not. Across the nine incidents, MessageFlowSimulator's share of traffic delivered while the incident lasts is within 20 points of the testbed's for every reader in 7. It misses on two. In the flood (S3), the real tracker keeps up while the simulated one overflows. In the hung relay (S5), `MessageFlowSimulator` applies `freeze` only to applications, so a frozen broker keeps forwarding. It also restarts applications about 2 s faster than containers restart. Each scenario is run once, so this is a smoke test, not a fidelity estimate. The page also notes one input-format mismatch: `mini_atm.json` declares deadlines only inside each topic's `qos` block, which the simulator reads and the testbed plan does not.
 
 ---
 

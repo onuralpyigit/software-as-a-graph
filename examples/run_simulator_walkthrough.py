@@ -17,11 +17,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from saag.core.graph_io import load_graph
 from saag.infrastructure.memory_repo import MemoryRepository
+from mini_atm_scenarios import DURATION_S as SCENARIO_S
+from mini_atm_scenarios import SCENARIOS
+
 from saag.simulation.change_propagation import ChangePropagationSimulator
 from saag.simulation.failure_simulator import FailureSimulator
 from saag.simulation.fault_injector import RECOMMENDED_SEEDS, FaultInjector
 from saag.simulation.message_flow_simulator import MessageFlowSimulator
+from saag.simulation.models import FailureMode
+from saag.simulation.runtime.faults import FaultSpec
 from saag.simulation.service import SimulationService
+from saag.testbed.collect import TelemetryTrace
+from saag.validation.fidelity import stalled_in_trace
 
 SCRIPT_DIR = Path(__file__).parent
 TOPOLOGY = SCRIPT_DIR / "mini_atm.json"
@@ -32,6 +39,13 @@ PAGE_HEAD = ('<!doctype html>\n<meta charset="utf-8">\n'
 
 DURATION_S, FAULT_TIME_S = 60.0, 30.0
 THETA_LOOSE = THETA_STABLE = 0.20
+# The settings the testbed's fidelity command gives MessageFlowSimulator
+# (saag.testbed.orchestrate.simulate_like): reactive applications whose stale
+# inputs stop them, and broker relays in the data path, so broker, host and
+# link faults act on traffic.
+TESTBED_LIKE = {"behavior_model": "reactive", "deployment_model": "stations", "rng_streams": "per_process",
+                "replica_aware": True, "target_utilization": 0.65, "staleness_periods": 3.0,
+                "qos_semantics": "dds", "dds_status": True, "liveliness_lease_s": 1.0}
 
 
 def r4(x) -> float:
@@ -136,6 +150,48 @@ def run_message_flow(graph) -> dict:
     return out
 
 
+def fault_window(faults: list) -> tuple:
+    """From the first fault's start to the last fault's end (the run's end if one never ends)."""
+    ends = [f["start_s"] + f["duration_s"] if f.get("duration_s") else SCENARIO_S for f in faults]
+    return min(f["start_s"] for f in faults), max(ends)
+
+
+def run_scenarios(graph, service: SimulationService) -> dict:
+    """The proof-of-concept incidents: MessageFlowSimulator for every one, FailureSimulator where it can say it."""
+    n, out = int(SCENARIO_S), {}
+    for sc in SCENARIOS:
+        res = MessageFlowSimulator(graph, duration=SCENARIO_S, seed=0, record_events=True,
+                                   faults=[FaultSpec.from_dict(f) for f in sc["faults"]],
+                                   network_gating=sc.get("network_gating", False), **TESTBED_LIKE).run()
+        trace = TelemetryTrace.from_records(res.events, start_s=0.0, end_s=SCENARIO_S)
+        f0, f1 = fault_window(sc["faults"])
+        pub, dlv = {}, {}
+        for e in trace.events:
+            second = int(e["t"])
+            if e["kind"] in ("publish", "deliver") and 0 <= second < n:
+                book, key = (pub, e["app"]) if e["kind"] == "publish" else (dlv, e["topic"])
+                book.setdefault(key, [0] * n)[second] += 1
+        total = [sum(v[s] for v in dlv.values()) for s in range(n)]
+
+        def rate(a, b):
+            a, b = int(a), int(b)
+            return r4(sum(total[a:b]) / (b - a)) if b > a else None
+
+        entry = {"pub": pub, "dlv": dlv, "stalled": sorted(stalled_in_trace(trace, f0)),
+                 "rate": [rate(2, f0), rate(f0, f1), rate(f1, n)],
+                 "deadline": res.total_deadline_violations, "overflow": res.total_queue_overflows}
+        if sc["fs"]:
+            r = service.run_failure_simulation(sc["fs"]["targets"], failure_mode=FailureMode(sc["fs"]["mode"]))
+            i = r.impact
+            entry["fs"] = {"comp": r4(i.composite_impact), "RL": r4(i.reachability_loss), "FR": r4(i.fragmentation),
+                           "TL": r4(i.throughput_loss), "FD": r4(i.flow_disruption),
+                           "failed": sorted(r.cascaded_failures),
+                           "seq": [{"id": e.component_id, "cause": e.cause, "depth": e.depth}
+                                   for e in r.cascade_sequence]}
+        out[sc["id"]] = entry
+    return out
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=SCRIPT_DIR / "mini_atm_failure_lab.html",
@@ -154,6 +210,8 @@ def main() -> None:
     data["cp"], data["instab"] = run_change_propagation(sim_graph)
     data["mf"] = run_message_flow(graph)
     data["topic_w"] = {t: r4(info.weight) for t, info in sim_graph.topics.items()}
+    data["sc"] = run_scenarios(graph, service)
+    data["scenarios"] = SCENARIOS
 
     print(f"{'ID':<4}{'I*':>8}{'I_comp':>8}{'I_dyn':>8}{'I_M':>8}")
     for node in data["fi"]:
@@ -163,6 +221,11 @@ def main() -> None:
                  data["mf"].get(node, {}).get("idyn"),
                  0.45 * cp["reach"] + 0.35 * cp["wimp"] + 0.20 * cp["ndepth"]]
         print(f"{node:<4}" + "".join(f"{'n/a' if c is None else format(c, '.3f'):>8}" for c in cells))
+    print(f"\n{'Scenario':<10}{'before':>8}{'during':>8}{'after':>8}{'I_comp':>8}  stalled")
+    for sid, sc in data["sc"].items():
+        cells = sc["rate"] + [sc.get("fs", {}).get("comp")]
+        print(f"{sid:<10}" + "".join(f"{'–' if c is None else format(c, '.2f'):>8}" for c in cells)
+              + f"  {sc['stalled']}")
 
     page = TEMPLATE.read_text().replace("/*DATA*/", json.dumps(data, separators=(",", ":")))
     args.output.write_text(PAGE_HEAD + page)

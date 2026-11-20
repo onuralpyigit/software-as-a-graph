@@ -31,7 +31,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from run_simulator_walkthrough import run_failure_simulator, run_fault_injector
+from mini_atm_scenarios import SCENARIOS
+from run_simulator_walkthrough import run_failure_simulator, run_fault_injector, run_scenarios
 
 from saag.core.graph_io import load_graph
 from saag.infrastructure.memory_repo import MemoryRepository
@@ -55,6 +56,9 @@ FAULT_S = 20.0
 RUNS = {c: [{"target": c, "mode": "crash", "start_s": FAULT_S}]
         for c in ("A1", "A2", "A3", "A4", "A5", "A6", "B1", "B2", "N1", "N2")}
 RUNS["B1_transient"] = [{"target": "B1", "mode": "transient_crash", "start_s": 15, "duration_s": 12}]
+# The proof-of-concept incidents, shared with the Failure Lab.
+RUNS.update({sc["id"]: sc["faults"] for sc in SCENARIOS})
+GATED = {sc["id"] for sc in SCENARIOS if sc.get("network_gating")}
 FIDELITY_FIELDS = ("median_rel_error", "max_rel_error", "n_compared", "share_within_tolerance")
 
 
@@ -62,9 +66,9 @@ def r4(x):
     return None if x is None else round(float(x), 4)
 
 
-def execute(run_dir: Path, faults: list) -> None:
+def execute(run_dir: Path, faults: list, network_gating: bool = False) -> None:
     """build -> run (docker) -> calibrate -> fidelity, declared and calibrated."""
-    orchestrate.build(TOPOLOGY, run_dir, DURATION_S, qos_semantics="dds")
+    orchestrate.build(TOPOLOGY, run_dir, DURATION_S, qos_semantics="dds", network_gating=network_gating)
     meta = orchestrate.run(run_dir, DURATION_S, [FaultSpec.from_dict(f) for f in faults], mode="docker")
     if meta["unsupported"]:
         sys.exit(f"Faults not emulated on the testbed: {meta['unsupported']}")
@@ -92,6 +96,16 @@ def trace_view(trace, n: int, first_fault: float) -> dict:
             "lat_p50": {t: r4(statistics.median(v)) for t, v in latency.items()}}
 
 
+def chaos_text(c: dict) -> str:
+    """One orchestrator action: a docker command, a control file, or a tc partition rule."""
+    if "argv" in c:
+        return " ".join(c["argv"])
+    if "partition" in c:
+        return (f"tc on {c['partition']}: drop traffic from {', '.join(c['blocked'])}" if c["blocked"]
+                else f"tc on {c['partition']}: accept all traffic")
+    return f"control file {c['control']}.json = {json.dumps(c['state'])}"
+
+
 def collect(run_dir: Path) -> dict:
     meta = json.loads((run_dir / "run.json").read_text())
     plan = json.loads((run_dir / "deployment.json").read_text())
@@ -99,8 +113,7 @@ def collect(run_dir: Path) -> dict:
     n = int(meta["duration_s"])
     entry = {
         "meta": {k: meta[k] for k in ("duration_s", "faults", "mode")},
-        "chaos": [{"t": r4(c["t"]), "what": " ".join(c["argv"]) if "argv" in c
-                   else f"control file {c['control']}.json = {json.dumps(c['state'])}"} for c in meta["chaos_log"]],
+        "chaos": [{"t": r4(c["t"]), "what": chaos_text(c)} for c in meta["chaos_log"]],
         "side": {"observed": trace_view(load_run(run_dir), n, first_fault),
                  "simulated": trace_view(orchestrate.simulate_like(run_dir), n, first_fault)},
     }
@@ -127,12 +140,17 @@ def collect(run_dir: Path) -> dict:
 
 
 def predictions() -> dict:
-    """What the Failure Lab's FaultInjector (I*) and FailureSimulator (I_comp) say each failure does."""
+    """What the Failure Lab's FaultInjector (I*) and FailureSimulator (I_comp) say each failure and incident does."""
+    graph = load_graph(TOPOLOGY)
     fi = run_fault_injector(load_graph(TOPOLOGY))
     repo = MemoryRepository()
     repo.save_graph(json.loads(TOPOLOGY.read_text()), clear=True)
-    fs, _ = run_failure_simulator(SimulationService(repo))
+    service = SimulationService(repo)
+    fs, _ = run_failure_simulator(service)
     return {
+        "scenarios": SCENARIOS,
+        # The lab's I_comp for each incident, where FailureSimulator can express it.
+        "sc_fs": {k: v.get("fs") for k, v in run_scenarios(graph, service).items()},
         "fi": {c: {"score": r["score"], "loss": r["loss"],
                    "failed": sorted({a for w in r["waves"] for a in w["failed"]})} for c, r in fi.items()},
         "fs": {c: {"comp": r["comp"], "failed": r["failed"],
@@ -159,23 +177,27 @@ def main() -> None:
                         help="Where the testbed directories and telemetry are kept")
     parser.add_argument("--reuse", action="store_true",
                         help="Rebuild the page from runs already in --workdir, without Docker")
+    parser.add_argument("--only", default="",
+                        help="Comma-separated run ids to (re)run, e.g. S1,S4; the others are reused")
     args = parser.parse_args()
     warnings.filterwarnings("ignore")
     logging.disable(logging.WARNING)
+    only = {r for r in args.only.split(",") if r}
+    if only - set(RUNS):
+        sys.exit(f"Unknown run ids: {sorted(only - set(RUNS))}")
     if not args.reuse and shutil.which("docker") is None:
         sys.exit("Docker was not found. Install it, or pass --reuse to rebuild the page from an earlier run.")
 
     data = {"runs": {}, "pred": predictions()}
     for name, faults in RUNS.items():
         run_dir = args.workdir / name
-        if not args.reuse:
-            print(f"{name}: {faults[0]['mode']} on {faults[0]['target']} at {faults[0]['start_s']} s ...")
-            execute(run_dir, faults)
+        if not args.reuse and (not only or name in only):
+            print(f"{name}: " + ", ".join(f"{f['mode']} on {f['target']} at {f['start_s']} s" for f in faults) + " ...")
+            execute(run_dir, faults, network_gating=name in GATED)
         run = data["runs"][name] = collect(run_dir)
         obs, sim = run["side"]["observed"], run["side"]["simulated"]
         delivery = run["fidelity"]["metrics"]["delivery_rate"]["median_rel_error"]
-        print(f"  I* fails {data['pred']['fi'][faults[0]['target']]['failed']} | "
-              f"silent observed {obs['stalled']} simulated {sim['stalled']} | delivery error {delivery:.3f}")
+        print(f"  {name}: silent observed {obs['stalled']} simulated {sim['stalled']} | delivery error {delivery:.3f}")
     data["plan"] = plan_view(args.workdir / "A1")
 
     page = TEMPLATE.read_text().replace("/*DATA*/", json.dumps(data, separators=(",", ":")))

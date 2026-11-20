@@ -151,7 +151,7 @@ footer p { max-width: 92ch; }
   <header>
     <div class="eyebrow">software-as-a-graph · saag/testbed</div>
     <h1>Mini-ATM Testbed Run</h1>
-    <p class="lede">The <a href="mini_atm_failure_lab.html">Failure Lab</a> asks four simulators what happens when one component of the 15-component mini-ATM system fails. This page asks the same question of something independent: the scenario running as real processes in containers, talking over real DDS, with the failure actually injected. Pick a component and the page sets the lab's predictions beside what the containers did.</p>
+    <p class="lede">The <a href="mini_atm_failure_lab.html">Failure Lab</a> asks four simulators what happens when one component of the 15-component mini-ATM system fails. This page asks the same question of something independent: the scenario running as real processes in containers, talking over real DDS, with the failure actually injected. Pick a component and the page sets the lab's predictions beside what the containers did. Pick one of the nine incidents (a slowdown, dropped or flooded messages, a flapping link, a hang, two failures at once, a reboot, a rolling restart) and it sets the simulator's version of the incident beside the real one.</p>
   </header>
 
   <section>
@@ -205,14 +205,14 @@ footer p { max-width: 92ch; }
         <svg id="topo" viewBox="0 0 780 420" role="img" aria-label="Mini-ATM topology coloured by the outcome of the failure"></svg>
       </div>
       <div class="box pad">
-        <span class="cap">Who did each source say is affected?</span>
+        <span class="cap" id="jac-cap">Who did each source say is affected?</span>
         <div class="jac" id="jac"></div>
-        <p class="note">Jaccard of each prediction's affected applications against the testbed's, leaving out the failed component and anything on a failed host. 1.0 is the same set; two empty sets also count as 1.0.</p>
+        <p class="note" id="jac-note">Jaccard of each prediction's affected applications against the testbed's, leaving out the failed component and anything on a failed host. 1.0 is the same set; two empty sets also count as 1.0.</p>
         <p class="note" id="r-note"></p>
       </div>
     </div>
     <div class="box scroll" id="r-tbl-box"><table id="r-tbl"></table></div>
-    <p class="note" id="r-tbl-note"></p>
+    <div class="note" id="r-tbl-note"></div>
   </section>
 
   <div id="runbody">
@@ -289,7 +289,7 @@ footer p { max-width: 92ch; }
 
   <footer>
     <p><b>How this was produced.</b> <code>python cli/simulate_graph.py testbed build | run | calibrate | fidelity</code> on <code>examples/mini_atm.json</code>, 40 s per run, seed 0, Docker mode with Cyclone DDS 11.0.1, DDS QoS semantics. One run per failed component. The simulated traces come from <code>saag.testbed.orchestrate.simulate_like</code>, the function the fidelity command uses. The I* and I_comp predictions are the same <code>FaultInjector</code> and <code>FailureSimulator</code> runs as on the <a href="mini_atm_failure_lab.html">Failure Lab</a>.</p>
-    <p>Regenerate this page with <code>python examples/run_testbed_walkthrough.py</code>. Each failure was run once on one machine, so every number here is a single measurement. Treat the page as a demonstration of the mechanism and a smoke test, not as a fidelity estimate.</p>
+    <p>Regenerate this page with <code>python examples/run_testbed_walkthrough.py</code>. Each failure and incident was run once on one machine, so every number here is a single measurement. Treat the page as a demonstration of the mechanism and a smoke test, not as a fidelity estimate.</p>
   </footer>
 </div>
 
@@ -387,9 +387,13 @@ function drawTopo(svg, state = {}, badges = {}) {
 }
 
 /* ---------- outcomes ---------- */
+const SCN = Object.fromEntries(D.pred.scenarios.map(s => [s.id, s]));
+const isSc = id => id in SCN;
 const runKey = () => sel === 'B1' && b1mode === 'transient' ? 'B1_transient' : sel;
 const residents = h => h in D.plan.hosts ? [...D.plan.hosts[h].apps, ...D.plan.hosts[h].brokers] : [];
-function faultSpan(r) { const f = r.meta.faults[0]; return [f.start_s, f.duration_s == null ? r.meta.duration_s : f.start_s + f.duration_s]; }
+const faultSpans = r => r.meta.faults.map(f => [f.start_s, f.duration_s == null ? r.meta.duration_s : f.start_s + f.duration_s]);
+/* From the first fault's start to the last fault's end. */
+function faultSpan(r) { const sp = faultSpans(r); return [Math.min(...sp.map(x => x[0])), Math.max(...sp.map(x => x[1]))]; }
 /* Outcome of one trace: read over the last 5 s of the fault (the end of the run for a crash). */
 function outcome(r, side, ex = new Set()) {
   const tr = r.side[side], [f0, f1] = faultSpan(r), w1 = Math.floor(f1), w0 = w1 - 5, any = (arr, a, b) => (arr || []).slice(a, b).some(v => v > 0);
@@ -442,7 +446,9 @@ function topoState(c, r) {
 /* ---------- picker and comparison ---------- */
 function renderChips() {
   let prev = null;
-  document.getElementById('chips').innerHTML = ORDER.map(id => { const g = prev && prev !== N[id].t; prev = N[id].t; return `<button class="chip ${g ? 'gap' : ''} ${OFF[id] ? 'off' : ''}" data-id="${id}" aria-pressed="${id === sel}">${id}<small>${esc(NAME[id])}</small></button>`; }).join('');
+  document.getElementById('chips').innerHTML = ORDER.map(id => { const g = prev && prev !== N[id].t; prev = N[id].t; return `<button class="chip ${g ? 'gap' : ''} ${OFF[id] ? 'off' : ''}" data-id="${id}" aria-pressed="${id === sel}">${id}<small>${esc(NAME[id])}</small></button>`; }).join('') +
+    `<span class="cap" style="align-self:center;margin-left:14px">Incidents</span>` +
+    D.pred.scenarios.map(x => `<button class="chip" data-id="${x.id}" aria-pressed="${x.id === sel}">${x.id}<small>${esc(x.title)}</small></button>`).join('');
 }
 function cellFor(src, c, a, r) {
   const ex = excluded(c);
@@ -455,6 +461,8 @@ function cellFor(src, c, a, r) {
   return [null, parts.join(' · ') || (D.plan.apps[a].publishes.length ? 'kept publishing' : 'all feeds kept')];
 }
 function renderCmp() {
+  if (isSc(sel)) return renderScenario();
+  for (const [id, text] of [['jac-cap', 'Who did each source say is affected?'], ['jac-note', 'Jaccard of each prediction\'s affected applications against the testbed\'s, leaving out the failed component and anything on a failed host. 1.0 is the same set; two empty sets also count as 1.0.']]) document.getElementById(id).textContent = text;
   const c = sel, off = OFF[c], r = off ? null : D.runs[runKey()];
   document.getElementById('r-off').hidden = !off; document.getElementById('r-cmp').hidden = !!off;
   document.getElementById('r-tbl-box').hidden = !!off; document.getElementById('runbody').hidden = !!off;
@@ -481,6 +489,80 @@ function renderCmp() {
       return `<tr><td><span class="mono">${a}</span> ${NAME[a]}</td>` + SRC.slice(1).map(([k]) => { const [cls, txt] = cellFor(k, c, a, r); const miss = !cls && affected(c, k, r).has(a) !== hit; return `<td class="${cls || (miss ? 'miss' : '')}">${txt}</td>`; }).join('') + `<td class="${t[0] || ''}"><b>${t[1]}</b></td></tr>`; }).join('') + '</tbody>';
   const [f0, f1] = faultSpan(r);
   document.getElementById('r-tbl-note').innerHTML = `Testbed and MessageFlow are read over the last 5 s of the fault (${Math.floor(f1) - 5}–${Math.floor(f1)} s): <b>silent</b> means it published before ${f0} s and not in that window; a feed is <b>lost</b> if no message on that topic reached the application in it. I* lists the lab's final feed loss and whether the cascade fails the application; I_comp lists the lab's cascade log. Red marks a prediction that disagrees with the testbed about whether the application was affected.`;
+}
+
+/* ---------- proof-of-concept incidents ---------- */
+const SC_NOTE = {
+  S1: 'Tracker drops to about 7 tracks a second on the testbed and 6 in the simulation. Its radar.plots deliveries fall to 38% and 31% of their pre-fault rate, because plots queue and are dropped. Downstream, tracks falls to 69% observed and 62% simulated.',
+  S2: 'Radar\'s deliveries fall to 44% observed against 52% simulated. Tracker keeps 80% of its tracks observed and 86% simulated, because it runs on any plot that arrives and half of 20 Hz still keeps its input fresh. FailureSimulator\'s degraded mode scores this 0.000.',
+  S3: 'The one degraded incident where the two disagree. Radar really does publish 100 plots a second. On the containers, tracker still publishes 10 tracks a second and tracks is untouched. In the simulation, tracker\'s queue overflows and tracks falls to 44%. The simulator overstates the harm a flood does here; the page does not establish why the real tracker copes.',
+  S4: 'Each cut is real: tc drops traffic between the containers about every 2 s, and the chaos log records each cut and heal. Overall the two agree, at 93% observed and 90% simulated. They differ in where the loss lands: on the testbed, tracks rides through the cuts, while the simulation trims it to about 85%.',
+  S5: 'The testbed shows what the simulator cannot. While ops-broker hangs, conflict.alerts and flight.plans fall to 5–10% of their rate, then resume as soon as it is unpaused. MessageFlow keeps both at their usual rate, because it applies a freeze only to applications and not to broker relays. Tracks is unaffected on both sides, because sensor-broker relays it.',
+  S6: 'Nothing is routed on either side: about 1% of traffic gets through. Radar keeps publishing into the void, and tracker and conflict-detector go silent within a second, on the testbed and in the simulation alike.',
+  S7: 'Both sources stop, and everything downstream goes silent on both sides: tracker and conflict-detector stall on stale inputs, and display and recorder are left with nothing.',
+  S8: 'The container is killed at 15 s and started again at 25 s. Flight.plans, on the other host, keeps flowing. The restart is where the two differ. Radar and tracker are back at 80% of their rate 2 s after the host returns on the testbed, but at once in the simulation, which does not model how long a real restart takes.',
+  S9: 'Observed and simulated agree closely: 58% and 59% of traffic got through over the restart window. The only lasting dip is conflict.alerts, which loses its route while ops-broker is down. Every publisher is back to 80% within a second of each relay returning, on both sides.',
+};
+const mean = (arr, a, b) => (arr || []).slice(a, b).reduce((p, v) => p + v, 0) / Math.max(1, b - a);
+/* True when MessageFlow's share is within 20 points of the testbed's for every reader. */
+const readersAgree = r => { const so = readerShares(r, 'observed'), sm = readerShares(r, 'simulated'); return Object.keys(so).every(k => so[k] == null || sm[k] == null || Math.abs(so[k] - sm[k]) <= 0.2); };
+/* Each reader's delivery rate while the incident lasts, as a share of its rate before. */
+function readerShares(r, side) {
+  const tr = r.side[side], [f0, f1] = faultSpan(r), out = {};
+  for (const k of Object.keys(r.side.observed.dlv)) { const b = mean(tr.dlv[k], 2, f0); out[k] = b > 0 ? mean(tr.dlv[k], f0, Math.floor(f1)) / b : null; }
+  return out;
+}
+/* Seconds after each bounded fault ends until a publisher is back to 80% of its rate before the incident. */
+function recovery(r, side, end) {
+  const tr = r.side[side], [f0] = faultSpan(r), n = r.meta.duration_s, out = {};
+  for (const a of ['A1', 'A2', 'A3', 'A4']) {
+    const pre = mean(tr.pub[a], 2, f0); if (!pre) continue;
+    let t = Math.ceil(end); while (t < n && (tr.pub[a] || [])[t] < 0.8 * pre) t++;
+    out[a] = t < n ? t - end : null;
+  }
+  return out;
+}
+const pctS = v => v == null ? '–' : Math.round(v * 100) + '%';
+const fmtFault = f => `${f.mode.replace('_', ' ')} on ${f.target.includes('|') ? f.target.split('|').map(h => NAME[h]).join(' – ') + ' link' : f.target + ' ' + NAME[f.target]} from ${f.start_s} s${f.duration_s ? ' for ' + f.duration_s + ' s' : ''}` +
+  (Object.keys(f.params || {}).length ? ` (${Object.entries(f.params).map(([k, v]) => k + ' = ' + v).join(', ')})` : '');
+function renderScenario() {
+  const s = SCN[sel], r = D.runs[sel], fs = D.pred.sc_fs[sel], [f0, f1] = faultSpan(r);
+  for (const id of ['r-off', 'b1-mode']) document.getElementById(id).hidden = true;
+  for (const id of ['r-cmp', 'r-tbl-box', 'runbody']) document.getElementById(id).hidden = false;
+  document.getElementById('r-title').textContent = `${sel} · ${s.title}`;
+  document.getElementById('r-blurb').innerHTML = `${esc(s.story)} Injected: ${s.faults.map(f => esc(fmtFault(f))).join('; ')}. <a href="mini_atm_failure_lab.html#${sel}">The same incident in the Failure Lab →</a>`;
+  if (view !== 'mf') view = 'testbed';
+  document.getElementById('views').innerHTML = SRC.slice(0, 2).map(([k, l]) => `<button class="step" data-view="${k}" aria-pressed="${view === k}">${l}</button>`).join('');
+  // Topology: targets, applications that fell silent, topics below half their deliveries.
+  const side = view === 'mf' ? 'simulated' : 'observed', tr = r.side[side], st = {}, bd = {};
+  for (const f of s.faults) for (const id of f.target.split('|')) if (f.mode === 'link_flap') bd[id] = 'link flapping'; else st[id] = 'origin';
+  for (const a of tr.stalled) if (!st[a]) { st[a] = 'failed'; bd[a] = 'silent'; }
+  for (const t in D.plan.topics) {
+    const keys = Object.keys(tr.dlv).filter(k => k.endsWith('|' + t)), b = keys.reduce((p, k) => p + mean(tr.dlv[k], 2, f0), 0), d = keys.reduce((p, k) => p + mean(tr.dlv[k], f0, Math.floor(f1)), 0);
+    if (b > 0 && d < 0.5 * b && !st[t]) { st[t] = 'lost'; bd[t] = Math.round(100 * d / b) + '%'; }
+  }
+  drawTopo(document.getElementById('topo'), st, bd);
+  // Readout tiles.
+  const tot = sd => { const x = r.side[sd].dlv, ks = Object.keys(x); const b = ks.reduce((p, k) => p + mean(x[k], 2, f0), 0); return b ? ks.reduce((p, k) => p + mean(x[k], f0, Math.floor(f1)), 0) / b : null; };
+  const o = tot('observed'), m = tot('simulated');
+  document.getElementById('jac-cap').textContent = 'How much traffic got through while it lasted?';
+  document.getElementById('jac').innerHTML = `<div><span class="v">${pctS(o)}</span><span class="k">Testbed, observed</span></div><div><span class="v ${readersAgree(r) ? 'yes' : 'no'}">${pctS(m)}</span><span class="k">MessageFlow</span></div>` +
+    `<div><span class="v">${fs ? fs.comp.toFixed(3) : 'n/a'}</span><span class="k">I_comp (${fs ? esc(s.fs.mode) : 'not expressible'})</span></div>`;
+  document.getElementById('jac-note').innerHTML = `All deliveries from ${f0} to ${Math.floor(f1)} s as a share of the rate before ${f0} s. MessageFlow is green when every reader's share below is within 20 points of the testbed's. ${fs ? `I_comp is the lab's system-wide loss score, run ${esc(s.fs_note)}; it is on a different scale and has no time axis.` : `I_comp is n/a: ${esc(s.fs_note)}.`} FaultInjector takes single permanent crashes only.`;
+  document.getElementById('r-note').textContent = SC_NOTE[sel];
+  // Per reader: share of deliveries while the incident lasts.
+  const so = readerShares(r, 'observed'), sm = readerShares(r, 'simulated');
+  const keys = Object.keys(so).sort((a, b) => a.split('|')[1].localeCompare(b.split('|')[1]) || a.localeCompare(b));
+  document.getElementById('r-tbl').innerHTML = `<thead><tr><th>Reader ← topic</th><th class="num">Before, per s</th><th class="num">Testbed, during</th><th class="num">MessageFlow, during</th></tr></thead><tbody>` +
+    keys.map(k => { const [a, t] = k.split('|'), miss = so[k] != null && sm[k] != null && Math.abs(so[k] - sm[k]) > 0.2;
+      return `<tr><td>${NAME[a]} ← ${NAME[t]}</td><td class="num">${mean(r.side.observed.dlv[k], 2, f0).toFixed(1)}</td><td class="num"><b>${pctS(so[k])}</b></td><td class="num ${miss ? 'miss' : ''}">${pctS(sm[k])}</td></tr>`; }).join('') + '</tbody>';
+  // Recovery after each fault that ends.
+  const bounded = r.meta.faults.filter(f => f.duration_s != null);
+  const recTbl = bounded.map(f => { const end = f.start_s + f.duration_s, ro = recovery(r, 'observed', end), rm = recovery(r, 'simulated', end);
+    return `<table style="margin-top:10px"><thead><tr><th>Back to 80% after ${esc(f.target)} returns at ${end} s</th><th class="num">Testbed</th><th class="num">MessageFlow</th></tr></thead><tbody>` +
+      Object.keys(ro).map(a => `<tr><td>${NAME[a]}</td><td class="num"><b>${ro[a] == null ? 'not back' : ro[a].toFixed(0) + ' s'}</b></td><td class="num ${(ro[a] == null) !== (rm[a] == null) || Math.abs((ro[a] || 0) - (rm[a] || 0)) > 2 ? 'miss' : ''}">${rm[a] == null ? 'not back' : rm[a].toFixed(0) + ' s'}</td></tr>`).join('') + '</tbody></table>'; }).join('');
+  document.getElementById('r-tbl-note').innerHTML = `Shares are read from ${f0} to ${Math.floor(f1)} s against 2 to ${f0} s. Red marks a MessageFlow share more than 20 points from the testbed's${bounded.length ? ', or a recovery time more than 2 s off' : ''}.` +
+    (recTbl ? `<div class="box scroll" style="margin-top:10px">${recTbl}</div>` : '');
 }
 
 /* ---------- deployment ---------- */
@@ -517,12 +599,12 @@ function staticTables() {
 /* ---------- run charts ---------- */
 function drawPubs(r) {
   const s = document.getElementById('pubs'); s.textContent = '';
-  const n = r.meta.duration_s, L = 46, Rg = 14, W = 700, rowH = 62, top = 22, H = top + rowH * 4 + 26, x = v => L + (W - L - Rg) * v / n, [f0, f1] = faultSpan(r);
+  const n = r.meta.duration_s, L = 46, Rg = 14, W = 700, rowH = 62, top = 22, H = top + rowH * 4 + 26, x = v => L + (W - L - Rg) * v / n, [f0] = faultSpan(r);
   s.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  el('rect', { class: 'band', x: x(f0), y: 12, width: x(f1) - x(f0), height: H - 34 }, s);
+  for (const [a, b] of faultSpans(r)) el('rect', { class: 'band', x: x(a), y: 12, width: x(b) - x(a), height: H - 34 }, s);
   ['A1', 'A2', 'A3', 'A4'].forEach((a, i) => {
     const rate = D.plan.topics[D.plan.apps[a].publishes[0]].rate_hz, obs = r.side.observed.pub[a] || [], sim = r.side.simulated.pub[a] || [];
-    const y0 = top + rowH * i, base = y0 + rowH - 12, h = rowH - 30, ymax = rate * 1.25, y = v => base - h * Math.min(v, ymax) / ymax, bw = (W - L - Rg) / n;
+    const y0 = top + rowH * i, base = y0 + rowH - 12, h = rowH - 30, ymax = Math.max(rate * 1.25, ...obs, ...sim), y = v => base - h * Math.min(v, ymax) / ymax, bw = (W - L - Rg) / n;
     el('line', { class: 'grid', x1: L, x2: W - Rg, y1: y(rate), y2: y(rate) }, s); el('line', { class: 'axis', x1: L, x2: W - Rg, y1: base, y2: base }, s);
     el('text', { class: 'lbl', x: L - 6, y: y(rate) + 3, 'text-anchor': 'end' }, s, rate + '/s'); el('text', { class: 'lbl', x: L - 6, y: base + 3, 'text-anchor': 'end' }, s, '0');
     el('text', { class: 'rowlbl', x: L, y: y0 + 8 }, s, `${a} ${NAME[a]} → ${NAME[D.plan.apps[a].publishes[0]]}`);
@@ -532,14 +614,14 @@ function drawPubs(r) {
       el('line', { class: 'sim', x1: x(t) + 0.5, x2: x(t + 1) - 0.5, y1: y(m), y2: y(m) }, s);
     }
   });
-  for (const v of [f0, f1]) if (v < n) el('line', { class: 'bandline', x1: x(v), x2: x(v), y1: 12, y2: H - 22 }, s);
+  for (const v of faultSpans(r).flat()) if (v < n) el('line', { class: 'bandline', x1: x(v), x2: x(v), y1: 12, y2: H - 22 }, s);
   el('text', { class: 'bandtxt', x: x(f0) + 4, y: 10 }, s, `fault from ${f0} s`);
   for (let v = 0; v <= n; v += 10) el('text', { class: 'lbl', x: x(v), y: H - 8, 'text-anchor': 'middle' }, s, v + ' s');
 }
 function drawHeat(r) {
   const s = document.getElementById('heat'); s.textContent = '';
   const keys = [...new Set([...Object.keys(r.side.observed.dlv), ...Object.keys(r.side.simulated.dlv)])].sort((a, b) => a.split('|')[1].localeCompare(b.split('|')[1]) || a.localeCompare(b));
-  const n = r.meta.duration_s, L = 250, Rg = 14, W = 780, ch = 11, gap = 9, top = 16, H = top + keys.length * (2 * ch + gap) + 22, cw = (W - L - Rg) / n, [f0, f1] = faultSpan(r);
+  const n = r.meta.duration_s, L = 250, Rg = 14, W = 780, ch = 11, gap = 9, top = 16, H = top + keys.length * (2 * ch + gap) + 22, cw = (W - L - Rg) / n;
   s.setAttribute('viewBox', `0 0 ${W} ${H}`);
   keys.forEach((k, i) => {
     const [a, t] = k.split('|'), o = r.side.observed.dlv[k] || [], m = r.side.simulated.dlv[k] || [], mx = Math.max(1, ...o, ...m), y = top + i * (2 * ch + gap);
@@ -547,7 +629,7 @@ function drawHeat(r) {
     el('text', { class: 'lbl', x: L - 6, y: y + ch - 2, 'text-anchor': 'end' }, s, 'observed'); el('text', { class: 'lbl', x: L - 6, y: y + 2 * ch - 2, 'text-anchor': 'end' }, s, 'simulated');
     [o, m].forEach((arr, j) => { for (let c = 0; c < n; c++) { const v = (arr[c] || 0) / mx; el('rect', { x: (L + c * cw).toFixed(1), y: y + j * ch, width: (cw - 1).toFixed(1), height: ch - 1, style: `fill: color-mix(in srgb, var(--accent) ${Math.round(v * 100)}%, var(--line-soft))` }, s); } });
   });
-  for (const v of [f0, f1]) if (v < n) el('line', { class: 'bandline', x1: L + v * cw, x2: L + v * cw, y1: 6, y2: H - 18 }, s);
+  for (const v of faultSpans(r).flat()) if (v < n) el('line', { class: 'bandline', x1: L + v * cw, x2: L + v * cw, y1: 6, y2: H - 18 }, s);
   for (let v = 0; v <= n; v += 10) el('text', { class: 'lbl', x: L + v * cw, y: H - 5, 'text-anchor': 'middle' }, s, v + ' s');
 }
 
@@ -556,7 +638,9 @@ const METRICS = [['topic_rate', 'Topic rate'], ['delivery_rate', 'Delivery rate 
 function renderRun() {
   if (OFF[sel]) return;
   const r = D.runs[runKey()];
-  document.getElementById('chaos').innerHTML = r.chaos.map(c => `<li><b>t = ${c.t.toFixed(2)} s</b> ${esc(c.what)}</li>`).join('');
+  const shown = r.chaos.slice(0, 8);
+  document.getElementById('chaos').innerHTML = shown.map(c => `<li><b>t = ${c.t.toFixed(2)} s</b> ${esc(c.what)}</li>`).join('') +
+    (r.chaos.length > shown.length ? `<li style="color:var(--muted)">… and ${r.chaos.length - shown.length} more actions to ${r.chaos[r.chaos.length - 1].t.toFixed(1)} s</li>` : '');
   document.getElementById('stall-j').textContent = r.fidelity.stall_jaccard.toFixed(1);
   const list = a => a.length ? a.map(x => NAME[x]).join(', ') : 'none';
   document.getElementById('stall').innerHTML = `Observed: <b>${list(r.side.observed.stalled)}</b>. Simulated: <b>${list(r.side.simulated.stalled)}</b>. This is the fidelity command's own stall test: an application counts as stalled if it published before the fault and is silent at the end of the run. Sinks never publish, so they never count; the feed-loss columns above cover them.`;
@@ -602,7 +686,8 @@ function renderTake() {
     `<b>The lab's cascade engines matched less often: I* in ${hits('fi')} and I_comp in ${hits('fs')} of ${CRASHED.length}.</b> They answer a different question, a threshold cascade over QoS-weighted feed loss rather than a stream of messages, so a mismatch is a difference in model, not necessarily an error.`,
     `<b>Before the fault, rates and deliveries agree with the simulator</b> to within ${(mx(r => r.fidelity.metrics.delivery_rate.max_rel_error) * 100).toFixed(0)}% for every reader in every run. Latency does not: the median p95 error with declared parameters reaches ${f3(mx(r => r.fidelity.metrics.latency_p95.median_rel_error))}.`,
     `<b>Calibration recovered what was declared.</b> Across all runs, topic rates came back within ${mx(r => Math.max(...Object.values(r.profile.rates).map(([d, f]) => Math.abs(f - d) / d * 100))).toFixed(1)}% and service means within ${mx(r => Math.max(...Object.values(r.profile.service).map(([d, f]) => Math.abs(f - d) / d * 100))).toFixed(1)}%.`,
-    `<b>These are single runs.</b> One seed, one machine, 40 seconds per failure. They show that the pieces connect and how the models line up on a small topology, nothing more.`,
+    `<b>The nine incidents show where the message-level twin holds up beyond a clean crash.</b> For every reader, MessageFlow's share of traffic delivered while the incident lasted was within 20 points of the testbed's in ${D.pred.scenarios.filter(x => readersAgree(D.runs[x.id])).length} of ${D.pred.scenarios.length} incidents. It misses the flood, where the real tracker kept up and the simulated one overflowed, and the hung relay, which the simulator does not freeze. It also restarts applications faster than containers do. The cascade engines can say less: FaultInjector nothing, FailureSimulator one time-free number for seven of them.`,
+    `<b>These are single runs.</b> One seed, one machine, 40 seconds per failure or incident. They show that the pieces connect and how the models line up on a small topology, nothing more.`,
   ].map(i => `<li>${i}</li>`).join('');
 }
 
@@ -610,10 +695,12 @@ function render() { renderChips(); renderCmp(); renderRun(); }
 document.addEventListener('click', e => {
   const m = e.target.closest('[data-mode]'); if (m) { b1mode = m.dataset.mode; render(); return; }
   const v = e.target.closest('[data-view]'); if (v) { view = v.dataset.view; renderCmp(); return; }
-  const t = e.target.closest('[data-id]'); if (t && N[t.dataset.id] && t.dataset.id !== sel) {
+  const t = e.target.closest('[data-id]'); if (t && (N[t.dataset.id] || isSc(t.dataset.id)) && t.dataset.id !== sel) {
     const fromTable = !!t.closest('#all'); sel = t.dataset.id; render();
     if (fromTable) document.querySelector('.picker').scrollIntoView({ behavior: 'smooth' });
   }
 });
+if (isSc(location.hash.slice(1))) sel = location.hash.slice(1);
 drawDeploy(); staticTables(); render(); renderAll(); renderTake();
+if (isSc(location.hash.slice(1))) document.querySelector('.picker').scrollIntoView();
 </script>
