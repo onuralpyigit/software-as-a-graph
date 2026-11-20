@@ -589,9 +589,9 @@ class Neo4jRepository:
             SET a.weight = CASE WHEN p_weight > 1.0 THEN 1.0 WHEN p_weight < {MIN_TOPIC_WEIGHT} THEN {MIN_TOPIC_WEIGHT} ELSE p_weight END
         """, tx=tx)
 
-        # 2. Library Weight (propagated + fan-out multiplier)
-        # Formula: min(1.0, base_w * (1 + γ * log2(1 + DG_in)))
-        # Reflects simultaneous blast semantics: shared libraries are higher priority.
+        # 2. Library Weight (propagated + smooth saturating fan-out boost)
+        # Formula: 1 - (1 - base_w) / (1 + DG_in)^γ
+        # Reflects simultaneous blast semantics without collapsing high-base_w libraries to 1.0.
         self._run_query(f"""
             MATCH (l:Library)
             OPTIONAL MATCH (l)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
@@ -604,10 +604,13 @@ class Neo4jRepository:
                       ELSE coalesce(a_max, 0.0) 
                  END as base_w, 
                  dg_in
-            WITH l, base_w, (1.0 + {LIB_FANOUT_GAMMA} * log(1 + dg_in) / log(2)) as multiplier
-            SET l.weight = CASE WHEN base_w <= 0 THEN {MIN_TOPIC_WEIGHT}
-                                WHEN base_w * multiplier > 1.0 THEN 1.0
-                                ELSE base_w * multiplier END
+            WITH l, base_w,
+                 CASE WHEN base_w <= 0 THEN {MIN_TOPIC_WEIGHT}
+                      ELSE 1.0 - (1.0 - CASE WHEN base_w > 1.0 THEN 1.0 ELSE base_w END) / ((1.0 + dg_in) ^ {LIB_FANOUT_GAMMA})
+                 END as lifted
+            SET l.weight = CASE WHEN lifted < {MIN_TOPIC_WEIGHT} THEN {MIN_TOPIC_WEIGHT}
+                                WHEN lifted > 1.0 THEN 1.0
+                                ELSE lifted END
         """, tx=tx)
 
         # 1.5. Application Weight — library-mediated topics (second pass)
@@ -725,70 +728,82 @@ class Neo4jRepository:
             SET d.weight = row.w, d.path_count = row.pc
         """, tx=tx)
         
-    def _merge_dependency(
-        self, match: str, source: str, target: str, dep_type: str, tx: Any = None
+    def _merge_dependency_union(
+        self, branches: List[str], dep_type: str, tx: Any = None
     ) -> None:
         """
-        Aggregate the topics matched by ``match`` into one DEPENDS_ON edge.
+        Aggregate mediating topics across one or more Cypher MATCH branches into
+        a single DEPENDS_ON edge per ``(src, tgt)`` pair.
 
-        ``match`` must bind ``source``, ``target`` and a Topic ``t``. The edge
-        carries the probabilistic effective coupling weight and the number of mediating topics.
+        Each branch must ``RETURN ... AS src, ... AS tgt, t``. Using ``CALL { ... UNION ... }``
+        before ``collect(DISTINCT t)`` guarantees set-union deduplication across
+        direct and library-mediated paths (so a topic reachable both ways enters
+        the probabilistic union once, distinct topics with equal weights are not
+        collapsed, and distinct topics across path kinds combine via union rather
+        than ``max``).
         """
+        union_body = "\n            UNION\n".join(b.strip() for b in branches)
         self._run_query(f"""
-            {match.strip()}
-            WITH {source}, {target}, count(DISTINCT t) as path_count, collect(DISTINCT coalesce(t.weight, {MIN_TOPIC_WEIGHT})) as weights
-            WITH {source}, {target}, path_count,
+            CALL {{
+                {union_body}
+            }}
+            WITH src, tgt, collect(DISTINCT t) as topics
+            WITH src, tgt, size(topics) as path_count,
+                 [x IN topics | coalesce(x.weight, {MIN_TOPIC_WEIGHT})] as weights
+            WITH src, tgt, path_count,
                  CASE WHEN size(weights) = 0 THEN {MIN_TOPIC_WEIGHT}
                       ELSE 1.0 - reduce(p = 1.0, w IN weights | p * (1.0 - w))
                  END as effective_weight
-            MERGE ({source})-[d:DEPENDS_ON {{dependency_type: '{dep_type}'}}]->({target})
-            ON CREATE SET d.weight = CASE WHEN effective_weight < {MIN_TOPIC_WEIGHT} THEN {MIN_TOPIC_WEIGHT} WHEN effective_weight > 1.0 THEN 1.0 ELSE effective_weight END, d.path_count = path_count
-            ON MATCH SET d.weight = CASE WHEN effective_weight > coalesce(d.weight, 0.0)
-                                         THEN (CASE WHEN effective_weight > 1.0 THEN 1.0 ELSE effective_weight END) ELSE d.weight END,
-                         d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0)
-                                             THEN path_count ELSE d.path_count END
+            MERGE (src)-[d:DEPENDS_ON {{dependency_type: '{dep_type}'}}]->(tgt)
+            SET d.weight = CASE WHEN effective_weight < {MIN_TOPIC_WEIGHT} THEN {MIN_TOPIC_WEIGHT} WHEN effective_weight > 1.0 THEN 1.0 ELSE effective_weight END,
+                d.path_count = path_count
         """, tx=tx)
 
     def _derive_dependencies(self, tx: Any = None) -> None:
         """
         Derive DEPENDS_ON relationships from structural edges (Phase 4).
 
-        Implements Rules 1–7 from docs/graph-model.md §6.1. Rules 1 and 2 each
-        run three times: once for directly attached components and twice for
-        components reaching the topic through a USES chain of up to three hops.
+        Implements Rules 1–7 from docs/graph-model.md §6.1. Rules 1 and 2 union
+        direct and library-mediated (USES*1..3) paths before deduplicating
+        mediating topics into the probabilistic union.
         """
         # Rule 1: app_to_app — a subscriber depends on the publishers of its topics
-        self._merge_dependency("""
+        # (direct + via subscribed library + via published library, set-unioned)
+        self._merge_dependency_union([
+            """
             MATCH (subscriber)-[:SUBSCRIBES_TO]->(t:Topic)<-[:PUBLISHES_TO]-(publisher)
             WHERE subscriber <> publisher
               AND (subscriber:Application OR subscriber:Library)
               AND (publisher:Application OR publisher:Library)
-        """, "subscriber", "publisher", "app_to_app", tx=tx)
-
-        # Rule 1 (transitive): App-A -[USES*]-> Lib-X -[SUBSCRIBES_TO]-> T <-[PUBLISHES_TO]- App-B
-        self._merge_dependency("""
+            RETURN subscriber AS src, publisher AS tgt, t
+            """,
+            """
             MATCH (app:Application)-[:USES*1..3]->(lib)-[:SUBSCRIBES_TO]->(t:Topic)<-[:PUBLISHES_TO]-(publisher)
             WHERE app <> publisher
               AND (publisher:Application OR publisher:Library)
-        """, "app", "publisher", "app_to_app", tx=tx)
-
-        # Rule 1 (transitive, reverse): App-A -[SUBSCRIBES_TO]-> T <-[PUBLISHES_TO]- Lib-Y <-[USES*]- App-B
-        self._merge_dependency("""
+            RETURN app AS src, publisher AS tgt, t
+            """,
+            """
             MATCH (subscriber)-[:SUBSCRIBES_TO]->(t:Topic)<-[:PUBLISHES_TO]-(lib)<-[:USES*1..3]-(app:Application)
             WHERE subscriber <> app
               AND (subscriber:Application OR subscriber:Library)
-        """, "subscriber", "app", "app_to_app", tx=tx)
+            RETURN subscriber AS src, app AS tgt, t
+            """,
+        ], "app_to_app", tx=tx)
 
         # Rule 2: app_to_broker — a component depends on the brokers routing its topics
-        self._merge_dependency("""
+        # (direct + via library chain, set-unioned)
+        self._merge_dependency_union([
+            """
             MATCH (app)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
             WHERE app:Application OR app:Library
-        """, "app", "broker", "app_to_broker", tx=tx)
-
-        # Rule 2 (transitive): the same, reached through a library chain
-        self._merge_dependency("""
+            RETURN app AS src, broker AS tgt, t
+            """,
+            """
             MATCH (app:Application)-[:USES*1..3]->(lib)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
-        """, "app", "broker", "app_to_broker", tx=tx)
+            RETURN app AS src, broker AS tgt, t
+            """,
+        ], "app_to_broker", tx=tx)
 
         # Rule 3: node_to_node — lifted from component-level app_to_app / app_to_broker dependencies.
         # Explicitly filtering to the source dependency types that carry RUNS_ON context,

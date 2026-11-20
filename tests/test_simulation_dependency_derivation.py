@@ -176,34 +176,29 @@ def test_device_weight_matches_repository():
     "data/network/atm_two_tier_system.json",
 ])
 def test_derivation_matches_repository_edge_set(path):
-    """The simulation-side projection must agree arc-for-arc with MemoryRepository.
-
-    Set equality on (dependent, dependency, type). Weights are deliberately allowed
-    to diverge on pairs whose topics are reachable through more than one path kind:
-    see test_collapse_does_not_double_count_shared_topics.
-    """
+    """The simulation-side projection must agree arc-for-arc AND weight-for-weight with MemoryRepository."""
     repo = MemoryRepository()
     with open(path) as fh:
         ModelGraphUseCase(repo).execute(json.load(fh), clear=True)
 
-    derived = _arcs(SimulationGraph(repo.get_graph_data(include_raw=True)))
+    derived = {
+        (s, t, d): w
+        for s, t, w, d in SimulationGraph(repo.get_graph_data(include_raw=True)).get_dependency_edges()
+    }
 
     repo.derive_dependencies()
-    reference = {(r["from"], r["to"], r["dependency_type"])
-                 for r in repo.data["relationships"]["depends_on"]}
+    reference = {
+        (r["from"], r["to"], r["dependency_type"]): r["weight"]
+        for r in repo.data["relationships"]["depends_on"]
+    }
 
-    assert derived == reference
+    assert set(derived) == set(reference)
+    for key, ref_w in reference.items():
+        assert derived[key] == pytest.approx(ref_w, abs=1e-9), f"weight mismatch on {key}"
 
 
 def test_collapse_does_not_double_count_shared_topics():
-    """A topic reachable directly *and* via a library enters the union once.
-
-    `memory_repo._collapse_paths` flattens its per-kind dict into a multiset, so such
-    a topic is counted twice there. `Neo4jRepository` MERGEs each kind separately and
-    keeps the max, which is what this derivation matches. Measured divergence between
-    the two adapters: 0 affected pairs on atm, 64 on microservices (dw <= 0.248), 139
-    on av (dw <= 0.374).
-    """
+    """A topic reachable directly *and* via a library enters the union once in both engines."""
     data = _empty_graph()
     data["topics"] = [{"id": "T", "name": "T", "weight": 0.5}]
     data["applications"] = [{"id": "PUB", "name": "PUB"}, {"id": "SUB", "name": "SUB"}]
@@ -215,11 +210,65 @@ def test_collapse_does_not_double_count_shared_topics():
     ]
     data["relationships"]["uses"] = [{"from": "SUB", "to": "L"}]
 
-    g = _build(data)
+    repo = MemoryRepository()
+    repo.save_graph(data, clear=True)
+    g = SimulationGraph(repo.get_graph_data(include_raw=True))
+    repo.derive_dependencies()
+
     topic_weight = g.components["T"].weight
+    expected = compute_effective_edge_weight([topic_weight])
     assert _weight_of(g, "SUB", "PUB", "app_to_app") == pytest.approx(
-        compute_effective_edge_weight([topic_weight]), abs=1e-9
-    ), "shared topic entered the probabilistic union more than once"
+        expected, abs=1e-9
+    ), "shared topic entered the probabilistic union more than once in SimulationGraph"
+
+    mem_edge = next(
+        r for r in repo.data["relationships"]["depends_on"]
+        if (r["from"], r["to"], r["dependency_type"]) == ("SUB", "PUB", "app_to_app")
+    )
+    assert mem_edge["weight"] == pytest.approx(
+        expected, abs=1e-9
+    ), "shared topic entered the probabilistic union more than once in MemoryRepository"
+    assert mem_edge["path_count"] == 1
+
+
+def test_multihost_hotstandby_lifts_to_all_hosting_nodes():
+    """Multi-host (hotstandby) components lift Rules 3 & 4 onto every hosting node."""
+    data = _empty_graph()
+    data["nodes"] = [{"id": n, "name": n} for n in ("N1", "N2", "N3")]
+    data["brokers"] = [{"id": "B", "name": "B"}]
+    data["topics"] = [{"id": "T", "name": "T"}]
+    data["applications"] = [
+        {"id": "PUB", "name": "PUB", "hotstandby": True},
+        {"id": "SUB", "name": "SUB", "hotstandby": True},
+    ]
+    data["relationships"]["publishes_to"] = [{"from": "PUB", "to": "T"}]
+    data["relationships"]["subscribes_to"] = [{"from": "SUB", "to": "T"}]
+    data["relationships"]["routes"] = [{"from": "B", "to": "T"}]
+    # PUB runs on N1 & N2; SUB runs on N2 & N3; B runs on N1
+    data["relationships"]["runs_on"] = [
+        {"from": "PUB", "to": "N1"},
+        {"from": "PUB", "to": "N2"},
+        {"from": "SUB", "to": "N2"},
+        {"from": "SUB", "to": "N3"},
+        {"from": "B", "to": "N1"},
+    ]
+
+    repo = MemoryRepository()
+    repo.save_graph(data, clear=True)
+    sim_arcs = _arcs(SimulationGraph(repo.get_graph_data(include_raw=True)))
+    repo.derive_dependencies()
+    mem_arcs = {
+        (r["from"], r["to"], r["dependency_type"])
+        for r in repo.data["relationships"]["depends_on"]
+    }
+
+    assert sim_arcs == mem_arcs
+    # SUB@N2 -> PUB@N1, SUB@N3 -> PUB@N1, SUB@N3 -> PUB@N2 (and SUB/PUB -> B@N1)
+    n2n = {(s, t) for s, t, d in mem_arcs if d == "node_to_node"}
+    assert {("N2", "N1"), ("N3", "N1"), ("N3", "N2")} <= n2n
+    assert ("N2", "N2") not in n2n
+    n2b = {(s, t) for s, t, d in mem_arcs if d == "node_to_broker"}
+    assert n2b == {("N1", "B"), ("N2", "B"), ("N3", "B")}
 
 
 def test_derivation_ignores_failed_edges():

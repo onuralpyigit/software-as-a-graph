@@ -626,12 +626,8 @@ class SimulationGraph:
         # (dependent, dependency, type) -> set of mediating topics.
         #
         # A *set*, deliberately: a topic reachable both directly and through a
-        # library must enter the probabilistic union once. memory_repo.py's
-        # _collapse_paths flattens a per-kind dict into a multiset instead, which
-        # double-counts such topics (0 affected pairs on atm_system, 64 on
-        # microservices with dw <= 0.248, 139 on av with dw <= 0.374). Neo4jRepository
-        # does not share that bug -- it MERGEs each kind separately and keeps the
-        # max -- so this matches Neo4j, not memory_repo.
+        # library enters the probabilistic union once, matching both
+        # MemoryRepository and Neo4jRepository.
         paths: Dict[Tuple[str, str, str], Set[str]] = defaultdict(set)
 
         for topic in set(self._publishers) | set(self._subscribers) | set(self._routing):
@@ -675,18 +671,25 @@ class SimulationGraph:
             for key, topics in paths.items()
         }
 
-        # Rules 3 & 4 -- lift component dependencies onto the hosting nodes.
-        # Worst-case max, not a probabilistic union: the lifted dependencies
-        # aggregate over overlapping app and topic sets, so they are not
-        # independent events and the union would saturate.
+        # Rules 3 & 4 -- lift component dependencies onto all hosting nodes.
+        # Uses `_runs_on_all` (not `_hosted_on`) so multi-host (`hotstandby`)
+        # components lift onto every hosting node, matching MemoryRepository and
+        # Neo4jRepository. Worst-case max, not a probabilistic union: the lifted
+        # dependencies aggregate over overlapping app and topic sets, so they are
+        # not independent events and the union would saturate.
         node_node: Dict[Tuple[str, str], List[float]] = defaultdict(list)
         node_broker: Dict[Tuple[str, str], List[float]] = defaultdict(list)
         for (src, tgt, dep_type), weight in edges.items():
-            src_node, tgt_node = self._hosted_on.get(src), self._hosted_on.get(tgt)
-            if src_node and tgt_node and src_node != tgt_node:
-                node_node[(src_node, tgt_node)].append(weight)
-            if dep_type == "app_to_broker" and src_node:
-                node_broker[(src_node, tgt)].append(weight)
+            if dep_type not in ("app_to_app", "app_to_broker"):
+                continue
+            src_nodes = list(dict.fromkeys(self._runs_on_all.get(src, ())))
+            tgt_nodes = list(dict.fromkeys(self._runs_on_all.get(tgt, ())))
+            for src_node in src_nodes:
+                if dep_type == "app_to_broker":
+                    node_broker[(src_node, tgt)].append(weight)
+                for tgt_node in tgt_nodes:
+                    if src_node != tgt_node:
+                        node_node[(src_node, tgt_node)].append(weight)
 
         lifted: Dict[Tuple[str, str, str], float] = {
             (n1, n2, "node_to_node"): compute_lifted_edge_weight(ws)

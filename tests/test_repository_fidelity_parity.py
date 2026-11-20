@@ -173,11 +173,12 @@ def test_repository_fidelity_parity_all_rules():
     assert comp_by_id_mem["app_pub"].weight == pytest.approx(0.83504, abs=0.001)
     assert comp_by_id_mem["app_sub"].weight == pytest.approx(0.83504, abs=0.001)
 
-    # Lib 1: connected to topic_standard (0.10473). Base_w = 0.10473, multiplier = 1.15 -> 0.12044
-    assert comp_by_id_mem["lib_1"].weight == pytest.approx(0.12044, abs=0.001)
+    # Lib 1: connected to topic_standard (0.10473), dg_in = 1.
+    # Smooth saturating boost: 1 - (1 - 0.10473) * 2^(-0.15) ~= 0.19325
+    assert comp_by_id_mem["lib_1"].weight == pytest.approx(0.19325, abs=0.001)
 
-    # App Isolated Uses Lib: updated to max(lib_1.weight) = 0.12044
-    assert comp_by_id_mem["app_isolated_uses_lib"].weight == pytest.approx(0.12044, abs=0.001)
+    # App Isolated Uses Lib: updated to max(lib_1.weight) = 0.19325
+    assert comp_by_id_mem["app_isolated_uses_lib"].weight == pytest.approx(0.19325, abs=0.001)
 
     # Broker 1: routes topic_standard. Weight = 0.10473
     assert comp_by_id_mem["broker_1"].weight == pytest.approx(0.10473, abs=0.001)
@@ -223,13 +224,13 @@ def test_repository_fidelity_parity_all_rules():
     assert node_to_node[0].weight == pytest.approx(0.83504, abs=0.001)
 
     # Rule 5 app_to_lib:
-    # Harmonic mean between app_isolated_uses_lib (0.12044) and lib_1 (0.12044) = 0.12044
+    # Harmonic mean between app_isolated_uses_lib (0.19325) and lib_1 (0.19325) = 0.19325
     assert "app_to_lib" in edges_by_type
     app_to_lib = edges_by_type["app_to_lib"]
     assert len(app_to_lib) == 1
     assert app_to_lib[0].source_id == "app_isolated_uses_lib"
     assert app_to_lib[0].target_id == "lib_1"
-    assert app_to_lib[0].weight == pytest.approx(0.12044, abs=0.001)
+    assert app_to_lib[0].weight == pytest.approx(0.19325, abs=0.001)
 
     # Now let's run comparison with Neo4jRepository if Neo4j is available
     from saag.infrastructure.neo4j_repo import Neo4jRepository
@@ -329,10 +330,46 @@ def test_isolated_app_to_lib_does_not_crash_finalization():
         clear=True,
     )
     repo.derive_dependencies()
+    from saag.core.models import compute_library_weight
+
     deps = {(e.source_id, e.target_id): e for e in repo.get_graph_data().edges}
     assert deps[("L_a", "L_b")].dependency_type == "app_to_lib"
     assert deps[("L_a", "L_b")].weight == pytest.approx(0.01)
     assert deps[("A_isolated", "L_util")].dependency_type == "app_to_lib"
-    assert deps[("A_isolated", "L_util")].weight == pytest.approx(0.0115)
+    assert deps[("A_isolated", "L_util")].weight == pytest.approx(compute_library_weight(0.01, 1))
+
+
+def test_rule1_multipath_distinct_equal_weight_topics_union():
+    """Distinct mediating topics across direct & library paths union even when weights are equal."""
+    from saag.core.models import compute_effective_edge_weight
+
+    repo = MemoryRepository()
+    repo.save_graph(
+        {
+            "nodes": [],
+            "brokers": [],
+            "topics": [
+                {"id": "T1", "size": 256, "qos": {"reliability": "RELIABLE", "durability": "VOLATILE", "transport_priority": "HIGH"}},
+                {"id": "T2", "size": 256, "qos": {"reliability": "RELIABLE", "durability": "VOLATILE", "transport_priority": "HIGH"}},
+            ],
+            "applications": [{"id": "PUB"}, {"id": "SUB"}],
+            "libraries": [{"id": "L1"}],
+            "relationships": {
+                "publishes_to": [{"from": "PUB", "to": "T1"}, {"from": "PUB", "to": "T2"}],
+                "subscribes_to": [{"from": "SUB", "to": "T1"}, {"from": "L1", "to": "T2"}],
+                "uses": [{"from": "SUB", "to": "L1"}],
+            },
+        },
+        clear=True,
+    )
+    repo.derive_dependencies()
+    comps = {c.id: c.weight for c in repo.get_graph_data().components}
+    expected = compute_effective_edge_weight([comps["T1"], comps["T2"]])
+    edge = next(
+        e for e in repo.get_graph_data().edges
+        if (e.source_id, e.target_id, e.dependency_type) == ("SUB", "PUB", "app_to_app")
+    )
+    assert edge.path_count == 2
+    assert edge.weight == pytest.approx(expected, abs=1e-9)
 
 

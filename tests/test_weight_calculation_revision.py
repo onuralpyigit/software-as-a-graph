@@ -222,3 +222,47 @@ class TestPowerMeanPIsLive:
         assert compute_power_mean_weight(weights, p=1.0) == pytest.approx(
             sum(weights) / len(weights)
         )
+
+
+# ── Smooth saturating library weight (no ceiling collapse) ──────────────────
+
+class TestSaturatingLibraryWeight:
+    def test_monotone_and_strictly_below_one(self):
+        from saag.core.models import compute_library_weight
+
+        assert compute_library_weight(0.0, 10) == pytest.approx(MIN_TOPIC_WEIGHT)
+        assert compute_library_weight(0.6, 0) == pytest.approx(0.6)
+
+        fanouts = [0, 1, 2, 5, 10, 30, 100]
+        vals = [compute_library_weight(0.85, d) for d in fanouts]
+        assert all(vals[i] < vals[i + 1] < 1.0 for i in range(len(vals) - 1))
+
+    def test_gamma_is_live_patchable(self):
+        from saag.core import models
+        from saag.core.models import compute_library_weight
+
+        default_val = compute_library_weight(0.5, 5)
+        saved = models.LIB_FANOUT_GAMMA
+        try:
+            models.LIB_FANOUT_GAMMA = 0.0
+            assert compute_library_weight(0.5, 5) == pytest.approx(0.5)
+        finally:
+            models.LIB_FANOUT_GAMMA = saved
+        assert default_val > 0.5
+
+    @pytest.mark.parametrize("scenario", [
+        "financial_trading_system.json",
+        "healthcare_system.json",
+    ])
+    def test_eliminates_library_ceiling_collapse_on_corpus(self, scenario):
+        """Previously 83-94% of libraries hit 1.0 (n_distinct=2) on these domains."""
+        from saag.infrastructure.memory_repo import MemoryRepository
+
+        path = REPO_ROOT / "data" / "scenarios" / scenario
+        if not path.exists():
+            pytest.skip(f"{scenario} not present")
+        repo = MemoryRepository()
+        repo.save_graph(json.loads(path.read_text()), clear=True)
+        lib_weights = [lib["weight"] for lib in repo.data["libraries"]]
+        assert all(w < 1.0 for w in lib_weights)
+        assert len({round(w, 6) for w in lib_weights}) > 2

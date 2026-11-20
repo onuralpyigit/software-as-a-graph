@@ -4,7 +4,6 @@ In-Memory Graph Repository Adapter
 Implements IGraphRepository using in-memory storage for testing.
 """
 
-import math
 from collections import defaultdict
 from typing import Dict, Any, List, Optional
 
@@ -12,8 +11,8 @@ from saag.core.ports.graph_repository import IGraphRepository
 from saag.core.models import (
     GraphData, ComponentData, EdgeData, QoSPolicy, compute_topic_weight,
     compute_effective_edge_weight, compute_harmonic_coupling, compute_power_mean_weight,
-    compute_lifted_edge_weight,
-    LIB_FANOUT_GAMMA, MIN_TOPIC_WEIGHT,
+    compute_lifted_edge_weight, compute_library_weight,
+    MIN_TOPIC_WEIGHT,
 )
 from saag.core.utils import serialization
 from saag.core.network import (
@@ -164,11 +163,7 @@ class MemoryRepository:
                 ],
                 default=0.0,
             )
-            multiplier = 1.0 + LIB_FANOUT_GAMMA * math.log2(1.0 + len(consuming_apps))
-            lib["weight"] = (
-                max(MIN_TOPIC_WEIGHT, min(1.0, base_w * multiplier))
-                if base_w > 0 else MIN_TOPIC_WEIGHT
-            )
+            lib["weight"] = compute_library_weight(base_w, len(consuming_apps))
 
         # 3. Applications, second pass — apps reaching topics only through libraries
         # would otherwise stay at the floor and be invisible to RM scoring.
@@ -296,14 +291,17 @@ class MemoryRepository:
         subscribers_of = self._sources_by_target("subscribes_to")
         brokers_of = self._sources_by_target("routes")
         lib_users = self._library_users()
-        host_of = {rel["from"]: rel["to"] for rel in self.data["relationships"].get("runs_on", [])}
+        hosts_of = {
+            src: list(dict.fromkeys(nodes))
+            for src, nodes in self._targets_by_source("runs_on").items()
+        }
 
         edges = {
             **self._rule_app_to_app(types, topic_weights, publishers_of, subscribers_of, lib_users),
             **self._rule_app_to_broker(types, topic_weights, publishers_of, subscribers_of,
                                        brokers_of, lib_users),
         }
-        edges.update(self._rules_lift_to_nodes(edges, host_of))
+        edges.update(self._rules_lift_to_nodes(edges, hosts_of))
         edges.update(self._rule_node_to_device(edges))
         edges.update(self._rule_app_to_lib(types))
         edges.update(self._rule_broker_to_broker(types))
@@ -318,19 +316,20 @@ class MemoryRepository:
         """
         Collapse the per-pair topic sets of one rule into a single edge each.
 
-        Weight is the probabilistic union (effective coupling) over every mediating
-        topic: w_E = 1 - ∏ (1 - w(t)); ``path_count`` is the number of distinct mediating
-        topics on the richest path kind.
+        Mediating topics are deduplicated across all path kinds (direct and
+        library-mediated) into a set before applying the probabilistic union:
+        w_E = 1 - ∏_{t ∈ T} (1 - w(t)), with ``path_count = |T|``.
         """
-        return {
-            (src, tgt, dep_type): {
+        collapsed = {}
+        for (src, tgt), kinds in paths.items():
+            distinct_topics = {t for topics in kinds.values() for t in topics}
+            collapsed[(src, tgt, dep_type)] = {
                 "weight": compute_effective_edge_weight(
-                    [topic_weights[t] for topics in kinds.values() for t in topics]
+                    [topic_weights[t] for t in distinct_topics]
                 ),
-                "path_count": max(len(topics) for topics in kinds.values()),
+                "path_count": len(distinct_topics),
             }
-            for (src, tgt), kinds in paths.items()
-        }
+        return collapsed
 
     def _rule_app_to_app(self, types, topic_weights, publishers_of, subscribers_of, lib_users) -> Dict:
         """Rule 1 — a subscriber depends on every publisher of the topics it consumes."""
@@ -379,12 +378,14 @@ class MemoryRepository:
         return self._collapse_paths(paths, "app_to_broker", topic_weights)
 
     @staticmethod
-    def _rules_lift_to_nodes(edges: Dict, host_of: Dict[str, str]) -> Dict:
+    def _rules_lift_to_nodes(edges: Dict, hosts_of: Dict[str, List[str]]) -> Dict:
         """
-        Rules 3 & 4 — lift component-level dependencies onto the nodes hosting them.
+        Rules 3 & 4 — lift component-level dependencies onto all nodes hosting them.
 
-        node_to_node needs both endpoints hosted on *different* nodes; node_to_broker
-        only needs the dependent app to be hosted, since the broker is the target.
+        Multi-host (``hotstandby``) components emit lifted dependencies for every
+        distinct hosting node pair ``(n1, n2)`` with ``n1 != n2`` (and every
+        hosting node for ``node_to_broker``), matching ``Neo4jRepository``'s
+        ``MATCH (a)-[:RUNS_ON]->(n1:Node), (b)-[:RUNS_ON]->(n2:Node)`` semantics.
 
         Weight is the worst-case lift (``compute_lifted_edge_weight``), matching
         ``Neo4jRepository``'s Rules 3-4. A probabilistic union is not valid here:
@@ -397,11 +398,14 @@ class MemoryRepository:
         for (src, tgt, dep_type), edge in edges.items():
             if dep_type not in ("app_to_app", "app_to_broker"):
                 continue
-            src_node, tgt_node = host_of.get(src), host_of.get(tgt)
-            if src_node and tgt_node and src_node != tgt_node:
-                node_node.setdefault((src_node, tgt_node), []).append(edge["weight"])
-            if dep_type == "app_to_broker" and src_node:
-                node_broker.setdefault((src_node, tgt), []).append(edge["weight"])
+            src_nodes = hosts_of.get(src, ())
+            tgt_nodes = hosts_of.get(tgt, ())
+            for src_node in src_nodes:
+                if dep_type == "app_to_broker":
+                    node_broker.setdefault((src_node, tgt), []).append(edge["weight"])
+                for tgt_node in tgt_nodes:
+                    if src_node != tgt_node:
+                        node_node.setdefault((src_node, tgt_node), []).append(edge["weight"])
 
         lifted = {
             (n1, n2, "node_to_node"): {

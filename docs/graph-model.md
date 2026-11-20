@@ -363,15 +363,15 @@ $$w(\text{app}) = \left(\frac{1}{|T_{\text{app}}|} \sum_{t \in T_{\text{app}}} w
 > - The **power mean ($p=3$)** acts as a smooth, scale-free worst-case approximation. It strongly emphasizes the most critical topics while still increasing when multiple critical topics are attached.
 
 #### 2. Library Weight ($w(\text{lib})$)
-A shared library's criticality reflects both the topics it touches and the operational importance of the applications consuming it, scaled by its **afferent consumer blast radius**:
+A shared library's criticality reflects both the topics it touches and the operational importance of the applications consuming it, lifted smoothly toward `1.0` by its **afferent consumer blast radius**:
 
-$$w(\text{lib}) = \min\left(1.0, \; \text{base\_w} \cdot \left(1 + \gamma \cdot \log_2(1 + \text{DG}_{\text{in}})\right)\right) \quad (\text{with } \gamma = 0.15)$$
+$$w(\text{lib}) = 1 - (1 - \text{base\_w}) \cdot (1 + \text{DG}_{\text{in}})^{-\gamma} \quad (\text{with } \gamma = 0.15)$$
 
 where:
 $$\text{base\_w} = \max\left( \{ w(t) : t \in T_{\text{lib}} \} \cup \{ w(\text{app}) : (\text{app}, \text{lib}) \in \text{USES} \} \right)$$
 $$\text{DG}_{\text{in}} = |\{ \text{app} : (\text{app}, \text{lib}) \in \text{USES} \}|$$
 
-At realistic fan-outs (e.g., 5 to 30 consuming applications), $\gamma = 0.15$ yields a controlled 40% to 75% amplification, correctly reflecting that a crash in a widely shared library takes down multiple services simultaneously.
+This smooth saturating curve is strictly monotonic in both $\text{base\_w}$ and $\text{DG}_{\text{in}}$ while staying strictly below $1.0$ whenever $\text{base\_w} < 1.0$, preserving rank discrimination among shared libraries even in high-criticality domains.
 
 #### 3. Application Second Pass (Library-Mediated)
 Applications that publish or subscribe to topics purely through linked libraries (rather than holding direct pub/sub edges) initially receive the floor weight ($0.01$). A second pass elevates their weight:
@@ -742,8 +742,8 @@ All incident structural edges (`A0 -> T0`, `A1 -> T0`, `B0 -> T0`) inherit $w_E 
    $$w(B0) = (0.5938^3)^{1/3} = \mathbf{0.5938}$$
 3. **Library (`L0`)**:
    Consumed by 2 applications ($A0, A1 \implies \text{DG}_{\text{in}} = 2$). $\text{base\_w} = \max(w(A0), w(A1)) = 0.5938$:
-   $$\text{Multiplier} = 1 + 0.15 \cdot \log_2(1 + 2) = 1 + 0.15 \cdot 1.5850 = 1 + 0.2377 = 1.2377$$
-   $$w(L0) = \min(1.0, \; 0.5938 \times 1.2377) = \mathbf{0.7350}$$
+   $$(1 + 2)^{-0.15} = 3^{-0.15} = 0.8481$$
+   $$w(L0) = 1 - (1 - 0.5938) \times 0.8481 = \mathbf{0.6555}$$
 4. **Compute Node (`N0`)**:
    Hosts $A0$ (0.5938), $A1$ (0.5938), and $B0$ (0.5938):
    $$w(N0) = \max(0.5938, 0.5938, 0.5938) = \mathbf{0.5938}$$
@@ -767,9 +767,9 @@ All incident structural edges (`A0 -> T0`, `A1 -> T0`, `B0 -> T0`) inherit $w_E 
 
 ### Step 4: Finalize Edge Weights (Phase 5b)
 - **Rule 5 Edge Finalization (`app_to_lib`)**:
-  Evaluated via the harmonic mean between Application ($0.5938$) and Library ($0.7350$):
-  $$w_E(A0 \to L0) = \frac{2 \times 0.5938 \times 0.7350}{0.5938 + 0.7350} = \frac{0.8729}{1.3288} = \mathbf{0.6569}$$
-  $$w_E(A1 \to L0) = \mathbf{0.6569}$$
+  Evaluated via the harmonic mean between Application ($0.5938$) and Library ($0.6555$):
+  $$w_E(A0 \to L0) = \frac{2 \times 0.5938 \times 0.6555}{0.5938 + 0.6555} = \frac{0.7785}{1.2493} = \mathbf{0.6231}$$
+  $$w_E(A1 \to L0) = \mathbf{0.6231}$$
 
 ### Final Graph Representation Summary
 
@@ -782,7 +782,7 @@ T0    Topic        /telemetry/imu       0.5938    sub_count=1, pub_count=1
 A0    Application  ImuSensorDriver      0.5938    role=['pub'], hotstandby=true
 A1    Application  FlightController     0.5938    role=['sub'], hotstandby=false
 B0    Broker       DDS_Participant      0.5938    type='FastDDS'
-L0    Library      QuaternionMathLib    0.7350    DG_in=2, fanout_boost=+23.8%
+L0    Library      QuaternionMathLib    0.6555    DG_in=2, saturating fanout lift
 N0    Node         FlightComputer       0.5938    hosted_max=0.5938
 N1    Node         MissionPayload       0.0100    hosted_max=0.01 (empty)
 
@@ -792,8 +792,8 @@ Source (Dependent) ──► Target (Dependency)  Type           Weight   Path C
 A1 (FlightController) ──► A0 (ImuSensor)    app_to_app     0.5938   1
 A0 (ImuSensor)        ──► B0 (DDS Broker)   app_to_broker  0.5938   1
 A1 (FlightController) ──► B0 (DDS Broker)   app_to_broker  0.5938   1
-A0 (ImuSensor)        ──► L0 (MathLib)      app_to_lib     0.6569   1
-A1 (FlightController) ──► L0 (MathLib)      app_to_lib     0.6569   1
+A0 (ImuSensor)        ──► L0 (MathLib)      app_to_lib     0.6231   1
+A1 (FlightController) ──► L0 (MathLib)      app_to_lib     0.6231   1
 ==============================================================================
 ```
 

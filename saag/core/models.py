@@ -158,12 +158,11 @@ AHP_SHRINKAGE_LAMBDA: float = 0.70
 #: Power mean exponent (p) for smooth worst-case component aggregation
 COMPONENT_POWER_MEAN_P: float = 3.0
 
-#: Library fan-out multiplier coefficient (γ) for simultaneous blast semantics.
-#: Applied as: 1 + γ * log2(1 + DG_in).
-#: Rationale for magnitude: at realistic fan-out (single digits to low tens of
-#: consuming apps, DG_in ≈ 5-30), log2(1+DG_in) ≈ 2.6-5.0, so γ=0.15 yields a
-#: ~40-75% amplification — noticeable but not dominant, keeping w(lib) well
-#: under the min(1.0, ...) ceiling for all but extreme fan-out.
+#: Library fan-out exponent (γ) for smooth saturating blast-radius scaling.
+#: Applied as: w(lib) = 1 - (1 - base_w) * (1 + DG_in)^(-γ).
+#: Rationale: smoothly lifts shared libraries toward 1.0 as consumer fan-out
+#: grows without collapsing high-base_w libraries into the hard 1.0 clamp
+#: (which previously saturated 83-94% of libraries on healthcare/financial_trading).
 LIB_FANOUT_GAMMA: float = 0.15
 
 #: Regularization coefficient (δ) for path count coupling complexity.
@@ -246,6 +245,30 @@ def compute_power_mean_weight(weights: List[float], p: Optional[float] = None) -
     sum_pow = sum(math.pow(max(0.0, float(w)), p) for w in weights)
     mean_pow = sum_pow / n
     return max(MIN_TOPIC_WEIGHT, min(1.0, math.pow(mean_pow, 1.0 / p)))
+
+
+def compute_library_weight(
+    base_w: float,
+    dg_in: int,
+    gamma: Optional[float] = None,
+) -> float:
+    """Compute smooth saturating library vertex weight from base weight and fan-out.
+
+    w(lib) = 1 - (1 - base_w) * (1 + DG_in)^(-γ)
+
+    Preserves strict monotonicity in both ``base_w`` and ``dg_in`` while
+    staying strictly below 1.0 whenever ``base_w < 1.0``, preventing ceiling
+    collapse on high-criticality domains. ``gamma`` resolves to
+    ``LIB_FANOUT_GAMMA`` at call time so sensitivity sweeps can patch it.
+    """
+    if gamma is None:
+        gamma = LIB_FANOUT_GAMMA
+    if base_w <= 0.0:
+        return MIN_TOPIC_WEIGHT
+    clamped_base = min(1.0, float(base_w))
+    fanout = max(0, int(dg_in))
+    lifted = 1.0 - (1.0 - clamped_base) * math.pow(1.0 + fanout, -float(gamma))
+    return max(MIN_TOPIC_WEIGHT, min(1.0, lifted))
 
 
 @dataclass
