@@ -3,7 +3,41 @@
 Manuscript, figures and reproduction scripts for submitting **Software-as-a-Graph** to *Software and Systems Modeling* (Springer), collection **Tool Paper**.
 
 * **Title:** *Software-as-a-Graph: An Open-Source Tool for Multi-Layer Graph Modeling, Quality Diagnosis, and Simulation-Verified Refactoring of Publish–Subscribe Architectures*
-* **Status:** revised for the tool-paper call (see [REVISION_NOTES.md](REVISION_NOTES.md)). Open items before upload are listed at the end of this file.
+* **Target Venue:** *Software and Systems Modeling* (SoSyM, Springer) — **Tool Paper** collection
+* **License:** GNU GPL v3.0
+* **Status:** Revised for the tool-paper call (see [REVISION_NOTES.md](REVISION_NOTES.md)). For a section-by-section map, see [outline.md](outline.md); for a readable Markdown rendering of the manuscript, see [draft.md](draft.md).
+
+---
+
+## Executive Summary
+
+Publish–subscribe middleware such as **ROS 2/DDS, Apache Kafka, and MQTT** decouples components through topics, brokers, and Quality-of-Service (QoS) contracts. While this decoupling makes distributed systems easy to extend, it hides the dependency chains along which failures propagate—and mainstream architecture modeling and smell-detection tools represent topics, brokers, and QoS only indirectly or not at all.
+
+This tool paper presents **Software-as-a-Graph (SaG)**, an open-source modeling and analysis tool purpose-built for publish–subscribe architectures. From a declarative JSON description of a system, SaG builds a typed, attributed multigraph, derives implied component dependencies with seven explicit rules across four layer projections, and runs an end-to-end analysis pipeline:
+
+1. **Explainable quality scoring:** A Reliability–Maintainability (RM) model grounded in ISO/IEC 25010 that decomposes risk into named structural terms rather than opaque scores.
+2. **Pub–sub anti-pattern detection:** Nineteen declarative patterns (including pub–sub-specific smells such as `QOS_MISMATCH`, `CHATTY_PAIR`, and `BROKER_OVERLOAD`).
+3. **Delta-aware CI quality gating:** Merge-base diffing (`--baseline`) with a fence margin and an expiring waiver register so teams block only newly introduced structural risks rather than existing debt.
+4. **Failure-cascade simulation:** A structural-only simulation oracle (`FailureSimulator`) kept strictly independent of analytical scores by automated tests.
+5. **Simulation-verified refactoring (`Prescribe`):** Three graph-mutation operators (*topic split*, *anti-affinity reallocation*, *QoS hardening*) where each candidate edit is tested on an isolated in-memory model copy and admitted only if its simulated benefit exceeds seed-to-seed noise across every propagation threshold.
+
+SaG is engineered around a hexagonal Python core (~65k LOC) with a Neo4j adapter for persistent exploration, an in-memory adapter for thousands of fast counterfactual simulations, ~1,600 tests enforcing architectural invariants, and five interfaces (CLI, Python API, FastAPI REST service, Next.js/React web dashboard, and self-contained HTML reports).
+
+### Who This Paper Is For
+
+* **Software & systems architects** reviewing pub–sub designs before deployment for cross-layer bottlenecks and structural risks.
+* **Reliability engineers** estimating component and host blast radii without running fault injection on production systems.
+* **DevOps teams** integrating pre-merge architecture checks into CI without adopting a heavy modeling IDE.
+* **Modeling researchers** seeking an open metamodel, reproducible scenario corpus, simulation oracle, and baselines for evaluating new metrics, detectors, or model transformations.
+
+### Key Highlights & Headline Results
+
+* **Fast enough for CI:** Diagnosis takes **0.05–0.11 s** on five open-source architecture models (60–90 components) and **0.04–5.53 s** on synthetic models up to 326 components (**78.93 s** at 520 components; detectors take $\le 0.17\text{ s}$).
+* **Focused, actionable findings:** On five open-source architecture models (*Autoware.Universe*, *Train-Ticket*, *Cloud e-commerce mesh*, *EdgeX Foundry*, *Home Assistant*), **14–22%** of components are directly flagged, with stronger oracle agreement than on denser synthetic models ($\kappa = +0.26$ vs. $-0.03$).
+* **Explainable scoring vs. centralities:** On the `app` layer, the RM composite $Q(v)$ achieves mean Spearman $\rho = 0.62$ against simulated cascade impact, outperforming degree centrality ($\rho = 0.49$) in **8 of 8** scenarios (Wilcoxon $p = 0.008$), while remaining weak on hosts/brokers at the `system` layer.
+* **Why refactoring rules must be verified:** Across 1,510 rule-generated edits, **32% fail counterfactual verification** (1,028 admitted, 68.1%). Even when every edit is admitted individually, combining them improves simulated impact in **4 of 7** scenarios and regresses in **3 of 7**.
+* **Practical CI gating:** Across 90 random single-subscription edits, an absolute gate blocks **100%** of changes on existing debt, whereas the delta-aware gate blocks **26%**, warns on **47%**, and passes **28%**.
+* **Eight transferable lessons learnt:** Grounded in concrete defects encountered while building SaG—covering view-specific metric definitions, making unmeasured values unrepresentable as `0.0`, repurposing a test double as a simulation sandbox, verifying both individual rules and their composition, provenance-stamping every reported number, and preserving multigraph semantics end to end.
 
 ---
 

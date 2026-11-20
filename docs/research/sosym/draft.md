@@ -4,36 +4,7 @@
 
 ## Abstract
 
-Publish–subscribe middleware such as ROS 2/DDS, Kafka and MQTT decouples
-components through topics, brokers and Quality-of-Service contracts.
-That decoupling hides the dependencies along which failures propagate,
-and mainstream architecture modeling tools represent topics, brokers and
-QoS only indirectly. We present Software-as-a-Graph (SaG), an
-open-source tool for modeling and analysing publish–subscribe
-architectures. SaG’s modeling language is a typed multigraph metamodel
-with six vertex and seven edge types, a JSON concrete syntax, four layer
-projections, and seven declared rules that derive component dependencies
-from declared structure. Over these models the tool computes an
-explainable Reliability–Maintainability quality model grounded in
-ISO/IEC 25010 and detects nineteen publish–subscribe anti-patterns. It
-gates changes in continuous integration against their merge-base with a
-waiver register, and it simulates failure cascades. Its refactoring
-engine compiles findings into three graph-mutation operators and admits
-a candidate edit only if its simulated benefit exceeds seed-to-seed
-noise at every propagation threshold. SaG has a hexagonal architecture
-with a Neo4j adapter for persistent exploration and an in-memory adapter
-for throw-away model copies, and its architectural invariants are
-enforced by about 1,600 tests. It is used through a command-line suite,
-a Python API, a REST service, a web application and self-contained HTML
-reports. We apply SaG to a running example, five architecture models of
-open-source systems and eight synthetic scenarios. Diagnosis and gating
-take 0.04–79 seconds per model. The delta-aware gate separates new
-findings from existing debt. 32% of rule-generated refactoring edits
-fail verification. We report eight lessons learnt, most traceable to
-defects we found: state on which model view a metric is meaningful, make
-unmeasured values unrepresentable, test transformation rules on the
-model at hand, and tie every reported number to the artefact that
-produced it. SaG is available under GPL-3.0.
+Publish–subscribe middleware such as ROS 2/DDS, Kafka and MQTT decouples components through topics, brokers and Quality-of-Service contracts. That decoupling hides the dependencies along which failures propagate, and mainstream architecture modeling tools represent topics, brokers and QoS only indirectly. We present Software-as-a-Graph (SaG), an open-source tool for modeling and analysing publish–subscribe architectures. SaG's modeling language is a typed multigraph metamodel with six vertex and seven edge types, a JSON concrete syntax, four layer projections, and seven declared rules that derive component dependencies from declared structure. Over these models the tool computes an explainable Reliability–Maintainability quality model grounded in ISO/IEC 25010 and detects nineteen publish–subscribe anti-patterns. It gates changes in continuous integration against their merge-base with a waiver register, and it simulates failure cascades. Its refactoring engine compiles findings into three graph-mutation operators and admits a candidate edit only if its simulated benefit exceeds seed-to-seed noise at every propagation threshold. SaG has a hexagonal architecture with a Neo4j adapter for persistent exploration and an in-memory adapter for throw-away model copies, and its architectural invariants are enforced by about 1,600 tests. It is used through a command-line suite, a Python API, a REST service, a web application and self-contained HTML reports. We apply SaG to a running example, five architecture models of open-source systems and eight synthetic scenarios. Diagnosis and gating take 0.04–79 seconds per model. The delta-aware gate separates new findings from existing debt. 32% of rule-generated refactoring edits fail verification. We report eight lessons learnt, most traceable to defects we found: state on which model view a metric is meaningful, make unmeasured values unrepresentable, test transformation rules on the model at hand, and tie every reported number to the artefact that produced it. SaG is available under GPL-3.0.
 
 **Keywords:** Architecture modeling; Graph metamodel; Publish–subscribe
 middleware; Anti-pattern detection; Model refactoring; Simulation-based
@@ -183,13 +154,14 @@ here.
     simulators; its contribution is the learning study, which we do not
     repeat.
 
--   A companion study held in reserve for future submission (*“SaG-Prescribe: Unifying
-    Diagnostic Pathways with Counterfactual Refactoring for Automated
-    Code Review and Software Quality Evaluation in Distributed
-    Publish–Subscribe Systems”*) evaluates the accuracy of the RM model
-    and the anti-pattern catalog against the simulation oracle and the
-    yield of the refactoring engine, with statistical tests. We cite its
-    conclusions where relevant but do not reproduce its tables.
+-   A companion study held in reserve for future submission
+    (*“SaG-Prescribe: Unifying Diagnostic Pathways with Counterfactual
+    Refactoring for Automated Code Review and Software Quality
+    Evaluation in Distributed Publish–Subscribe Systems”*) evaluates the
+    accuracy of the RM model and the anti-pattern catalog against the
+    simulation oracle and the yield of the refactoring engine, with
+    statistical tests. We cite its conclusions where relevant but do not
+    reproduce its tables.
 
 The present paper is the only one that describes the tool as a whole:
 its modeling language, architecture, interfaces, extension points,
@@ -284,12 +256,13 @@ decomposition: every score is a declared weighted sum of named
 structural terms, so its explanation is the formula itself rather than a
 post-hoc attribution of an opaque predictor. Graph centralities are
 widely applied to call and service graphs (Freeman 1977; Falci, Gomes,
-and Parreiras 2018; Bakhtin et al. 2025). Our companion evaluations
-found that the RM composite does not rank failure impact better than
-plain degree centrality
+and Parreiras 2018; Bakhtin et al. 2025). On the current release, the RM
+composite out-ranks plain degree centrality on the application layer,
+though it remains weak on infrastructure components at the system layer
 (Section <a href="#sec:app:synthetic" data-reference-type="ref" data-reference="sec:app:synthetic">7.4</a>);
 the tool therefore reports simple centralities alongside RM, and RM’s
-value is the per-dimension explanation, not ranking accuracy.
+primary value is the per-dimension explanation rather than a single
+ranking score.
 
 ## Positioning
 
@@ -304,11 +277,11 @@ Palladio offer analyses that SaG does not have.
 |:---------------------------------------|:--------------------------|:------------------------|:-------------------------|:------------------|:-------------------------------|
 | Topics, brokers, QoS as model elements | No                        | Indirect (ports, buses) | No                       | No                | Yes                            |
 | Model input                            | PCM models                | AADL models             | Source code              | Source code       | JSON architecture description  |
-| Derived dependency structure           | No                        | No                      | From code                | No                | declared rules                 |
+| Derived dependency structure           | No                        | No                      | From code                | No                | 7 declared rules               |
 | Layers / viewpoints                    | Component, allocation     | Software, platform      | Package, class           | File              | app, infra, mw, system         |
-| Anti-pattern catalog                   | Performance               | Via annexes             | OO / architecture smells | Code rules        | pub–sub patterns               |
+| Anti-pattern catalog                   | Performance               | Via annexes             | OO / architecture smells | Code rules        | 19 pub–sub patterns            |
 | Failure-cascade simulation             | Reliability prediction    | Fault trees (annex)     | No                       | No                | Built in                       |
-| Refactoring                            | Simulation-guided search  | No                      | Advisory                 | Advisory          | operators, simulation-filtered |
+| Refactoring                            | Simulation-guided search  | No                      | Advisory                 | Advisory          | 3 operators, simulation-filtered |
 | CI gate                                | No                        | No                      | Partial                  | Yes               | Absolute and delta-aware       |
 | Interfaces                             | Eclipse                   | Eclipse                 | CLI / desktop            | Web               | CLI, Python, REST, web         |
 | License                                | EPL                       | EPL                     | Academic / commercial    | LGPL / commercial | GPL-3.0                        |
@@ -568,25 +541,25 @@ pair, or the system as a whole.
 
 | **Pattern**          | **Sev.** | **Category**    | **Scope** | **Detection signal**                                       | **Op.**                                |        **Fires**         |
 |:---------------------|:---------|:----------------|:----------|:-----------------------------------------------------------|:---------------------------------------|:------------------------:|
-| `SPOF`               | CRIT     | Availability    | Comp.     | Directed articulation point of the dependency graph        | <span class="smallcaps">realloc</span> |        trig@SPOF         |
-| `FAILURE_HUB`        | CRIT     | Reliability     | Comp.     | Critical reliability with wide downstream cascade          | <span class="smallcaps">split</span>   |    trig@FAILURE\_HUB     |
-| `GOD_COMPONENT`      | CRIT     | Maintainability | Comp.     | Extreme betweenness and high coupling                      | <span class="smallcaps">split</span>   |   trig@GOD\_COMPONENT    |
-| `SYSTEMIC_RISK`      | CRIT     | Architecture    | System    | Large share of components classified CRITICAL              | –                                      |   trig@SYSTEMIC\_RISK    |
-| `COMPOUND_RISK`      | CRIT     | Architecture    | Comp.     | SPOF that is also a God Component or Failure Hub           | –                                      |   trig@COMPOUND\_RISK    |
-| `BRIDGE_EDGE`        | HIGH     | Availability    | Edge      | Bridge of the undirected dependency graph                  | –                                      |    trig@BRIDGE\_EDGE     |
-| `BOTTLENECK_EDGE`    | HIGH     | Availability    | Edge      | Edge-betweenness outlier                                   | <span class="smallcaps">split</span>   |  trig@BOTTLENECK\_EDGE   |
-| `BROKER_OVERLOAD`    | HIGH     | Availability    | Comp.     | Broker with disproportionate routing share, or sole broker | –                                      |  trig@BROKER\_OVERLOAD   |
-| `DEEP_PIPELINE`      | HIGH     | Reliability     | System    | Source-to-sink chain longer than an adaptive depth         | –                                      |   trig@DEEP\_PIPELINE    |
-| `CYCLE`              | HIGH     | Architecture    | System    | Strongly connected component                               | –                                      |        trig@CYCLE        |
-| `CONCENTRATION_RISK` | MED      | Reliability     | System    | Top-3 components hold  &gt; 50% of PageRank                | –                                      | trig@CONCENTRATION\_RISK |
-| `TOPIC_FANOUT`       | MED      | Reliability     | Comp.     | Subscriber-count outlier among topics                      | –                                      |    trig@TOPIC\_FANOUT    |
-| `QOS_MISMATCH`       | MED      | Reliability     | Edge      | Publisher QoS weight well below subscriber’s               | –                                      |    trig@QOS\_MISMATCH    |
-| `HUB_AND_SPOKE`      | MED      | Maintainability | Comp.     | Hub whose neighbours are not connected (low clustering)    | <span class="smallcaps">split</span>   |   trig@HUB\_AND\_SPOKE   |
-| `CHATTY_PAIR`        | MED      | Maintainability | Pair      | Reciprocal high-weight dependency via separate topics      | –                                      |    trig@CHATTY\_PAIR     |
-| `ORPHANED_TOPIC`     | MED      | Maintainability | Comp.     | Topic without publishers or without subscribers            | –                                      |   trig@ORPHANED\_TOPIC   |
-| `UNSTABLE_INTERFACE` | MED      | Maintainability | Comp.     | Balanced, high-complexity in/out coupling                  | –                                      | trig@UNSTABLE\_INTERFACE |
-| `CHAIN`              | MED      | Architecture    | System    | Degree-bounded linear chain                                | –                                      |        trig@CHAIN        |
-| `ISOLATED`           | MED      | Architecture    | Comp.     | No dependencies in the layer                               | –                                      |      trig@ISOLATED       |
+| `SPOF`               | CRIT     | Availability    | Comp.     | Directed articulation point of the dependency graph        | <span class="smallcaps">realloc</span> |        ✓         |
+| `FAILURE_HUB`        | CRIT     | Reliability     | Comp.     | Critical reliability with wide downstream cascade          | <span class="smallcaps">split</span>   |    ✓     |
+| `GOD_COMPONENT`      | CRIT     | Maintainability | Comp.     | Extreme betweenness and high coupling                      | <span class="smallcaps">split</span>   |   —    |
+| `SYSTEMIC_RISK`      | CRIT     | Architecture    | System    | Large share of components classified CRITICAL              | –                                      |   —    |
+| `COMPOUND_RISK`      | CRIT     | Architecture    | Comp.     | SPOF that is also a God Component or Failure Hub           | –                                      |   —    |
+| `BRIDGE_EDGE`        | HIGH     | Availability    | Edge      | Bridge of the undirected dependency graph                  | –                                      |    ✓     |
+| `BOTTLENECK_EDGE`    | HIGH     | Availability    | Edge      | Edge-betweenness outlier                                   | <span class="smallcaps">split</span>   |  ✓   |
+| `BROKER_OVERLOAD`    | HIGH     | Availability    | Comp.     | Broker with disproportionate routing share, or sole broker | –                                      |  ✓   |
+| `DEEP_PIPELINE`      | HIGH     | Reliability     | System    | Source-to-sink chain longer than an adaptive depth         | –                                      |   excl.    |
+| `CYCLE`              | HIGH     | Architecture    | System    | Strongly connected component                               | –                                      |        ✓        |
+| `CONCENTRATION_RISK` | MED      | Reliability     | System    | Top-3 components hold  &gt; 50% of PageRank                | –                                      | ✓ |
+| `TOPIC_FANOUT`       | MED      | Reliability     | Comp.     | Subscriber-count outlier among topics                      | –                                      |    ✓    |
+| `QOS_MISMATCH`       | MED      | Reliability     | Edge      | Publisher QoS weight well below subscriber’s               | –                                      |    ✓    |
+| `HUB_AND_SPOKE`      | MED      | Maintainability | Comp.     | Hub whose neighbours are not connected (low clustering)    | <span class="smallcaps">split</span>   |   ✓   |
+| `CHATTY_PAIR`        | MED      | Maintainability | Pair      | Reciprocal high-weight dependency via separate topics      | –                                      |    —     |
+| `ORPHANED_TOPIC`     | MED      | Maintainability | Comp.     | Topic without publishers or without subscribers            | –                                      |   ✓   |
+| `UNSTABLE_INTERFACE` | MED      | Maintainability | Comp.     | Balanced, high-complexity in/out coupling                  | –                                      | ✓ |
+| `CHAIN`              | MED      | Architecture    | System    | Degree-bounded linear chain                                | –                                      |        —        |
+| `ISOLATED`           | MED      | Architecture    | Comp.     | No dependencies in the layer                               | –                                      |      ✓       |
 
 The nineteen-pattern catalog. **Op.**: refactoring operator the pattern
 feeds directly (<span class="smallcaps">split</span> topic splitting,
@@ -1106,7 +1079,7 @@ seeds), synthetic and open-source models.
 The tool’s validation step compares any ranking with the simulated
 impact. At the `app` layer, the RM composite *Q*(*v*) reaches a mean
 Spearman *ρ* of 0.62 with the oracle, against 0.50 for betweenness and
-0.49 for degree centrality; *Q* is higher than degree in 8 of eight
+0.49 for degree centrality; *Q* is higher than degree in 8 of 8
 scenarios (Wilcoxon signed-rank *p* = 0.008). At the `system` layer,
 where components of different types are pooled, the figures must be read
 per type: 0.64 for applications, 0.21 for hosts and 0.12 for brokers;
@@ -1126,12 +1099,12 @@ enough to trigger it. Of 1,510 compiled candidate edits, 1,028 (68.1%)
 pass the acceptance test; the rest are within seed noise or harmful.
 Survival differs by operator
 (Table <a href="#tab:operators" data-reference-type="ref" data-reference="tab:operators">7</a>).
-The combined policy reduces mean simulated impact in 4 of seven
-scenarios (mean change +0.099) and increases it in 3, despite every edit
-having been admitted individually; the SRI consistency check improves in
-7 of seven. The full sweep, 13,653 single-failure simulation sweeps over
-all candidates, thresholds and seeds, took 2 h 36 min of wall-clock time
-on 20 cores using the in-memory repository.
+The combined policy reduces mean simulated impact in 4 of 7 scenarios
+(mean change +0.099) and increases it in 3, despite every edit having
+been admitted individually; the SRI consistency check improves in 7 of
+7. The full sweep, 13,653 single-failure simulation sweeps over all
+candidates, thresholds and seeds, took 2 h 36 min of wall-clock time on
+20 cores using the in-memory repository.
 
 <div id="tab:prescribe">
 
@@ -1277,10 +1250,9 @@ dimension, 64% of Reliability, is built from cut-vertex and bridge
 predicates, and the application projection of a pub–sub system rarely
 has cut vertices: topics shared by several applications provide
 alternative paths. On the current corpus the `SPOF` detector predicts 7
-of eight scenarios to have no articulation point at all on the `app`
-layer, and its mean *F*<sub>1</sub> there is 0.01. Nothing was wrong
-with the code; the metric was being evaluated on a view where it is
-constant
+of 8 scenarios to have no articulation point at all on the `app` layer,
+and its mean *F*<sub>1</sub> there is 0.01. Nothing was wrong with the
+code; the metric was being evaluated on a view where it is constant
 (Proposition <a href="#prop:substrate" data-reference-type="ref" data-reference="prop:substrate">Proposition 1</a>).
 *Transferable lesson:* in a multi-view modeling tool, the view a metric
 is computed on is part of the metric’s definition and belongs in its
@@ -1327,11 +1299,10 @@ Eq. <a href="#eq:accept" data-reference-type="eqref" data-reference="eq:accept"
 their effect is within seed noise or harmful. Survival differs by
 operator, from 55% for topic splits to 72% for reallocations
 (Table <a href="#tab:operators" data-reference-type="ref" data-reference="tab:operators">7</a>),
-and in 3 of seven scenarios the combination of individually admitted
-edits is worse than the baseline. *Transferable lesson:* rule-based
-model refactoring should treat each rule application as a hypothesis,
-test it on the model, and test the composition separately from the
-parts.
+and in 3 of 7 scenarios the combination of individually admitted edits
+is worse than the baseline. *Transferable lesson:* rule-based model
+refactoring should treat each rule application as a hypothesis, test it
+on the model, and test the composition separately from the parts.
 
 #### Lesson 5 (evaluating): conclusions expire with the artefacts that produced them.
 
@@ -1539,15 +1510,16 @@ review at the *Journal of Systems and Software*, “Software-as-a-Graph:
 When Does Graph Learning Improve Cascade-Impact Ranking in
 Publish–Subscribe Systems?” compares learned and analytical rankers; it
 shares the metamodel, scenario corpus and simulators with this paper.
-(iv) An unpublished companion manuscript held in reserve for future submission,
-“SaG-Prescribe: Unifying Diagnostic Pathways with Counterfactual
-Refactoring for Automated Code Review and Software Quality Evaluation in
-Distributed Publish–Subscribe Systems,” evaluates the accuracy of the RM
-model and anti-pattern catalog and the yield of the refactoring engine.
-This paper describes the tool itself (modeling language, architecture,
-interfaces, extension points, engineering safeguards) and reports
-measurements produced for this paper from the current release; no table
-or figure is shared with (iii) or (iv). The formulas of the RM model
+(iv) An unpublished companion manuscript held in reserve for future
+submission, “SaG-Prescribe: Unifying Diagnostic Pathways with
+Counterfactual Refactoring for Automated Code Review and Software
+Quality Evaluation in Distributed Publish–Subscribe Systems,” evaluates
+the accuracy of the RM model and anti-pattern catalog and the yield of
+the refactoring engine. This paper describes the tool itself (modeling
+language, architecture, interfaces, extension points, engineering
+safeguards) and reports measurements produced for this paper from the
+current release; no table or figure is shared with (iii) or (iv). The
+formulas of the RM model
 (Appendix <a href="#app:formulas" data-reference-type="ref" data-reference="app:formulas">11</a>)
 and the catalog definitions necessarily coincide with those in (iv),
 because they describe the same software.
