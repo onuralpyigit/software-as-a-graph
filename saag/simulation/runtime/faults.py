@@ -337,12 +337,18 @@ class RuntimeController:
     def _broker_forward(self, broker: str, fanout, msg):
         station = self.broker_stations[broker]
         station.arrivals += 1
+        # A frozen relay holds what it receives and drains it on thaw, as a
+        # frozen application does with its input queue.
+        while broker in self.frozen:
+            yield self._thaw_events[broker]
         with station.resource.request() as req:
             yield req
             service = station.sample_service_time(self._rng)
             if service > 0:
                 station.record_service(service)
                 yield self.env.timeout(service)
+        while broker in self.frozen:
+            yield self._thaw_events[broker]
         if broker in self.failed:
             self.lost_at_broker += 1
             fanout.publish_lost(msg)

@@ -142,6 +142,18 @@ def test_freeze_buffers_then_drains():
     assert post(r, "B") >= 180
 
 
+def test_frozen_broker_holds_its_topics_then_drains():
+    # Frozen to the end of the run: BR1 is the sole router, so nothing arrives.
+    held = run(system(), [crash("BR1", mode="freeze", duration=2 * D)])
+    assert post(held, "B") == 0 and post(held, "C") == 0
+    # Thawed at 30 s: the held samples drain, late by up to the freeze. The
+    # unfrozen last 10 s alone would give B ~100; the burst overflows part of
+    # B's queue, so not every held sample survives.
+    r = run(system(), [crash("BR1", mode="freeze", duration=10.0)])
+    assert post(r, "B") >= 140
+    assert max(r.topic_stats["t1"].latency_samples) > 9.0
+
+
 def test_omission_halves_the_feed():
     r = run(system(), [crash("A", mode="omission", p=0.5)])
     assert 70 <= post(r, "B") <= 130
