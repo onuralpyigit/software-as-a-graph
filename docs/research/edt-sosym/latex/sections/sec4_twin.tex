@@ -39,11 +39,11 @@ Figure~\ref{fig:architecture} shows the twin as a set of artefacts around one mo
 \draw[trans] (sim) -- (svc);
 \draw[trans] (tb) -- (tel);
 \draw[trans] (tel) -- node[lbl]{S2M} (cal);
-\draw[dtrans] (cal) -- (sim);
+\draw[dtrans] (cal) -- node[lbl, above]{$\Idyn$} (sim);
 \draw[trans] (tel) -- (fid);
-\draw[trans] (sim) -- (fid);
+\draw[trans] (sim) -- node[lbl, right]{$\Idyn$} (fid);
 \end{tikzpicture}}
-\caption{Artefacts and transformations of the architectural digital twin. Blue: the single model instance. Orange: the executable counterpart that plays the physical role. Green: services offered to engineers. M2S and S2M are the model-to-system (\S\ref{sec:m2s}) and system-to-model (\S\ref{sec:s2m}) transformations. The dashed edge is optional: a simulator run is calibrated only when requested. The same fault specifications drive both simulation and the counterpart.}
+\caption{Artefacts and transformations of the architectural digital twin. Blue: the single model instance. Orange: the executable counterpart that plays the physical role. Green: services offered to engineers. M2S and S2M are the model-to-system (\S\ref{sec:m2s}) and system-to-model (\S\ref{sec:s2m}) transformations. The dashed edge is optional: a simulator run is calibrated only when requested. Calibration and fidelity comparison apply to the discrete-event queue-flow simulator ($\Idyn$). The same fault specifications drive both simulation and the counterpart.}
 \label{fig:architecture}
 \end{figure}
 

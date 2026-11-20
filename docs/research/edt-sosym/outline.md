@@ -1,112 +1,96 @@
-# EDT Paper: Executive Summary and Outline
+# Paper Outline: Engineering an Architectural Digital Twin for Distributed Publish–Subscribe Systems
 
-*As of 2026-11-17. Prepared for advisor review.*
+- **Working Title:** *Engineering an Architectural Digital Twin for Distributed Publish–Subscribe Systems: One Graph Model for Analysis, Simulation, and an Executable Container Testbed*
+- **Target Venue:** *Software and Systems Modeling (SoSyM)* — Rolling Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track; manuscript type: **Theme Section Paper**)
+- **Length & Build:** 10 sections + Declarations, 29 pages ([latex/manuscript.tex](latex/manuscript.tex), [latex/manuscript.pdf](latex/manuscript.pdf))
+- **Status (2026-11-20):** Full draft complete; fidelity pre-registration frozen at commit `9f84aad9` (16 Nov 2026); `[P]` prototype evidence complete; `[S]` pre-registered fidelity study (3,147 runs, ~62 machine-hours) pending.
 
-## Executive summary
+---
 
-We propose submitting one paper to the SoSyM rolling Theme Section on Engineering Digital Twins (the journal-first track of EDTConf) before 31 December 2026. The full draft is written (28 pages). Only the fidelity-study results are missing, and that study's protocol is now frozen.
+## Abstract
 
-**Working title.** *Engineering an Architectural Digital Twin for Distributed Publish–Subscribe Systems: One Graph Model for Analysis, Simulation, and an Executable Container Testbed.*
+**Context.** Distributed systems built on publish–subscribe middleware such as DDS, ROS 2, or Kafka fail in ways that only manifest once the assembled system is running—including cascades through shared topics, broker and host outages, and network partitions. Engineering teams need an executable digital counterpart of the *architecture* to answer what-if questions before deployment and to check against the running system afterwards. Such architectural digital twins are still built ad hoc.
 
-**Problem.** Pub–sub systems (DDS, ROS 2, Kafka) fail through dependencies that exist only in the assembled system. Engineers need an executable counterpart of the architecture before deployment, and a way to check it against the running system afterwards. Such architectural twins are built ad hoc, and their fidelity is rarely measured.
+**Objective.** Present an engineering method for an architectural digital twin of publish–subscribe systems in which a single typed graph model is the source of every twin artefact: analysis views, four failure simulators, and an executable container-based testbed standing in for the physical system. The system is built to the level of a **batch digital shadow**, and every fidelity claim is bounded to middleware, timing, and transport behaviour under declared application behaviour.
 
-**Contribution.** An engineering method in which one typed graph model is the source of every twin artefact:
+**Method.** The method comprises four parts:
+1. A graph metamodel separating structural relations ($\Gs$) from derived dependencies ($\Ga$).
+2. A model-to-system (M2S) transformation generating a Docker + Cyclone DDS deployment from the model, with a single fault vocabulary driving both simulators and container-level chaos actions.
+3. A system-to-model (S2M) calibration path turning OpenTelemetry-shaped traces into calibrated simulator parameters, paired with an identifiability analysis.
+4. A fidelity-assessment method comparing simulated and observed behaviour across steady state, fault response, and middleware status, explicitly separating independent evidence from agreement by construction.
 
-- **C1, one source of truth:** a metamodel with a structural view (for simulation) and a derived view (for analysis), kept consistent by executable invariants in CI.
-- **C2, model to system:** the model is compiled into a running Docker + Cyclone DDS deployment; one fault vocabulary drives both the simulators and container-level chaos.
-- **C3, system to model:** OpenTelemetry-shaped traces are calibrated back into simulator parameters, with an identifiability analysis of what telemetry can and cannot recover.
-- **C4, fidelity assessment:** simulated vs. observed behaviour on three dimensions, an independence analysis that separates real evidence from agreement by construction, and a pre-registered study.
+Capabilities are positioned on an extended Kritzinger et al. maturity ladder, claiming only the levels implemented: a digital model, a generated counterpart, and a batch digital shadow.
 
-**Headline results so far.** Rates and service times are recovered within 3% and 1%; two parameters are shown not to be recoverable. On a smoke test the counterpart reproduced the simulator's stall sets and DDS liveliness exactly. It also exposed one real gap: DDS takes about 6 s to rediscover peers after a long partition, which the simulator does not model.
+**Results.**
+- **Consistency (RQ1):** Enforced by CI executable invariants; simulators re-derive all seven dependency rules from raw relations and must match the repository edge set.
+- **Calibration (RQ2):** Topic rates are recovered within 3% median error, service times within 1%, and inferred trigger policies are never wrong when observable. Two behavioural parameters (staleness window, burst ratio) are shown to be non-identifiable from telemetry.
+- **Smoke test & fidelity gap (RQ3):** On a four-container system (`tiny_system`), simulated and observed fault responses agree exactly at the stall-set level ($J = 1.0$) and on DDS liveliness. A switch-crash partition test exposes a real fidelity gap: Cyclone DDS peer rediscovery after a partition longer than a participant lease takes ~6 s, which the simulator does not model.
+- **Pre-registered fidelity study (RQ3):** Across the 9 of 12 scenarios passing the capacity gate ($B_h = 3{,}033$ msg/s, $\kappa = 1$, $\delta = 0.05$), `[TBD: outcome of H1 and secondary family]`.
 
-**What is missing.** The pre-registered fidelity study (about 62 machine-hours) has to run before submission. Its outcome fills Table 10 and the H1 headline in the abstract, RQ3 and the conclusion.
+**Conclusion.** An architectural digital twin can be engineered as a family of model transformations around one metamodel, treating fidelity as a measured, bounded property rather than an assumption. The remaining step from batch digital shadow to live twin—drift-triggered re-calibration and engineer-approved model repair—is specified as designed, not yet built.
 
-**Honest positioning.** The paper claims a digital model with a generated counterpart and a batch digital shadow, not a live twin. The step to a twin (drift detection and re-calibration) is designed and discussed, not built.
+---
 
-## Fit to the call
+## Key Points & Core Contributions
 
-The [call](https://www.sosym.org/edtconf_journal_first/) asks for papers that "clearly describe the engineering methods used and the engineering challenge addressed". This paper is an engineering method, not a twin applied to a new domain. Accepted papers are invited to present at EDTConf 2027, and the paper counts as one journal publication.
+### Four Contributions (C1–C4)
+- **C1 — Single Source of Truth with Substrate Separation (§4, §8.2):** One typed graph metamodel produces both a structural view ($\Gs$, consumed by simulators) and a derived analysis view ($\Ga(\ell)$, 7 `depends_on` rules). Executable invariants in CI enforce rule-by-rule semantic consistency and prevent simulators from reading derived edges (avoiding tautological evaluation).
+- **C2 — Model-to-System Transformation & Unified Fault Vocabulary (§5):** Compiles the model once into a self-contained `deployment.json` plan and a pinned Docker + Cyclone DDS (11.0.1) build context (one container per host). Emulates brokers via ingress/egress relay partitions, replicas via 1 s lease failover, and maps model-level QoS to DDS policies. One `FaultSpec` list compiles into both simulator events and chaos actions (`docker kill`/`pause`, `tc` partitions with shared network-gating reachability, control files); unsupported faults are reported, never silently skipped.
+- **C3 — System-to-Model Calibration & Identifiability Analysis (§6):** Both simulator ($\Idyn$) and counterpart emit the same OpenTelemetry-shaped JSON-lines trace schema. The calibrator fits topic rates and service-time distributions on fault-free steady state (including deadline misses to avoid a 45% survivor bias) and infers trigger policies from discriminating outages. It explicitly reports non-identifiable parameters (staleness window, burst ratio) and refuses to populate semantically mismatched slots.
+- **C4 — Bounded, Pre-Registered Fidelity Assessment (§7):** Evaluates three dimensions (steady state, fault response, DDS status) backed by an **independence analysis** distinguishing genuine evidence (DDS delivery/discovery/liveliness, OS scheduling, real time, container kills/partitions) from agreement guaranteed by construction (shared plan rates, service times, queue bounds, trigger policies, stub logic). Fixes scenarios, arms, hypotheses (H1–H5), noise ceilings, and a formal claim table in a frozen pre-registration before running comparisons.
 
-| Call topic | Where the paper addresses it |
-| --- | --- |
-| Modeling concepts, languages, methods and tools for DTs | §4 metamodel and twin architecture |
-| DT modeling and simulation | §4 four simulators as behavioural models |
-| Quality assurance and evaluation of DTs | §7 fidelity method, §8 RQ1 invariants |
-| Uncertainty and fidelity | §6 identifiability, §7 independence analysis and study |
-| Combining models and data | §6 telemetry-to-model calibration |
-| Model consistency, management and evolution | §8 RQ1 executable consistency checks |
-| DevOps for DTs | §4 change gating, §8 RQ4 cost ladder |
+### Honest Positioning & Maturity Bounds
+- **Implemented:** Digital model → Generated counterpart → Batch digital shadow (both M2S and S2M are automated, but an engineer closes the loop per run and the counterpart is an emulation).
+- **Designed only (R7, §9.2):** Live digital twin (continuous telemetry ingestion; topology, parameter, and behavioural drift detection; automatic re-calibration for identifiable parameters; engineer-approved model repair; no autonomous actuation).
+- **Claim boundary:** All fidelity claims apply strictly to *middleware, timing, and transport behaviour under declared application behaviour*—never to real production application logic.
 
-**Submission mechanics.** Manuscript type "Theme Section Paper"; the cover letter must contain "Submission for Theme Section: Engineering of Digital Twins". No page limit or template is required. Reuse limits: under 40% overlap with journal papers, under 75% with conference papers.
+### Headline Engineering Lessons (L1–L6, §9.1)
+1. **Generate the physical stand-in; do not build it by hand** (enables traceability, co-evolution, and enumerable shared assumptions).
+2. **Share one trace schema across simulation and observation** (eliminates dual-parser drift; cheapest decision early, costliest to retrofit).
+3. **Fidelity evidence requires an independence analysis** (prevents claiming agreement by construction as validation).
+4. **Calibrators must abstain and disclose what telemetry cannot identify** (prevents silently presenting unidentifiable guesses as calibrated).
+5. **Make consistency debt visible** (executable CI parity checks + explicit register of documented divergences).
+6. **Match each twin service to its rung on the cost ladder** (sub-second graph checks per commit → seconds-per-fault queue-flow simulation on shortlists → machine-hour counterpart runs for periodic twin validation).
 
-## Paper outline
+---
 
-Ten sections and 28 pages. Every section is drafted; only §8 RQ3 and the sentences that quote its headline wait on the study. Sources are in [latex/sections/](latex/sections/).
+## Paper Structure
 
-| § | Section | Content | Status |
-| --- | --- | --- | --- |
-| 1 | Introduction | Pub–sub failures are non-local; four engineering challenges (one source of truth, a physical stand-in before deployment, a path back from the system, fidelity as a measured property); contributions C1–C4; what we claim on the maturity ladder; fit to the theme-section topics; relation to RASSE 2025, the JSS manuscript and the SoSyM tool paper | Drafted |
-| 2 | Background and related work | DT definitions and the Kritzinger maturity ladder; model-driven DT engineering; runtime models and twins of software; testbeds and chaos engineering; simulation-model validation | Drafted |
-| 3 | Engineering challenge and requirements | Seven requirements R1–R7 condensed from a 112-requirement ATM baseline; why they conflict (R1 vs. R3, R4 vs. R6, R5 vs. R6) | Drafted; R6 says "protocol frozen, study pending" |
-| 4 | The architectural digital twin | Architecture figure; metamodel with structural and derived views; twin services (what-if, placement verification, change gating); maturity table claiming model, generated counterpart and batch shadow | Drafted |
-| 5 | Model to system (C2) | Three-stage generation of the Docker + DDS deployment; broker emulation on brokerless DDS; QoS mapping; one fault vocabulary compiled to simulator events and chaos actions; trace links | Drafted |
-| 6 | System to model (C3) | Shared trace schema; the calibrator; identifiability table (rates, service times, trigger policies recoverable; staleness and burst not) | Drafted |
-| 7 | Fidelity assessment (C4) | Three fidelity dimensions with tolerances; independence analysis; pre-registered study (population, arms S0–S4, R, N, hypotheses H1–H5, noise ceiling, claim table) | Drafted; synced to the frozen protocol |
-| 8 | Evaluation | RQ1 consistency, RQ2 calibration, RQ3 fidelity (smoke test, DDS rediscovery gap, study table), RQ4 cost ladder | RQ3 study results pending |
-| 9 | Discussion | Six lessons for twin engineers; the designed step from shadow to twin (drift detection, re-calibration, engineer-approved model repair); threats to validity | Drafted |
-| 10 | Conclusion | Summary of the method and results; the next step (live twin) | H1 headline pending |
+| § | Section & File | Subsections, Figures & Tables | Key Content & Status |
+|---|---|---|---|
+| **1** | **Introduction** ([sec1_introduction.tex](latex/sections/sec1_introduction.tex)) | Problem, Approach, Contributions (C1–C4), What we claim, Fit to theme, Relation to prior work, Outline | Non-local pub–sub failures; 4 engineering challenges; C1–C4; maturity honesty; overlap disclosure with RASSE 2025, JSS (under review), and SoSyM tool paper (in prep). **Drafted.** |
+| **2** | **Background and Related Work** ([sec2_background.tex](latex/sections/sec2_background.tex)) | §2.1 DT definitions & maturity; §2.2 Model-driven DT engineering; §2.3 Runtime models & software twins; §2.4 Testbeds, emulation & chaos; §2.5 Validating simulation models | Kritzinger ladder, Wright & Davidson's physical-counterpart test, ISO 23247-1; Bordeleau, Eramo, Kirchhof, TwinOps, Dalibor; models@run.time, AADL, Palladio, ROSDiscover; Mininet & chaos engineering; Sargent & Kleijnen validation. **Drafted.** |
+| **3** | **Engineering Challenge and Requirements** ([sec3_requirements.tex](latex/sections/sec3_requirements.tex)) | §3.1 Setting; §3.2 Why these requirements are hard together<br>• *Table 1:* Requirements R1–R7 | 112-requirement industrial ATM baseline condensed into 7 requirements (R1–R7); architectural tensions (R1 vs. R3, R4 vs. R6, R5 vs. R6, R7 depending on R5 & R6). **Drafted (R6 study pending).** |
+| **4** | **The Architectural Digital Twin** ([sec4_twin.tex](latex/sections/sec4_twin.tex)) | §4.1 Metamodel: one instance, two views; §4.2 Twin services; §4.3 Maturity<br>• *Fig. 1:* Twin artefacts & transformations<br>• *Table 2:* Maturity ladder | Formal graph metamodel ($\Gs$ vs. $\Ga(\ell)$, 7 rules); 3 services (what-if via $I^*, \Icomp, \Idyn, I_M$; placement verification; non-blocking-ranking change gate); maturity table. **Drafted.** |
+| **5** | **Model to System: Generating the Executable Counterpart** ([sec5_model_to_system.tex](latex/sections/sec5_model_to_system.tex)) | §5.1 Stage 1: Deployment plan; §5.2 Stage 2: Mapping to DDS; §5.3 Stage 3: Build context; §5.4 One fault vocabulary, two back-ends; §5.5 Trace links<br>• *Fig. 2:* M2S pipeline<br>• *Table 3:* QoS mapping; *Table 4:* Fault-to-chaos compilation | `deployment.json` resolution; QoS mapping, broker relays, replica standbys, WaitSet poller (avoiding GIL stalls); pinned Docker + Cyclone DDS context with opt-in CPU-bound work & payloads; shared `FaultSpec` + network gating; end-to-end trace links. **Drafted.** |
+| **6** | **System to Model: Telemetry and Calibration** ([sec6_system_to_model.tex](latex/sections/sec6_system_to_model.tex)) | §6.1 Trace schema; §6.2 The calibrator; §6.3 Identifiability<br>• *Table 5:* Parameter recovery on ATM | Shared 6-event OpenTelemetry-shaped JSONL schema; topic rates, service times (with deadline misses), trigger policy inference, abstention rules; automated identifiability test on 74-component ATM scenario. **Drafted.** |
+| **7** | **Fidelity Assessment** ([sec7_fidelity.tex](latex/sections/sec7_fidelity.tex)) | §7.1 Three fidelity dimensions; §7.2 Independence analysis; §7.3 Pre-registered fidelity study<br>• *Table 6:* Steady-state tolerances; *Table 7:* Independence analysis | Steady-state, fault-response ($\Iobs$, Spearman $\rho$, stall-set Jaccard), and DDS status metrics; independence classification; frozen protocol (`9f84aad9`), capacity gate ($n=9/12$, $B_h=3{,}033$ msg/s, $\kappa=1$), 7 arms (S0–S4, R, N), H1–H5, noise ceiling (pilot 0.90 vs. earlier 0.56), claim table. **Drafted.** |
+| **8** | **Evaluation** ([sec8_evaluation.tex](latex/sections/sec8_evaluation.tex)) | §8.1 Subjects; §8.2 RQ1 Consistency; §8.3 RQ2 Calibration; §8.4 RQ3 Fidelity; §8.5 RQ4 Cost<br>• *Table 8:* Executable invariants; *Table 9:* Smoke test; *Table 10:* Study template; *Table 11:* Cost ladder | Provenance tags (`[P]` vs. `[S]`); CI invariants, historical $I_M$ bug, documented weight divergence; identifiability + H5; `tiny_system` smoke test, 6 s DDS rediscovery gap, study template; 5-order-of-magnitude cost ladder (0.01 s to ~62 h). **RQ1/RQ2(`[P]`)/RQ4 complete; RQ3 study & H5 `[TBD]`.** |
+| **9** | **Discussion** ([sec9_discussion.tex](latex/sections/sec9_discussion.tex)) | §9.1 Lessons (L1–L6); §9.2 From digital shadow to digital twin (R7); §9.3 Threats to validity | Six engineering lessons; requirements-voice design of continuous ingestion, 3 drift types, and engineer-in-the-loop actuation; construct, internal, external, and conclusion validity (Wilcoxon floors at $n=9$). **Drafted.** |
+| **10** | **Conclusion** ([sec10_conclusion.tex](latex/sections/sec10_conclusion.tex)) | Summary of method, results, and next step | Recap of C1–C4, batch-shadow claim, empirical findings, and why drift detection must follow calibration and noise measurement. **H1 headline `[TBD]`.** |
+| **—** | **Declarations** ([declarations.tex](latex/sections/declarations.tex)) | Funding, Competing Interests, Overlap Disclosure, Data Availability, Author Contributions, Ethics | Explicit disclosure of RASSE 2025, JSS (under review), and SoSyM tool paper (in prep); reproducible CLI commands; Zenodo DOI `[TBD]`. **Metadata placeholders pending.** |
 
-## Evidence status
+---
 
-Three of the four research questions already rest on measured, regenerable evidence; RQ3 needs the study. Every number in the paper is tagged [P] (open-source prototype) or [S] (pre-registered study); industrial numbers were removed.
+## Research Questions & Evidence Status
 
-| Research question | Evidence now | Still needed |
-| --- | --- | --- |
-| RQ1 Consistency: do all artefacts agree on the model's semantics? | Rule-by-rule parity tests between simulator and repositories; one historical inconsistency caught and fixed; one residual weight divergence measured and documented [P] | Nothing |
-| RQ2 Calibration: what can telemetry recover? | Identifiability table on the 74-component ATM scenario: rates within 3%, service times within 1%, trigger policies always correct when observable; staleness and burst not identifiable [P] | H5 (does calibration improve fidelity?) from the study [S] |
-| RQ3 Fidelity: how close are simulators to the counterpart? | Smoke test on a 4-container system: exact stall-set agreement, exact DDS liveliness, delivery within 6%; DDS rediscovery gap of about 6 s [P] | H1–H4, noise ceilings and arm N from the study [S] |
-| RQ4 Cost: does the twin fit a delivery pipeline? | Cost ladder: gate 0.01–1.01 s (29–444 components), queue-flow simulation seconds per fault, counterpart about 80 s per run [P] | Nothing (industrial [I] numbers removed) |
+| RQ | Question | Evidence Available (`[P]`) | Pending (`[S]`) |
+|---|---|---|---|
+| **RQ1** | Do all twin artefacts derived from one model instance agree on its semantics? | 47+ automated CI checks (rule-by-rule parity, substrate guard, contract, corpus, testbed); historical 6-rule $I_M$ bug fixed; residual Rule-1 weight divergence measured and documented. | None |
+| **RQ2** | Which runtime parameters can S2M calibration recover from telemetry? | ATM identifiability test: rates ≤ 3% error, service mean/CV ≤ 1%, trigger policies 100% accurate when observable; staleness window & burst ratio non-identifiable. | **H5:** whether S3 (calibrated) reduces per-reader delivery error vs. S2 |
+| **RQ3** | How faithfully do simulators reproduce the counterpart, and where do they diverge? | `tiny_system` smoke test (stall-set $J=1.0$, exact liveliness, delivery ≤ 6%); switch-crash test exposing ~6 s Cyclone DDS peer-rediscovery gap. | **H1–H4**, per-scenario noise ceilings $C_s$, arm N instrument check, broker/host descriptive results (3,147 runs) |
+| **RQ4** | What do twin services and the counterpart cost, and does that fit CI/CD? | Gate: 0.01–1.01 s (29–444 components); $I^*/\Icomp$: 0.06–0.45 s; $\Idyn$: 1.5–4.3 s/fault (12.7 CPU-h corpus); counterpart: ~71 s/run (~62 h full study). | None |
 
-**The fidelity study, as frozen on 16 November 2026** ([PREREGISTRATION.md](../fidelity/PREREGISTRATION.md)). Nine of twelve candidate scenarios pass the capacity gate, all at full rate. The pilot measured a noise ceiling of 0.90 and set the equivalence margin δ at 0.05. The sweep is 3,147 runs, about 62 machine-hours. The primary hypothesis H1 asks whether the current simulator ranks fault impact closer to the observed system than the published configuration. A decision table fixed in advance maps the result to *better*, *equivalent*, *inconclusive* or *worse*, and each outcome is publishable.
+---
 
-## Risks
+## Fit to the SoSyM EDTConf Theme Section
 
-The largest risk is the definition of "digital twin": the EDTConf program committee reviews these papers, and the physical side here is an emulation.
-
-| Likely reviewer concern | How the draft handles it | Possible strengthening |
-| --- | --- | --- |
-| "A twin of what?" The physical side is generated stub applications on Docker, not a deployed system | Stated up front; the maturity table claims only model, generated counterpart and batch shadow; the independence table limits claims to middleware, timing and transport behaviour | Put "shadow" in the title, or build a minimal drift detector to climb one rung |
-| Not continuously synchronised, so not a twin in Kritzinger's sense | The live-twin step (R7) is designed in §9.2 in requirements voice, explicitly not claimed | Same as above |
-| Fidelity evidence is thin | The study is pre-registered and frozen; an inconclusive result is still reported as such | Run the study before submission (planned) |
-| Mostly synthetic subjects; only Cyclone DDS | Stated in threats to validity; Kafka, MQTT and ROS 2 listed as unsupported back-ends | None in this revision |
-| Overlap with our other manuscripts | Simulators cited from JSS, not restated; 8-gram verbatim overlap below 1% with JSS, the tool paper and the Middleware draft; the tool paper is disclosed as in preparation | Update its status if it is submitted first |
-| One machine, Python stubs | Capacity gate, CPU logging and rate scaling; latency claims limited to full-rate runs | None needed beyond what is stated |
-
-## Plan to 31 December
-
-The sweep can start now and runs in parallel with the advisor's review of the draft. Submitting by 18 December keeps us before week 52, which the call names as the cut-off for two review rounds before EDTConf 2027. Dates are proposals, not commitments; the sweep allows for reruns beyond its 62 machine-hours.
-
-| Step | Dates (2026) |
-| --- | --- |
-| Advisor reviews draft | 18–28 Nov |
-| Fidelity sweep, 62 h | 18–23 Nov |
-| Fill results into paper | 24 Nov – 1 Dec |
-| Revise after feedback | 2–11 Dec |
-| DOI and cover letter | 14–17 Dec |
-| **Submit to SoSyM** | **18 Dec** |
-| Two-round deadline | 31 Dec |
-
-## Decisions for the advisor
-
-Decided on 2026-11-17 and applied to the draft:
-
-1. **Title and framing.** Keep "Architectural Digital Twin". The abstract and introduction now state up front that the system is a digital model with a generated counterpart and a batch digital shadow, and that fidelity claims are bounded to middleware, timing and transport behaviour.
-2. **Drift detector.** Not built for this submission. R7 stays "designed" in §9.2.
-3. **Industrial numbers.** Removed. The paper rests on [P] and [S] evidence only.
-
-Still open:
-
-4. **Deadline.** Aim for 31 December 2026 (allows two major review rounds before EDTConf 2027), or take more time and aim for 19 April 2027 (one round only)?
-5. **Quartile for graduation.** SoSyM is Q1 by Scopus CiteScore but Q2 in SCImago and Web of Science (JCR). Should we confirm with the institute which index and year ITU uses before committing both SoSyM papers to it?
-
-The tool paper for the same journal ([../sosym/](../sosym/)) would follow in early 2027, after this paper is submitted, with each manuscript disclosing the other.
+| Theme Section Topic | Coverage in Paper |
+|---|---|
+| Modeling concepts, languages, methods, and tools for DTs | §4 single graph metamodel with structural/analysis views |
+| DT modeling and simulation | §4 behavioural simulators ($I^*, \Icomp, \Idyn, I_M$); §5 M2S counterpart |
+| Quality assurance and evaluation of DTs | §7 fidelity method & pre-registration; §8 RQ1 executable invariants |
+| Uncertainty and fidelity in DTs | §6 identifiability analysis; §7 independence analysis, noise ceiling & claim table |
+| Combining models and data | §6 shared OTel trace schema & telemetry-to-model calibration |
+| Model consistency, management, and evolution | §4.1 substrate separation; §8.2 CI parity checks & consistency-debt register |
+| DevOps for DTs | §4.2 change gating; §8.5 five-order-of-magnitude cost ladder |

@@ -25,7 +25,7 @@ The queue-flow simulator writes the \emph{same} schema when asked to record even
 
 \subsection{The calibrator}
 
-The calibrator fits three groups of parameters on the fault-free, post-warm-up window of a trace.
+The calibrator fits three groups of parameters on the post-warm-up window of a trace: topic rates and service-time distributions on fault-free steady state, and trigger policies whenever the trace contains discriminating input outages.
 
 \paragraph{Topic rates.} The fitted rate of a topic is its emissions per second, counted over all of its publishers.
 
