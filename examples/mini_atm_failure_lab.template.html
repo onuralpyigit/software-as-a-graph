@@ -266,10 +266,34 @@ footer p { max-width: 90ch; }
     </div>
   </section>
 
+  <section id="scenarios">
+    <div class="sec-head">
+      <div class="eyebrow">Proof-of-concept incidents</div>
+      <h2>Nine incidents that are not a clean crash</h2>
+      <p>Real systems slow down, drop messages, flood, lose links, hang and reboot, often two things at once. Each incident below runs through every engine that can express it. <b>MessageFlowSimulator</b> runs all nine for 40 s with the settings the testbed comparison uses: applications react to their inputs and stop when those go stale, and broker relays sit in the data path, so broker, host and link faults act on traffic. That differs from the open-loop I_dyn panel above. <b>FailureSimulator</b> runs the seven it has a mode for. <b>FaultInjector</b> takes single permanent crashes only, so it has nothing to say here.</p>
+    </div>
+    <div class="chips" id="sc-chips" style="flex-wrap:wrap"></div>
+    <div class="panel">
+      <div class="fig">
+        <div class="fig-bar">
+          <span class="key"><span class="sw origin"></span>fault target</span>
+          <span class="key"><span class="sw failed"></span>stalled (stopped publishing)</span>
+          <span class="key"><span class="sw lost"></span>topic below half its deliveries</span>
+          <span>MessageFlowSimulator outcome</span>
+        </div>
+        <svg id="topo-sc" viewBox="0 0 780 420" role="img" aria-label="Scenario outcome on the topology"></svg>
+        <div class="fig-bar" style="border-top:1px solid var(--line-soft)"><span>deliveries per second, by topic</span><span class="key"><span class="ln" style="border-top-color:var(--fail);border-top-style:dashed"></span>fault active</span></div>
+        <svg id="sc-svg" viewBox="0 0 700 300" role="img" aria-label="Deliveries per second per topic during the incident"></svg>
+      </div>
+      <div class="read" id="sc-read"></div>
+    </div>
+  </section>
+
   <footer>
     <p><b>How these numbers were produced.</b> <code>FaultInjector</code> with the five recommended seeds over every node type. <code>SimulationService.run_failure_simulation_exhaustive("system")</code> on a <code>MemoryRepository</code>, plus one single run for the library. <code>MessageFlowSimulator</code> with duration 60 s, fault at 30 s, seed 42, full QoS and target utilisation 0.65. <code>ChangePropagationSimulator</code> on the dependency view that <code>FailureSimulator</code> builds.</p>
     <p>All options are the published defaults. A different run seed can change which probabilistic hops fire in the FailureSimulator runs. The topology is a hand-made demo (<code>examples/mini_atm.json</code>) and is not part of the scenario corpus. Regenerate this page with <code>python examples/run_simulator_walkthrough.py</code>.</p>
     <p>The <a href="mini_atm_testbed_run.html" style="color:var(--accent)">Testbed Run</a> page fails the same applications, brokers and hosts on real containers over DDS and sets these predictions beside what happened.</p>
+    <p>The incidents are defined once, in <code>examples/mini_atm_scenarios.py</code>, and run with seed 0 and the MessageFlowSimulator settings of <code>saag.testbed.orchestrate.simulate_like</code>; the link flap also turns on <code>network_gating</code>, without which a cut link gates nothing. FailureSimulator runs them through <code>SimulationService.run_failure_simulation</code> with the listed failure mode.</p>
   </footer>
 </div>
 
@@ -551,10 +575,79 @@ function renderChips() {
 function renderAll() { renderChips(); drawTopo(document.getElementById('topo0'), { [sel]: 'reached' }); renderFI(); renderFS(); renderMF(); renderCP(); renderTable(); }
 function select(id) { if (!N[id] || id === sel) return; sel = id; fiStep = -1; renderAll(); }
 
+/* ---------- Proof-of-concept incidents ---------- */
+const SC = Object.fromEntries(R.scenarios.map(s => [s.id, s]));
+let scSel = 'S1';
+const SC_NOTE = {
+  S1: 'Tracker keeps up with about 6 of its 10 tracks a second. Its queue overflows 276 times, so plots are dropped before they are processed, and conflict-detector slows a little behind it. FailureSimulator halves tracker\'s capacity and its cascade log follows the same path, through tracks to conflict.alerts. It scores it 0.023 because no publisher-to-subscriber path is cut.',
+  S2: 'Radar\'s deliveries halve as expected. Tracker loses less than that, about 15%, because it runs on any plot that arrives and half of 20 Hz still keeps its input fresh. FailureSimulator\'s degraded mode sees nothing at all here (0.000): radar.plots carries little QoS weight, and a half-capacity publisher severs no path.',
+  S3: 'More is not better. Radar publishes 100 plots a second, but tracker\'s queue overflows 405 times and tracks falls from 29 to 13 deliveries a second. Flooding a consumer does more harm downstream than dropping half the plots did in S2. FailureSimulator has no overload mode, so this incident exists only in the message-level engine.',
+  S4: 'Each cut lasts about half a second, while the staleness limits are 0.15 s for radar.plots and 0.3 s for tracks. So every cut briefly starves the readers across the link, and about a tenth of all traffic is lost. FailureSimulator\'s partition mode applies the legacy one-way network rule: it marks ops-host unreachable, yet scores 0.000.',
+  S5: 'The simulator does not see the hang: conflict.alerts and flight.plans keep arriving at their usual rate. That is a gap this incident exposes, not a result. MessageFlowSimulator applies a freeze only to applications, so a frozen broker relay keeps forwarding. The testbed page shows what a real hung relay does. FailureSimulator can only treat the hang as a permanent crash; it starves flight.plans and scores 0.271.',
+  S6: 'With both relays gone nothing is routed at all: deliveries fall to almost zero. Radar keeps publishing into the void, and tracker and conflict-detector stall on stale input. FailureSimulator agrees that every topic loses its brokers, at 0.447. Neither single-broker crash in the lab sweep comes close to that, which is the point of the redundant tracks route.',
+  S7: 'Losing both sources silences everything downstream: tracker and conflict-detector stall, and display and recorder are left with nothing. FailureSimulator starves flight.plans but scores only 0.324, because its hop from radar to radar.plots is probabilistic and did not fire.',
+  S8: 'For ten seconds everything that needs the sensor host stops. Flight.plans, on the other host, keeps flowing. When the host returns, its applications restart and traffic is back to 72 a second within the run. FailureSimulator can only treat the reboot as a permanent crash, and its legacy network rule also takes ops-host down, so it reports near-total loss (0.746).',
+  S9: 'Neither relay restart cuts traffic completely. While sensor-broker is down, radar.plots stops and tracker stalls. While ops-broker is down, conflict.alerts and flight.plans stop but tracks continues on sensor-broker. Average traffic over the restart window is 59% of normal, and it is back to normal at the end. A single-shot engine has no way to express a sequence, so FailureSimulator is not run.',
+};
+const scSpans = s => s.faults.map(f => [f.start_s, f.duration_s ? f.start_s + f.duration_s : 40]);
+const fmtFault = f => `${f.mode.replace('_', ' ')} on ${f.target.includes('|') ? f.target.split('|').map(nm).join(' – ') + ' link' : f.target + ' ' + nm(f.target)}` +
+  ` from ${f.start_s} s${f.duration_s ? ' for ' + f.duration_s + ' s' : ''}` + (Object.keys(f.params || {}).length ? ` (${Object.entries(f.params).map(([k, v]) => k + ' = ' + v).join(', ')})` : '');
+function renderSC() {
+  const s = SC[scSel], r = R.sc[scSel], spans = scSpans(s), n = 40, f0 = Math.min(...spans.map(x => x[0])), f1 = Math.max(...spans.map(x => x[1]));
+  let g = null;
+  document.getElementById('sc-chips').innerHTML = R.scenarios.map(x => { const gap = g && g !== x.group; g = x.group; return `<button class="chip ${gap ? 'gap' : ''}" data-sc="${x.id}" aria-pressed="${x.id === scSel}">${x.id}<small>${esc(x.title)}</small></button>`; }).join('');
+  // Topology: targets, stalled applications, topics that fell below half their deliveries during the fault.
+  const st = {}, bd = {}, mean = (arr, a, b) => arr.slice(a, b).reduce((p, v) => p + v, 0) / Math.max(1, b - a);
+  // A flapping link leaves both hosts up, so they are badged rather than marked as failed.
+  for (const f of s.faults) for (const id of f.target.split('|')) if (f.mode === 'link_flap') bd[id] = 'link flapping'; else st[id] = 'origin';
+  for (const a of r.stalled) if (!st[a]) { st[a] = 'failed'; bd[a] = 'stalled'; }
+  for (const t of Object.keys(NOMINAL)) {
+    const b = r.dlv[t] || Array(n).fill(0), before = mean(b, 2, f0), during = mean(b, f0, f1);
+    if (before > 0 && during < 0.5 * before) { st[t] = 'lost'; bd[t] = Math.round(100 * during / before) + '%'; }
+  }
+  drawTopo(document.getElementById('topo-sc'), st, bd);
+  // Deliveries per topic, one band per fault.
+  const svg = document.getElementById('sc-svg'); svg.textContent = '';
+  const W = 700, L = 44, Rr = 14, rowH = 62, top = 26, H = top + rowH * 4 + 26, x = v => L + (W - L - Rr) * v / n, bw = (W - L - Rr) / n;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  for (const [a, b] of spans) el('rect', { x: x(a), y: 14, width: x(b) - x(a), height: H - 36, style: 'fill:var(--fail-soft);opacity:0.6' }, svg);
+  TOPICS.forEach(([t], i) => {
+    const y0 = top + rowH * i, base = y0 + rowH - 12, bins = r.dlv[t] || Array(n).fill(0), ymax = Math.max(NOMINAL[t] * 1.3, ...bins), h = rowH - 30, y = v => base - h * v / ymax;
+    el('line', { class: 'grid', x1: L, x2: W - Rr, y1: y(NOMINAL[t]), y2: y(NOMINAL[t]) }, svg);
+    el('line', { class: 'axis', x1: L, x2: W - Rr, y1: base, y2: base }, svg);
+    el('text', { class: 'lbl', x: L - 6, y: y(NOMINAL[t]) + 3, style: 'text-anchor:end' }, svg, NOMINAL[t] + '/s');
+    el('text', { class: 'lbl', x: L - 6, y: base + 3, style: 'text-anchor:end' }, svg, '0');
+    el('text', { class: 'rowlbl', x: L, y: y0 + 9 }, svg, `${t} ${nm(t)}`);
+    const gb = el('g', { class: 'bars' }, svg);
+    bins.forEach((v, k) => { if (v > 0) el('rect', { x: (x(k) + 0.6).toFixed(1), y: y(v).toFixed(1), width: (bw - 1.2).toFixed(1), height: (base - y(v)).toFixed(1) }, gb); });
+  });
+  for (const [a, b] of spans) for (const v of [a, b]) if (v < n) el('line', { class: 'faultline', x1: x(v), x2: x(v), y1: 14, y2: H - 22 }, svg);
+  for (const v of [0, 10, 20, 30, 40]) el('text', { class: 'lbl', x: x(v), y: H - 8, style: 'text-anchor:middle' }, svg, v + ' s');
+  // Readout.
+  const [pre, dur, post] = r.rate, mx = Math.max(pre, dur || 0, post || 0);
+  const fs = r.fs, w = R.fs_weights;
+  document.getElementById('sc-read').innerHTML =
+    `<div><div class="eyebrow" style="margin:0">${esc(s.group)}</div><h3 style="font:600 1.25rem var(--display);margin:2px 0 6px">${scSel} · ${esc(s.title)}</h3><p class="note">${esc(s.story)}</p></div>` +
+    `<div class="rows"><h3>Faults injected</h3>${s.faults.map(f => `<div style="font-size:0.84rem">${esc(fmtFault(f))}</div>`).join('')}</div>` +
+    scoreBlock('during', dur.toFixed(1), `deliveries per second, ${pre.toFixed(1)} before`) +
+    `<div class="rows"><h3>MessageFlowSimulator · deliveries per second</h3>${barRow('before the fault', pre / mx, pre.toFixed(1))}${barRow('while it lasts', dur / mx, dur.toFixed(1), 'f')}${post != null ? barRow('after it ends', post / mx, post.toFixed(1)) : ''}` +
+    `<div class="bar-row"><span class="lab">stalled</span><span style="font-size:0.84rem">${r.stalled.length ? r.stalled.map(a => nm(a)).join(', ') : 'none'}</span><span></span></div>` +
+    `<div class="bar-row"><span class="lab">queue overflows</span><span></span><span class="num">${r.overflow}</span></div></div>` +
+    (fs ? `<div class="rows"><h3>FailureSimulator · ${esc(s.fs.mode)} · ${esc(s.fs_note)}</h3>${scoreBlock('I_comp', f3(fs.comp), `${fs.failed.length} cascaded failures`)}${TERMS.map(([k, wk, lab]) => barRow(lab, fs[k], `${fs[k].toFixed(2)} × ${w[wk].toFixed(2)}`)).join('')}<ol class="log">${fs.seq.map(e => `<li><span class="d">d${e.depth}</span><span class="c">${e.id}</span><span class="w">${esc(cause(e.cause))}</span></li>`).join('')}</ol></div>`
+       : `<div class="rows"><h3>FailureSimulator</h3><p class="note">Not run: ${esc(s.fs_note)}.</p></div>`) +
+    `<div class="rows"><h3>FaultInjector</h3><p class="note">Not run: it injects one permanent crash at a time.</p></div>` +
+    `<p class="note">${SC_NOTE[scSel]}</p>` +
+    `<p class="note"><a href="mini_atm_testbed_run.html#${scSel}" style="color:var(--accent)">See ${scSel} on real containers →</a></p>`;
+}
+if (SC[location.hash.slice(1)]) scSel = location.hash.slice(1);
+
 document.getElementById('topic-tbl').innerHTML = TOPICS.map(([t, rate, qos]) => `<tr><td><span class="mono">${t}</span> ${esc(nm(t))}</td><td class="num">${rate}</td><td style="white-space:normal">${qos}</td><td class="num">${R.topic_w[t].toFixed(2)}</td></tr>`).join('');
 document.addEventListener('click', e => {
+  const c = e.target.closest('[data-sc]'); if (c) { scSel = c.dataset.sc; renderSC(); return; }
   const s = e.target.closest('[data-step]'); if (s) { fiStep = +s.dataset.step; renderFI(); return; }
   const t = e.target.closest('[data-id]'); if (t) select(t.dataset.id);
 });
 renderAll();
+renderSC();
+if (location.hash === '#' + scSel) document.getElementById('scenarios').scrollIntoView();
 </script>
