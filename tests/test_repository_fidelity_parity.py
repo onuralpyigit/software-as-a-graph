@@ -269,3 +269,70 @@ def test_repository_fidelity_parity_all_rules():
     finally:
         neo_repo.close()
 
+
+def test_memory_repository_statistics_schema_parity():
+    """MemoryRepository.get_statistics() matches Neo4jRepository key names."""
+    repo = MemoryRepository()
+    repo.save_graph(
+        {
+            "nodes": [{"id": "N1"}],
+            "network_devices": [{"id": "SW1", "role": "switch"}],
+            "brokers": [{"id": "B1"}],
+            "topics": [{"id": "T1"}],
+            "applications": [{"id": "A1"}],
+            "libraries": [{"id": "L1"}],
+            "relationships": {
+                "publishes_to": [{"from": "A1", "to": "T1"}],
+                "routes": [{"from": "B1", "to": "T1"}],
+                "runs_on": [{"from": "A1", "to": "N1"}, {"from": "B1", "to": "N1"}],
+                "connects_to": [{"from": "N1", "to": "SW1"}],
+                "uses": [{"from": "A1", "to": "L1"}],
+            },
+        },
+        clear=True,
+    )
+    repo.derive_dependencies()
+    stats = repo.get_statistics()
+
+    assert stats["library_count"] == 1
+    assert "librarie_count" not in stats
+    assert stats["networkdevice_count"] == 1
+    assert stats["node_count"] == 1
+    assert stats["broker_count"] == 1
+    assert stats["topic_count"] == 1
+    assert stats["application_count"] == 1
+    assert stats["total_nodes"] == 6
+    assert stats["publishes_to_count"] == 1
+    assert stats["uses_count"] == 1
+    assert stats["app_to_lib_count"] == 1
+    assert stats["app_to_broker_count"] == 1
+    assert stats["node_to_broker_count"] == 1
+
+
+def test_isolated_app_to_lib_does_not_crash_finalization():
+    """Topic-free lib->lib (weight 0.01) and isolated app->lib both finalize without crashing."""
+    repo = MemoryRepository()
+    repo.save_graph(
+        {
+            "nodes": [],
+            "brokers": [],
+            "topics": [],
+            "applications": [{"id": "A_isolated"}],
+            "libraries": [{"id": "L_a"}, {"id": "L_b"}, {"id": "L_util"}],
+            "relationships": {
+                "uses": [
+                    {"from": "L_a", "to": "L_b"},
+                    {"from": "A_isolated", "to": "L_util"},
+                ],
+            },
+        },
+        clear=True,
+    )
+    repo.derive_dependencies()
+    deps = {(e.source_id, e.target_id): e for e in repo.get_graph_data().edges}
+    assert deps[("L_a", "L_b")].dependency_type == "app_to_lib"
+    assert deps[("L_a", "L_b")].weight == pytest.approx(0.01)
+    assert deps[("A_isolated", "L_util")].dependency_type == "app_to_lib"
+    assert deps[("A_isolated", "L_util")].weight == pytest.approx(0.0115)
+
+

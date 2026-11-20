@@ -107,9 +107,9 @@ class Neo4jRepository:
 
     Handles all Neo4j-specific operations including:
     - Graph data import with constraint management
-    - Weight computation for vertices and edges (docs/graph-model.md §4.3, §4.5)
-    - Dependency derivation between components (§4.4, Rules 1–7)
-    - Graph data retrieval with layer filtering (§5)
+    - Weight computation for vertices and edges (docs/graph-model.md §5.3, §5.4)
+    - Dependency derivation between components (§6.1, Rules 1–7)
+    - Graph data retrieval with layer filtering (§7)
     """
     
     def __init__(
@@ -206,7 +206,7 @@ class Neo4jRepository:
         DEPENDS_ON edge weights.
 
         Must be called after save_graph() and before any analysis step. Applies
-        Rules 1–7 (docs/graph-model.md §4.4), then gives the app_to_lib (Rule 5)
+        Rules 1–7 (docs/graph-model.md §6.1), then gives the app_to_lib (Rule 5)
         and broker_to_broker (Rule 6) edges the component weights they could not
         carry when they were derived, and NetworkDevices their Rule 7 weight.
         """
@@ -233,26 +233,26 @@ class Neo4jRepository:
         after derive_dependencies() has run.
         """
         # app_to_lib Edge Weights (harmonic coupling between App and Library)
-        self._run_query("""
-            MATCH (app)-[d:DEPENDS_ON {dependency_type: 'app_to_lib'}]->(lib:Library)
-            WITH d, coalesce(app.weight, 0.01) as w_app, coalesce(lib.weight, 0.01) as w_lib
-            SET d.weight = CASE WHEN (w_app + w_lib) > 0 THEN 2.0 * (w_app * w_lib) / (w_app + w_lib) ELSE 0.01 END
+        self._run_query(f"""
+            MATCH (app)-[d:DEPENDS_ON {{dependency_type: 'app_to_lib'}}]->(lib:Library)
+            WITH d, coalesce(app.weight, {MIN_TOPIC_WEIGHT}) as w_app, coalesce(lib.weight, {MIN_TOPIC_WEIGHT}) as w_lib
+            SET d.weight = CASE WHEN (w_app + w_lib) > 0 THEN 2.0 * (w_app * w_lib) / (w_app + w_lib) ELSE {MIN_TOPIC_WEIGHT} END
         """, tx=tx)
 
         # broker_to_broker Edge Weights (inherits from Node)
-        self._run_query("""
-            MATCH (b1:Broker)-[d:DEPENDS_ON {dependency_type: 'broker_to_broker'}]->(b2:Broker)
+        self._run_query(f"""
+            MATCH (b1:Broker)-[d:DEPENDS_ON {{dependency_type: 'broker_to_broker'}}]->(b2:Broker)
             MATCH (b1)-[:RUNS_ON]->(n:Node)<-[:RUNS_ON]-(b2)
             WITH d, max(n.weight) as node_w
-            SET d.weight = coalesce(node_w, 0.01)
+            SET d.weight = coalesce(node_w, {MIN_TOPIC_WEIGHT})
         """, tx=tx)
 
         # NetworkDevice weight (worst-case host depending on it, Rule 7)
-        self._run_query("""
+        self._run_query(f"""
             MATCH (dev:NetworkDevice)
-            OPTIONAL MATCH (n:Node)-[:DEPENDS_ON {dependency_type: 'node_to_device'}]->(dev)
+            OPTIONAL MATCH (n:Node)-[:DEPENDS_ON {{dependency_type: 'node_to_device'}}]->(dev)
             WITH dev, max(n.weight) as host_w
-            SET dev.weight = CASE WHEN coalesce(host_w, 0.0) < 0.01 THEN 0.01 ELSE host_w END
+            SET dev.weight = CASE WHEN coalesce(host_w, 0.0) < {MIN_TOPIC_WEIGHT} THEN {MIN_TOPIC_WEIGHT} ELSE host_w END
         """, tx=tx)
 
     def _run_query(self, query: str, parameters: Dict = None, tx: Any = None) -> Any:
@@ -487,7 +487,7 @@ class Neo4jRepository:
 
     def _get_qos_weight_cypher(self, topic_var: str) -> str:
         """
-        Generate the Cypher expression for the Topic weight (docs/graph-model.md §4.3):
+        Generate the Cypher expression for the Topic weight (docs/graph-model.md §5.3):
 
             w(t) = max(ε, β * QoS_score + α * size_norm + ψ * freq_norm)
         """
@@ -575,18 +575,18 @@ class Neo4jRepository:
         """
         Phase 5a: propagate Topic weights up to Applications, Libraries,
         Brokers and Nodes, so that a component's importance reflects the most
-        critical data it carries. See docs/graph-model.md §4.5.
+        critical data it carries. See docs/graph-model.md §5.4.
         """
-        # 1. Application Weight (Generalized Power Mean p=3)
+        # 1. Application Weight (Generalized Power Mean p=COMPONENT_POWER_MEAN_P)
         self._run_query(f"""
             MATCH (a:Application)
             OPTIONAL MATCH (a)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
             WITH a, collect(t.weight) as weights
             WITH a, size(weights) as cnt,
-                 CASE WHEN size(weights) = 0 THEN 0.01
-                      ELSE (reduce(s = 0.0, w IN weights | s + (coalesce(w, 0.01)^3.0)) / size(weights))^(1.0/3.0)
+                 CASE WHEN size(weights) = 0 THEN {MIN_TOPIC_WEIGHT}
+                      ELSE (reduce(s = 0.0, w IN weights | s + (coalesce(w, {MIN_TOPIC_WEIGHT})^{COMPONENT_POWER_MEAN_P})) / size(weights))^(1.0/{COMPONENT_POWER_MEAN_P})
                  END as p_weight
-            SET a.weight = CASE WHEN p_weight > 1.0 THEN 1.0 WHEN p_weight < 0.01 THEN 0.01 ELSE p_weight END
+            SET a.weight = CASE WHEN p_weight > 1.0 THEN 1.0 WHEN p_weight < {MIN_TOPIC_WEIGHT} THEN {MIN_TOPIC_WEIGHT} ELSE p_weight END
         """, tx=tx)
 
         # 2. Library Weight (propagated + fan-out multiplier)
@@ -605,45 +605,45 @@ class Neo4jRepository:
                  END as base_w, 
                  dg_in
             WITH l, base_w, (1.0 + {LIB_FANOUT_GAMMA} * log(1 + dg_in) / log(2)) as multiplier
-            SET l.weight = CASE WHEN base_w <= 0 THEN 0.01
+            SET l.weight = CASE WHEN base_w <= 0 THEN {MIN_TOPIC_WEIGHT}
                                 WHEN base_w * multiplier > 1.0 THEN 1.0
                                 ELSE base_w * multiplier END
         """, tx=tx)
 
         # 1.5. Application Weight — library-mediated topics (second pass)
-        # Apps with no direct pub/sub connections get weight 0.01 from step 1.
+        # Apps with no direct pub/sub connections get weight MIN_TOPIC_WEIGHT from step 1.
         # If they communicate exclusively through libraries, propagate the max
         # used-library weight so their importance is not invisible to RM scoring.
-        self._run_query("""
+        self._run_query(f"""
             MATCH (a:Application)
-            WHERE a.weight <= 0.01
+            WHERE a.weight <= {MIN_TOPIC_WEIGHT}
             MATCH (a)-[:USES]->(l:Library)
             WITH a, max(l.weight) as max_lib_w
             SET a.weight = max_lib_w
         """, tx=tx)
 
-        # 3. Broker Weight (Generalized Power Mean p=3)
+        # 3. Broker Weight (Generalized Power Mean p=COMPONENT_POWER_MEAN_P)
         self._run_query(f"""
             MATCH (b:Broker)
             OPTIONAL MATCH (b)-[:ROUTES]->(t:Topic)
             WITH b, collect(t.weight) as weights
             WITH b, size(weights) as cnt,
-                 CASE WHEN size(weights) = 0 THEN 0.01
-                      ELSE (reduce(s = 0.0, w IN weights | s + (coalesce(w, 0.01)^3.0)) / size(weights))^(1.0/3.0)
+                 CASE WHEN size(weights) = 0 THEN {MIN_TOPIC_WEIGHT}
+                      ELSE (reduce(s = 0.0, w IN weights | s + (coalesce(w, {MIN_TOPIC_WEIGHT})^{COMPONENT_POWER_MEAN_P})) / size(weights))^(1.0/{COMPONENT_POWER_MEAN_P})
                  END as p_weight
-            SET b.weight = CASE WHEN p_weight > 1.0 THEN 1.0 WHEN p_weight < 0.01 THEN 0.01 ELSE p_weight END
+            SET b.weight = CASE WHEN p_weight > 1.0 THEN 1.0 WHEN p_weight < {MIN_TOPIC_WEIGHT} THEN {MIN_TOPIC_WEIGHT} ELSE p_weight END
         """, tx=tx)
 
         # 4. Node Weight (max hosted component weight)
-        self._run_query("""
+        self._run_query(f"""
             MATCH (n:Node)
             OPTIONAL MATCH (c)-[:RUNS_ON]->(n) WHERE c:Application OR c:Broker
             WITH n, max(c.weight) as hosted_max
-            SET n.weight = coalesce(hosted_max, 0.01)
+            SET n.weight = coalesce(hosted_max, {MIN_TOPIC_WEIGHT})
         """, tx=tx)
 
         # 5. NetworkDevice Weight: floor here; Phase 5b lifts it once Rule 7 exists
-        self._run_query("MATCH (d:NetworkDevice) SET d.weight = 0.01", tx=tx)
+        self._run_query(f"MATCH (d:NetworkDevice) SET d.weight = {MIN_TOPIC_WEIGHT}", tx=tx)
 
     def _fetch_network(self, tx: Any = None) -> Tuple[List[str], List[Tuple[str, str, Any]]]:
         """Every host and switch/router, and the CONNECTS_TO links with their capacity."""
@@ -736,13 +736,13 @@ class Neo4jRepository:
         """
         self._run_query(f"""
             {match.strip()}
-            WITH {source}, {target}, count(DISTINCT t) as path_count, collect(DISTINCT coalesce(t.weight, 0.01)) as weights
+            WITH {source}, {target}, count(DISTINCT t) as path_count, collect(DISTINCT coalesce(t.weight, {MIN_TOPIC_WEIGHT})) as weights
             WITH {source}, {target}, path_count,
-                 CASE WHEN size(weights) = 0 THEN 0.01
+                 CASE WHEN size(weights) = 0 THEN {MIN_TOPIC_WEIGHT}
                       ELSE 1.0 - reduce(p = 1.0, w IN weights | p * (1.0 - w))
                  END as effective_weight
             MERGE ({source})-[d:DEPENDS_ON {{dependency_type: '{dep_type}'}}]->({target})
-            ON CREATE SET d.weight = CASE WHEN effective_weight < 0.01 THEN 0.01 WHEN effective_weight > 1.0 THEN 1.0 ELSE effective_weight END, d.path_count = path_count
+            ON CREATE SET d.weight = CASE WHEN effective_weight < {MIN_TOPIC_WEIGHT} THEN {MIN_TOPIC_WEIGHT} WHEN effective_weight > 1.0 THEN 1.0 ELSE effective_weight END, d.path_count = path_count
             ON MATCH SET d.weight = CASE WHEN effective_weight > coalesce(d.weight, 0.0)
                                          THEN (CASE WHEN effective_weight > 1.0 THEN 1.0 ELSE effective_weight END) ELSE d.weight END,
                          d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0)
@@ -753,7 +753,7 @@ class Neo4jRepository:
         """
         Derive DEPENDS_ON relationships from structural edges (Phase 4).
 
-        Implements Rules 1–7 from docs/graph-model.md §4.4. Rules 1 and 2 each
+        Implements Rules 1–7 from docs/graph-model.md §6.1. Rules 1 and 2 each
         run three times: once for directly attached components and twice for
         components reaching the topic through a USES chain of up to three hops.
         """
@@ -793,24 +793,24 @@ class Neo4jRepository:
         # Rule 3: node_to_node — lifted from component-level app_to_app / app_to_broker dependencies.
         # Explicitly filtering to the source dependency types that carry RUNS_ON context,
         # making this resilient to rule reordering.
-        self._run_query("""
+        self._run_query(f"""
             MATCH (a)-[d_ab:DEPENDS_ON]->(b),
                   (a)-[:RUNS_ON]->(n1:Node),
                   (b)-[:RUNS_ON]->(n2:Node)
             WHERE n1 <> n2
               AND d_ab.dependency_type IN ['app_to_app', 'app_to_broker']
             WITH n1, n2, max(d_ab.weight) as lifted_max, count(*) as dep_count
-            MERGE (n1)-[d:DEPENDS_ON {dependency_type: 'node_to_node'}]->(n2)
-            SET d.weight = coalesce(lifted_max, 0.01), d.path_count = dep_count
+            MERGE (n1)-[d:DEPENDS_ON {{dependency_type: 'node_to_node'}}]->(n2)
+            SET d.weight = coalesce(lifted_max, {MIN_TOPIC_WEIGHT}), d.path_count = dep_count
         """, tx=tx)
  
         # Rule 4: node_to_broker — lifted from hosted app broker usage
-        self._run_query("""
-            MATCH (app)-[dep:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker:Broker),
+        self._run_query(f"""
+            MATCH (app)-[dep:DEPENDS_ON {{dependency_type: 'app_to_broker'}}]->(broker:Broker),
                   (app)-[:RUNS_ON]->(n:Node)
             WITH n, broker, max(dep.weight) as lifted_max, count(*) as dep_count
-            MERGE (n)-[d:DEPENDS_ON {dependency_type: 'node_to_broker'}]->(broker)
-            SET d.weight = coalesce(lifted_max, 0.01), d.path_count = dep_count
+            MERGE (n)-[d:DEPENDS_ON {{dependency_type: 'node_to_broker'}}]->(broker)
+            SET d.weight = coalesce(lifted_max, {MIN_TOPIC_WEIGHT}), d.path_count = dep_count
         """, tx=tx)
 
         # Rule 7: node_to_device — a host depends on the switches/routers every
@@ -819,27 +819,27 @@ class Neo4jRepository:
         self._derive_node_to_device(tx)
  
         # Rule 6: broker_to_broker — colocation dependency via shared node
-        # Weight is a placeholder (0.01) here; Phase 5b overwrites it with the
+        # Weight is a placeholder here; Phase 5b overwrites it with the
         # shared Node's weight, which was computed back at import time.
-        self._run_query("""
+        self._run_query(f"""
             MATCH (b1:Broker)-[:RUNS_ON]->(n:Node)<-[:RUNS_ON]-(b2:Broker)
             WHERE b1 <> b2
             WITH b1, b2, count(DISTINCT n) as path_count
-            MERGE (b1)-[d:DEPENDS_ON {dependency_type: 'broker_to_broker'}]->(b2)
+            MERGE (b1)-[d:DEPENDS_ON {{dependency_type: 'broker_to_broker'}}]->(b2)
             SET d.path_count = path_count,
-                d.weight = coalesce(d.weight, 0.01)
+                d.weight = coalesce(d.weight, {MIN_TOPIC_WEIGHT})
         """, tx=tx)
  
         # Rule 5: app_to_lib — app depends on shared library
-        # Weight is a placeholder (0.01) here; Phase 5b overwrites it with the
-        # consuming Application's weight, computed back at import time.
-        self._run_query("""
+        # Weight is a placeholder here; Phase 5b overwrites it with the
+        # harmonic coupling between the consuming component and the library.
+        self._run_query(f"""
             MATCH (app)-[:USES]->(lib:Library)
             WHERE app:Application OR app:Library
             WITH app, lib, count(*) as path_count
-            MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_lib'}]->(lib)
+            MERGE (app)-[d:DEPENDS_ON {{dependency_type: 'app_to_lib'}}]->(lib)
             SET d.path_count = path_count,
-                d.weight = coalesce(d.weight, 0.01)
+                d.weight = coalesce(d.weight, {MIN_TOPIC_WEIGHT})
         """, tx=tx)
 
     # ==========================================

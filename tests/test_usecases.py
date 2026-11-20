@@ -244,3 +244,28 @@ class TestAnalysisServiceLayerBatching:
         """An unrecognised layer name degrades to SYSTEM rather than raising."""
         service = AnalysisService(repo_with_topology)
         assert service.analyze_layer("not-a-layer").layer == "system"
+
+    def test_model_graph_validates_and_counts_network_devices(self, memory_repo):
+        """ModelGraphUseCase validates network_devices and includes them in dry-run counts."""
+        model_uc = ModelGraphUseCase(memory_repo)
+
+        with pytest.raises(ValueError, match="network_devices"):
+            model_uc.execute({
+                "nodes": [{"id": "N1"}],
+                "network_devices": [{"name": "tor-0"}],  # missing required id
+                "relationships": {},
+            })
+
+        dry_stats = model_uc.execute(
+            {
+                "nodes": [{"id": "N1"}],
+                "network_devices": [{"id": "SW0", "name": "tor-0", "role": "switch"}],
+                "relationships": {
+                    "connects_to": [{"from": "N1", "to": "SW0"}],
+                },
+            },
+            dry_run=True,
+        )
+        assert dry_stats.success is True
+        assert dry_stats.nodes_imported == 2
+        assert dry_stats.edges_imported == 1

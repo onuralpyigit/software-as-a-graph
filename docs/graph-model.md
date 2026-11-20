@@ -79,16 +79,16 @@ The **Model stage (Step 1)** ingests a declarative JSON specification of this ar
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                             STEP 1 AT A GLANCE                              │
 ├───────────────────┬─────────────────────────────────────────────────────────┤
-│ Primary Input     │ System Topology JSON (nodes, brokers, topics, apps,     │
-│                   │ libraries, and structural relationships).               │
+│ Primary Input     │ System Topology JSON (nodes, network devices, brokers,  │
+│                   │ topics, apps, libraries, and structural relationships). │
 ├───────────────────┼─────────────────────────────────────────────────────────┤
-│ Execution Stages  │ Stage 1: Import (Phases 1, 2, 3, 5a)                    │
+│ Execution Stages  │ Stage 1: Import (Phases 1, 2, 3, 5a, 5c)                │
 │                   │ Stage 2: Pre-Analysis (Phases 4, 5b)                    │
 ├───────────────────┼─────────────────────────────────────────────────────────┤
 │ Key Operations    │ 1. Ingest entities and flatten static code metrics.     │
 │                   │ 2. Compute QoS-driven topic weights w(t).               │
 │                   │ 3. Propagate vertex weights w(v) via power means.       │
-│                   │ 4. Derive logical DEPENDS_ON edges via 6 formal rules.  │
+│                   │ 4. Derive logical DEPENDS_ON edges via 7 formal rules.  │
 │                   │ 5. Project graph into 4 canonical analysis layers.      │
 ├───────────────────┼─────────────────────────────────────────────────────────┤
 │ Primary Outputs   │ • G_structural: Raw physical graph for Step 5 simulation│
@@ -194,8 +194,8 @@ flowchart TD
     end
 
     subgraph Stage2["Stage 2: Pre-Analysis (derive_dependencies)"]
-        P4["Phase 4: Dependency Derivation<br/>• Synthesize DEPENDS_ON edges via Rules 1–6<br/>• Multi-topic probabilistic union for app/broker<br/>• Worst-case lift for node edges"]
-        P5b["Phase 5b: Edge Weight Finalization<br/>• Rule 5 (app_to_lib): Harmonic coupling<br/>• Rule 6 (broker_to_broker): Shared node weight"]
+        P4["Phase 4: Dependency Derivation<br/>• Synthesize DEPENDS_ON edges via Rules 1–7<br/>• Multi-topic probabilistic union for app/broker<br/>• Worst-case lift for node/device edges"]
+        P5b["Phase 5b: Edge & Device Weight Finalization<br/>• Rule 5 (app_to_lib): Harmonic coupling<br/>• Rule 6 (broker_to_broker): Shared node weight<br/>• Rule 7 (NetworkDevice): Dependent host lift"]
 
         P4 --> P5b
     end

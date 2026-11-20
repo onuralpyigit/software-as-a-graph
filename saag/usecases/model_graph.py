@@ -5,7 +5,9 @@ from saag.core.ports.graph_repository import IGraphRepository
 from .models import ImportStats
 
 #: Topology sections holding vertices, in the order they are reported.
-COMPONENT_SECTIONS = ("nodes", "brokers", "topics", "applications", "libraries")
+COMPONENT_SECTIONS = (
+    "nodes", "brokers", "topics", "applications", "libraries", "network_devices",
+)
 
 #: Relationship sections that drive the derivation rules producing most
 #: DEPENDS_ON edges (Rules 1, 2 and 5); used for the dry-run estimate.

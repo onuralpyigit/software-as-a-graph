@@ -129,7 +129,7 @@ class MemoryRepository:
     def _calculate_aggregate_weights(self) -> None:
         """
         Phase 5a: propagate Topic weights up to Applications,
-        Libraries, Brokers and Nodes. See docs/graph-model.md §4.5.
+        Libraries, Brokers and Nodes. See docs/graph-model.md §5.4.
         """
         topic_weights = {t["id"]: t.get("weight", 1.0) for t in self.data["topics"]}
         outgoing = {rel: self._targets_by_source(rel) for rel in STRUCTURAL_RELATIONSHIPS}
@@ -278,7 +278,7 @@ class MemoryRepository:
 
     def _derive_dependencies(self) -> None:
         """
-        Derive DEPENDS_ON edges from structural edges (Rules 1–7, docs/graph-model.md §4.4).
+        Derive DEPENDS_ON edges from structural edges (Rules 1–7, docs/graph-model.md §6.1).
 
         Direction convention: dependent -> dependency, the reverse of data flow. If
         Application A publishes to a Topic that Application B subscribes to, B depends on A
@@ -423,11 +423,11 @@ class MemoryRepository:
         """
         Rule 5 — a component depends on every library it directly uses.
 
-        The weight is a placeholder until ``_finalize_dependency_weights`` copies
-        the consuming component's own weight onto the edge.
+        The weight is a ``None`` sentinel until ``_finalize_dependency_weights``
+        computes the harmonic coupling between caller and library.
         """
         return {
-            (rel["from"], rel["to"], "app_to_lib"): {"weight": MIN_TOPIC_WEIGHT, "path_count": 1}
+            (rel["from"], rel["to"], "app_to_lib"): {"weight": None, "path_count": 1}
             for rel in self.data["relationships"].get("uses", [])
             if types.get(rel["from"]) in MESSAGING_TYPES and types.get(rel["to"]) == "Library"
         }
@@ -436,8 +436,8 @@ class MemoryRepository:
         """
         Rule 6 — brokers sharing a physical node share its fate (bidirectional).
 
-        The weight is a placeholder until ``_finalize_dependency_weights`` copies
-        the shared node's weight onto the edge.
+        The weight is a ``None`` sentinel until ``_finalize_dependency_weights``
+        copies the shared node's weight onto the edge.
         """
         brokers_per_node: Dict[str, List[str]] = {}
         for rel in self.data["relationships"].get("runs_on", []):
@@ -452,7 +452,7 @@ class MemoryRepository:
                         shared_nodes.setdefault((b1, b2), set()).add(node_id)
 
         return {
-            (b1, b2, "broker_to_broker"): {"weight": MIN_TOPIC_WEIGHT, "path_count": len(nodes)}
+            (b1, b2, "broker_to_broker"): {"weight": None, "path_count": len(nodes)}
             for (b1, b2), nodes in shared_nodes.items()
         }
 
@@ -514,22 +514,19 @@ class MemoryRepository:
         for device in self.data["network_devices"]:
             device["weight"] = max(dependents.get(device["id"], []), default=MIN_TOPIC_WEIGHT)
 
-        # An app_to_lib edge still at the floor means _calculate_aggregate_weights()
-        # never gave the consuming application a real weight — either it did not run
-        # or a new rule was added without a finalization step. (broker_to_broker may
-        # legitimately sit at the floor when the shared node itself does.)
+        # An edge still carrying the None sentinel means finalization missed it
+        # (e.g., a new rule was added without a finalization branch). Legitimately
+        # isolated app_to_lib edges whose endpoints both sit at MIN_TOPIC_WEIGHT
+        # finalize to MIN_TOPIC_WEIGHT and pass cleanly.
         stale = [
-            (e["from"], e["to"])
+            (e["from"], e["to"], e.get("dependency_type"))
             for e in self.data["relationships"].get("depends_on", [])
-            if e["dependency_type"] == "app_to_lib"
-            and e.get("weight", MIN_TOPIC_WEIGHT) <= MIN_TOPIC_WEIGHT
+            if e.get("weight") is None
         ]
         if stale:
             raise ValueError(
-                f"_finalize_dependency_weights: {len(stale)} app_to_lib edge(s) still "
-                f"carry the {MIN_TOPIC_WEIGHT} placeholder weight after finalization. "
-                f"This means _calculate_aggregate_weights() did not set a real weight "
-                f"for the consuming application. Affected edges: {stale[:5]}"
+                f"_finalize_dependency_weights: {len(stale)} DEPENDS_ON edge(s) still "
+                f"carry an unfinalized sentinel weight. Affected edges: {stale[:5]}"
             )
 
     def save_graph(self, data: Dict[str, Any], clear: bool = False) -> None:
@@ -657,12 +654,31 @@ class MemoryRepository:
         )
 
     def get_statistics(self) -> Dict[str, int]:
-        """Retrieve graph statistics."""
-        stats = {f"{key[:-1]}_count": len(self.data.get(key, [])) for key in COMPONENT_TYPES}
-        stats["total_nodes"] = sum(stats.values())
-        stats["total_relationships"] = sum(
-            len(rels) for rels in self.data.get("relationships", {}).values()
-        )
+        """Retrieve graph statistics with key parity against Neo4jRepository."""
+        stats: Dict[str, int] = {}
+        node_total = 0
+        for key, comp_type in COMPONENT_TYPES.items():
+            count = len(self.data.get(key, []))
+            stats[f"{comp_type.lower()}_count"] = count
+            node_total += count
+
+        stats["total_nodes"] = node_total
+
+        rels = self.data.get("relationships", {})
+        stats["total_relationships"] = sum(len(items) for items in rels.values())
+        for rel_key in STRUCTURAL_RELATIONSHIPS:
+            stats[f"{rel_key}_count"] = len(rels.get(rel_key, []))
+
+        dep_counts: Dict[str, int] = defaultdict(int)
+        for edge in rels.get("depends_on", []):
+            dep_type = edge.get("dependency_type")
+            if dep_type:
+                dep_counts[dep_type] += 1
+        for dep_type in (
+            "app_to_app", "app_to_lib", "app_to_broker",
+            "node_to_node", "node_to_broker", "broker_to_broker", "node_to_device",
+        ):
+            stats[f"{dep_type}_count"] = dep_counts[dep_type]
         return stats
 
     def export_json(self) -> Dict[str, Any]:
