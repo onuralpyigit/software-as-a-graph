@@ -48,6 +48,8 @@ Deadline-miss share & 0.05 \\
 \end{itemize}
 The report compares, for each counter, the set of entities with non-zero values on each side and the per-entity counts. The broker relays' own endpoints exist only on the counterpart, so they are excluded, and their number is reported.
 
+\paragraph{From fidelity report to closed-loop feedback.} Two Tier-2 advisory diagnostics connect this section back to calibration (\S\ref{sec:s2m}). First, \texttt{detect\_drift} evaluates steady-state errors against the tolerances of Table~\ref{tab:tolerances} and flags drifted metrics, topics and subscribers when the share within tolerance drops below a configured threshold (default 80\%), signalling when incremental EMA re-calibration (\texttt{update\_profile}) is warranted. Second, \texttt{diagnose\_fault\_residuals} inspects Tier-1 versus Tier-2 stall-set mismatches and large per-component impact residuals; when an observed Tier-2 fault trace is available, it re-infers trigger policies for mismatched applications and proposes non-mutating profile updates (\texttt{apply\_residual\_feedback}). Both diagnostics are surfaced in the hybrid verification report and remain strictly advisory (never blocking CI gates, R6).
+
 \subsection{Independence analysis: what the counterpart can show}
 \label{sec:independence}
 

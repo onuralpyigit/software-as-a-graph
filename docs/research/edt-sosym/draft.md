@@ -23,11 +23,11 @@
 We place each capability on a digital model, shadow and twin maturity ladder and claim only the levels that are built: a digital model, a generated counterpart and a batch digital shadow.
 
 **Results.** Model consistency is enforced by executable invariants: the simulators re-derive all seven dependency rules from raw relations and must match the repository edge set.
-- *Calibration.* Topic rates are recovered within 3% median error and service times within 1%, and inferred trigger policies are never wrong. Two behavioural parameters are not identifiable from telemetry, and we report them as such.
+- *Calibration.* Topic rates are recovered within 3% median error and application service times within 1%, broker service times and MMPP workload burstiness are recovered when observable, and inferred trigger policies (including $k$-of-$n$ partial degradation) are never wrong. One behavioural parameter (staleness window) remains unidentifiable from telemetry, and we report it as such.
 - *Smoke test.* On a four-container system, simulated and observed fault responses agree exactly at the stall-set level. The test also exposes a fidelity gap: DDS peer rediscovery after a partition takes about 6 s, which the simulator does not model.
 - *Fidelity study.* A pre-registered study across the nine scenarios that pass its capacity gate is **[TBD: outcome of H1 and secondary family]**.
 
-**Conclusion.** An architectural digital twin can be engineered as a family of model transformations around one metamodel, with fidelity treated as a measured, bounded property rather than an assumption. We report the remaining step from batch digital shadow to live twin, drift-triggered re-calibration, as designed but not yet built.
+**Conclusion.** An architectural digital twin can be engineered as a family of model transformations around one metamodel, with fidelity treated as a measured, bounded property rather than an assumption. Batch parameter-drift detection, incremental EMA re-calibration and behavioural-residual policy feedback are built; the remaining step to a live twin—continuous streaming ingestion, topology-drift repair and production actuation—is reported as designed.
 
 **Keywords:** Digital twin engineering; Architectural models; Model-driven engineering; Publish–subscribe middleware; DDS; Fault injection; Simulation fidelity; Calibration; Container-based testbed.
 
@@ -60,7 +60,7 @@ The testbed emits OpenTelemetry-shaped telemetry. A calibrator turns that teleme
 - **C3: A system-to-model calibration path, with an identifiability analysis (§6).** The analysis states which model parameters telemetry can recover and which it cannot.
 - **C4: A fidelity-assessment method for architectural twins (§7).** It covers three fidelity dimensions. An explicit independence analysis separates genuine evidence from agreement that holds by construction, and a pre-registered study protocol fixes the analysis before any comparison is computed. Fidelity results therefore speak to timing and transport on an emulated system under declared behaviour, never to real application behaviour.
 
-**What we claim.** On the maturity ladder of Kritzinger et al. (2018) (digital model, digital shadow, digital twin), the system we report is a digital model with a generated counterpart and a batch digital shadow. Both transformations between model and counterpart are automatic, but an engineer closes the loop for each run, and the counterpart is an emulation rather than the deployed system (§4.3). The step to a live twin, drift-triggered re-calibration, is specified in §9.2 but not built. We use "twin" for the engineering target and state each capability at the level that is implemented.
+**What we claim.** On the maturity ladder of Kritzinger et al. (2018) (digital model, digital shadow, digital twin), the system we report is a digital model with a generated counterpart and a batch digital shadow equipped with batch drift detection, incremental EMA re-calibration and behavioural-residual policy feedback. Both transformations between model and counterpart are automatic, but an engineer closes the loop for each run, and the counterpart is an emulation rather than the deployed system (§4.3). The remaining step to a live twin—continuous streaming ingestion, automated topology-drift repair proposals and production actuation—is specified in §9.2 as designed. We use "twin" for the engineering target and state each capability at the level that is implemented.
 
 **Fit to the theme.** The contributions address the theme section's topics as follows. C1 is a modeling method for digital twins and a mechanism for model consistency. C2 covers digital-twin modeling and simulation; with the change gate (§4.2) and the cost ladder (§8), it also addresses DevOps for twins. C3 combines models and data and makes the remaining uncertainty explicit. C4 is a quality-assurance and fidelity method for twins whose physical side is generated from their own model.
 
@@ -195,7 +195,7 @@ flowchart TD
 >   and derived relations $\tau_E(E_d) = \{\texttt{depends\_on}\}$.
 > - *Weights* $w_V$ and $w_E$ map into $[0.01, 1]$.
 >
-> Topics carry a QoS contract: reliability, durability, history depth, deadline, transport priority, payload size and rate. Hosts may carry capacities, and `connects_to` edges may carry interface and link capacity.
+> Topics carry a QoS contract: reliability, durability, history depth, deadline, transport priority, payload size and rate. Hosts may carry capacities, and `connects_to` edges may carry interface, link capacity and propagation latency.
 
 The metamodel keeps two views of each instance:
 - The **structural view** $G_{\mathrm{struct}} = (V, E_s)$ holds the relations as declared.
@@ -227,7 +227,7 @@ The twin answers four kinds of engineering question. Each is answered on the mod
   - $I_{\mathrm{dyn}}$: the drop in delivery rate in a discrete-event queue-flow simulation built on SimPy (Team SimPy, 2023);
   - $I_M$: upstream change ripple.
 
-  Their construction and their use as ranking oracles are reported in Yiğit and Buzluca (2026a). Here they are the twin's *behavioural models*.
+  Their construction and their use as ranking oracles are reported in Yiğit and Buzluca (2026a). Here they are the twin's *behavioural models*. For runtime realism beyond the default oracle, $I_{\mathrm{dyn}}$ provides opt-in arms for queued physical links (per-hop serialization queues from `capacity_mbps` and propagation latency over `connects_to`) and DDS latency-SLA reactive degradation (refreshing input freshness only for deliveries that meet `deadline_ms`, so gray slowdowns and link congestion propagate under non-dropping DDS semantics). Before deployment, when runtime parameters are guesses, uncertainty sweeps sample the parameter space with Latin Hypercube or scrambled Sobol designs, report upper-tail CVaR risk rankings alongside mean impact, and attribute impact variance to individual parameters via Spearman $\rho$ (numeric) and $\eta^2$ (categorical) so engineers know which unknowns warrant staging measurement.
 - **Placement verification.** Given a deployment specification (host capacities, failure rates, failure domains, pinning, replica counts and topic deadlines), an exact optimiser proposes placements. Each placement is then re-scored on a held-out, replica-aware failure simulation over every host and failure-domain outage. A reliability gain is claimed only when it clears a measured noise bar. The optimiser's own objective is never used as evidence for the placement it chose.
 - **Change gating.** For a candidate change, the twin is rebuilt from the candidate version and compared with the twin of the merge base. The gate blocks only on structural findings the change *introduces*, such as a new single point of failure or a new dependency cycle. Pre-existing debt is not re-reported as a failure. Impact rankings are deliberately kept out of the blocking path: they must flag a large share of components to reach high recall (Yiğit and Buzluca, 2026a). They feed a non-blocking note on the change, and targeted simulation of the shortlisted components is the second tier.
 - **Hybrid two-tiered runtime verification.** To bridge fast discrete-event screening and expensive container execution, a four-step orchestrator (`saag-simulate hybrid-verify`) chains the twin's transformations into one closed-batch workflow: (0) build the counterpart once, run a fault-free baseline, fit a calibrated profile (§6) and check steady-state fidelity; (1) screen all candidates on Tier 1 ($I_{\mathrm{dyn}}$ with DDS semantics, host stations, paired common random numbers, replica awareness and the calibrated profile) alongside order-$k$ references and optional parameter-uncertainty draws; (2) construct a triage shortlist combining top-$K$ risk targets, highest prediction-vs-Tier-1 rank disagreements and low-impact negative controls (preferring sinks, kept separate from primary rank correlations so tied zeros do not inflate $\rho$); and (3) reuse the built counterpart across the shortlist for crash and gray-failure probes (`slowdown`, `omission`, `babbling`, `freeze`, `transient_crash`, `link_flap`), emitting an advisory `hybrid_report.json` with automated parity and independence caveats (§7.2). Like all Tier-2 reports, it never blocks a build.
@@ -242,8 +242,8 @@ Kritzinger et al. (2018) classify twins by whether the data flows between the ph
 |---|---|---|---|
 | Digital model | The model is authored or extracted from engineering artefacts; analysis and simulation run on it. | None. | built |
 | Generated counterpart | The model is compiled automatically into a running DDS deployment, with faults compiled into chaos actions (§5). | None. | built |
-| Digital shadow (batch) | As above. | Telemetry is calibrated automatically into simulator parameters, and fidelity is reported automatically (§§6–7), individually or via one closed-batch hybrid verification command (§4.2). Still *invoked per run* by an engineer. | built |
-| Digital twin | Accepted decisions (re-placement, configuration change) are pushed to the counterpart. | Continuous ingestion; drift detection on topology and parameters triggers re-calibration or model repair (§9.2). | designed |
+| Digital shadow (batch) | As above. | Telemetry is calibrated automatically into simulator parameters (rates, app/broker service times, MMPP burstiness, trigger policies), and fidelity, steady-state parameter-drift detection, incremental EMA re-calibration and Tier-2 residual policy feedback are computed automatically (§§6–7), individually or via one closed-batch hybrid verification command (§4.2). Still *invoked per run* by an engineer. | built |
+| Digital twin | Accepted decisions (re-placement, configuration change) are pushed to the deployed system. | Continuous streaming ingestion; automated topology-drift graph diffing and model-repair proposals (§9.2). | designed |
 
 Two remarks keep the table honest. First, both transformations are automatic, yet the system is not a twin in Kritzinger's sense. The loop is closed by an engineer for each run, not by the system in operation, and the counterpart is an emulation, not the deployed system. Second, Wright and Davidson's test, that a twin needs a physical counterpart (Wright and Davidson, 2020), is met only by the emulation. We therefore treat everything the counterpart shows as evidence about the twin's fidelity to *middleware, timing and transport behaviour under declared application behaviour*. We do not treat it as evidence about real applications (§7.2).
 
@@ -357,25 +357,28 @@ After deployment, or on the counterpart, these can be measured. The system-to-mo
 
 ### 6.1 Trace schema
 
-Telemetry is a stream of JSON-lines events shaped like OpenTelemetry log records. Every event has a timestamp on a clock shared by all agents, an event name, and attributes that use OpenTelemetry's messaging conventions where they exist (`service.name`, `messaging.destination.name`, `messaging.message.id`). Six event kinds are defined:
+Telemetry is a stream of JSON-lines events shaped like OpenTelemetry log records. Every event has a timestamp on a clock shared by all agents, an event name, and attributes that use OpenTelemetry's messaging conventions where they exist (`service.name`, `messaging.destination.name`, `messaging.message.id`). Seven event kinds are defined:
 - *publish*, for an emission;
 - *deliver*, for a sample processed within its deadline, with latency and service time;
 - *deadline miss*, for a sample that was processed and then dropped as late; it carries its service time too;
-- *drop*, for a queue overflow;
-- *state*, for a component state change such as crash, recovery or replica takeover;
+- *drop*, for a queue overflow, dead-broker drop or network-partition drop;
+- *forward*, for a broker relay forwarding a sample, carrying its measured broker service time without double-counting application deliveries;
+- *state*, for a component state change such as crash, recovery, freeze/thaw, overload or replica takeover;
 - *status*, for periodic DDS status counts.
 
-The queue-flow simulator writes the *same* schema when asked to record events. This is the single most useful decision in the system-to-model path. Calibration and fidelity comparison are written once and applied to simulated and observed traces alike. A difference between the two can then never be an artefact of two parsers.
+The queue-flow simulator writes the *same* schema across all seven event kinds when asked to record events. This is the single most useful decision in the system-to-model path. Calibration and fidelity comparison are written once and applied to simulated and observed traces alike. A difference between the two can then never be an artefact of two parsers.
 
 ### 6.2 The calibrator
 
-The calibrator fits three groups of parameters on the post-warm-up window of a trace: topic rates and service-time distributions on fault-free steady state, and trigger policies whenever the trace contains discriminating input outages.
+The calibrator fits five groups of parameters on the post-warm-up window of a trace: topic rates, application and broker service-time distributions, and per-topic workload burstiness on steady state (robust to mid-run outages), and trigger policies whenever the trace contains discriminating input outages. It also supports incremental exponential-moving-average updates (`update_profile`) for rolling re-calibration against a prior profile.
 
-**Topic rates.** The fitted rate of a topic is its emissions per second, counted over all of its publishers.
+**Topic rates.** The fitted rate of a topic is its emissions per active second, counted over all of its publishers. Silence gaps exceeding $\max(5\,\text{s}, 10\cdot\text{median gap})$ are subtracted from the active duration so that a mid-run crash does not bias the healthy publication rate low, while fault-free traces remain unchanged.
 
-**Service-time distributions.** For each application the calibrator records the mean and coefficient of variation of its measured service times. It reports an exponential family when the CV lies in $[0.7, 1.3]$ and a lognormal family otherwise, and it fits only when at least five samples exist. Service times are taken from delivered samples *and* from samples dropped as late. A late sample was still served, and fitting only the on-time survivors biases the mean low. On the ATM scenario, this bias put one application's mean 45% low before the schema carried service times on deadline misses.
+**Service-time distributions (applications and brokers).** For each application (from *deliver* and *deadline miss* events) and each routing broker (from *forward* events), the calibrator records the mean and coefficient of variation of measured service times. It reports an exponential family when the CV lies in $[0.7, 1.3]$ and a lognormal family otherwise, and it fits only when at least five samples exist. Service times are taken from delivered samples *and* from samples dropped as late. A late sample was still served, and fitting only the on-time survivors biases the mean low. On the ATM scenario, this bias put one application's mean 45% low before the schema carried service times on deadline misses.
 
-**Trigger policies.** An application with inputs either emits periodically regardless of its inputs (*periodic*), stops only when all inputs are stale (*any-of*), or stops as soon as one input is stale (*all-of*). The calibrator infers which by splitting time into three input states: all fresh, some stale, and all stale. In each state it compares the application's realised emission rate with its active rate. A state counts as evidence only if it lasted long enough to expect at least three emissions, and emission shares in an ambiguous middle band count as no evidence either way. If the trace never puts the application through a discriminating outage, the calibrator abstains. For a single-input application, the two reactive policies coincide, and the calibrator reports the simpler one.
+**Workload burstiness.** For each topic with at least 30 active emissions, the calibrator computes the outage-filtered inter-arrival CV and the binned count Fano factor. Topics with $\text{CV} < 0.25$ are classified as periodic; topics exhibiting both $\text{CV} > 1.15$ and Fano factor $> 1.5$ are segmented by 1D two-means clustering over bin rates into burst and calm states to estimate *burst ratio*, *burst fraction* and *mean burst duration* for per-topic Markov-modulated Poisson process (MMPP) replay. Remaining topics are classified as homogeneous Poisson.
+
+**Trigger policies.** An application with inputs emits periodically regardless of its inputs (*periodic*), stops only when all inputs are stale (*any-of*), stops as soon as one input is stale (*all-of*), or degrades proportionally when fewer than $K$ inputs are fresh (*$k$-of-$n$*). The calibrator infers which by splitting time into input freshness states and comparing the application's realised emission rate with its active rate. A state counts as evidence only if it lasted long enough to expect at least three emissions; when partial-outage emission shares fall in the middle band $(0.2, 0.8)$, per-fresh-count shares are checked against candidate $K \in \{2,\dots,N\}$ ramps and reported as `k_of_n:K` only when a unique $K$ fits within tolerance. Otherwise the calibrator abstains. For a single-input application, *all-of* and *any-of* coincide, and the calibrator reports the simpler one.
 
 **What the calibrator refuses to write.** The behavioural profile also has slots used by other simulators. One is a per-edge *failure correlation*, which is a cascade-propagation probability in the multi-layer failure simulator. Another is a starvation tolerance. A measured message-drop rate looks superficially like the former, but it is a different quantity, and no trace event measures the latter. The calibrator writes neither. In a twin, a model slot filled with a plausible but semantically wrong measurement is worse than an empty slot, because it is indistinguishable from a real calibration.
 
@@ -389,13 +392,14 @@ Calibration is only useful if it recovers the right values. To test this, we sim
 
 | Parameter | Recovered? | Evidence |
 |---|---|---|
-| Topic rates | yes | median relative error 3% |
-| Service mean and CV | yes | median relative error 1%; every application within sampling noise (at most 3.6 standard errors, 30 applications); a uniform distribution is returned as lognormal with its true CV of 0.115 |
-| Trigger policy | yes, when observable | 16–17 of the 17 applications with inputs and outputs receive an answer, and every answer is correct, for true staleness windows of 2, 3 or 6 periods (the calibrator assumes 3) |
+| Topic rates | yes | median relative error 3% (outage-robust on fault traces) |
+| App service mean and CV | yes | median relative error 1%; every application within sampling noise (at most 3.6 standard errors, 30 applications); a uniform distribution is returned as lognormal with its true CV of 0.115 |
+| Broker service mean and CV | yes, when brokered | recovered from `saag.forward` in both simulator and testbed relays (exponential and uniform→lognormal) |
+| Workload burstiness (MMPP) | yes, when bursty | CV + Fano gate with 2-means segmentation recovers burst ratio, burst fraction and mean burst length; zero false positives on periodic, Poisson or crashed periodic traces |
+| Trigger policy | yes, when observable | 16–17 of the 17 applications with inputs and outputs receive an answer, and every answer is correct, for true staleness windows of 2, 3 or 6 periods (the calibrator assumes 3); also identifies `k_of_n:K` when partial-outage ramps are observed |
 | Staleness window | no | no estimator; the trace does not determine it |
-| Burst ratio | no | no estimator; the trace does not determine it |
 
-The negative rows are results, not omissions. They tell the twin's users that post-deployment data cannot narrow the plausible range of two behavioural parameters. Any conclusion sensitive to those parameters must keep carrying their uncertainty after deployment. Applications that never experienced a partial input outage receive no policy, which is correct behaviour rather than a gap.
+The negative row is a result, not an omission. It tells the twin's users that post-deployment data cannot narrow the plausible range of the staleness window. Any conclusion sensitive to that parameter must keep carrying its uncertainty after deployment. Applications that never experienced a partial input outage receive no policy, which is correct behaviour rather than a gap.
 
 An identifiability table of this kind is cheap to produce once the simulator and the counterpart share a trace schema, and we recommend it as a standard artefact for calibrated twins. It separates three kinds of parameter:
 - parameters that data can pin down;
@@ -443,6 +447,8 @@ The report gives the median error and the share of elements within tolerance.
 - lost and rejected samples.
 
 The report compares, for each counter, the set of entities with non-zero values on each side and the per-entity counts. The broker relays' own endpoints exist only on the counterpart, so they are excluded, and their number is reported.
+
+**From fidelity report to closed-loop feedback.** Two Tier-2 advisory diagnostics connect this section back to calibration (§6). First, `detect_drift` evaluates steady-state errors against the tolerances of Table 6 and flags drifted metrics, topics and subscribers when the share within tolerance drops below a configured threshold (default 80%), signalling when incremental EMA re-calibration (`update_profile`) is warranted. Second, `diagnose_fault_residuals` inspects Tier-1 versus Tier-2 stall-set mismatches and large per-component impact residuals; when an observed Tier-2 fault trace is available, it re-infers trigger policies for mismatched applications and proposes non-mutating profile updates (`apply_residual_feedback`). Both diagnostics are surfaced in the hybrid verification report and remain strictly advisory (never blocking CI gates, R6).
 
 ### 7.2 Independence analysis: what the counterpart can show
 
@@ -538,14 +544,15 @@ Consistency between artefacts is checked by executable invariants that run in th
 ### 8.3 RQ2: Calibration identifiability
 
 Table 5 (§6.3) gives the result [P]:
-- topic rates are recovered within 3% median error;
-- service-time means and CVs within 1%;
-- trigger policies are always correct when the trace contains a discriminating outage, and abstained on otherwise;
-- staleness windows and burst ratios are not identifiable.
+- topic rates are recovered within 3% median error (robust to mid-run outages);
+- application service-time means and CVs within 1%, and broker service times from `saag.forward` in both simulator and testbed relays;
+- MMPP workload burstiness (*burst ratio*, *burst fraction*, *mean burst length*) is recovered on bursty topics with zero false positives on periodic, Poisson or crashed periodic traces;
+- trigger policies (including `k_of_n:K`) are always correct when the trace contains a discriminating outage, and abstained on otherwise;
+- staleness windows are not identifiable.
 
-On the counterpart itself, the in-process calibration round trip recovers rates and service means, and identifies trigger policies, under an automated test [P]. Whether calibrating on counterpart telemetry improves simulator fidelity is H5 [S]: **[TBD: H5 result: per-scenario median per-reader delivery error, S2 vs. S3]**.
+On the counterpart itself, the in-process calibration round trip recovers rates, application and broker service means, and identifies trigger policies, under automated tests [P]. Whether calibrating on counterpart telemetry improves simulator fidelity is H5 [S]: **[TBD: H5 result: per-scenario median per-reader delivery error, S2 vs. S3]**.
 
-**Answer to RQ2.** Telemetry recovers the rate and service parameters that dominate queue-flow behaviour. It recovers reactive behaviour only when outages occur, and it cannot recover staleness or burstiness. The twin must keep carrying the uncertainty of those two parameters after deployment.
+**Answer to RQ2.** Telemetry recovers the rate, service (application and broker) and burstiness parameters that govern queue-flow behaviour. It recovers reactive trigger policies only when outages occur, and it cannot recover staleness windows. The twin must keep carrying the uncertainty of the staleness window after deployment.
 
 ### 8.4 RQ3: Fidelity of the simulators to the counterpart
 
@@ -635,29 +642,24 @@ A hand-built testbed would share unknown assumptions with the model. A generated
 
 **L3: Fidelity evidence needs an independence analysis.** When the physical side derives from the model, agreement is partly guaranteed. Table 7 took little effort to write and changed what we can claim. For example, exact agreement on topic rates in Table 9 carries no evidential weight at all. The informative results were the ones in independent rows: stall sets, liveliness and partition recovery.
 
-**L4: A calibrator should abstain, and say what it cannot see.** The identifiability table (Table 5) changes how calibrated results should be read. Two behavioural parameters remain as uncertain after deployment as before it, and the twin must say so. Refusing to fill model slots with semantically mismatched measurements (§6) follows from the same principle.
+**L4: A calibrator should abstain, and say what it cannot see.** The identifiability table (Table 5) changes how calibrated results should be read. One behavioural parameter (the staleness window) remains as uncertain after deployment as before it, and the twin must say so, even after broker service times and MMPP burstiness become recoverable. Refusing to fill model slots with semantically mismatched measurements (§6) follows from the same principle.
 
 **L5: Make consistency debt visible.** A single model instance did not by itself guarantee consistent semantics across consumers (§8.2). What did help were executable parity checks, which turn drift between artefacts into a failing build, and an explicit register of the divergences not yet fixed.
 
 **L6: Match each twin service to a rung of the cost ladder.** The services span five orders of magnitude in cost (Table 11). Tying each service to the rung it can afford gives a practical pipeline design: graph services on every change, calibrated queue-flow simulation for system-wide screening, hybrid two-tiered verification (§4.2) for shortlisted triage and gray-failure probing, and full counterpart sweeps only for periodic fidelity assessment of the twin itself. Treating the twin as one monolithic "simulate everything" service would put it out of reach of continuous delivery.
 
-### 9.2 From digital shadow to digital twin: the designed step
+### 9.2 From digital shadow to digital twin: what is built and what remains designed
 
-The system reaches the batch-shadow level of Table 2. The twin level requires the loop to close in operation (R7). We state the design in the requirements voice, because none of it is implemented.
+The system reaches the batch-shadow level of Table 2. Three building blocks of the closed loop are now implemented in batch mode: steady-state parameter-drift detection (`detect_drift`, §7.1), incremental exponential-moving-average re-calibration (`update_profile`, §6), and behavioural-residual diagnosis with trigger-policy feedback (`diagnose_fault_residuals` and `apply_residual_feedback`, surfaced in the hybrid verification protocol). The remaining capabilities required for a live twin (R7) are stated below in the requirements voice, because they are designed rather than implemented.
 
-**Ingestion.** The twin shall ingest telemetry in the schema of §6 continuously, from the counterpart or from a deployed system. Each record shall be tagged with project, platform and system version, as the industrial baseline's field-records requirements prescribe.
+**Continuous ingestion.** The twin shall ingest telemetry in the schema of §6 continuously, from the counterpart or from a deployed system. Each record shall be tagged with project, platform and system version, as the industrial baseline's field-records requirements prescribe.
 
-**Three kinds of drift.** The twin shall detect three kinds of drift:
-- *Topology drift.* Publish and deliver events reveal the observed (application, topic) and (reader, topic) relations. Their difference from the modelled `publishes_to` and `subscribes_to` relations is a graph diff over $G_{\mathrm{struct}}$. Examples are an unmodelled subscriber, a modelled publisher that never emits, or a component running on an unmodelled host.
-- *Parameter drift.* A rolling calibration window yields a profile that is compared with the baseline profile. The comparison uses the steady-state metrics and tolerances of §7.1, with bands set from the noise the fidelity study measures. Without such noise estimates, drift detection would raise alarms on emulation jitter.
-- *Behavioural drift.* After an incident, the observed fault response is compared with the twin's prediction for the same fault, using stall sets and $I_{\mathrm{obs}}$.
+**Three kinds of drift.** Two drift detectors are built in batch form and the third remains designed:
+- *Parameter drift (built, batch).* A new steady-state trace is compared with the digital twin using `detect_drift` and the tolerances of §7.1, flagging drifted metrics, topics and subscribers for incremental EMA re-calibration via `update_profile`.
+- *Behavioural drift (built, batch).* After a fault run or incident, `diagnose_fault_residuals` compares observed stall sets and $I_{\mathrm{obs}}$ with the twin's predictions, re-infers mis-specified trigger policies when observable, and proposes profile updates via `apply_residual_feedback`.
+- *Topology drift (designed).* Publish and deliver events reveal the observed (application, topic) and (reader, topic) relations. Their difference from the modelled `publishes_to` and `subscribes_to` relations shall produce a graph diff over $G_{\mathrm{struct}}$—flagging unmodelled subscribers, silent publishers or unmodelled hosts as a *model-repair proposal* for an engineer to accept, never an automatic rewrite of the model of record.
 
-**Responses.** The twin shall respond to each kind of drift differently:
-- parameter drift on an identifiable parameter shall trigger automatic re-calibration;
-- topology drift shall produce a *model-repair proposal* for an engineer to accept, never an automatic rewrite of the model of record;
-- behavioural drift shall be logged as a fidelity breach against the behavioural model, and drifting components shall enter targeted Step-3 counterpart verification (§4.2) directly rather than triggering an exhaustive sweep.
-
-Drift on a non-identifiable parameter (Table 5) shall be reported as such and shall not be "fixed".
+**Responses.** Parameter drift on an identifiable parameter triggers incremental re-calibration; behavioural drift logs a fidelity breach, proposes trigger-policy updates where identifiable, and directs drifting components into targeted Step-3 counterpart verification (§4.2) rather than an exhaustive sweep; topology drift shall produce an engineer-reviewed model-repair proposal. Drift on a non-identifiable parameter (Table 5, staleness window) is reported as such and is never "fixed".
 
 **Actuation.** The twin shall push decisions back only through engineers. Examples are an accepted re-placement from the placement service and an accepted configuration change. The twin shall not actuate the system directly. For mission-critical middleware, we consider this the right end state, not a temporary limitation. It makes the target closer to an "engineer-in-the-loop twin" than to an autonomic one.
 
@@ -669,7 +671,7 @@ Drift on a non-identifiable parameter (Table 5) shall be reported as such and sh
 
 **Internal validity.** The counterpart shares its plan, its trigger-policy function and its late-sample rule with the simulator (Table 7). We confine claims to the independent rows. Single-machine emulation with Python stubs adds scheduling and interpreter effects that a deployed system would not have. We guard against these effects with the capacity gate, CPU logging, WaitSet polling and rate scaling. Rate scaling preserves utilisation but not the ratio of transport delay to service time, so latency claims are limited to $\kappa = 1$.
 
-**External validity.** The counterpart is an emulation with stub applications, so no result covers real application behaviour or production outages. Only Cyclone DDS is exercised. Kafka, MQTT and ROS 2 deployments are modelled by the metamodel but have no counterpart back-end, and broker semantics are emulated by relays. Most subjects are synthetic, and no measurements from an industrial deployment are reported; the industrial programme contributes only the requirements baseline of §3.
+**External validity.** The counterpart is an emulation with stub applications, so no result covers real application behaviour or production outages. Only Cyclone DDS is exercised. Kafka, MQTT and ROS 2 deployments are modelled by the metamodel but have no counterpart back-end, and broker semantics are emulated by relays. While broker service times, MMPP burstiness and queued link bandwidth are now modelled and verified in unit and round-trip tests, DDS peer-rediscovery delay ($\approx 6$ s after a partition) and production telemetry remain open external-validity boundaries. Most subjects are synthetic, and no measurements from an industrial deployment are reported; the industrial programme contributes only the requirements baseline of §3.
 
 **Conclusion validity.** With nine included scenarios, the exact Wilcoxon test has a floor on attainable $p$. H1 (one-sided) can reach significance with at most three losing scenarios, and only if those losses are the smallest differences. In the secondary family, a test can meet Holm's first threshold of 0.0125 only with at most one such loss among nine. Rank agreement is also bounded by the counterpart's own noise: the pilot's ceiling was 0.90, an earlier unexplained pilot run gave 0.56, and the ceiling is therefore measured on every included scenario. The protocol fixes these consequences in advance rather than discovering them after the fact.
 
@@ -685,13 +687,13 @@ We engineered an architectural digital twin for distributed publish–subscribe 
 
 The system is a digital model with a generated counterpart and a batch digital shadow, and we have stated it at exactly that level. The results so far support the method:
 - the artefacts agree on dependency semantics rule by rule;
-- rates and service times are recovered within a few percent, and two parameters are shown not to be recoverable;
+- rates, application and broker service times, and MMPP workload burstiness are recovered when observable, while one parameter (staleness window) is shown not to be recoverable;
 - on the smoke test, the counterpart reproduced the simulator's stall sets and DDS liveliness exactly;
 - the counterpart exposed a real gap, slow DDS rediscovery after long partitions, which the twin could not have found by checking itself against its own simulators.
 
 The pre-registered fidelity study will report **[TBD: H1 headline]**, interpreted under the claim table fixed in advance.
 
-The next step is the one that turns the shadow into a twin: continuous ingestion and drift detection on topology, parameters and behaviour, with re-calibration for identifiable parameters and engineer-approved model repair for topology. We have argued that this order is forced: drift detection presupposes calibration and a fidelity metric with known noise. We expect that order to apply to other pre-deployment twins whose physical side must, at first, be generated from the model itself.
+The next step is the one that turns the batch shadow (with its built parameter-drift detection, incremental EMA re-calibration and residual policy feedback) into a live twin: continuous ingestion and automated topology-drift detection, with engineer-approved model repair and production actuation. We have argued that this order is forced: drift detection presupposes calibration and a fidelity metric with known noise. We expect that order to apply to other pre-deployment twins whose physical side must, at first, be generated from the model itself.
 
 ---
 

@@ -13,9 +13,9 @@ We place each capability on a digital model, shadow and twin maturity ladder and
 
 \textbf{Results.} Model consistency is enforced by executable invariants: the simulators re-derive all seven dependency rules from raw relations and must match the repository edge set.
 \begin{itemize}[nosep,leftmargin=*]
-\item \emph{Calibration.} Topic rates are recovered within 3\% median error and service times within 1\%, and inferred trigger policies are never wrong. Two behavioural parameters are not identifiable from telemetry, and we report them as such.
+\item \emph{Calibration.} Topic rates are recovered within 3\% median error and application service times within 1\%, broker service times and MMPP workload burstiness are recovered when observable, and inferred trigger policies (including $k$-of-$n$ partial degradation) are never wrong. One behavioural parameter (staleness window) remains unidentifiable from telemetry, and we report it as such.
 \item \emph{Smoke test.} On a four-container system, simulated and observed fault responses agree exactly at the stall-set level. The test also exposes a fidelity gap: DDS peer rediscovery after a partition takes about 6\,s, which the simulator does not model.
 \item \emph{Fidelity study.} A pre-registered study across the nine scenarios that pass its capacity gate is \tbd{outcome of H1 and secondary family}.
 \end{itemize}
 
-\textbf{Conclusion.} An architectural digital twin can be engineered as a family of model transformations around one metamodel, with fidelity treated as a measured, bounded property rather than an assumption. We report the remaining step from batch digital shadow to live twin, drift-triggered re-calibration, as designed but not yet built.
+\textbf{Conclusion.} An architectural digital twin can be engineered as a family of model transformations around one metamodel, with fidelity treated as a measured, bounded property rather than an assumption. Batch parameter-drift detection, incremental EMA re-calibration and behavioural-residual policy feedback are built; the remaining step to a live twin---continuous streaming ingestion, topology-drift repair and production actuation---is reported as designed.

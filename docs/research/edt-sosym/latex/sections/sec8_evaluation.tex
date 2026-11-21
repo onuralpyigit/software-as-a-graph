@@ -60,14 +60,15 @@ R4/R6 & Hybrid two-tiered protocol: calibrated Tier-1 runtime sweeps stay JSON-s
 
 Table~\ref{tab:identifiability} (\S\ref{sec:identifiability}) gives the result [P]:
 \begin{itemize}[leftmargin=*,nosep]
-  \item topic rates are recovered within 3\% median error;
-  \item service-time means and CVs within 1\%;
-  \item trigger policies are always correct when the trace contains a discriminating outage, and abstained on otherwise;
-  \item staleness windows and burst ratios are not identifiable.
+  \item topic rates are recovered within 3\% median error (robust to mid-run outages);
+  \item application service-time means and CVs within 1\%, and broker service times from \texttt{saag.forward} in both simulator and testbed relays;
+  \item MMPP workload burstiness (\emph{burst ratio}, \emph{burst fraction}, \emph{mean burst length}) is recovered on bursty topics with zero false positives on periodic, Poisson or crashed periodic traces;
+  \item trigger policies (including \texttt{k\_of\_n:$K$}) are always correct when the trace contains a discriminating outage, and abstained on otherwise;
+  \item staleness windows are not identifiable.
 \end{itemize}
-On the counterpart itself, the in-process calibration round trip recovers rates and service means, and identifies trigger policies, under an automated test [P]. Whether calibrating on counterpart telemetry improves simulator fidelity is H5 [S]: \tbd{H5 result: per-scenario median per-reader delivery error, S2 vs.\ S3}.
+On the counterpart itself, the in-process calibration round trip recovers rates, application and broker service means, and identifies trigger policies, under automated tests [P]. Whether calibrating on counterpart telemetry improves simulator fidelity is H5 [S]: \tbd{H5 result: per-scenario median per-reader delivery error, S2 vs.\ S3}.
 
-\textbf{Answer to RQ2.} Telemetry recovers the rate and service parameters that dominate queue-flow behaviour. It recovers reactive behaviour only when outages occur, and it cannot recover staleness or burstiness. The twin must keep carrying the uncertainty of those two parameters after deployment.
+\textbf{Answer to RQ2.} Telemetry recovers the rate, service (application and broker) and burstiness parameters that govern queue-flow behaviour. It recovers reactive trigger policies only when outages occur, and it cannot recover staleness windows. The twin must keep carrying the uncertainty of the staleness window after deployment.
 
 \subsection{RQ3: Fidelity of the simulators to the counterpart}
 
