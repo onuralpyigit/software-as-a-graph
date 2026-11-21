@@ -2229,6 +2229,21 @@ class MessageFlowSimulator:
                 from .runtime.workload import MMPP
                 workload = MMPP(self.burst_ratio, self.burst_fraction, self.mean_burst_s)
 
+        topic_workloads: Dict[str, Any] = {}
+        prof_workloads = (
+            getattr(self.telemetry_profile, "workload_params", None) or {}
+            if self.telemetry_profile is not None else {}
+        )
+        if workload is None and prof_workloads:
+            from .runtime.workload import MMPP
+            for tid, wp in prof_workloads.items():
+                if wp.get("model") == "mmpp":
+                    topic_workloads[tid] = MMPP(
+                        float(wp["burst_ratio"]),
+                        float(wp["burst_fraction"]),
+                        float(wp["mean_burst_s"]),
+                    )
+
         for src, tgt, _ in pub_edges:
             topic_node = self.graph.nodes[tgt] if tgt in self.graph.nodes else {}
             rate = self.generate_workload(tgt)
@@ -2237,6 +2252,13 @@ class MessageFlowSimulator:
                 (siblings.index(src) / len(siblings)) / rate
                 if rate > 0 and len(siblings) > 1 else 0.0
             )
+            wp = prof_workloads.get(tgt)
+            use_poisson = (
+                wp.get("model") == "poisson"
+                if (workload is None and wp is not None and wp.get("model") in ("periodic", "poisson"))
+                else str(topic_node.get("workload_type", "")).lower() == "poisson"
+            )
+            pub_workload = workload if workload is not None else topic_workloads.get(tgt)
             env.process(_publisher_process(
                 env=env,
                 app_id=src,
@@ -2253,7 +2275,7 @@ class MessageFlowSimulator:
                     0.0 if self._calibration_active
                     else proc_time.get(src, self.default_processing_time_s)
                 ),
-                use_poisson=str(topic_node.get("workload_type", "")).lower() == "poisson",
+                use_poisson=use_poisson,
                 phase_offset_s=phase,
                 payload_size_bytes=(
                     int(self.topic_payload_bytes(tgt)) if self.payload_model == "size"
@@ -2261,7 +2283,7 @@ class MessageFlowSimulator:
                 ),
                 behavior=behavior,
                 runtime=runtime,
-                workload=workload,
+                workload=pub_workload,
                 recorder=recorder,
                 status=status,
             ))

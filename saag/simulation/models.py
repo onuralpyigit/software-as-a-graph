@@ -300,7 +300,11 @@ class RuntimeTelemetryProfile:
     custom_starvation_bounds: Dict[str, float] = field(default_factory=dict) # app_id -> custom threshold
     #: app_id -> {"dist": "exponential" | "lognormal", "mean_s": float, "cv": float, "n": int}
     service_time_dist: Dict[str, Dict[str, Any]] = field(default_factory=dict)
-    #: app_id -> inferred trigger policy ("periodic" | "all_of" | "any_of"), with evidence
+    #: broker_id -> {"dist": "exponential" | "lognormal", "mean_s": float, "cv": float, "n": int}
+    broker_service_time_dist: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    #: topic_id -> {"model": "periodic" | "poisson" | "mmpp", "cv": float, "fano": float, "n": int, ...}
+    workload_params: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    #: app_id -> inferred trigger policy ("periodic" | "all_of" | "any_of" | "k_of_n:K"), with evidence
     trigger_policy: Dict[str, str] = field(default_factory=dict)
     trigger_evidence: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     #: Where the numbers came from (source, window, sample counts).

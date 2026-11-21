@@ -55,7 +55,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 from .models import RuntimeTelemetryProfile
 
 EVENT_NAMES = ("saag.publish", "saag.deliver", "saag.deadline_miss", "saag.drop", "saag.state",
-               "saag.status")
+               "saag.status", "saag.forward")
 
 
 def make_event(t: float, name: str, app: str, topic: Optional[str] = None, **attrs: Any) -> Dict[str, Any]:
@@ -335,6 +335,119 @@ def fit_service_time(samples_s: Sequence[float]) -> Optional[Dict[str, Any]]:
     return {"dist": dist, "mean_s": mean, "cv": cv, "n": len(xs)}
 
 
+def fit_workload_burstiness(
+    timestamps: Sequence[float],
+    start_s: float,
+    end_s: float,
+) -> Optional[Dict[str, Any]]:
+    """Classify a topic's arrival process (periodic / poisson / mmpp) and fit MMPP parameters.
+
+    Excludes long silence gaps (outages) before computing inter-arrival CV and
+    binned count Fano factor, so a mid-run crash is not mistaken for burstiness.
+    """
+    ts = sorted(timestamps)
+    if len(ts) < 30 or end_s <= start_s:
+        return None
+    med_gap = _median_gap(ts)
+    if not math.isfinite(med_gap) or med_gap <= 0:
+        return None
+    outage_thresh = max(5.0, 10.0 * med_gap)
+
+    gaps: List[float] = []
+    outages: List[Tuple[float, float]] = []
+    if ts[0] - start_s > outage_thresh:
+        outages.append((start_s, ts[0]))
+    for a, b in zip(ts, ts[1:]):
+        g = b - a
+        if g > outage_thresh:
+            outages.append((a, b))
+        elif g > 0:
+            gaps.append(g)
+    if end_s - ts[-1] > outage_thresh:
+        outages.append((ts[-1], end_s))
+    if len(gaps) < 20:
+        return None
+
+    mean_gap = statistics.fmean(gaps)
+    cv = statistics.stdev(gaps) / mean_gap if mean_gap > 0 else 0.0
+
+    bin_w = max(0.25, min(1.0, 5.0 * mean_gap))
+    n_bins = int((end_s - start_s) // bin_w)
+    if n_bins < 2:
+        return None
+
+    bin_counts = [0] * n_bins
+    for t in ts:
+        idx = int((t - start_s) // bin_w)
+        if 0 <= idx < n_bins:
+            bin_counts[idx] += 1
+
+    active_counts: List[int] = []
+    for i in range(n_bins):
+        lo = start_s + i * bin_w
+        hi = lo + bin_w
+        if any(lo < ob and hi > oa for oa, ob in outages):
+            continue
+        active_counts.append(bin_counts[i])
+
+    if len(active_counts) < 2:
+        fano = 0.0
+    else:
+        mean_c = statistics.fmean(active_counts)
+        fano = statistics.variance(active_counts) / mean_c if mean_c > 0 else 0.0
+
+    if cv < 0.25:
+        return {"model": "periodic", "cv": cv, "fano": fano, "n": len(ts)}
+
+    if cv > 1.15 and fano > 1.5 and len(active_counts) >= 10:
+        rates = [c / bin_w for c in active_counts]
+        mean_rate = statistics.fmean(rates)
+        if mean_rate > 0:
+            sr = sorted(rates)
+            m = len(sr)
+            c_lo = sr[int(0.25 * (m - 1))]
+            c_hi = sr[int(0.90 * (m - 1))]
+            if c_hi > c_lo:
+                for _ in range(15):
+                    lo_grp = [r for r in rates if abs(r - c_lo) <= abs(r - c_hi)]
+                    hi_grp = [r for r in rates if abs(r - c_hi) < abs(r - c_lo)]
+                    if not lo_grp or not hi_grp:
+                        break
+                    new_lo, new_hi = statistics.fmean(lo_grp), statistics.fmean(hi_grp)
+                    if abs(new_lo - c_lo) < 1e-9 and abs(new_hi - c_hi) < 1e-9:
+                        break
+                    c_lo, c_hi = new_lo, new_hi
+                is_burst = [abs(r - c_hi) < abs(r - c_lo) for r in rates]
+                burst_rates = [r for r, b in zip(rates, is_burst) if b]
+                if burst_rates and len(burst_rates) < len(rates):
+                    raw_frac = len(burst_rates) / len(rates)
+                    burst_fraction = min(0.45, max(0.02, raw_frac))
+                    raw_ratio = statistics.fmean(burst_rates) / mean_rate
+                    burst_ratio = min(0.95 / burst_fraction, max(1.2, raw_ratio))
+                    runs: List[int] = []
+                    cur = 0
+                    for b in is_burst:
+                        if b:
+                            cur += 1
+                        elif cur:
+                            runs.append(cur)
+                            cur = 0
+                    if cur:
+                        runs.append(cur)
+                    mean_burst_s = max(bin_w, statistics.fmean(runs) * bin_w) if runs else bin_w
+                    return {
+                        "model": "mmpp",
+                        "burst_ratio": burst_ratio,
+                        "burst_fraction": burst_fraction,
+                        "mean_burst_s": mean_burst_s,
+                        "cv": cv,
+                        "fano": fano,
+                        "n": len(ts),
+                    }
+
+    return {"model": "poisson", "cv": cv, "fano": fano, "n": len(ts)}
+
+
 class TelemetryCalibrator:
     """Map an observed `TelemetryTrace` onto a `RuntimeTelemetryProfile`."""
 
@@ -348,6 +461,7 @@ class TelemetryCalibrator:
         dur = tr.duration_s
         pub_times: Dict[str, List[float]] = defaultdict(list)
         service: Dict[str, List[float]] = defaultdict(list)
+        broker_service: Dict[str, List[float]] = defaultdict(list)
         for e in tr.events:
             if e["kind"] == "publish" and e["topic"]:
                 pub_times[e["topic"]].append(e["t"])
@@ -355,6 +469,8 @@ class TelemetryCalibrator:
             # fast survivors (45% low on atm A11).
             elif e["kind"] in ("deliver", "deadline_miss") and e["service_ms"] is not None:
                 service[e["app"]].append(float(e["service_ms"]) / 1000.0)
+            elif e["kind"] == "forward" and e["app"] and e["service_ms"] is not None:
+                broker_service[e["app"]].append(float(e["service_ms"]) / 1000.0)
         if dur > 0:
             rates: Dict[str, float] = {}
             for t, ts in sorted(pub_times.items()):
@@ -367,11 +483,18 @@ class TelemetryCalibrator:
                         silent = sum(g - med_gap for g in gaps if g > outage_thresh)
                         active_dur = max(1e-9, dur - silent)
                 rates[t] = len(ts) / active_dur
+                wfit = fit_workload_burstiness(ts, tr.start_s, tr.end_s)
+                if wfit is not None:
+                    prof.workload_params[t] = wfit
             prof.msg_rate_per_sec = rates
         for app, xs in sorted(service.items()):
             fit = fit_service_time(xs)
             if fit is not None:
                 prof.service_time_dist[app] = fit
+        for broker, xs in sorted(broker_service.items()):
+            fit = fit_service_time(xs)
+            if fit is not None:
+                prof.broker_service_time_dist[broker] = fit
         if self.infer_policies:
             for app in tr.apps():
                 policy, ev = infer_trigger_policy(tr, app)

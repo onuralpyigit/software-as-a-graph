@@ -267,6 +267,17 @@ class RuntimeController:
                               if self.sim._calibration_active else "uniform"),
                 calibrated=calibrated, measure_from=self.sim.warmup_s,
             )
+        prof = getattr(self.sim, "telemetry_profile", None)
+        if prof is not None:
+            broker_fits = getattr(prof, "broker_service_time_dist", None) or {}
+            for br, fit in sorted(broker_fits.items()):
+                st = self.broker_stations.get(br)
+                if st is None:
+                    continue
+                st.service_time_s = float(fit["mean_s"])
+                st.distribution = "exponential" if fit.get("dist") == "exponential" else "lognormal"
+                st.cv = float(fit.get("cv", 1.0))
+                st.calibrated = False
 
     def _share_host_cpu(self) -> None:
         """Co-located applications queue for one host CPU (RUNS_ON).
@@ -390,6 +401,10 @@ class RuntimeController:
                     reason="broker_down", **{"messaging.message.id": msg.msg_id}))
             fanout.publish_lost(msg)
             return
+        if self.recorder is not None:
+            self.recorder.append(make_event(
+                self.env.now, "saag.forward", broker, msg.topic_id,
+                service_ms=service * 1000.0, **{"messaging.message.id": msg.msg_id}))
         gate = (lambda sub: self._reachable(broker, sub)) if self.fabric is not None else None
         fanout.publish(msg, self.failed, gate=gate)
 

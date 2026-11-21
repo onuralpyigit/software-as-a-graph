@@ -278,14 +278,16 @@ class SimulationService:
 
     def run_runtime_sweep(self, candidates: Optional[List[str]] = None, seeds: Sequence[int] = (42,),
                           settings: Optional[Dict[str, Any]] = None, fault: Optional[Dict[str, Any]] = None,
-                          workers: int = 1, parameter_draws: int = 0) -> Dict[str, Any]:
+                          workers: int = 1, parameter_draws: int = 0,
+                          parameter_sampling: str = "lhs") -> Dict[str, Any]:
         """Runtime labels for the stored topology (`saag.simulation.runtime.labels`)."""
         from saag.core.graph_io import build_graph_from_json
         from .runtime.labels import runtime_labels
 
         graph = build_graph_from_json(self.repository.export_json())
         return runtime_labels(graph, candidates=candidates, seeds=seeds, settings=settings, fault=fault,
-                              workers=workers, parameter_draws=parameter_draws)
+                              workers=workers, parameter_draws=parameter_draws,
+                              parameter_sampling=parameter_sampling)
 
     def generate_report(self, layers: Optional[List[str]] = None,
                         classify_edges: bool = False) -> SimulationReport:

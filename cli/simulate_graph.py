@@ -427,6 +427,7 @@ def _run_runtime_sweep(args: argparse.Namespace) -> None:
     out = runtime_labels(graph, candidates=candidates, seeds=seeds,
                          settings=settings, fault=fault, workers=args.workers,
                          parameter_draws=args.parameter_draws,
+                         parameter_sampling=getattr(args, "parameter_sampling", "lhs"),
                          telemetry_profile=telemetry_profile)
     elapsed = time.perf_counter() - t0
     out_json = output_dir / "runtime_labels.json"
@@ -1187,7 +1188,10 @@ def _build_parser() -> argparse.ArgumentParser:
                          "utilisation RHO, so --overload-model has something to act on.")
     rs.add_argument("--parameter-draws", type=int, default=0, metavar="N",
                     help="Repeat the sweep under N draws of the guessed parameters and report "
-                         "each label's rank stability across them.  Default: 0 (off)")
+                         "each label's rank stability, CVaR risk, and parameter sensitivity.  "
+                         "Default: 0 (off)")
+    rs.add_argument("--parameter-sampling", choices=("lhs", "sobol", "random"), default="lhs",
+                    help="Design sampling method for --parameter-draws.  Default: lhs")
     rs.add_argument("--workers", type=int, default=1,
                     help="Parallel workers (one seed per worker).  Default: 1")
     rs.add_argument("--profile", default=None, metavar="PROFILE.json",

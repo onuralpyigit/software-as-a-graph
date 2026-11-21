@@ -511,6 +511,12 @@ class BrokerRelay:
             if self.control.crashed:
                 continue
             mean = float(self.spec["service_mean_s"]) * self.control.slowdown
+            t0 = self.clock()
             if mean > 0:
                 time.sleep(self.rng.expovariate(1.0 / mean))
+            done = self.clock()
+            self.sink.emit(make_event(
+                done, "saag.forward", self.broker, topic,
+                service_ms=(done - t0) * 1000.0,
+                **{"messaging.message.id": sample.get("msg_id")}))
             self._out[topic](sample)

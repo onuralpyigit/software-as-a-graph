@@ -65,7 +65,15 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, 
 from saag.core.graph_io import topology_fingerprint
 
 from .faults import FaultSpec
-from .uncertainty import PARAMETER_RANGES, inert_parameters, rank_stability, sample_settings
+from .uncertainty import (
+    PARAMETER_RANGES,
+    cvar_ranking,
+    inert_parameters,
+    parameter_sensitivity,
+    rank_stability,
+    risk_summary,
+    sample_design,
+)
 
 #: Runtime-oracle settings. Kept separate from the published I_dyn settings
 #: (reproduce/oracle_robust_ltr.py:IDYN_SETTINGS) so that cache key never moves.
@@ -347,6 +355,8 @@ def runtime_labels(
     parameter_draws: int = 0,
     parameter_ranges: Mapping[str, Any] = PARAMETER_RANGES,
     telemetry_profile: Optional[Any] = None,
+    parameter_sampling: str = "lhs",
+    risk_alpha: float = 0.9,
 ) -> Dict[str, Any]:
     """Fault every candidate under every seed; return labels, references, stability.
 
@@ -416,7 +426,7 @@ def runtime_labels(
     if parameter_draws > 0:
         extra["parameter_stability"] = _parameter_stability(
             graph, cands, seeds[0], cfg, fault, workers, parameter_draws,
-            parameter_ranges, telemetry_profile)
+            parameter_ranges, telemetry_profile, parameter_sampling, risk_alpha)
     return {
         "schema_version": "1.1",
         "graph_id": graph.graph.get("id", ""),
@@ -434,21 +444,48 @@ def runtime_labels(
     }
 
 
-def _parameter_stability(graph, cands, seed, cfg, fault, workers, draws, ranges,
-                         telemetry_profile=None) -> Dict[str, Any]:
-    """Rank stability of each label across parameter draws, at one fixed seed."""
-    rng = random.Random(seed)
-    settings = [sample_settings(rng, ranges) for _ in range(draws)]
+def _parameter_stability(
+    graph,
+    cands,
+    seed,
+    cfg,
+    fault,
+    workers,
+    draws,
+    ranges,
+    telemetry_profile=None,
+    sampling: str = "lhs",
+    risk_alpha: float = 0.9,
+) -> Dict[str, Any]:
+    """Rank stability, CVaR risk, and parameter sensitivity across parameter draws."""
+    settings = sample_design(draws, seed=seed, ranges=ranges, method=sampling)
     jobs = [(graph, cands, seed, {**cfg, **s}, fault, telemetry_profile) for s in settings]
     if workers > 1 and len(jobs) > 1:
         with ProcessPoolExecutor(max_workers=min(workers, len(jobs))) as pool:
             sweeps = [out for _, out in pool.map(_sweep_seed, jobs)]
     else:
         sweeps = [out for _, out in map(_sweep_seed, jobs)]
+    inert = inert_parameters(cfg, ranges)
     labels = {}
+    risk = {}
+    rankings = {}
+    sensitivity = {}
     for name in LABEL_NAMES:
         per_draw = [{c: sweep[c][name] for c in cands if sweep[c][name] is not None} for sweep in sweeps]
         if any(per_draw):
             labels[name] = {k: v for k, v in rank_stability(per_draw).items() if k not in ("mean", "std")}
-    return {"draws": draws, "seed": seed, "settings": settings,
-            "inert": inert_parameters(cfg, ranges), "labels": labels}
+            risk[name] = risk_summary(per_draw, alpha=risk_alpha)
+            rankings[name] = cvar_ranking(per_draw, alpha=risk_alpha)
+            sensitivity[name] = parameter_sensitivity(settings, per_draw, inert=inert)
+    return {
+        "draws": draws,
+        "seed": seed,
+        "sampling": sampling,
+        "risk_alpha": risk_alpha,
+        "settings": settings,
+        "inert": inert,
+        "labels": labels,
+        "risk": risk,
+        "cvar_ranking": rankings,
+        "sensitivity": sensitivity,
+    }
