@@ -5,9 +5,10 @@ Provides analytical pub-sub network and broker load estimation for a set of
 selected topics given a message frequency (Hz) and duration.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 import logging
 
+from api.dependencies import get_repository
 from api.models import (
     TrafficTopicsRequest,
     TopicsListResponse,
@@ -15,6 +16,7 @@ from api.models import (
     TrafficSimulationRequest,
     TrafficSimulationResponse,
 )
+from saag.core.ports.graph_repository import IGraphRepository
 from saag.simulation.traffic_simulator import TrafficSimulator
 
 router = APIRouter(prefix="/api/v1/traffic", tags=["traffic"])
@@ -22,21 +24,18 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/topics", response_model=TopicsListResponse)
-async def list_topics(request: TrafficTopicsRequest):
+async def list_topics(
+    request: TrafficTopicsRequest,
+    repo: IGraphRepository = Depends(get_repository),
+):
     """
     Return all Topic nodes in the graph together with publisher/subscriber/broker metadata.
 
     This endpoint is used to populate the topic multi-select on the traffic
     simulator page.
     """
-    creds = request.credentials
     try:
-        sim = TrafficSimulator(
-            uri=creds.uri,
-            user=creds.user,
-            password=creds.password,
-            database=creds.database,
-        )
+        sim = TrafficSimulator(repo)
         topics = sim.get_all_topics()
         return TopicsListResponse(success=True, count=len(topics), topics=topics)
     except Exception as exc:
@@ -45,21 +44,18 @@ async def list_topics(request: TrafficTopicsRequest):
 
 
 @router.post("/apps", response_model=AppsListResponse)
-async def list_apps(request: TrafficTopicsRequest):
+async def list_apps(
+    request: TrafficTopicsRequest,
+    repo: IGraphRepository = Depends(get_repository),
+):
     """
     Return all Application nodes with the topic IDs they publish/subscribe to.
 
     Used to populate the application selector on the traffic simulator page so
     users can select apps and automatically pull in all associated topics.
     """
-    creds = request.credentials
     try:
-        sim = TrafficSimulator(
-            uri=creds.uri,
-            user=creds.user,
-            password=creds.password,
-            database=creds.database,
-        )
+        sim = TrafficSimulator(repo)
         apps = sim.get_all_apps()
         return AppsListResponse(success=True, count=len(apps), apps=apps)
     except Exception as exc:
@@ -68,7 +64,10 @@ async def list_apps(request: TrafficTopicsRequest):
 
 
 @router.post("/simulate", response_model=TrafficSimulationResponse)
-async def simulate_traffic(request: TrafficSimulationRequest):
+async def simulate_traffic(
+    request: TrafficSimulationRequest,
+    repo: IGraphRepository = Depends(get_repository),
+):
     """
     Compute expected pub-sub traffic metrics for the selected topics.
 
@@ -79,14 +78,8 @@ async def simulate_traffic(request: TrafficSimulationRequest):
 
     All bandwidth values are in bytes per second (bps) unless suffixed otherwise.
     """
-    creds = request.credentials
     try:
-        sim = TrafficSimulator(
-            uri=creds.uri,
-            user=creds.user,
-            password=creds.password,
-            database=creds.database,
-        )
+        sim = TrafficSimulator(repo)
         result = sim.simulate(
             topic_ids=request.topic_ids,
             frequency_hz=request.frequency_hz,

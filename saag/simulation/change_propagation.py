@@ -203,6 +203,7 @@ class ChangePropagationSimulator:
           further. The stop condition only gates whether we continue BFS through u.
         """
         reached: Set[str] = set()
+        expanded: Set[str] = {source}
         depth_map: Dict[str, int] = {source: 0}
         queue: deque[str] = deque([source])
         # Track max edge weight along path to each reached node
@@ -213,7 +214,7 @@ class ChangePropagationSimulator:
             current_depth = depth_map[current]
 
             for (neighbor, edge_w) in gt_adj.get(current, []):
-                if neighbor in reached or neighbor == source:
+                if neighbor == source:
                     continue
 
                 # The edge connecting current to neighbor in G_analysis is:
@@ -221,18 +222,28 @@ class ChangePropagationSimulator:
                 # edge_w already carries this weight from the G^T construction.
 
                 # Always count the neighbor as reached (u must potentially adapt)
-                reached.add(neighbor)
-                depth_map[neighbor] = current_depth + 1
-                path_weight_map[neighbor] = max(
-                    path_weight_map.get(current, 0.0),
-                    edge_w,
-                )
+                if neighbor not in reached:
+                    reached.add(neighbor)
+                    depth_map[neighbor] = current_depth + 1
+                    path_weight_map[neighbor] = max(
+                        path_weight_map.get(current, 0.0),
+                        edge_w,
+                    )
+                else:
+                    path_weight_map[neighbor] = max(
+                        path_weight_map[neighbor],
+                        path_weight_map.get(current, 0.0),
+                        edge_w,
+                    )
 
                 # --- Stop conditions (gate further propagation through neighbor) ---
+                # Keep `expanded` separate from `reached` so a tight-coupling path
+                # still expands a node that was previously touched only by a loose edge.
                 stop_loose = edge_w < self.theta_loose
                 stop_stable = instability.get(neighbor, 0.5) < self.theta_stable
 
-                if not (stop_loose or stop_stable):
+                if neighbor not in expanded and not (stop_loose or stop_stable):
+                    expanded.add(neighbor)
                     queue.append(neighbor)
 
         # --- Compute sub-metrics ---

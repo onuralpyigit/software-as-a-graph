@@ -136,3 +136,19 @@ def test_classify_edges_is_populated():
 
     assert isinstance(edges, list)
     assert edges, "edge criticality must be populated by the removal sweep"
+
+
+def test_sweep_include_unevaluated_returns_unmeasured_edges(simulator):
+    """Opt-in include_unevaluated=True appends non-candidate edges with evaluated=False."""
+    only_pub = [("P0", "T0", "PUBLISHES_TO")]
+    results = simulator.simulate_edge_removal_sweep(
+        candidates=only_pub, include_unevaluated=True
+    )
+
+    evaluated = [e for e in results if e.evaluated]
+    unevaluated = [e for e in results if not e.evaluated]
+
+    assert len(evaluated) == 1
+    assert (evaluated[0].source, evaluated[0].target) == ("P0", "T0")
+    assert unevaluated, "remaining graph edges must be emitted with evaluated=False"
+    assert len(results) == simulator.graph.graph.number_of_edges()

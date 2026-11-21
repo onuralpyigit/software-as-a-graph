@@ -254,7 +254,8 @@ class SimulationService:
     def run_failure_simulation_pairwise(self, layer: str = "system", cascade_probability: float = 1.0,
                                         library_cascade_probability: Optional[float] = None,
                                         propagation_threshold: float = 0.2,
-                                        failure_mode: FailureMode = FailureMode.CRASH) -> List[Any]:
+                                        failure_mode: FailureMode = FailureMode.CRASH,
+                                        seed: Optional[int] = 42) -> List[Any]:
         """Run pairwise failure analysis for all component pairs in a layer.
 
         Primes the same discrete-event baseline the exhaustive sweep uses: the
@@ -268,6 +269,7 @@ class SimulationService:
             scenario_template=self._sweep_scenario(
                 failure_mode, cascade_probability, library_cascade_probability),
             layer=layer,
+            seed=seed,
         )
 
     # =========================================================================
@@ -285,9 +287,11 @@ class SimulationService:
         return runtime_labels(graph, candidates=candidates, seeds=seeds, settings=settings, fault=fault,
                               workers=workers, parameter_draws=parameter_draws)
 
-    def generate_report(self, layers: List[str] = ["app", "infra", "mw", "system"],
+    def generate_report(self, layers: Optional[List[str]] = None,
                         classify_edges: bool = False) -> SimulationReport:
         """Generate a simulation report across layers without redundant execution passes."""
+        if layers is None:
+            layers = ["app", "infra", "mw", "system"]
         graph, fail_sim = self._failure_sim()
         report_timestamp = datetime.now().isoformat()
 
@@ -399,7 +403,13 @@ class SimulationService:
             ev_impact = min(1.0, throughput / 1000.0) if ev_res else 0.0
 
             fail_imp = r.impact.composite_impact
-            combined = (fail_imp * _FAILURE_IMPACT_SHARE) + (ev_impact * _EVENT_IMPACT_SHARE)
+            if ev_res is not None:
+                combined = (fail_imp * _FAILURE_IMPACT_SHARE) + (ev_impact * _EVENT_IMPACT_SHARE)
+            else:
+                # Non-publisher components (Brokers, Nodes, Libraries, pure sinks)
+                # have no publisher event record; use their failure impact directly
+                # rather than deflating them by 30%.
+                combined = fail_imp
 
             out.append(ComponentCriticality(
                 id=comp_id,
@@ -436,9 +446,17 @@ class SimulationService:
         return report.layer_metrics.get(layer, LayerMetrics(layer=layer))
 
     def classify_components(self, layer: str = "system", k_factor: float = 1.5) -> List[Any]:
-        """Classify components by criticality based on simulation results."""
+        """Classify components by criticality based on simulation results.
+
+        ``k_factor`` is retained for API compatibility with box-plot callers and
+        is unused by the fixed-band simulation classifier.
+        """
         return self.generate_report(layers=[layer]).component_criticality
 
     def classify_edges(self, layer: str = "system", k_factor: float = 1.5) -> List[Any]:
-        """Classify edges by criticality, measured by actually removing each one."""
+        """Classify edges by criticality, measured by actually removing each one.
+
+        ``k_factor`` is retained for API compatibility with box-plot callers and
+        is unused by the edge-removal sweep.
+        """
         return self.generate_report(layers=[layer], classify_edges=True).edge_criticality

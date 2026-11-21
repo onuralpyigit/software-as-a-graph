@@ -29,25 +29,34 @@ Metrics:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Set
 
-from saag.infrastructure import create_repository
+from saag.core.ports.graph_repository import IGraphRepository
 
 
 class TrafficSimulator:
     """
     Analytical pub-sub traffic load estimator.
 
-    Fetches topology data from Neo4j and computes expected network and broker
-    utilisation for a given set of topics, frequency, and duration.
+    Reads raw structural topology data through an ``IGraphRepository`` port
+    (supporting both ``MemoryRepository`` and ``Neo4jRepository``) and computes
+    expected network and broker utilisation for a given set of topics,
+    frequency, and duration.
     """
 
-    def __init__(self, uri: str, user: str, password: str, database: str = "neo4j"):
-        self.uri = uri
-        self.user = user
-        self.password = password
-        self.database = database
+    def __init__(self, repository: IGraphRepository):
+        self.repository = repository
         self.logger = logging.getLogger(__name__)
+
+    @classmethod
+    def from_neo4j(
+        cls, uri: str, user: str, password: str, database: str = "neo4j"
+    ) -> "TrafficSimulator":
+        """Convenience constructor backed by a Neo4jRepository."""
+        from saag.infrastructure.neo4j_repo import Neo4jRepository
+
+        return cls(Neo4jRepository(uri=uri, user=user, password=password, database=database))
 
     # ------------------------------------------------------------------
     # Public API
@@ -57,111 +66,44 @@ class TrafficSimulator:
         """
         Return all Application nodes with the topic IDs they publish/subscribe to.
         """
-        repo = create_repository(self.uri, self.user, self.password)
-        try:
-            with repo.driver.session(database=repo.database) as session:
-                result = session.run(
-                    """
-                    MATCH (a:Application)
-                    OPTIONAL MATCH (a)-[:PUBLISHES_TO]->(pt:Topic)
-                    WITH a, collect(DISTINCT pt.id) AS pub_ids
-                    OPTIONAL MATCH (a)-[:SUBSCRIBES_TO]->(st:Topic)
-                    WITH a, pub_ids, collect(DISTINCT st.id) AS sub_ids
-                    RETURN
-                        a.id                       AS id,
-                        COALESCE(a.name, a.id)     AS name,
-                        COALESCE(a.weight, 0.5)    AS weight,
-                        a.role                     AS role,
-                        a.hotstandby               AS hotstandby,
-                        a.criticality              AS criticality,
-                        pub_ids,
-                        sub_ids
-                    ORDER BY name
-                    """
-                )
-                apps: List[Dict[str, Any]] = []
-                for rec in result:
-                    apps.append(
-                        {
-                            "id": rec["id"],
-                            "name": rec["name"],
-                            "weight": float(rec["weight"]),
-                            "role": rec["role"],
-                            # hotstandby, criticality are optional — only include when
-                            # the property exists on the node (not null/missing)
-                            "hotstandby": rec["hotstandby"],
-                            "criticality": rec["criticality"],
-                            "pub_topic_ids": list(rec["pub_ids"]),
-                            "sub_topic_ids": list(rec["sub_ids"]),
-                        }
-                    )
-                return apps
-        finally:
-            repo.close()
+        graph = self.repository.get_graph_data(include_raw=True)
+        pub_by_app: Dict[str, Set[str]] = defaultdict(set)
+        sub_by_app: Dict[str, Set[str]] = defaultdict(set)
+        topic_ids = {c.id for c in graph.components if c.component_type == "Topic"}
+
+        for edge in graph.edges:
+            rel = (edge.relation_type or "").upper()
+            if rel == "PUBLISHES_TO" and edge.target_id in topic_ids:
+                pub_by_app[edge.source_id].add(edge.target_id)
+            elif rel == "SUBSCRIBES_TO" and edge.target_id in topic_ids:
+                sub_by_app[edge.source_id].add(edge.target_id)
+
+        apps: List[Dict[str, Any]] = []
+        for comp in graph.components:
+            if comp.component_type != "Application":
+                continue
+            props = comp.properties or {}
+            apps.append(
+                {
+                    "id": comp.id,
+                    "name": props.get("name") or comp.id,
+                    "weight": float(comp.weight if comp.weight is not None else 0.5),
+                    "role": props.get("role"),
+                    "hotstandby": props.get("hotstandby"),
+                    "criticality": props.get("criticality"),
+                    "pub_topic_ids": sorted(pub_by_app.get(comp.id, ())),
+                    "sub_topic_ids": sorted(sub_by_app.get(comp.id, ())),
+                }
+            )
+        apps.sort(key=lambda a: a["name"])
+        return apps
 
     def get_all_topics(self) -> List[Dict[str, Any]]:
         """
         Return all Topic nodes with publisher/subscriber/broker metadata.
         """
-        repo = create_repository(self.uri, self.user, self.password)
-        try:
-            with repo.driver.session(database=repo.database) as session:
-                result = session.run(
-                    """
-                    MATCH (t:Topic)
-                    OPTIONAL MATCH (pub)-[:PUBLISHES_TO]->(t)
-                      WHERE pub:Application OR pub:Library
-                    WITH t, count(DISTINCT pub) AS pub_count
-                    OPTIONAL MATCH (sub)-[:SUBSCRIBES_TO]->(t)
-                      WHERE sub:Application OR sub:Library
-                    WITH t, pub_count, count(DISTINCT sub) AS sub_count
-                    OPTIONAL MATCH (b:Broker)-[:ROUTES]->(t)
-                    WITH t, pub_count, sub_count,
-                         collect(DISTINCT b.id)   AS broker_ids,
-                         collect(DISTINCT COALESCE(b.name, b.id)) AS broker_names
-                    RETURN
-                        t.id                   AS id,
-                        COALESCE(t.name, t.id) AS name,
-                        COALESCE(t.weight, 0.01) AS weight,
-                        pub_count,
-                        sub_count,
-                        broker_ids,
-                        broker_names,
-                        t.qos_reliability          AS qos_reliability,
-                        t.qos_durability           AS qos_durability,
-                        t.qos_transport_priority   AS qos_transport_priority,
-                        COALESCE(t.size, 0)        AS size,
-                        COALESCE(t.topic_frequency, 10.0) AS frequency,
-                        t.topic_criticality        AS criticality,
-                        t.qos_deadline_ms          AS deadline_ms,
-                        COALESCE(t.qos_history_depth, 10) AS history_depth
-                    ORDER BY t.id
-                    """
-                )
-                topics: List[Dict[str, Any]] = []
-                for rec in result:
-                    topics.append(
-                        {
-                            "id": rec["id"],
-                            "name": rec["name"],
-                            "weight": float(rec["weight"]),
-                            "publisher_count": int(rec["pub_count"]),
-                            "subscriber_count": int(rec["sub_count"]),
-                            "broker_ids": list(rec["broker_ids"]),
-                            "broker_names": list(rec["broker_names"]),
-                            "qos_reliability": rec["qos_reliability"],
-                            "qos_durability": rec["qos_durability"],
-                            "qos_transport_priority": rec["qos_transport_priority"],
-                            "size": int(rec["size"]),
-                            "frequency": float(rec["frequency"]),
-                            "criticality": rec["criticality"],
-                            "deadline_ms": float(rec["deadline_ms"]) if rec["deadline_ms"] is not None else None,
-                            "history_depth": int(rec["history_depth"]) if rec["history_depth"] is not None else 10,
-                        }
-                    )
-                return topics
-        finally:
-            repo.close()
+        topics_map = self._load_topic_metadata(default_frequency=10.0)
+        return [topics_map[tid] for tid in sorted(topics_map)]
 
     def simulate(
         self,
@@ -324,53 +266,80 @@ class TrafficSimulator:
     # Private helpers
     # ------------------------------------------------------------------
 
+    def _load_topic_metadata(
+        self,
+        topic_ids: Optional[List[str]] = None,
+        default_frequency: Optional[float] = None,
+    ) -> Dict[str, Dict[str, Any]]:
+        graph = self.repository.get_graph_data(include_raw=True)
+        allowed = set(topic_ids) if topic_ids is not None else None
+        comp_by_id = {c.id: c for c in graph.components}
+        messaging_types = {"Application", "Library"}
+
+        pubs_by_topic: Dict[str, Set[str]] = defaultdict(set)
+        subs_by_topic: Dict[str, Set[str]] = defaultdict(set)
+        brokers_by_topic: Dict[str, Set[str]] = defaultdict(set)
+
+        for edge in graph.edges:
+            rel = (edge.relation_type or "").upper()
+            src = comp_by_id.get(edge.source_id)
+            dst = comp_by_id.get(edge.target_id)
+            if rel == "PUBLISHES_TO":
+                if src is not None and src.component_type in messaging_types:
+                    pubs_by_topic[edge.target_id].add(edge.source_id)
+            elif rel == "SUBSCRIBES_TO":
+                if src is not None and src.component_type in messaging_types:
+                    subs_by_topic[edge.target_id].add(edge.source_id)
+            elif rel == "ROUTES":
+                if src is not None and src.component_type == "Broker":
+                    brokers_by_topic[edge.target_id].add(edge.source_id)
+                elif dst is not None and dst.component_type == "Broker":
+                    brokers_by_topic[edge.source_id].add(edge.target_id)
+
+        data: Dict[str, Dict[str, Any]] = {}
+        for comp in graph.components:
+            if comp.component_type != "Topic":
+                continue
+            if allowed is not None and comp.id not in allowed:
+                continue
+            props = comp.properties or {}
+            nested_qos = props.get("qos") if isinstance(props.get("qos"), dict) else {}
+
+            b_ids = sorted(brokers_by_topic.get(comp.id, ()))
+            b_names = [
+                (comp_by_id[bid].properties or {}).get("name") or bid
+                if bid in comp_by_id else bid
+                for bid in b_ids
+            ]
+
+            raw_freq = props.get("topic_frequency", props.get("frequency"))
+            freq = float(raw_freq) if raw_freq is not None else default_frequency
+            raw_deadline = props.get("qos_deadline_ms", props.get("deadline_ms"))
+            raw_history = props.get("qos_history_depth", props.get("history_depth"))
+
+            data[comp.id] = {
+                "id": comp.id,
+                "name": props.get("name") or comp.id,
+                "weight": float(comp.weight if comp.weight is not None else 0.01),
+                "publisher_count": len(pubs_by_topic.get(comp.id, ())),
+                "subscriber_count": len(subs_by_topic.get(comp.id, ())),
+                "broker_ids": b_ids,
+                "broker_names": b_names,
+                "qos_reliability": props.get("qos_reliability") or nested_qos.get("reliability"),
+                "qos_durability": props.get("qos_durability") or nested_qos.get("durability"),
+                "qos_transport_priority": (
+                    props.get("qos_transport_priority") or nested_qos.get("transport_priority")
+                ),
+                "size": int(props.get("size") or 0),
+                "frequency": freq,
+                "criticality": props.get("topic_criticality", props.get("criticality")),
+                "deadline_ms": float(raw_deadline) if raw_deadline is not None else None,
+                "history_depth": int(raw_history) if raw_history is not None else 10,
+            }
+        return data
+
     def _fetch_topic_data(self, topic_ids: List[str]) -> Dict[str, Dict[str, Any]]:
-        repo = create_repository(self.uri, self.user, self.password)
-        try:
-            with repo.driver.session(database=repo.database) as session:
-                result = session.run(
-                    """
-                    UNWIND $topic_ids AS topic_id
-                    MATCH (t:Topic {id: topic_id})
-                    OPTIONAL MATCH (pub)-[:PUBLISHES_TO]->(t)
-                      WHERE pub:Application OR pub:Library
-                    WITH t, count(DISTINCT pub) AS pub_count
-                    OPTIONAL MATCH (sub)-[:SUBSCRIBES_TO]->(t)
-                      WHERE sub:Application OR sub:Library
-                    WITH t, pub_count, count(DISTINCT sub) AS sub_count
-                    OPTIONAL MATCH (b:Broker)-[:ROUTES]->(t)
-                    WITH t, pub_count, sub_count,
-                         collect(DISTINCT b.id)   AS broker_ids,
-                         collect(DISTINCT COALESCE(b.name, b.id)) AS broker_names
-                    RETURN
-                        t.id                        AS id,
-                        COALESCE(t.name, t.id)      AS name,
-                        COALESCE(t.weight, 0.01)    AS weight,
-                        pub_count,
-                        sub_count,
-                        broker_ids,
-                        broker_names,
-                        COALESCE(t.size, 0)         AS size,
-                        COALESCE(t.topic_frequency, NULL) AS frequency
-                    """,
-                    topic_ids=topic_ids,
-                )
-                data: Dict[str, Dict[str, Any]] = {}
-                for rec in result:
-                    data[rec["id"]] = {
-                        "id": rec["id"],
-                        "name": rec["name"],
-                        "weight": float(rec["weight"]),
-                        "publisher_count": int(rec["pub_count"]),
-                        "subscriber_count": int(rec["sub_count"]),
-                        "broker_ids": list(rec["broker_ids"]),
-                        "broker_names": list(rec["broker_names"]),
-                        "size": int(rec["size"]) if rec["size"] is not None else 0,
-                        "frequency": float(rec["frequency"]) if rec["frequency"] is not None else None,
-                    }
-                return data
-        finally:
-            repo.close()
+        return self._load_topic_metadata(topic_ids=topic_ids, default_frequency=None)
 
     @staticmethod
     def _empty_result(

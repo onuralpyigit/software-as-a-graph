@@ -32,7 +32,11 @@ from .graph import SimulationGraph, NETWORK_TYPES
 from saag.core.network import evaluate, link_key, topic_load_mbps
 from .models import ComponentState, FailureMode, CascadeRule, FailureScenario, ImpactMetrics, CascadeEvent, FailureResult, MonteCarloResult, RuntimeTelemetryProfile
 from ._stats import derive_seed
-from saag.core.models import TOPIC_CRITICALITY_ORD, MAX_TOPIC_CRITICALITY_ORD
+from saag.core.models import (
+    TOPIC_CRITICALITY_ORD,
+    MAX_TOPIC_CRITICALITY_ORD,
+    canonical_criticality,
+)
 
 #: Split of the fragmentation term between "how many islands" and "how much QoS
 #: mass got stranded". Mirrors the 0.70/0.30 blend the IA(v) post-pass already used.
@@ -508,16 +512,20 @@ class FailureSimulator:
         candidates: Optional[List[Tuple[str, str, str]]] = None,
         layer: str = "system",
         top_q: int = 50,
+        include_unevaluated: bool = False,
     ) -> List["EdgeCriticality"]:
         """Measure every candidate edge, defaulting to bridges + top-betweenness.
 
         The candidate set is bounded on purpose: an exhaustive sweep is
         O(|E|) full impact recomputations, while the edges that can plausibly
         matter are the non-redundant ones (bridges) and the heavily traversed
-        ones (top edge-betweenness). Edges outside the set are returned with
-        ``evaluated=False`` rather than silently scored 0, so a consumer can tell
-        "measured as harmless" from "never measured".
+        ones (top edge-betweenness). By default only evaluated candidates are
+        returned; pass ``include_unevaluated=True`` to also append graph edges
+        outside the candidate set with ``evaluated=False`` so a consumer can
+        distinguish "measured as harmless" from "never measured".
         """
+        from saag.simulation.models import EdgeCriticality
+
         if candidates is None:
             candidates = self._select_edge_candidates(layer=layer, top_q=top_q)
 
@@ -534,9 +542,21 @@ class FailureSimulator:
             self._null_impact_cache = None
 
         results.sort(key=lambda e: e.combined_impact, reverse=True)
+
+        if include_unevaluated:
+            evaluated_pairs = {(src, dst) for src, dst, _ in candidates}
+            for src, dst, data in sorted(self.graph.graph.edges(data=True)):
+                if (src, dst) not in evaluated_pairs:
+                    results.append(EdgeCriticality(
+                        source=src,
+                        target=dst,
+                        relationship=data.get("relation", "UNKNOWN"),
+                        evaluated=False,
+                    ))
+
         self.logger.info(
             "Edge-removal sweep: %d candidates, %d with non-zero impact",
-            len(results), sum(1 for e in results if e.combined_impact > 1e-6),
+            len(candidates), sum(1 for e in results if e.evaluated and e.combined_impact > 1e-6),
         )
         return results
 
@@ -600,6 +620,7 @@ class FailureSimulator:
             List of FailureResult sorted by impact (highest first)
         """
         results = []
+        mc_cascades_by_target: Dict[str, List[List[str]]] = {}
 
         # Get components to analyze for the layer. Sorted because the underlying
         # component map follows repository insertion order, which is not stable
@@ -634,6 +655,7 @@ class FailureSimulator:
                     # the RM post-passes computed from them) come from one
                     # arbitrary draw is internally inconsistent.
                     trial_impacts: List[ImpactMetrics] = []
+                    trial_cascades: List[List[str]] = []
                     representative: Optional[FailureResult] = None
                     for trial in range(n_trials):
                         trial_scenario = FailureScenario(
@@ -649,10 +671,12 @@ class FailureSimulator:
                         )
                         trial_result = self.simulate(trial_scenario)
                         trial_impacts.append(trial_result.impact)
+                        trial_cascades.append(list(trial_result.cascaded_failures))
                         if representative is None:
                             representative = trial_result
                     result = representative
                     result.impact = _mean_impact_metrics(trial_impacts)
+                    mc_cascades_by_target[comp_id] = trial_cascades
                 else:
                     result = self.simulate(scenario)
                 results.append(result)
@@ -667,7 +691,7 @@ class FailureSimulator:
         # normalisation denominators (graph size, total weight, max observed
         # depth) are only known once every component has been simulated.
         dep_view = self._build_dependency_view()
-        self._postpass_fault_tolerance(results)
+        self._postpass_fault_tolerance(results, mc_cascades_by_target or None)
         self._postpass_maintainability(results, dep_view)
         self._postpass_availability(results)
 
@@ -705,7 +729,11 @@ class FailureSimulator:
             out_degrees=out_deg,
         )
 
-    def _postpass_fault_tolerance(self, results: List[FailureResult]) -> None:
+    def _postpass_fault_tolerance(
+        self,
+        results: List[FailureResult],
+        mc_cascades_by_target: Optional[Dict[str, List[List[str]]]] = None,
+    ) -> None:
         """IFT(v): how far and how heavily the runtime failure cascade spread."""
         total_components = len(self.graph.components)
         total_weight = sum(
@@ -719,13 +747,30 @@ class FailureSimulator:
         n = total_components - 1  # exclude the failed component itself
 
         for r in results:
-            cascaded_weight = sum(
-                getattr(self.graph.components[cid], "weight", 1.0)
-                for cid in r.cascaded_failures
-                if cid in self.graph.components
+            trial_cascades = (
+                mc_cascades_by_target.get(r.target_id)
+                if mc_cascades_by_target is not None else None
             )
-            r.impact.cascade_reach = len(r.cascaded_failures) / n if n > 0 else 0.0
-            r.impact.weighted_cascade_impact = cascaded_weight / total_weight
+            if trial_cascades:
+                r.impact.cascade_reach = (
+                    statistics.fmean(len(c) / n for c in trial_cascades) if n > 0 else 0.0
+                )
+                r.impact.weighted_cascade_impact = statistics.fmean(
+                    sum(
+                        getattr(self.graph.components[cid], "weight", 1.0)
+                        for cid in c
+                        if cid in self.graph.components
+                    ) / total_weight
+                    for c in trial_cascades
+                )
+            else:
+                cascaded_weight = sum(
+                    getattr(self.graph.components[cid], "weight", 1.0)
+                    for cid in r.cascaded_failures
+                    if cid in self.graph.components
+                )
+                r.impact.cascade_reach = len(r.cascaded_failures) / n if n > 0 else 0.0
+                r.impact.weighted_cascade_impact = cascaded_weight / total_weight
             r.impact.normalized_cascade_depth = (
                 r.impact.cascade_depth / max_observed_depth if max_observed_depth > 0 else 0.0
             )
@@ -779,7 +824,8 @@ class FailureSimulator:
     def simulate_pairwise(
         self,
         scenario_template: Optional[FailureScenario] = None,
-        layer: str = "app"
+        layer: str = "app",
+        seed: Optional[int] = 42,
     ) -> List[FailureResult]:
         """
         Run pairwise failure simulation for components in a layer.
@@ -790,12 +836,15 @@ class FailureSimulator:
         Args:
             scenario_template: Base scenario configuration
             layer: Layer to analyze
+            seed: Run-level seed making the sweep reproducible; each pair gets
+                a seed derived from ``(seed, f"{v1}+{v2}")``. Pass None for
+                free-running behaviour.
             
         Returns:
             List of FailureResult sorted by joint impact
         """
         results = []
-        component_ids = self.graph.get_analyze_components_by_layer(layer)
+        component_ids = sorted(self.graph.get_analyze_components_by_layer(layer))
         n = len(component_ids)
         
         self.logger.info(f"Running pairwise failure analysis: {n*(n-1)//2} pairs in layer '{layer}'")
@@ -810,10 +859,13 @@ class FailureSimulator:
                     scenario = FailureScenario(
                         target_ids=[v1, v2],
                         description=f"Pairwise failure: {v1}+{v2}",
+                        failure_mode=scenario_template.failure_mode if scenario_template else FailureMode.CRASH,
                         layer=layer,
                         cascade_rule=scenario_template.cascade_rule if scenario_template else CascadeRule.ALL,
                         cascade_probability=scenario_template.cascade_probability if scenario_template else 1.0,
                         library_cascade_probability=scenario_template.library_cascade_probability if scenario_template else None,
+                        max_cascade_depth=scenario_template.max_cascade_depth if scenario_template else 10,
+                        seed=self._derive_seed(seed, f"{v1}+{v2}"),
                     )
 
                     result = self.simulate(scenario)

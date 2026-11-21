@@ -397,7 +397,7 @@ ev = SimulationService(repo).run_event_simulation("A0", num_messages=50)
 print(ev.metrics.messages_published, ev.metrics.delivery_rate)
 ```
 
-**`TrafficSimulator`** ([`traffic_simulator.py`](../saag/simulation/traffic_simulator.py)) is a closed-form estimate of message rates and bandwidth per topic and per broker for a chosen topic set. A topic's publish rate is its publisher count × frequency; the delivery rate multiplies that by the subscriber count, and bandwidth by the message size. It produces no impact score. It connects to Neo4j itself (constructor `uri`, `user`, `password`) rather than taking a repository, and backs the REST traffic endpoint (`api/routers/traffic.py`).
+**`TrafficSimulator`** ([`traffic_simulator.py`](../saag/simulation/traffic_simulator.py)) is a closed-form estimate of message rates and bandwidth per topic and per broker for a chosen topic set. A topic's publish rate is its publisher count × frequency; the delivery rate multiplies that by the subscriber count, and bandwidth by the message size. It produces no impact score. It accepts an `IGraphRepository` (supporting both `MemoryRepository` and `Neo4jRepository`, with a `from_neo4j(...)` convenience constructor), and backs the REST traffic endpoint (`api/routers/traffic.py`).
 
 ---
 

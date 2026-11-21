@@ -317,3 +317,125 @@ def test_fault_injector_brokerless_topology_unaffected_by_router_term():
     injector = FaultInjector(g, seeds=[42], qos_factor_mode="none")
     result = injector.run(node_ids=["Pub1"])
     assert result.records["Pub1"].impact_score == pytest.approx(1.0)
+
+
+# --- FailureSimulator: use_topic_criticality=True previously raised NameError ---
+
+def test_use_topic_criticality_does_not_raise_name_error():
+    """canonical_criticality was called in _topic_criticality_norm without import."""
+    data = _pubsub_graph()
+    for c in data.components:
+        if c.id == "Topic1":
+            c.properties["criticality"] = "CRITICAL"
+    sim = FailureSimulator(SimulationGraph(graph_data=data), use_topic_criticality=True)
+    sev = sim.topic_severity("Topic1")
+    assert sev > 0.0
+    res = sim.simulate(FailureScenario(target_ids=["Broker1"], seed=42))
+    assert res.impact.composite_impact > 0.0
+
+
+# --- ChangePropagationSimulator: BFS must not depend on edge iteration order ---
+
+def test_change_propagation_order_independent_loose_then_tight():
+    """A node reached first via a loose edge must still expand if a tight path reaches it."""
+    from saag.simulation.change_propagation import ChangePropagationSimulator
+
+    # Graph (u, v, w) meaning u depends on v with weight w.
+    # In G^T:
+    #   S --(0.10, loose)--> X
+    #   S --(0.80, tight)--> M --(0.80, tight)--> X --(0.80, tight)--> Z
+    edges_loose_first = [
+        ("X", "S", 0.10),
+        ("M", "S", 0.80),
+        ("X", "M", 0.80),
+        ("Z", "X", 0.80),
+    ]
+    edges_tight_first = [
+        ("M", "S", 0.80),
+        ("X", "S", 0.10),
+        ("X", "M", 0.80),
+        ("Z", "X", 0.80),
+    ]
+    ids = ["S", "M", "X", "Z"]
+    in_deg = {"S": 2, "M": 1, "X": 1, "Z": 0}
+    out_deg = {"S": 0, "M": 1, "X": 2, "Z": 1}
+
+    sim = ChangePropagationSimulator(theta_loose=0.20, theta_stable=0.20)
+    res_loose = sim.simulate_all(ids, edges_loose_first, component_in_degrees=in_deg, component_out_degrees=out_deg)
+    res_tight = sim.simulate_all(ids, edges_tight_first, component_in_degrees=in_deg, component_out_degrees=out_deg)
+
+    assert res_loose["S"].reached_components == ["M", "X", "Z"]
+    assert res_tight["S"].reached_components == ["M", "X", "Z"]
+    assert res_loose["S"].change_reach == pytest.approx(res_tight["S"].change_reach)
+
+
+# --- FailureSimulator: Monte Carlo exhaustive post-pass & seeded pairwise ---
+
+def test_exhaustive_monte_carlo_averages_fault_tolerance_postpass():
+    """With n_trials > 1, cascade_reach and weighted_cascade_impact must be trial means."""
+    data = _pubsub_graph()
+    sim = FailureSimulator(SimulationGraph(graph_data=data))
+    template = FailureScenario(target_ids=["template"], cascade_probability=0.5)
+    results = sim.simulate_exhaustive(scenario_template=template, layer="system", n_trials=20, seed=42)
+    by_id = {r.target_id: r for r in results}
+
+    # Re-run the exact same 20 trial seeds for Broker1 and verify the mean matches
+    n_others = len(data.components) - 1
+    expected_reaches = []
+    for trial in range(20):
+        tr = sim.simulate(FailureScenario(
+            target_ids=["Broker1"],
+            cascade_probability=0.5,
+            seed=FailureSimulator._derive_seed(42, f"Broker1:{trial}"),
+        ))
+        expected_reaches.append(len(tr.cascaded_failures) / n_others)
+
+    assert by_id["Broker1"].impact.cascade_reach == pytest.approx(
+        sum(expected_reaches) / len(expected_reaches)
+    )
+
+
+def test_pairwise_simulation_is_deterministic_with_seed():
+    """Stochastic pairwise sweeps must reproduce identically under a fixed seed."""
+    data = _pubsub_graph()
+    template = FailureScenario(target_ids=["template"], cascade_probability=0.5)
+    sim1 = FailureSimulator(SimulationGraph(graph_data=data))
+    sim2 = FailureSimulator(SimulationGraph(graph_data=data))
+
+    r1 = sim1.simulate_pairwise(scenario_template=template, layer="system", seed=7)
+    r2 = sim2.simulate_pairwise(scenario_template=template, layer="system", seed=7)
+
+    assert [(r.scenario, r.target_id, r.impact.composite_impact) for r in r1] == [
+        (r.scenario, r.target_id, r.impact.composite_impact) for r in r2
+    ]
+
+
+def test_non_publisher_combined_impact_not_deflated():
+    """Brokers/Nodes/Libraries have no publisher event record; don't deflate by 30%."""
+    from saag.infrastructure.memory_repo import MemoryRepository
+    from saag.simulation.service import SimulationService
+
+    repo = MemoryRepository()
+    repo.save_graph({
+        "nodes": [{"id": "N0", "name": "host0"}],
+        "brokers": [{"id": "B0", "name": "broker0"}],
+        "topics": [{"id": "T0", "name": "/t0"}],
+        "applications": [
+            {"id": "P0", "name": "pub0"},
+            {"id": "S0", "name": "sub0"},
+        ],
+        "libraries": [],
+        "relationships": {
+            "runs_on": [{"from": "P0", "to": "N0"}, {"from": "S0", "to": "N0"}, {"from": "B0", "to": "N0"}],
+            "routes": [{"from": "B0", "to": "T0"}],
+            "publishes_to": [{"from": "P0", "to": "T0"}],
+            "subscribes_to": [{"from": "S0", "to": "T0"}],
+            "connects_to": [],
+            "uses": [],
+        },
+    }, clear=True)
+
+    report = SimulationService(repo).generate_report(layers=["system"])
+    by_id = {c.id: c for c in report.component_criticality}
+    assert by_id["B0"].combined_impact == pytest.approx(by_id["B0"].failure_impact)
+    assert by_id["N0"].combined_impact == pytest.approx(by_id["N0"].failure_impact)
