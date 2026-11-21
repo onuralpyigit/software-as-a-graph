@@ -78,7 +78,8 @@ def measured_run(tb: Path, duration: float, faults, seed: int) -> dict:
     with study.CpuSampler() as cpu:
         meta = orchestrate.run(tb, duration, faults, mode="docker", seed=seed)
     start = meta["start_unix"]
-    return {"meta": meta, "cpu_p95": cpu.p95_by_container(start + WARM_S, start + duration)}
+    return {"meta": meta, "cpu_p95": cpu.p95_by_container(start + WARM_S, start + duration),
+            "last_seen": cpu.last_seen()}
 
 
 def archive(tb: Path, dest: Path) -> None:
@@ -123,7 +124,8 @@ def attempt_run(tb, plan, duration, target, mid, kappa, key_seed):
             r = measured_run(tb, duration, faults, seed)
             trace = load_run(tb)
             why = study.run_validity(tb, plan, trace, target,
-                                     r["meta"]["start_unix"], mid if target else None, WARM_S / kappa)
+                                     r["meta"]["start_unix"], mid if target else None, WARM_S / kappa,
+                                     last_seen=r.get("last_seen"))
         except (subprocess.CalledProcessError, OSError, ValueError) as exc:
             r, trace, why = None, None, repr(exc)
         if why is None:

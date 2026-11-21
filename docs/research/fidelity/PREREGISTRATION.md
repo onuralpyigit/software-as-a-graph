@@ -283,7 +283,58 @@ Rate error was 0 at every step; CPU was the binding limit in both pilots. A fine
 
 ## 12. Amendments
 
-None yet.
+### Amendment 1: liveness of standby-only hosts (2026-11-21, before any simulator comparison)
+
+**Status when written.**
+- **Sweep progress:** the sweep had finished five of the nine scenarios: iot_smart_city, healthcare, hub_and_spoke, microservices and telecom_ran. It had also started `industrial_scada`, with 5 baselines and 44 fault runs recorded, all in condition O-open.
+- **Blinding:** no simulator arm had been run and no comparison with I_obs had been computed (§10 "Blinding"). The diagnosis below used only:
+  - the validity fields of the run records (`valid`, `failures`);
+  - the deployment plan;
+  - one host's raw telemetry log from the run in progress, read for timing only.
+- **No outcome known:** nothing that bears on H1–H5 was known when this amendment was written.
+
+**What prompted it.**
+- **The failures:** in `industrial_scada`, 31 of the first 80 attempts failed the §10 validity check (2 of 7 baseline attempts and 29 of 73 fault-run attempts). Every one failed for the same reason: `host stopped early: N4`, with N4's last log record 0.1–1.0 s after the run started.
+- **Effect so far:** target A22 lost one repetition after three failed attempts. At this rate the §10 lost-scenario rule (more than 10% of targets lost) would exclude the scenario.
+- **The cause is the check, not the host.** Both apps on N4 are hot-standby replicas:
+  - A21 also runs on N10, and A117 also runs on N16.
+  - In both cases the other replica has the lower id, so it is the active instance under the testbed's replica rule (`saag/testbed/runtime.py`).
+  - A warm standby "neither serves nor emits", so a healthy N4 has nothing to log once it has started.
+- **Why runs passed only sometimes:** N4 passed when its log happened to contain a late record, such as a DDS `requested_deadline_missed` status from a standby reader or deliveries after a takeover. That makes validity, and therefore which targets are lost, depend on incidental timing rather than on whether N4 was running.
+- **Scope of the problem:** among the nine included scenarios, N4 of `industrial_scada` is the only host on which every component is a standby replica and no broker runs. No other host is affected.
+
+**Original rule (§10 "Failed run", as implemented in `study.run_validity`).** Every host's telemetry log must exist and be non-empty. Its last record must lie within max(5 s, 10% of the run) of the end of the trace, except for a host that is the fault target.
+
+**Amended rule.**
+- **Standby-only hosts:** a *standby-only host* runs no broker, and every app on it is replicated with a lower-id replica on another host. Its log must still exist and be non-empty. Whether it stopped early is decided by container liveness instead of log recency: the host's container must appear in the `docker stats` samples already taken for CPU logging (§2) within max(5 s, 10% of the run) of the end.
+- **Every other host:** the original rule applies unchanged.
+- **Rest of §10:** the pre-fault rate-error bound, the two reruns and the lost-target and lost-scenario rules are unchanged.
+
+**Scope and re-run.**
+- **Where the new rule changes anything:** it differs from the original rule only on standby-only hosts. Among the nine scenarios the only such host is `industrial_scada`'s N4, so the classification of every run already recorded in the other five scenarios is unchanged.
+- **Re-running industrial_scada:** its runs recorded under the original rule are set aside, but kept and reported. The scenario is re-run from scratch, baselines and fault runs, in both conditions. It uses the registered seeds, target order and repetitions, so every run of the scenario is classified under one rule.
+- **Run order:** `industrial_scada` is run last. Moving it changes no seed: seeds are keyed by scenario, condition, target and repetition, not by execution order.
+
+**Cost of the amendment.**
+- **Machine time:** re-running `industrial_scada` adds the roughly 1.7 h already spent on it under the original rule.
+- **Blind spot:**
+  - A standby-only host whose agent hangs while its container keeps running would now pass the check. Such a host emits nothing even when healthy, so the original rule could not distinguish this case either.
+  - When a standby-only host takes over during a fault run, its deliveries are checked by the unchanged pre-fault rate-error bound and by the trace itself.
+- **Reported in the paper:**
+  - the number of `industrial_scada` attempts rejected under the original rule;
+  - the fact that the scenario was re-run under this amendment.
+
+**Implementation.**
+- **Code changes:**
+  - `study.standby_only_hosts(plan)` defines a standby-only host.
+  - `study.CpuSampler.last_seen()` gives each container's last `docker stats` sample.
+  - `measured_run` passes those last-seen times to `study.run_validity`, which applies the amended rule to standby-only hosts. Without them (local mode), the original rule applies.
+- **Tests** in `tests/test_fidelity_study.py`:
+  - `test_amendment_1_judges_a_standby_only_host_by_container_liveness`: the original rule rejects a silent but live standby host, and the amended rule accepts it.
+  - `test_amendment_1_leaves_active_hosts_on_the_log_rule`: a host that is not standby-only is still judged by its log.
+  - `test_amendment_1_changes_only_industrial_scada_n4`: across the nine included scenarios, `industrial_scada`'s N4 is the only standby-only host.
+- **Run order:** the session runner's `--defer` option runs `industrial_scada` last.
+- **Commit:** this text and the code change are registered together, in the commit that adds this section.
 
 ## 13. Design decisions
 
