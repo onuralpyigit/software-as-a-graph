@@ -721,3 +721,52 @@ class TestAnalyzeStageHardening:
         assert len(results[1]) == 7
         assert len(results[2]) == 7
         assert results[1] is not results[2]
+
+    def test_cdi_matched_baseline_zero_when_no_paths_lengthen(self):
+        """Matched-baseline CDI is 0.0 when removing a hub lengthens no surviving shortest paths."""
+        # Complete graph K_5: every pair is at distance 1; removing any node leaves K_4
+        # where every surviving pair is still at distance 1.
+        nodes = [f"A{i}" for i in range(5)]
+        edges = [
+            EdgeData(
+                source_id=u, target_id=v,
+                source_type="Application", target_type="Application",
+                relation_type="DEPENDS_ON", dependency_type="app_to_app", weight=0.5,
+            )
+            for i, u in enumerate(nodes)
+            for j, v in enumerate(nodes)
+            if i < j
+        ]
+        gd = GraphData(
+            components=[ComponentData(id=n, component_type="Application") for n in nodes],
+            edges=edges,
+        )
+        res = StructuralAnalyzer().analyze(gd, AnalysisLayer.APP)
+        for nid, comp in res.components.items():
+            assert comp.cdi == pytest.approx(0.0), f"K_5 node {nid} should have CDI=0.0"
+
+    def test_bridge_ratio_uses_undirected_degree_on_bidirectional_bridge(self):
+        """A node whose sole undirected edge is a bidirectional bridge has bridge_ratio=1.0."""
+        gd = GraphData(
+            components=[
+                ComponentData(id="a", component_type="Application"),
+                ComponentData(id="b", component_type="Application"),
+            ],
+            edges=[
+                EdgeData(
+                    source_id="a", target_id="b",
+                    source_type="Application", target_type="Application",
+                    relation_type="DEPENDS_ON", dependency_type="app_to_app", weight=0.5,
+                ),
+                EdgeData(
+                    source_id="b", target_id="a",
+                    source_type="Application", target_type="Application",
+                    relation_type="DEPENDS_ON", dependency_type="app_to_app", weight=0.5,
+                ),
+            ],
+        )
+        res = StructuralAnalyzer().analyze(gd, AnalysisLayer.APP)
+        assert res.components["a"].bridge_count == 1
+        assert res.components["a"].bridge_ratio == pytest.approx(1.0)
+        assert res.components["b"].bridge_ratio == pytest.approx(1.0)
+

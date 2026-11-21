@@ -505,6 +505,7 @@ class StructuralAnalyzer:
             raw_in = in_deg.get(nid, 0)
             raw_out = out_deg.get(nid, 0)
             total_raw = raw_in + raw_out
+            undir_deg = resilience.undirected.degree(nid)
             bc = resilience.bridge_count.get(nid, 0)
             ps = pubsub_metrics.get(nid, {})
 
@@ -548,7 +549,7 @@ class StructuralAnalyzer:
                 cascade_depth=cascade_depth.get(nid, 0),
                 is_isolated=(raw_in + raw_out) == 0,
                 bridge_count=bc,
-                bridge_ratio=bc / total_raw if total_raw > 0 else 0.0,
+                bridge_ratio=bc / undir_deg if undir_deg > 0 else 0.0,
                 # Pub-sub topology
                 pubsub_degree=ps.get("pubsub_degree", 0.0),
                 pubsub_betweenness=ps.get("pubsub_betweenness", 0.0),
@@ -1044,24 +1045,13 @@ class StructuralAnalyzer:
         largest_cc_nodes = max(ccs, key=len) if ccs else set()
         G_main = G_undir.subgraph(largest_cc_nodes)
 
-        def _avg_bfs_length(G_u: nx.Graph, sources: List[str]) -> float:
-            total, count = 0, 0
-            for s in sources:
-                if s not in G_u:
-                    continue
-                lengths = nx.single_source_shortest_path_length(G_u, s)
-                total += sum(lengths.values())
-                count += len(lengths)
-            return total / count if count else 0.0
-
         def _avg_bfs_length_excluding(
             G_u: nx.Graph, sources: List[str], excluded: str,
         ) -> float:
-            """Same as _avg_bfs_length(G_u, sources) with `excluded` removed,
-            but BFS's directly on G_u's adjacency instead of building a
-            SubGraph view per call — the view's filtered-dict indirection is
-            the dominant cost when this runs once per node in the main
-            component rather than once per articulation point."""
+            """Average shortest-path length from `sources` in `G_u \\ {excluded}`,
+            BFSing directly on G_u's adjacency instead of building a SubGraph
+            view per call — the view's filtered-dict indirection is the dominant
+            cost when this runs once per node in the main component."""
             total, count = 0, 0
             for s in sources:
                 if s == excluded or s not in G_u:
@@ -1079,7 +1069,13 @@ class StructuralAnalyzer:
             return total / count if count else 0.0
 
         sample_nodes: List[str] = []
-        baseline_avg = 0.0
+        # Per-source baseline BFS maps so each node's post-removal average can
+        # be compared against the exact same (source, target) pair set
+        # (s in post_sources, t in V_main \ {nid}), eliminating compositional
+        # bias when removing a top-16 degree hub from `sample_nodes`.
+        source_dists: Dict[str, Dict[str, int]] = {}
+        source_sums: Dict[str, int] = {}
+        source_counts: Dict[str, int] = {}
         if len(largest_cc_nodes) > 1:
             # Ties on degree are broken by id. `largest_cc_nodes` is a set, so a
             # degree-only key left equal-degree nodes in set-iteration order --
@@ -1090,7 +1086,11 @@ class StructuralAnalyzer:
                 largest_cc_nodes,
                 key=lambda v: (-G_main.degree(v), str(v)),
             )[:_CDI_SAMPLE]
-            baseline_avg = _avg_bfs_length(G_main, sample_nodes)
+            for s in sample_nodes:
+                lengths = nx.single_source_shortest_path_length(G_main, s)
+                source_dists[s] = lengths
+                source_sums[s] = sum(lengths.values())
+                source_counts[s] = len(lengths)
 
         # ------------------------------------------------------------------ #
         # Main loop.  ap_c_dir stays AP-gated: a non-cut vertex cannot        #
@@ -1116,7 +1116,7 @@ class StructuralAnalyzer:
 
             # CDI — computed for every node in the main component, not just APs.
             cdi_val = 0.0
-            if baseline_avg > 0.0 and nid in largest_cc_nodes:
+            if sample_nodes and nid in largest_cc_nodes:
                 # By definition, every articulation point in G_undir disconnects
                 # its component upon removal (worst-case CDI = 1.0).
                 if nid in art_points:
@@ -1124,8 +1124,21 @@ class StructuralAnalyzer:
                 else:
                     post_sources = [s for s in sample_nodes if s != nid]
                     if post_sources and G_main.number_of_nodes() > 1:
-                        after_avg = _avg_bfs_length_excluding(G_main, post_sources, nid)
-                        cdi_val = min(max(0.0, (after_avg - baseline_avg) / baseline_avg), 1.0)
+                        matched_total = sum(
+                            source_sums[s] - source_dists[s].get(nid, 0)
+                            for s in post_sources
+                        )
+                        matched_count = sum(
+                            source_counts[s] - (1 if nid in source_dists[s] else 0)
+                            for s in post_sources
+                        )
+                        matched_baseline = matched_total / matched_count if matched_count else 0.0
+                        if matched_baseline > 0.0:
+                            after_avg = _avg_bfs_length_excluding(G_main, post_sources, nid)
+                            cdi_val = min(
+                                max(0.0, (after_avg - matched_baseline) / matched_baseline),
+                                1.0,
+                            )
 
             ap_scores[nid] = {"ap_c_dir": ap_c_dir, "cdi": cdi_val}
 
