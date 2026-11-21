@@ -38,6 +38,7 @@ Usage:
 
 from __future__ import annotations
 
+import contextvars
 import logging
 import math
 import time
@@ -82,18 +83,20 @@ _PSPOF_SUB_SATURATION = 5.0
 
 
 #: Phase-time collector, active only inside :func:`record_phases`.
-_PHASE_SINK: Optional[Dict[str, float]] = None
+_PHASE_SINK: contextvars.ContextVar[Optional[Dict[str, float]]] = contextvars.ContextVar(
+    "_PHASE_SINK", default=None
+)
 
 
 @contextmanager
 def record_phases() -> Iterator[Dict[str, float]]:
     """Accumulate each phase's wall-clock seconds into the yielded dict (cost reconciliation)."""
-    global _PHASE_SINK
-    previous, _PHASE_SINK = _PHASE_SINK, {}
+    sink: Dict[str, float] = {}
+    token = _PHASE_SINK.set(sink)
     try:
-        yield _PHASE_SINK
+        yield sink
     finally:
-        _PHASE_SINK = previous
+        _PHASE_SINK.reset(token)
 
 
 @contextmanager
@@ -103,8 +106,9 @@ def _phase(logger: logging.Logger, label: str) -> Iterator[None]:
     logger.info("  %s…", label)
     yield
     dt = time.perf_counter() - t0
-    if _PHASE_SINK is not None:
-        _PHASE_SINK[label] = _PHASE_SINK.get(label, 0.0) + dt
+    sink = _PHASE_SINK.get()
+    if sink is not None:
+        sink[label] = sink.get(label, 0.0) + dt
     logger.info("  %s done (%.2fs)", label, dt)
 
 
@@ -283,7 +287,9 @@ class StructuralAnalyzer:
 
         with _phase(self._logger, "4. Computing AP_c / CDI, blast radius, cascade depth"):
             ap_scores = self._compute_continuous_ap_scores(G)
-            blast_radius, cascade_depth = self._compute_reachability(G)
+            # Traverse G_rev (Dependency -> Dependent) so blast_radius and
+            # cascade_depth count impacted dependents in the failure-propagation direction.
+            blast_radius, cascade_depth = self._compute_reachability(G_rev)
 
         with _phase(self._logger, "5. Computing clustering coefficients and bridges"):
             resilience = self._compute_resilience(G)
@@ -414,19 +420,20 @@ class StructuralAnalyzer:
         return result
 
     @staticmethod
-    def _compute_reachability(G: nx.DiGraph) -> Tuple[Dict[str, int], Dict[str, int]]:
+    def _compute_reachability(G_prop: nx.DiGraph) -> Tuple[Dict[str, int], Dict[str, int]]:
         """
-        Per-node descendant count (blast radius) and longest downstream path
-        (cascade depth), both measured on the ego-subgraph rooted at the node.
+        Per-node impacted-dependent count (blast radius) and longest failure-propagation
+        path (cascade depth), measured on the propagation graph ``G_prop`` (``G^T``,
+        where edges point Dependency -> Dependent).
         """
         blast_radius: Dict[str, int] = {}
         cascade_depth: Dict[str, int] = {}
 
-        for nid in G.nodes:
-            desc = nx.descendants(G, nid)
+        for nid in G_prop.nodes:
+            desc = nx.descendants(G_prop, nid)
             blast_radius[nid] = len(desc)
 
-            ego_G = G.subgraph(desc | {nid})
+            ego_G = G_prop.subgraph(desc | {nid})
             try:
                 cascade_depth[nid] = nx.dag_longest_path_length(ego_G)
             except nx.NetworkXUnfeasible:
@@ -720,8 +727,6 @@ class StructuralAnalyzer:
         Returns:
             Dict[app_id, {pubsub_degree, pubsub_betweenness, broker_exposure, publisher_spof}]
         """
-        import networkx as nx
-
         PUBSUB_EDGE_TYPES = {"PUBLISHES_TO", "SUBSCRIBES_TO", "publishes_to", "subscribes_to"}
         ROUTES_EDGE_TYPES = {"ROUTES", "routes"}
 
@@ -746,49 +751,6 @@ class StructuralAnalyzer:
 
         result: Dict[str, Dict[str, float]] = {}
 
-        if G_ps.number_of_nodes() == 0:
-            return result
-
-        # Betweenness centrality on the bipartite graph
-        try:
-            bt = nx.betweenness_centrality(G_ps, normalized=True)
-        except Exception:
-            bt = {n: 0.0 for n in G_ps.nodes}
-
-        # Max values for normalization
-        max_deg = max((G_ps.degree(n) for n in G_ps.nodes if G_ps.nodes[n].get("bipartite") == 0), default=1)
-        max_exp = max(
-            (len(topic_to_brokers.get(t, set()))
-             for n in G_ps.nodes if G_ps.nodes[n].get("bipartite") == 0
-             for t in G_ps.neighbors(n)),
-            default=1,
-        ) or 1
-
-        for node in G_ps.nodes:
-            if G_ps.nodes[node].get("bipartite") != 0:
-                continue  # skip topic nodes
-            if node not in allowed_ids:
-                continue
-
-            deg = G_ps.degree(node)
-            # broker_exposure: average number of distinct brokers routing
-            # topics this app touches (normalised to [0,1])
-            touched_topics = list(G_ps.neighbors(node))
-            if touched_topics:
-                broker_counts = [len(topic_to_brokers.get(t, set())) for t in touched_topics]
-                avg_broker_exp = sum(broker_counts) / len(broker_counts)
-            else:
-                avg_broker_exp = 0.0
-
-            result[node] = {
-                "pubsub_degree": deg / max_deg if max_deg > 0 else 0.0,
-                "pubsub_betweenness": bt.get(node, 0.0),
-                "broker_exposure": avg_broker_exp / max_exp if max_exp > 0 else 0.0,
-                "publisher_spof": 0.0,  # placeholder, calculated below
-            }
-
-        # --- Publisher SPOF calculation ---
-        # PSPOF(v) = max(qos_weight(t) * min(sub_count(t)/5, 1)) for topics where v is sole pub
         topic_info: Dict[str, Dict[str, Any]] = {
             c.id: {
                 "weight": c.weight,
@@ -798,29 +760,69 @@ class StructuralAnalyzer:
             for c in graph_data.components if c.component_type == "Topic"
         }
 
-        # Track which apps publish to which topics
-        app_to_topics: Dict[str, List[str]] = {}
-        for edge in graph_data.edges:
-            if edge.dependency_type.upper() == "PUBLISHES_TO":
-                app_to_topics.setdefault(edge.source_id, []).append(edge.target_id)
+        if G_ps.number_of_nodes() > 0:
+            # Betweenness centrality on the bipartite graph
+            try:
+                bt = nx.betweenness_centrality(G_ps, normalized=True)
+            except Exception:
+                bt = {n: 0.0 for n in G_ps.nodes}
 
-        for app_id in result:
-            max_pspof = 0.0
-            for topic_id in app_to_topics.get(app_id, []):
-                ti = topic_info.get(topic_id)
-                if not ti:
+            # Max values for normalization
+            max_deg = max((G_ps.degree(n) for n in G_ps.nodes if G_ps.nodes[n].get("bipartite") == 0), default=1)
+            max_exp = max(
+                (len(topic_to_brokers.get(t, set()))
+                 for n in G_ps.nodes if G_ps.nodes[n].get("bipartite") == 0
+                 for t in G_ps.neighbors(n)),
+                default=1,
+            ) or 1
+
+            for node in G_ps.nodes:
+                if G_ps.nodes[node].get("bipartite") != 0:
+                    continue  # skip topic nodes
+                if node not in allowed_ids:
                     continue
-                # If this app is the sole publisher and there are subscribers
-                if ti["pub_count"] == 1 and ti["sub_count"] >= 1:
-                    # Formula from Middleware 2026 validation strategy:
-                    # qos_weight * min(sub_count / _PSPOF_SUB_SATURATION, 1.0)
-                    # Note: sub_count >= 2 is common for SPOF, but even 1 sub is a risk
-                    current_pspof = ti["weight"] * min(
-                        ti["sub_count"] / _PSPOF_SUB_SATURATION, 1.0
-                    )
-                    max_pspof = max(max_pspof, current_pspof)
-            
-            result[app_id]["publisher_spof"] = max_pspof
+
+                deg = G_ps.degree(node)
+                # broker_exposure: average number of distinct brokers routing
+                # topics this app touches (normalised to [0,1])
+                touched_topics = list(G_ps.neighbors(node))
+                if touched_topics:
+                    broker_counts = [len(topic_to_brokers.get(t, set())) for t in touched_topics]
+                    avg_broker_exp = sum(broker_counts) / len(broker_counts)
+                else:
+                    avg_broker_exp = 0.0
+
+                result[node] = {
+                    "pubsub_degree": deg / max_deg if max_deg > 0 else 0.0,
+                    "pubsub_betweenness": bt.get(node, 0.0),
+                    "broker_exposure": avg_broker_exp / max_exp if max_exp > 0 else 0.0,
+                    "publisher_spof": 0.0,  # placeholder, calculated below
+                }
+
+            # --- Publisher SPOF calculation ---
+            # PSPOF(v) = max(qos_weight(t) * min(sub_count(t)/5, 1)) for topics where v is sole pub
+            app_to_topics: Dict[str, List[str]] = {}
+            for edge in graph_data.edges:
+                if (getattr(edge, "dependency_type", "") or "").upper() == "PUBLISHES_TO":
+                    app_to_topics.setdefault(edge.source_id, []).append(edge.target_id)
+
+            for app_id in result:
+                max_pspof = 0.0
+                for topic_id in app_to_topics.get(app_id, []):
+                    ti = topic_info.get(topic_id)
+                    if not ti:
+                        continue
+                    # If this app is the sole publisher and there are subscribers
+                    if ti["pub_count"] == 1 and ti["sub_count"] >= 1:
+                        # Formula from Middleware 2026 validation strategy:
+                        # qos_weight * min(sub_count / _PSPOF_SUB_SATURATION, 1.0)
+                        # Note: sub_count >= 2 is common for SPOF, but even 1 sub is a risk
+                        current_pspof = ti["weight"] * min(
+                            ti["sub_count"] / _PSPOF_SUB_SATURATION, 1.0
+                        )
+                        max_pspof = max(max_pspof, current_pspof)
+
+                result[app_id]["publisher_spof"] = max_pspof
 
         # --- Surface raw topic pub/sub counts (TOPIC_FANOUT / ORPHANED_TOPIC) ---
         # result is otherwise keyed by app ids only, so seeding topic ids here is collision-free.
@@ -986,11 +988,12 @@ class StructuralAnalyzer:
             return {nid: {"ap_c_dir": 0.0, "cdi": 0.0} for nid in G_dir.nodes}
 
         G_undir = G_dir.to_undirected()
-        G_T_undir = G_dir.reverse(copy=False).to_undirected()
 
         # ------------------------------------------------------------------ #
         # Identify undirected APs via Tarjan (O(V+E)) so non-APs             #
         # short-circuit to 0.0 without any further work.                      #
+        # Note: G_dir.reverse().to_undirected() is identical to G_undir, so   #
+        # a single pass on G_undir suffices (exact same numerical result).    #
         # ------------------------------------------------------------------ #
         def _find_art_points(G_u: nx.Graph) -> Set[str]:
             if nx.is_connected(G_u):
@@ -1002,9 +1005,7 @@ class StructuralAnalyzer:
                     pts.update(nx.articulation_points(sub))
             return pts
 
-        art_points_fwd = _find_art_points(G_undir)
-        art_points_rev = _find_art_points(G_T_undir)
-        all_aps = art_points_fwd | art_points_rev
+        art_points = _find_art_points(G_undir)
 
         # ------------------------------------------------------------------ #
         # BFS component walk with one node excluded — no graph copy.          #
@@ -1107,37 +1108,19 @@ class StructuralAnalyzer:
         ap_scores: Dict[str, Dict[str, float]] = {}
 
         for nid in G_dir.nodes:
-            if nid not in all_aps:
+            if nid not in art_points:
                 ap_c_dir = 0.0
             else:
-                # ap_c_out (forward undirected view)
-                if nid in art_points_fwd:
-                    largest_out = _largest_cc_excluding(G_undir, nid)
-                    ap_c_out = 1.0 - largest_out / (n - 1)
-                else:
-                    ap_c_out = 0.0
-
-                # ap_c_in (transposed undirected view)
-                if nid in art_points_rev:
-                    largest_in = _largest_cc_excluding(G_T_undir, nid)
-                    ap_c_in = 1.0 - largest_in / (n - 1)
-                else:
-                    ap_c_in = 0.0
-
-                ap_c_dir = max(ap_c_out, ap_c_in)
+                largest_out = _largest_cc_excluding(G_undir, nid)
+                ap_c_dir = 1.0 - largest_out / (n - 1)
 
             # CDI — computed for every node in the main component, not just APs.
             cdi_val = 0.0
             if baseline_avg > 0.0 and nid in largest_cc_nodes:
-                if nid in art_points_fwd:
-                    post_nodes = [v for v in G_undir.nodes if v != nid]
-                    post_ccs = list(nx.connected_components(G_undir.subgraph(post_nodes)))
-                    fragments = len(post_ccs) > len(ccs)
-                else:
-                    fragments = False  # non-AP: cannot fragment, by definition
-
-                if fragments:
-                    cdi_val = 1.0  # fragmentation — worst case
+                # By definition, every articulation point in G_undir disconnects
+                # its component upon removal (worst-case CDI = 1.0).
+                if nid in art_points:
+                    cdi_val = 1.0
                 else:
                     post_sources = [s for s in sample_nodes if s != nid]
                     if post_sources and G_main.number_of_nodes() > 1:
@@ -1174,6 +1157,8 @@ class StructuralAnalyzer:
         assortativity = 0.0
         try:
             assortativity = nx.degree_assortativity_coefficient(G)
+            if math.isnan(assortativity):
+                assortativity = 0.0
         except (nx.NetworkXError, ValueError):
             pass
 

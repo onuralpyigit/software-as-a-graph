@@ -44,17 +44,21 @@ def main():
         elif "," in args.layer:
             layers = [l.strip() for l in args.layer.split(",") if l.strip()]
 
-        for layer in layers:
-            console.print_step(f"Analyzing layer: {layer}...")
-            
-            # Analyze returns AnalysisResult which wraps StructuralAnalysisResult
-            result = client.analyze(layer=layer)
-            
+        if len(layers) == 1:
+            console.print_step(f"Analyzing layer: {layers[0]}...")
+            results = {layers[0]: client.analyze(layer=layers[0])}
+        else:
+            console.print_step(f"Analyzing layers: {', '.join(layers)}...")
+            results = client.analyze_layers(layers)
+
+        for layer, result in results.items():
+            if len(results) > 1:
+                console.print_step(f"Layer: {layer}")
             console.display_layer_result(result.raw)
 
             if args.output:
                 out_path = args.output
-                if len(layers) > 1:
+                if len(results) > 1:
                     base, ext = out_path.rsplit('.', 1) if '.' in out_path else (out_path, 'json')
                     out_path = f"{base}_{layer}.{ext}"
                 result.save(out_path)

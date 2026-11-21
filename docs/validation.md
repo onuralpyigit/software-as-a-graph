@@ -142,9 +142,9 @@ In Software-as-a-Graph, the terms **Tier-1** and **Tier-2** appear in two distin
 ```mermaid
 graph TD
     subgraph ContextA["Context A: Structural Metric Tiers (saag/core/metric_registry.py)"]
-        M_ALL["StructuralMetrics M(v)<br>(53 fields = 3 identity + 50 scored metrics)"]
+        M_ALL["StructuralMetrics M(v)<br>(55 fields = 3 identity + 52 tracked metrics)"]
         M_ALL --> T1_M["Tier-1 Scoring Metrics (19 Core Metrics)<br>Directly feed ISO-RM formulas: Q*(v) = q_R*R + q_M*M<br>(AP_c_dir, BT, RPR, BR, CDI, MPCI, CQP, etc.)"]
-        M_ALL --> T2_M["Tier-2 Auxiliary Metrics (Remaining ~31 Metrics)<br>Anti-pattern detection, GNN feature vectors, dashboards<br>(PageRank, Closeness, In-Degree, CPU Cores, RAM, etc.)"]
+        M_ALL --> T2_M["Tier-2 Auxiliary Metrics (Remaining 33 Metrics)<br>Anti-pattern detection, GNN feature vectors, dashboards<br>(PageRank, Closeness, In-Degree, CPU Cores, RAM, etc.)"]
     end
 
     subgraph ContextB["Context B: Validation Gate Tiers (saag/validation/models.py)"]
@@ -158,10 +158,10 @@ graph TD
 
 During Step 2 (Analyze), SaG extracts a metric vector $M(v)$ covering topological, resilience,
 pub-sub, infrastructure, and code-quality properties. The `StructuralMetrics` dataclass has
-**53 fields**: three identity fields (`id`, `name`, `type`) plus **50 scored metrics**, which are
-exactly the 50 keys of `METRIC_ROLES`. [structural-analysis.md](structural-analysis.md) calls this
-"the 53-field vector" (counting the dataclass) and this document counts the 50 metrics — the same
-object, counted two ways. The 50 are strictly partitioned into two tiers in
+**55 fields**: three identity fields (`id`, `name`, `type`) plus **52 tracked metrics**, which are
+exactly the 52 keys of `METRIC_ROLES`. [structural-analysis.md](structural-analysis.md) calls this
+"the 55-field vector" (counting the dataclass) and this document counts the 52 metrics — the same
+object, counted two ways. The 52 are strictly partitioned into two tiers in
 [`saag/core/metric_registry.py`](../saag/core/metric_registry.py):
 
 > [!NOTE]

@@ -53,6 +53,18 @@ class Client:
         result = uc.execute(layer=layer)
         return AnalysisResult(result)
 
+    def analyze_layers(self, layers: List[str]) -> Dict[str, AnalysisResult]:
+        """Analyze multiple structural graph layers in a single repository pass.
+
+        Derives ``DEPENDS_ON`` edges and loads the graph once, then projects
+        and analyzes each requested layer.
+        """
+        from saag.analysis.service import AnalysisService
+
+        service = AnalysisService(self.repo)
+        raw_results = service.analyze_layers(layers)
+        return {k: AnalysisResult(v) for k, v in raw_results.items()}
+
     def predict(
         self,
         analysis_result: AnalysisResult,

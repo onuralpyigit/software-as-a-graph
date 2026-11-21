@@ -82,16 +82,16 @@ For the complete CLI reference (`analyze_graph.py`), see [cli-pipeline-guide.md 
 
 ## 1. Executive Summary & At a Glance
 
-Once the system graph $\mathcal{G}$ is constructed and causal dependencies are derived in Step 1, the **Analyze stage (Step 2)** evaluates the graph's structural properties. It transforms the layer-projected dependency graph $G_{\text{analysis}}(\ell)$ into a comprehensive **53-field structural metric vector $M(v)$** for every component, accompanied by edge metrics and graph-level topological summaries.
+Once the system graph $\mathcal{G}$ is constructed and causal dependencies are derived in Step 1, the **Analyze stage (Step 2)** evaluates the graph's structural properties. It transforms the layer-projected dependency graph $G_{\text{analysis}}(\ell)$ into a comprehensive **55-field structural metric vector $M(v)$** for every component, accompanied by edge metrics and graph-level topological summaries.
 
-The 53 fields of `StructuralMetrics` are three identity fields (`id`, `name`, `type`) plus
-**50 scored metrics**, which are exactly the 50 keys of `METRIC_ROLES` in
+The 55 fields of `StructuralMetrics` are three identity fields (`id`, `name`, `type`) plus
+**52 tracked metrics**, which are exactly the 52 keys of `METRIC_ROLES` in
 [`saag/core/metric_registry.py`](../saag/core/metric_registry.py). Where
-[validation.md](validation.md) counts "50 metrics" and this document counts "53 fields", they are
+[validation.md](validation.md) counts "52 metrics" and this document counts "55 fields", they are
 describing the same object.
 
 > [!IMPORTANT]
-> **$M(v)$ means two different things in these documents.** Here it is the whole 53-field metric
+> **$M(v)$ means two different things in these documents.** Here it is the whole 55-field metric
 > vector. In the RM formulas of §9 it is the scalar **Maintainability** score,
 > $M(v) = 0.35 \cdot BT(v) + \dots$ — one of the two characteristics that compose $Q^*(v)$. The
 > surrounding sentence always disambiguates, but the collision is genuine; when in doubt, a
@@ -116,7 +116,7 @@ Step 2 is **deterministic, closed-form, and purely graph-theoretic**. It require
 │                   │ • Routing Bottlenecks: Inverted-weight Betweenness (BT).│
 │                   │ • Code Health: Synthesized Code Quality Penalty (CQP).  │
 ├───────────────────┼─────────────────────────────────────────────────────────┤
-│ Primary Outputs   │ • M(v): 53-field StructuralMetrics vector per component.│
+│ Primary Outputs   │ • M(v): 55-field StructuralMetrics vector per component.│
 │                   │ • EdgeMetrics: Betweenness & bridge flags per edge.     │
 │                   │ • S(G): GraphSummary (diameter, density, assortativity).│
 ├───────────────────┼─────────────────────────────────────────────────────────┤
@@ -176,7 +176,7 @@ A core architectural principle of Software-as-a-Graph is the strict decoupling o
 ```mermaid
 flowchart LR
     G["G_analysis(ℓ)"] --> SA["StructuralAnalyzer<br/>(Step 2 Engine)"]
-    SA --> M["Structural Metric Vector M(v)<br/>(53 Pure Topological Observations)"]
+    SA --> M["Structural Metric Vector M(v)<br/>(55 Pure Topological Observations)"]
 
     M -->|"Feeds GNN Feature Encoder"| GNN["Step 3: Predict<br/>(HGT Neural Blast-Radius)"]
     M -->|"Feeds 19 Tier-1 Scoring Formulas"| RM["Step 4: Diagnose<br/>(Rule-Based ISO-RM Quality)"]
@@ -235,9 +235,9 @@ Architectural analysis operates on dedicated layer projections ($\pi_\ell$), iso
 | Layer Key | Formal Name | Analyzed Vertices ($T_a$) | Subgraph Vertices ($T_\ell$) | Included Dependency Types ($D_\ell$) | Architectural Focus |
 |:---|:---|:---|:---|:---|:---|
 | `app` | **Application** | `Application`, `Library` | `Application`, `Library` | `app_to_app`, `app_to_lib` | **Reliability ($R$)**: Microservice cascades, pub-sub starvation, shared-library blast radius. |
-| `infra` | **Infrastructure** | `Node` | `Node` | `node_to_node` | **Availability ($A$)**: Host partition risks, network bridges, compute failover SPOFs. |
+| `infra` | **Infrastructure** | `Node`, `NetworkDevice` | `Node`, `NetworkDevice` | `node_to_node`, `node_to_device` | **Availability ($A$)**: Host partition risks, network bridges, switch/router SPOFs, compute failover. |
 | `mw` | **Middleware** | `Broker` | `Application`, `Broker`, `Node` | `app_to_broker`, `node_to_broker`, `broker_to_broker` | **Maintainability ($M$)**: Broker bottlenecks, routing congestion, colocation fate sharing. |
-| `system` | **Complete System** | All 5 entity types | All 5 entity types | All 6 dependency subtypes | **Holistic Composite ($Q$)**: Cross-tier systemic risk propagation. |
+| `system` | **Complete System** | All 6 entity types | All 6 entity types | All 7 dependency subtypes | **Holistic Composite ($Q$)**: Cross-tier systemic risk propagation. |
 
 > [!NOTE]
 > **Why Middleware Subgraph Includes Apps and Nodes**:
@@ -295,7 +295,7 @@ flowchart TD
 2. **View Preparation**:
    - $G$: Primary forward directed graph.
    - $G^\top = G.\text{reverse()}$: Transposed graph for failure cascade analysis.
-   - $G_{\text{dist}} = \text{build\_distance\_graph}(G)$: Copies $G$ with inverted edge weights $d(u, v) = \frac{1}{\max(w, 0.001)}$.
+   - $G_{\text{dist}} = \text{build\_distance\_graph}(G)$: Copies $G$ with inverted edge weights $d(u, v) = \frac{1}{w}$ for $w > 0$ (and $1.0$ when $w \le 0$).
 
 ---
 
@@ -343,14 +343,12 @@ Quantifies parallel channel density and message rate stress:
 Evaluates worst-case structural fragmentation and cascade depth:
 
 1. **Blast Radius & Cascade Depth**:
-   - $\text{BlastRadius}(v) = |\text{descendants}(G, v)|$: Total reachable components downstream.
-   - $\text{CascadeDepth}(v)$: Longest directed acyclic path in the ego-subgraph rooted at $v$.
-2. **Continuous Directed Articulation Point Score ($AP_c^{\text{dir}}$)**:
-   Measures the exact fraction of the graph disconnected upon removing vertex $v$:
-   $$AP_c^{\text{out}}(v) = 1 - \frac{|\text{largest component in } (G \setminus \{v\})|}{|V| - 1}$$
-   $$AP_c^{\text{in}}(v) = 1 - \frac{|\text{largest component in } (G^\top \setminus \{v\})|}{|V| - 1}$$
-   $$AP_c^{\text{dir}}(v) = \max(AP_c^{\text{out}}(v), \; AP_c^{\text{in}}(v))$$
-   > **Algorithmic Optimization**: Uses Tarjan's algorithm ($O(V+E)$) as a pre-filter. Non-cut vertices immediately receive $AP_c^{\text{dir}} = 0.0$ without invoking expensive graph component walks.
+   - $\text{BlastRadius}(v) = |\text{descendants}(G^\top, v)|$: Total impacted dependents reachable along the failure-propagation graph $G^\top$.
+   - $\text{CascadeDepth}(v)$: Longest directed acyclic failure-propagation path in the ego-subgraph of $G^\top$ rooted at $v$.
+2. **Continuous Articulation Point Score ($AP_c^{\text{dir}}$)**:
+   Measures the fraction of the undirected projection $U = G.\text{to\_undirected()}$ disconnected upon removing cut-vertex $v$:
+   $$AP_c^{\text{dir}}(v) = 1 - \frac{|\text{largest component in } (U \setminus \{v\})|}{|V| - 1}$$
+   > **Algorithmic Optimization**: Uses Tarjan's algorithm ($O(V+E)$) as a pre-filter on $U$. Non-cut vertices immediately receive $AP_c^{\text{dir}} = 0.0$ without invoking graph component walks. (The code key `ap_c_directed` is retained for schema stability; because $U(G) \equiv U(G^\top)$, a single undirected pass yields the exact score.)
 3. **Connectivity Degradation Index ($CDI$)**:
    Measures average shortest-path length elongation across reachable pairs upon removing $v$:
    $$CDI(v) = \min\left( \frac{\overline{L}(G \setminus \{v\}) - \overline{L}(G)}{\overline{L}(G)}, \; 1.0 \right)$$
@@ -402,21 +400,21 @@ Inspects raw pub/sub communication by constructing an undirected bipartite graph
 
 ### 7.1 The Three-Tier Metric Structure
 
-The 53 fields in $M(v)$ are strictly partitioned into three architectural tiers:
+The 55 fields in $M(v)$ are strictly partitioned into three architectural tiers:
 
 ```mermaid
-pie title 53-Field Structural Metric Breakdown
+pie title 55-Field Structural Metric Breakdown
     "Tier 1: RM Scoring Inputs (19 Metrics)" : 19
     "Tier 2: Diagnostics & GNN Features (8 Metrics)" : 8
-    "Tier 3: Raw Counts & Topological Helpers (26 Fields)" : 26
+    "Tier 3: Raw Counts & Topological Helpers (28 Fields)" : 28
 ```
 
 1. **Tier 1 — RM Scoring Inputs (19 Metrics)**:
    Directly parameterized into the closed-form ISO/IEC 25010 equations for $FT(v), A(v), M(v),$ and $Q^*(v)$.
 2. **Tier 2 — Diagnostics & GNN Input Features (8 Metrics)**:
    Secondary structural indicators (PageRank, Harmonic Closeness, Eigenvector, PubSub Betweenness, Broker Exposure, Publisher SPOF). Used for UI dashboards and as input features for Step 3 GNN embeddings.
-3. **Tier 3 — Raw Topological Counts & Helpers (26 Fields)**:
-   Raw integer degrees (`in_degree_raw`, `out_degree_raw`), bridge counts, hardware infrastructure specs (`cpu_cores`, `memory_gb`), and code metrics.
+3. **Tier 3 — Raw Topological Counts & Helpers (28 Fields)**:
+   Raw integer degrees (`in_degree_raw`, `out_degree_raw`), bridge counts, hardware infrastructure & network-load specs (`cpu_cores`, `memory_gb`, `max_link_utilization`, `link_load_mbps`), and code metrics.
 
 ---
 
@@ -680,10 +678,10 @@ The analysis engine packages its observations into three core dataclasses in [`s
 ```python
 @dataclass
 class StructuralMetrics:
-    """53-field metric vector M(v) representing a component's structural fingerprint."""
+    """55-field metric vector M(v) representing a component's structural fingerprint."""
     id: str
     name: str
-    type: str  # "Application" | "Broker" | "Topic" | "Node" | "Library"
+    type: str  # "Application" | "Broker" | "Topic" | "Node" | "Library" | "NetworkDevice"
 
     # Centrality
     pagerank: float = 0.0
@@ -731,6 +729,10 @@ class StructuralMetrics:
     broker_type: str = ""
     max_connections: int = 0
     host: str = ""
+
+    # Network Load (Nodes/NetworkDevices)
+    max_link_utilization: float = 0.0
+    link_load_mbps: float = 0.0
 
     # Code Quality (Apps/Libraries)
     loc_norm: float = 0.0
@@ -836,7 +838,7 @@ Step 2 is engineered to scale to enterprise graphs containing thousands of micro
 | **Betweenness ($BT$)** | $\mathcal{O}(\|V\| \cdot \|E\|)$ | Brandes' algorithm on inverted-weight distance graph $G_{\text{dist}}$. |
 | **Harmonic Closeness ($CL$)** | $\mathcal{O}(\|V\| \cdot (\|V\| + \|E\|))$ | BFS shortest path accumulation. |
 | **Directed AP Score ($AP_c^{\text{dir}}$)** | $\mathcal{O}(\|AP\| \cdot (\|V\| + \|E\|))$ | **Tarjan Pre-Filter**: Non-APs short-circuit to $0.0$ in $\mathcal{O}(V+E)$. |
-| **Connectivity Degradation ($CDI$)** | $\mathcal{O}(K \cdot (\|V\| + \|E\|))$ | **Core Sampling**: Bounded to $K = 16$ highest-degree nodes in the main component. |
+| **Connectivity Degradation ($CDI$)** | $\mathcal{O}(\|V_{\text{main}}\| \cdot K \cdot (\|V\| + \|E\|))$ | **Core Sampling**: Evaluated per node in the main component against a fixed $K = 16$ highest-degree sample. |
 | **Bridge Detection ($BR$)** | $\mathcal{O}(\|V\| + \|E\|)$ | Tarjan DFS bridge search. |
 | **Robust Rank Normalization** | $\mathcal{O}(\|V\| \log \|V\|)$ | In-place dual-pivot introsort. |
 
@@ -885,7 +887,7 @@ analysis_result.save("output/app_layer_metrics.json")
 
 ## 14. What Comes Next
 
-With the 53-field structural metric vector $M(v)$ computed and exported, proceed to:
+With the 55-field structural metric vector $M(v)$ computed and exported, proceed to:
 
 - → [**Step 3: Predict — Inductive Blast-Radius Forecasting (`prediction.md`)**](prediction.md): Ingests $M(v)$ as node features into the Heterogeneous Graph Transformer (HGT) to rank Top-K failure targets.
 - → [**Step 4: Diagnose — ISO-RM Quality Scoring & Anti-Patterns (`diagnosis.md`)**](diagnosis.md): Ingests 19 Tier-1 metrics from $M(v)$ to audit 19 architectural anti-patterns and generate triage remediation plans.

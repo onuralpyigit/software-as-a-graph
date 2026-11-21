@@ -49,7 +49,7 @@ Each capability is a pipeline stage with its own CLI script, SDK method, and met
 |:--|:---|:---|:---|:---|
 | — | *Generate (prep)* | Synthesizes a pub-sub topology for experiments, benchmarks, and CI regression | Topology JSON | [graph-generation.md](docs/graph-generation.md) |
 | 1 | **Model** | Imports topology JSON into Neo4j as a weighted directed graph $G = (V, E, \tau_V, \tau_E, w)$; derives logical `DEPENDS_ON` edges via seven rules (the seventh only for modelled switches/routers); computes QoS-derived weights | $G_{\text{structural}}$, $G_{\text{analysis}}(l)$ | [graph-model.md](docs/graph-model.md) |
-| 2 | **Analyze** | Deterministic, closed-form. Computes the 53-field structural metric vector $M(v)$ (19 of its fields feed the RM composite) — and nothing else | $M(v)$ metric vector | [structural-analysis.md](docs/structural-analysis.md) |
+| 2 | **Analyze** | Deterministic, closed-form. Computes the 55-field structural metric vector $M(v)$ (19 of its fields feed the RM composite) — and nothing else | $M(v)$ metric vector | [structural-analysis.md](docs/structural-analysis.md) |
 | 3 | **Predict** | Pathway B: Blast-radius forecasting via closed-form structural references (direct-dependent count $\text{InDeg}$, $\text{Analytic } I^*$, rate-weighted queue expansion) or learned GNN rankers ($\text{GAT-P-QoS}$, HGT, hybrids); computes deterministic ISO-RM composite $Q^*(v)$ as input feature and zero-checkpoint fallback | Structural & GNN ranks, Top-K shortlist | [prediction.md](docs/prediction.md) |
 | 4 | **Diagnose** | Pathway A: deterministic ISO-RM dimension scores $Q^*(v)$ and 5-level classification, grounded in ISO/IEC 25010/25019; detects 19 anti-patterns; generates natural-language explanations; links to stage 3's ranking via the Triage Bridge to map Top-K risks to stakeholder actions — needs no GNN checkpoint (zero-GNN cold start) | RM/$Q^*(v)$ scores, Triage profile, anti-pattern report | [diagnosis.md](docs/diagnosis.md) |
 | 5 | **Simulate** | Injects faults and propagates cascades over the raw structural graph to obtain ground-truth impact — training labels for stage 3 and the offline oracle for stage 6 | $I^*(v)$ training labels; $I_{\text{comp}}(v)$ with its $I_R$ ($\alpha\cdot I_{FT}+(1-\alpha)\cdot I_A$) and $I_M$ decomposition for validation; $I_{\text{dyn}}(v)$ queue-flow probe | [failure-simulation.md](docs/failure-simulation.md) |
@@ -78,7 +78,7 @@ Each capability is a pipeline stage with its own CLI script, SDK method, and met
                                        ▼ [Step 2: Analyze]     │ (trains)      │ (ground-truth)
                          ┌─────────────────────────────┐       │               │
                          │  StructuralAnalysisResult   │       │               │
-                         │  (53-field Metric Vector M) │       │               │
+                         │  (55-field Metric Vector M) │       │               │
                          └──────┬───────────────┬──────┘       │               │
                                 │               │              │               │
               [Step 3: Predict]      [Step 4: Diagnose]                        │

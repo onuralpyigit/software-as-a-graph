@@ -565,3 +565,159 @@ class TestEigenvectorKatzFallback:
         # E is a leaf sink
         assert res.components["E"].out_degree_raw == 0
         assert res.components["E"].in_degree_raw == 1
+
+
+# =============================================================================
+# Analyze Stage Hardening Regression Tests
+# =============================================================================
+
+class TestAnalyzeStageHardening:
+    """Regression tests for Step 2 (Analyze) hardening fixes."""
+
+    def test_blast_radius_and_cascade_depth_follow_failure_propagation(self, linear_graph):
+        """blast_radius and cascade_depth traverse G^T (impacted dependents), not G."""
+        # linear_graph: A -> B -> C (A depends on B, B depends on C)
+        res = StructuralAnalyzer().analyze(linear_graph)
+
+        # C is depended on by B and A -> 2 impacted dependents, depth 2
+        assert res.components["C"].blast_radius == 2
+        assert res.components["C"].cascade_depth == 2
+        # B is depended on by A -> 1 impacted dependent, depth 1
+        assert res.components["B"].blast_radius == 1
+        assert res.components["B"].cascade_depth == 1
+        # A has no dependents -> 0 impacted dependents, depth 0
+        assert res.components["A"].blast_radius == 0
+        assert res.components["A"].cascade_depth == 0
+
+    def test_ap_c_directed_and_cdi_on_chain_and_cycle(self, linear_graph, cycle_graph):
+        """ap_c_directed and cdi stay exact after removing duplicate G_T_undir work."""
+        lin_res = StructuralAnalyzer().analyze(linear_graph)
+        # In A -> B -> C (n=3), B is the only cut vertex; removing B leaves two 1-node CCs.
+        assert lin_res.components["B"].ap_c_directed == pytest.approx(1.0 - 1 / 2)
+        assert lin_res.components["B"].cdi == pytest.approx(1.0)
+        assert lin_res.components["A"].ap_c_directed == 0.0
+        assert lin_res.components["C"].ap_c_directed == 0.0
+
+        cyc_res = StructuralAnalyzer().analyze(cycle_graph)
+        # 2-connected cycle has no cut vertices.
+        for comp in cyc_res.components.values():
+            assert comp.ap_c_directed == 0.0
+
+    def test_assortativity_never_nan_on_regular_graph(self):
+        """Regular/2-node graphs must report assortativity=0.0, not NaN."""
+        import math
+
+        gd = GraphData(
+            components=[
+                ComponentData(id="a", component_type="Application"),
+                ComponentData(id="b", component_type="Application"),
+            ],
+            edges=[
+                EdgeData(
+                    source_id="a", target_id="b",
+                    source_type="Application", target_type="Application",
+                    relation_type="DEPENDS_ON", dependency_type="app_to_app", weight=0.5,
+                ),
+                EdgeData(
+                    source_id="b", target_id="a",
+                    source_type="Application", target_type="Application",
+                    relation_type="DEPENDS_ON", dependency_type="app_to_app", weight=0.5,
+                ),
+            ],
+        )
+        res = StructuralAnalyzer().analyze(gd, AnalysisLayer.APP)
+        assert not math.isnan(res.graph_summary.assortativity)
+        assert res.graph_summary.assortativity == 0.0
+
+    def test_pubsub_metrics_orphaned_topic_and_none_dependency_type(self):
+        """Topic pub/sub counts populate even with no pub/sub edges, and None dep_type is safe."""
+        gd = GraphData(
+            components=[
+                ComponentData(
+                    id="T0",
+                    component_type="Topic",
+                    properties={"subscriber_count": 3, "publisher_count": 0},
+                ),
+                ComponentData(id="A0", component_type="Application"),
+            ],
+            edges=[
+                EdgeData(
+                    source_id="A0", target_id="T0",
+                    source_type="Application", target_type="Topic",
+                    relation_type="RAW", dependency_type=None, weight=1.0,  # type: ignore[arg-type]
+                ),
+            ],
+        )
+        res = StructuralAnalyzer().analyze(gd, AnalysisLayer.SYSTEM)
+        assert res.components["T0"].topic_subscriber_count == 3
+        assert res.components["T0"].topic_publisher_count == 0
+
+    def test_unknown_layer_logs_warning_and_falls_back(self, caplog):
+        """_resolve_layer warns when falling back to SYSTEM for unknown layer names."""
+        import logging
+        from saag.analysis.service import AnalysisService
+        from saag.infrastructure.memory_repo import MemoryRepository
+
+        repo = MemoryRepository()
+        repo.save_graph({"nodes": [], "brokers": [], "topics": [], "applications": [], "libraries": []})
+        service = AnalysisService(repo)
+
+        with caplog.at_level(logging.WARNING, logger="saag.analysis.service"):
+            result = service.analyze_layer("not-a-valid-layer")
+
+        assert result.layer == "system"
+        assert any("not-a-valid-layer" in rec.message for rec in caplog.records)
+
+    def test_client_analyze_layers_single_pass(self):
+        """Client.analyze_layers derives dependencies and loads graph once for all layers."""
+        from unittest.mock import MagicMock
+        from saag.client import Client
+        from saag.infrastructure.memory_repo import MemoryRepository
+
+        repo = MemoryRepository()
+        repo.save_graph({
+            "nodes": [{"id": "N0", "name": "N0"}],
+            "brokers": [{"id": "B0", "name": "B0"}],
+            "topics": [{"id": "T0", "name": "T0"}],
+            "applications": [{"id": "A0", "name": "A0"}],
+            "libraries": [],
+            "relationships": {
+                "runs_on": [{"from": "A0", "to": "N0"}, {"from": "B0", "to": "N0"}],
+                "publishes_to": [{"from": "A0", "to": "T0"}],
+                "routes": [{"from": "B0", "to": "T0"}],
+            },
+        })
+        repo.derive_dependencies = MagicMock(wraps=repo.derive_dependencies)
+        repo.get_graph_data = MagicMock(wraps=repo.get_graph_data)
+
+        client = Client(repo=repo)
+        results = client.analyze_layers(["app", "infra", "mw", "system"])
+
+        assert set(results.keys()) == {"app", "infra", "mw", "system"}
+        assert repo.derive_dependencies.call_count == 1
+        assert repo.get_graph_data.call_count == 1
+
+    def test_record_phases_context_isolated(self, linear_graph):
+        """record_phases uses ContextVar so concurrent threads don't cross-contaminate."""
+        import threading
+        from saag.analysis.structural_analyzer import record_phases
+
+        barrier = threading.Barrier(2)
+        results: Dict[int, Dict[str, float]] = {}
+
+        def _worker(idx: int) -> None:
+            with record_phases() as phases:
+                barrier.wait()
+                StructuralAnalyzer().analyze(linear_graph)
+                results[idx] = dict(phases)
+
+        t1 = threading.Thread(target=_worker, args=(1,))
+        t2 = threading.Thread(target=_worker, args=(2,))
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+
+        assert len(results[1]) == 7
+        assert len(results[2]) == 7
+        assert results[1] is not results[2]

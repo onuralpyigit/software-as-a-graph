@@ -1,9 +1,12 @@
+import logging
 from typing import Dict, List
 
 from .models import LayerAnalysisResult
 from .structural_analyzer import StructuralAnalyzer
 from saag.core.layers import AnalysisLayer, get_layer_definition
 from saag.core.ports.graph_repository import IGraphRepository
+
+logger = logging.getLogger(__name__)
 
 
 class AnalysisService:
@@ -67,4 +70,9 @@ def _resolve_layer(layer: str) -> AnalysisLayer:
     try:
         return AnalysisLayer.from_string(layer)
     except ValueError:
+        logger.warning(
+            "Unknown analysis layer %r; falling back to '%s'",
+            layer,
+            AnalysisLayer.SYSTEM.value,
+        )
         return AnalysisLayer.SYSTEM
