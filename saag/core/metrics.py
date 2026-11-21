@@ -329,6 +329,7 @@ class ComponentQuality:
     levels: QualityLevels
     structural: StructuralMetrics
     profile: Optional[Any] = None  # CriticalityProfile; Any avoids circular import
+    dimension_contributions: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         result = {

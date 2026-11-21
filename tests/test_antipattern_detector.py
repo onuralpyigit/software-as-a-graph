@@ -278,24 +278,42 @@ def test_detector_orphaned_topic_fully_disconnected_not_double_flagged():
 
 
 def test_detector_qos_mismatch():
+    """DEPENDS_ON (app_to_app) points subscriber (source) -> publisher (target).
+    QOS_MISMATCH fires when publisher QoS weight is >0.3 below subscriber weight."""
     detector = AntiPatternDetector(active_patterns=["QOS_MISMATCH"])
     pub = _comp("PUB", structural_kwargs={"weight": 0.1})
     sub = _comp("SUB", structural_kwargs={"weight": 0.9})
-    edge = _edge("PUB", "SUB")
+    edge = _edge("SUB", "PUB")
     result = QualityAnalysisResult(
         timestamp="t", layer="system", context="test", components=[pub, sub], edges=[edge],
         classification_summary=SimpleNamespace(total_components=2, component_distribution={}),
     )
     problems = detector.detect(_shim(result), "system")
     assert len(problems) == 1
-    assert problems[0].entity_id == "PUB->SUB"
+    assert problems[0].entity_id == "SUB->PUB"
+    assert problems[0].pattern_id == "QOS_MISMATCH"
+    assert problems[0].evidence["w_publisher"] == 0.1
+    assert problems[0].evidence["w_subscriber"] == 0.9
+
+
+def test_detector_qos_mismatch_does_not_fire_when_publisher_exceeds_subscriber():
+    """Publisher with higher QoS weight than subscriber is over-provisioned, not a mismatch."""
+    detector = AntiPatternDetector(active_patterns=["QOS_MISMATCH"])
+    pub = _comp("PUB", structural_kwargs={"weight": 0.9})
+    sub = _comp("SUB", structural_kwargs={"weight": 0.1})
+    edge = _edge("SUB", "PUB")
+    result = QualityAnalysisResult(
+        timestamp="t", layer="system", context="test", components=[pub, sub], edges=[edge],
+        classification_summary=SimpleNamespace(total_components=2, component_distribution={}),
+    )
+    assert detector.detect(_shim(result), "system") == []
 
 
 def test_detector_qos_mismatch_no_gap():
     detector = AntiPatternDetector(active_patterns=["QOS_MISMATCH"])
     pub = _comp("PUB", structural_kwargs={"weight": 0.8})
     sub = _comp("SUB", structural_kwargs={"weight": 0.9})
-    edge = _edge("PUB", "SUB")
+    edge = _edge("SUB", "PUB")
     result = QualityAnalysisResult(
         timestamp="t", layer="system", context="test", components=[pub, sub], edges=[edge],
         classification_summary=SimpleNamespace(total_components=2, component_distribution={}),
@@ -436,3 +454,119 @@ def test_problem_detector_wrapper(mock_quality_result):
     summary = wrapper.summarize(problems)
     assert summary.total_problems == len(problems)
     assert summary.affected_components >= 1
+
+
+def test_detector_failure_hub_uses_in_degree():
+    """FAILURE_HUB must fire on a high-reliability leaf provider with many
+    dependents (high in_degree_raw) even when out_degree_raw == 0."""
+    detector = AntiPatternDetector(active_patterns=["FAILURE_HUB"])
+    comps = [
+        _comp(f"N{i}", scores={"reliability": 0.1}, structural_kwargs={"in_degree_raw": 1, "out_degree_raw": 3})
+        for i in range(9)
+    ]
+    comps.append(
+        _comp("LEAF_HUB", scores={"reliability": 0.95}, structural_kwargs={"in_degree_raw": 12, "out_degree_raw": 0})
+    )
+    result = QualityAnalysisResult(
+        timestamp="t", layer="system", context="test", components=comps, edges=[],
+        classification_summary=SimpleNamespace(total_components=len(comps), component_distribution={}),
+    )
+    problems = detector.detect(_shim(result), "system")
+    assert len(problems) == 1
+    assert problems[0].entity_id == "LEAF_HUB"
+    assert problems[0].pattern_id == "FAILURE_HUB"
+    assert problems[0].evidence["in_degree"] == 12
+
+
+def test_detector_god_component_adaptive_betweenness_fence():
+    """GOD_COMPONENT uses an adaptive betweenness fence on realistic graphs
+    where betweenness is below 0.3."""
+    detector = AntiPatternDetector(active_patterns=["GOD_COMPONENT"])
+    comps = [
+        _comp(f"N{i}", levels={"maintainability": CriticalityLevel.LOW}, structural_kwargs={"betweenness": 0.01})
+        for i in range(9)
+    ]
+    comps.append(
+        _comp("GOD", levels={"maintainability": CriticalityLevel.CRITICAL}, structural_kwargs={"betweenness": 0.15})
+    )
+    result = QualityAnalysisResult(
+        timestamp="t", layer="system", context="test", components=comps, edges=[],
+        classification_summary=SimpleNamespace(total_components=len(comps), component_distribution={}),
+    )
+    problems = detector.detect(_shim(result), "system")
+    assert len(problems) == 1
+    assert problems[0].entity_id == "GOD"
+    assert problems[0].pattern_id == "GOD_COMPONENT"
+
+
+def test_detector_compound_risk_ignores_hub_and_spoke():
+    """COMPOUND_RISK must require SPOF + (GOD_COMPONENT or FAILURE_HUB),
+    not MEDIUM HUB_AND_SPOKE."""
+    detector = AntiPatternDetector(active_patterns=["SPOF", "HUB_AND_SPOKE", "COMPOUND_RISK"])
+    comp = _comp(
+        "A",
+        structural_kwargs={
+            "is_articulation_point": True,
+            "clustering_coefficient": 0.0,
+            "in_degree_raw": 3,
+            "out_degree_raw": 3,
+        },
+    )
+    result = QualityAnalysisResult(
+        timestamp="t", layer="system", context="test", components=[comp], edges=[],
+        classification_summary=SimpleNamespace(total_components=1, component_distribution={}),
+    )
+    problems = detector.detect(_shim(result), "system")
+    pids = {p.pattern_id for p in problems}
+    assert "SPOF" in pids
+    assert "HUB_AND_SPOKE" in pids
+    assert "COMPOUND_RISK" not in pids
+
+
+def test_detector_chain_id_is_deterministic():
+    """CHAIN entity IDs must be deterministic across calls."""
+    detector = AntiPatternDetector(active_patterns=["CHAIN"])
+    nodes = ["Z", "M", "A", "K"]
+    comps = [_comp(cid) for cid in nodes]
+    edges = [_edge(nodes[i], nodes[i + 1]) for i in range(len(nodes) - 1)]
+    result = QualityAnalysisResult(
+        timestamp="t", layer="app", context="test", components=comps, edges=edges,
+        classification_summary=SimpleNamespace(total_components=len(nodes), component_distribution={}),
+    )
+    p1 = detector.detect(_shim(result), "app")
+    p2 = detector.detect(_shim(result), "app")
+    assert len(p1) == 1
+    assert p1[0].entity_id == "CHAIN-AKM"
+    assert p1[0].entity_id == p2[0].entity_id
+
+
+def test_detector_deep_pipeline_terminates_fast_on_dense_cyclic_graph():
+    """Regression: DEEP_PIPELINE must terminate in polynomial time (no exponential
+    all_simple_paths blowup) on dense graphs with cycles."""
+    import time
+
+    detector = AntiPatternDetector(active_patterns=["DEEP_PIPELINE"])
+    # Build a 20-node layered diamond-lattice with back-edges (exponential simple paths)
+    nodes = [f"N{i:02d}" for i in range(20)]
+    comps = [_comp(cid) for cid in nodes]
+    edges = []
+    # Source N00 -> layers of 2 nodes -> Sink N19, plus cross & back edges
+    for i in range(0, 18, 2):
+        for j in (i + 1, i + 2, i + 3):
+            if j < 20:
+                edges.append(_edge(nodes[i], nodes[j]))
+        if i + 1 < 19:
+            for j in (i + 2, i + 3):
+                if j < 20:
+                    edges.append(_edge(nodes[i + 1], nodes[j]))
+    # Add a cycle in the middle
+    edges.append(_edge("N10", "N04"))
+    result = QualityAnalysisResult(
+        timestamp="t", layer="system", context="test", components=comps, edges=edges,
+        classification_summary=SimpleNamespace(total_components=len(nodes), component_distribution={}),
+    )
+    t0 = time.perf_counter()
+    problems = detector.detect(_shim(result), "system")
+    elapsed = time.perf_counter() - t0
+    assert elapsed < 1.0
+    assert len(problems) <= detector._MAX_DEEP_PIPELINES

@@ -82,7 +82,7 @@ For the complete CLI command reference (`diagnose_graph.py`), see [cli-pipeline-
 │ Primary Outputs   │ • RM dimension scores + Q*(v) and a 5-level tier.       │
 │                   │ • Anti-pattern report (5 CRITICAL, 5 HIGH, 9 MEDIUM).   │
 │                   │ • TriageResult: blast radius joined to root cause.      │
-│                   │ • CI/CD exit code (2 = a CRITICAL pattern was found).   │
+│                   │ • CI/CD exit code (2 = HIGH or CRITICAL pattern found). │
 ├───────────────────┼─────────────────────────────────────────────────────────┤
 │ Zero-GNN Cold     │ Runs standalone with no checkpoint and no simulation.   │
 │ Start             │ This is the property that makes it usable on day one.   │
@@ -140,7 +140,7 @@ flowchart TD
     subgraph Step4["Step 4: Diagnose — Explanation Layer (Pathway A)"]
         M --> RM["Closed-Form ISO-RM Scoring<br>FT(v), A(v), R(v), M(v), Q*(v)"]
         RM --> AP["19 Anti-Pattern Auditing Engine<br>(5 CRITICAL, 5 HIGH, 9 MEDIUM)"]
-        AP --> GATE{"Deployment Gate<br>(Any CRITICAL?)"}
+        AP --> GATE{"Deployment Gate<br>(Any HIGH/CRITICAL?)"}
         GATE -->|Yes| BLK["Block CI/CD Deployment (Exit 2)"]
         GATE -->|No| EXP["ExplanationEngine Synthesizer"]
         

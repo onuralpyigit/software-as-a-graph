@@ -212,6 +212,7 @@ class Client:
         as critical — attached as ``DiagnosisResult.triage``.
         """
         from saag.prediction.service import PredictionService
+        from saag.usecases.diagnostic import DiagnosticUseCase
 
         layer_result = analysis_result.raw
         structural = layer_result.structural
@@ -219,6 +220,12 @@ class Client:
 
         raw_prediction = getattr(prediction_result, "raw", prediction_result) if prediction_result is not None else None
         quality = (getattr(raw_prediction, "rm_result", None) or raw_prediction) if raw_prediction is not None else None
+
+        needs_problems = detect_problems and (
+            quality is None
+            or getattr(quality, "explanation", None) is None
+            or active_patterns is not None
+        )
 
         if quality is None:
             service = PredictionService(
@@ -229,12 +236,22 @@ class Client:
                 winsorize=winsorize,
                 winsorize_limit=winsorize_limit,
             )
-            quality = service.predict_quality(structural, run_sensitivity=run_sensitivity)
+            uc = DiagnosticUseCase(prediction_service=service)
+            quality, problems, problem_summary, explanation = uc.execute(
+                layer=layer,
+                structural_result=structural,
+                detect_problems=detect_problems,
+                active_patterns=active_patterns,
+                run_sensitivity=run_sensitivity,
+            )
             quality.prediction_mode = "rm"
-
-        if detect_problems and (getattr(quality, "explanation", None) is None or active_patterns is not None):
-            problems, problem_summary, explanation = PredictionService()._attach_problems_and_explanation(
-                quality, layer=layer, active_patterns=active_patterns
+        elif needs_problems:
+            uc = DiagnosticUseCase()
+            quality, problems, problem_summary, explanation = uc.execute(
+                layer=layer,
+                quality_result=quality,
+                detect_problems=True,
+                active_patterns=active_patterns,
             )
         else:
             problems = getattr(quality, "problems", None) or []
@@ -242,12 +259,16 @@ class Client:
             explanation = getattr(quality, "explanation", None)
 
         if raw_prediction is not None and raw_prediction is not quality:
-            raw_prediction.problems = problems
+            raw_prediction.problems = problems or []
             raw_prediction.problem_summary = problem_summary
             raw_prediction.explanation = explanation
             raw_prediction.rm_result = quality
 
-        triage_result = self.triage(quality, k=k, node_types=node_types) if k else None
+        # Preserve Pathway B's ranking when a GNN prediction_result was provided;
+        # triage() reads the shortlist from raw_prediction and joins root causes
+        # from raw_prediction.rm_result (quality).
+        triage_target = raw_prediction if raw_prediction is not None else quality
+        triage_result = self.triage(triage_target, k=k, node_types=node_types) if k else None
         return DiagnosisResult(quality, triage=triage_result)
 
     def triage(

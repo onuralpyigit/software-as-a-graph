@@ -56,7 +56,8 @@ def test_report_spof_count_matches_spof_findings():
     lists = {d.id: d.anti_patterns for d in data.component_details}
     assert lists["A5"] == ["SPOF"]
     assert lists["T2"] == ["ISOLATED"]
-    assert lists["A1"] == []
+    assert lists["A1"] == ["QOS_MISMATCH"]  # radar (w=0.15) publishes to tracker/A6 (w>=0.47)
+    assert lists["A4"] == []
 
 
 def test_edge_findings_attach_to_both_endpoints():

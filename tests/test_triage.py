@@ -222,9 +222,53 @@ def _explanation(pattern, dimensions=()):
     )
 
 
-def test_resolve_roles_fragile_hub_and_exposed_bottleneck():
+def test_resolve_roles_fragile_hub_fragile_bottleneck_and_developer():
+    from saag.explanation.engine import DimensionExplanation
+
     assert set(resolve_roles(_explanation("Fragile Hub"))) == {"SRE", "DevOps"}
-    assert set(resolve_roles(_explanation("Exposed Bottleneck"))) == {"Architect", "Security"}
+    assert set(resolve_roles(_explanation("Fragile Bottleneck"))) == {"DevOps", "Architect"}
+    assert set(resolve_roles(_explanation("Fault-Tolerance Hub"))) == {"SRE"}
+
+    cqp_dim = DimensionExplanation(
+        dimension="Maintainability",
+        score=0.88,
+        level="CRITICAL",
+        driving_metric="Code Quality Penalty (CQP)",
+        driving_value=0.32,
+        plain_meaning="high code complexity",
+        risk_sentence="risky to modify",
+    )
+    roles = resolve_roles(_explanation("Bottleneck", dimensions=[cqp_dim]))
+    assert "Architect" in roles
+    assert "Developer" in roles
+
+
+def test_client_diagnose_preserves_gnn_triage_ranking(rm_result):
+    """Regression: Client.diagnose(analysis, prediction_result=gnn_pred, k=K)
+    must pass the GNN result (not its rm_result) to triage so Pathway B's
+    ranking is preserved."""
+    from types import SimpleNamespace
+    from saag.client import Client
+    from saag.models import AnalysisResult, PredictionResult
+
+    rm_components = rm_result.components
+    # GNN disagrees with RM: ranks Leaf_Service #1 (0.99), Aux_Service #2 (0.4), App_Controller #3 (0.1)
+    gnn_components = [
+        dataclasses.replace(rm_components[0], scores=dataclasses.replace(rm_components[0].scores, overall=0.1)),
+        dataclasses.replace(rm_components[1], scores=dataclasses.replace(rm_components[1].scores, overall=0.4)),
+        dataclasses.replace(rm_components[2], scores=dataclasses.replace(rm_components[2].scores, overall=0.99)),
+    ]
+    gnn_raw = _FakeGNNResult(gnn_components, rm_result)
+    fake_analysis = AnalysisResult(SimpleNamespace(layer="system", structural=None))
+    fake_pred = PredictionResult(gnn_raw)
+
+    client = Client.__new__(Client)
+    diag = client.diagnose(fake_analysis, prediction_result=fake_pred, k=2, detect_problems=False)
+
+    assert diag.triage is not None
+    assert diag.triage.ranking_source == "gnn"
+    assert [e.component_id for e in diag.triage.entries] == ["Leaf_Service", "Aux_Service"]
+    assert [e.pattern for e in diag.triage.entries] == ["Composite Risk", "SPOF"]
 
 
 def test_resolve_roles_defaults_to_architect_when_nothing_matches():

@@ -103,8 +103,9 @@ def build_parser() -> argparse.ArgumentParser:
              "(default: robust, i.e. rank-based)",
     )
     weight_grp.add_argument(
-        "--winsorize", action="store_true",
-        help="Cap raw metric values above the 95th percentile before normalization",
+        "--winsorize", action=argparse.BooleanOptionalAction, default=True,
+        help="Cap raw metric values above the 95th percentile before normalization "
+             "(default: enabled, matching Client.diagnose; pass --no-winsorize to disable)",
     )
     weight_grp.add_argument(
         "--sensitivity", action="store_true",

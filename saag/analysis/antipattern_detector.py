@@ -381,6 +381,10 @@ class AntiPatternDetector:
 
     # ── Helpers ──────────────────────────────────────────────────────
 
+    #: Minimum per-type sample size for stratified box-plot fences, matching
+    #: QualityClassifier._MIN_GROUP in saag/analysis/classifier.py.
+    _MIN_TYPE_GROUP: int = 8
+
     def _make_problem(self, pid: str, entity_id: str, evidence: Dict[str, Any], 
                        entity_type: str = "Component") -> DetectedProblem:
         spec = CATALOG[pid]
@@ -388,14 +392,16 @@ class AntiPatternDetector:
             entity_id=entity_id, entity_type=entity_type, 
             category=spec.category, severity=spec.severity,
             name=spec.name, description=spec.description,
-            recommendation=spec.recommendation, evidence=evidence
+            recommendation=spec.recommendation, evidence=evidence,
+            pattern_id=pid,
         )
 
     @staticmethod
     def _compute_distribution_stats(components, edges=None) -> Dict[str, Any]:
-        """Compute box-plot fences for metrics."""
+        """Compute pooled and per-type stratified box-plot fences for metrics."""
         def _boxplot_fence(values: List[float]) -> Tuple[float, float, float, float]:
-            if not values: return 0.0, 0.0, 0.0, 1.0
+            if not values:
+                return 0.0, 0.0, 0.0, 1.0
             sv = sorted(values)
             n = len(sv)
             q1, median, q3 = sv[n // 4], sv[n // 2], sv[min(3 * n // 4, n - 1)]
@@ -404,15 +410,38 @@ class AntiPatternDetector:
         overall_scores = [c.scores.overall for c in components]
         avail_scores = [c.scores.availability for c in components]
         rel_scores = [c.scores.reliability for c in components]
+        bt_scores = [getattr(c.structural, "betweenness", 0.0) for c in components]
         total_degrees = [getattr(c.structural, 'in_degree_raw', 0) + getattr(c.structural, 'out_degree_raw', 0) for c in components]
+        in_degrees = [getattr(c.structural, 'in_degree_raw', 0) for c in components]
         out_degrees = [getattr(c.structural, 'out_degree_raw', 0) for c in components]
 
         _, _, q3_q, fence_q = _boxplot_fence(overall_scores)
         _, _, q3_deg, fence_deg = _boxplot_fence(total_degrees)
         _, _, q3_rel, fence_rel = _boxplot_fence(rel_scores)
         _, _, q3_avail, fence_avail = _boxplot_fence(avail_scores)
+        _, _, _, fence_bt = _boxplot_fence(bt_scores)
+        if len(components) < 4:
+            # Degenerate tiny-sample fallback for betweenness fence
+            fence_bt = 0.3
 
+        median_in = statistics.median(in_degrees) if in_degrees else 0
         median_out = statistics.median(out_degrees) if out_degrees else 0
+
+        # Per-type stratified fences (mirrors QualityClassifier._MIN_GROUP = 8)
+        by_type: Dict[str, list] = {}
+        for c in components:
+            by_type.setdefault(c.type, []).append(c)
+
+        fence_rel_by_type: Dict[str, float] = {}
+        fence_avail_by_type: Dict[str, float] = {}
+        fence_bt_by_type: Dict[str, float] = {}
+        median_in_by_type: Dict[str, float] = {}
+        for ctype, group in by_type.items():
+            if len(group) >= AntiPatternDetector._MIN_TYPE_GROUP:
+                _, _, _, fence_rel_by_type[ctype] = _boxplot_fence([c.scores.reliability for c in group])
+                _, _, _, fence_avail_by_type[ctype] = _boxplot_fence([c.scores.availability for c in group])
+                _, _, _, fence_bt_by_type[ctype] = _boxplot_fence([getattr(c.structural, "betweenness", 0.0) for c in group])
+                median_in_by_type[ctype] = statistics.median(getattr(c.structural, "in_degree_raw", 0) for c in group)
 
         # TOPIC_FANOUT: fence computed over Topic-type components only, using raw
         # subscriber_count (not the DEPENDS_ON-projected out_degree_raw, which is always 0
@@ -430,7 +459,11 @@ class AntiPatternDetector:
 
         return {
             "fence_q": fence_q, "q3_degree": q3_deg, "fence_degree": fence_deg,
-            "fence_rel": fence_rel, "fence_avail": fence_avail,
+            "fence_rel": fence_rel, "fence_avail": fence_avail, "fence_bt": fence_bt,
+            "fence_rel_by_type": fence_rel_by_type,
+            "fence_avail_by_type": fence_avail_by_type,
+            "fence_bt_by_type": fence_bt_by_type,
+            "median_in": median_in, "median_in_by_type": median_in_by_type,
             "median_out": median_out, "total_count": len(components),
             "fence_topic_out": fence_topic_out, "fence_edge_bt": fence_edge_bt
         }
@@ -440,8 +473,10 @@ class AntiPatternDetector:
     def _detect_spof(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
         # docs/antipatterns.md §5.1: SPOF(v) <-> AP_c(v) > 0 OR A(v) > upper_fence(A)
-        fence_avail = stats.get("fence_avail", 1.0)
+        pooled_fence_avail = stats.get("fence_avail", 1.0)
+        fence_avail_by_type = stats.get("fence_avail_by_type", {})
         for c in lr.components:
+            fence_avail = fence_avail_by_type.get(c.type, pooled_fence_avail)
             # Issue #10: Use directed AP if available
             is_spof = getattr(c.structural, 'is_directed_ap', False)
             if is_spof:
@@ -462,15 +497,20 @@ class AntiPatternDetector:
 
     def _detect_failure_hub(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
-        # Issue #12: Failure Hub should be based on Reliability R(v) and out-degree
-        rel_fence = stats.get("fence_rel", 0.8)
-        median_out = stats.get("median_out", 1)
-        
+        # DEPENDS_ON edges point dependent -> dependency, so a failure hub whose
+        # outage cascades widely has high Reliability risk R(v) AND high in_degree_raw.
+        pooled_rel_fence = stats.get("fence_rel", 0.8)
+        fence_rel_by_type = stats.get("fence_rel_by_type", {})
+        pooled_median_in = stats.get("median_in", 0)
+        median_in_by_type = stats.get("median_in_by_type", {})
+
         for c in lr.components:
-            if c.scores.reliability > rel_fence and c.structural.out_degree_raw > median_out:
+            rel_fence = fence_rel_by_type.get(c.type, pooled_rel_fence)
+            median_in = median_in_by_type.get(c.type, pooled_median_in)
+            if c.scores.reliability > rel_fence and c.structural.in_degree_raw > median_in:
                 out.append(self._make_problem("FAILURE_HUB", c.id, {
-                    "reliability": c.scores.reliability, 
-                    "out_degree": c.structural.out_degree_raw,
+                    "reliability": c.scores.reliability,
+                    "in_degree": c.structural.in_degree_raw,
                     "fence_ratio": _fence_ratio(c.scores.reliability, rel_fence),
                 }))
         return out
@@ -487,11 +527,17 @@ class AntiPatternDetector:
     def _detect_god_component(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
         from saag.core.criticality import CriticalityLevel
+        pooled_bt_fence = stats.get("fence_bt", 0.3)
+        fence_bt_by_type = stats.get("fence_bt_by_type", {})
         for c in lr.components:
-            betweenness = getattr(c.structural, 'betweenness', 0)
-            if betweenness > 0.3 and c.levels.maintainability >= CriticalityLevel.CRITICAL:
-                out.append(self._make_problem("GOD_COMPONENT", c.id, {"betweenness": betweenness,
-                                                                      "fence_ratio": _fence_ratio(betweenness, 0.3)}))
+            bt_fence = fence_bt_by_type.get(c.type, pooled_bt_fence)
+            betweenness = getattr(c.structural, 'betweenness', 0.0)
+            if betweenness > 0.0 and betweenness > bt_fence and c.levels.maintainability >= CriticalityLevel.CRITICAL:
+                out.append(self._make_problem("GOD_COMPONENT", c.id, {
+                    "betweenness": betweenness,
+                    "bt_fence": bt_fence,
+                    "fence_ratio": _fence_ratio(betweenness, bt_fence),
+                }))
         return out
 
     def _detect_hub_and_spoke(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
@@ -541,7 +587,8 @@ class AntiPatternDetector:
         out = []
         for component in nx.weakly_connected_components(H):
             if len(component) >= 4:
-                out.append(self._make_problem("CHAIN", f"CHAIN-{''.join(list(component)[:3])}", {"length": len(component)}, entity_type="Architecture"))
+                ordered = sorted(component)
+                out.append(self._make_problem("CHAIN", f"CHAIN-{''.join(ordered[:3])}", {"length": len(component)}, entity_type="Architecture"))
         return out
 
     def _detect_isolated(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
@@ -619,11 +666,12 @@ class AntiPatternDetector:
         for e in getattr(lr, "edges", []):
             if getattr(e, "dependency_type", "") != "app_to_app":
                 continue
-            u, v = by_id.get(e.source), by_id.get(e.target)
-            if u is None or v is None:
+            # DEPENDS_ON (app_to_app) points dependent (subscriber) -> dependency (publisher).
+            sub, pub = by_id.get(e.source), by_id.get(e.target)
+            if sub is None or pub is None:
                 continue
-            w_pub = getattr(u.structural, "weight", 1.0)
-            w_sub = getattr(v.structural, "weight", 1.0)
+            w_sub = getattr(sub.structural, "weight", 1.0)
+            w_pub = getattr(pub.structural, "weight", 1.0)
             if w_pub < w_sub - 0.3:
                 out.append(self._make_problem("QOS_MISMATCH", e.id, {
                     "w_publisher": w_pub, "w_subscriber": w_sub, "gap": w_sub - w_pub
@@ -668,25 +716,87 @@ class AntiPatternDetector:
         sl = sorted(lengths)
         return sl[int(0.75 * (len(sl) - 1))]
 
-    def _enumerate_deep_pipelines(self, G, sources, sinks, tau: int) -> List[DetectedProblem]:
+    #: Upper bound on DEEP_PIPELINE findings emitted per scan to prevent alert flooding.
+    _MAX_DEEP_PIPELINES: int = 100
+
+    def _enumerate_deep_pipelines(
+        self, G, sources, sinks, tau: int, max_findings: int = _MAX_DEEP_PIPELINES
+    ) -> List[DetectedProblem]:
+        """Find longest source-to-sink pipelines in polynomial time via SCC condensation.
+
+        Condensing strongly connected components turns any directed graph (including
+        cyclic ones) into a DAG C in O(V + E). Longest-path DP on C then runs in
+        O(|sources| * (V + E)) and emits at most one canonical longest path per
+        (source_scc, sink_scc) pair — eliminating the exponential blowup of
+        nx.all_simple_paths on dense/cyclic topologies.
+        """
         import networkx as nx
-        out = []
-        seen_paths = set()
-        for src in sources:
-            for tgt in sinks:
-                try:
-                    paths = nx.all_simple_paths(G, src, tgt, cutoff=tau + 2)
-                except nx.NetworkXNoPath:
+
+        C = nx.condensation(G)
+        if C.number_of_nodes() == 0:
+            return []
+
+        mapping = C.graph["mapping"]  # original node -> scc_id
+        # Canonical representative node per SCC (deterministic across runs)
+        scc_rep: Dict[int, str] = {
+            scc_id: min(str(n) for n in C.nodes[scc_id]["members"])
+            for scc_id in C.nodes
+        }
+
+        source_sccs = sorted({mapping[s] for s in sources if s in mapping})
+        sink_sccs = {mapping[t] for t in sinks if t in mapping}
+        if not source_sccs or not sink_sccs:
+            return []
+
+        topo_order = list(nx.topological_sort(C))
+        candidates: List[Tuple[int, str, List[str]]] = []
+
+        for src_scc in source_sccs:
+            dist: Dict[int, int] = {src_scc: 0}
+            pred: Dict[int, Optional[int]] = {src_scc: None}
+            for u in topo_order:
+                if u not in dist:
                     continue
-                for path in paths:
-                    hops = len(path) - 1
-                    key = tuple(path)
-                    if hops >= tau and key not in seen_paths:
-                        seen_paths.add(key)
-                        out.append(self._make_problem(
-                            "DEEP_PIPELINE", " -> ".join(path),
-                            {"hops": hops, "tau": tau}, entity_type="Architecture"
-                        ))
+                du = dist[u]
+                for v in C.successors(u):
+                    cand_d = du + 1
+                    if cand_d > dist.get(v, -1) or (
+                        cand_d == dist.get(v, -1)
+                        and pred.get(v) is not None
+                        and scc_rep[u] < scc_rep[pred[v]]
+                    ):
+                        dist[v] = cand_d
+                        pred[v] = u
+
+            for tgt_scc in sink_sccs:
+                hops = dist.get(tgt_scc, -1)
+                if hops < tau:
+                    continue
+                # Reconstruct canonical path
+                scc_path: List[int] = []
+                cur: Optional[int] = tgt_scc
+                while cur is not None:
+                    scc_path.append(cur)
+                    cur = pred.get(cur)
+                scc_path.reverse()
+                node_path = [scc_rep[s] for s in scc_path]
+                path_str = " -> ".join(node_path)
+                candidates.append((hops, path_str, node_path))
+
+        # Deterministic ordering: longest pipelines first, then lexicographical path
+        candidates.sort(key=lambda item: (-item[0], item[1]))
+        out: List[DetectedProblem] = []
+        seen_paths = set()
+        for hops, path_str, _ in candidates:
+            if path_str in seen_paths:
+                continue
+            seen_paths.add(path_str)
+            out.append(self._make_problem(
+                "DEEP_PIPELINE", path_str,
+                {"hops": hops, "tau": tau}, entity_type="Architecture"
+            ))
+            if len(out) >= max_findings:
+                break
         return out
 
     def _detect_deep_pipeline(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
@@ -720,21 +830,24 @@ class AntiPatternDetector:
 
     def _detect_compound_risk(self, problems: List[DetectedProblem]) -> List[DetectedProblem]:
         """Issue #13: Post-pass to identify nodes with multiple critical problems."""
-        by_entity: Dict[str, List[str]] = {}
+        _name_to_id = {spec.name: pid for pid, spec in CATALOG.items()}
+        by_entity: Dict[str, List[Tuple[Optional[str], str]]] = {}
         for p in problems:
             if p.entity_type == "Component":
-                by_entity.setdefault(p.entity_id, []).append(p.name)
-        
+                pid = p.pattern_id or _name_to_id.get(p.name)
+                by_entity.setdefault(p.entity_id, []).append((pid, p.name))
+
         out = []
-        for eid, names in by_entity.items():
-            is_spof = any("SPOF" in n for n in names)
-            is_god = any("God" in n for n in names) or any("Hub" in n for n in names)
-            
-            if is_spof and is_god:
+        for eid, entries in by_entity.items():
+            pids = {pid for pid, _ in entries if pid is not None}
+            is_spof = "SPOF" in pids
+            is_god_or_hub = bool(pids & {"GOD_COMPONENT", "FAILURE_HUB"})
+
+            if is_spof and is_god_or_hub:
                 out.append(self._make_problem(
-                    "COMPOUND_RISK", 
-                    eid, 
-                    {"risks": names}, 
+                    "COMPOUND_RISK",
+                    eid,
+                    {"risks": [name for _, name in entries]},
                     entity_type="Component"
                 ))
         return out

@@ -135,6 +135,7 @@ class DetectedProblem:
     description: str
     recommendation: str
     evidence: Dict[str, Any] = field(default_factory=dict)
+    pattern_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         from dataclasses import asdict

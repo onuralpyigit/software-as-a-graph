@@ -286,16 +286,18 @@ class QualityAnalyzer:
         if not metrics_list:
             return []
 
-        # Compute raw RM scores
+        # Compute raw RM scores and per-term weighted contributions
         scored: List[ComponentQuality] = []
         for m in metrics_list:
-            scores = self._compute_rm(m, norm)
+            contribs: Dict[str, Dict[str, float]] = {}
+            scores = self._compute_rm(m, norm, contributions_out=contribs)
             scored.append(ComponentQuality(
                 id=m.id,
                 type=m.type,
                 scores=scores,
                 levels=QualityLevels(),  # placeholder, filled below
                 structural=m,
+                dimension_contributions=contribs,
             ))
 
         # Classify each dimension with box-plot (or percentile fallback).
@@ -366,7 +368,12 @@ class QualityAnalyzer:
         return scored
 
 
-    def _compute_rm(self, m: StructuralMetrics, norm: Dict[str, Any]) -> QualityScores:
+    def _compute_rm(
+        self,
+        m: StructuralMetrics,
+        norm: Dict[str, Any],
+        contributions_out: Optional[Dict[str, Dict[str, float]]] = None,
+    ) -> QualityScores:
         """
         Compute Reliability (hierarchical: Fault Tolerance + Availability) and
         Maintainability scores, and the overall composite.
@@ -424,7 +431,11 @@ class QualityAnalyzer:
             # documented as w_in in docs/structural-analysis.md §9.13.
             w_in_norm = _n(m.dependency_weight_in, "w_in")
             cdpot_topic = foc * (1.0 - min(w_in_norm, 1.0))
-            FT = w.ft_topic_foc * foc + w.ft_topic_cdpot * cdpot_topic
+            ft_terms = {
+                "fan_out_criticality": w.ft_topic_foc * foc,
+                "cdpot_topic": w.ft_topic_cdpot * cdpot_topic,
+            }
+            FT = sum(ft_terms.values())
         else:
             # Standard Fault Tolerance formula (Application, Broker, Node, Library)
             # FT(v) v6: RPR + DG_in + CDPot_enh (see §11.2 of structural-analysis.md)
@@ -435,11 +446,12 @@ class QualityAnalyzer:
             _od_raw = float(m.out_degree_raw)
             cdpot_base = ((rpr + id_n) / 2.0) * (1.0 - min(_od_raw / max(_id_raw, _eps_r), 1.0))
             cdpot_enh = min(cdpot_base * (1.0 + mpci), 1.0)
-            FT = (
-                w.ft_reverse_pagerank * rpr
-                + w.ft_in_degree * id_n
-                + w.ft_cdpot * cdpot_enh
-            )
+            ft_terms = {
+                "reverse_pagerank": w.ft_reverse_pagerank * rpr,
+                "in_degree": w.ft_in_degree * id_n,
+                "cdpot_enh": w.ft_cdpot * cdpot_enh,
+            }
+            FT = sum(ft_terms.values())
 
         # Maintainability: M(v) v6 — adds CQP as 5th signal
         w_out_n = _n(m.dependency_weight_out, "w_out")
@@ -452,27 +464,40 @@ class QualityAnalyzer:
         # Enrich coupling risk with path complexity (Issue 4/7)
         coupling_risk = min(1.0, coupling_risk * (1.0 + COUPLING_PATH_DELTA * m.path_complexity))
         m.coupling_risk_enh = coupling_risk  # Persisted for UNSTABLE_INTERFACE detection (antipattern_detector.py)
-        M = (
-            w.m_betweenness * bt
-            + w.m_w_out * w_out_n
-            + w.m_code_quality_penalty * cqp
-            + w.m_coupling_risk * coupling_risk
-            + w.m_clustering * (1.0 - cc)
-        )
+        m_terms = {
+            "betweenness": w.m_betweenness * bt,
+            "w_out": w.m_w_out * w_out_n,
+            "code_quality_penalty": w.m_code_quality_penalty * cqp,
+            "coupling_risk_enh": w.m_coupling_risk * coupling_risk,
+            "clustering_deficit": w.m_clustering * (1.0 - cc),
+        }
+        M = sum(m_terms.values())
 
         # Availability: A(v) v4 — 5-term additive formula, a Reliability sub-characteristic
         # A(v) = 0.25·AP_c_directed + 0.20·QSPOF + 0.20·BR + 0.25·CDI + 0.10·w(v)
         qspof = ap_c * qw
-        A = (
-            w.a_ap_c_directed * ap_c
-            + w.a_qspof       * qspof
-            + w.a_bridge_ratio * m.bridge_ratio
-            + w.a_cdi         * cdi
-            + w.a_qos_weight  * qw
-        )
+        a_terms = {
+            "ap_c_directed": w.a_ap_c_directed * ap_c,
+            "qspof": w.a_qspof * qspof,
+            "bridge_ratio": w.a_bridge_ratio * m.bridge_ratio,
+            "cdi": w.a_cdi * cdi,
+            "qos_weight": w.a_qos_weight * qw,
+        }
+        A = sum(a_terms.values())
 
         # Reliability: hierarchical combination of Fault Tolerance and Availability
         R = w.r_alpha * FT + (1.0 - w.r_alpha) * A
+
+        if contributions_out is not None:
+            r_terms: Dict[str, float] = {}
+            for k, v in ft_terms.items():
+                r_terms[k] = w.r_alpha * v
+            for k, v in a_terms.items():
+                r_terms[k] = r_terms.get(k, 0.0) + (1.0 - w.r_alpha) * v
+            contributions_out["fault_tolerance"] = ft_terms
+            contributions_out["availability"] = a_terms
+            contributions_out["reliability"] = r_terms
+            contributions_out["maintainability"] = m_terms
 
         Q = w.q_reliability * R + w.q_maintainability * M
 

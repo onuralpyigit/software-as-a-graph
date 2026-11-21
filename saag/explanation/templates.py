@@ -12,6 +12,11 @@ DEFAULT_DIMENSION_TEMPLATES = {
         "plain_meaning": "This component has many incoming dependencies ({in_degree_raw} direct).",
         "risk_sentence": "Unplanned downtime here will broadly impact downstream services.",
     },
+    "fault_tolerance": {
+        "driving_metric": "Reverse PageRank / Cascade Depth Potential",
+        "plain_meaning": "Failures here propagate across {cascade_count} dependent components.",
+        "risk_sentence": "Without circuit breakers or isolation, faults here cascade broadly.",
+    },
     "maintainability": {
         "driving_metric": "Betweenness / Out-Degree",
         "plain_meaning": "It acts as a structural bridge with {out_degree_raw} outgoing dependencies.",
@@ -81,12 +86,14 @@ STAKEHOLDER_MAPPING = {
     # Maps dimensions to stakeholder roles
     "dimensions": {
         "Reliability": "SRE",
+        "Fault Tolerance": "SRE",
         "Maintainability": "Architect",
         "Availability": "DevOps",
     },
     # Maps specific patterns to stakeholder roles (overrides dimensions if needed)
     "patterns": {
         "Total Hub": "SRE",
+        "Fault-Tolerance Hub": "SRE",
         "SPOF": "DevOps",
         "Bottleneck": "Architect",
     }

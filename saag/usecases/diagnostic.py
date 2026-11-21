@@ -37,34 +37,39 @@ class DiagnosticUseCase:
         self,
         layer: str = "system",
         structural_result: Optional[StructuralAnalysisResult] = None,
+        quality_result: Optional[QualityAnalysisResult] = None,
         detect_problems: bool = True,
         active_patterns: Optional[List[str]] = None,
         run_sensitivity: bool = False,
         **kwargs,
     ) -> Tuple[QualityAnalysisResult, Optional[List[DetectedProblem]], Optional[ProblemSummary], Optional[Any]]:
         """
-        Execute Pathway A diagnostic attribution on a structural result or by querying analysis_service.
+        Execute Pathway A diagnostic attribution on a structural result, a pre-computed
+        RM quality_result, or by querying analysis_service.
         
         Returns:
             Tuple of (quality_result, detected_problems, problem_summary, explanation)
         """
-        if structural_result is None:
-            if self.analysis_service is None:
-                raise ValueError("Either structural_result or an initialized analysis_service must be provided.")
-            layer_res = self.analysis_service.analyze_layer(layer)
-            structural_result = layer_res.structural
-
-        # Use prediction_service if available (holds QualityAnalyzer orchestration), else instantiate analyzer
-        if self.prediction_service is not None:
-            quality = self.prediction_service.predict_quality(
-                structural_result,
-                run_sensitivity=run_sensitivity,
-                **kwargs,
-            )
+        if quality_result is not None:
+            quality = quality_result
         else:
-            from saag.analysis.analyzer import QualityAnalyzer
-            analyzer = QualityAnalyzer()
-            quality = analyzer.analyze(structural_result, run_sensitivity=run_sensitivity)
+            if structural_result is None:
+                if self.analysis_service is None:
+                    raise ValueError("Either structural_result, quality_result, or an initialized analysis_service must be provided.")
+                layer_res = self.analysis_service.analyze_layer(layer)
+                structural_result = layer_res.structural
+
+            # Use prediction_service if available (holds QualityAnalyzer orchestration), else instantiate analyzer
+            if self.prediction_service is not None:
+                quality = self.prediction_service.predict_quality(
+                    structural_result,
+                    run_sensitivity=run_sensitivity,
+                    **kwargs,
+                )
+            else:
+                from saag.analysis.analyzer import QualityAnalyzer
+                analyzer = QualityAnalyzer()
+                quality = analyzer.analyze(structural_result, run_sensitivity=run_sensitivity)
 
         problems: Optional[List[DetectedProblem]] = None
         summary: Optional[ProblemSummary] = None
@@ -76,8 +81,14 @@ class DiagnosticUseCase:
             from saag.analysis.smells import AntiPatternReport
             from saag.explanation.engine import ExplanationEngine
 
-            detector = AntiPatternDetector(active_patterns=active_patterns)
-            problems = detector.detect(quality, layer=layer)
+            failed_patterns: List[str] = []
+            # An empty list is an explicit opt-out, distinct from None ("run full catalog").
+            if active_patterns is not None and len(active_patterns) == 0:
+                problems = []
+            else:
+                detector = AntiPatternDetector(active_patterns=active_patterns)
+                problems = detector.detect(quality, layer=layer)
+                failed_patterns = detector.failed_patterns
             summary = ProblemDetector().summarize(problems)
             smell_report = AntiPatternReport(
                 problems=problems,
@@ -89,7 +100,7 @@ class DiagnosticUseCase:
             quality.problem_summary = summary
             quality.explanation = explanation
             quality.prediction_mode = "rm"
-            quality.failed_patterns = detector.failed_patterns
+            quality.failed_patterns = failed_patterns
 
         return quality, problems, summary, explanation
 

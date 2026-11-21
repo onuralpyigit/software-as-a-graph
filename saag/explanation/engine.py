@@ -67,7 +67,7 @@ class ComponentExplanation:
             "priority_action": self.priority_action,
             "remediation_steps": [{"action": self.priority_action}] if self.priority_action else [],
             "anti_patterns": self.anti_patterns,
-            "stakeholders": []
+            "stakeholders": resolve_roles(self),
         }
 
 
@@ -113,50 +113,102 @@ class SystemReport:
         }
 
 
+#: Human-readable metadata for every weighted RM contribution term recorded by
+#: QualityAnalyzer._compute_rm().
+TERM_METADATA: Dict[str, tuple[str, str]] = {
+    "reverse_pagerank": ("Reverse PageRank", "fraction of the system reachable from this component"),
+    "in_degree": ("In-degree centrality", "number of components directly depending on it"),
+    "cdpot_enh": ("Enhanced Cascade Depth Potential", "multi-path depth × breadth of its failure cascade"),
+    "fan_out_criticality": ("Topic Fan-Out Criticality", "message frequency × subscriber fan-out on this topic"),
+    "cdpot_topic": ("Topic Cascade Potential", "subscriber fan-out amplified by limited publisher redundancy"),
+    "betweenness": ("Betweenness centrality", "routing traffic passing through it"),
+    "w_out": ("Normalized weighted out-degree", "number and priority of outgoing interface dependencies"),
+    "code_quality_penalty": ("Code Quality Penalty (CQP)", "internal code size, cyclomatic complexity, instability, and low cohesion"),
+    "coupling_risk_enh": ("Enhanced Coupling Risk", "interface instability amplified by multi-path coupling"),
+    "clustering_deficit": ("Low local clustering", "absence of direct redundant links among its neighbors"),
+    "ap_c_directed": ("Directed SPOF score", "fraction of directed connectivity lost if it is removed"),
+    "qspof": ("QoS-weighted SPOF", "directed SPOF severity amplified by QoS criticality"),
+    "bridge_ratio": ("Bridge ratio", "fraction of its connections that are irreplaceable"),
+    "cdi": ("Connectivity Degradation Index", "increase in average path length without it"),
+    "qos_weight": ("QoS criticality weight", "intrinsic reliability/durability/priority weight"),
+}
+
+#: Bounded [0, 1] fallback drivers used only when ComponentQuality lacks
+#: pre-computed weighted dimension_contributions (e.g. manually constructed fixtures).
 DIMENSION_DRIVERS = {
     "Reliability": [
         ("reverse_pagerank", "Reverse PageRank", "fraction of the system reachable from this component"),
         ("in_degree", "In-degree centrality", "number of components directly depending on it"),
-        ("cdpot", "Cascade Depth Potential", "depth × breadth of its failure cascade"),
+        ("ap_c_directed", "Directed SPOF score", "fraction of directed connectivity lost if it is removed"),
+        ("fan_out_criticality", "Topic Fan-Out Criticality", "message frequency × subscriber fan-out on this topic"),
+    ],
+    "Fault Tolerance": [
+        ("reverse_pagerank", "Reverse PageRank", "fraction of the system reachable from this component"),
+        ("in_degree", "In-degree centrality", "number of components directly depending on it"),
+        ("fan_out_criticality", "Topic Fan-Out Criticality", "message frequency × subscriber fan-out on this topic"),
+        ("mpci", "Multi-Path Coupling Intensity", "redundant parallel dependency paths amplifying cascade depth"),
     ],
     "Maintainability": [
         ("betweenness", "Betweenness centrality", "routing traffic passing through it"),
-        ("dependency_weight_out", "Weighted out-degree", "number and priority of interface dependencies"),
-        ("coupling_risk", "Coupling Risk", "instability relative to its dependents"),
+        ("out_degree", "Out-degree centrality", "fraction of components this interface depends on"),
+        ("code_quality_penalty", "Code Quality Penalty (CQP)", "internal code size, cyclomatic complexity, instability, and low cohesion"),
+        ("coupling_risk_enh", "Enhanced Coupling Risk", "interface instability amplified by multi-path coupling"),
     ],
     "Availability": [
-        ("ap_c_directed", "Directed SPOF score", "fraction of connectivity lost if it is removed"),
+        ("ap_c_directed", "Directed SPOF score", "fraction of directed connectivity lost if it is removed"),
         ("bridge_ratio", "Bridge ratio", "fraction of its connections that are irreplaceable"),
         ("cdi", "Connectivity Degradation Index", "increase in average path length without it"),
     ],
 }
 
+#: Maintainability driving metrics that indicate code-level refactoring work
+#: (routed to Software Developer in addition to System Architect).
+_DEVELOPER_DRIVING_METRICS = frozenset({
+    "Code Quality Penalty (CQP)",
+    "Enhanced Coupling Risk",
+})
+
+
 def identify_driver(component: ComponentQuality, dimension: str) -> tuple[str, float, str]:
-    """Return (metric_name, value, plain_meaning) for the top contributor."""
+    """Return (metric_name, value, plain_meaning) for the top contributor.
+
+    Prefers the exact weighted RM term contributions recorded by
+    ``QualityAnalyzer._compute_rm`` (eliminating cross-scale bias); falls back
+    to bounded [0, 1] structural attributes when contributions are absent.
+    """
+    dim_key = dimension.lower().replace(" ", "_")
+    contribs = getattr(component, "dimension_contributions", None) or {}
+    dim_contribs = contribs.get(dim_key)
+    if dim_contribs:
+        top_term, top_val = max(dim_contribs.items(), key=lambda kv: kv[1])
+        name, meaning = TERM_METADATA.get(top_term, (top_term, "weighted RM term contribution"))
+        return (name, top_val, meaning)
+
     metrics = DIMENSION_DRIVERS.get(dimension, [])
     if not metrics:
         return ("Unknown", 0.0, "unknown metric driver")
-    
+
     values = [(name, getattr(component.structural, attr, 0.0), meaning)
               for attr, name, meaning in metrics]
     return max(values, key=lambda x: x[1])
 
 
 def resolve_roles(exp: "ComponentExplanation") -> List[str]:
-    """Return the stakeholder roles (SRE / DevOps / Architect / Security)
+    """Return the stakeholder roles (SRE / DevOps / Architect / Developer)
     responsible for a component's explanation.
 
     Extracted from ``ExplanationEngine.explain_system`` so ``triage`` can
     route the same component to the same roles without re-deriving the
     mapping. Pattern-specific overrides win over the per-dimension mapping;
-    "Architect" is the default when nothing else matches.
+    code-quality-driven Maintainability adds "Developer"; "Architect" is the
+    default when nothing else matches.
     """
     if exp.pattern == "Total Hub":
         roles = ["SRE", "DevOps", "Architect"]
     elif exp.pattern == "Fragile Hub":
         roles = ["SRE", "DevOps"]
-    elif exp.pattern == "Exposed Bottleneck":
-        roles = ["Architect", "Security"]
+    elif exp.pattern == "Fragile Bottleneck":
+        roles = ["DevOps", "Architect"]
     else:
         role = STAKEHOLDER_MAPPING["patterns"].get(exp.pattern)
         if role:
@@ -166,8 +218,18 @@ def resolve_roles(exp: "ComponentExplanation") -> List[str]:
             for dim in exp.dimensions:
                 if dim.level in ("CRITICAL", "HIGH"):
                     r = STAKEHOLDER_MAPPING["dimensions"].get(dim.dimension)
-                    if r:
+                    if r and r not in roles:
                         roles.append(r)
+
+    # Route code-quality / internal-coupling Maintainability drivers to Developer
+    for dim in exp.dimensions:
+        if (
+            dim.dimension == "Maintainability"
+            and dim.level in ("CRITICAL", "HIGH")
+            and dim.driving_metric in _DEVELOPER_DRIVING_METRICS
+            and "Developer" not in roles
+        ):
+            roles.append("Developer")
 
     return roles or ["Architect"]
 
@@ -190,45 +252,51 @@ class ExplanationEngine:
         ctx["in_degree_raw"] = quality.structural.in_degree_raw
         ctx["out_degree_raw"] = quality.structural.out_degree_raw
         bridge_ratio = getattr(quality.structural, "bridge_ratio", 0.0)
+        ap_c_directed = getattr(quality.structural, "ap_c_directed", 0.0)
+        blast_radius = getattr(quality.structural, "blast_radius", 0)
         ctx["bridge_ratio_pct"] = round(bridge_ratio * 100, 1)
-        
+
         # Additional context for Pattern-Specific Templates
         ctx["id"] = quality.id
-        ctx["fragmented_pct"] = bridge_ratio
-        ctx["cascade_count"] = quality.structural.in_degree_raw
-        ctx["coupling_count"] = quality.structural.total_degree_raw
+        # SPOF: fraction of directed graph disconnected (fallback to bridge_ratio if 0)
+        ctx["fragmented_pct"] = ap_c_directed if ap_c_directed > 0 else bridge_ratio
+        # Fault-Tolerance Hub: transitive blast radius when computed, else direct dependents
+        ctx["cascade_count"] = blast_radius if blast_radius > 0 else quality.structural.in_degree_raw
+        # Bottleneck: direct dependents affected by interface changes
+        ctx["coupling_count"] = quality.structural.in_degree_raw
 
         dim_explanations: List[DimensionExplanation] = []
-        
-        # We only explain dimensions that are at least HIGH or explicitly flagged in the profile.
-        # But we do it systematically via the scores.
-        dimension_map = {
-            "reliability": (quality.scores.reliability, quality.levels.reliability.value.upper()),
-            "maintainability": (quality.scores.maintainability, quality.levels.maintainability.value.upper()),
-            "availability": (quality.scores.availability, quality.levels.availability.value.upper()),
-        }
-        
-        for dim, (score, level_str) in dimension_map.items():
+
+        # Explain dimensions that are at least HIGH or explicitly flagged in the profile.
+        # Format: (template_key, display_name, score, level_str, profile_flag_attr)
+        dimension_specs = [
+            ("reliability", "Reliability", quality.scores.reliability, quality.levels.reliability.value.upper(), "r_crit"),
+            ("fault_tolerance", "Fault Tolerance", quality.scores.fault_tolerance, quality.levels.fault_tolerance.value.upper(), "ft_crit"),
+            ("maintainability", "Maintainability", quality.scores.maintainability, quality.levels.maintainability.value.upper(), "m_crit"),
+            ("availability", "Availability", quality.scores.availability, quality.levels.availability.value.upper(), "a_crit"),
+        ]
+
+        for dim_key, dim_label, score, level_str, flag_attr in dimension_specs:
             level_enum = CriticalityLevel(level_str.lower())
             is_elevated = level_enum >= CriticalityLevel.HIGH
-            
+
             # Additional check to see if profile explicitly flagged it
-            profile_flag = getattr(quality.profile, f"{dim[0]}_crit") if quality.profile else False
-            
+            profile_flag = getattr(quality.profile, flag_attr, False) if quality.profile else False
+
             if is_elevated or profile_flag:
-                dim_template = template_group.get("dimensions", {}).get(dim)
+                dim_template = template_group.get("dimensions", {}).get(dim_key)
                 if not dim_template:
-                    dim_template = DEFAULT_DIMENSION_TEMPLATES[dim]
+                    dim_template = DEFAULT_DIMENSION_TEMPLATES[dim_key]
 
                 # Identify primary driver dynamically
-                drv_metric_name, drv_val, drv_meaning = identify_driver(quality, dim.capitalize())
+                drv_metric_name, drv_val, drv_meaning = identify_driver(quality, dim_label)
 
                 template_meaning = dim_template["plain_meaning"].format(**ctx)
                 plain_meaning = f"{template_meaning} Primary driver: {drv_meaning}."
                 risk_sentence = dim_template["risk_sentence"].format(**ctx)
 
                 dim_exp = DimensionExplanation(
-                    dimension=dim.capitalize(),
+                    dimension=dim_label,
                     score=round(score, 3),
                     level=level_str,
                     driving_metric=drv_metric_name,
@@ -269,16 +337,26 @@ class ExplanationEngine:
                 my_smells = [s for s in smell_report.problems if s.entity_id == c.id]
                 component_explanations.append(self.explain_component(c, my_smells))
         
-        # Check if deployment blocked
-        critical_smells = [s for s in smell_report.problems if s.severity.upper() == "CRITICAL"]
-        deployment_blocked = len(critical_smells) > 0
-        
+        # Check if deployment blocked (aligned with cli/diagnose_graph.py & delta_gate.py: HIGH or CRITICAL)
+        blocking_smells = [
+            s for s in smell_report.problems
+            if s.severity.upper() in ("CRITICAL", "HIGH")
+        ]
+        deployment_blocked = len(blocking_smells) > 0
+
         # Reason for block
         if deployment_blocked:
-            block_names = sorted(list(set(s.name for s in critical_smells)))
-            reason = f"{len(critical_smells)} CRITICAL anti-patterns detected ({', '.join(block_names)})."
+            block_names = sorted(list(set(s.name for s in blocking_smells)))
+            n_crit = sum(1 for s in blocking_smells if s.severity.upper() == "CRITICAL")
+            n_high = len(blocking_smells) - n_crit
+            sev_parts = []
+            if n_crit:
+                sev_parts.append(f"{n_crit} CRITICAL")
+            if n_high:
+                sev_parts.append(f"{n_high} HIGH")
+            reason = f"{' and '.join(sev_parts)} anti-patterns detected ({', '.join(block_names)})."
         else:
-            reason = "No critical architectural blockers detected."
+            reason = "No HIGH or CRITICAL architectural blockers detected."
 
         # Summary text
         top_risk_summary = f"{len(critical_comps)} CRITICAL components require action before deployment. "
@@ -301,7 +379,7 @@ class ExplanationEngine:
             "SRE": {"urgent": [], "strategic": []},
             "Architect": {"urgent": [], "strategic": []},
             "DevOps": {"urgent": [], "strategic": []},
-            "Security": {"urgent": [], "strategic": []}
+            "Developer": {"urgent": [], "strategic": []},
         }
         
         action_map = {}
