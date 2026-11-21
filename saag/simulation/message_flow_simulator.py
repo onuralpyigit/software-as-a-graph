@@ -1083,6 +1083,7 @@ def _subscriber_process(
     runtime: Any = None,
     recorder: Optional[List[Dict[str, Any]]] = None,
     drop_late: bool = True,
+    reactive_latency_sla: bool = False,
 ) -> Generator:
     """
     Subscriber SimPy process.
@@ -1200,7 +1201,8 @@ def _subscriber_process(
                 latency_ms=e2e_latency_ms, service_ms=pure_service_s * 1000.0,
                 **{"messaging.message.id": msg.msg_id}))
         if behavior is not None:
-            behavior.on_delivery(app_id, topic_id, env.now)
+            if not reactive_latency_sla or qos.deadline_ms is None or e2e_latency_ms <= qos.deadline_ms:
+                behavior.on_delivery(app_id, topic_id, env.now)
         if runtime is not None:
             runtime.on_delivered(app_id, msg.window_time)
         payload_bytes = getattr(msg, "payload_size_bytes", 64)
@@ -1516,6 +1518,9 @@ class MessageFlowSimulator:
         overload_window_s: float = 5.0,
         overload_utilization: float = 1.0,
         overload_restart_s: Optional[float] = None,
+        network_model: str = "none",
+        default_link_latency_ms: float = 0.0,
+        reactive_latency_sla: bool = False,
     ) -> None:
         _require_simpy()
         if calibration_load not in CALIBRATION_LOADS:
@@ -1523,7 +1528,17 @@ class MessageFlowSimulator:
                 f"calibration_load must be one of {CALIBRATION_LOADS}, got {calibration_load!r}")
         self.calibration_load = calibration_load
         self._published_topics: Optional[Set[str]] = None
-        from .runtime.faults import OVERLOAD_MODELS
+        from .runtime.faults import NETWORK_MODELS, OVERLOAD_MODELS
+        if network_model not in NETWORK_MODELS:
+            raise ValueError(f"network_model must be one of {NETWORK_MODELS}, got {network_model!r}")
+        if network_model == "queued" and deployment_model != "stations":
+            raise ValueError("network_model='queued' needs deployment_model='stations'")
+        if default_link_latency_ms < 0:
+            raise ValueError(
+                f"default_link_latency_ms must be >= 0, got {default_link_latency_ms!r}")
+        self.network_model = network_model
+        self.default_link_latency_ms = float(default_link_latency_ms)
+        self.reactive_latency_sla = bool(reactive_latency_sla)
         if overload_model not in OVERLOAD_MODELS:
             raise ValueError(f"overload_model must be one of {OVERLOAD_MODELS}, got {overload_model!r}")
         if overload_model != "none" and deployment_model != "stations":
@@ -1565,7 +1580,7 @@ class MessageFlowSimulator:
         self.staleness_periods = float(staleness_periods)
         self.record_events = record_events
         self.telemetry_profile = telemetry_profile
-        self.network_gating = network_gating
+        self.network_gating = bool(network_gating or network_model == "queued")
         #: Paired-baseline copies keep the runtime path even with no faults, so
         #: both runs consume their RNG streams identically.
         self._force_runtime = False
@@ -2199,11 +2214,18 @@ class MessageFlowSimulator:
         behavior = None
         if self.behavior_model == "reactive":
             from .runtime.behavior import ReactiveBehavior
+            min_rate_factor = 1.0
+            if self.workload_model == "mmpp":
+                from .runtime.workload import MMPP
+                min_rate_factor = MMPP(
+                    self.burst_ratio, self.burst_fraction, self.mean_burst_s
+                ).calm_ratio
             behavior = ReactiveBehavior.build(
                 self.graph, subscriptions, publications,
                 {tid: self.topic_aggregate_rate(tid) for tid in fanouts},
                 self.staleness_periods,
                 policy_overrides=getattr(self.telemetry_profile, "trigger_policy", None),
+                min_rate_factor=min_rate_factor,
             )
 
         def _stream(kind: str, app: str, topic: str) -> random.Random:
@@ -2278,7 +2300,8 @@ class MessageFlowSimulator:
                 use_poisson=use_poisson,
                 phase_offset_s=phase,
                 payload_size_bytes=(
-                    int(self.topic_payload_bytes(tgt)) if self.payload_model == "size"
+                    int(self.topic_payload_bytes(tgt))
+                    if (self.payload_model == "size" or self.network_model == "queued")
                     else DEFAULT_PAYLOAD_BYTES
                 ),
                 behavior=behavior,
@@ -2323,6 +2346,7 @@ class MessageFlowSimulator:
                 runtime=runtime,
                 recorder=recorder,
                 drop_late=self.qos_semantics == "engine",
+                reactive_latency_sla=self.reactive_latency_sla,
             ))
 
         fault_event_record: Optional[FaultEventRecord] = None
@@ -2642,6 +2666,7 @@ class MessageFlowSimulator:
                     "estimator": "windows", "deployment_model": "none",
                     "replica_aware": False, "hot_standby": False,
                     "workload_model": "declared", "network_gating": False,
+                    "network_model": "none", "reactive_latency_sla": False,
                     "qos_semantics": "engine", "dds_status": False,
                     "calibration_load": "declared", "overload_model": "none"}
         out = {k: getattr(self, k) for k, v in defaults.items() if getattr(self, k) != v}

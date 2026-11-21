@@ -299,3 +299,118 @@ def compare_dds_status(
     report["excluded_observed_entities"] = len(excluded)
     return report
 
+
+# ── Closed-loop drift detection & Tier-2 residual feedback ───────────────────
+
+def detect_drift(
+    simulated: TelemetryTrace,
+    observed: TelemetryTrace,
+    tolerances: Optional[Mapping[str, float]] = None,
+    min_within_tolerance: float = 0.8,
+) -> Dict[str, Any]:
+    """Compare a live/staging trace against the digital twin and flag model drift.
+
+    Tier-2 advisory report: never decides a blocking CI gate. Flags drift when
+    any compared steady-state metric has fewer than *min_within_tolerance* of
+    its entities within tolerance, or when deadline-miss share exceeds tolerance.
+    """
+    tol = {**DEFAULT_TOLERANCES, **(tolerances or {})}
+    ss = compare_steady_state(simulated, observed, tol)
+    s, o = summarize(simulated), summarize(observed)
+
+    drifted_metrics: list[str] = []
+    drifted_topics: Set[str] = set()
+    drifted_components: Set[str] = set()
+
+    for metric in ("topic_rate", "delivery_rate", "latency_p50", "latency_p95"):
+        m = ss["metrics"][metric]
+        share = m.get("share_within_tolerance")
+        if share is not None and share < min_within_tolerance:
+            drifted_metrics.append(metric)
+        errs = _rel_errors(s[metric], o[metric])
+        for key, err in errs.items():
+            if err > tol[metric]:
+                if metric == "delivery_rate" and "|" in key:
+                    comp, topic = key.split("|", 1)
+                    drifted_components.add(comp)
+                    drifted_topics.add(topic)
+                else:
+                    drifted_topics.add(key)
+
+    dm = ss["metrics"]["deadline_miss_share"]
+    if dm.get("within_tolerance") is False:
+        drifted_metrics.append("deadline_miss_share")
+
+    return {
+        "drifted": bool(drifted_metrics),
+        "min_within_tolerance": min_within_tolerance,
+        "drifted_metrics": drifted_metrics,
+        "drifted_topics": sorted(drifted_topics),
+        "drifted_components": sorted(drifted_components),
+        "steady_state": ss,
+    }
+
+
+def diagnose_fault_residuals(
+    simulated_impact: Mapping[str, float],
+    observed_impact: Mapping[str, float],
+    simulated_stalled: Optional[Iterable[str]] = None,
+    observed_stalled: Optional[Iterable[str]] = None,
+    observed_trace: Optional[TelemetryTrace] = None,
+    current_profile: Optional[Any] = None,
+    impact_tol: float = 0.15,
+) -> Dict[str, Any]:
+    """Diagnose Tier-1 vs Tier-2 fault-response residuals and propose profile updates.
+
+    Inspects stall-set mismatches (re-inferring trigger policies from
+    *observed_trace* when available) and large per-component impact residuals.
+    """
+    from saag.simulation.calibration import infer_trigger_policy
+
+    fr = compare_fault_response(
+        simulated_impact, observed_impact, simulated_stalled, observed_stalled
+    )
+    common = sorted(set(simulated_impact) & set(observed_impact))
+    residuals = {c: round(float(simulated_impact[c]) - float(observed_impact[c]), 6) for c in common}
+    large = {c: r for c, r in residuals.items() if abs(r) > impact_tol}
+    mean_res = statistics.fmean(residuals.values()) if residuals else None
+
+    suspect_policies = sorted(
+        set(fr.get("stalled_only_in_simulation", ()))
+        | set(fr.get("stalled_only_observed", ()))
+    )
+    existing_policies = getattr(current_profile, "trigger_policy", None) or {}
+    policy_updates: Dict[str, str] = {}
+    if observed_trace is not None and suspect_policies:
+        for app in suspect_policies:
+            inferred, _ = infer_trigger_policy(observed_trace, app)
+            if inferred is not None and existing_policies.get(app) != inferred:
+                policy_updates[app] = inferred
+
+    needs_recal = bool(policy_updates or suspect_policies or large)
+    return {
+        "needs_recalibration": needs_recal,
+        "policy_updates": policy_updates,
+        "suspect_policies": suspect_policies,
+        "large_impact_residuals": large,
+        "mean_impact_residual": round(mean_res, 6) if mean_res is not None else None,
+        "fault_response": fr,
+    }
+
+
+def apply_residual_feedback(profile: Any, diagnosis: Mapping[str, Any]) -> Any:
+    """Return a copy of *profile* with Tier-2 diagnosed policy updates applied."""
+    import copy
+
+    updated = copy.deepcopy(profile)
+    updates = diagnosis.get("policy_updates") or {}
+    for app, policy in sorted(updates.items()):
+        updated.trigger_policy[app] = policy
+    prov = dict(getattr(updated, "provenance", None) or {})
+    history = list(prov.get("residual_feedback_updates", []))
+    if updates:
+        history.append(dict(updates))
+    prov["residual_feedback_updates"] = history
+    updated.provenance = prov
+    return updated
+

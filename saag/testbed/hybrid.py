@@ -44,6 +44,7 @@ from saag.validation.fidelity import (
     compare_dds_status,
     compare_fault_response,
     compare_steady_state,
+    diagnose_fault_residuals,
     observed_impact,
     stalled_in_trace,
 )
@@ -794,6 +795,14 @@ def run_hybrid_protocol(
                 obs_primary[target] = obs_mean
 
         primary_cmp = compare_fault_response(sim_primary, obs_primary)
+        all_sim_stalled = {a for e in per_target.values() for a in e["simulated_stalled"]}
+        all_obs_stalled = {a for e in per_target.values() for a in e["observed_stalled"]}
+        residual_diag = diagnose_fault_residuals(
+            sim_primary, obs_primary,
+            simulated_stalled=all_sim_stalled,
+            observed_stalled=all_obs_stalled,
+            current_profile=profile_obj,
+        )
         pred_vs_obs = (
             compare_fault_response(
                 {t: pred_scores[t] for t in obs_primary if t in pred_scores},
@@ -807,6 +816,7 @@ def run_hybrid_protocol(
             "n_primary_targets": len(obs_primary),
             "n_control_targets": len(controls_summary),
             "tier1_vs_tier2": primary_cmp,
+            "residual_diagnosis": residual_diag,
             "predictions_vs_tier2": pred_vs_obs,
             "controls": controls_summary,
             "per_target": per_target,

@@ -506,3 +506,76 @@ class TelemetryCalibrator:
             "warmup_s": self.warmup_s,
         }
         return prof
+
+    def update_profile(
+        self,
+        prior: RuntimeTelemetryProfile,
+        trace: TelemetryTrace,
+        alpha: float = 0.3,
+        source: str = "incremental",
+    ) -> RuntimeTelemetryProfile:
+        """Incrementally blend a newly observed *trace* into *prior* via EMA.
+
+        ``alpha`` in ``(0, 1]`` weights the new observation against ``1 - alpha``
+        for the prior. Unobserved topics/apps keep their prior values; trigger
+        policies update only when the new trace provides an identifiable policy.
+        """
+        if not 0.0 < alpha <= 1.0:
+            raise ValueError(f"alpha must lie in (0, 1], got {alpha!r}")
+        fresh = self.calibrate(trace, source=source)
+        out = RuntimeTelemetryProfile(
+            edge_failure_correlation=dict(prior.edge_failure_correlation),
+            custom_starvation_bounds=dict(prior.custom_starvation_bounds),
+            trigger_policy=dict(prior.trigger_policy),
+            trigger_evidence=dict(prior.trigger_evidence),
+            workload_params=dict(prior.workload_params),
+        )
+        # Rates
+        merged_rates = dict(prior.msg_rate_per_sec)
+        for t, r_new in fresh.msg_rate_per_sec.items():
+            if t in merged_rates:
+                merged_rates[t] = alpha * r_new + (1.0 - alpha) * merged_rates[t]
+            else:
+                merged_rates[t] = r_new
+        out.msg_rate_per_sec = merged_rates
+
+        # Service-time distributions (apps and brokers)
+        def _blend_dists(
+            old_map: Mapping[str, Dict[str, Any]], new_map: Mapping[str, Dict[str, Any]]
+        ) -> Dict[str, Dict[str, Any]]:
+            merged = {k: dict(v) for k, v in old_map.items()}
+            for k, nv in new_map.items():
+                if k in merged:
+                    ov = merged[k]
+                    mean_s = alpha * float(nv["mean_s"]) + (1.0 - alpha) * float(ov["mean_s"])
+                    cv = alpha * float(nv["cv"]) + (1.0 - alpha) * float(ov["cv"])
+                    dist = "exponential" if 0.7 <= cv <= 1.3 else "lognormal"
+                    merged[k] = {
+                        "dist": dist,
+                        "mean_s": mean_s,
+                        "cv": cv,
+                        "n": int(ov.get("n", 0)) + int(nv.get("n", 0)),
+                    }
+                else:
+                    merged[k] = dict(nv)
+            return merged
+
+        out.service_time_dist = _blend_dists(prior.service_time_dist, fresh.service_time_dist)
+        out.broker_service_time_dist = _blend_dists(
+            prior.broker_service_time_dist, fresh.broker_service_time_dist
+        )
+        # Workload burstiness & trigger policies
+        out.workload_params.update(fresh.workload_params)
+        for app, pol in fresh.trigger_policy.items():
+            out.trigger_policy[app] = pol
+            if app in fresh.trigger_evidence:
+                out.trigger_evidence[app] = fresh.trigger_evidence[app]
+
+        prev_prov = dict(prior.provenance or {})
+        out.provenance = {
+            **fresh.provenance,
+            "updated_from": prev_prov.get("source"),
+            "alpha": alpha,
+            "update_count": int(prev_prov.get("update_count", 0)) + 1,
+        }
+        return out

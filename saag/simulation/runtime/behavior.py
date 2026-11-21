@@ -150,19 +150,24 @@ class ReactiveBehavior:
         aggregate_rate: Mapping[str, float],
         staleness_periods: float = STALENESS_PERIODS,
         policy_overrides: Optional[Mapping[str, str]] = None,
+        min_rate_factor: float = 1.0,
     ) -> "ReactiveBehavior":
         """Resolve every publishing application's policy and required inputs.
 
         ``policy_overrides`` (app -> policy spec) wins over the declared or role
         policy: it is how a policy inferred from telemetry reaches the run.
+        ``min_rate_factor`` (< 1.0 under bursty MMPP calm states) widens the
+        staleness floor so calm-state inter-arrival gaps do not trigger false
+        baseline stalls.
         """
+        rate_scale = max(1e-3, min(1.0, float(min_rate_factor)))
         published = {t for topics in publications.values() for t in topics}
         apps: Dict[str, AppBehavior] = {}
         for app in sorted(publications):
             attrs = graph.nodes.get(app, {})
             own = publications.get(app, set())
             inputs = {
-                t: staleness_s(graph.nodes.get(t, {}), aggregate_rate.get(t, 0.0),
+                t: staleness_s(graph.nodes.get(t, {}), aggregate_rate.get(t, 0.0) * rate_scale,
                                staleness_periods)
                 for t in sorted((set(subscriptions.get(app, ())) & published) - own)
             }

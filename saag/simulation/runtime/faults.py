@@ -58,6 +58,7 @@ BOUNDED_MODES = frozenset({RuntimeFaultMode.TRANSIENT_CRASH, RuntimeFaultMode.FR
 
 DEPLOYMENT_MODELS: Tuple[str, ...] = ("none", "stations")
 OVERLOAD_MODELS: Tuple[str, ...] = ("none", "saturation")
+NETWORK_MODELS: Tuple[str, ...] = ("none", "queued")
 
 
 @dataclass(frozen=True)
@@ -173,6 +174,8 @@ class RuntimeController:
         self.hosts_of: Dict[str, List[str]] = defaultdict(list)
         self.routers_of: Dict[str, List[str]] = defaultdict(list)
         links: List[Tuple[str, str, Optional[float]]] = []
+        self.link_latency_s: Dict[frozenset, float] = {}
+        default_lat_s = max(0.0, float(getattr(sim, "default_link_latency_ms", 0.0))) / 1000.0
         for src, tgt, data in self.graph.edges(data=True):
             etype = data.get("type")
             if etype == "RUNS_ON":
@@ -181,6 +184,13 @@ class RuntimeController:
                 self.routers_of[tgt].append(src)
             elif etype == "CONNECTS_TO":
                 links.append((src, tgt, data.get("capacity_mbps")))
+                lat = data.get("latency_ms")
+                lk = link_key(src, tgt)
+                lat_s = max(0.0, float(lat)) / 1000.0 if lat is not None else default_lat_s
+                if lk not in self.link_latency_s:
+                    self.link_latency_s[lk] = lat_s
+                else:
+                    self.link_latency_s[lk] = min(self.link_latency_s[lk], lat_s)
         for comp in self.hosts_of:
             self.hosts_of[comp].sort()
         for t in self.routers_of:
@@ -196,8 +206,18 @@ class RuntimeController:
         # way between hosts would partition hosts it never meant to isolate.
         self.fabric = (Fabric(net_vertices, links)
                        if (self.deployment and sim.network_gating and links) else None)
+        self.network_queued = bool(
+            self.fabric is not None and getattr(sim, "network_model", "none") == "queued"
+        )
         self.cut: Set[frozenset] = set()
         self._islands: Optional[Dict[str, int]] = None
+        self._paths: Dict[Tuple[str, str], Optional[List[Tuple[str, str]]]] = {}
+        self.link_resources: Dict[frozenset, Any] = {}
+        if self.network_queued:
+            import simpy
+            for lk, cap in self.fabric.capacity.items():
+                if cap is not None and float(cap) > 0:
+                    self.link_resources[lk] = simpy.Resource(self.env, capacity=1)
 
         #: Current routing broker per brokered topic (None: no live broker).
         self.router_of: Dict[str, Optional[str]] = {
@@ -355,7 +375,10 @@ class RuntimeController:
         """Route *msg* through its broker (if any) and fan it out."""
         gate = self._gate(msg.publisher_id) if self.fabric is not None else None
         if not self.deployment or not self.routers_of.get(msg.topic_id):
-            fanout.publish(msg, self.failed, gate=gate)
+            if self.network_queued:
+                self._fanout_queued(msg.publisher_id, fanout, msg)
+            else:
+                fanout.publish(msg, self.failed, gate=gate)
             return
         broker = self.router_of.get(msg.topic_id)
         if broker is None or broker in self.failed:
@@ -379,6 +402,16 @@ class RuntimeController:
         self.env.process(self._broker_forward(broker, fanout, msg))
 
     def _broker_forward(self, broker: str, fanout, msg):
+        if self.network_queued:
+            ok = yield from self._traverse_network(msg.publisher_id, broker, msg)
+            if not ok:
+                self.lost_at_broker += 1
+                if self.recorder is not None:
+                    self.recorder.append(make_event(
+                        self.env.now, "saag.drop", broker, msg.topic_id,
+                        reason="network_partition", **{"messaging.message.id": msg.msg_id}))
+                fanout.publish_lost(msg)
+                return
         station = self.broker_stations[broker]
         station.arrivals += 1
         # A frozen relay holds what it receives and drains it on thaw, as a
@@ -405,8 +438,112 @@ class RuntimeController:
             self.recorder.append(make_event(
                 self.env.now, "saag.forward", broker, msg.topic_id,
                 service_ms=service * 1000.0, **{"messaging.message.id": msg.msg_id}))
-        gate = (lambda sub: self._reachable(broker, sub)) if self.fabric is not None else None
-        fanout.publish(msg, self.failed, gate=gate)
+        if self.network_queued:
+            self._fanout_queued(broker, fanout, msg)
+        else:
+            gate = (lambda sub: self._reachable(broker, sub)) if self.fabric is not None else None
+            fanout.publish(msg, self.failed, gate=gate)
+
+    def _shortest_path(self, ha: str, hb: str) -> Optional[List[Tuple[str, str]]]:
+        """Cached shortest path of directed hops (u, v) from *ha* to *hb*."""
+        if ha == hb:
+            return []
+        key = (ha, hb)
+        if key in self._paths:
+            return self._paths[key]
+        if not self._reachable(ha, hb):
+            self._paths[key] = None
+            return None
+        from collections import deque
+        prev: Dict[str, Optional[str]] = {ha: None}
+        q = deque([ha])
+        while q:
+            u = q.popleft()
+            if u == hb:
+                break
+            for v in sorted(self.fabric.adj.get(u, ())):
+                if v in prev or v in self.failed or link_key(u, v) in self.cut:
+                    continue
+                prev[v] = u
+                q.append(v)
+        if hb not in prev:
+            self._paths[key] = None
+            return None
+        hops: List[Tuple[str, str]] = []
+        cur = hb
+        while prev[cur] is not None:
+            p = prev[cur]
+            hops.append((p, cur))
+            cur = p
+        hops.reverse()
+        self._paths[key] = hops
+        return hops
+
+    def _traverse_network(self, sender: str, receiver: str, msg):
+        """Yield serialization + propagation delays along the shortest live path.
+
+        Returns True if the message reached *receiver*, False if dropped by a
+        partition or cut link.
+        """
+        ha, hb = self._host(sender), self._host(receiver)
+        if ha is None or hb is None or ha == hb:
+            return True
+        hops = self._shortest_path(ha, hb)
+        if hops is None:
+            return False
+        bits = float(getattr(msg, "payload_size_bytes", 64)) * 8.0
+        for u, v in hops:
+            lk = link_key(u, v)
+            if lk in self.cut or u in self.failed or v in self.failed:
+                return False
+            res = self.link_resources.get(lk)
+            cap_mbps = self.fabric.capacity.get(lk)
+            if res is not None and cap_mbps is not None and cap_mbps > 0:
+                tx_s = bits / (float(cap_mbps) * 1e6)
+                with res.request() as req:
+                    yield req
+                    if lk in self.cut or u in self.failed or v in self.failed:
+                        return False
+                    if tx_s > 0:
+                        yield self.env.timeout(tx_s)
+            lat_s = self.link_latency_s.get(lk, 0.0)
+            if lat_s > 0:
+                yield self.env.timeout(lat_s)
+        return receiver not in self.failed
+
+    def _deliver_over_network(self, sender: str, sub_id: str, fanout, sq, msg):
+        ok = yield from self._traverse_network(sender, sub_id, msg)
+        if not ok:
+            if sq.status is not None:
+                sq.status.lost(fanout.topic_id, sub_id, self.env.now)
+            if self.recorder is not None:
+                self.recorder.append(make_event(
+                    self.env.now, "saag.drop", sub_id, fanout.topic_id,
+                    reason="network_partition", **{"messaging.message.id": msg.msg_id}))
+            return
+        sq._try_put(msg, fanout.stats)
+
+    def _fanout_queued(self, sender: str, fanout, msg) -> None:
+        """Fan out *msg* over queued network links (co-located readers enqueue immediately)."""
+        for sub_id, sq in fanout._queues.items():
+            if sub_id in self.failed:
+                continue
+            if fanout.compat is not None and not fanout.compat(msg.publisher_id, sub_id):
+                continue
+            ha, hb = self._host(sender), self._host(sub_id)
+            if ha is None or hb is None or ha == hb:
+                sq._try_put(msg, fanout.stats)
+            elif not self._reachable(sender, sub_id):
+                if sq.status is not None:
+                    sq.status.lost(fanout.topic_id, sub_id, self.env.now)
+                if self.recorder is not None:
+                    self.recorder.append(make_event(
+                        self.env.now, "saag.drop", sub_id, fanout.topic_id,
+                        reason="network_partition", **{"messaging.message.id": msg.msg_id}))
+            else:
+                self.env.process(self._deliver_over_network(sender, sub_id, fanout, sq, msg))
+        fanout.stats.total_published += 1
+        fanout._history.append(msg)
 
     # ── Reachability over CONNECTS_TO ───────────────────────────────────────
 
@@ -430,6 +567,7 @@ class RuntimeController:
 
     def _network_changed(self) -> None:
         self._islands = None
+        self._paths.clear()
 
     # ── Kill / revive ───────────────────────────────────────────────────────
 

@@ -368,6 +368,9 @@ def _runtime_kwargs(args: argparse.Namespace) -> Dict[str, Any]:
         "overload_window_s": getattr(args, "overload_window", 5.0),
         "overload_utilization": getattr(args, "overload_utilization", 1.0),
         "overload_restart_s": getattr(args, "overload_restart", None),
+        "network_model": getattr(args, "network_model", "none"),
+        "default_link_latency_ms": getattr(args, "default_link_latency_ms", 0.0),
+        "reactive_latency_sla": getattr(args, "reactive_latency_sla", False),
     }
 
 
@@ -915,6 +918,14 @@ def _build_parser() -> argparse.ArgumentParser:
         p.add_argument("--network-gating", action="store_true",
                        help="With --deployment-model stations: CONNECTS_TO reachability "
                             "gates delivery (host outages and link_flap partition).")
+        p.add_argument("--network-model", choices=("none", "queued"), default="none",
+                       help="'queued': with --deployment-model stations, model per-link "
+                            "serialization queues (capacity_mbps) and propagation latency.")
+        p.add_argument("--default-link-latency-ms", type=float, default=0.0, metavar="MS",
+                       help="Default per-hop propagation latency (ms) under --network-model queued.")
+        p.add_argument("--reactive-latency-sla", action="store_true",
+                       help="Under reactive + DDS semantics, only refresh input freshness for "
+                            "deliveries meeting deadline_ms so gray slowdowns propagate.")
 
     def _add_network_gating(p: argparse.ArgumentParser) -> None:
         p.add_argument(
