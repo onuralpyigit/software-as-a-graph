@@ -309,7 +309,8 @@ Scores deterministic ISO-RM quality attribution, detects 19 architectural anti-p
 ### 5.6 Step 5: Cascade Failure Simulation
 Injects failures into the architecture model and measures the impact: `FaultInjector` training labels (I\*), the `FailureSimulator` validation oracle (I_comp), and the `MessageFlowSimulator` queue-flow probe (I_dyn), plus opt-in runtime and testbed extensions. [Which engine to use](../failure-simulation.md#2-which-engine-do-i-need).
 - **Script:** [cli/simulate_graph.py] or `saag-simulate`
-- **Subcommands:** `fault-inject` (the default when none is given), `edge-criticality`, `message-flow`, `runtime-sweep`, `testbed`, `combined`. (`--sim-mode` belongs to `cli/run.py`, not to this script.)
+- **Subcommands:** `fault-inject` (the default when none is given), `edge-criticality`, `message-flow`, `runtime-sweep`, `hybrid-verify`, `testbed`, `combined`. (`--sim-mode` belongs to `cli/run.py`, not to this script.)
+  - Use `hybrid-verify` for two-tiered runtime verification: calibrates `MessageFlowSimulator` (Tier 1) from a fault-free testbed baseline, screens all candidates, and verifies a Top-*K* + disagreement + negative-control shortlist on the emulated/container DDS testbed (Tier 2) across crash and gray-failure probes ([details](../simulation-extensions.md#4-hybrid-two-tiered-runtime-verification)).
 - **Common arguments:**
   - `--input`: System topology JSON the simulation runs against.
   - `--layer`: Used only when `--input` is missing; resolves to `data/<layer>.json`.

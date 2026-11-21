@@ -756,6 +756,8 @@ flowchart TD
 
 The other engines do not go through this path. `FaultInjector` (Predict-stage labels, I\*) and `MessageFlowSimulator` (queue-flow probe, I_dyn) run from `cli/simulate_graph.py` on a NetworkX graph loaded from the scenario JSON. See [failure-simulation.md](../failure-simulation.md#2-which-engine-do-i-need).
 
+For opt-in runtime model and shortlist verification, `cli/simulate_graph.py hybrid-verify` invokes [`saag/testbed/hybrid.py`](../../saag/testbed/hybrid.py), which orchestrates a four-step two-tiered workflow (Step 0 testbed baseline & calibration → Step 1 calibrated Tier-1 `runtime_labels` screening → Step 2 Top-*K* / disagreement / negative-control shortlisting → Step 3 targeted Tier-2 testbed verification and gray-failure probing). The dependency boundary stays strictly one-way: `saag/testbed` consumes `saag/simulation` and `saag/validation/fidelity`, never the reverse. See [simulation-extensions.md §4](../simulation-extensions.md#4-hybrid-two-tiered-runtime-verification).
+
 ### 5.7 Validation Pipeline (Step 6)
 
 ```

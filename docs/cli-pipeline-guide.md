@@ -420,7 +420,36 @@ Fails every candidate under the runtime engine → `runtime_labels.json`: the fi
 | `--declare-capacities` | none | Size brokers and hosts the scenario leaves undeclared for healthy utilisation ρ, so `--overload-model` has something to act on |
 | `--parameter-draws` | `0` | Repeat the sweep under N draws of the guessed parameters; writes `parameter_stability` |
 | `--workers` | `1` | Parallel workers, one seed or draw each |
+| `--profile` | none | Calibrated `RuntimeTelemetryProfile` JSON (`profile.json` from `testbed calibrate`) |
 | runtime flags | `reactive`, `stations`, `per_process` | As for `message-flow`; `--estimator` is always `paired` |
+
+### `hybrid-verify`
+
+Runs the four-step two-tiered runtime verification protocol: Step 0 steady-state testbed baseline & calibration, Step 1 calibrated Tier 1 `runtime-sweep` screening, Step 2 shortlist selection (Top-*K* + prediction/Tier-1 disagreements + negative controls), and Step 3 targeted Tier 2 verification & gray-failure probing → `hybrid_report.json` ([details](simulation-extensions.md#4-hybrid-two-tiered-runtime-verification)). Always an advisory Tier-2 report, never a blocking gate.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--input` | **required** | Scenario JSON file |
+| `--output` | **required** | Output directory (`testbed/`, `tier1_runtime_labels.json`, `shortlist.json`, `hybrid_report.json`) |
+| `--predictions` | none | Optional prediction JSON (`saag-predict` GNN/RM, `impact_scores.json`, `runtime_labels.json`, or flat `{id: score}`) |
+| `--prediction-layer` | `system` | Layer key when reading multi-layer `saag-predict` JSON (`app`, `infra`, `mw`, `system`) |
+| `--mode` | `local` | Tier 2 execution mode: `local` (in-process) or `docker` (Docker Compose + Cyclone DDS) |
+| `--duration` / `--warmup` | `60.0` / `5.0` | Baseline and per-fault run length and warm-up (s); scaled by $1/\kappa$ when `--max-host-load` triggers rate scaling |
+| `--tier1-duration` | `--duration` | Optional separate simulated duration (s) for the Tier 1 sweep |
+| `--seeds` | `42,123,456` | Multi-seed list for Tier 1 screening and `label_stability` |
+| `--tier1-label` | `i_flow` | Tier 1 ranking label (`i_flow`, `i_delivery`, `i_delivery_consumer`) |
+| `--parameter-draws` / `--workers` | `0` / `1` | Parameter-uncertainty draws and worker count forwarded to Tier 1 `runtime_labels` |
+| `--open-loop` | off | Run both tiers open-loop (`periodic` publishers) for non-circular transport checks |
+| `--qos-semantics` | `dds` | QoS semantics (`dds` or `engine`) for both tiers |
+| `--target-utilization` | `0.65` | Target subscriber utilization $\rho$ |
+| `--service-work` | `sleep` | `sleep` or `cpu` (burns CPU with per-host container caps in `docker` mode) |
+| `--carry-payload` / `--network-gating` | off | Put declared topic payload bytes on the wire / gate deliveries on `CONNECTS_TO` reachability |
+| `--max-host-load` | none | Per-host capacity cap $B_h$ (msg/s); scales rates by $\kappa \le 1$ if exceeded and records a latency caveat |
+| `--skip-calibration` | off | Skip `TelemetryCalibrator` and run Tier 1 with declared parameters |
+| `--top-k` / `--top-k-frac` | none / `0.15` | Shortlist Top-*K* size (explicit count or fraction of candidates) |
+| `--disagreements` / `--controls` | `3` / `3` | Max prediction-vs-Tier-1 rank disagreement targets and low-impact negative controls (preferring sinks) |
+| `--fault-probe` | `crash` | Repeatable Tier 2 fault probe (`MODE[:k=v,...]`, e.g. `crash`, `omission:duration=10,p=0.5`, `slowdown:duration=10,k=3`) |
+| `--repetitions` / `--seed` | `3` / `42` | Tier 2 repetitions per `(probe, target)` and base seed |
 
 ### `testbed`
 
@@ -450,6 +479,7 @@ Runs `fault-inject`, then `message-flow`, using a subset of their flags: `--node
 - `edge-criticality` → `edge_criticality.json`
 - `message-flow` → `message_flow_results.json`, `message_flow_summary.txt`
 - `runtime-sweep` → `runtime_labels.json`
+- `hybrid-verify` → `<output>/{testbed/, tier1_runtime_labels.json, shortlist.json, hybrid_report.json}` (plus `scaled_scenario.json` if $\kappa < 1$)
 - `testbed` → `<output>/deployment.json`, `Dockerfile`, `docker-compose.yml`, `telemetry/*.jsonl`, `run.json`, `profile.json`, `fidelity.json`
 - `combined` → the `fault-inject` and `message-flow` files
 

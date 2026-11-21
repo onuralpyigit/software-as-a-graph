@@ -618,6 +618,8 @@ Every oracle in §4 ($I^*, I_{\text{comp}}, I_{\text{dyn}}, I_M$) validates stat
 
 Like all Tier-2 diagnostics, `saag-validate fidelity` is strictly informational and always exits `0`.
 
+**Automated two-tiered Link-2 workflow (`saag-simulate hybrid-verify`).** Rather than manually wiring `testbed` runs and `fidelity` comparisons one target at a time, [`saag/testbed/hybrid.py`](../saag/testbed/hybrid.py) automates the full four-step protocol: (0) fault-free testbed baseline, `TelemetryCalibrator` fitting, and `compare_steady_state`; (1) calibrated Tier-1 `MessageFlowSimulator` screening (`runtime_labels` under `stations`/`dds`/`paired`) with order-$k$ references; (2) Top-*K* + prediction-disagreement + sink negative-control shortlist selection; and (3) targeted Tier-2 testbed verification across crash and gray-failure probes using `compare_fault_response` and `compare_dds_status`. The resulting `hybrid_report.json` is strictly an advisory Tier-2 triage artifact with explicit circularity (`reactive`), rate-scaling ($\kappa < 1$), and fault-parity caveats — it never decides a blocking CI gate or replaces `FailureSimulator` release gates. See [simulation-extensions.md §4](simulation-extensions.md#4-hybrid-two-tiered-runtime-verification).
+
 ---
 
 ## 9. Output Schemas & Validation Artifacts

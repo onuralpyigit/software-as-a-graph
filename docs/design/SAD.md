@@ -233,7 +233,8 @@ software-as-a-graph/                  # Workspace Root
 │   ├── analysis/                     #   Structural metrics and RM formula engines
 │   ├── prediction/                   #   PyTorch HGT/GNN prediction service
 │   ├── simulation/                   #   Failure-injection engines (cascade and queue-flow oracles)
-│   ├── validation/                   #   Spearman ρ and classification evaluation
+│   ├── testbed/                      #   Emulated Cyclone DDS testbed and two-tiered hybrid runtime verification
+│   ├── validation/                   #   Spearman ρ, classification evaluation, and Link-2 fidelity
 │   ├── visualization/                #   Plotly chart and static HTML builders
 │   └── infrastructure/               #   Neo4j and Memory adapters (implementing ports)
 ├── smart/                            # Next.js 16 SMART web application (React, TypeScript)

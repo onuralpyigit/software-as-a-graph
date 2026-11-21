@@ -430,6 +430,7 @@ The published engines have structural limits: publishers ignore their inputs, so
 | [Runtime labels](simulation-extensions.md#runtime-labels-runtime-sweep) | `saag-simulate runtime-sweep` | `MessageFlowSimulator` | Five labels with their order-k references; `--parameter-draws` tests them against guessed parameters |
 | [DDS semantics and statuses](simulation-extensions.md#2-dds-qos-semantics-and-status-metrics) | `qos_semantics="dds"`, `dds_status=True` | `MessageFlowSimulator`, testbed | Period deadlines, KEEP_LAST, QoS matching; DDS status counts |
 | [Emulated testbed](simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) | `saag-simulate testbed …` | — | Runs the scenario on real Cyclone DDS and compares it with the simulator |
+| [Hybrid two-tiered verification](simulation-extensions.md#4-hybrid-two-tiered-runtime-verification) | `saag-simulate hybrid-verify` | `MessageFlowSimulator` + testbed | Calibrates Tier 1 from a fault-free testbed baseline, screens all candidates, and verifies a Top-*K* + disagreement + control shortlist across crash and gray-failure probes |
 
 ---
 
@@ -443,6 +444,7 @@ The published engines have structural limits: publishers ignore their inputs, so
 | `edge-criticality` | `FailureSimulator` edge sweep | `edge_criticality.json` |
 | `message-flow` | `MessageFlowSimulator` (one failure), including all runtime and DDS flags | `message_flow_results.json` |
 | `runtime-sweep` | [Runtime engine](simulation-extensions.md#runtime-labels-runtime-sweep) over all candidates | `runtime_labels.json` |
+| `hybrid-verify` | [Hybrid two-tiered protocol](simulation-extensions.md#4-hybrid-two-tiered-runtime-verification) (Tier 1 + Tier 2) | `hybrid_report.json`, `tier1_runtime_labels.json`, `shortlist.json` |
 | `testbed {build,run,calibrate,fidelity}` | [Emulated testbed](simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) | the testbed directory |
 | `combined` | `fault-inject`, then `message-flow` | both |
 
@@ -538,6 +540,7 @@ Read labels from `records[*].impact_score`. `unlabeled_node_ids` lists nodes tha
 |:---|:---|:---|
 | `edge_criticality.json` | `edge-criticality` | Run metadata (`top_q`, `n_evaluated`, `n_nonzero`) and `edge_criticality`, one entry per candidate: `source`, `target`, `relationship`, `flow_impact`, `connectivity_impact`, `combined_impact` (= I_edge), `level`, `evaluated` |
 | `runtime_labels.json` | `runtime-sweep` | [Runtime labels](simulation-extensions.md#runtime-labels-runtime-sweep) |
+| `hybrid_report.json` | `hybrid-verify` | [Two-tiered hybrid report](simulation-extensions.md#4-hybrid-two-tiered-runtime-verification) (`step0_calibration`, `step1_tier1_screening`, `step2_shortlist`, `step3_tier2_verification`, `caveats`) |
 | Testbed directory | `testbed` | [Plan, telemetry, profile and fidelity report](simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) |
 
 ---

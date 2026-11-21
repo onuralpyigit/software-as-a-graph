@@ -506,6 +506,7 @@ Each row names the test that implements it. `sim` is `tests/test_simulation_serv
 | UT-SIM-33 | `FaultInjector`: label stability | Labels reproduce across runs and processes | `tests/test_label_stability.py` |
 | UT-SIM-34 | `MessageFlowSimulator`: I_dyn accounting | A silenced publisher is visible; the failed node's own consumption is not damage | `tests/test_message_flow_oracle.py` |
 | UT-SIM-35 | Edge removal | Measured against a control, and restored after each measurement | `tests/test_edge_removal.py` |
+| UT-SIM-36 | Hybrid two-tiered runtime protocol | Calibrated `runtime_labels`, shortlist/disagreement/control selection, gray-failure parity & caveats, end-to-end local verification, CLI parsing | `tests/test_hybrid_protocol.py` |
 
 **Contract guards.** These protect the invariants in [CLAUDE.md](../../CLAUDE.md#invariants):
 

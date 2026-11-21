@@ -11,6 +11,7 @@ Read [Step 5: Simulate](failure-simulation.md) first. Nothing here changes a pub
 | [1. Runtime engine](#1-runtime-engine) | Published publishers ignore their inputs, so no failure travels more than one hop; crash-stop is the only fault | Exploratory measurements only |
 | [2. DDS QoS semantics and status metrics](#2-dds-qos-semantics-and-status-metrics) | The published QoS rules only approximate DDS | Checked against Cyclone DDS |
 | [3. Emulated testbed, calibration and fidelity](#3-emulated-testbed-calibration-and-fidelity) | Nothing is compared with observed behaviour | Smoke-tested on `tiny_system` |
+| [4. Hybrid two-tiered runtime verification](#4-hybrid-two-tiered-runtime-verification) | Full container sweeps are too slow, while uncalibrated simulation alone skips DDS transport and OS contention | Implemented (`local` & `docker`; advisory Tier-2 report) |
 
 ---
 
@@ -138,7 +139,7 @@ The sweep fails every candidate under the runtime settings: reactive, stations, 
 
 **Parameter uncertainty.** Before deployment, the operating point, service distribution, staleness window and burstiness are guesses. `runtime-sweep --parameter-draws N` repeats the sweep under N draws from `PARAMETER_RANGES`, at the first seed, and adds `parameter_stability` to the file: the worst pairwise Spearman of each label across draws. A label can reproduce across seeds and still depend on the guess, so read both blocks. The retest gate in training looks only at seeds. The block's `inert` list names drawn keys that the run never reads. Under the default label settings, that list is `burst_ratio`, because bursts apply only under `workload_model="mmpp"`. So the spread measures three guesses, not four.
 
-The sweep is also available as `SimulationService.run_runtime_sweep(...)`, and as `SimulationMode.RUNTIME` through `SimulateGraphUseCase`.
+The sweep is also available as `SimulationService.run_runtime_sweep(...)`, and as `SimulationMode.RUNTIME` through `SimulateGraphUseCase`. Pass `--profile PROFILE.json` (or `telemetry_profile=...` to `runtime_labels`) to calibrate the sweep with a `RuntimeTelemetryProfile` produced by `testbed calibrate`; the output records `"calibrated": true` and `"calibration_source"` while keeping `settings` JSON-serialisable.
 
 Each label ships with its **order-k reference**: the training-free truncation of the simulator's own computation that a learned ranker must beat ([research context](failure-simulation.md#14-research-context)).
 
@@ -328,17 +329,70 @@ The relays' own DDS endpoints exist only on the testbed and are excluded, with t
 
 **Partition recovery is not instant.** This smoke test ran the two-host chain behind one switch with `--network-gating --service-work cpu --carry-payload`, and crashed the switch from 10 s to 20 s. Deliveries stopped within 0.2 s of the cut. They resumed about 6 s *after* the rules were removed, because Cyclone had expired the peer participants during the 10 s outage and had to rediscover them. The simulator reconnects at once, so expect this to show up in the fault response of any partition longer than a participant lease. In the same run, the burned service time matched the plan: the median served time was 21.3 ms against an exponential median of 22.5 ms.
 
-### Hybrid two-tiered verification (`hybrid-verify`)
+---
 
-Code: [`saag/testbed/hybrid.py`](../saag/testbed/hybrid.py). Chains calibration, Tier 1 screening, shortlist selection, and targeted Tier 2 verification into one advisory workflow (never a blocking gate):
+## 4. Hybrid two-tiered runtime verification
 
-1. **Step 0 (Baseline & calibration):** Builds the testbed once (optionally scaling rates by $\kappa \le 1$ via `--max-host-load`), runs a fault-free baseline, fits `profile.json`, and checks steady-state fidelity (`compare_steady_state`).
-2. **Step 1 (Tier 1 screening):** Runs calibrated `runtime-sweep` (`deployment_model="stations"`, `qos_semantics="dds"`, `estimator="paired"`, `rng_streams="per_process"`, `replica_aware=True`) with multi-seed stability, optional `--parameter-draws`, and order-$k$ references, writing `tier1_runtime_labels.json`.
-3. **Step 2 (Shortlist & triage):** Selects Top-*K* risk targets (from `--predictions` if supplied, otherwise Tier 1 ranking), top prediction-vs-Tier-1 rank disagreements, and low-impact negative controls (preferring sinks), writing `shortlist.json`.
-4. **Step 3 (Targeted Tier 2 verification):** Reuses the built testbed across crash and opt-in gray-failure probes (`--fault-probe`), comparing simulated vs. observed impact, stall-set Jaccard, and DDS statuses while recording explicit circularity (`reactive`), scaling ($\kappa < 1$), and fault-parity caveats in `hybrid_report.json`.
+Code: [`saag/testbed/hybrid.py`](../saag/testbed/hybrid.py). Combines fast discrete-event screening in `MessageFlowSimulator` (**Tier 1**) with targeted verification and gray-failure probing on the emulated/container Cyclone DDS testbed (**Tier 2**). This keeps wall-clock cost bounded (sweeping every candidate on Tier 1 while running only a Top-*K* shortlist on Tier 2) and outputs a non-blocking Tier-2 advisory report (`hybrid_report.json`) — never a CI pass/fail gate or a replacement for `FailureSimulator` release gates.
+
+```mermaid
+flowchart TD
+    IN["Scenario JSON + optional Predictions JSON"] --> S0
+    subgraph S0["Step 0: Steady-State Baseline & Calibration (Tier 2 -> Tier 1)"]
+        B["Build testbed once (optional kappa scaling)"] --> R0["Fault-free baseline run (local | docker)"]
+        R0 --> CAL["TelemetryCalibrator -> profile.json"]
+        R0 --> SS["compare_steady_state + attainment"]
+    end
+    S0 --> S1
+    subgraph S1["Step 1: Full-System Screening (Tier 1: MessageFlowSimulator)"]
+        SW["Calibrated runtime_labels (stations, dds, paired, per_process, replica_aware)"]
+        SW --> STAB["label_stability + optional parameter_draws + order-k references"]
+    end
+    S1 --> S2
+    subgraph S2["Step 2: Shortlist & Triage Selection"]
+        SEL["Top-K risk targets + Prediction/Tier-1 disagreements + Negative controls (sinks)"]
+    end
+    S2 --> S3
+    subgraph S3["Step 3: Targeted Verification & Gray-Failure Probing (Tier 2)"]
+        PR["Run shortlist x fault_probes x repetitions (reusing built testbed)"]
+        PR --> FID["compare_fault_response (Spearman, Top-K Jaccard, stall-set Jaccard) + DDS status + caveats"]
+    end
+    S3 --> OUT["hybrid_report.json (advisory Tier-2 report)"]
+```
+
+### The four steps
+
+1. **Step 0 — Steady-state baseline & calibration:** Builds the testbed once under `<output>/testbed/` (optionally scaling topic rates by $\kappa \le 1$ via `--max-host-load` and writing `scaled_scenario.json` without mutating the input), runs a fault-free baseline (logging per-container CPU p95 in `docker` mode), fits `profile.json` via `TelemetryCalibrator`, and checks steady-state fidelity (`compare_steady_state` and `study.attainment`).
+2. **Step 1 — Full-system Tier 1 screening:** Loads `profile.json` (unless `--skip-calibration`) and runs `runtime_labels` under the runtime/DDS engine (`deployment_model="stations"`, `qos_semantics="dds"`, `dds_status=True`, `estimator="paired"`, `rng_streams="per_process"`, `replica_aware=True`) with multi-seed stability, optional `--parameter-draws`, and order-$k$ references (`ref_flow_policy`, `ref_delivery_first_order`), writing `tier1_runtime_labels.json`.
+3. **Step 2 — Shortlist & triage selection:** Combines **Top-*K*** targets (ranked by `--predictions` if supplied—accepting flat `{id: score}`, `saag-predict` GNN/RM JSON, `impact_scores.json`, or `runtime_labels.json`—or by Tier 1 `--tier1-label` otherwise), up to `--disagreements` targets with the largest normalized rank gap between predictions and Tier 1, and up to `--controls` lowest-impact negative controls (preferring sinks, kept separate from primary rank correlations so tied zeros do not inflate Spearman $\rho$), writing `shortlist.json`.
+4. **Step 3 — Targeted Tier 2 verification & gray-failure probing:** Reuses the built testbed across every `(probe, target, repetition)`, comparing simulated vs. observed impact (`compare_fault_response`), stall-set Jaccard, and DDS communication statuses (`compare_dds_status`), while recording unsupported probes and structured caveats in `hybrid_report.json`.
+
+### Gray-failure parity & caveats
+
+| Fault probe | Tier 1 (`MessageFlowSimulator`) | Tier 2 (`docker` / `local`) | Recorded behaviour / caveat |
+|:---|:---|:---|:---|
+| `crash`, `transient_crash`, `freeze` | Supported | Supported (`docker kill`/`start`/`pause` or control file) | Full parity |
+| `omission`, `babbling` | Supported | Supported (agent control file) | Full parity |
+| `slowdown` | Scales service time (or period if station-less) | Control file; station-less apps not throttled identically | Emits `slowdown_stationless_divergence` caveat when probing station-less apps; use `--service-work cpu` for real host contention |
+| `link_flap` | Instant reconnect on heal | `tc` ingress drop in `docker` mode (unsupported in `local`) | Emits `link_flap_rediscovery_lag` caveat (~6 s Cyclone DDS rediscovery lag) in `docker`, or skips as unsupported in `local` |
+| `buffer_leak`, `redelivery_storm` | Supported | Unsupported | Skipped cleanly and recorded in `step3_tier2_verification.unsupported_probes` + `caveats` |
+
+**Methodological boundaries recorded automatically in `hybrid_report.json["caveats"]`:**
+- **`circular_reactive_policies`:** Under the default `reactive` mode, `policy_for` is shared between `MessageFlowSimulator` and testbed stubs, so cascade agreement checks timing/transport fidelity rather than independent app logic. Pass `--open-loop` for confirmatory non-circular transport checks.
+- **`rate_scaled_latency_caveat`:** Triggered whenever `--max-host-load` forces $\kappa < 1.0$; utilization is preserved, but transport-to-service latency ratios are distorted.
+- **`local_mode_no_dds_transport`:** Triggered under `--mode local`, which runs in-process over `LocalTransport` without containers or Cyclone DDS.
+- **Construct alignment:** When validating an $I^*$-trained predictor (`FaultInjector`) against Tier 1/Tier 2 runtime impact, treat the comparison as an external construct/transferability check rather than a substitute for `FailureSimulator` release gates.
+
+### Output directory & CLI examples
+
+An invocation writes `<output>/{testbed/, tier1_runtime_labels.json, shortlist.json, hybrid_report.json}` (plus `scaled_scenario.json` when $\kappa < 1$).
 
 ```bash
+# Quick local smoke check with crash + gray-failure omission probe
 python cli/simulate_graph.py hybrid-verify --input data/scenarios/tiny_system.json --output output/hybrid/tiny --mode local --duration 20 --warmup 2 --seeds 42,123 --repetitions 1 --top-k 2 --controls 1 --fault-probe crash --fault-probe omission:duration=5,p=0.5
+
+# Container + Cyclone DDS verification (non-circular open-loop transport check with CPU contention)
+python cli/simulate_graph.py hybrid-verify --input data/scenarios/atm_system.json --output output/hybrid/atm --mode docker --open-loop --service-work cpu --carry-payload --duration 60 --warmup 5 --seeds 42,123,456 --repetitions 3 --top-k 5 --disagreements 3 --controls 3 --fault-probe crash --fault-probe slowdown:duration=10,k=3
 ```
 
 ---
