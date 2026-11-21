@@ -498,7 +498,7 @@ def test_pipeline_prescribe_forwards_kwargs(repo_with_congested_topology, monkey
 
     monkeypatch.setattr(Client, "prescribe", fake_prescribe)
 
-    Pipeline(repo=repo_with_congested_topology).analyze().predict().prescribe(
+    Pipeline(repo=repo_with_congested_topology).analyze().prescribe(
         kappa=2.5,
         min_delta=1e-4,
         accounting="closed",
