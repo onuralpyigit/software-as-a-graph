@@ -243,30 +243,55 @@ def infer_trigger_policy(
     blind = max(win_in.values())
     start = trace.start_s + blind
 
-    def state_at(t: float) -> Optional[str]:
+    def fresh_at(t: float) -> Optional[int]:
         if t < start or any(tk <= t < tk + blind for tk in takeovers):
             return None
-        fresh = sum(1 for tp in inputs if _fresh(deliveries[tp], t, win_in[tp]))
+        return sum(1 for tp in inputs if _fresh(deliveries[tp], t, win_in[tp]))
+
+    def _bucket(fresh: int) -> str:
         return "all_fresh" if fresh == len(inputs) else "all_stale" if fresh == 0 else "some_stale"
 
     time_in = {"all_fresh": 0.0, "some_stale": 0.0, "all_stale": 0.0}
+    time_by_fresh: Dict[int, float] = defaultdict(float)
     t = start
     while t < trace.end_s:
-        st = state_at(t)
-        if st is not None:
-            time_in[st] += step_s
+        fc = fresh_at(t)
+        if fc is not None:
+            time_in[_bucket(fc)] += step_s
+            if 0 < fc < len(inputs):
+                time_by_fresh[fc] += step_s
         t += step_s
     emitted = {k: 0 for k in time_in}
+    emit_by_fresh: Dict[int, int] = defaultdict(int)
     for te in emits:
-        st = state_at(te)
-        if st is not None:
-            emitted[st] += 1
+        fc = fresh_at(te)
+        if fc is not None:
+            emitted[_bucket(fc)] += 1
+            if 0 < fc < len(inputs):
+                emit_by_fresh[fc] += 1
     expected = {k: v / gap_out for k, v in time_in.items()}
     share = {k: (emitted[k] / expected[k] if expected[k] >= min_expected else None)
              for k in time_in}
     evidence = {"seconds": {k: round(v, 3) for k, v in time_in.items()},
                 "expected_emissions": {k: round(v, 2) for k, v in expected.items()},
                 "emitting_share": share}
+
+    def _infer_k_of_n() -> Optional[Tuple[str, Dict[str, Any]]]:
+        obs_shares = {
+            f: emit_by_fresh[f] / (time_by_fresh[f] / gap_out)
+            for f in sorted(time_by_fresh)
+            if (time_by_fresh[f] / gap_out) >= min_expected
+        }
+        if not obs_shares:
+            return None
+        matches = []
+        for k_cand in range(2, len(inputs) + 1):
+            if (all(abs(s - min(1.0, f / k_cand)) <= 0.15 for f, s in obs_shares.items())
+                    and any(f < k_cand and s < hi for f, s in obs_shares.items())):
+                matches.append(k_cand)
+        if len(matches) == 1:
+            return f"k_of_n:{matches[0]}", {**evidence, "fresh_count_share": obs_shares}
+        return None
 
     lo, hi = AMBIGUOUS_SHARE
     if share["all_stale"] is not None:
@@ -279,13 +304,21 @@ def infer_trigger_policy(
                 return "all_of", evidence
             if share["some_stale"] >= hi:
                 return "any_of", evidence
+            k_match = _infer_k_of_n()
+            if k_match is not None:
+                return k_match
             return None, {**evidence, "reason": "ambiguous emitting share with some inputs stale"}
         if len(inputs) == 1:
             # One input: all_of and any_of coincide; report the simpler.
             return "any_of", evidence
         return None, {**evidence, "reason": "no partial outage observed"}
-    if share["some_stale"] is not None and share["some_stale"] <= lo:
-        return "all_of", evidence
+    if share["some_stale"] is not None:
+        if share["some_stale"] <= lo:
+            return "all_of", evidence
+        if lo < share["some_stale"] < hi:
+            k_match = _infer_k_of_n()
+            if k_match is not None:
+                return k_match
     return None, {**evidence, "reason": "no input outage observed"}
 
 
@@ -313,17 +346,28 @@ class TelemetryCalibrator:
         tr = trace.window(trace.start_s + self.warmup_s, trace.end_s + 1e-9) if self.warmup_s else trace
         prof = RuntimeTelemetryProfile()
         dur = tr.duration_s
-        pubs: Dict[str, int] = defaultdict(int)
+        pub_times: Dict[str, List[float]] = defaultdict(list)
         service: Dict[str, List[float]] = defaultdict(list)
         for e in tr.events:
             if e["kind"] == "publish" and e["topic"]:
-                pubs[e["topic"]] += 1
+                pub_times[e["topic"]].append(e["t"])
             # Deadline drops were served too; leaving them out fits only the
             # fast survivors (45% low on atm A11).
             elif e["kind"] in ("deliver", "deadline_miss") and e["service_ms"] is not None:
                 service[e["app"]].append(float(e["service_ms"]) / 1000.0)
         if dur > 0:
-            prof.msg_rate_per_sec = {t: n / dur for t, n in sorted(pubs.items())}
+            rates: Dict[str, float] = {}
+            for t, ts in sorted(pub_times.items()):
+                active_dur = dur
+                if len(ts) >= 3:
+                    med_gap = _median_gap(ts)
+                    if math.isfinite(med_gap) and med_gap > 0:
+                        outage_thresh = max(5.0, 10.0 * med_gap)
+                        gaps = [ts[0] - tr.start_s, *(b - a for a, b in zip(ts, ts[1:])), tr.end_s - ts[-1]]
+                        silent = sum(g - med_gap for g in gaps if g > outage_thresh)
+                        active_dur = max(1e-9, dur - silent)
+                rates[t] = len(ts) / active_dur
+            prof.msg_rate_per_sec = rates
         for app, xs in sorted(service.items()):
             fit = fit_service_time(xs)
             if fit is not None:

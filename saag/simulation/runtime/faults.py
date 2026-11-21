@@ -38,6 +38,7 @@ from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Set, 
 from saag.core.network import NETWORK_TYPES, Fabric, link_key, place
 
 from .._stats import derive_seed
+from ..calibration import make_event
 
 
 class RuntimeFaultMode(str, Enum):
@@ -95,6 +96,24 @@ class FaultSpec:
             raise ValueError(f"start_s must be >= 0, got {self.start_s!r}")
         if self.mode == RuntimeFaultMode.LINK_FLAP and "|" not in self.target:
             raise ValueError("link_flap targets a link: 'a|b'")
+        p = self.params
+        if self.mode == RuntimeFaultMode.BUFFER_LEAK and "beta" in p:
+            if float(p["beta"]) <= 0:
+                raise ValueError(f"buffer_leak beta must be positive, got {p['beta']!r}")
+        if self.mode == RuntimeFaultMode.SLOWDOWN and "k" in p:
+            if float(p["k"]) <= 0:
+                raise ValueError(f"slowdown k must be positive, got {p['k']!r}")
+        if self.mode == RuntimeFaultMode.BABBLING and "k" in p:
+            if float(p["k"]) <= 0:
+                raise ValueError(f"babbling k must be positive, got {p['k']!r}")
+        if self.mode == RuntimeFaultMode.OMISSION and "p" in p:
+            prob = float(p["p"])
+            if not 0.0 <= prob <= 1.0:
+                raise ValueError(f"omission p must lie in [0, 1], got {p['p']!r}")
+        if self.mode == RuntimeFaultMode.LINK_FLAP:
+            for key in ("mean_good_s", "mean_bad_s"):
+                if key in p and float(p[key]) <= 0:
+                    raise ValueError(f"link_flap {key} must be positive, got {p[key]!r}")
 
     @property
     def end_s(self) -> Optional[float]:
@@ -126,6 +145,7 @@ class RuntimeController:
         sub_edges: List[Tuple[str, str, dict]],
         faults: List[FaultSpec],
         primary_target: Optional[str],
+        recorder: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         self.env = env
         self.sim = sim
@@ -136,6 +156,7 @@ class RuntimeController:
         self.sub_queues = sub_queues
         self.faults = list(faults)
         self.primary = primary_target
+        self.recorder = recorder
         self.deployment = sim.deployment_model == "stations"
 
         self.node_type = {n: d.get("type") for n, d in self.graph.nodes(data=True)}
@@ -189,11 +210,15 @@ class RuntimeController:
         # ── Fault state ─────────────────────────────────────────────────────
         #: Why each component is down; it comes back when the set empties.
         self.down_causes: Dict[str, Set[str]] = defaultdict(set)
+        self.freeze_causes: Dict[str, Set[str]] = defaultdict(set)
         self.frozen: Set[str] = set()
         self.rate_mult: Dict[str, float] = {}
         self.omission: Dict[str, float] = {}
         #: Output slowdown of station-less apps, and the emission credit per (app, topic).
         self.emit_slowdown: Dict[str, float] = {}
+        self._omission_causes: Dict[str, Dict[str, float]] = defaultdict(dict)
+        self._rate_mult_causes: Dict[str, Dict[str, float]] = defaultdict(dict)
+        self._emit_slowdown_causes: Dict[str, Dict[str, float]] = defaultdict(dict)
         self._emit_credit: Dict[Tuple[str, str], float] = {}
         self._recovery_events: Dict[str, Any] = {}
         self._thaw_events: Dict[str, Any] = {}
@@ -326,10 +351,18 @@ class RuntimeController:
             # Until the lease expires the writers keep sending to the dead
             # broker; after it, a topic with no live broker has nowhere to go.
             self.lost_at_broker += 1
+            if self.recorder is not None:
+                self.recorder.append(make_event(
+                    self.env.now, "saag.drop", broker or msg.publisher_id, msg.topic_id,
+                    reason="broker_down", **{"messaging.message.id": msg.msg_id}))
             fanout.publish_lost(msg)
             return
         if gate is not None and not self._reachable(msg.publisher_id, broker):
             self.lost_at_broker += 1
+            if self.recorder is not None:
+                self.recorder.append(make_event(
+                    self.env.now, "saag.drop", broker, msg.topic_id,
+                    reason="network_partition", **{"messaging.message.id": msg.msg_id}))
             fanout.publish_lost(msg)
             return
         self.env.process(self._broker_forward(broker, fanout, msg))
@@ -351,6 +384,10 @@ class RuntimeController:
             yield self._thaw_events[broker]
         if broker in self.failed:
             self.lost_at_broker += 1
+            if self.recorder is not None:
+                self.recorder.append(make_event(
+                    self.env.now, "saag.drop", broker, msg.topic_id,
+                    reason="broker_down", **{"messaging.message.id": msg.msg_id}))
             fanout.publish_lost(msg)
             return
         gate = (lambda sub: self._reachable(broker, sub)) if self.fabric is not None else None
@@ -452,9 +489,22 @@ class RuntimeController:
                 self._log("reroute", t, f"{self.router_of.get(t)}->{new}")
                 self.router_of[t] = new
 
+    _TRACE_STATES = {
+        "down": "down",
+        "up": "up",
+        "overload": "overload",
+        "freeze": "freeze",
+        "thaw": "thaw",
+        "failover": "takeover",
+    }
+
     def _log(self, what: str, comp: str, detail: str) -> None:
         self.events.append({"t": round(self.env.now, 6), "event": what,
                             "component": comp, "detail": detail})
+        if self.recorder is not None and what in self._TRACE_STATES:
+            self.recorder.append(make_event(
+                self.env.now, "saag.state", comp,
+                state=self._TRACE_STATES[what], detail=detail))
 
     # ── Fault processes ─────────────────────────────────────────────────────
 
@@ -482,13 +532,25 @@ class RuntimeController:
         if mode == RuntimeFaultMode.FREEZE:
             targets = self._targets(spec.target)
             for t in targets:
-                self.frozen.add(t)
-                self._thaw_events[t] = env.event()
+                was_frozen = bool(self.freeze_causes[t])
+                self.freeze_causes[t].add(cause)
+                if not was_frozen:
+                    self.frozen.add(t)
+                    self._thaw_events[t] = env.event()
+                    self._log("freeze", t, cause)
+                    if self.status is not None:
+                        self.status.down(t, env.now)
             yield env.timeout(spec.duration_s)
             for t in targets:
-                self.frozen.discard(t)
-                ev = self._thaw_events.pop(t)
-                ev.succeed()
+                self.freeze_causes[t].discard(cause)
+                if not self.freeze_causes[t] and t in self.frozen:
+                    self.frozen.discard(t)
+                    self._log("thaw", t, cause)
+                    if self.status is not None and t not in self.failed:
+                        self.status.up(t, env.now)
+                    ev = self._thaw_events.pop(t, None)
+                    if ev is not None and not ev.triggered:
+                        ev.succeed()
             return
 
         if mode == RuntimeFaultMode.SLOWDOWN:
@@ -506,25 +568,37 @@ class RuntimeController:
             # An app with no inputs has no station: its work is the emission itself.
             # An app with a station keeps emitting, because below saturation it still
             # handles every input, only later. A k below 1 cannot beat the schedule.
-            throttled = [t for t in targets if t not in self.stations]
+            throttled = [t for t in targets if t not in self.stations and t not in self.broker_stations]
             for t in throttled:
-                self.emit_slowdown[t] = max(1.0, k)
+                self._emit_slowdown_causes[t][cause] = max(1.0, k)
+                self.emit_slowdown[t] = max(self._emit_slowdown_causes[t].values())
             yield from self._until_end(spec)
             for st in stations:
                 st.slowdown /= k
             for t in throttled:
-                self.emit_slowdown.pop(t, None)
+                self._emit_slowdown_causes[t].pop(cause, None)
+                if self._emit_slowdown_causes[t]:
+                    self.emit_slowdown[t] = max(self._emit_slowdown_causes[t].values())
+                else:
+                    self.emit_slowdown.pop(t, None)
             return
 
         if mode in (RuntimeFaultMode.OMISSION, RuntimeFaultMode.BABBLING):
-            book = self.omission if mode == RuntimeFaultMode.OMISSION else self.rate_mult
-            value = float(p.get("p", 0.5)) if mode == RuntimeFaultMode.OMISSION else float(p.get("k", 5.0))
+            is_omission = mode == RuntimeFaultMode.OMISSION
+            book = self.omission if is_omission else self.rate_mult
+            causes_map = self._omission_causes if is_omission else self._rate_mult_causes
+            value = float(p.get("p", 0.5)) if is_omission else float(p.get("k", 5.0))
             targets = self._targets(spec.target)
             for t in targets:
-                book[t] = value
+                causes_map[t][cause] = value
+                book[t] = max(causes_map[t].values())
             yield from self._until_end(spec)
             for t in targets:
-                book.pop(t, None)
+                causes_map[t].pop(cause, None)
+                if causes_map[t]:
+                    book[t] = max(causes_map[t].values())
+                else:
+                    book.pop(t, None)
             return
 
         if mode == RuntimeFaultMode.BUFFER_LEAK:
@@ -588,6 +662,10 @@ class RuntimeController:
                         | {t for t, b in self.router_of.items() if b == comp})
         for t in topics:
             fo = self.fanouts[t]
+            broker = self.router_of.get(t) if (self.deployment and self.routers_of.get(t)) else None
+            if self.deployment and self.routers_of.get(t) and (broker is None or broker in self.failed):
+                continue
+            sender = broker or comp
             for _ in range(max(0, copies)):
                 for original in list(fo._history):
                     msg = Message(msg_id=original.msg_id, topic_id=t,
@@ -597,6 +675,10 @@ class RuntimeController:
                                   window_at=self.env.now)
                     for sub_id, sq in fo._queues.items():
                         if sub_id in self.failed:
+                            continue
+                        if fo.compat is not None and not fo.compat(original.publisher_id, sub_id):
+                            continue
+                        if self.fabric is not None and not self._reachable(sender, sub_id):
                             continue
                         fo.stats.replayed_total += 1
                         if sq._try_put(msg, fo.stats):

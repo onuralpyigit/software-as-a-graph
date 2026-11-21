@@ -547,6 +547,7 @@ class SubscriberQueue:
         qos: QoSProfile,
         sub_stats: Optional[SubscriberFlowStats] = None,
         bucket_of: Any = None,
+        recorder: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         _require_simpy()
         self.env = env
@@ -560,6 +561,7 @@ class SubscriberQueue:
         #: message's creation instant, so bucketing on `env.now` here is the same
         #: clock the publisher and subscriber use.
         self.bucket_of = bucket_of
+        self.recorder = recorder
         self._store: simpy.Store = simpy.Store(env, capacity=qos.queue_size)
         #: Effective capacity below the declared one, set by a BUFFER_LEAK fault.
         self.capacity_override: Optional[int] = None
@@ -667,6 +669,10 @@ class SubscriberQueue:
             if self.qos.reliability == "BEST_EFFORT" and not self.keep_last_replace:
                 stats.total_dropped_best_effort += 1
                 self._record_drop(stats)
+                if self.recorder is not None:
+                    self.recorder.append(make_event(
+                        self.env.now, "saag.drop", self.subscriber_id, self.topic_id,
+                        reason="queue_full_best_effort", **{"messaging.message.id": msg.msg_id}))
                 if self.status is not None:
                     self.status.rejected(self.topic_id, self.subscriber_id, self.env.now)
                 return False
@@ -674,9 +680,13 @@ class SubscriberQueue:
             # only because a leaking buffer can shrink below the current depth;
             # at the declared capacity it pops exactly one.
             while self._store.items and self.depth >= cap:
-                self._store.items.pop(0)
+                dropped = self._store.items.pop(0)
                 self._record_drop(stats)
                 self._update_depth_area()
+                if self.recorder is not None:
+                    self.recorder.append(make_event(
+                        self.env.now, "saag.drop", self.subscriber_id, self.topic_id,
+                        reason="queue_full_replace", **{"messaging.message.id": dropped.msg_id}))
                 if self.status is not None:
                     self.status.replaced(self.topic_id, self.subscriber_id, self.env.now)
         self._store.put(msg)
@@ -705,10 +715,17 @@ class TopicFanout:
         {"TRANSIENT_LOCAL", "TRANSIENT", "PERSISTENT"})
     REPLAY_IF_ORPHANED: frozenset = frozenset({"TRANSIENT", "PERSISTENT"})
 
-    def __init__(self, topic_id: str, qos: QoSProfile, stats: TopicFlowStats) -> None:
+    def __init__(
+        self,
+        topic_id: str,
+        qos: QoSProfile,
+        stats: TopicFlowStats,
+        recorder: Optional[List[Dict[str, Any]]] = None,
+    ) -> None:
         self.topic_id = topic_id
         self.qos = qos
         self.stats = stats
+        self.recorder = recorder
         # subscriber_id → SubscriberQueue
         self._queues: Dict[str, SubscriberQueue] = {}
         #: Writer-side retained samples, KEEP_LAST(history_depth). Always kept:
@@ -740,7 +757,8 @@ class TopicFanout:
         thrown away.
         """
         sq = SubscriberQueue(
-            env, self.topic_id, subscriber_id, qos or self.qos, sub_stats, bucket_of
+            env, self.topic_id, subscriber_id, qos or self.qos, sub_stats, bucket_of,
+            recorder=self.recorder,
         )
         self._queues[subscriber_id] = sq
         return sq
@@ -773,6 +791,10 @@ class TopicFanout:
             if gate is not None and not gate(sub_id):
                 if sq.status is not None:
                     sq.status.lost(self.topic_id, sub_id, sq.env.now)
+                if self.recorder is not None:
+                    self.recorder.append(make_event(
+                        sq.env.now, "saag.drop", sub_id, self.topic_id,
+                        reason="network_partition", **{"messaging.message.id": msg.msg_id}))
                 continue
             if sq._try_put(msg, self.stats):
                 n_queued += 1
@@ -791,6 +813,7 @@ class TopicFanout:
         failed_nodes: Set[str],
         orphaned: bool,
         deadline_policy: str = "original",
+        gate: Optional[Any] = None,
     ) -> int:
         """Re-deliver retained samples to surviving readers after an outage.
 
@@ -820,7 +843,11 @@ class TopicFanout:
         for sub_id, sq in self._queues.items():
             if sub_id in failed_nodes:
                 continue
+            if gate is not None and not gate(sub_id):
+                continue
             for original in replayed:
+                if self.compat is not None and not self.compat(original.publisher_id, sub_id):
+                    continue
                 # `window_at` always moves to the replay instant: the recovery is
                 # a post-fault event whatever the sample's own age. Only `reset`
                 # additionally moves `created_at`, which is what the deadline and
@@ -1916,6 +1943,7 @@ class MessageFlowSimulator:
         bytes_window: Optional[Dict[str, Dict[str, int]]] = None,
         stations: Optional[Dict[str, ServiceStation]] = None,
         sub_queues: Optional[Dict[Tuple[str, str], SubscriberQueue]] = None,
+        runtime: Any = None,
     ) -> None:
         """
         Fill in what the fault actually cost: which topics it orphaned, which
@@ -1927,15 +1955,28 @@ class MessageFlowSimulator:
         counting them makes the impact score track how much the node consumed
         rather than how much the rest of the system depended on it.
         """
-        # A topic is only orphaned if the faulted node was its *last* publisher.
+        # A topic is orphaned if every publisher failed, or (under runtime
+        # deployment stations) every routing broker failed.
         publishers_of: Dict[str, Set[str]] = defaultdict(set)
         for src, tgt, _ in edges["PUBLISHES_TO"]:
             publishers_of[tgt].add(src)
 
-        orphaned = sorted({
-            tgt for src, tgt, _ in edges["PUBLISHES_TO"]
-            if src == self.fault_node and not (publishers_of[tgt] - {self.fault_node})
-        })
+        if runtime is not None:
+            dead_set = set(runtime.ever_failed)
+            orphaned_set = {
+                tgt for tgt, pubs in publishers_of.items()
+                if (pubs & dead_set) and not (pubs - dead_set)
+            }
+            if runtime.deployment:
+                for tgt, routers in runtime.routers_of.items():
+                    if routers and set(routers) <= dead_set:
+                        orphaned_set.add(tgt)
+            orphaned = sorted(orphaned_set)
+        else:
+            orphaned = sorted({
+                tgt for src, tgt, _ in edges["PUBLISHES_TO"]
+                if src == self.fault_node and not (publishers_of[tgt] - {self.fault_node})
+            })
         impacted = sorted({
             src for src, tgt, _ in edges["SUBSCRIBES_TO"] if tgt in orphaned
         })
@@ -2105,10 +2146,12 @@ class MessageFlowSimulator:
         failed_nodes: Set[str] = set()
         msg_counter: List[int] = [0]   # shared, mutable message-id counter
 
+        recorder: Optional[List[Dict[str, Any]]] = [] if self.record_events else None
         edges = self._edges_by_type()
         topic_qos, topic_stats = self._build_topics()
         fanouts = {
-            tid: TopicFanout(tid, topic_qos[tid], topic_stats[tid]) for tid in topic_qos
+            tid: TopicFanout(tid, topic_qos[tid], topic_stats[tid], recorder=recorder)
+            for tid in topic_qos
         }
 
         pub_edges = [e for e in edges["PUBLISHES_TO"] if e[1] in fanouts]
@@ -2168,7 +2211,6 @@ class MessageFlowSimulator:
                 return rng
             return random.Random(derive_seed(self.seed, f"{kind}|{app}|{topic}"))
 
-        recorder: Optional[List[Dict[str, Any]]] = [] if self.record_events else None
         status = (self._build_status(edges, pub_edges, sub_edges, fanouts, topic_qos,
                                      sub_queues, effective_qos, fault_time)
                   if self.dds_status else None)
@@ -2180,6 +2222,7 @@ class MessageFlowSimulator:
                 env, self, failed_nodes, fanouts, stations, sub_queues,
                 pub_edges, sub_edges, self.faults or [],
                 primary_target=self.fault_node or self._baseline_primary,
+                recorder=recorder,
             )
             runtime.status = status
             if self.workload_model == "mmpp":
@@ -2296,33 +2339,77 @@ class MessageFlowSimulator:
                 for src, tgt, _ in pub_edges:
                     publishers_of[tgt].add(src)
 
-                def _durability_replay_process(env: simpy.Environment) -> Generator:
-                    """Hand retained samples back once the outage is detectable.
+                if runtime is None:
+                    def _durability_replay_process(env: simpy.Environment) -> Generator:
+                        """Hand retained samples back once the outage is detectable.
 
-                    The fault is permanent — `failed_nodes` is never cleared — so
-                    replay cannot be triggered by the publisher recovering. It
-                    fires on takeover instead: surviving co-publishers (or the
-                    durability service, for TRANSIENT/PERSISTENT) serve the gap
-                    the dead writer left.
-                    """
-                    for tid, fanout in fanouts.items():
-                        if self.fault_node not in publishers_of.get(tid, set()):
-                            continue
-                        # Liveliness/discovery lease: roughly three missed
-                        # deadlines before the loss is acted on.
-                        delay = self.durability_replay_delay_s
-                        if delay is None:
-                            rate = self.topic_aggregate_rate(tid)
-                            delay = max(1.0, 3.0 / rate) if rate > 0 else 1.0
-                        yield env.timeout(max(0.0, self.fault_time + delay - env.now))
+                        The fault is permanent — `failed_nodes` is never cleared — so
+                        replay cannot be triggered by the publisher recovering. It
+                        fires on takeover instead: surviving co-publishers (or the
+                        durability service, for TRANSIENT/PERSISTENT) serve the gap
+                        the dead writer left.
+                        """
+                        for tid, fanout in fanouts.items():
+                            if self.fault_node not in publishers_of.get(tid, set()):
+                                continue
+                            # Liveliness/discovery lease: roughly three missed
+                            # deadlines before the loss is acted on.
+                            delay = self.durability_replay_delay_s
+                            if delay is None:
+                                rate = self.topic_aggregate_rate(tid)
+                                delay = max(1.0, 3.0 / rate) if rate > 0 else 1.0
+                            yield env.timeout(max(0.0, self.fault_time + delay - env.now))
 
-                        orphaned = not (publishers_of[tid] - failed_nodes)
-                        fanout.replay(
-                            env, failed_nodes, orphaned,
-                            self.durability_replay_deadline,
-                        )
+                            orphaned = not (publishers_of[tid] - failed_nodes)
+                            fanout.replay(
+                                env, failed_nodes, orphaned,
+                                self.durability_replay_deadline,
+                            )
 
-                env.process(_durability_replay_process(env))
+                    env.process(_durability_replay_process(env))
+                else:
+                    from .runtime.faults import RuntimeFaultMode
+                    primary = self.faults[0] if self.faults else None
+                    if primary is not None and primary.mode in (
+                        RuntimeFaultMode.CRASH, RuntimeFaultMode.TRANSIENT_CRASH
+                    ):
+                        affected_pubs: Set[str] = {primary.target}
+                        if primary.target in runtime.residents:
+                            for r in runtime.residents[primary.target]:
+                                if self.replica_aware and len(runtime.hosts_of.get(r, ())) > 1:
+                                    continue
+                                affected_pubs.add(r)
+                        affected_topics = {
+                            tid for tid in fanouts
+                            if (publishers_of.get(tid, set()) & affected_pubs)
+                            or (runtime.deployment and primary.target in runtime.routers_of.get(tid, ()))
+                        }
+
+                        def _topic_replay(tid: str, fanout: TopicFanout) -> Generator:
+                            delay = self.durability_replay_delay_s
+                            if delay is None:
+                                rate = self.topic_aggregate_rate(tid)
+                                delay = max(1.0, 3.0 / rate) if rate > 0 else 1.0
+                            yield env.timeout(max(0.0, self.fault_time + delay - env.now))
+                            orphaned = not (publishers_of[tid] - failed_nodes)
+                            gate = None
+                            if runtime.fabric is not None:
+                                live_pubs = sorted(publishers_of[tid] - failed_nodes)
+                                sender = (
+                                    runtime.router_of.get(tid)
+                                    if (runtime.deployment and runtime.routers_of.get(tid))
+                                    else (live_pubs[0] if live_pubs else primary.target)
+                                )
+                                if sender is not None:
+                                    gate = runtime._gate(sender)
+                            fanout.replay(
+                                env, failed_nodes, orphaned,
+                                self.durability_replay_deadline,
+                                gate=gate,
+                            )
+
+                        for tid in sorted(affected_topics):
+                            env.process(_topic_replay(tid, fanouts[tid]))
 
         logger.info(
             "Message-flow sim: duration=%.1fs | fault=%s | seed=%d",
@@ -2358,6 +2445,7 @@ class MessageFlowSimulator:
                 bytes_window=bytes_window,
                 stations=stations,
                 sub_queues=sub_queues,
+                runtime=runtime,
             )
             if behavior is not None:
                 from .runtime.behavior import stall_summary
