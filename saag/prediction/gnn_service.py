@@ -69,7 +69,7 @@ from .data_preparation import (
     normalize_labels_robust,
 )
 from .models import build_edge_gnn, build_node_gnn
-from .trainer import EvalMetrics, GNNTrainer, evaluate
+from .trainer import EvalMetrics, GNNTrainer, _labelled_nodes, evaluate
 
 logger = logging.getLogger(__name__)
 
@@ -624,6 +624,14 @@ class GNNService:
             self._init_models(data.metadata())
 
             model_to_train = self._trained_model
+            target_types = (
+                None
+                if layer == "app"
+                else frozenset(
+                    nt for nt in data.node_types
+                    if hasattr(data[nt], "y") and bool(_labelled_nodes(data[nt]).any())
+                ) or None
+            )
             trainer = GNNTrainer(
                 model=model_to_train,
                 checkpoint_dir=str(self.checkpoint_dir),
@@ -638,6 +646,7 @@ class GNNService:
                 pairwise_ranking_weight=pairwise_ranking_weight,
                 edge_loss_weight=edge_loss_weight,
                 dimension_mask=conv.dimension_mask,
+                target_node_types=target_types,
             )
             _, best_val_metrics = trainer.train(
                 training_input,
@@ -654,7 +663,9 @@ class GNNService:
                 logger.info("  [Best Seed Updated] Seed %d achieved Val Rho: %.4f", seed, best_val_rho)
 
             # Evaluate on primary graph test set for this seed
-            test_metrics = evaluate(model_to_train, data, "test_mask", self.device)
+            test_metrics = evaluate(
+                model_to_train, data, "test_mask", self.device, target_node_types=target_types
+            )
             all_metrics.append(test_metrics)
 
         # Restore best model and re-apply its splits so inference sees the same

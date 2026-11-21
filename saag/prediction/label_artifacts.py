@@ -71,6 +71,27 @@ def select_labels(raw: Mapping[str, Any], label: str = DEFAULT_LABEL) -> Dict[st
     return labels
 
 
+def select_label_stds(raw: Mapping[str, Any], label: str = DEFAULT_LABEL) -> Dict[str, float]:
+    """Extract per-node label standard deviations ``{node_id: std}`` when recorded."""
+    labeler = raw.get("labeler", FAULT_INJECTOR)
+    records = raw.get("records", {})
+    if labeler == FAULT_INJECTOR:
+        return {
+            str(node): float(rec["impact_score_std"])
+            for node, rec in records.items()
+            if isinstance(rec, Mapping) and rec.get("impact_score_std") is not None
+        }
+    if labeler == RUNTIME_LABELER:
+        return {
+            str(node): float(rec[label]["std"])
+            for node, rec in records.items()
+            if isinstance(rec, Mapping)
+            and isinstance(rec.get(label), Mapping)
+            and rec[label].get("std") is not None
+        }
+    return {}
+
+
 def check_topology(raw: Mapping[str, Any], graph) -> None:
     """Refuse labels measured on a different topology than the one being trained on."""
     stored = raw.get("topology_fingerprint")

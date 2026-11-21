@@ -1292,12 +1292,16 @@ def create_kfold_masks(
 
 
 
-def normalize_labels_robust(hetero_data, rank_normalize: bool = False) -> None:
-    """In-place normalization of .y label tensors, preserving zeros.
+def normalize_labels_robust(
+    hetero_data,
+    rank_normalize: bool = False,
+    use_label_mask: Optional[bool] = None,
+) -> None:
+    """In-place normalization of .y label tensors, preserving unlabelled zeros.
 
-    Computes statistics over non-zero labelled nodes (pooled across node
-    types, matching the transductive scope the reported metrics are computed
-    over), then maps non-zero labels onto (0, 1). Zeros remain 0.0.
+    Computes statistics over labelled nodes (pooled across node types, matching
+    the transductive scope the reported metrics are computed over), then maps
+    them onto (0, 1). Unlabelled entries remain 0.0.
 
     Parameters
     ----------
@@ -1309,37 +1313,43 @@ def normalize_labels_robust(hetero_data, rank_normalize: bool = False) -> None:
         ``True``: within-graph rank normalization (average-rank ties,
         ``rank / (n + 1)``), per column, in the same spirit as the transform
         applied to node features in :func:`_rank_normalize_base_columns`.
-        The headline metric this model is scored on is Spearman rho — a
-        purely rank-based statistic — so a target that preserves magnitude
-        spends gradient budget getting inter-node spacing right in a way
-        the evaluation never rewards. This is independent of any
-        cross-graph concern: `normalize_labels_robust` already runs once
-        per graph (see call site in gnn_service.py), so there is no
-        cross-scenario pooling for either variant to fix.
+    use_label_mask:
+        Whether to select nodes to normalize via ``store.label_mask`` rather
+        than ``|y[:, 0]| > 1e-6``.
 
-        Deliberately ``rank / (n + 1)`` rather than ``rank / (n - 1)``:
-        the latter maps the lowest rank to exactly 0.0, colliding with the
-        "0.0 means no observation" sentinel this module's ``.abs() > 1e-6``
-        checks rely on everywhere (a real node's genuinely-lowest rank
-        would silently read back as unlabelled on the next pass). Adding
-        one on each side keeps every value strictly inside (0, 1) for any
-        n, including n=1, with no separate small-n branch needed.
+        ``None`` (default): automatically uses ``label_mask`` whenever any
+        labelled value is negative (signed runtime labels such as ``i_delivery``
+        or ``i_timeliness``, where leaving genuine 0.0 unnormalized would place
+        0.0 below normalized negative values and invert their ranking), and
+        preserves the legacy non-zero mask when all labels are non-negative.
     """
-    all_labels = [
-        hetero_data[nt].y
+    stores_with_y = [
+        (nt, hetero_data[nt])
         for nt in hetero_data.node_types
         if hasattr(hetero_data[nt], "y") and hetero_data[nt].y.numel() > 0
     ]
-    if not all_labels:
-        return
-    concat = torch.cat(all_labels, dim=0)   # (N_total, len(LABEL_COLS))
-
-    # Mask out original zeros to preserve zero structure
-    non_zero_mask = concat[:, 0].abs() > 1e-6
-    if not non_zero_mask.any():
+    if not stores_with_y:
         return
 
-    non_zero_concat = concat[non_zero_mask]
+    if use_label_mask is None:
+        has_negative = any(bool((st.y[:, 0] < 0).any()) for _, st in stores_with_y)
+        mask_by_label = has_negative
+    else:
+        mask_by_label = bool(use_label_mask)
+
+    def _store_mask(store) -> Tensor:
+        if mask_by_label:
+            lm = getattr(store, "label_mask", None)
+            if lm is not None:
+                return lm.to(device=store.y.device, dtype=torch.bool)
+        return store.y[:, 0].abs() > 1e-6
+
+    nz_masks = {nt: _store_mask(st) for nt, st in stores_with_y}
+    selected = [st.y[nz_masks[nt]] for nt, st in stores_with_y if nz_masks[nt].any()]
+    if not selected:
+        return
+
+    non_zero_concat = torch.cat(selected, dim=0)   # (N_selected, len(LABEL_COLS))
 
     if rank_normalize:
         n = non_zero_concat.shape[0]
@@ -1348,30 +1358,18 @@ def normalize_labels_robust(hetero_data, rank_normalize: bool = False) -> None:
         for col in range(arr.shape[1]):
             ranks = rankdata(arr[:, col], method="average")   # 1-indexed, ties averaged
             ranked[:, col] = ranks / (n + 1)
-        ranked = torch.from_numpy(ranked).to(non_zero_concat.dtype)
-
-        # Snapshot every store's non-zero mask from the ORIGINAL (pre-mutation)
-        # labels before scattering anything back. Overwriting one type's `.y`
-        # must not change the non-zero count computed for a later type — the
-        # lowest rank in a store can legitimately be small but is never 0.0
-        # (see the docstring), so this is purely about read/write ordering,
-        # not about the zero-collision the ranking formula already avoids.
-        nz_masks = {
-            nt: hetero_data[nt].y[:, 0].abs() > 1e-6
-            for nt in hetero_data.node_types
-            if hasattr(hetero_data[nt], "y") and hetero_data[nt].y.numel() > 0
-        }
+        ranked = torch.from_numpy(ranked).to(device=non_zero_concat.device, dtype=non_zero_concat.dtype)
 
         offset = 0
-        for nt in hetero_data.node_types:
-            nz = nz_masks.get(nt)
-            if nz is not None and nz.any():
+        for nt, store in stores_with_y:
+            nz = nz_masks[nt]
+            if nz.any():
                 count = int(nz.sum().item())
-                store = hetero_data[nt]
                 new_y = store.y.clone()
                 new_y[nz] = ranked[offset:offset + count]
                 store.y = new_y
                 offset += count
+        hetero_data.labels_normalized = True
         return
 
     q25 = torch.quantile(non_zero_concat, 0.25, dim=0)
@@ -1379,15 +1377,14 @@ def normalize_labels_robust(hetero_data, rank_normalize: bool = False) -> None:
     iqr = (q75 - q25).clamp(min=1e-6)
     median = torch.median(non_zero_concat, dim=0).values
 
-    for nt in hetero_data.node_types:
-        store = hetero_data[nt]
-        if hasattr(store, "y") and store.y.numel() > 0:
-            nz = store.y[:, 0].abs() > 1e-6
-            if nz.any():
-                scaled = torch.sigmoid(((store.y[nz] - median) / iqr).clamp(-3.0, 3.0))
-                new_y = store.y.clone()
-                new_y[nz] = scaled
-                store.y = new_y
+    for nt, store in stores_with_y:
+        nz = nz_masks[nt]
+        if nz.any():
+            scaled = torch.sigmoid(((store.y[nz] - median) / iqr).clamp(-3.0, 3.0))
+            new_y = store.y.clone()
+            new_y[nz] = scaled
+            store.y = new_y
+    hetero_data.labels_normalized = True
 
 
 # ── Extraction utilities ───────────────────────────────────────────────────────

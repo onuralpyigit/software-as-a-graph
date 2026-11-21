@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import math
 
@@ -160,6 +160,10 @@ def get_inductive_subgraph(data: 'HeteroData', mask_name: str) -> 'HeteroData':
     return data.subgraph(idx_dict)
 
 
+#: Default node types included in training loss and pooled evaluation.
+DEFAULT_TARGET_NODE_TYPES = frozenset({"Application", "Library"})
+
+
 class GNNTrainer:
     """Manages the training process for HGT models with early stopping."""
 
@@ -179,9 +183,15 @@ class GNNTrainer:
         edge_loss_weight: float = 0.3,
         dimension_mask: Optional[List[bool]] = None,
         ranking_loss: str = "listmle",
+        target_node_types: Optional[Iterable[str]] = None,
     ):
         self.model = model
         self.checkpoint_dir = Path(checkpoint_dir)
+        self.target_node_types = (
+            frozenset(target_node_types)
+            if target_node_types is not None
+            else DEFAULT_TARGET_NODE_TYPES
+        )
         # Weight on the edge-criticality term. Without it the TypedEdgeEncoder
         # receives no gradient at all and its predictions stay at random init.
         self.edge_loss_weight = edge_loss_weight
@@ -226,7 +236,7 @@ class GNNTrainer:
             total = 0.0
             count = 0
             for nt, preds in node_preds.items():
-                if nt not in {"Application", "Library"}:
+                if nt not in self.target_node_types:
                     continue
                 store = val_data[nt]
                 if not (hasattr(store, "y") and hasattr(store, "val_mask")):
@@ -281,7 +291,7 @@ class GNNTrainer:
         """Accumulate loss over all *labelled* train nodes (|y_composite| > 0)."""
         total = torch.tensor(0.0, device=self.device, requires_grad=True)
         for nt, preds in node_preds.items():
-            if nt not in {"Application", "Library"}:
+            if nt not in self.target_node_types:
                 continue
             store = batch[nt]
             if not (hasattr(store, "y") and hasattr(store, "train_mask")):
@@ -454,7 +464,9 @@ class GNNTrainer:
             scheduler.step()
 
             val_preds = _node_preds_no_grad(self.model, val_sub)
-            val_metrics = _metrics_from_preds(val_preds, val_sub, "val_mask")
+            val_metrics = _metrics_from_preds(
+                val_preds, val_sub, "val_mask", target_node_types=self.target_node_types
+            )
             val_loss = self._val_loss_from_preds(val_preds, val_sub)
             self.model.train()
 
@@ -506,6 +518,7 @@ def evaluate(
     data: 'HeteroData',
     mask_name: str,
     device: torch.device,
+    target_node_types: Optional[Iterable[str]] = None,
 ) -> EvalMetrics:
     """Compute validation/test metrics, including per-node-type Spearman ρ under Inductive Split Protocol.
 
@@ -519,12 +532,15 @@ def evaluate(
         Name of the boolean mask in data (e.g., "test_mask").
     device:
         Torch device.
+    target_node_types:
+        Node types included in the pooled evaluation. Defaults to
+        ``DEFAULT_TARGET_NODE_TYPES`` (Application, Library).
     """
     # Enforce Inductive Split Protocol by isolating evaluation subgraph
     sub_data = get_inductive_subgraph(data, mask_name)
     sub_data = sub_data.to(device)
     node_preds = _node_preds_no_grad(model, sub_data)
-    return _metrics_from_preds(node_preds, sub_data, mask_name)
+    return _metrics_from_preds(node_preds, sub_data, mask_name, target_node_types=target_node_types)
 
 
 def _node_preds_no_grad(model: nn.Module, sub_data: 'HeteroData') -> Dict[str, Tensor]:
@@ -549,10 +565,16 @@ def _node_preds_no_grad(model: nn.Module, sub_data: 'HeteroData') -> Dict[str, T
 
 
 def _metrics_from_preds(
-    node_preds: Dict[str, Tensor], sub_data: 'HeteroData', mask_name: str,
+    node_preds: Dict[str, Tensor],
+    sub_data: 'HeteroData',
+    mask_name: str,
+    target_node_types: Optional[Iterable[str]] = None,
 ) -> EvalMetrics:
-    y_pred, y_true = _collect_samples(node_preds, sub_data, mask_name)
-    metrics = evaluate_scores(y_pred, y_true)
+    y_pred, y_true = _collect_samples(
+        node_preds, sub_data, mask_name, target_node_types=target_node_types
+    )
+    already_normalized = bool(getattr(sub_data, "labels_normalized", False))
+    metrics = evaluate_scores(y_pred, y_true, normalize_targets=not already_normalized)
 
     # Populate per-node-type Spearman ρ (Block F prerequisite)
     metrics.per_node_type = _compute_per_type_rho(node_preds, sub_data, mask_name)
@@ -572,8 +594,9 @@ def evaluate_scores(
     y_pred: np.ndarray,
     y_true: np.ndarray,
     calibration: str = "rank_matched",
+    normalize_targets: bool = True,
 ) -> EvalMetrics:
-    """Compute metrics from pre-collected arrays (N, NUM_LABEL_DIMS) with robust scaling normalization.
+    """Compute metrics from pre-collected arrays (N, NUM_LABEL_DIMS) with optional robust scaling.
 
     Parameters
     ----------
@@ -587,13 +610,19 @@ def evaluate_scores(
           raw betweenness).
         - ``fixed``: legacy behaviour, binarize both at the adaptive
           ``gt_threshold``.
+    normalize_targets : bool
+        When ``True`` (default), applies IQR+sigmoid scaling to a copy of
+        ``y_true``. Set ``False`` when targets were already normalized by
+        ``normalize_labels_robust`` to avoid double-squashing.
     """
     if y_pred.shape[0] == 0:
         return EvalMetrics(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                            calibration=calibration, n_critical_in_truth=0)
 
+    y_true = np.array(y_true, dtype=float, copy=True)
+
     # ── Label Normalization Hardening: Robust scaling transform on ground-truth ──
-    if y_true.shape[0] > 0:
+    if normalize_targets and y_true.shape[0] > 0:
         for col in range(y_true.shape[1]):
             t_col = y_true[:, col]
             t_median = np.median(t_col)
@@ -731,19 +760,26 @@ def evaluate_scores(
 def _collect_samples(
     node_preds: Dict[str, Tensor],
     data: 'HeteroData',
-    mask_name: str
+    mask_name: str,
+    target_node_types: Optional[Iterable[str]] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Helper to gather masked predictions and targets.
+    """Helper to gather masked predictions and targets for labelled nodes.
 
-    Only includes nodes where the true composite label (column 0) is non-zero,
-    i.e. nodes that were actually in the failure simulation. This prevents
-    unlabelled nodes (y=0) from diluting the Spearman ρ.
+    Uses ``_labelled_nodes(store)`` (preferring the explicit ``label_mask``
+    written by ``networkx_to_hetero_data``, falling back to ``|y[:, 0]| > 0``)
+    so genuinely zero-scored nodes are evaluated while unlabelled nodes are
+    excluded from Spearman ρ.
     """
+    allowed = (
+        frozenset(target_node_types)
+        if target_node_types is not None
+        else DEFAULT_TARGET_NODE_TYPES
+    )
     all_preds = []
     all_targets = []
 
     for nt, preds in node_preds.items():
-        if nt not in {"Application", "Library"}:
+        if nt not in allowed:
             continue
         store = data[nt]
         if not (hasattr(store, "y") and hasattr(store, mask_name)):
@@ -752,15 +788,10 @@ def _collect_samples(
         if mask.sum() == 0:
             continue
 
-        y_masked = store.y[mask].detach().cpu().numpy()
-        p_masked = preds[mask].detach().cpu().numpy()
-
-        # Filter to labelled nodes (composite score > 0). Types contributing a
-        # single node are still included — they are concatenated with the rest.
-        labelled = np.abs(y_masked[:, 0]) > 1e-6
+        labelled = (mask & _labelled_nodes(store)).detach().cpu().numpy().astype(bool)
         if labelled.any():
-            all_preds.append(p_masked[labelled])
-            all_targets.append(y_masked[labelled])
+            all_preds.append(preds.detach().cpu().numpy()[labelled])
+            all_targets.append(store.y.detach().cpu().numpy()[labelled])
 
     if not all_preds:
         return np.empty((0, NUM_LABEL_DIMS)), np.empty((0, NUM_LABEL_DIMS))
@@ -777,14 +808,14 @@ def _compute_per_type_rho(
     """Compute per-node-type Spearman ρ on composite score (column 0).
 
     Returns a dict mapping node type name to rho.  Types with fewer than 3
-    samples are omitted (insufficient for Spearman correlation).
+    labelled samples are omitted (insufficient for Spearman correlation).
     """
     result: Dict[str, float] = {}
     for nt, preds in node_preds.items():
         store = data[nt]
         if not (hasattr(store, "y") and hasattr(store, mask_name)):
             continue
-        mask = getattr(store, mask_name)
+        mask = getattr(store, mask_name) & _labelled_nodes(store)
         if mask.sum() < 3:
             continue
         p_comp = preds[mask].detach().cpu().numpy()[:, 0]

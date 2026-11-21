@@ -150,9 +150,19 @@ def ref_delivery_first_order(topo: _Topology, v: str) -> float:
     return num / den if den else 0.0
 
 
-def ref_flow_policy(topo: _Topology, graph, v: str) -> float:
-    """Deterministic stall fixpoint under the trigger policies (see module docstring)."""
-    from .behavior import policy_for
+def ref_flow_policy(
+    topo: _Topology,
+    graph,
+    v: str,
+    policy_overrides: Optional[Mapping[str, str]] = None,
+) -> float:
+    """Deterministic stall/degradation fixpoint under the trigger policies.
+
+    Supports ``periodic``, ``all_of``, ``any_of``, and ``k_of_n:K`` (matching
+    `ReactiveBehavior.emit_share`), plus optional ``policy_overrides`` from a
+    calibrated `RuntimeTelemetryProfile`.
+    """
+    from .behavior import TriggerPolicy, policy_for
 
     if not topo.sinks:
         return 0.0
@@ -162,21 +172,52 @@ def ref_flow_policy(topo: _Topology, graph, v: str) -> float:
         a: sorted((topo.subscribes.get(a, set()) & published) - topo.publishes.get(a, set()))
         for a in topo.publishes
     }
+    policies = {
+        a: (TriggerPolicy.parse(policy_overrides[a])
+            if policy_overrides and a in policy_overrides
+            else policy_for(graph.nodes.get(a, {})))
+        for a in required
+    }
+    app_loss: Dict[str, float] = {n: 1.0 for n in dead}
+
+    def _topic_loss() -> Dict[str, float]:
+        out: Dict[str, float] = {}
+        for t in topo.rate:
+            pubs = topo.pubs.get(t, [])
+            pub_loss = (sum(app_loss.get(p, 0.0) for p in pubs) / len(pubs)) if pubs else 0.0
+            routers = topo.routers.get(t, set())
+            router_loss = 1.0 if routers and routers <= dead else 0.0
+            out[t] = 1.0 if t in dead else max(pub_loss, router_loss)
+        return out
+
     while True:
-        loss = topo.topic_loss(dead)
+        loss = _topic_loss()
         dead_topics = {t for t, l in loss.items() if l >= 1.0}
-        stalled = set()
+        changed = False
         for a, inputs in required.items():
             if a in dead or not inputs:
                 continue
-            kind = policy_for(graph.nodes.get(a, {})).kind
-            live = [t for t in inputs if t not in dead_topics]
-            if (kind == "all_of" and len(live) < len(inputs)) or (kind != "periodic" and not live):
-                stalled.add(a)
-        if stalled <= dead:
+            pol = policies[a]
+            if pol.kind == "periodic":
+                continue
+            live_count = sum(1 for t in inputs if t not in dead_topics)
+            if pol.kind == "all_of":
+                new_loss = 0.0 if live_count == len(inputs) else 1.0
+            elif pol.kind == "any_of":
+                new_loss = 0.0 if live_count >= 1 else 1.0
+            else:  # k_of_n
+                need = min(pol.k, len(inputs))
+                emit_share = min(1.0, live_count / need) if need else 1.0
+                new_loss = 1.0 - emit_share
+            if new_loss > app_loss.get(a, 0.0) + 1e-12:
+                app_loss[a] = new_loss
+                if new_loss >= 1.0:
+                    dead.add(a)
+                changed = True
+        if not changed:
             break
-        dead |= stalled
-    loss = topo.topic_loss(dead)
+
+    loss = _topic_loss()
     num = den = 0.0
     for a in topo.sinks:
         feeds = sorted(topo.subscribes.get(a, set()) & published)
@@ -252,7 +293,7 @@ def labels_from_run(topo: _Topology, target: str, fault_run, baseline) -> Dict[s
         if base <= 0:
             continue
         w = topo.weight[app]
-        lost = 1.0 if app == target else 1.0 - _received_post(fault_run, app) / base
+        lost = 1.0 - _received_post(fault_run, app) / base
         flow_num += w * lost
         flow_den += w
     if (fault_run.runtime_config or {}).get("qos_semantics") == "dds":
@@ -354,7 +395,10 @@ def runtime_labels(
             }
         rec["ref_delivery_first_order"] = ref_delivery_first_order(topo, c)
         rec["ref_flow_reach"] = ref_flow_reach(topo, c)
-        rec["ref_flow_policy"] = ref_flow_policy(topo, graph, c)
+        rec["ref_flow_policy"] = ref_flow_policy(
+            topo, graph, c,
+            policy_overrides=getattr(telemetry_profile, "trigger_policy", None),
+        )
         records[c] = rec
 
     measured = [n for n in LABEL_NAMES if any(records[c][n] is not None for c in cands)]
