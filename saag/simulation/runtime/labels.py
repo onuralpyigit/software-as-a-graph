@@ -280,7 +280,7 @@ def default_candidates(graph, deployment_model: str) -> List[str]:
 def _sweep_seed(args: Tuple[Any, ...]) -> Tuple[int, Dict[str, Dict[str, Optional[float]]]]:
     from ..message_flow_simulator import MessageFlowSimulator
 
-    graph, candidates, seed, settings, fault = args
+    graph, candidates, seed, settings, fault, telemetry_profile = args
     topo = _Topology(graph)
     cache: Dict[Any, Any] = {}
     out: Dict[str, Dict[str, Optional[float]]] = {}
@@ -289,7 +289,8 @@ def _sweep_seed(args: Tuple[Any, ...]) -> Tuple[int, Dict[str, Dict[str, Optiona
         spec = FaultSpec(c, fault.get("mode", "crash"), fault_time,
                          fault.get("duration_s"), fault.get("params", {}))
         sim = MessageFlowSimulator(graph, seed=seed, faults=[spec],
-                                   baseline_cache=cache, **settings)
+                                   baseline_cache=cache,
+                                   telemetry_profile=telemetry_profile, **settings)
         run = sim.run()
         out[c] = labels_from_run(topo, c, run, cache[(seed, fault_time)])
     return seed, out
@@ -304,6 +305,7 @@ def runtime_labels(
     workers: int = 1,
     parameter_draws: int = 0,
     parameter_ranges: Mapping[str, Any] = PARAMETER_RANGES,
+    telemetry_profile: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """Fault every candidate under every seed; return labels, references, stability.
 
@@ -314,8 +316,17 @@ def runtime_labels(
     ``fault`` is ``{"mode": ..., "duration_s": ..., "params": {...}}`` (default a
     permanent crash at mid-run). ``settings`` override `RUNTIME_LABEL_SETTINGS`.
     The paired estimator is required, since every label is paired.
+
+    ``telemetry_profile`` is an optional `RuntimeTelemetryProfile` (e.g. from
+    `TelemetryCalibrator`). It is passed separately from ``settings`` so the
+    returned artifact remains JSON-serialisable.
     """
     cfg = {**RUNTIME_LABEL_SETTINGS, **(settings or {})}
+    if "telemetry_profile" in cfg:
+        if telemetry_profile is None:
+            telemetry_profile = cfg.pop("telemetry_profile")
+        else:
+            cfg.pop("telemetry_profile")
     if cfg.get("estimator") != "paired":
         raise ValueError("runtime labels are paired: settings must keep estimator='paired'")
     fault = dict(fault or {"mode": "crash"})
@@ -323,7 +334,7 @@ def runtime_labels(
     cands = list(candidates) if candidates is not None else default_candidates(
         graph, cfg.get("deployment_model", "none"))
 
-    jobs = [(graph, cands, s, cfg, fault) for s in seeds]
+    jobs = [(graph, cands, s, cfg, fault, telemetry_profile) for s in seeds]
     if workers > 1 and len(jobs) > 1:
         with ProcessPoolExecutor(max_workers=min(workers, len(jobs))) as pool:
             per_seed = dict(pool.map(_sweep_seed, jobs))
@@ -354,9 +365,14 @@ def runtime_labels(
         for n in measured
     }
     extra: Dict[str, Any] = {}
+    if telemetry_profile is not None:
+        prov = getattr(telemetry_profile, "provenance", None) or {}
+        extra["calibrated"] = True
+        extra["calibration_source"] = prov.get("source") if isinstance(prov, Mapping) else None
     if parameter_draws > 0:
         extra["parameter_stability"] = _parameter_stability(
-            graph, cands, seeds[0], cfg, fault, workers, parameter_draws, parameter_ranges)
+            graph, cands, seeds[0], cfg, fault, workers, parameter_draws,
+            parameter_ranges, telemetry_profile)
     return {
         "schema_version": "1.1",
         "graph_id": graph.graph.get("id", ""),
@@ -374,11 +390,12 @@ def runtime_labels(
     }
 
 
-def _parameter_stability(graph, cands, seed, cfg, fault, workers, draws, ranges) -> Dict[str, Any]:
+def _parameter_stability(graph, cands, seed, cfg, fault, workers, draws, ranges,
+                         telemetry_profile=None) -> Dict[str, Any]:
     """Rank stability of each label across parameter draws, at one fixed seed."""
     rng = random.Random(seed)
     settings = [sample_settings(rng, ranges) for _ in range(draws)]
-    jobs = [(graph, cands, seed, {**cfg, **s}, fault) for s in settings]
+    jobs = [(graph, cands, seed, {**cfg, **s}, fault, telemetry_profile) for s in settings]
     if workers > 1 and len(jobs) > 1:
         with ProcessPoolExecutor(max_workers=min(workers, len(jobs))) as pool:
             sweeps = [out for _, out in pool.map(_sweep_seed, jobs)]

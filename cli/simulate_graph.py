@@ -420,9 +420,14 @@ def _run_runtime_sweep(args: argparse.Namespace) -> None:
     if args.declare_capacities is not None:
         graph = declare_capacities(graph, rho=args.declare_capacities,
                                    target_utilization=settings["target_utilization"] or 0.65)
+    telemetry_profile = None
+    if getattr(args, "profile", None):
+        from saag.testbed.orchestrate import profile_from_json
+        telemetry_profile = profile_from_json(json.loads(Path(args.profile).read_text()))
     out = runtime_labels(graph, candidates=candidates, seeds=seeds,
                          settings=settings, fault=fault, workers=args.workers,
-                         parameter_draws=args.parameter_draws)
+                         parameter_draws=args.parameter_draws,
+                         telemetry_profile=telemetry_profile)
     elapsed = time.perf_counter() - t0
     out_json = output_dir / "runtime_labels.json"
     out_json.write_text(json.dumps(out, indent=2, sort_keys=True))
@@ -436,6 +441,79 @@ def _run_runtime_sweep(args: argparse.Namespace) -> None:
               f"{rec['i_flow']['mean']:8.4f} {rec['i_delivery']['mean']:8.4f} "
               f"{rec['ref_flow_policy']:9.4f}")
     print(f"  written → {out_json}")
+
+
+def _run_hybrid_verify(args: argparse.Namespace) -> None:
+    from saag.testbed.hybrid import (
+        HybridProtocolConfig,
+        parse_fault_probe,
+        run_hybrid_protocol,
+    )
+
+    input_path = Path(args.input)
+    if not input_path.exists():
+        logger.error("Input file not found: %s", input_path)
+        sys.exit(1)
+
+    probes = (
+        tuple(parse_fault_probe(p) for p in args.fault_probe)
+        if args.fault_probe
+        else ({"mode": "crash"},)
+    )
+    cfg = HybridProtocolConfig(
+        duration_s=float(args.duration),
+        warmup_s=float(args.warmup),
+        tier1_duration_s=float(args.tier1_duration) if args.tier1_duration is not None else None,
+        target_utilization=float(args.target_utilization),
+        max_host_load=float(args.max_host_load) if args.max_host_load is not None else None,
+        tier1_seeds=tuple(_parse_seeds(args.seeds)),
+        tier1_label=args.tier1_label,
+        behavior_model="open_loop" if args.open_loop else "reactive",
+        qos_semantics=args.qos_semantics,
+        parameter_draws=int(args.parameter_draws),
+        workers=int(args.workers),
+        skip_calibration=bool(args.skip_calibration),
+        top_k=args.top_k,
+        top_k_frac=float(args.top_k_frac),
+        n_disagreements=int(args.disagreements),
+        n_controls=int(args.controls),
+        prediction_layer=args.prediction_layer,
+        mode=args.mode,
+        service_work=args.service_work,
+        carry_payload=bool(args.carry_payload),
+        network_gating=bool(args.network_gating),
+        repetitions=int(args.repetitions),
+        base_seed=int(args.seed),
+        fault_probes=probes,
+    )
+
+    t0 = time.perf_counter()
+    report = run_hybrid_protocol(
+        input_path,
+        Path(args.output),
+        config=cfg,
+        predictions=Path(args.predictions) if args.predictions else None,
+    )
+    elapsed = time.perf_counter() - t0
+
+    s0 = report["step0_calibration"]
+    s1 = report["step1_tier1_screening"]
+    s2 = report["step2_shortlist"]
+    s3 = report["step3_tier2_verification"]
+    print(f"\nHybrid verification complete ({cfg.mode}, {elapsed:.1f} s) → {Path(args.output) / 'hybrid_report.json'}")
+    print(f"  Step 0: kappa={s0['kappa']:.3f}  calibrated={s0['calibrated']}  "
+          f"steady topic-rate med err={s0['steady_state']['metrics']['topic_rate']['median_rel_error']}")
+    print(f"  Step 1: {s1['n_candidates']} Tier-1 candidates  label={s1['label']}  "
+          f"retest={s1['label_stability'].get(s1['label'], {})}")
+    print(f"  Step 2: shortlist={len(s2['primary_targets'])} primary + "
+          f"{len(s2['control_targets'])} controls  "
+          f"diagnostics={s2['tier1_diagnostics']}")
+    for pid, pdata in s3["probes"].items():
+        cmp = pdata["tier1_vs_tier2"]
+        print(f"  Step 3 [{pid}]: n={pdata['n_primary_targets']}  "
+              f"rho={cmp.get('spearman')}  topK_jaccard={cmp.get('topk_jaccard')}")
+    for cav in report["caveats"]:
+        print(f"  [{cav['severity'].upper()}] {cav['code']}: {cav['message']}")
 
 
 def _run_testbed(args: argparse.Namespace) -> None:
@@ -1112,6 +1190,55 @@ def _build_parser() -> argparse.ArgumentParser:
                          "each label's rank stability across them.  Default: 0 (off)")
     rs.add_argument("--workers", type=int, default=1,
                     help="Parallel workers (one seed per worker).  Default: 1")
+    rs.add_argument("--profile", default=None, metavar="PROFILE.json",
+                    help="Calibrated RuntimeTelemetryProfile JSON from 'testbed calibrate'.")
+
+    # ── hybrid-verify ─────────────────────────────────────────────────────
+    hv = subparsers.add_parser(
+        "hybrid-verify",
+        help="Two-tiered runtime verification: Tier 1 MessageFlowSimulator + Tier 2 testbed.",
+        description=(
+            "Runs the 4-step hybrid protocol: Step 0 steady-state testbed baseline "
+            "and calibration, Step 1 calibrated Tier-1 runtime-sweep screening, "
+            "Step 2 shortlist selection (Top-K + disagreements + negative controls), "
+            "and Step 3 targeted Tier-2 verification and gray-failure probing."
+        ),
+    )
+    hv.add_argument("--input", required=True, help="Scenario JSON file.")
+    hv.add_argument("--layer", default=None, help=argparse.SUPPRESS)
+    hv.add_argument("--output", required=True, help="Output directory for protocol artifacts.")
+    hv.add_argument("--predictions", default=None, metavar="PRED.json",
+                    help="Optional prediction JSON (saag-predict, impact_scores, or {id: score}).")
+    hv.add_argument("--prediction-layer", choices=("app", "infra", "mw", "system"), default="system")
+    hv.add_argument("--mode", choices=("local", "docker"), default="local")
+    hv.add_argument("--duration", type=float, default=60.0, metavar="SECONDS")
+    hv.add_argument("--warmup", type=float, default=5.0, metavar="SECONDS")
+    hv.add_argument("--tier1-duration", type=float, default=None, metavar="SECONDS")
+    hv.add_argument("--seeds", default="42,123,456", metavar="42,123,...")
+    hv.add_argument("--tier1-label", choices=("i_flow", "i_delivery", "i_delivery_consumer"),
+                    default="i_flow")
+    hv.add_argument("--parameter-draws", type=int, default=0, metavar="N")
+    hv.add_argument("--workers", type=int, default=1)
+    hv.add_argument("--open-loop", action="store_true",
+                    help="Run both tiers open-loop (periodic publishers) for non-circular transport checks.")
+    hv.add_argument("--qos-semantics", choices=QOS_SEMANTICS, default="dds")
+    hv.add_argument("--target-utilization", type=float, default=0.65, metavar="RHO")
+    hv.add_argument("--service-work", choices=("sleep", "cpu"), default="sleep")
+    hv.add_argument("--carry-payload", action="store_true")
+    hv.add_argument("--network-gating", action="store_true")
+    hv.add_argument("--max-host-load", type=float, default=None, metavar="MSG_S",
+                    help="Optional per-host capacity cap B_h; scales rates by kappa <= 1 when exceeded.")
+    hv.add_argument("--skip-calibration", action="store_true")
+    hv.add_argument("--top-k", type=int, default=None, metavar="K")
+    hv.add_argument("--top-k-frac", type=float, default=0.15, metavar="F")
+    hv.add_argument("--disagreements", type=int, default=3, metavar="N")
+    hv.add_argument("--controls", type=int, default=3, metavar="N")
+    hv.add_argument("--fault-probe", action="append", default=[], metavar="MODE[:k=v,...]",
+                    help="Repeatable Tier-2 fault probe (e.g. crash, omission:duration=10,p=0.5, "
+                         "slowdown:duration=10,k=3). Default: crash.")
+    hv.add_argument("--repetitions", type=int, default=3, metavar="N")
+    hv.add_argument("--seed", type=int, default=42)
+    hv.add_argument("--verbose", "-v", action="store_true")
 
     # ── testbed ───────────────────────────────────────────────────────────
     tb = subparsers.add_parser(
@@ -1202,6 +1329,7 @@ def main() -> None:
         "edge-criticality": _run_edge_criticality,
         "message-flow": _run_message_flow,
         "runtime-sweep": _run_runtime_sweep,
+        "hybrid-verify": _run_hybrid_verify,
         "testbed": _run_testbed,
         "combined": _run_combined,
     }

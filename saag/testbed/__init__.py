@@ -16,6 +16,9 @@ package produces *observed* behaviour to compare them with (see
 ``compose``     writes Dockerfile + docker-compose.yml + deployment.json.
 ``chaos``       turns `FaultSpec`s into timed docker / control-file actions.
 ``collect``     loads the agents' JSON-lines telemetry as a `TelemetryTrace`.
+``hybrid``      two-tiered runtime simulation protocol: Tier 1 calibrated
+                `MessageFlowSimulator` screening + Tier 2 targeted testbed
+                verification and gray-failure probing.
 
 DDS has no broker, so a Broker is emulated as a relay process: writers publish
 to an ingress partition, the routing broker republishes to the egress

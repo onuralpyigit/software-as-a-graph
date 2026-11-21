@@ -172,7 +172,8 @@ def simulate_like(out_dir: Path, settings: Optional[Dict[str, Any]] = None,
     faults = [FaultSpec.from_dict(f) for f in meta["faults"]] or None
     # replica_aware: the testbed runs an instance of a multi-hosted component on
     # every host, so a host outage moves it rather than killing it.
-    kw = {"behavior_model": "reactive", "deployment_model": "stations",
+    behavior = "open_loop" if plan.get("open_loop") else "reactive"
+    kw = {"behavior_model": behavior, "deployment_model": "stations",
           "rng_streams": "per_process", "replica_aware": True,
           "target_utilization": plan["target_utilization"],
           "staleness_periods": plan["staleness_periods"],

@@ -328,6 +328,19 @@ The relays' own DDS endpoints exist only on the testbed and are excluded, with t
 
 **Partition recovery is not instant.** This smoke test ran the two-host chain behind one switch with `--network-gating --service-work cpu --carry-payload`, and crashed the switch from 10 s to 20 s. Deliveries stopped within 0.2 s of the cut. They resumed about 6 s *after* the rules were removed, because Cyclone had expired the peer participants during the 10 s outage and had to rediscover them. The simulator reconnects at once, so expect this to show up in the fault response of any partition longer than a participant lease. In the same run, the burned service time matched the plan: the median served time was 21.3 ms against an exponential median of 22.5 ms.
 
+### Hybrid two-tiered verification (`hybrid-verify`)
+
+Code: [`saag/testbed/hybrid.py`](../saag/testbed/hybrid.py). Chains calibration, Tier 1 screening, shortlist selection, and targeted Tier 2 verification into one advisory workflow (never a blocking gate):
+
+1. **Step 0 (Baseline & calibration):** Builds the testbed once (optionally scaling rates by $\kappa \le 1$ via `--max-host-load`), runs a fault-free baseline, fits `profile.json`, and checks steady-state fidelity (`compare_steady_state`).
+2. **Step 1 (Tier 1 screening):** Runs calibrated `runtime-sweep` (`deployment_model="stations"`, `qos_semantics="dds"`, `estimator="paired"`, `rng_streams="per_process"`, `replica_aware=True`) with multi-seed stability, optional `--parameter-draws`, and order-$k$ references, writing `tier1_runtime_labels.json`.
+3. **Step 2 (Shortlist & triage):** Selects Top-*K* risk targets (from `--predictions` if supplied, otherwise Tier 1 ranking), top prediction-vs-Tier-1 rank disagreements, and low-impact negative controls (preferring sinks), writing `shortlist.json`.
+4. **Step 3 (Targeted Tier 2 verification):** Reuses the built testbed across crash and opt-in gray-failure probes (`--fault-probe`), comparing simulated vs. observed impact, stall-set Jaccard, and DDS statuses while recording explicit circularity (`reactive`), scaling ($\kappa < 1$), and fault-parity caveats in `hybrid_report.json`.
+
+```bash
+python cli/simulate_graph.py hybrid-verify --input data/scenarios/tiny_system.json --output output/hybrid/tiny --mode local --duration 20 --warmup 2 --seeds 42,123 --repetitions 1 --top-k 2 --controls 1 --fault-probe crash --fault-probe omission:duration=5,p=0.5
+```
+
 ---
 
 ← [Step 5: Simulate](failure-simulation.md) | → [Step 6: Validate](validation.md)
