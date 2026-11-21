@@ -438,18 +438,12 @@ def calculate_cme(
     if n < 2:
         return 0.0
 
-    def _rank_map(scores: Dict[str, float]) -> Dict[str, int]:
-        """Return 1-based rank for each id (lower score = higher rank number)."""
-        sorted_ids = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        return {cid: i + 1 for i, (cid, _) in enumerate(sorted_ids)}
+    # 1-based descending average ranks restricted strictly to `common` so
+    # mismatched keys and dict insertion order on ties cannot skew CME.
+    pred_ranks = stats.rankdata([-float(predicted[c]) for c in common], method="average")
+    actual_ranks = stats.rankdata([-float(actual[c]) for c in common], method="average")
 
-    pred_ranks = _rank_map(predicted)
-    actual_ranks = _rank_map(actual)
-
-    total_rank_error = sum(
-        abs(pred_ranks.get(cid, n) - actual_ranks.get(cid, n))
-        for cid in common
-    )
+    total_rank_error = float(np.sum(np.abs(pred_ranks - actual_ranks)))
     return (total_rank_error / n) / n  # normalise by system size
 
 
@@ -485,12 +479,12 @@ def calculate_weighted_kappa_cta(
     predicted: Dict[str, float],
     actual: Dict[str, float],
 ) -> float:
-    """Coupling Tier Agreement — weighted Cohen's κ across 3 ordered tiers.
+    """Coupling Tier Agreement — weighted Cohen's κ across 3 ordered tertiles.
 
-    Partitions into High (top 25%), Medium (middle 50%), Low (bottom 25%).
-    Ordinal weight matrix:  same=0.0, adjacent=0.5, extreme=1.0.
-    κ_weighted = 1 − (Σ w_ij·p_ij) / (Σ w_ij·e_ij).
-    Target: κ_weighted ≥ 0.55.
+    Partitions into Low (bottom 33%), Medium (middle 33%), High (top 33%) using
+    average ranks so zero-inflated distributions do not collapse Tier 0.
+    Linear ordinal agreement weights: same=1.0, adjacent=0.5, extreme=0.0.
+    Target: κ_weighted ≥ 0.70 (see ValidationTargets.weighted_kappa_cta).
     """
     common = sorted(set(predicted) & set(actual))
     n = len(common)
@@ -498,10 +492,12 @@ def calculate_weighted_kappa_cta(
         return 0.0
 
     def _tier(vals: List[float]) -> List[int]:
-        sv = sorted(vals)
-        t1 = sv[max(0, int(n * 0.33) - 1)]
-        t2 = sv[min(n - 1, int(n * 0.66))]
-        return [2 if v > t2 else (1 if v >= t1 else 0) for v in vals]
+        if min(vals) == max(vals):
+            return [1] * len(vals)
+        ranks = stats.rankdata(vals, method="average")
+        lo_cut = n / 3.0
+        hi_cut = 2.0 * n / 3.0
+        return [0 if r <= lo_cut else (2 if r > hi_cut else 1) for r in ranks]
 
     pred_tiers = _tier([predicted[c] for c in common])
     actual_tiers = _tier([actual[c] for c in common])

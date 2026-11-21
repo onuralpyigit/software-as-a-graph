@@ -115,14 +115,14 @@ def write_csv(node_scores: Dict[str, NodeScores], path: str):
     rows = sorted(node_scores.values(), key=lambda ns: ns.Q, reverse=True)
     with open(path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["rank", "node_id", "node_type", "Q", "R", "M", "A", "S",
+        w.writerow(["rank", "node_id", "node_type", "Q", "R", "M", "FT", "A",
                     "I", "cascade_depth", "nodes_affected",
                     "is_articulation_point", "degree_centrality"])
         for rank, ns in enumerate(rows, 1):
             w.writerow([
                 rank, ns.node_id, ns.node_type,
                 round(ns.Q, 5), round(ns.R, 5), round(ns.M, 5),
-                round(ns.A, 5), round(ns.S, 5),
+                round(ns.FT, 5), round(ns.A, 5),
                 round(ns.I, 5), ns.cascade_depth, ns.nodes_affected,
                 ns.is_articulation_point, round(ns.degree_centrality, 5),
             ])

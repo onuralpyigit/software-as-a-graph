@@ -332,7 +332,16 @@ class Client:
             
         return uc.execute(layer=layer, mode=mode_enum, target_id=target_id, **kwargs)
 
-    def validate(self, layers: Optional[List[str]] = None, **kwargs) -> ValidationResult:
+    def validate(
+        self,
+        layers: Optional[List[str]] = None,
+        targets: Optional[Any] = None,
+        analysis_result: Optional[Any] = None,
+        prediction_result: Optional[Any] = None,
+        simulation_result: Optional[Any] = None,
+        simulation_layer: Optional[str] = None,
+        **kwargs,
+    ) -> ValidationResult:
         """Validate the criticality model against ground truth simulation results."""
         if layers is None:
             layers = ["app", "infra", "mw", "system"]
@@ -350,11 +359,38 @@ class Client:
         validation_service = ValidationService(
             analysis_service=analysis_service,
             prediction_service=prediction_service,
-            simulation_service=simulation_service
+            simulation_service=simulation_service,
+            targets=targets,
         )
+
+        pre_analyses: Dict[str, Any] = {}
+        pre_predictions: Dict[str, Any] = {}
+        pre_simulations: Dict[str, List[Any]] = {}
+
+        if analysis_result is not None:
+            raw_analysis = getattr(analysis_result, "raw", analysis_result)
+            a_layer = getattr(raw_analysis, "layer", None)
+            if a_layer:
+                pre_analyses[a_layer] = raw_analysis
+
+        if prediction_result is not None:
+            raw_pred = getattr(prediction_result, "raw", prediction_result)
+            p_layer = getattr(raw_pred, "layer", None) or (next(iter(pre_analyses)) if len(pre_analyses) == 1 else None)
+            if p_layer:
+                pre_predictions[p_layer] = raw_pred
+
+        if isinstance(simulation_result, list) and simulation_result:
+            s_layer = simulation_layer or (next(iter(pre_analyses)) if len(pre_analyses) == 1 else None)
+            if s_layer and hasattr(simulation_result[0], "impact"):
+                pre_simulations[s_layer] = simulation_result
         
         uc = ValidateGraphUseCase(validation_service)
-        pipeline_result = uc.execute(layers=layers)
+        pipeline_result = uc.execute(
+            layers=layers,
+            precomputed_analyses=pre_analyses or None,
+            precomputed_predictions=pre_predictions or None,
+            precomputed_simulations=pre_simulations or None,
+        )
         
         return ValidationPipelineFacade(pipeline_result)
 

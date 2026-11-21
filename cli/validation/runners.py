@@ -34,9 +34,9 @@ def run_single(
     np.random.seed(seed)
 
     if gnn_model:
-        scores = compute_gnn_scores(G, gnn_model, qos=qos)
+        scores = compute_gnn_scores(G, gnn_model, qos=qos, raw=raw)
     else:
-        scores = compute_rm(G, qos=qos)
+        scores = compute_rm(G, qos=qos, raw=raw)
     scores = derive_ground_truth(G, scores, depth_limit=depth_limit, seed=seed)
 
     n = len(scores)

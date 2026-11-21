@@ -282,6 +282,14 @@ class TestWeightedKappaCTA:
         # With degenerate data perfect agreement still holds
         assert kappa >= 0.9 or kappa == 0.0  # either perfect or degenerate safe
 
+    def test_zero_inflated_distribution_populates_low_tier(self):
+        """When >33% of nodes share 0.0, rank-based tertiles still distinguish Low vs High."""
+        pred = {f"z{i}": 0.0 for i in range(6)}
+        pred.update({"h1": 0.5, "h2": 0.8, "h3": 1.0})
+        actual = dict(pred)
+        kappa = calculate_weighted_kappa_cta(pred, actual)
+        assert kappa == pytest.approx(1.0, abs=1e-9)
+
 
 # ===========================================================================
 # Bottleneck Precision

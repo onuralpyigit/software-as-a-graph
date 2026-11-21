@@ -210,14 +210,14 @@ object, counted two ways. The 52 are strictly partitioned into two tiers in
 
 When evaluating prediction performance against simulation ground truth, SaG evaluates a battery of statistical validation gates declared in [`saag/validation/models.py`](../saag/validation/models.py). These gates are partitioned into **Tier-1 Release Gates** and **Tier-2 Reported Gates**:
 
-| Validation Gate Tier | Gate Identifier | Target Metric | Required Threshold | CI/CD Enforcement | Purpose & Behavior |
+| Validation Gate Tier | Gate Identifier | Target Metric | Required Threshold | Library Verdict (`passed`) | Purpose & Behavior |
 |:---|:---|:---|:---:|:---:|:---|
-| **Tier-1: Release Gates** (`RELEASE_GATES`) | `spearman` | **Spearman Rank Correlation ($\rho$)** | $\ge 0.70$ | **Blocking** | Confirms global monotonic rank agreement. If $\rho < 0.70$, the deployment fails. |
-| **Tier-1: Release Gates** (`RELEASE_GATES`) | `overlap_at_q3` | **Top-Quartile Overlap** | $\ge 0.75$ | **Blocking** | Confirms that components predicted in the top 25% of risk match the top 25% empirical failure hotspots. |
-| **Tier-1: Release Gates** (`RELEASE_GATES`) | `top5_overlap` | **Top-5 Overlap** | $\ge 0.60$ | **Blocking** | Confirms that at least 3 of the top 5 most hazardous components are successfully captured. |
-| **Tier-2: Reported Gates** (`REPORTED_GATES`) | `predictive_gain` | **Predictive Gain ($PG$)** | $> 0.03$ | Non-Blocking (Informational) | Measures whether the multi-dimensional composite $Q^*$ outperforms its best individual sub-dimension ($R$ or $M$). |
-| **Tier-2: Reported Gates** (`REPORTED_GATES`) | `kappa_cta` | **Coupling Tier Kappa ($\kappa_{\text{CTA}}$)** | $\ge 0.70$ | Non-Blocking (Informational) | Evaluates ordinal classification agreement across three architectural coupling tiers. |
-| **Tier-2: Reported Gates** (`REPORTED_GATES`) | `bottleneck_precision` | **Bottleneck Precision ($BP$)** | $\ge 0.70$ | Non-Blocking (Informational) | Evaluates precision in identifying high-betweenness, low-fan-out maintainability bottlenecks. |
+| **Tier-1: Release Gates** (`RELEASE_GATES`) | `spearman` | **Spearman Rank Correlation ($\rho$)** | $\ge 0.70$ | **Determines `passed`** | Confirms global monotonic rank agreement. (Operational CI/CD uses the Two-Tiered Triage Protocol in §2.3 rather than blocking PRs.) |
+| **Tier-1: Release Gates** (`RELEASE_GATES`) | `overlap_at_q3` | **Top-Quartile Overlap** | $\ge 0.75$ | **Determines `passed`** | Confirms that components predicted in the top 25% of risk match the top 25% empirical failure hotspots. |
+| **Tier-1: Release Gates** (`RELEASE_GATES`) | `top5_overlap` | **Top-5 Overlap** | $\ge 0.60$ | **Determines `passed`** | Confirms that at least 3 of the top 5 most hazardous components are successfully captured. |
+| **Tier-2: Reported Gates** (`REPORTED_GATES`) | `predictive_gain` | **Predictive Gain ($PG$)** | $> 0.03$ | Informational Only | Measures whether the multi-dimensional composite $Q^*$ outperforms its best individual sub-dimension ($R$ or $M$). |
+| **Tier-2: Reported Gates** (`REPORTED_GATES`) | `kappa_cta` | **Coupling Tier Kappa ($\kappa_{\text{CTA}}$)** | $\ge 0.70$ | Informational Only | Evaluates ordinal classification agreement across three architectural coupling tertiles. |
+| **Tier-2: Reported Gates** (`REPORTED_GATES`) | `bottleneck_precision` | **Bottleneck Precision ($BP$)** | $\ge 0.70$ | Informational Only | Evaluates precision in identifying high-betweenness, low-fan-out maintainability bottlenecks. |
 
 > [!NOTE]
 > **Understanding the Conjunction Rule:**
@@ -349,10 +349,10 @@ flowchart TD
 Before calculating statistics, predictions $Q(v)$ and ground-truth values $I(v)$ must be strictly aligned by component identifier:
 
 ```python
-from saag.validation.metric_calculator import resolve_eval_keys
+from saag.evaluation.metrics import resolve_eval_keys
 
 # Extract common keys; discard unsimulated nodes or constants
-common_keys = sorted(set(predictions.keys()) & set(ground_truth.keys()))
+common_keys = resolve_eval_keys(predictions, ground_truth, graph, population="application")
 y_pred = [predictions[k] for k in common_keys]
 y_true = [ground_truth[k] for k in common_keys]
 ```
@@ -454,11 +454,11 @@ H_d &= 1 - \frac{\sum_v \text{score}_d(v) \cdot w(v)}{\sum_v w(v)} \quad &&\text
 
 The library gate suite evaluates 3 Tier-1 Release Gates and 3 Tier-2 Reported Gates:
 
-| Gate Key | Tier | Target Metric | Pass Condition | Release Impact |
+| Gate Key | Tier | Target Metric | Pass Condition | Library Verdict |
 |:---|:---:|:---|:---:|:---:|
-| `spearman` | **Tier-1** | Spearman $\rho(Q, I)$ | $\ge 0.70$ | **Blocks Release** |
-| `overlap_at_q3` | **Tier-1** | Top-Quartile Overlap | $\ge 0.75$ | **Blocks Release** |
-| `top5_overlap` | **Tier-1** | Top-5 Critical Overlap | $\ge 0.60$ | **Blocks Release** |
+| `spearman` | **Tier-1** | Spearman $\rho(Q, I)$ | $\ge 0.70$ | **Required for `passed`** |
+| `overlap_at_q3` | **Tier-1** | Top-Quartile Overlap | $\ge 0.75$ | **Required for `passed`** |
+| `top5_overlap` | **Tier-1** | Top-5 Critical Overlap | $\ge 0.60$ | **Required for `passed`** |
 | `predictive_gain` | **Tier-2** | Predictive Gain ($PG$) | $> 0.03$ | Informational Only |
 | `kappa_cta` | **Tier-2** | Coupling Tier $\kappa_{\text{CTA}}$ | $\ge 0.70$ | Informational Only |
 | `bottleneck_precision` | **Tier-2** | Bottleneck Precision | $\ge 0.70$ | Informational Only |
@@ -547,18 +547,18 @@ print(f"System Risk Index (SRI): {system_res.system_health['SRI']:.4f}")
 ```python
 import saag
 
-pipeline = (
+result = (
     saag.Pipeline.from_json("data/scenarios/atm_system.json", clear=True)
         .analyze(layer="system")
         .simulate(layer="system", mode="exhaustive")
         .predict(predictor_mode="gnn")
         .diagnose(k=10)
-        .validate()               # Step 6: Evaluates Tier-1 & Tier-2 validation gates
+        .validate()               # Step 6: Reuses prior analyze/predict/simulate outputs
         .prescribe()
         .run()
 )
 
-val_report = pipeline.validation_result
+val_report = result.validation
 print(f"Validation Status: {'PASSED' if val_report.all_passed else 'FAILED'}")
 ```
 
@@ -600,7 +600,23 @@ python cli/validate_graph.py harness \
     --ground-truth cascade=output/simulation/impact_scores.json \
     --ground-truth latency=output/simulation/message_flow_results.json \
     --out output/harness_report.json
+
+# 6. Link-2 simulator fidelity against observed/testbed telemetry traces (Tier-2)
+python cli/validate_graph.py fidelity \
+    --simulated output/sim_trace.jsonl \
+    --observed output/testbed_trace.jsonl \
+    --dds-status \
+    --output output/fidelity_report.json
 ```
+
+### 8.1 Link-2 Simulator Fidelity (`saag/validation/fidelity.py`)
+
+Every oracle in §4 ($I^*, I_{\text{comp}}, I_{\text{dyn}}, I_M$) validates static predictions against a simulator (**Link 1**). [`saag/validation/fidelity.py`](../saag/validation/fidelity.py) provides **Link 2**: comparing simulated `TelemetryTrace` logs from `MessageFlowSimulator(record_events=True)` against observed traces from the emulated DDS testbed (`saag/testbed/`) or a live deployment:
+- **`compare_steady_state`**: relative error on per-topic publication rates, per-(reader, topic) delivery rates, p50/p95 latencies, and absolute error on deadline-miss share against declared tolerances (`DEFAULT_TOLERANCES`).
+- **`compare_fault_response`**: Spearman $\rho$, top-$K$ Jaccard, and stall-set Jaccard between simulated and observed per-component fault impacts.
+- **`compare_dds_status`**: entity-level firing Jaccard and median relative count error across standard DDS statuses (optionally split at fault injection time `--split-at`).
+
+Like all Tier-2 diagnostics, `saag-validate fidelity` is strictly informational and always exits `0`.
 
 ---
 

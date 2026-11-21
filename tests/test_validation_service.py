@@ -1158,3 +1158,85 @@ class TestTopKTieDeterminism:
         r1 = calculate_ranking(predicted, actual, k_values=[2, 3])
         r2 = calculate_ranking(dict(reversed(list(predicted.items()))), actual, k_values=[2, 3])
         assert r1.top_5_predicted == r2.top_5_predicted == ["a", "b"]
+
+
+class TestRobustSigmoidZeroIQR:
+    """Zero-inflated distributions (IQR == 0) must not saturate distinct positives to 1.0."""
+
+    def test_zero_iqr_preserves_positive_rank_order(self):
+        from saag.validation.validator import robust_sigmoid_scale_dict
+
+        # 8 zeros + 2 distinct positive values -> q25 == q75 == 0.0 (IQR == 0)
+        raw = {f"z{i}": 0.0 for i in range(8)}
+        raw["low_pos"] = 0.2
+        raw["high_pos"] = 1.0
+
+        scaled = robust_sigmoid_scale_dict(raw)
+        assert scaled["z0"] == pytest.approx(0.5, abs=1e-9)
+        assert 0.5 < scaled["low_pos"] < scaled["high_pos"] < 1.0
+
+    def test_constant_input_maps_to_midpoint(self):
+        from saag.validation.validator import robust_sigmoid_scale_dict
+
+        scaled = robust_sigmoid_scale_dict({"a": 0.0, "b": 0.0, "c": 0.0})
+        assert all(v == pytest.approx(0.5, abs=1e-9) for v in scaled.values())
+
+
+class TestPrecomputedStageReuse:
+    """ValidationService.validate_layers must reuse precomputed stage outputs."""
+
+    def test_reuses_precomputed_analysis_prediction_and_simulation(self):
+        from unittest.mock import MagicMock
+        from saag.validation.service import ValidationService
+
+        analysis_svc = MagicMock()
+        prediction_svc = MagicMock()
+        simulation_svc = MagicMock()
+
+        def _make_comp(cid, score):
+            c = MagicMock()
+            c.id = cid
+            c.type = "Application"
+            c.structural.name = cid
+            c.structural.weight = 1.0
+            c.structural.betweenness = score
+            c.structural.dependency_weight_out = 0.1
+            c.structural.is_articulation_point = False
+            c.scores.overall = score
+            c.scores.reliability = score
+            c.scores.maintainability = score
+            c.scores.fault_tolerance = score
+            c.scores.availability = score
+            c.levels.overall = "HIGH"
+            return c
+
+        def _make_sim(cid, impact):
+            r = MagicMock()
+            r.target_id = cid
+            r.impact.composite_impact = impact
+            r.impact.reliability_impact = impact
+            r.impact.maintainability_impact = impact
+            r.impact.availability_impact = impact
+            return r
+
+        pre_analysis = MagicMock()
+        pre_analysis.quality = None
+        pre_analysis.graph = None
+
+        pre_prediction = MagicMock()
+        pre_prediction.components = [_make_comp(f"A{i}", (i + 1) / 6.0) for i in range(6)]
+        pre_sim = [_make_sim(f"A{i}", (i + 1) / 6.0) for i in range(6)]
+
+        svc = ValidationService(analysis_svc, prediction_svc, simulation_svc)
+        res = svc.validate_layers(
+            layers=["app"],
+            precomputed_analyses={"app": pre_analysis},
+            precomputed_predictions={"app": pre_prediction},
+            precomputed_simulations={"app": pre_sim},
+        )
+
+        analysis_svc.analyze_layers.assert_not_called()
+        analysis_svc.analyze_layer.assert_not_called()
+        prediction_svc.predict_quality.assert_not_called()
+        simulation_svc.run_failure_simulation_exhaustive.assert_not_called()
+        assert res.layers["app"].spearman == pytest.approx(1.0, abs=1e-6)

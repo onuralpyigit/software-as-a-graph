@@ -17,16 +17,28 @@ from saag.analysis.classifier import BoxPlotClassifier
 
 
 def robust_sigmoid_scale_dict(d: Dict[str, float], epsilon: float = 1e-9) -> Dict[str, float]:
-    """Applies robust scaling and sigmoid to dictionary values to normalize labels."""
+    """Applies robust scaling and sigmoid to dictionary values to normalize labels.
+
+    Falls back to standard deviation when IQR is zero (e.g. sparse or zero-inflated
+    distributions where >=75% of components share the same impact) so positive
+    outliers preserve strict rank ordering rather than saturating to 1.0.
+    """
     import numpy as np
     if not d:
         return {}
     keys = list(d.keys())
-    vals = np.array([float(d[k]) for k in keys])
-    median_val = np.median(vals)
+    vals = np.array([float(d[k]) for k in keys], dtype=float)
+    median_val = float(np.median(vals))
     q75, q25 = np.percentile(vals, [75, 25])
-    iqr_val = q75 - q25
-    scaled_vals = (vals - median_val) / (iqr_val + epsilon)
+    iqr_val = float(q75 - q25)
+    if iqr_val > epsilon:
+        scale = iqr_val
+    else:
+        std_val = float(np.std(vals))
+        if std_val <= epsilon:
+            return {k: 0.5 for k in keys}
+        scale = std_val
+    scaled_vals = np.clip((vals - median_val) / scale, -500.0, 500.0)
     scaled_sigmoid = 1.0 / (1.0 + np.exp(-scaled_vals))
     return {k: float(v) for k, v in zip(keys, scaled_sigmoid)}
 

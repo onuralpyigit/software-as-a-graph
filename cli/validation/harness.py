@@ -107,8 +107,8 @@ def precision_at_k(
     """|top-k by Q ∩ top-k by I| / k."""
     if k > len(rows):
         return None
-    top_q = {r[0] for r in sorted(rows, key=lambda r: r[2], reverse=True)[:k]}
-    top_i = {r[0] for r in sorted(rows, key=lambda r: r[3], reverse=True)[:k]}
+    top_q = {r[0] for r in sorted(rows, key=lambda r: (-r[2], r[0]))[:k]}
+    top_i = {r[0] for r in sorted(rows, key=lambda r: (-r[3], r[0]))[:k]}
     return len(top_q & top_i) / k
 
 
@@ -118,16 +118,16 @@ def rank_displacement(
     """Nodes most under-predicted by Q relative to I (structural blind spots)."""
     q_rank = {
         r[0]: idx + 1
-        for idx, r in enumerate(sorted(rows, key=lambda r: r[2], reverse=True))
+        for idx, r in enumerate(sorted(rows, key=lambda r: (-r[2], r[0])))
     }
     i_rank = {
         r[0]: idx + 1
-        for idx, r in enumerate(sorted(rows, key=lambda r: r[3], reverse=True))
+        for idx, r in enumerate(sorted(rows, key=lambda r: (-r[3], r[0])))
     }
     disp = [
         (r[0], r[1], i_rank[r[0]] - q_rank[r[0]], r[2], r[3]) for r in rows
     ]
-    disp.sort(key=lambda d: d[2])
+    disp.sort(key=lambda d: (d[2], d[0]))
     return disp[:top]
 
 

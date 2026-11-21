@@ -73,8 +73,20 @@ class ValidationService:
     # Pipeline entry points
     # ------------------------------------------------------------------
 
-    def validate_layers(self, layers: Optional[List[str]] = None) -> PipelineResult:
-        """Run validation for multiple layers."""
+    def validate_layers(
+        self,
+        layers: Optional[List[str]] = None,
+        precomputed_analyses: Optional[Dict[str, Any]] = None,
+        precomputed_predictions: Optional[Dict[str, Any]] = None,
+        precomputed_simulations: Optional[Dict[str, List[Any]]] = None,
+    ) -> PipelineResult:
+        """Run validation for multiple layers.
+
+        Optional ``precomputed_*`` mappings (keyed by canonical layer name)
+        allow callers such as ``Pipeline`` to reuse already-computed Analysis,
+        Prediction, and exhaustive Simulation outputs instead of re-running
+        earlier stages from scratch.
+        """
         if layers is None:
             layers = ["app", "infra", "mw", "system"] # Default layers
 
@@ -93,9 +105,15 @@ class ValidationService:
                 all_passed=False
             )
 
-        # Analyse every layer up front: this derives DEPENDS_ON edges once for
-        # the whole run rather than once per layer.
-        analyses = self._analyze_layers([layer.value for layer in valid_layers])
+        pre_analyses = dict(precomputed_analyses or {})
+        pre_predictions = dict(precomputed_predictions or {})
+        pre_simulations = dict(precomputed_simulations or {})
+
+        # Batch-analyse only layers not already supplied by the caller.
+        missing_layers = [layer.value for layer in valid_layers if layer.value not in pre_analyses]
+        analyses = dict(pre_analyses)
+        if missing_layers:
+            analyses.update(self._analyze_layers(missing_layers))
 
         results = {}
         passed_count = 0
@@ -105,7 +123,10 @@ class ValidationService:
             self.logger.info(f"Validating layer: {layer.value}")
             try:
                 result = self.validate_single_layer(
-                    layer.value, analysis_result=analyses.get(layer.value)
+                    layer.value,
+                    analysis_result=analyses.get(layer.value),
+                    prediction_result=pre_predictions.get(layer.value),
+                    sim_results=pre_simulations.get(layer.value),
                 )
                 results[layer.value] = result
                 if result.passed:
@@ -149,12 +170,17 @@ class ValidationService:
         return results if isinstance(results, dict) else {}
 
     def validate_single_layer(
-        self, layer: str, analysis_result: Any = None
+        self,
+        layer: str,
+        analysis_result: Any = None,
+        prediction_result: Any = None,
+        sim_results: Optional[List[Any]] = None,
     ) -> LayerValidationResult:
-        """Validate a single layer, analysing and simulating it first.
+        """Validate a single layer, reusing any precomputed stage outputs.
 
-        ``analysis_result`` may be supplied by a caller that already analysed
-        the layer; otherwise this analyses it here.
+        ``analysis_result``, ``prediction_result``, and ``sim_results`` may be
+        supplied by a caller (e.g. ``Pipeline``) that already ran those stages;
+        any omitted stage is executed here.
         """
         try:
             sim_layer = AnalysisLayer.from_string(layer)
@@ -167,12 +193,24 @@ class ValidationService:
             analysis_result = self.analysis.analyze_layer(sim_layer.value)
 
         # 2. Prediction — enriches the analysis result with Q(v) scores
-        self.logger.info("Running prediction...")
-        analysis_result.quality = self.prediction.predict_quality(analysis_result.structural)
+        quality = None
+        if prediction_result is not None:
+            if hasattr(prediction_result, "components"):
+                quality = prediction_result
+            elif getattr(prediction_result, "rm_result", None) is not None:
+                quality = prediction_result.rm_result
+            elif getattr(prediction_result, "quality", None) is not None:
+                quality = prediction_result.quality
+        if quality is not None:
+            analysis_result.quality = quality
+        else:
+            self.logger.info("Running prediction...")
+            analysis_result.quality = self.prediction.predict_quality(analysis_result.structural)
 
         # 3. Simulation — the independent oracle
-        self.logger.info("Running simulation...")
-        sim_results = self.simulation.run_failure_simulation_exhaustive(layer=sim_layer.value)
+        if sim_results is None:
+            self.logger.info("Running simulation...")
+            sim_results = self.simulation.run_failure_simulation_exhaustive(layer=sim_layer.value)
 
         return self.validate_single_layer_from_results(analysis_result, sim_results, layer)
 

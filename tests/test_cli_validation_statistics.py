@@ -135,3 +135,106 @@ def test_top_k_agreement_is_bounded():
     apps = _apps(10)
     assert top_k_agreement(list(apps.values()), apps, 2) == pytest.approx(1.0)
     assert top_k_agreement(list(apps.values()), apps, 0) == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for Validate-stage statistical fixes
+# ---------------------------------------------------------------------------
+
+def test_wilcoxon_is_scale_invariant():
+    """Wilcoxon must compare rank errors, not uncalibrated |Q - I| vs |DC - I|."""
+    base = _apps(15, agreeing=True)
+    for idx, ns in enumerate(base.values()):
+        ns.degree_centrality = (idx % 4) / 4.0
+
+    scaled = _apps(15, agreeing=True)
+    for idx, ns in enumerate(scaled.values()):
+        ns.Q = ns.Q * 100.0 + 50.0
+        ns.degree_centrality = (idx % 4) / 4.0
+
+    stat_base = run_statistical_tests(base, top_k=3, B=50)
+    stat_scaled = run_statistical_tests(scaled, top_k=3, B=50)
+    assert stat_base["wilcoxon_stat"] == pytest.approx(stat_scaled["wilcoxon_stat"])
+    assert stat_base["wilcoxon_p"] == pytest.approx(stat_scaled["wilcoxon_p"])
+
+
+def test_bce_and_icr_ignore_non_application_nodes():
+    """Adding Topics/Brokers/InfraNodes must not dilute BCE or distort ICR@K."""
+    apps_only = _apps(10, agreeing=True)
+    # Introduce one swap in top-3 so BCE > 0 and ICR is non-trivial
+    apps_only["A0"].Q, apps_only["A5"].Q = apps_only["A5"].Q, apps_only["A0"].Q
+
+    with_infra = dict(apps_only)
+    for i in range(20):
+        with_infra[f"T{i}"] = NodeScores(
+            node_id=f"T{i}", node_type="Topic", Q=0.99, I=0.0,
+        )
+
+    s1 = run_statistical_tests(apps_only, top_k=3, B=50)
+    s2 = run_statistical_tests(with_infra, top_k=3, B=50)
+    assert s1["bce"] == pytest.approx(s2["bce"])
+    assert s1["icr_at_k"] == pytest.approx(s2["icr_at_k"])
+
+
+def test_rcr_measures_oracle_seed_stability():
+    """RCR must reflect variation in I(v) across seeds rather than returning 1.0 on deterministic Q."""
+    from cli.validation.statistics import rank_consistency_rate
+
+    seed1 = _apps(6, agreeing=True)
+    seed2 = _apps(6, agreeing=True)
+    # Keep Q identical across seeds, but invert I on seed2
+    for i in range(6):
+        seed2[f"A{i}"].I = (i + 1) / 6.0
+
+    rcr = rank_consistency_rate([seed1, seed2])
+    assert rcr < 0.5, f"Inverted oracle rankings across seeds must yield low RCR, got {rcr}"
+
+
+def test_compute_rm_with_raw_uses_real_qos_contracts():
+    """Passing raw JSON to compute_rm evaluates full ISO-RM and real topic QoS contracts."""
+    from cli.validation.graph_io import load_graph
+    from cli.validation.scoring import compute_rm
+
+    G, raw = load_graph("data/scenarios/atm_system.json")
+    scores_qos = compute_rm(G, qos=True, raw=raw)
+    scores_no_qos = compute_rm(G, qos=False, raw=raw)
+
+    assert len(scores_qos) == G.number_of_nodes()
+    assert any(
+        abs(scores_qos[nid].Q - scores_no_qos[nid].Q) > 1e-6
+        for nid in scores_qos
+    ), "QoS ablation with raw topology should change RM scores"
+
+
+def test_cli_fidelity_subcommand_smoke(tmp_path):
+    """saag-validate fidelity loads TelemetryTrace JSONLs and writes a Tier-2 report."""
+    import json
+    import subprocess
+    import sys
+    from saag.simulation.calibration import make_event
+
+    sim_path = tmp_path / "sim.jsonl"
+    obs_path = tmp_path / "obs.jsonl"
+    out_path = tmp_path / "fidelity.json"
+
+    events = [
+        make_event(1.0, "saag.publish", "A", "T1"),
+        make_event(1.01, "saag.deliver", "B", "T1", latency_ms=10.0),
+        make_event(2.0, "saag.publish", "A", "T1"),
+        make_event(2.012, "saag.deliver", "B", "T1", latency_ms=12.0),
+    ]
+    sim_path.write_text("\n".join(json.dumps(e) for e in events) + "\n")
+    obs_path.write_text("\n".join(json.dumps(e) for e in events) + "\n")
+
+    proc = subprocess.run(
+        [
+            sys.executable, "cli/validate_graph.py", "fidelity",
+            "--simulated", str(sim_path),
+            "--observed", str(obs_path),
+            "--output", str(out_path),
+        ],
+        capture_output=True, text=True, check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(out_path.read_text())
+    assert payload["steady_state"]["metrics"]["topic_rate"]["median_rel_error"] == pytest.approx(0.0)

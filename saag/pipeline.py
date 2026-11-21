@@ -44,6 +44,7 @@ class Pipeline:
         self._deploy_kwargs: dict = {}
         self._clear: bool = False
         self._validate_layers: Optional[List[str]] = None
+        self._validate_targets: Optional[Any] = None
 
         self._do_analyze = False
         self._do_predict = False
@@ -191,10 +192,15 @@ class Pipeline:
         self._simulate_kwargs = {"mode": mode, **kwargs}
         return self
 
-    def validate(self, layers: Optional[List[str]] = None) -> "Pipeline":
+    def validate(
+        self,
+        layers: Optional[List[str]] = None,
+        targets: Optional[Any] = None,
+    ) -> "Pipeline":
         """Stage 6: Validate prediction vs simulation ground truth."""
         self._do_validate = True
         self._validate_layers = layers
+        self._validate_targets = targets
         return self
 
     def prescribe(self) -> "Pipeline":
@@ -322,7 +328,21 @@ class Pipeline:
             logger.info("Validating against simulation ground truth...")
             validate_layers = self._validate_layers or [self._layer]
             gnn_checkpoint = self._predict_kwargs.get("gnn_checkpoint")
-            result.validation = self.client.validate(layers=validate_layers, gnn_checkpoint=gnn_checkpoint)
+            sim_layer = self._simulate_layer if self._simulate_layer is not None else self._layer
+            reusable_sim = (
+                result.simulation
+                if self._do_simulate and self._simulate_kwargs.get("mode", "exhaustive") == "exhaustive"
+                else None
+            )
+            result.validation = self.client.validate(
+                layers=validate_layers,
+                targets=self._validate_targets,
+                analysis_result=result.analysis,
+                prediction_result=result.prediction,
+                simulation_result=reusable_sim,
+                simulation_layer=sim_layer,
+                gnn_checkpoint=gnn_checkpoint,
+            )
 
         # Execution step 6 (Stage 7: Prescribe) — generate recommendations
         # and verify them in closed loop

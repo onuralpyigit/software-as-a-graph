@@ -85,7 +85,7 @@ from cli.validation.reporting import (
 from cli.validation.runners import run_ablation, run_single, run_sweep
 from cli.validation.statistics import GATE_THRESHOLDS, classify_topology
 
-SUBCOMMANDS = ("single", "sweep", "report", "compare", "harness")
+SUBCOMMANDS = ("single", "sweep", "report", "compare", "harness", "fidelity")
 
 
 class _GraphContext:
@@ -222,12 +222,67 @@ def _cmd_harness(args) -> int:
     return 0
 
 
+def _cmd_fidelity(args) -> int:
+    """Link-2 simulator fidelity: compare simulated vs. observed telemetry traces.
+
+    Always exits 0 — simulator fidelity is a Tier-2 informational report and
+    never acts as a blocking CI/CD gate (CLAUDE.md, Two-Tiered Triage Protocol).
+    """
+    from saag.simulation.calibration import TelemetryTrace
+    from saag.validation.fidelity import (
+        compare_dds_status, compare_fault_response, compare_steady_state,
+    )
+
+    sim_trace = TelemetryTrace.load([Path(p) for p in args.simulated])
+    obs_trace = TelemetryTrace.load([Path(p) for p in args.observed])
+
+    report: dict = {
+        "steady_state": compare_steady_state(sim_trace, obs_trace),
+    }
+
+    if args.sim_impact and args.obs_impact:
+        sim_imp = json.loads(Path(args.sim_impact).read_text())
+        obs_imp = json.loads(Path(args.obs_impact).read_text())
+        report["fault_response"] = compare_fault_response(sim_imp, obs_imp)
+
+    if args.dds_status:
+        report["dds_status"] = compare_dds_status(
+            sim_trace, obs_trace, split_at=args.split_at
+        )
+
+    print("=" * 70)
+    print("SaG LINK-2 SIMULATOR FIDELITY REPORT (Tier-2 Informational)")
+    print("=" * 70)
+    for metric, info in report["steady_state"]["metrics"].items():
+        if metric == "deadline_miss_share":
+            err = info["abs_error"]
+            err_s = f"{err:.4f}" if err is not None else "n/a"
+            print(f"  {metric:<22} abs_err={err_s}  within_tol={info['within_tolerance']}")
+        else:
+            med = info["median_rel_error"]
+            share = info["share_within_tolerance"]
+            med_s = f"{med:.4f}" if med is not None else "n/a"
+            share_s = f"{share:.2%}" if share is not None else "n/a"
+            print(f"  {metric:<22} n={info['n_compared']:<4} med_rel_err={med_s}  within_tol={share_s}")
+
+    if "fault_response" in report:
+        fr = report["fault_response"]
+        print(f"  fault_response         n={fr['n_common']}  spearman={fr['spearman']}  topk_jaccard={fr['topk_jaccard']}")
+
+    if args.output:
+        _write_json(args.output, report)
+        print(f"\nFidelity JSON report written to: {args.output}")
+
+    return 0
+
+
 COMMANDS = {
     "single": _cmd_single,
     "sweep": _cmd_sweep,
     "report": _cmd_report,
     "compare": _cmd_compare,
     "harness": _cmd_harness,
+    "fidelity": _cmd_fidelity,
 }
 
 
@@ -277,6 +332,26 @@ def _parse_args():
     harness_p.add_argument("--out", type=Path, default=None,
                             help="Optional JSON report path.")
     harness_p.add_argument("--no-color", action="store_true")
+
+    fidelity_p = sub.add_parser(
+        "fidelity",
+        help="Link-2 simulator fidelity: compare simulated vs. observed telemetry traces (Tier-2)",
+    )
+    fidelity_p.add_argument("--simulated", action="append", required=True,
+                            help="Simulated TelemetryTrace JSONL file (repeatable).")
+    fidelity_p.add_argument("--observed", action="append", required=True,
+                            help="Observed/testbed TelemetryTrace JSONL file (repeatable).")
+    fidelity_p.add_argument("--sim-impact", default=None,
+                            help="Optional JSON mapping {node_id: simulated_impact} for fault-response comparison.")
+    fidelity_p.add_argument("--obs-impact", default=None,
+                            help="Optional JSON mapping {node_id: observed_impact} for fault-response comparison.")
+    fidelity_p.add_argument("--dds-status", action="store_true",
+                            help="Include DDS standard status count comparison.")
+    fidelity_p.add_argument("--split-at", type=float, default=None,
+                            help="Fault injection timestamp (s) for post-fault DDS status window.")
+    fidelity_p.add_argument("--output", default=None,
+                            help="Optional JSON report path.")
+    fidelity_p.add_argument("--no-color", action="store_true")
 
     return p.parse_args()
 

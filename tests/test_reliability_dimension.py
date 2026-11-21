@@ -361,3 +361,14 @@ class TestCME:
         """n < 2 should return 0.0 safely."""
         assert calculate_cme({}, {}) == 0.0
         assert calculate_cme({"a": 0.5}, {"a": 0.5}) == 0.0
+
+    def test_cme_ignores_unmatched_keys_and_is_order_invariant_on_ties(self):
+        """CME must rank strictly over common keys and ignore dict insertion order on ties."""
+        pred_fwd = {"a": 1.0, "b": 1.0, "c": 0.5, "extra_pred": 99.0}
+        pred_rev = {"extra_pred": 99.0, "c": 0.5, "b": 1.0, "a": 1.0}
+        actual = {"a": 1.0, "b": 0.8, "c": 0.2, "extra_act": 99.0}
+
+        cme_fwd = calculate_cme(pred_fwd, actual)
+        cme_rev = calculate_cme(pred_rev, actual)
+        assert cme_fwd == pytest.approx(cme_rev, abs=1e-12)
+        assert 0.0 <= cme_fwd <= 1.0

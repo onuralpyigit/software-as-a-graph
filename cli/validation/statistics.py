@@ -202,24 +202,37 @@ def run_statistical_tests(
 
     # ── ICR@K (In-Cluster Recall): fraction of true-top-K that are "clustered"
     #    with a correct prediction in Q-rank neighbourhood ±K/2 ─────────────
-    rank_by_Q  = {v: i for i, v in enumerate(sorted(node_scores, key=lambda v: node_scores[v].Q, reverse=True))}
-    rank_by_I  = {v: i for i, v in enumerate(sorted(node_scores, key=lambda v: node_scores[v].I, reverse=True))}
+    item_ids = [ns.node_id for ns in items]
+    rank_by_Q = {
+        v: i for i, v in enumerate(sorted(item_ids, key=lambda v: (-node_scores[v].Q, v)))
+    }
+    rank_by_I = {
+        v: i for i, v in enumerate(sorted(item_ids, key=lambda v: (-node_scores[v].I, v)))
+    }
     window = max(1, actual_k // 2)
     icr_hits = sum(1 for v in gt_top_k if abs(rank_by_Q[v] - rank_by_I[v]) <= window)
     icr = icr_hits / actual_k if actual_k > 0 else 0.0
 
     # ── Binary Classification Error ───────────────────────────────────────────
-    # Binary labels: 1 if in gt_top_k, else 0
-    y_true = np.array([1 if v in gt_top_k else 0 for v in node_scores])
-    y_pred = np.array([1 if v in pred_top_k else 0 for v in node_scores])
+    # Evaluated strictly over `items` (primary population), not all graph nodes,
+    # so non-Application infrastructure nodes do not inflate true negatives.
+    y_true = np.array([1 if v in gt_top_k else 0 for v in item_ids])
+    y_pred = np.array([1 if v in pred_top_k else 0 for v in item_ids])
     bce = float(np.mean(y_true != y_pred))
 
-    # ── Wilcoxon: Q(v) ranks better than degree centrality ranks ──────────────
-    # Difference signal: |ρ(Q,I)| vs |ρ(DC,I)| per bootstrap resample
+    # ── Wilcoxon: Q(v) ranks closer to I(v) than degree centrality does ───────
+    # Scale-invariant paired rank-error difference: |rank(Q) - rank(I)| vs
+    # |rank(DC) - rank(I)|. Comparing raw |Q - I| vs |DC - I| measured arbitrary
+    # calibration offset rather than ranking superiority.
     rho_dc, _ = stats.spearmanr(DC_arr, I_arr)
-    diff_scores = np.abs(Q_arr - I_arr) - np.abs(DC_arr - I_arr)
+    if math.isnan(rho_dc):
+        rho_dc = 0.0
+    rank_Q_arr = stats.rankdata(-Q_arr, method="average")
+    rank_I_arr = stats.rankdata(-I_arr, method="average")
+    rank_DC_arr = stats.rankdata(-DC_arr, method="average")
+    diff_scores = np.abs(rank_Q_arr - rank_I_arr) - np.abs(rank_DC_arr - rank_I_arr)
 
-    if len(diff_scores) >= 10:
+    if len(diff_scores) >= 10 and np.any(diff_scores != 0):
         w_stat, w_p = stats.wilcoxon(diff_scores, alternative='less')
     else:
         w_stat, w_p = 0.0, 1.0
@@ -353,15 +366,20 @@ def evaluate_gates(res: ValidationResult, topo_class: str) -> Dict[str, bool]:
     }
 
 
-def rank_consistency_rate(per_seed_scores: List[Dict[str, NodeScores]]) -> float:
+def rank_consistency_rate(
+    per_seed_scores: List[Dict[str, NodeScores]],
+    attr: str = "I",
+) -> float:
     """
     RCR = 1 − mean_normalised_Kendall_distance between all seed pairs.
 
     Normalised Kendall distance ∈ [0, 1]; RCR = 1 means identical rankings.
+    Defaults to ``attr="I"`` (oracle stability across stochastic simulation
+    seeds), since deterministic predictors produce identical ``Q`` on every seed.
     """
     rankings = []
     for sc in per_seed_scores:
-        order = sorted(sc, key=lambda v: sc[v].Q, reverse=True)
+        order = sorted(sc, key=lambda v: (-float(getattr(sc[v], attr)), v))
         rankings.append({v: i for i, v in enumerate(order)})
 
     if len(rankings) < 2:

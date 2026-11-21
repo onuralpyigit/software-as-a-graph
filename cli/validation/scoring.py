@@ -6,10 +6,11 @@ consumer.
 """
 from __future__ import annotations
 
+import copy
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, Optional
 
 import networkx as nx
 
@@ -124,12 +125,79 @@ def extract_primitives(G: nx.DiGraph, qos: bool = True) -> StructuralPrimitives:
     )
 
 
-def compute_rm(G: nx.DiGraph, qos: bool = True, normalization: str = "robust") -> Dict[str, NodeScores]:
-    """Compute RM for ALL nodes using the central QualityAnalyzer."""
+def _strip_topic_qos(raw: dict) -> dict:
+    """Return a deep copy of *raw* with topic QoS contracts neutralised to uniform defaults."""
+    stripped = copy.deepcopy(raw)
+    uniform_qos = {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+    }
+    for topic in stripped.get("topics", []):
+        if isinstance(topic, dict):
+            topic["qos"] = dict(uniform_qos)
+            topic.pop("weight", None)
+            topic.pop("criticality", None)
+    return stripped
+
+
+def compute_rm(
+    G: nx.DiGraph,
+    qos: bool = True,
+    normalization: str = "robust",
+    raw: Optional[dict] = None,
+) -> Dict[str, NodeScores]:
+    """Compute RM for ALL nodes using the central QualityAnalyzer.
+
+    When *raw* (the parsed system JSON dict) is supplied, delegates structural
+    extraction to ``MemoryRepository`` + ``AnalysisService`` so all 19 Tier-1
+    ISO-RM scoring metrics and real topic QoS contracts are evaluated. When
+    *raw* is omitted (legacy callers passing only a NetworkX graph), falls back
+    to the graph-only primitive extractor.
+    """
     from saag.analysis.analyzer import QualityAnalyzer
     from saag.core.metrics import StructuralMetrics
 
     p = extract_primitives(G, qos=qos)
+
+    if raw is not None:
+        from saag.analysis.service import AnalysisService
+        from saag.infrastructure.memory_repo import MemoryRepository
+
+        repo = MemoryRepository()
+        repo.save_graph(raw if qos else _strip_topic_qos(raw), clear=True)
+        layer_res = AnalysisService(repo).analyze_layer("system")
+        analyzer = QualityAnalyzer(normalization_method=normalization)
+        quality_res = analyzer.analyze(layer_res.structural)
+
+        # Preserve CLI node_type naming ("InfraNode" for "Node") so downstream
+        # stratification and filters stay consistent with `load_graph`.
+        scored = {
+            q.id: NodeScores(
+                node_id=q.id,
+                node_type=G.nodes[q.id].get("ntype", q.type) if q.id in G.nodes else q.type,
+                Q=q.scores.overall,
+                R=q.scores.reliability,
+                M=q.scores.maintainability,
+                FT=q.scores.fault_tolerance,
+                A=q.scores.availability,
+                I=0.0,
+                degree_centrality=p.degree_centrality_physical.get(q.id, 0.0),
+                is_articulation_point=bool(q.structural.is_articulation_point),
+            )
+            for q in quality_res.components
+        }
+        # Ensure any isolated graph node not returned by the system layer still
+        # has a default entry.
+        for nid, ndata in G.nodes(data=True):
+            if nid not in scored:
+                scored[nid] = NodeScores(
+                    node_id=nid,
+                    node_type=ndata.get("ntype", "Application"),
+                    degree_centrality=p.degree_centrality_physical.get(nid, 0.0),
+                    is_articulation_point=(nid in p.articulation_points),
+                )
+        return scored
 
     all_metrics = [
         StructuralMetrics(
@@ -171,7 +239,12 @@ def compute_rm(G: nx.DiGraph, qos: bool = True, normalization: str = "robust") -
     }
 
 
-def compute_gnn_scores(G: nx.DiGraph, gnn_model: str, qos: bool = True) -> Dict[str, NodeScores]:
+def compute_gnn_scores(
+    G: nx.DiGraph,
+    gnn_model: str,
+    qos: bool = True,
+    raw: Optional[dict] = None,
+) -> Dict[str, NodeScores]:
     """Score every node with a trained GNN checkpoint instead of the RM formula."""
     from saag.prediction.gnn_service import GNNService
 
@@ -185,7 +258,7 @@ def compute_gnn_scores(G: nx.DiGraph, gnn_model: str, qos: bool = True) -> Dict[
             "maintainability": ns.M,
             "availability": ns.A,
         }
-        for nid, ns in compute_rm(G, qos=qos).items()
+        for nid, ns in compute_rm(G, qos=qos, raw=raw).items()
     }
 
     structural_metrics = {
