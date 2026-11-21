@@ -35,6 +35,8 @@ The calibrator fits three groups of parameters on the post-warm-up window of a t
 
 \paragraph{What the calibrator refuses to write.} The behavioural profile also has slots used by other simulators. One is a per-edge \emph{failure correlation}, which is a cascade-propagation probability in the multi-layer failure simulator. Another is a starvation tolerance. A measured message-drop rate looks superficially like the former, but it is a different quantity, and no trace event measures the latter. The calibrator writes neither. In a twin, a model slot filled with a plausible but semantically wrong measurement is worse than an empty slot, because it is indistinguishable from a real calibration.
 
+\paragraph{Closing the calibration loop into Tier-1 sweeps.} Both single-fault fidelity comparisons and full-system Tier-1 runtime sweeps (\texttt{runtime-sweep --profile}) consume the serialised \texttt{profile.json} via \texttt{telemetry\_profile}. The resulting runtime-label artefact records \texttt{calibrated: true} and \texttt{calibration\_source} while keeping its settings JSON-serialisable, so calibrated Tier-1 screening and uncalibrated declared sweeps remain cleanly distinguishable downstream.
+
 \subsection{Identifiability: what telemetry can and cannot recover}
 \label{sec:identifiability}
 

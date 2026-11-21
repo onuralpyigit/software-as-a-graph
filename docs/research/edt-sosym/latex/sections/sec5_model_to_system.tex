@@ -115,7 +115,7 @@ Buffer leak, redelivery storm & reported as \emph{unsupported}, never silently s
 
 \paragraph{Network gating.} Without network gating, a link flap blocks exactly the two hosts at its ends. With gating, the chaos compiler removes cut links and crashed hosts or devices from the \textsc{connects\_to} graph and blocks every host pair that is no longer connected. This is the same reachability rule the simulator applies, implemented once in a shared module. A model whose topology already separates some hosts is partitioned before traffic starts, so the counterpart cannot be more connected than its model.
 
-Reporting unsupported faults is a small design decision that matters for a twin. Suppose a fault were silently dropped on one back-end. The fidelity report would then compare a faulted simulation with an unfaulted counterpart, and the twin would look either better or worse than it is.
+Reporting unsupported faults is a small design decision that matters for a twin. Suppose a fault were silently dropped on one back-end. The fidelity report would then compare a faulted simulation with an unfaulted counterpart, and the twin would look either better or worse than it is. In the hybrid two-tiered verification workflow (\S\ref{sec:services}), a pre-flight parity check inspects every requested fault probe against the chaos compiler before Tier-2 execution begins: unsupported probes (such as buffer leaks, redelivery storms, or link flaps in in-process mode) are skipped transparently and logged alongside partial-parity caveats (such as station-less application slowdowns and post-partition DDS rediscovery lag).
 
 \subsection{Trace links}
 \label{sec:tracelinks}

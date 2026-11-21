@@ -5,7 +5,7 @@
 - **Authors:** Ibrahim Onuralp Yigit, Feza Buzluca
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Rolling Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track)
 - **Framework:** [Software-as-a-Graph (SaG)](../../../README.md) (commit `9f84aad9`)
-- **Status:** Full draft (29 pages). Prototype evaluation (`[P]`) is complete and the fidelity study protocol is frozen; the pre-registered fidelity sweep (`[S]`, 3,147 runs) is pending execution.
+- **Status:** Full draft (30 pages). Prototype evaluation (`[P]`) is complete and the fidelity study protocol is frozen; the pre-registered fidelity sweep (`[S]`, 3,147 runs) is pending execution.
 
 ---
 
@@ -33,13 +33,13 @@ A shared **OpenTelemetry-shaped trace schema** connects the counterpart back to 
 
 ## Headline Results
 
-- **Model Consistency (RQ1, `[P]`):** 48 automated CI checks enforce substrate separation and rule-by-rule parity across repositories, simulators, and the testbed. These checks caught and fixed a historical bug where 6 of 7 rules were missing in $I_M$ re-derivation; one residual Rule 1 edge-weight divergence is measured and documented transparently.
+- **Model Consistency (RQ1, `[P]`):** 56 automated CI checks enforce substrate separation, rule-by-rule parity across repositories/simulators/testbed, and the hybrid two-tiered protocol invariants. These checks caught and fixed a historical bug where 6 of 7 rules were missing in $I_M$ re-derivation; one residual Rule 1 edge-weight divergence is measured and documented transparently.
 - **Calibration Identifiability (RQ2, `[P]`):** On the 74-component ATM scenario, calibration recovers topic rates within **3%** median error, service-time means and CVs within **1%** (avoiding a 45% survivor bias by recording service times on deadline misses), and trigger policies with **100% accuracy** whenever a discriminating outage occurs. Staleness windows and burst ratios are shown to be non-identifiable from telemetry.
 - **Fidelity & Real Gap Exposed (RQ3, `[P]` / `[S]`):**
   - *Smoke test (`tiny_system`, 4 containers):* Exact stall-set agreement ($J = 1.0$), exact DDS liveliness alive counts across all 15 readers, and per-reader delivery within 6%.
   - *Middleware fidelity gap:* A 10 s switch-crash partition test exposed a **~6 s Cyclone DDS peer-rediscovery delay** after the partition heals (because participants expire past their lease), whereas the simulator reconnects instantaneously—a real behaviour that no self-consistent simulator could discover on its own.
   - *Pre-registered study:* 9 of 12 candidate scenarios pass the capacity gate ($B_h = 3{,}033$ msg/s, full rate $\kappa = 1$, equivalence margin $\delta = 0.05$, pilot noise ceiling 0.90). Results for H1–H5 (3,147 runs) are pending execution.
-- **Pipeline Cost Ladder (RQ4, `[P]`):** Twin services span five orders of magnitude—sub-second graph analysis and change gating (**0.01–1.01 s** for 29–444 components, suitable for every commit), seconds-per-fault queue-flow simulation (**1.5–4.3 s**, suitable for shortlisted components), and machine-hour counterpart runs (**≈ 71 s/run**, **≈ 62 h** projected for the full study, suitable for periodic twin validation).
+- **Pipeline Cost Ladder (RQ4, `[P]`):** Twin services span five orders of magnitude—sub-second graph analysis and change gating (**0.01–1.01 s** for 29–444 components, suitable for every commit), seconds-per-fault queue-flow simulation (**1.5–4.3 s**, suitable for screening), hybrid two-tiered shortlisted verification (**54.2 s** in-process on `tiny_system`, **≈ 40 min** projected Docker shortlist on `atm`, suitable for milestone triage and gray-failure probing), and exhaustive machine-hour counterpart runs (**≈ 71 s/run**, **≈ 62 h** projected for the full study, suitable for periodic twin validation).
 
 ---
 
@@ -49,7 +49,7 @@ A shared **OpenTelemetry-shaped trace schema** connects the counterpart back to 
 |---|---|
 | [draft.md](draft.md) | Complete Markdown version of the manuscript (with Mermaid diagrams and KaTeX math) for easy reading |
 | [outline.md](outline.md) | Structured abstract, section-by-section paper outline, contributions, and evidence status |
-| [latex/manuscript.pdf](latex/manuscript.pdf) | Compiled 29-page PDF manuscript |
+| [latex/manuscript.pdf](latex/manuscript.pdf) | Compiled 30-page PDF manuscript |
 | [latex/manuscript.tex](latex/manuscript.tex) | Main LaTeX source (`article` class; includes instructions for `sn-jnl`) |
 | [latex/sections/](latex/sections/) | Individual LaTeX source files for the abstract, §§1–10, and declarations |
 | [latex/refs.bib](latex/refs.bib) | Bibliography (32 entries) |
@@ -66,7 +66,7 @@ make -C docs/research/edt-sosym/latex
 ```
 
 ### Generate, Run, Calibrate, and Assess a Counterpart
-From the repository root, a single scenario can be compiled into a Docker + Cyclone DDS counterpart, executed under faults, calibrated, and evaluated for fidelity with:
+From the repository root, a single scenario can be compiled into a Docker + Cyclone DDS counterpart, executed under faults, calibrated, and evaluated for fidelity—step by step or in one closed-batch hybrid verification command:
 ```bash
 S="python cli/simulate_graph.py"; OUT=output/testbed/tiny
 $S testbed build --input data/scenarios/tiny_system.json \
@@ -75,6 +75,13 @@ $S testbed run --output $OUT --duration 50 \
     --faults faults.json --mode docker
 $S testbed calibrate --output $OUT
 $S testbed fidelity --output $OUT --calibrated
+
+# Single-command hybrid two-tiered verification (Step 0 -> Step 3)
+$S hybrid-verify --input data/scenarios/tiny_system.json \
+    --output output/hybrid/tiny --mode local --duration 20 \
+    --warmup 2 --seeds 42,123 --repetitions 1 --top-k 2 \
+    --controls 1 --fault-probe crash \
+    --fault-probe omission:duration=5,p=0.5
 ```
 
 ---

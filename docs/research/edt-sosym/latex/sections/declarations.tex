@@ -13,15 +13,22 @@
 \end{itemize}
 We disclose this so the editor can assess the overlap directly.
 
-\paragraph{Data Availability:} The framework, including the counterpart generator, calibrator and fidelity report, is open source~\citep{sag-software}. Scenario topologies, generator configurations, the fidelity-study protocol, the runner and analysis scripts, raw telemetry traces and result artefacts will be archived at [REPOSITORY-URL], persistent identifier \tbd{mint Zenodo DOI for the fidelity-study archive}. The counterpart for one scenario is regenerated and run with:
+\paragraph{Data Availability:} The framework, including the counterpart generator, calibrator, fidelity report and hybrid two-tiered verification orchestrator, is open source~\citep{sag-software}. The frozen confirmatory fidelity study protocol [S] is pinned to commit \texttt{9f84aad9}; the operational \texttt{hybrid-verify} workflow [P] is built on the same primitives in the companion framework release without modifying any pre-registered arm or scenario. Scenario topologies, generator configurations, the fidelity-study protocol, the runner and analysis scripts, raw telemetry traces and result artefacts will be archived at [REPOSITORY-URL], persistent identifier \tbd{mint Zenodo DOI for the fidelity-study archive}. The counterpart for one scenario is regenerated and run step by step, or end to end via the hybrid workflow, with:
 \begin{verbatim}
-S=python cli/simulate_graph.py; OUT=output/testbed/tiny
+S="python cli/simulate_graph.py"; OUT=output/testbed/tiny
 $S testbed build --input data/scenarios/tiny_system.json \
     --output $OUT --duration 50 --qos-semantics dds
 $S testbed run --output $OUT --duration 50 \
     --faults faults.json --mode docker
 $S testbed calibrate --output $OUT
 $S testbed fidelity --output $OUT --calibrated
+
+# Single-command hybrid two-tiered verification (Step 0 -> Step 3)
+$S hybrid-verify --input data/scenarios/tiny_system.json \
+    --output output/hybrid/tiny --mode local --duration 20 \
+    --warmup 2 --seeds 42,123 --repetitions 1 --top-k 2 \
+    --controls 1 --fault-probe crash \
+    --fault-probe omission:duration=5,p=0.5
 \end{verbatim}
 
 \paragraph{Author Contributions:} [To be completed via the submission interface, per the journal's Submitting Declarations requirements.]

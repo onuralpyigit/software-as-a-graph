@@ -45,6 +45,7 @@ R3 & Simulation code never imports the analysis or prediction packages, and neve
 R3 & The labelling simulator and the validation simulator are never substituted for each other within a pipeline stage. & contract test \\
 R1 & Every committed scenario regenerates byte-identically from its configuration, and a manifest matches the files on disk. & corpus test \\
 R4 & Plan, QoS mapping, compose file, chaos compilation (including partitions under network gating) and the in-process counterpart are checked against the simulator. An in-process counterpart run must cascade like the simulator, and its DDS-status semantics must agree with the simulator's. & 32 tests \\
+R4/R6 & Hybrid two-tiered protocol: calibrated Tier-1 runtime sweeps stay JSON-serialisable, multi-format prediction loading, deterministic top-$K$ / disagreement / negative-control shortlisting, pre-flight parity and caveat emission, \texttt{open\_loop} parity and end-to-end in-process verification. & 8 tests \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -133,7 +134,8 @@ Table~\ref{tab:cost} summarises costs [P].
 \begin{itemize}[leftmargin=*]
   \item \textbf{Analytical services.} Analysis, static checks and the two graph simulators cost milliseconds to about a second up to several hundred components. For the ATM scale family, a complete gate invocation (analysis plus all structural checks) grows roughly in proportion to size, with no cliff: from 0.01\,s at 29 components to 1.01\,s at 444, mean over five seeds.
   \item \textbf{Queue-flow simulation.} This costs seconds per faulted component and 12.7 CPU-hours for an exhaustive five-seed sweep over the corpus. It therefore suits targeted, second-tier use on shortlisted components rather than every commit.
-  \item \textbf{The counterpart.} The counterpart is the most expensive artefact by far. On the nine included scenarios, the study needs 3,147 runs: 508 targets, three repetitions each, in both observed conditions, plus 11 fault-free runs per scenario. At the 71\,s per run measured in the noise pilot, including start-up, this projects to about 62 machine-hours. It is a validation instrument for the twin, not a per-change service.
+  \item \textbf{Hybrid two-tiered verification.} Combining one fault-free baseline, a calibrated Tier-1 sweep and Tier-2 verification on a shortlist of size $K + D + C$ (top-$K$ targets, prediction disagreements and negative controls) makes counterpart cost scale with the shortlist rather than with $|V|$. On \texttt{tiny\_system}, an end-to-end in-process smoke run (baseline calibration, 17 Tier-1 candidates across 2 seeds, and shortlisted \texttt{crash} + \texttt{omission} probes) finishes in 54.2\,s [P]. On the 74-component \texttt{atm} scenario in Docker mode, a shortlist of 11 targets (5 primary, 3 disagreements, 3 controls) at three repetitions and 71\,s per run projects to roughly 40 minutes per fault mode---a 4--6$\times$ reduction over an exhaustive counterpart sweep, and 10--15$\times$ on 150--444-component topologies.
+  \item \textbf{The counterpart (full-corpus study).} Exhaustive counterpart sweeps remain the most expensive artefact by far. On the nine included scenarios, the study needs 3,147 runs: 508 targets, three repetitions each, in both observed conditions, plus 11 fault-free runs per scenario. At the 71\,s per run measured in the noise pilot, including start-up, this projects to about 62 machine-hours. It is a validation instrument for the twin, not a per-change service.
 \end{itemize}
 \begin{table}[t]
 \centering
@@ -149,6 +151,8 @@ Cascade simulator ($I^*$) & 5-seed sweep, \texttt{atm} / \texttt{av} (74 / 152 c
 Multi-layer simulator ($\Icomp$) & exhaustive sweep, \texttt{atm} / \texttt{av} & 0.06 / 0.45\,s \\
 Queue-flow simulator ($\Idyn$) & per faulted component, 60 simulated s, \texttt{atm} / \texttt{av} & 1.5 / 4.3\,s \\
 Queue-flow simulator ($\Idyn$) & 5 seeds, whole corpus & 12.7 CPU-h (355.6\,Wh) \\
+Hybrid verification (in-process) & \texttt{tiny\_system}: Step~0 + 17 Tier-1 $\times$ 2 seeds + shortlist $\times$ 2 probes & 54.2\,s \\
+Hybrid verification (Docker + DDS) & \texttt{atm}: baseline + Tier-1 sweep + 11 shortlisted targets $\times$ 3 reps & $\approx$40\,min (projected) \\
 Counterpart (Docker + DDS) & one faulted run incl.\ start-up (noise pilot) & $\approx$71\,s \\
 Counterpart (Docker + DDS) & full study, both conditions, 9 scenarios & $\approx$62\,h (projected) \\
 \bottomrule
@@ -158,7 +162,8 @@ Counterpart (Docker + DDS) & full study, both conditions, 9 scenarios & $\approx
 \textbf{Answer to RQ4.} The twin's services form a cost ladder:
 \begin{itemize}[leftmargin=*,nosep]
   \item graph analysis and graph simulation (sub-second), which fit every change;
-  \item queue-flow simulation (seconds per fault), which fits a shortlist;
-  \item the generated counterpart (machine-hours), which fits periodic fidelity assessment of the twin itself.
+  \item queue-flow simulation (seconds per fault), which screens candidates and feeds shortlists;
+  \item hybrid two-tiered verification (under a minute in-process; tens of minutes in Docker on a shortlist), which fits milestone triage and targeted gray-failure checks;
+  \item exhaustive counterpart sweeps (machine-hours), which fit periodic fidelity assessment of the twin itself.
 \end{itemize}
 This ladder is what makes the two-tier use of \S\ref{sec:services} practical.

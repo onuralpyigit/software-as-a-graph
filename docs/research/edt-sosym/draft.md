@@ -164,7 +164,7 @@ flowchart TD
     TB["Executable counterpart<br/>Docker + Cyclone DDS"]
     CAL["Calibrated profile"]
     SIM["Simulators<br/>I*, I_comp, I_dyn, I_M"]
-    SVC["Twin services<br/>what-if, placement, gating"]
+    SVC["Twin services<br/>what-if, placement, gating, hybrid verification"]
     TEL["Telemetry<br/>OTel-shaped traces"]
     FID["Fidelity report<br/>steady state, fault response, DDS status"]
 
@@ -184,7 +184,7 @@ flowchart TD
     SIM -->|I_dyn| FID
 ```
 
-**Figure 1:** Artefacts and transformations of the architectural digital twin. The single model instance drives the executable counterpart (playing the physical role), the analysis and structural views, and the services offered to engineers. M2S and S2M are the model-to-system (§5) and system-to-model (§6) transformations. The dashed edge is optional: a simulator run is calibrated only when requested. Calibration and fidelity comparison apply to the discrete-event queue-flow simulator ($I_{\mathrm{dyn}}$). The same fault specifications drive both simulation and the counterpart.
+**Figure 1:** Artefacts and transformations of the architectural digital twin. The single model instance drives the executable counterpart (playing the physical role), the analysis and structural views, and the services offered to engineers, including the closed-batch hybrid verification workflow that couples calibration, Tier-1 queue-flow screening and targeted Tier-2 counterpart probing. M2S and S2M are the model-to-system (§5) and system-to-model (§6) transformations. The dashed edge is optional: a simulator run is calibrated only when requested. Calibration and fidelity comparison apply to the discrete-event queue-flow simulator ($I_{\mathrm{dyn}}$). The same fault specifications drive both simulation and the counterpart.
 
 ### 4.1 Metamodel: one instance, two views
 
@@ -219,7 +219,7 @@ These *re-derive* the arcs from $G_{\mathrm{struct}}$ with their own implementat
 
 ### 4.2 Twin services
 
-The twin answers three kinds of engineering question. Each is answered on the model and, where needed, graded by a simulator other than the one that produced the answer.
+The twin answers four kinds of engineering question. Each is answered on the model and, where needed, graded by a simulator or counterpart other than the one that produced the answer.
 
 - **What-if failure analysis.** Four simulators, all on $G_{\mathrm{struct}}$, measure the damage of failing each component:
   - $I^*$: cascade reachability through publishers, brokers, hosts and libraries;
@@ -230,6 +230,7 @@ The twin answers three kinds of engineering question. Each is answered on the mo
   Their construction and their use as ranking oracles are reported in Yiğit and Buzluca (2026a). Here they are the twin's *behavioural models*.
 - **Placement verification.** Given a deployment specification (host capacities, failure rates, failure domains, pinning, replica counts and topic deadlines), an exact optimiser proposes placements. Each placement is then re-scored on a held-out, replica-aware failure simulation over every host and failure-domain outage. A reliability gain is claimed only when it clears a measured noise bar. The optimiser's own objective is never used as evidence for the placement it chose.
 - **Change gating.** For a candidate change, the twin is rebuilt from the candidate version and compared with the twin of the merge base. The gate blocks only on structural findings the change *introduces*, such as a new single point of failure or a new dependency cycle. Pre-existing debt is not re-reported as a failure. Impact rankings are deliberately kept out of the blocking path: they must flag a large share of components to reach high recall (Yiğit and Buzluca, 2026a). They feed a non-blocking note on the change, and targeted simulation of the shortlisted components is the second tier.
+- **Hybrid two-tiered runtime verification.** To bridge fast discrete-event screening and expensive container execution, a four-step orchestrator (`saag-simulate hybrid-verify`) chains the twin's transformations into one closed-batch workflow: (0) build the counterpart once, run a fault-free baseline, fit a calibrated profile (§6) and check steady-state fidelity; (1) screen all candidates on Tier 1 ($I_{\mathrm{dyn}}$ with DDS semantics, host stations, paired common random numbers, replica awareness and the calibrated profile) alongside order-$k$ references and optional parameter-uncertainty draws; (2) construct a triage shortlist combining top-$K$ risk targets, highest prediction-vs-Tier-1 rank disagreements and low-impact negative controls (preferring sinks, kept separate from primary rank correlations so tied zeros do not inflate $\rho$); and (3) reuse the built counterpart across the shortlist for crash and gray-failure probes (`slowdown`, `omission`, `babbling`, `freeze`, `transient_crash`, `link_flap`), emitting an advisory `hybrid_report.json` with automated parity and independence caveats (§7.2). Like all Tier-2 reports, it never blocks a build.
 
 ### 4.3 Maturity: what is built and what is designed
 
@@ -241,7 +242,7 @@ Kritzinger et al. (2018) classify twins by whether the data flows between the ph
 |---|---|---|---|
 | Digital model | The model is authored or extracted from engineering artefacts; analysis and simulation run on it. | None. | built |
 | Generated counterpart | The model is compiled automatically into a running DDS deployment, with faults compiled into chaos actions (§5). | None. | built |
-| Digital shadow (batch) | As above. | Telemetry is calibrated automatically into simulator parameters, and fidelity is reported automatically (§§6–7). Both are *invoked per run* by an engineer. | built |
+| Digital shadow (batch) | As above. | Telemetry is calibrated automatically into simulator parameters, and fidelity is reported automatically (§§6–7), individually or via one closed-batch hybrid verification command (§4.2). Still *invoked per run* by an engineer. | built |
 | Digital twin | Accepted decisions (re-placement, configuration change) are pushed to the counterpart. | Continuous ingestion; drift detection on topology and parameters triggers re-calibration or model repair (§9.2). | designed |
 
 Two remarks keep the table honest. First, both transformations are automatic, yet the system is not a twin in Kritzinger's sense. The loop is closed by an engineer for each run, not by the system in operation, and the counterpart is an emulation, not the deployed system. Second, Wright and Davidson's test, that a twin needs a physical counterpart (Wright and Davidson, 2020), is met only by the emulation. We therefore treat everything the counterpart shows as evidence about the twin's fidelity to *middleware, timing and transport behaviour under declared application behaviour*. We do not treat it as evidence about real applications (§7.2).
@@ -331,7 +332,7 @@ Faults are specified once, as a list of fault specifications. Each one gives a t
 
 **Network gating.** Without network gating, a link flap blocks exactly the two hosts at its ends. With gating, the chaos compiler removes cut links and crashed hosts or devices from the `connects_to` graph and blocks every host pair that is no longer connected. This is the same reachability rule the simulator applies, implemented once in a shared module. A model whose topology already separates some hosts is partitioned before traffic starts, so the counterpart cannot be more connected than its model.
 
-Reporting unsupported faults is a small design decision that matters for a twin. Suppose a fault were silently dropped on one back-end. The fidelity report would then compare a faulted simulation with an unfaulted counterpart, and the twin would look either better or worse than it is.
+Reporting unsupported faults is a small design decision that matters for a twin. Suppose a fault were silently dropped on one back-end. The fidelity report would then compare a faulted simulation with an unfaulted counterpart, and the twin would look either better or worse than it is. In the hybrid two-tiered verification workflow (§4.2), a pre-flight parity check inspects every requested fault probe against the chaos compiler before Tier-2 execution begins: unsupported probes (such as buffer leaks, redelivery storms, or link flaps in in-process mode) are skipped transparently and logged alongside partial-parity caveats (such as station-less application slowdowns and post-partition DDS rediscovery lag).
 
 ### 5.5 Trace links
 
@@ -377,6 +378,8 @@ The calibrator fits three groups of parameters on the post-warm-up window of a t
 **Trigger policies.** An application with inputs either emits periodically regardless of its inputs (*periodic*), stops only when all inputs are stale (*any-of*), or stops as soon as one input is stale (*all-of*). The calibrator infers which by splitting time into three input states: all fresh, some stale, and all stale. In each state it compares the application's realised emission rate with its active rate. A state counts as evidence only if it lasted long enough to expect at least three emissions, and emission shares in an ambiguous middle band count as no evidence either way. If the trace never puts the application through a discriminating outage, the calibrator abstains. For a single-input application, the two reactive policies coincide, and the calibrator reports the simpler one.
 
 **What the calibrator refuses to write.** The behavioural profile also has slots used by other simulators. One is a per-edge *failure correlation*, which is a cascade-propagation probability in the multi-layer failure simulator. Another is a starvation tolerance. A measured message-drop rate looks superficially like the former, but it is a different quantity, and no trace event measures the latter. The calibrator writes neither. In a twin, a model slot filled with a plausible but semantically wrong measurement is worse than an empty slot, because it is indistinguishable from a real calibration.
+
+**Closing the calibration loop into Tier-1 sweeps.** Both single-fault fidelity comparisons and full-system Tier-1 runtime sweeps (`runtime-sweep --profile`) consume the serialised `profile.json` via `telemetry_profile`. The resulting runtime-label artefact records `calibrated: true` and `calibration_source` while keeping its settings JSON-serialisable, so calibrated Tier-1 screening and uncalibrated declared sweeps remain cleanly distinguishable downstream.
 
 ### 6.3 Identifiability: what telemetry can and cannot recover
 
@@ -455,11 +458,11 @@ The counterpart is generated from the same model, and partly by the same functio
 | Late-sample handling | no (agents are told the rule) | a counterpart in the simulator's own late-drop mode is never treated as truth |
 | Application logic | no (stubs) | no result covers real application behaviour |
 
-The table bounds every claim the twin can make from its counterpart. *The strongest attainable conclusion concerns timing and transport fidelity on an emulated system under declared behaviour.* No outcome can show that a production system behaves this way. We regard producing this table as a necessary step whenever a twin's physical side is itself generated from the twin's model, a situation that pre-deployment twins cannot avoid.
+The table bounds every claim the twin can make from its counterpart. *The strongest attainable conclusion concerns timing and transport fidelity on an emulated system under declared behaviour.* No outcome can show that a production system behaves this way. We regard producing this table as a necessary step whenever a twin's physical side is itself generated from the twin's model, a situation that pre-deployment twins cannot avoid. To prevent these boundaries from staying prose-only, the hybrid verification service (§4.2) emits structured, machine-readable `caveats` in every `hybrid_report.json`—automatically flagging reactive policy circularity (unless `--open-loop` is selected), rate-scaled latency distortion when $\kappa < 1$, Cyclone DDS post-partition rediscovery lag, station-less slowdown divergence, in-process transport omission and any skipped unsupported probes.
 
 ### 7.3 A pre-registered fidelity study
 
-Fidelity studies have many forks: which scenarios, which faults, which simulator configuration, which metric, which threshold. Each fork is a chance to find agreement after the fact. We therefore wrote the analysis down, including the expected likely outcome, before running any comparison, and froze it in the repository on 16 November 2026 (commit `9f84aad9`), before any study number existed (Yiğit and Buzluca, 2026b). The only runs made before freezing were pilot runs that measure capacity and noise; none was compared with a simulator. We summarise the protocol here. The complete document lists every exclusion rule, rerun rule and amendment procedure.
+Fidelity studies have many forks: which scenarios, which faults, which simulator configuration, which metric, which threshold. Each fork is a chance to find agreement after the fact. We therefore wrote the analysis down, including the expected likely outcome, before running any comparison, and froze it in the repository on 16 November 2026 (commit `9f84aad9`), before any study number existed (Yiğit and Buzluca, 2026b). The only runs made before freezing were pilot runs that measure capacity and noise; none was compared with a simulator. We summarise the protocol here. The complete document lists every exclusion rule, rerun rule and amendment procedure. The operational hybrid verification workflow (`hybrid-verify`, §4.2) is built on the same primitives for practitioner triage and gray-failure probing, and is strictly separate from this frozen confirmatory study: its runs never enter Table 10.
 
 **Population and capacity.** The unit of analysis is the *scenario*. Components, seeds and repetitions are not independent units, and treating them as such would be pseudo-replication. The candidate population has twelve scenarios: eleven generated domains and the ATM scenario. The counterpart runs Python stubs on a single machine, so scenarios whose busiest host exceeds a measured capacity are rate-scaled. Every topic rate is multiplied by $\kappa \le 1$, and every service time and deadline is divided by $\kappa$. This preserves utilisation, but not the ratio of transport delay to service time. Latency results therefore count only at $\kappa = 1$, and scenarios need $\kappa \ge 0.2$ to enter. A scenario also enters only if, in a fault-free run, its rate error stays within 5% and its CPU p95 stays within 80% of one core in every container. Both conditions are decided before any fault run. Load ramps on two pilot scenarios outside the population set the capacity at $B_h = 3{,}033$ messages per second for the busiest host, with CPU as the binding limit. Nine of the twelve candidates pass the gate, all at $\kappa = 1$, so latency results count for every included scenario. Three are excluded: the autonomous-vehicle scenario saturates one container (CPU gate), the enterprise scenario fails the rate gate because six of its hosts never discover their peers within the run, and the financial-trading scenario would need $\kappa < 0.2$.
 
@@ -524,6 +527,7 @@ Consistency between artefacts is checked by executable invariants that run in th
 | R3 | The labelling simulator and the validation simulator are never substituted for each other within a pipeline stage. | contract test |
 | R1 | Every committed scenario regenerates byte-identically from its configuration, and a manifest matches the files on disk. | corpus test |
 | R4 | Plan, QoS mapping, compose file, chaos compilation (including partitions under network gating) and the in-process counterpart are checked against the simulator. An in-process counterpart run must cascade like the simulator, and its DDS-status semantics must agree with the simulator's. | 32 tests |
+| R4/R6 | Hybrid two-tiered protocol: calibrated Tier-1 runtime sweeps stay JSON-serialisable, multi-format prediction loading, deterministic top-$K$ / disagreement / negative-control shortlisting, pre-flight parity and caveat emission, `open_loop` parity and end-to-end in-process verification. | 8 tests |
 
 **A consistency failure we found.** The invariants are not decorative. For a long time, the simulator's re-derivation implemented only one of the seven rules. The rules it lacked are exactly the ones that give applications, brokers and hosts any dependents. As a result, the change-propagation impact $I_M$ was identically zero for every component the validation scored, and the validation gates that depend on it reported failures that were really unmeasured quantities. The fix was twofold: full re-derivation, guarded by the rule-by-rule parity test, and a rule that an unmeasured gate value is reported as *not measured* rather than coerced to zero. For twin engineering, the lesson is that a single model instance is necessary but not sufficient for R2. Every consumer that re-derives semantics is a place where artefacts can drift apart without any visible error.
 
@@ -589,7 +593,8 @@ This finding is the kind of result the counterpart exists to produce. It falls i
 Table 11 summarises costs [P].
 - **Analytical services.** Analysis, static checks and the two graph simulators cost milliseconds to about a second up to several hundred components. For the ATM scale family, a complete gate invocation (analysis plus all structural checks) grows roughly in proportion to size, with no cliff: from 0.01 s at 29 components to 1.01 s at 444, mean over five seeds.
 - **Queue-flow simulation.** This costs seconds per faulted component and 12.7 CPU-hours for an exhaustive five-seed sweep over the corpus. It therefore suits targeted, second-tier use on shortlisted components rather than every commit.
-- **The counterpart.** The counterpart is the most expensive artefact by far. On the nine included scenarios, the study needs 3,147 runs: 508 targets, three repetitions each, in both observed conditions, plus 11 fault-free runs per scenario. At the 71 s per run measured in the noise pilot, including start-up, this projects to about 62 machine-hours. It is a validation instrument for the twin, not a per-change service.
+- **Hybrid two-tiered verification.** Combining one fault-free baseline, a calibrated Tier-1 sweep and Tier-2 verification on a shortlist of size $K + D + C$ (top-$K$ targets, prediction disagreements and negative controls) makes counterpart cost scale with the shortlist rather than with $|V|$. On `tiny_system`, an end-to-end in-process smoke run (baseline calibration, 17 Tier-1 candidates across 2 seeds, and shortlisted `crash` + `omission` probes) finishes in 54.2 s [P]. On the 74-component `atm` scenario in Docker mode, a shortlist of 11 targets (5 primary, 3 disagreements, 3 controls) at three repetitions and 71 s per run projects to roughly 40 minutes per fault mode—a 4–6× reduction over an exhaustive counterpart sweep, and 10–15× on 150–444-component topologies.
+- **The counterpart (full-corpus study).** Exhaustive counterpart sweeps remain the most expensive artefact by far. On the nine included scenarios, the study needs 3,147 runs: 508 targets, three repetitions each, in both observed conditions, plus 11 fault-free runs per scenario. At the 71 s per run measured in the noise pilot, including start-up, this projects to about 62 machine-hours. It is a validation instrument for the twin, not a per-change service.
 
 **Table 11:** Cost of twin services and counterpart [P]. Graph-simulator timings are medians of three runs on an idle machine. Treat them as orders of magnitude.
 
@@ -600,13 +605,16 @@ Table 11 summarises costs [P].
 | Multi-layer simulator ($I_{\mathrm{comp}}$) | exhaustive sweep, `atm` / `av` | 0.06 / 0.45 s |
 | Queue-flow simulator ($I_{\mathrm{dyn}}$) | per faulted component, 60 simulated s, `atm` / `av` | 1.5 / 4.3 s |
 | Queue-flow simulator ($I_{\mathrm{dyn}}$) | 5 seeds, whole corpus | 12.7 CPU-h (355.6 Wh) |
+| Hybrid verification (in-process) | `tiny_system`: Step 0 + 17 Tier-1 × 2 seeds + shortlist × 2 probes | 54.2 s |
+| Hybrid verification (Docker + DDS) | `atm`: baseline + Tier-1 sweep + 11 shortlisted targets × 3 reps | ≈ 40 min (projected) |
 | Counterpart (Docker + DDS) | one faulted run incl. start-up (noise pilot) | ≈ 71 s |
 | Counterpart (Docker + DDS) | full study, both conditions, 9 scenarios | ≈ 62 h (projected) |
 
 **Answer to RQ4.** The twin's services form a cost ladder:
 - graph analysis and graph simulation (sub-second), which fit every change;
-- queue-flow simulation (seconds per fault), which fits a shortlist;
-- the generated counterpart (machine-hours), which fits periodic fidelity assessment of the twin itself.
+- queue-flow simulation (seconds per fault), which screens candidates and feeds shortlists;
+- hybrid two-tiered verification (under a minute in-process; tens of minutes in Docker on a shortlist), which fits milestone triage and targeted gray-failure checks;
+- exhaustive counterpart sweeps (machine-hours), which fit periodic fidelity assessment of the twin itself.
 
 This ladder is what makes the two-tier use of §4.2 practical.
 
@@ -631,7 +639,7 @@ A hand-built testbed would share unknown assumptions with the model. A generated
 
 **L5: Make consistency debt visible.** A single model instance did not by itself guarantee consistent semantics across consumers (§8.2). What did help were executable parity checks, which turn drift between artefacts into a failing build, and an explicit register of the divergences not yet fixed.
 
-**L6: Match each twin service to a rung of the cost ladder.** The services span five orders of magnitude in cost (Table 11). Tying each service to the rung it can afford gives a pipeline design: graph services on every change, queue-flow simulation on shortlists, and the counterpart for periodic assessment of the twin itself. Treating the twin as one monolithic "simulate everything" service would put it out of reach of continuous delivery.
+**L6: Match each twin service to a rung of the cost ladder.** The services span five orders of magnitude in cost (Table 11). Tying each service to the rung it can afford gives a practical pipeline design: graph services on every change, calibrated queue-flow simulation for system-wide screening, hybrid two-tiered verification (§4.2) for shortlisted triage and gray-failure probing, and full counterpart sweeps only for periodic fidelity assessment of the twin itself. Treating the twin as one monolithic "simulate everything" service would put it out of reach of continuous delivery.
 
 ### 9.2 From digital shadow to digital twin: the designed step
 
@@ -647,7 +655,7 @@ The system reaches the batch-shadow level of Table 2. The twin level requires th
 **Responses.** The twin shall respond to each kind of drift differently:
 - parameter drift on an identifiable parameter shall trigger automatic re-calibration;
 - topology drift shall produce a *model-repair proposal* for an engineer to accept, never an automatic rewrite of the model of record;
-- behavioural drift shall be logged as a fidelity breach against the behavioural model.
+- behavioural drift shall be logged as a fidelity breach against the behavioural model, and drifting components shall enter targeted Step-3 counterpart verification (§4.2) directly rather than triggering an exhaustive sweep.
 
 Drift on a non-identifiable parameter (Table 5) shall be reported as such and shall not be "fixed".
 
@@ -673,7 +681,7 @@ We engineered an architectural digital twin for distributed publish–subscribe 
 - a structural view for simulation and a derived view for analysis, kept consistent by executable invariants;
 - a model-to-system transformation that generates a running Docker and Cyclone DDS counterpart, driven by the same fault vocabulary as the simulators;
 - a system-to-model calibration path whose limits are measured;
-- a fidelity-assessment method that separates evidence from agreement by construction, with a pre-registered study protocol.
+- a fidelity-assessment method that separates evidence from agreement by construction, paired with a pre-registered study protocol and a single-command hybrid two-tiered verification service that emits machine-readable independence and fault-parity caveats.
 
 The system is a digital model with a generated counterpart and a batch digital shadow, and we have stated it at exactly that level. The results so far support the method:
 - the artefacts agree on dependency semantics rule by rule;
@@ -701,7 +709,7 @@ The next step is the one that turns the shadow into a twin: continuous ingestion
 
 We disclose this so the editor can assess the overlap directly.
 
-**Data Availability:** The framework, including the counterpart generator, calibrator and fidelity report, is open source (Yiğit and Buzluca, 2026b). Scenario topologies, generator configurations, the fidelity-study protocol, the runner and analysis scripts, raw telemetry traces and result artefacts will be archived at `[REPOSITORY-URL]`, persistent identifier **[TBD: mint Zenodo DOI for the fidelity-study archive]**. The counterpart for one scenario is regenerated and run with:
+**Data Availability:** The framework, including the counterpart generator, calibrator, fidelity report and hybrid two-tiered verification orchestrator, is open source (Yiğit and Buzluca, 2026b). The frozen confirmatory fidelity study protocol [S] is pinned to commit `9f84aad9`; the operational `hybrid-verify` workflow [P] is built on the same primitives in the companion framework release without modifying any pre-registered arm or scenario. Scenario topologies, generator configurations, the fidelity-study protocol, the runner and analysis scripts, raw telemetry traces and result artefacts will be archived at `[REPOSITORY-URL]`, persistent identifier **[TBD: mint Zenodo DOI for the fidelity-study archive]**. The counterpart for one scenario is regenerated and run step by step, or end to end via the hybrid workflow, with:
 
 ```bash
 S="python cli/simulate_graph.py"; OUT=output/testbed/tiny
@@ -711,6 +719,13 @@ $S testbed run --output $OUT --duration 50 \
     --faults faults.json --mode docker
 $S testbed calibrate --output $OUT
 $S testbed fidelity --output $OUT --calibrated
+
+# Single-command hybrid two-tiered verification (Step 0 -> Step 3)
+$S hybrid-verify --input data/scenarios/tiny_system.json \
+    --output output/hybrid/tiny --mode local --duration 20 \
+    --warmup 2 --seeds 42,123 --repetitions 1 --top-k 2 \
+    --controls 1 --fault-probe crash \
+    --fault-probe omission:duration=5,p=0.5
 ```
 
 **Author Contributions:** `[To be completed via the submission interface, per the journal's Submitting Declarations requirements.]`

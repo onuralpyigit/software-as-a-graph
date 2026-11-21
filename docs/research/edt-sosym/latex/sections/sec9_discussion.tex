@@ -19,7 +19,7 @@ A hand-built testbed would share unknown assumptions with the model. A generated
 
 \paragraph{L5: Make consistency debt visible.} A single model instance did not by itself guarantee consistent semantics across consumers (\S\ref{sec:consistency}). What did help were executable parity checks, which turn drift between artefacts into a failing build, and an explicit register of the divergences not yet fixed.
 
-\paragraph{L6: Match each twin service to a rung of the cost ladder.} The services span five orders of magnitude in cost (Table~\ref{tab:cost}). Tying each service to the rung it can afford gives a pipeline design: graph services on every change, queue-flow simulation on shortlists, and the counterpart for periodic assessment of the twin itself. Treating the twin as one monolithic ``simulate everything'' service would put it out of reach of continuous delivery.
+\paragraph{L6: Match each twin service to a rung of the cost ladder.} The services span five orders of magnitude in cost (Table~\ref{tab:cost}). Tying each service to the rung it can afford gives a practical pipeline design: graph services on every change, calibrated queue-flow simulation for system-wide screening, hybrid two-tiered verification (\S\ref{sec:services}) for shortlisted triage and gray-failure probing, and full counterpart sweeps only for periodic fidelity assessment of the twin itself. Treating the twin as one monolithic ``simulate everything'' service would put it out of reach of continuous delivery.
 
 \subsection{From digital shadow to digital twin: the designed step}
 \label{sec:livetwin}
@@ -39,7 +39,7 @@ The system reaches the batch-shadow level of Table~\ref{tab:maturity}. The twin 
 \begin{itemize}[leftmargin=*,nosep]
   \item parameter drift on an identifiable parameter shall trigger automatic re-calibration;
   \item topology drift shall produce a \emph{model-repair proposal} for an engineer to accept, never an automatic rewrite of the model of record;
-  \item behavioural drift shall be logged as a fidelity breach against the behavioural model.
+  \item behavioural drift shall be logged as a fidelity breach against the behavioural model, and drifting components shall enter targeted Step-3 counterpart verification (\S\ref{sec:services}) directly rather than triggering an exhaustive sweep.
 \end{itemize}
 Drift on a non-identifiable parameter (Table~\ref{tab:identifiability}) shall be reported as such and shall not be ``fixed''.
 

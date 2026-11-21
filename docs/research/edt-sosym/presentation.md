@@ -4,7 +4,7 @@
 
 - **Authors:** Ibrahim Onuralp Yigit, Feza Buzluca
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track)
-- **Current Status:** Complete 29-page draft ([manuscript.pdf](latex/manuscript.pdf)); fidelity study protocol frozen (`9f84aad9`); main study sweep pending (~62 h)
+- **Current Status:** Complete 30-page draft ([manuscript.pdf](latex/manuscript.pdf)); fidelity study protocol frozen (`9f84aad9`); main study sweep pending (~62 h)
 
 ---
 
@@ -41,7 +41,7 @@ flowchart LR
 
 | # | Contribution | Why It Matters |
 |---|---|---|
-| **C1** | **One metamodel, two views** | Simulators read raw structure ($G_{\mathrm{struct}}$); analysis reads derived dependencies ($G_{\mathrm{an}}$). Prevents circularity; 48 CI tests enforce consistency. |
+| **C1** | **One metamodel, two views** | Simulators read raw structure ($G_{\mathrm{struct}}$); analysis reads derived dependencies ($G_{\mathrm{an}}$). Prevents circularity; 56 CI tests enforce consistency. |
 | **C2** | **Model → System (M2S)** | Generates a runnable Docker + Cyclone DDS counterpart (including broker relays & replica failover) before the real system exists. |
 | **C3** | **System → Model (S2M)** | Calibrates rates, service times, and trigger policies from traces—and explicitly reports what telemetry **cannot** identify. |
 | **C4** | **Bounded fidelity method** | Separates genuine evidence from agreement by construction (independence table) and locks the analysis in a pre-registered study. |
@@ -56,7 +56,7 @@ Reviewers in EDTConf scrutinize *"is this really a digital twin?"* We answer up 
 |---|---|
 | **Digital model** (analysis & simulation on one model) | **Built** |
 | **Generated counterpart** (model compiled to Docker + DDS) | **Built** |
-| **Batch digital shadow** (automated calibration & fidelity report per run) | **Built** |
+| **Batch digital shadow** (automated calibration, calibrated screening, shortlisted verification & caveat report per run via `hybrid-verify`) | **Built** |
 | **Live digital twin** (continuous ingestion + drift detection → re-calibration / repair) | **Designed only (§9.2)** |
 
 > **Bounded claim:** Because the counterpart uses generated stubs, fidelity results speak strictly to **middleware, timing, and transport behaviour under declared application behaviour**—never to production business logic.
@@ -66,7 +66,7 @@ Reviewers in EDTConf scrutinize *"is this really a digital twin?"* We answer up 
 ## 5. Key Results Already Built & Verified (`[P]`)
 
 1. **Consistency (RQ1):**
-   - 48 automated CI invariants keep repositories, simulators, and testbed aligned.
+   - 56 automated CI invariants keep repositories, simulators, testbed, and the hybrid two-tiered protocol aligned.
    - Caught a real historical bug where 6 of 7 dependency rules were missing in $I_M$; one residual edge-weight divergence is measured and documented.
 2. **Calibration Identifiability (RQ2):**
    - On the 74-component ATM scenario: topic rates recovered within **3%**, service times within **1%** (fixing a 45% survivor bias by logging deadline misses), trigger policies **100% accurate** when an outage occurs.
@@ -95,8 +95,9 @@ Each twin service matches what an engineering pipeline can afford:
 | Tier | Service | Cost | When to Run |
 |---|---|---|---|
 | **Tier 1** | Graph analysis & change gate | **0.01–1.01 s** (29–444 components) | Every commit / PR |
-| **Tier 2** | Queue-flow simulation ($I_{\mathrm{dyn}}$) | **1.5–4.3 s** per fault | Shortlisted components |
-| **Tier 3** | Generated Docker + DDS counterpart | **≈ 71 s/run** (≈ 62 h study) | Periodic twin fidelity validation |
+| **Tier 2a** | Calibrated queue-flow simulation ($I_{\mathrm{dyn}}$) | **1.5–4.3 s** per fault | System-wide screening & shortlisting |
+| **Tier 2b** | Hybrid two-tiered verification (`hybrid-verify`) | **54.2 s** local (`tiny_system`) / **≈ 40 min** projected Docker shortlist (`atm`) | Milestone triage & targeted gray-failure checks |
+| **Tier 3** | Exhaustive Docker + DDS counterpart sweep | **≈ 71 s/run** (≈ 62 h full study) | Periodic twin fidelity validation |
 
 ---
 

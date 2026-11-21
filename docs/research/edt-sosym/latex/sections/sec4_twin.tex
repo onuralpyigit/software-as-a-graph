@@ -24,7 +24,7 @@ Figure~\ref{fig:architecture} shows the twin as a set of artefacts around one mo
 \node[phys] (tb) at (-8,-4) {Executable counterpart\\ \scriptsize Docker + Cyclone DDS};
 \node[art]  (cal) at (-4.2,-4) {Calibrated\\ \scriptsize profile};
 \node[art]  (sim) at (0,-4) {Simulators\\ \scriptsize $I^*$, $\Icomp$, $\Idyn$, $I_M$};
-\node[svc]  (svc) at (5,-4) {Twin services\\ \scriptsize what-if, placement, gating};
+\node[svc]  (svc) at (5,-4) {Twin services\\ \scriptsize what-if, placement, gating, hybrid verification};
 \node[art]  (tel) at (-8,-6) {Telemetry\\ \scriptsize OTel-shaped traces};
 \node[art]  (fid) at (0,-6) {Fidelity report\\ \scriptsize steady state, fault response, DDS status};
 
@@ -43,7 +43,7 @@ Figure~\ref{fig:architecture} shows the twin as a set of artefacts around one mo
 \draw[trans] (tel) -- (fid);
 \draw[trans] (sim) -- node[lbl, right]{$\Idyn$} (fid);
 \end{tikzpicture}}
-\caption{Artefacts and transformations of the architectural digital twin. Blue: the single model instance. Orange: the executable counterpart that plays the physical role. Green: services offered to engineers. M2S and S2M are the model-to-system (\S\ref{sec:m2s}) and system-to-model (\S\ref{sec:s2m}) transformations. The dashed edge is optional: a simulator run is calibrated only when requested. Calibration and fidelity comparison apply to the discrete-event queue-flow simulator ($\Idyn$). The same fault specifications drive both simulation and the counterpart.}
+\caption{Artefacts and transformations of the architectural digital twin. Blue: the single model instance. Orange: the executable counterpart that plays the physical role. Green: services offered to engineers, including the closed-batch hybrid verification workflow that couples calibration, Tier-1 queue-flow screening and targeted Tier-2 counterpart probing. M2S and S2M are the model-to-system (\S\ref{sec:m2s}) and system-to-model (\S\ref{sec:s2m}) transformations. The dashed edge is optional: a simulator run is calibrated only when requested. Calibration and fidelity comparison apply to the discrete-event queue-flow simulator ($\Idyn$). The same fault specifications drive both simulation and the counterpart.}
 \label{fig:architecture}
 \end{figure}
 
@@ -89,7 +89,7 @@ These \emph{re-derive} the arcs from $\Gs$ with their own implementation of the 
 \subsection{Twin services}
 \label{sec:services}
 
-The twin answers three kinds of engineering question. Each is answered on the model and, where needed, graded by a simulator other than the one that produced the answer.
+The twin answers four kinds of engineering question. Each is answered on the model and, where needed, graded by a simulator or counterpart other than the one that produced the answer.
 \begin{description}[leftmargin=1em,style=nextline]
   \item[What-if failure analysis.] Four simulators, all on $\Gs$, measure the damage of failing each component:
   \begin{itemize}[leftmargin=*,nosep]
@@ -101,6 +101,7 @@ The twin answers three kinds of engineering question. Each is answered on the mo
   Their construction and their use as ranking oracles are reported in \citet{yigit2026jss}. Here they are the twin's \emph{behavioural models}.
   \item[Placement verification.] Given a deployment specification (host capacities, failure rates, failure domains, pinning, replica counts and topic deadlines), an exact optimiser proposes placements. Each placement is then re-scored on a held-out, replica-aware failure simulation over every host and failure-domain outage. A reliability gain is claimed only when it clears a measured noise bar. The optimiser's own objective is never used as evidence for the placement it chose.
   \item[Change gating.] For a candidate change, the twin is rebuilt from the candidate version and compared with the twin of the merge base. The gate blocks only on structural findings the change \emph{introduces}, such as a new single point of failure or a new dependency cycle. Pre-existing debt is not re-reported as a failure. Impact rankings are deliberately kept out of the blocking path: they must flag a large share of components to reach high recall~\citep{yigit2026jss}. They feed a non-blocking note on the change, and targeted simulation of the shortlisted components is the second tier.
+  \item[Hybrid two-tiered runtime verification.] To bridge fast discrete-event screening and expensive container execution, a four-step orchestrator (\texttt{saag-simulate hybrid-verify}) chains the twin's transformations into one closed-batch workflow: (0)~build the counterpart once, run a fault-free baseline, fit a calibrated profile (\S\ref{sec:s2m}) and check steady-state fidelity; (1)~screen all candidates on Tier~1 ($\Idyn$ with DDS semantics, host stations, paired common random numbers, replica awareness and the calibrated profile) alongside order-$k$ references and optional parameter-uncertainty draws; (2)~construct a triage shortlist combining top-$K$ risk targets, highest prediction-vs-Tier-1 rank disagreements and low-impact negative controls (preferring sinks, kept separate from primary rank correlations so tied zeros do not inflate $\rho$); and (3)~reuse the built counterpart across the shortlist for crash and gray-failure probes (\texttt{slowdown}, \texttt{omission}, \texttt{babbling}, \texttt{freeze}, \texttt{transient\_crash}, \texttt{link\_flap}), emitting an advisory \texttt{hybrid\_report.json} with automated parity and independence caveats (\S\ref{sec:independence}). Like all Tier-2 reports, it never blocks a build.
 \end{description}
 
 \subsection{Maturity: what is built and what is designed}
@@ -119,7 +120,7 @@ Level & Model $\to$ counterpart & Counterpart $\to$ model & Status \\
 \midrule
 Digital model & The model is authored or extracted from engineering artefacts; analysis and simulation run on it. & None. & built \\
 Generated counterpart & The model is compiled automatically into a running DDS deployment, with faults compiled into chaos actions (\S\ref{sec:m2s}). & None. & built \\
-Digital shadow (batch) & As above. & Telemetry is calibrated automatically into simulator parameters, and fidelity is reported automatically (\S\S\ref{sec:s2m}--\ref{sec:fidelity}). Both are \emph{invoked per run} by an engineer. & built \\
+Digital shadow (batch) & As above. & Telemetry is calibrated automatically into simulator parameters, and fidelity is reported automatically (\S\S\ref{sec:s2m}--\ref{sec:fidelity}), individually or via one closed-batch hybrid verification command (\S\ref{sec:services}). Still \emph{invoked per run} by an engineer. & built \\
 Digital twin & Accepted decisions (re-placement, configuration change) are pushed to the counterpart. & Continuous ingestion; drift detection on topology and parameters triggers re-calibration or model repair (\S\ref{sec:livetwin}). & designed \\
 \bottomrule
 \end{tabularx}
