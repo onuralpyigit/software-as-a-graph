@@ -45,6 +45,7 @@ class PredictiveUseCase:
         structural_result: Optional[StructuralAnalysisResult] = None,
         graph: Optional[Any] = None,
         k: int = 10,
+        divergence_threshold: int = 5,
         active_patterns: Optional[List[str]] = None,
         run_sensitivity: bool = False,
         predictor_mode: str = "gnn",
@@ -53,9 +54,10 @@ class PredictiveUseCase:
         """
         Execute Pathway B predictive inference to obtain quantitative blast radius predictions.
         
-        Supports predictor_mode in ('gnn', 'rm', 'topo', 'topo_qos', 'dual').
-        When a GNN checkpoint is present and prefer_gnn=True, executes HGT inference.
-        Otherwise falls back cleanly to deterministic RM scores (Zero-GNN cold-start mode).
+        Supports predictor_mode in ('gnn', 'rm', 'topo', 'topo_qos', 'indeg',
+        'reach', 'reach_qos', 'dual'). When a GNN checkpoint is present and
+        prefer_gnn=True, executes GNN inference. Otherwise falls back cleanly to
+        deterministic RM scores (Zero-GNN cold-start mode).
         
         Returns:
             GNNAnalysisResult or QualityAnalysisResult with ranked components.
@@ -71,6 +73,8 @@ class PredictiveUseCase:
             active_patterns=active_patterns,
             run_sensitivity=run_sensitivity,
             predictor_mode=predictor_mode,
+            k=k,
+            divergence_threshold=divergence_threshold,
             **kwargs,
         )
         return result

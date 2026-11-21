@@ -64,19 +64,21 @@ For the complete CLI command reference (`predict_graph.py`, `train_graph.py`), s
 │                   │ • Optional: a trained GNN checkpoint.                   │
 ├───────────────────┼─────────────────────────────────────────────────────────┤
 │ Core Engine       │ PredictionService (saag/prediction/service.py) running  │
-│                   │ HGT-QoS, an ablation arm, a training-free baseline, or  │
-│                   │ the deterministic RM fallback.                          │
+│                   │ Tier 1 zero-training projection rankers (InDeg, Reach,  │
+│                   │ Reach-QoS, Topo-QoS), Tier 2 learned GNN surrogates     │
+│                   │ (GAT-P-QoS, GIN-P-QoS, HGT-QoS), or the RM fallback.    │
 ├───────────────────┼─────────────────────────────────────────────────────────┤
-│ Key Operations    │ 1. Build HeteroData: 18-D base + type extensions,       │
-│                   │    16-D QoS edge encodings.                             │
-│                   │ 2. Forward pass -> multi-task heads Î*(v), R̂(v), M̂(v).  │
+│ Key Operations    │ 1. Tier 1 (<5 ms): project G_flow and rank via InDeg,   │
+│                   │    Reach, Reach-QoS, or Topo-QoS (zero training).       │
+│                   │ 2. Tier 2 (learned): build HeteroData (native or        │
+│                   │    projection) -> multi-task heads Î*(v), R̂(v), M̂(v).   │
 │                   │ 3. Rank components; cut the Top-K shortlist.            │
 │                   │ 4. Optionally run Topo-QoS alongside for dual-engine    │
 │                   │    consensus/divergence triage.                         │
 ├───────────────────┼─────────────────────────────────────────────────────────┤
 │ Primary Outputs   │ • Î*(v) blast-radius forecasts and a ranked ordering.   │
 │                   │ • Top-K critical shortlist (K = round(0.20·|V_app|)).   │
-│                   │ • Q̂(u,v): per-relationship edge criticality.            │
+│                   │ • Q̂(u,v): optional edge criticality (predict_edges=True)│
 ├───────────────────┼─────────────────────────────────────────────────────────┤
 │ Zero-Checkpoint   │ With no trained model present, Step 3 falls back to the │
 │ Behavior          │ deterministic RM composite Q*(v). It never fails hard.  │
@@ -966,10 +968,11 @@ python cli/predict_graph.py \
   --gnn-model output/gnn_checkpoints/best_model \
   --divergence-threshold 5
 
-# 4. Training-Free Topo-QoS Centrality (No GNN checkpoint needed)
-python cli/predict_graph.py \
-  --layer system \
-  --predictor-mode topo_qos
+# 4. Tier 1 Zero-Training Projection Rankers (No GNN checkpoint needed; <5 ms)
+python cli/predict_graph.py --layer system --predictor-mode indeg
+python cli/predict_graph.py --layer system --predictor-mode reach
+python cli/predict_graph.py --layer system --predictor-mode reach_qos
+python cli/predict_graph.py --layer system --predictor-mode topo_qos
 
 # 5. Pure Step 3 Prediction Alone (Disable Step 4 anti-pattern bundling)
 python cli/predict_graph.py \
@@ -977,6 +980,16 @@ python cli/predict_graph.py \
   --gnn-model output/gnn_checkpoints/best_model \
   --no-diagnose
 ```
+
+> [!TIP]
+> **Tiered Forecasting via `GNNService` (SDK):** For learned models on the derived dependency projection ($G_{\text{dep}}$), pass `model_arch` and `substrate="projection"` directly to `GNNService`:
+> ```python
+> # GAT-P-QoS (best learned predictor, LOSO rho = 0.748)
+> svc = GNNService(model_arch="homo_scalar", edge_dim=16, substrate="projection")
+> # GIN-P-QoS (sum-aggregation neighbor counter, LOSO rho = 0.724)
+> svc = GNNService(model_arch="homo_gin", edge_dim=16, substrate="projection")
+> ```
+> Checkpoints persist `model_arch`, `edge_dim`, `reverse_edges`, and `substrate` in `service_config.json`, so `GNNService.from_checkpoint()` automatically adapts raw graphs to the checkpoint's substrate. Edge prediction defaults to `predict_edges=False` (Boundary B1) and is opt-in for `model_arch="hgt"`.
 
 ---
 

@@ -45,7 +45,7 @@ class TrainRequest(BaseModel):
     train_ratio: float = Field(default=0.6, description="Training split fraction")
     val_ratio: float = Field(default=0.2, description="Validation split fraction")
     use_ahp: bool = Field(default=False, description="Use AHP weights for RM")
-    predict_edges: bool = Field(default=True, description="Also predict edge criticality")
+    predict_edges: bool = Field(default=False, description="Also predict edge criticality (experimental; HGT only)")
     variant: str = Field(
         default="hetero_qos",
         description=(

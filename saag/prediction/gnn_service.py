@@ -289,13 +289,16 @@ class GNNService:
         Computation device.  Auto-detected if None.
     """
 
+    SUPPORTED_MODEL_ARCHS: Tuple[str, ...] = ("hgt", "homo_unweighted", "homo_scalar", "homo_gin")
+    SUPPORTED_SUBSTRATES: Tuple[str, ...] = ("native", "projection")
+
     def __init__(
         self,
         hidden_channels: int = 64,
         num_heads: int = 4,
         num_layers: int = 3,
         dropout: float = 0.2,
-        predict_edges: bool = True,
+        predict_edges: bool = False,
         checkpoint_dir: str = "output/gnn_checkpoints",
         device: Optional[torch.device] = None,
         qos_injection: str = "pooled",
@@ -303,12 +306,35 @@ class GNNService:
         topo_prior: bool = False,
         drop_feature_keys: Sequence[str] = (),
         qos_exempt_keys: Sequence[str] = (),
+        model_arch: str = "hgt",
+        edge_dim: Optional[int] = None,
+        reverse_edges: bool = False,
+        substrate: str = "native",
     ):
+        if model_arch not in self.SUPPORTED_MODEL_ARCHS:
+            raise ValueError(
+                f"Unknown model_arch {model_arch!r}. Expected one of {self.SUPPORTED_MODEL_ARCHS}."
+            )
+        if substrate not in self.SUPPORTED_SUBSTRATES:
+            raise ValueError(
+                f"Unknown substrate {substrate!r}. Expected one of {self.SUPPORTED_SUBSTRATES}."
+            )
+        if predict_edges and model_arch != "hgt":
+            raise ValueError(
+                f"predict_edges=True is only supported for model_arch='hgt', got {model_arch!r}."
+            )
+        if model_arch == "homo_gin" and edge_dim is None:
+            edge_dim = 16
+
         self.hidden_channels = hidden_channels
         self.num_heads = num_heads
         self.num_layers = num_layers
         self.dropout = dropout
         self.predict_edges = predict_edges
+        self.model_arch = model_arch
+        self.edge_dim = edge_dim
+        self.reverse_edges = reverse_edges
+        self.substrate = substrate
         self.qos_injection = qos_injection
         # Kept as an attribute rather than left to NodeCriticalityGNN's default
         # so that it round-trips through service_config.json. Without that a
@@ -344,6 +370,13 @@ class GNNService:
 
     # ── Model initialisation ──────────────────────────────────────────────────
 
+    def _prepare_graph(self, graph):
+        """Adapt *graph* to this service's configured substrate ('native' or 'projection')."""
+        if self.substrate == "projection":
+            from .structural_predictor import derive_flow_projection
+            return derive_flow_projection(graph)
+        return graph
+
     def _init_models(self, metadata: Tuple) -> None:
         """Build models from PyG metadata.
 
@@ -353,8 +386,30 @@ class GNNService:
         ``_node_model`` would stay at random initialisation and then be used for
         the reported metrics and written to ``node_model.pt``.
         """
-        logger.info("Initialising GNN models from metadata.")
+        logger.info("Initialising GNN models from metadata (arch=%s, substrate=%s).",
+                    self.model_arch, self.substrate)
         self.metadata = metadata
+        if self.model_arch != "hgt":
+            from .data_preparation import node_type_dim
+            from .models.baselines import build_baseline
+
+            node_types = metadata[0]
+            dims = {nt: node_type_dim(nt) for nt in node_types}
+            self._edge_model = None
+            self._node_model = build_baseline(
+                variant=self.model_arch,
+                node_type_dims=dims,
+                hidden_channels=self.hidden_channels,
+                num_heads=self.num_heads,
+                num_layers=self.num_layers,
+                dropout=self.dropout,
+                edge_dim=self.edge_dim,
+                topo_prior=self.topo_prior,
+                reverse_edges=self.reverse_edges,
+            )
+            self._node_model.to(self.device)
+            return
+
         if self.predict_edges:
             self._edge_model = build_edge_gnn(
                 metadata, self.hidden_channels, self.num_heads, self.num_layers, self.dropout,
@@ -496,8 +551,9 @@ class GNNService:
 
         # Convert to HeteroData
         self._rank_normalize_features = rank_normalize_features
+        target_graph = self._prepare_graph(graph)
         conv = networkx_to_hetero_data(
-            graph, structural_metrics, simulation_results, rm_scores, qos_enabled=qos_enabled,
+            target_graph, structural_metrics, simulation_results, rm_scores, qos_enabled=qos_enabled,
             rank_normalize_features=rank_normalize_features,
             edge_simulation_results=edge_simulation_results,
             append_prior=self.topo_prior,
@@ -665,8 +721,9 @@ class GNNService:
         if rm_scores is not None and not isinstance(rm_scores, dict):
             rm_scores = extract_rm_scores_dict(rm_scores)
 
+        target_graph = self._prepare_graph(graph)
         conv = networkx_to_hetero_data(
-            graph, structural_metrics, eval_labels, rm_scores, qos_enabled=qos_enabled,
+            target_graph, structural_metrics, eval_labels, rm_scores, qos_enabled=qos_enabled,
             rank_normalize_features=(
                 self._rank_normalize_features
                 if rank_normalize_features is None else rank_normalize_features
@@ -714,9 +771,11 @@ class GNNService:
 
         data_dev = data.to(self.device)
         
-        # Filter to only the node types and edge types supported by the model to prevent size mismatch
+        # Filter to only the node types and edge types supported by the model to prevent size mismatch.
+        # Homogeneous baselines (_HomoGATBase) flatten all edge types and do not declare `.edge_types`.
         model_node_types = set(self._node_model.node_types)
-        model_edge_types = set(self._node_model.edge_types)
+        raw_edge_types = getattr(self._node_model, "edge_types", None)
+        model_edge_types = set(raw_edge_types) if raw_edge_types is not None else set(data_dev.edge_types)
 
         x_dict = {nt: data_dev[nt].x for nt in data_dev.node_types
                   if nt in model_node_types and hasattr(data_dev[nt], "x")}
@@ -984,6 +1043,10 @@ class GNNService:
                     "num_layers": self.num_layers,
                     "dropout": self.dropout,
                     "predict_edges": self.predict_edges,
+                    "model_arch": self.model_arch,
+                    "edge_dim": self.edge_dim,
+                    "reverse_edges": self.reverse_edges,
+                    "substrate": self.substrate,
                     # Architecture switches: both change the parameter set, so
                     # a checkpoint that does not record them cannot be reloaded
                     # into the model that produced it.
@@ -1155,7 +1218,7 @@ class GNNService:
             num_heads=cfg.get("num_heads", 4),
             num_layers=cfg.get("num_layers", 3),
             dropout=cfg.get("dropout", 0.2),
-            predict_edges=cfg.get("predict_edges", True),
+            predict_edges=cfg.get("predict_edges", False),
             checkpoint_dir=str(ckpt_dir),
             device=device,
             # Defaults match the values in force before these were persisted, so
@@ -1166,6 +1229,10 @@ class GNNService:
             topo_prior=cfg.get("topo_prior", False),
             drop_feature_keys=cfg.get("drop_feature_keys", ()),
             qos_exempt_keys=cfg.get("qos_exempt_keys", ()),
+            model_arch=cfg.get("model_arch", "hgt"),
+            edge_dim=cfg.get("edge_dim"),
+            reverse_edges=cfg.get("reverse_edges", False),
+            substrate=cfg.get("substrate", "native"),
         )
         service._best_seed = cfg.get("best_seed", 42)
         service._rank_normalize_features = cfg.get("rank_normalize_features", False)
@@ -1178,7 +1245,7 @@ class GNNService:
                 edge_types = [tuple(et) for et in md["edge_types"]]
                 metadata = (node_types, edge_types)
             elif graph is not None:
-                conv = networkx_to_hetero_data(graph)
+                conv = networkx_to_hetero_data(service._prepare_graph(graph))
                 metadata = conv.hetero_data.metadata()
 
         if metadata is not None:

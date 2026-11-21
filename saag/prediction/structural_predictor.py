@@ -26,6 +26,7 @@ DualEnginePredictor:
 
 from __future__ import annotations
 
+import heapq
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
@@ -370,6 +371,128 @@ class TopoQoSPredictor:
             nid: self.bt_weight * bt.get(nid, 0.0) + self.ap_weight * ap.get(nid, 0.0)
             for nid in nodes
         }
+
+
+class InDegPredictor:
+    """Training-free direct afferent coupling ranker on G_flow (InDeg).
+
+    Counts direct dependents (in-degree on the Application--Library DEPENDS_ON
+    flow projection). Matches learned GAT-P-QoS in LOSO ranking accuracy while
+    running in milliseconds without training.
+    """
+
+    def __init__(self, normalize: bool = True):
+        self.normalize = normalize
+
+    def predict(
+        self,
+        graph_or_flow: Union[nx.DiGraph, nx.MultiDiGraph, Dict[str, Any]],
+        structural_metrics: Optional[Dict[str, Dict[str, Any]]] = None,
+    ) -> Dict[str, float]:
+        """Compute direct-dependent (in-degree) criticality scores on G_flow."""
+        flow_graph = derive_flow_projection(graph_or_flow)
+        if flow_graph.number_of_nodes() == 0:
+            return {}
+        raw = {str(v): float(d) for v, d in flow_graph.in_degree()}
+        if not self.normalize:
+            return raw
+        denom = max(raw.values(), default=0.0)
+        if denom <= 0.0:
+            return {nid: 0.0 for nid in raw}
+        return {nid: val / denom for nid, val in raw.items()}
+
+
+class ReachPredictor:
+    """Training-free transitive reachability ranker on G_flow (Reach).
+
+    Scores each component by the fraction of other components in G_flow that
+    transitively depend on it: ``|ancestors(flow, v)| / max(1, N - 1)``.
+    """
+
+    def predict(
+        self,
+        graph_or_flow: Union[nx.DiGraph, nx.MultiDiGraph, Dict[str, Any]],
+        structural_metrics: Optional[Dict[str, Dict[str, Any]]] = None,
+    ) -> Dict[str, float]:
+        """Compute transitive-dependent fraction scores on G_flow."""
+        flow_graph = derive_flow_projection(graph_or_flow)
+        n_nodes = flow_graph.number_of_nodes()
+        if n_nodes == 0:
+            return {}
+        denom = max(1, n_nodes - 1)
+        return {str(v): len(nx.ancestors(flow_graph, v)) / denom for v in flow_graph.nodes}
+
+
+class ReachQoSPredictor:
+    """QoS-weighted transitive reachability ranker on G_flow (Reach-QoS).
+
+    For each component v, sums over all transitive dependents u the maximum-product
+    path of edge ``qos_weight`` from u to v (matching ``reproduce/training_free_suite.py::reach_qos``).
+    """
+
+    def __init__(self, normalize: bool = True):
+        self.normalize = normalize
+
+    def predict(
+        self,
+        graph_or_flow: Union[nx.DiGraph, nx.MultiDiGraph, Dict[str, Any]],
+        structural_metrics: Optional[Dict[str, Dict[str, Any]]] = None,
+    ) -> Dict[str, float]:
+        """Compute QoS-weighted transitive reachability scores on G_flow."""
+        flow_graph = derive_flow_projection(graph_or_flow)
+        if flow_graph.number_of_nodes() == 0:
+            return {}
+        rev = flow_graph.reverse(copy=False)
+        raw: Dict[str, float] = {}
+        for v in flow_graph.nodes:
+            best: Dict[Any, float] = {v: 1.0}
+            heap: List[Tuple[float, Any]] = [(-1.0, v)]
+            while heap:
+                negp, x = heapq.heappop(heap)
+                p = -negp
+                if p < best.get(x, 0.0):
+                    continue
+                for y in rev.successors(x):
+                    w = float(flow_graph[y][x].get("qos_weight", 1.0))
+                    q = p * max(min(w, 1.0), 1e-6)
+                    if q > best.get(y, 0.0):
+                        best[y] = q
+                        heapq.heappush(heap, (-q, y))
+            raw[str(v)] = float(sum(p for u, p in best.items() if u != v))
+        if not self.normalize:
+            return raw
+        denom = max(raw.values(), default=0.0)
+        if denom <= 0.0:
+            return {nid: 0.0 for nid in raw}
+        return {nid: val / denom for nid, val in raw.items()}
+
+
+STRUCTURAL_PREDICTOR_MODES: Tuple[str, ...] = (
+    "topo",
+    "topo_qos",
+    "indeg",
+    "reach",
+    "reach_qos",
+)
+
+
+def get_structural_predictor(mode: str) -> Tuple[Any, str]:
+    """Return ``(predictor_instance, display_source_name)`` for a training-free mode."""
+    registry = {
+        "topo": (TopoPredictor, "Topo"),
+        "topo_qos": (TopoQoSPredictor, "Topo-QoS"),
+        "indeg": (InDegPredictor, "InDeg"),
+        "reach": (ReachPredictor, "Reach"),
+        "reach_qos": (ReachQoSPredictor, "Reach-QoS"),
+    }
+    entry = registry.get(mode)
+    if entry is None:
+        raise ValueError(
+            f"Unknown structural predictor mode {mode!r}. "
+            f"Expected one of {STRUCTURAL_PREDICTOR_MODES}."
+        )
+    cls, label = entry
+    return cls(), label
 
 
 @dataclass

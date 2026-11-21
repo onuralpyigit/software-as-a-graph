@@ -79,27 +79,31 @@ class Client:
         run_sensitivity: bool = False,
         active_patterns: Optional[List[str]] = None,
         diagnose: bool = True,
+        k: int = 10,
+        divergence_threshold: int = 5,
     ) -> PredictionResult:
         """Run the Predict stage (Step 3) on a prior AnalysisResult.
 
         Consumes the StructuralAnalysisResult produced by analyze(). Always
         computes rule-based RM scores (the GNN's own input feature and
         cold-start fallback). Returns GNN-derived criticality ranks instead
-        only when ``mode='gnn'`` and a trained checkpoint is passed as
+        when ``mode='gnn'`` and a trained checkpoint is passed as
         ``gnn_checkpoint``; it then also reads the raw structural graph from
-        the repository, because that is the graph the GNN is trained on.
+        the repository, because GNN checkpoints adapt the raw graph to their
+        recorded substrate (native or projection).
 
         Parameters
         ----------
         analysis_result:
             Output of a preceding client.analyze() call for the same layer.
         mode:
-            'gnn' for raw GNN scores (default) when ``gnn_checkpoint`` is given;
-            'rm' for RM scores.
+            Predictor mode: ``'gnn'`` (default when ``gnn_checkpoint`` is given),
+            ``'rm'``, training-free projection rankers (``'indeg'``, ``'reach'``,
+            ``'reach_qos'``, ``'topo'``, ``'topo_qos'``), or ``'dual'``.
         gnn_checkpoint:
-            Path to a GNN checkpoint directory. Without one the result is RM:
-            no default directory is searched, so a stray local checkpoint
-            cannot change what a caller gets.
+            Path to a GNN checkpoint directory. Without one ``mode='gnn'`` falls
+            back to RM: no default directory is searched, so a stray local
+            checkpoint cannot change what a caller gets.
         use_ahp, equal_weights, ahp_shrinkage:
             RM dimension weighting. Mutually exclusive modes: AHP-derived
             weights (shrunk toward uniform by ``ahp_shrinkage``), equal 0.25
@@ -120,6 +124,10 @@ class Client:
             explanation) into this call, for callers that still
             want the pre-split one-shot behaviour. Default True. Set False
             to run Predict alone and call ``client.diagnose()`` separately.
+        k:
+            Top-K shortlist size for ``mode='dual'`` consensus triage.
+        divergence_threshold:
+            Rank divergence threshold for ``mode='dual'`` escalation triage.
         """
         from saag.prediction.service import PredictionService
 
@@ -127,7 +135,7 @@ class Client:
         structural = layer_result.structural
         layer = getattr(layer_result, "layer", "system")
 
-        use_gnn = mode == "gnn" and gnn_checkpoint is not None
+        use_gnn = mode in ("gnn", "dual") and gnn_checkpoint is not None
         service = PredictionService(
             use_ahp=use_ahp,
             equal_weights=equal_weights,
@@ -139,13 +147,15 @@ class Client:
             prefer_gnn=use_gnn,
         )
 
-        # The analysis graph carries derived DEPENDS_ON edges only. The GNN is
-        # trained on the raw structural graph and cannot run on anything else.
+        # The analysis graph carries derived DEPENDS_ON edges only. When a GNN
+        # checkpoint is loaded, hand it the raw structural graph (projection
+        # checkpoints derive G_flow themselves inside GNNService._prepare_graph).
         graph = self._raw_structural_graph() if use_gnn else structural.graph
 
         result = service.predict_quality_with_gnn(
             structural, graph, layer=layer, run_sensitivity=run_sensitivity,
             active_patterns=active_patterns, diagnose=diagnose,
+            predictor_mode=mode, k=k, divergence_threshold=divergence_threshold,
         )
         return PredictionResult(result)
 

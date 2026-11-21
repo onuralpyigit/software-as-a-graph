@@ -1,4 +1,5 @@
 from typing import List, Optional, Any
+import warnings
 from saag.analysis.models import (
     DetectedProblem,
     QualityAnalysisResult,
@@ -7,8 +8,13 @@ from saag.analysis.models import (
 
 class PredictGraphUseCase:
     """
-    Use case for predicting graph quality scores (RM).
-    
+    Legacy use case for predicting deterministic graph quality scores (RM).
+
+    .. deprecated::
+        Prefer :class:`saag.usecases.predictive.PredictiveUseCase` for Step 3
+        (Pathway B predictive ranking) or :class:`saag.usecases.diagnostic.DiagnosticUseCase`
+        for Step 4 (Pathway A deterministic RM attribution and AntiPatternDetector).
+
     INDEPENDENCE GUARANTEE:
     This use case accepts StructuralAnalysisResult as a parameter.
     It never reads raw runtime data from the repository.
@@ -16,6 +22,12 @@ class PredictGraphUseCase:
     """
     
     def __init__(self, prediction_service: Any):
+        warnings.warn(
+            "PredictGraphUseCase is deprecated; use PredictiveUseCase (Pathway B) "
+            "or DiagnosticUseCase (Pathway A) instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.service = prediction_service
 
         

@@ -112,12 +112,17 @@ def build_parser() -> argparse.ArgumentParser:
     # ── Predictor selection ───────────────────────────────────────────────────
     pred_grp = parser.add_argument_group("Predictor engine (Step 3)")
     pred_grp.add_argument(
-        "--predictor-mode", type=str, choices=["rm", "gnn", "topo", "topo_qos", "dual"], default=None,
+        "--predictor-mode", type=str,
+        choices=["rm", "gnn", "topo", "topo_qos", "indeg", "reach", "reach_qos", "dual"],
+        default=None,
         help="Predictor engine to use: 'rm' (ISO/IEC quality attribution), "
-             "'gnn' (HGT-QoS learned model, requires --gnn-model), "
+             "'gnn' (trained GNN checkpoint: HGT-QoS, GAT-P-QoS, or GIN-P-QoS, requires --gnn-model), "
+             "'indeg' (zero-training direct afferent coupling on G_flow), "
+             "'reach' (zero-training transitive reachability on G_flow), "
+             "'reach_qos' (zero-training QoS-weighted transitive reachability on G_flow), "
              "'topo' (unweighted structural centrality), "
              "'topo_qos' (QoS-weighted structural centrality), or "
-             "'dual' (concurrent HGT-QoS + Topo-QoS consensus & divergence check, per JSS Section 8.1). "
+             "'dual' (concurrent GNN + Topo-QoS consensus & divergence check, per JSS Section 8.1). "
              "Defaults to 'gnn' if --gnn-model is set, else 'rm'.",
     )
     pred_grp.add_argument(
@@ -419,15 +424,13 @@ def main() -> None:
             effective_mode = "gnn" if args.gnn_model else "rm"
 
         gnn_result = None
-        if effective_mode in ("topo", "topo_qos"):
-            from saag.prediction.structural_predictor import TopoPredictor, TopoQoSPredictor
+        if effective_mode in ("topo", "topo_qos", "indeg", "reach", "reach_qos"):
+            from saag.prediction.structural_predictor import get_structural_predictor
             from saag.prediction.gnn_service import GNNAnalysisResult, GNNCriticalityScore
             from saag.analysis.classifier import BoxPlotClassifier
 
-            is_qos = (effective_mode == "topo_qos")
-            pred_name = "Topo-QoS" if is_qos else "Topo"
-            display.print_step(f"[{layer.upper()}] Running {pred_name} structural centrality prediction…")
-            predictor = TopoQoSPredictor() if is_qos else TopoPredictor()
+            predictor, pred_name = get_structural_predictor(effective_mode)
+            display.print_step(f"[{layer.upper()}] Running {pred_name} zero-training projection prediction…")
 
             sm_dict = getattr(analysis.raw, "components_dict", {})
             struct_metrics = {c["id"]: c.get("structural", {}) for c in sm_dict.values()} if isinstance(sm_dict, dict) else {}
@@ -442,8 +445,8 @@ def main() -> None:
                     node_scores[nid] = GNNCriticalityScore(
                         component=nid,
                         composite_score=float(val),
-                        reliability_score=float(val),
-                        maintainability_score=float(val),
+                        reliability_score=0.0,
+                        maintainability_score=0.0,
                         source=pred_name,
                         criticality_level=lvl.name,
                     )

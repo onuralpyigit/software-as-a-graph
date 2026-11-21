@@ -35,6 +35,11 @@ _LAZY_MODULES = {
     ".structural_predictor": (
         "TopoPredictor",
         "TopoQoSPredictor",
+        "InDegPredictor",
+        "ReachPredictor",
+        "ReachQoSPredictor",
+        "STRUCTURAL_PREDICTOR_MODES",
+        "get_structural_predictor",
         "DualEnginePredictor",
         "DualEngineResult",
         "derive_flow_projection",

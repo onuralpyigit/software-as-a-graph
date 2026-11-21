@@ -102,9 +102,15 @@ class PredictionService:
         active_patterns: Optional[List[str]] = None,
         run_sensitivity: bool = False,
         diagnose: bool = True,
+        mode: Optional[str] = None,
     ) -> Any:
-        """Execute training-free topological prediction (Topo or Topo-QoS)."""
-        from .structural_predictor import TopoPredictor, TopoQoSPredictor
+        """Execute training-free structural/projection prediction.
+
+        Supported ``mode`` values: ``'topo'``, ``'topo_qos'``, ``'indeg'``,
+        ``'reach'``, ``'reach_qos'``. When ``mode`` is ``None``, selects
+        ``'topo_qos'`` if ``use_qos`` else ``'topo'`` for backward compatibility.
+        """
+        from .structural_predictor import get_structural_predictor
         from .gnn_service import GNNAnalysisResult, GNNCriticalityScore
         from .data_preparation import extract_structural_metrics_dict
 
@@ -117,13 +123,11 @@ class PredictionService:
         else:
             problems, problem_summary, explanation = None, None, None
 
-        predictor = TopoQoSPredictor() if use_qos else TopoPredictor()
+        mode_name = mode if mode is not None else ("topo_qos" if use_qos else "topo")
+        predictor, source_name = get_structural_predictor(mode_name)
         struct_metrics = extract_structural_metrics_dict(structural_result)
         target_graph = graph if graph is not None else getattr(structural_result, "graph", None)
         scores = predictor.predict(target_graph, struct_metrics)
-
-        mode_name = "topo_qos" if use_qos else "topo"
-        source_name = "Topo-QoS" if use_qos else "Topo"
 
         from saag.analysis.classifier import BoxPlotClassifier
         box_clf = BoxPlotClassifier(k_factor=1.5)
@@ -133,11 +137,14 @@ class PredictionService:
         node_scores = {}
         for nid, val in scores.items():
             lvl = box_clf.classify_score(val, stats)
+            # Training-free rankers produce a single scalar ranking score, not
+            # separate reliability/maintainability sub-predictions; keep the
+            # sub-dimensions at 0.0 (RM sub-scores remain on res.rm_result).
             node_scores[nid] = GNNCriticalityScore(
                 component=nid,
                 composite_score=float(val),
-                reliability_score=float(val),
-                maintainability_score=float(val),
+                reliability_score=0.0,
+                maintainability_score=0.0,
                 source=source_name,
                 criticality_level=lvl.name,
             )
@@ -215,8 +222,13 @@ class PredictionService:
         run_sensitivity: bool = False,
         diagnose: bool = True,
         predictor_mode: str = "gnn",
+        k: int = 10,
+        divergence_threshold: int = 5,
     ) -> Union[QualityAnalysisResult, Any]:
-        """Return predictions according to predictor_mode ('gnn', 'rm', 'topo', 'topo_qos', 'dual').
+        """Return predictions according to predictor_mode.
+
+        Supported modes: ``'gnn'``, ``'rm'``, ``'topo'``, ``'topo_qos'``,
+        ``'indeg'``, ``'reach'``, ``'reach_qos'``, and ``'dual'``.
 
         RM scores are always computed — they serve as the consistency
         regularisation target for the GNN and as a fallback when no
@@ -224,15 +236,11 @@ class PredictionService:
         anti-pattern detection and explanation are also run on the RM scores
         and attached to whichever result is ultimately returned.
         """
-        if predictor_mode == "topo":
+        from .structural_predictor import STRUCTURAL_PREDICTOR_MODES
+
+        if predictor_mode in STRUCTURAL_PREDICTOR_MODES:
             return self.predict_structural(
-                structural_result, graph=graph, use_qos=False,
-                layer=layer, active_patterns=active_patterns,
-                run_sensitivity=run_sensitivity, diagnose=diagnose,
-            )
-        elif predictor_mode == "topo_qos":
-            return self.predict_structural(
-                structural_result, graph=graph, use_qos=True,
+                structural_result, graph=graph, mode=predictor_mode,
                 layer=layer, active_patterns=active_patterns,
                 run_sensitivity=run_sensitivity, diagnose=diagnose,
             )
@@ -241,6 +249,7 @@ class PredictionService:
                 structural_result, graph=graph, simulation_results=simulation_results,
                 layer=layer, active_patterns=active_patterns,
                 run_sensitivity=run_sensitivity, diagnose=diagnose,
+                k=k, divergence_threshold=divergence_threshold,
             )
 
         rm_result = self.predict_quality(structural_result, run_sensitivity=run_sensitivity)
@@ -263,13 +272,18 @@ class PredictionService:
             )
             return rm_result
 
+        from .gnn_service import GNNService
+        from .data_preparation import (
+            extract_structural_metrics_dict,
+            extract_rm_scores_dict,
+        )
+        # Fail loud on explicit checkpoint contract errors (layer mismatch,
+        # feature/label schema mismatch, missing weights) rather than silently
+        # substituting RM scores under a GNN request.
+        gnn_svc = GNNService.from_checkpoint(
+            self.gnn_checkpoint_dir, graph=graph, layer=layer
+        )
         try:
-            from .gnn_service import GNNService
-            from .data_preparation import (
-                extract_structural_metrics_dict,
-                extract_rm_scores_dict,
-            )
-            gnn_svc = GNNService.from_checkpoint(self.gnn_checkpoint_dir, graph=graph)
             gnn_result = gnn_svc.predict(
                 graph=graph,
                 structural_metrics=extract_structural_metrics_dict(structural_result),
