@@ -10,7 +10,8 @@ next unfinished scenarios of the frozen population, and stops at the end of
 - The budget is checked before each run starts, so no run is cut short.
 - Completed runs are skipped on resume (same keys as the runner), so sessions
   and ``fidelity_study.py sweep`` can be mixed.
-- A finished scenario is marked in ``sweep/done/<name>``; every session appends
+- A finished scenario is marked in ``sweep/done/<name>`` and gets a validity-only
+  report in ``sweep/reports/<name>.md`` (``fidelity_sweep_progress.py``); every session appends
   its outcome to ``sweep/sessions.jsonl``.
 - Only the nine scenarios of §8 "Inclusion" are run, whatever ``capacity.json``
   says, and each must still be included there at κ = 1.
@@ -31,6 +32,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import reproduce.fidelity_study as fs  # noqa: E402
+import reproduce.fidelity_sweep_progress as progress  # noqa: E402
 
 # PREREGISTRATION.md §8 "Inclusion", in capacity.json order.
 FROZEN = ["iot_smart_city", "healthcare", "hub_and_spoke", "microservices", "telecom_ran",
@@ -81,6 +83,9 @@ def main() -> None:
             done_marker(name).parent.mkdir(parents=True, exist_ok=True)
             done_marker(name).write_text(time.strftime("%F %T\n"))
             finished.append(name)
+            reports = fs.OUT / "sweep" / "reports"
+            reports.mkdir(exist_ok=True)
+            (reports / f"{name}.md").write_text(progress.report(name, fs.OUT / "sweep"))
         if all(done_marker(n).exists() for n in FROZEN):
             outcome = "all scenarios finished"
     except BudgetSpent:
