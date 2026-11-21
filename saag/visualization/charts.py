@@ -14,6 +14,7 @@ Each chart type maps to a specific visualization in the taxonomy (§6.4):
 
 Colours come from `palette.py`, which every renderer shares.
 """
+import html
 import json
 import logging
 from typing import Any, Dict, List, Optional, Tuple
@@ -242,7 +243,10 @@ class ChartGenerator:
         if title_suffix:
             full_title = f"{title} — {title_suffix}"
         if spearman:
-            full_title += f"  (ρ = {spearman:.3f})"
+            if ci_lower is not None and ci_upper is not None:
+                full_title += f"  (ρ = {spearman:.3f}, 95% CI [{ci_lower:.3f}, {ci_upper:.3f}])"
+            else:
+                full_title += f"  (ρ = {spearman:.3f})"
 
         config = {
             "type": "scatter",
@@ -273,34 +277,14 @@ class ChartGenerator:
             },
         }
 
-        # Build CI band JS using actual ci_lower/ci_upper offsets around the
-        # perfect-prediction diagonal (y = x ± margin).
-        ci_band_js = ""
-        if ci_lower is not None and ci_upper is not None:
-            # Half-width of the CI band expressed as a delta from the diagonal.
-            # ci_lower / ci_upper are bootstrap ρ bounds; translate to ±offset
-            # on the scatter axes such that the band visually represents the CI.
-            lower_off = round(max(0.0, 1.0 - ci_upper), 3) if ci_upper is not None else 0.08
-            upper_off = round(min(1.0, 1.0 - ci_lower), 3) if ci_lower is not None else 0.08
-            ci_band_js = (
-                f"ctx.fillStyle = 'rgba(83,74,183,0.06)';"
-                f"ctx.beginPath();"
-                f"ctx.moveTo(xScale.getPixelForValue(0.0), yScale.getPixelForValue({lower_off}));"
-                f"ctx.lineTo(xScale.getPixelForValue(1.0 - {lower_off}), yScale.getPixelForValue(1.0));"
-                f"ctx.lineTo(xScale.getPixelForValue(1.0), yScale.getPixelForValue(1.0 - {upper_off}));"
-                f"ctx.lineTo(xScale.getPixelForValue({upper_off}), yScale.getPixelForValue(0.0));"
-                f"ctx.closePath(); ctx.fill();"
-            )
-
-        diagonal_plugin = f"""
-        {{
+        diagonal_plugin = """
+        {
             id: 'diagonalLine',
-            beforeDraw(chart) {{
+            beforeDraw(chart) {
                 const ctx = chart.ctx;
                 const xScale = chart.scales.x;
                 const yScale = chart.scales.y;
                 ctx.save();
-                {ci_band_js}
                 ctx.strokeStyle = 'rgba(0,0,0,0.15)';
                 ctx.lineWidth = 1;
                 ctx.setLineDash([5, 4]);
@@ -310,8 +294,8 @@ class ChartGenerator:
                 ctx.stroke();
                 ctx.setLineDash([]);
                 ctx.restore();
-            }}
-        }}
+            }
+        }
         """
 
         scatter_tooltip = (
@@ -492,7 +476,7 @@ class ChartGenerator:
                 val_color = "#A32D2D"
             html_parts.append(
                 f'<div class="dim-row">'
-                f'  <div class="dim-label">{label}</div>'
+                f'  <div class="dim-label">{html.escape(label)}</div>'
                 f'  <div class="dim-bar-outer">'
                 f'    <div class="dim-bar-inner" style="width:{pct}%;background:{color}"></div>'
                 f'  </div>'

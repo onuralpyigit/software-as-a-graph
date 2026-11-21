@@ -1,5 +1,5 @@
 """
-Tests for Step 7: Visualization
+Tests for Step 8: Visualization
 
 Validates the visualization pipeline components:
     - LayerData model (Definition 9: input aggregation)
@@ -821,17 +821,19 @@ class TestBuildHtml:
             "bottleneck_precision": None,
         }
 
-        html = self._service().build_html([data])
+        import html as html_lib
+        rendered = self._service().build_html([data])
         targets = ValidationTargets()
+        unescaped = html_lib.unescape(rendered)
 
-        assert f"Top-quartile overlap ≥ {targets.f1_score:.2f} (release)" in html
-        assert f"Spearman ρ ≥ {targets.spearman:.2f} (release)" in html
-        assert f"Predictive gain > {targets.predictive_gain:.2f} (reported)" in html
+        assert f"Top-quartile overlap ≥ {targets.f1_score:.2f} (release)" in unescaped
+        assert f"Spearman ρ ≥ {targets.spearman:.2f} (release)" in unescaped
+        assert f"Predictive gain > {targets.predictive_gain:.2f} (reported)" in unescaped
         # None renders as NOT MEASURED, never as a failure.
-        assert "NOT MEASURED" in html
+        assert "NOT MEASURED" in unescaped
         # No G-numbering survives anywhere in the report.
         for n in (1, 2, 3, 4, 5, 6, 7, 8, 9):
-            assert f"G{n}:" not in html
+            assert f"G{n}:" not in unescaped
 
     def test_gate_specs_cannot_name_an_unemitted_gate(self):
         """_GATE_SPECS is derived from the gate tuples, so drift is impossible."""
@@ -925,5 +927,229 @@ class TestInteractiveNetworkGraph:
         assert "window.sagCyInstances" in html
         assert "cy.resize()" in html
         assert "cy.fit(25)" in html
+
+
+# =========================================================================
+# Regression Tests for Visualize Stage Hardening & Alignment
+# =========================================================================
+
+class TestVisualizeHardeningRegressions:
+    """Regression tests covering triage_k plumbing, GNN/RM substrate preservation,
+    explanation rendering, multi-layer primary selection, negative-rho validation,
+    scatter CI text, multi-seed deduplication, HTML escaping, and precomputed reuse."""
+
+    @staticmethod
+    def _service() -> VisualizationService:
+        return VisualizationService(None, None, None, None, None)
+
+    def test_step8_header_label(self):
+        """Dashboard header should label Visualize as Step 8."""
+        from cli.visualize_graph import _demo_layer_data
+        html = self._service().build_html([_demo_layer_data()])
+        assert "Step 8" in html
+        assert "Step 7" not in html
+
+    def test_has_validation_true_for_negative_rho_with_gates(self):
+        """Negative or zero Spearman rho with evaluated gates must still show the report."""
+        data = LayerData(layer="system", name="System", spearman=-0.12)
+        data.gates = {"spearman": False}
+        assert data.has_validation is True
+        html = self._service().build_html([data])
+        assert "Methodology validation gates" in html
+
+    def test_overview_uses_primary_layer_not_first_layer(self):
+        """When multiple layers include 'system', Overview KPIs must use 'system'."""
+        app = LayerData(layer="app", name="App", nodes=10, edges=15, spearman=0.412)
+        system = LayerData(layer="system", name="System", nodes=30, edges=60, spearman=0.889)
+        html = self._service().build_html([app, system])
+        exec_overview = html.split('id="overview"')[1].split('id="comparison"')[0]
+        assert "0.889" in exec_overview
+        assert "0.412" not in exec_overview
+
+    def test_gnn_metrics_rendered_on_validation_tab(self):
+        """When has_gnn is True, GNN forecasting KPIs render on the Validation tab."""
+        from cli.visualize_graph import _demo_layer_data
+        html = self._service().build_html([_demo_layer_data()])
+        assert "Pathway B — GNN Forecasting Metrics" in html
+        assert "GNN Spearman" in html
+        assert "0.892" in html
+        assert "0.941" in html
+
+    def test_multiseed_chart_rendered_only_once(self):
+        """Multi-seed stability line chart must not be duplicated on the Validation tab."""
+        from cli.visualize_graph import _demo_layer_data
+        html = self._service().build_html([_demo_layer_data()])
+        assert html.count("Multi-seed validation stability") == 1
+
+    def test_correlation_scatter_renders_ci_in_title_without_geometric_band(self):
+        """Bootstrap rho CI is shown textually in the title, not as a polygon around y=x."""
+        charts = ChartGenerator()
+        pts = [("a", 0.8, 0.75, "CRITICAL"), ("b", 0.5, 0.52, "MEDIUM"), ("c", 0.2, 0.18, "LOW")]
+        html = charts.correlation_scatter(pts, spearman=0.876, ci_lower=0.831, ci_upper=0.921)
+        assert html is not None
+        assert "95% CI [0.831, 0.921]" in html
+        assert "rgba(83,74,183,0.06)" not in html
+
+    def test_explanation_section_renders_system_report_and_legacy_dict(self):
+        """add_explanation_section handles both SystemReport.to_dict() and legacy flat dicts."""
+        dash = DashboardGenerator("Explain Test")
+        dash.add_tab("Components", "components")
+        system_report_dict = {
+            "total_components": 5,
+            "critical_count": 1,
+            "high_count": 1,
+            "deployment_blocked": True,
+            "reason": "1 CRITICAL anti-pattern detected",
+            "top_risk_summary": "Main Broker is a single point of failure.",
+            "by_stakeholder": {"SRE": ["Add replicas"]},
+            "component_explanations": [
+                {
+                    "component_id": "main_broker",
+                    "pattern": "SPOF",
+                    "level": "CRITICAL",
+                    "one_line": "Main Broker disconnects the graph on failure.",
+                    "top_risk": "Total loss of telemetry delivery.",
+                    "priority_action": "Deploy redundant broker cluster.",
+                }
+            ],
+            "remediation_plan": [
+                {"action": "Deploy redundant broker cluster.", "components": ["main_broker"], "priority": 1}
+            ],
+        }
+        dash.add_explanation_section(system_report_dict)
+        dash.end_tab()
+        html = dash.generate()
+        assert "System Risk Summary" in html
+        assert "DEPLOYMENT BLOCKED" in html
+        assert "main_broker — SPOF" in html
+        assert "Deploy redundant broker cluster." in html
+        assert "Prioritized Remediation Plan" in html
+        assert "by_stakeholder" not in html
+
+        # Legacy flat dict fallback
+        dash2 = DashboardGenerator("Legacy Explain")
+        dash2.add_explanation_section({"c1": {"title": "Comp 1", "explanation": "High fan-in", "level": "HIGH"}})
+        html2 = dash2.generate()
+        assert "Comp 1" in html2
+        assert "High fan-in" in html2
+
+    def test_html_escaping_prevents_xss_and_brace_errors(self):
+        """Special HTML characters and braces in titles/names are safely escaped."""
+        data = LayerData(layer="system", name="Sys <script>alert(1)</script>")
+        data.component_details = [
+            ComponentDetail(
+                id="c_1", name='<img src=x onerror="alert(1)">', type="Application",
+                overall=0.85, level="CRITICAL",
+            )
+        ]
+        html = self._service().build_html([data], title="Report {v1} <script>bad()</script>")
+        assert "<script>bad()</script>" not in html
+        assert "&lt;script&gt;bad()&lt;/script&gt;" in html
+        assert '<img src=x onerror="alert(1)">' not in html
+        assert "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;" in html
+        assert "function escHtml(" in html
+
+    def test_triage_k_plumbed_through_usecase_and_collector(
+        self, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service, tmp_path
+    ):
+        """VisOptions.triage_k must reach saag.analysis.triage.triage(k=...)."""
+        from saag.usecases.visualize_graph import VisualizeGraphUseCase
+        from saag.usecases.models import VisOptions
+
+        svc = VisualizationService(
+            mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service, MagicMock()
+        )
+        uc = VisualizeGraphUseCase(svc)
+        opts = VisOptions(triage_k=3, include_validation=False)
+
+        with patch("saag.analysis.triage.triage") as mock_triage:
+            mock_triage.return_value = MagicMock(ranking_source="rm", entries=[])
+            uc.execute(layers=["system"], output_file=str(tmp_path / "out.html"), options=opts)
+            mock_triage.assert_called_once()
+            assert mock_triage.call_args.kwargs["k"] == 3
+
+    def test_gnn_result_preserves_rm_subdimensions_and_edges(
+        self, mock_analysis_service, mock_simulation_service, mock_validation_service
+    ):
+        """When prediction is a GNNAnalysisResult with rm_result, FT/A/M and edges come from rm_result."""
+        # Build an RM substrate component with real FT/A/M scores
+        rm_comp = MagicMock()
+        rm_comp.id = "sensor_fusion"
+        rm_comp.type = "Application"
+        rm_comp.structural.name = "Sensor Fusion"
+        rm_comp.structural.is_articulation_point = True
+        rm_comp.scores.overall = 0.84
+        rm_comp.scores.reliability = 0.82
+        rm_comp.scores.maintainability = 0.88
+        rm_comp.scores.fault_tolerance = 0.76
+        rm_comp.scores.availability = 0.90
+        rm_comp.scores.mpci = 0.12
+        rm_comp.scores.foc = 0.05
+        rm_comp.levels.overall.name = "CRITICAL"
+
+        rm_edge = MagicMock(source="sensor_fusion", target="main_broker", weight=2.0, dependency_type="DEPENDS_ON")
+        rm_result = MagicMock()
+        rm_result.components = [rm_comp]
+        rm_result.edges = [rm_edge]
+        rm_result.problems = None
+        rm_result.explanation = MagicMock()
+        rm_result.explanation.to_dict.return_value = {
+            "component_explanations": [{"component_id": "sensor_fusion", "pattern": "SPOF", "level": "CRITICAL", "one_line": "Risk"}]
+        }
+
+        # GNN shim has FT=0, A=0, edges=[]
+        gnn_comp = MagicMock()
+        gnn_comp.id = "sensor_fusion"
+        gnn_comp.scores.fault_tolerance = 0.0
+        gnn_comp.scores.availability = 0.0
+        gnn_prediction = MagicMock()
+        gnn_prediction.components = [gnn_comp]
+        gnn_prediction.edges = []
+        gnn_prediction.rm_result = rm_result
+        gnn_prediction.node_scores = {"sensor_fusion": MagicMock(composite_score=0.91)}
+        gnn_prediction.gnn_metrics = {"spearman": 0.90, "f1_score": 0.89, "ndcg_10": 0.92, "top_5_overlap": 0.80}
+        gnn_prediction.explanation = rm_result.explanation
+
+        pred_svc = MagicMock()
+        pred_svc.predict_quality_with_gnn.return_value = gnn_prediction
+
+        collector = LayerDataCollector(
+            mock_analysis_service, pred_svc, mock_simulation_service, mock_validation_service, MagicMock()
+        )
+        data = collector.collect_layer_data("system", include_validation=False)
+        assert data.has_gnn is True
+        assert data.gnn_spearman == pytest.approx(0.90)
+        assert len(data.component_details) == 1
+        d = data.component_details[0]
+        assert d.fault_tolerance == pytest.approx(0.76)
+        assert d.availability == pytest.approx(0.90)
+        assert d.gnn_score == pytest.approx(0.91)
+        assert len(data.network_edges) == 1
+        assert data.explanation is not None
+        assert "component_explanations" in data.explanation
+
+    def test_precomputed_bypasses_redundant_service_calls(
+        self, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service
+    ):
+        """Passing precomputed stage outputs avoids re-calling analyze, predict, simulate, validate."""
+        pre = {
+            "analysis": mock_analysis_service.analyze_layer.return_value,
+            "prediction": mock_prediction_service.predict_quality_with_gnn.return_value,
+            "simulation": mock_simulation_service.generate_report.return_value,
+            "validation": mock_validation_service.validate_layers.return_value.layers["system"],
+        }
+        collector = LayerDataCollector(
+            mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service, MagicMock()
+        )
+        data = collector.collect_layer_data("system", include_validation=True, precomputed=pre)
+
+        mock_analysis_service.analyze_layer.assert_not_called()
+        mock_prediction_service.predict_quality_with_gnn.assert_not_called()
+        mock_simulation_service.generate_report.assert_not_called()
+        mock_validation_service.validate_layers.assert_not_called()
+        assert data.nodes == 48
+        assert data.spearman == pytest.approx(0.876)
+        assert data.component_details[0].impact == pytest.approx(0.734)
+
 
 

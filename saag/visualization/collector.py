@@ -35,7 +35,12 @@ class LayerDataCollector:
         self.logger = logging.getLogger(__name__)
 
     def collect_layer_data(
-        self, layer: str, include_validation: bool = True, antipatterns_file: Optional[str] = None
+        self,
+        layer: str,
+        include_validation: bool = True,
+        antipatterns_file: Optional[str] = None,
+        triage_k: Optional[int] = None,
+        precomputed: Optional[Dict[str, Any]] = None,
     ) -> LayerData:
         """
         Collect all data for a specific layer.
@@ -43,18 +48,21 @@ class LayerDataCollector:
         # Raises ValueError for an unrecognised layer name.
         layer_def = LAYER_DEFINITIONS[AnalysisLayer.from_string(layer)]
         data = LayerData(layer=layer, name=layer_def.name)
+        pre = precomputed or {}
 
         # 1. Structural & Quality Analysis
         # Cache the analysis result so downstream steps (anti-pattern detection)
         # do not need to re-invoke the expensive analyze_layer() call.
-        analysis = self._collect_analysis_data(data, layer)
+        analysis = self._collect_analysis_data(
+            data, layer, triage_k=triage_k, precomputed=pre
+        )
 
         # 2. Simulation Results
-        self._collect_simulation_data(data, layer)
+        self._collect_simulation_data(data, layer, precomputed=pre)
 
         # 3. Validation Results
         if include_validation:
-            self._collect_validation_data(data, layer)
+            self._collect_validation_data(data, layer, precomputed=pre)
 
         # 4. Anti-Patterns — pass cached analysis to avoid a second analyze call
         self._collect_antipattern_data(data, layer, antipatterns_file, analysis)
@@ -66,7 +74,13 @@ class LayerDataCollector:
         return data
 
 
-    def _collect_analysis_data(self, data: LayerData, layer: str) -> Any:
+    def _collect_analysis_data(
+        self,
+        data: LayerData,
+        layer: str,
+        triage_k: Optional[int] = None,
+        precomputed: Optional[Dict[str, Any]] = None,
+    ) -> Any:
         """
         Run analysis and populate graph statistics, quality scores,
         and classification counts.
@@ -75,18 +89,36 @@ class LayerDataCollector:
         paying for a second analyze_layer(); None if analysis failed.
         """
         try:
-            analysis = self.analysis_service.analyze_layer(layer)
-            
-            # Predict quality — prefer GNN when configured / checkpoint exists
-            if hasattr(self.prediction_service, "predict_quality_with_gnn"):
-                prediction = self.prediction_service.predict_quality_with_gnn(
-                    analysis.structural,
-                    getattr(analysis.structural, "graph", None),
-                    layer=layer,
-                )
-            else:
-                prediction = self.prediction_service.predict_quality(analysis.structural)
-            analysis.quality = prediction
+            pre = precomputed or {}
+            analysis = pre.get("analysis")
+            if analysis is None:
+                analysis = self.analysis_service.analyze_layer(layer)
+
+            # Predict quality — prefer precomputed, then GNN when configured
+            prediction = pre.get("prediction")
+            if prediction is None:
+                if hasattr(self.prediction_service, "predict_quality_with_gnn"):
+                    prediction = self.prediction_service.predict_quality_with_gnn(
+                        analysis.structural,
+                        getattr(analysis.structural, "graph", None),
+                        layer=layer,
+                    )
+                else:
+                    prediction = self.prediction_service.predict_quality(analysis.structural)
+
+            # Always read RM dimension breakdown (FT, A, M, MPCI, FOC) and edges
+            # from the RM substrate — GNNAnalysisResult.components is a shim that
+            # zeroes out fault_tolerance/availability and may omit edges.
+            # Guard with isinstance(..., list) so MagicMock prediction doubles in
+            # tests don't auto-create an empty rm_result attribute.
+            _rm_candidate = getattr(prediction, "rm_result", None)
+            rm_substrate = (
+                _rm_candidate
+                if _rm_candidate is not None
+                and isinstance(getattr(_rm_candidate, "components", None), list)
+                else prediction
+            )
+            analysis.quality = rm_substrate
 
             # Check for GNN predictions
             gnn_node_scores = getattr(prediction, "node_scores", None) or {}
@@ -108,14 +140,26 @@ class LayerDataCollector:
             # Quality Classification Counts
             data.spof_count = analysis.structural.graph_summary.num_articulation_points
             data.problems_count = len(analysis.problems)
-            
-            # Carry over the system explanation
-            if hasattr(analysis, "explanation") and analysis.explanation:
-                data.explanation = analysis.explanation.to_dict()
 
-            # 3. Quality Metrics & Ranking
+            # Carry over the system explanation (lives on prediction / rm_substrate
+            # / diagnosis rather than bare LayerAnalysisResult)
+            raw_exp = (
+                getattr(prediction, "explanation", None)
+                or getattr(rm_substrate, "explanation", None)
+                or getattr(pre.get("diagnosis"), "explanation", None)
+                or getattr(analysis, "explanation", None)
+            )
+            if raw_exp is not None:
+                if isinstance(raw_exp, dict):
+                    data.explanation = raw_exp
+                elif hasattr(raw_exp, "to_dict"):
+                    exp_dict = raw_exp.to_dict()
+                    if isinstance(exp_dict, dict):
+                        data.explanation = exp_dict
+
+            # 3. Quality Metrics & Ranking (RM substrate preserves FT/A/M/MPCI/FOC)
             sorted_comps = sorted(
-                prediction.components,
+                rm_substrate.components,
                 key=lambda x: _safe_float(x.scores.overall),
                 reverse=True,
             )
@@ -182,7 +226,8 @@ class LayerDataCollector:
             # Run Triage Bridge (§4 Prediction Architecture)
             try:
                 from saag.analysis.triage import triage
-                triage_res = triage(prediction, k=10, layer=layer)
+                k_val = triage_k if triage_k is not None else 10
+                triage_res = triage(prediction, k=k_val, layer=layer)
                 data.triage_ranking_source = triage_res.ranking_source
                 data.triage_entries = [e.to_dict() for e in triage_res.entries]
 
@@ -204,16 +249,31 @@ class LayerDataCollector:
             self.logger.exception("Analysis failure details")
             return None
 
-    def _collect_simulation_data(self, data: LayerData, layer: str) -> None:
+    def _collect_simulation_data(
+        self,
+        data: LayerData,
+        layer: str,
+        precomputed: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """Run simulation and populate impact metrics."""
         try:
-            # generate_report(), not analyze_layer(): analyze_layer() returns
-            # only the aggregated LayerMetrics and discards the per-component
-            # breakdown, so the `hasattr(layer_metrics, "component_impacts")`
-            # guard this used to have was permanently False — LayerMetrics has
-            # no such field, it lives on ComponentCriticality instead. This
-            # pays for the same exhaustive sweep analyze_layer() already ran.
-            report = self.simulation_service.generate_report(layers=[layer])
+            pre_sim = (precomputed or {}).get("simulation")
+            if (
+                pre_sim is not None
+                and hasattr(pre_sim, "layer_metrics")
+                and isinstance(pre_sim.layer_metrics, dict)
+                and layer in pre_sim.layer_metrics
+                and hasattr(pre_sim, "component_criticality")
+            ):
+                report = pre_sim
+            else:
+                # generate_report(), not analyze_layer(): analyze_layer() returns
+                # only the aggregated LayerMetrics and discards the per-component
+                # breakdown, so the `hasattr(layer_metrics, "component_impacts")`
+                # guard this used to have was permanently False — LayerMetrics has
+                # no such field, it lives on ComponentCriticality instead. This
+                # pays for the same exhaustive sweep analyze_layer() already ran.
+                report = self.simulation_service.generate_report(layers=[layer])
             layer_metrics = report.layer_metrics.get(layer)
             if layer_metrics is None:
                 return
@@ -241,12 +301,24 @@ class LayerDataCollector:
             self.logger.error(f"Simulation failed for layer {layer}: {e}")
             self.logger.exception("Simulation failure details")
 
-    def _collect_validation_data(self, data: LayerData, layer: str) -> None:
+    def _collect_validation_data(
+        self,
+        data: LayerData,
+        layer: str,
+        precomputed: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """Run validation and populate correlation/classification metrics."""
         try:
-            # Note: ValidationService in new structure returns PipelineResult which has .layers (dict)
-            pipeline_res = self.validation_service.validate_layers(layers=[layer])
-            val_result = pipeline_res.layers.get(layer)
+            pre_val = (precomputed or {}).get("validation")
+            if pre_val is not None:
+                if hasattr(pre_val, "layers") and isinstance(pre_val.layers, dict):
+                    val_result = pre_val.layers.get(layer)
+                else:
+                    val_result = pre_val
+            else:
+                # Note: ValidationService in new structure returns PipelineResult which has .layers (dict)
+                pipeline_res = self.validation_service.validate_layers(layers=[layer])
+                val_result = pipeline_res.layers.get(layer)
             
             if val_result:
                 data.spearman = val_result.spearman
@@ -338,17 +410,27 @@ class LayerDataCollector:
                 
                 data.anti_patterns = smells
             else:
-                # Real-time detection fallback — use the cached analysis result
-                # to avoid a second round-trip through analyze_layer().
+                # Real-time detection fallback — reuse problems already computed
+                # by PredictionService (diagnose=True) when available, otherwise
+                # run AntiPatternDetector against the cached analysis result.
                 if cached_analysis is None:
                     self.logger.warning(
                         "No cached analysis for anti-pattern detection; "
                         "re-running analyze_layer() as fallback."
                     )
                     cached_analysis = self.analysis_service.analyze_layer(layer)
-                detector = AntiPatternDetector()
-                detected = detector.detect(cached_analysis.quality, layer)
-                smells = [s.to_dict() for s in detected]
+                from saag.analysis.models import DetectedProblem
+                cached_problems = getattr(
+                    getattr(cached_analysis, "quality", None), "problems", None
+                )
+                if isinstance(cached_problems, list) and all(
+                    isinstance(p, DetectedProblem) for p in cached_problems
+                ):
+                    smells = [s.to_dict() for s in cached_problems]
+                else:
+                    detector = AntiPatternDetector()
+                    detected = detector.detect(cached_analysis.quality, layer)
+                    smells = [s.to_dict() for s in detected]
                 data.anti_patterns = smells
             data.problems_count = len(smells)
             

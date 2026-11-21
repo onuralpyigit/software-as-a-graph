@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, Dict, List, Optional
 from saag.visualization.service import VisualizationService
 from .models import VisOptions
 
@@ -9,7 +9,13 @@ class VisualizeGraphUseCase:
     def __init__(self, service: VisualizationService):
         self.service = service
 
-    def execute(self, layers: List[str], output_file: str, options: VisOptions) -> str:
+    def execute(
+        self,
+        layers: List[str],
+        output_file: str,
+        options: VisOptions,
+        precomputed: Optional[Dict[str, Dict[str, Any]]] = None,
+    ) -> str:
         return self.service.generate_dashboard(
             output_file=output_file,
             layers=layers,
@@ -19,5 +25,7 @@ class VisualizeGraphUseCase:
             include_per_dim_scatter=options.include_per_dim_scatter,
             antipatterns_file=options.antipatterns_file,
             multi_seed=options.multi_seed,
-            cascade_file=options.cascade_file
+            cascade_file=options.cascade_file,
+            triage_k=options.triage_k,
+            precomputed=precomputed,
         )

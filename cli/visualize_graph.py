@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Graph Visualization CLI (Step 7)
+Graph Visualization CLI (Step 8)
 ================================
 Generates multi-layer analysis dashboards using the VisualizationService.
 

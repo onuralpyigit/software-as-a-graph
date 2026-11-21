@@ -479,7 +479,13 @@ class Client:
         if gnn_checkpoint: options.gnn_checkpoint = gnn_checkpoint
         if "triage_k" in kwargs: options.triage_k = kwargs["triage_k"]
         
-        return uc.execute(layers=layers, output_file=output, options=options)
+        precomputed = kwargs.get("precomputed")
+        return uc.execute(
+            layers=layers,
+            output_file=output,
+            options=options,
+            precomputed=precomputed,
+        )
 
     def export_topology(self) -> Dict[str, Any]:
         """Export the current graph back to the canonical nested input format."""

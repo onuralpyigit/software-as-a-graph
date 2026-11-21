@@ -9,10 +9,16 @@ Interactive widgets (sortable tables, Cytoscape networks, D3 matrices) emit
 their JavaScript into `self.scripts`, which is flushed once at the end of
 `generate()` so that scripts run after all markup exists.
 """
+import html
 import json
 import math
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+
+
+def _esc(val: Any) -> str:
+    """Escape dynamic text for safe HTML interpolation."""
+    return html.escape(str(val), quote=True)
 
 from .palette import (
     BRAND_PURPLE,
@@ -409,7 +415,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   <div class="sag-main">
     <div class="sag-header">
       <div class="sag-header-top">
-        <div class="meta">Software-as-a-Graph (SaaG) &nbsp;&bull;&nbsp; Step 7 &nbsp;&bull;&nbsp; Architectural Decision Support</div>
+        <div class="meta">Software-as-a-Graph (SaaG) &nbsp;&bull;&nbsp; Step 8 &nbsp;&bull;&nbsp; Architectural Decision Support</div>
         <div class="sag-header-badges">
           <span class="badge badge-tag">ISO/IEC 25010 &amp; 25019</span>
           <span class="badge badge-architect">Dual-Pathway: ISO-RM + HGT GNN</span>
@@ -495,17 +501,17 @@ class DashboardGenerator:
         self._current_tab = None
 
     def start_section(self, title: str, anchor_id: str = "") -> None:
-        sid = anchor_id or title.lower().replace(" ", "-")
+        sid = _esc(anchor_id or title.lower().replace(" ", "-"))
         self._emit(
             f'<div class="section" id="{sid}">'
-            f'<div class="section-header"><h2>{title}</h2></div>'
+            f'<div class="section-header"><h2>{_esc(title)}</h2></div>'
         )
 
     def end_section(self) -> None:
         self._emit("</div>")
 
     def add_subsection(self, title: str) -> None:
-        self._emit(f'<div class="subsection"><h3>{title}</h3></div>')
+        self._emit(f'<div class="subsection"><h3>{_esc(title)}</h3></div>')
 
     # ── KPI Cards ──────────────────────────────────────────────────────────
 
@@ -513,8 +519,8 @@ class DashboardGenerator:
         styles = styles or {}
         cards = "".join(
             f'<div class="kpi">'
-            f'<div class="kpi-label">{label}</div>'
-            f'<div class="kpi-val {styles.get(label, "info")}">{value}</div>'
+            f'<div class="kpi-label">{_esc(label)}</div>'
+            f'<div class="kpi-val {_esc(styles.get(label, "info"))}">{_esc(value)}</div>'
             f'</div>'
             for label, value in kpis.items()
         )
@@ -537,10 +543,10 @@ class DashboardGenerator:
         """Static table — use add_interactive_table for sort/filter."""
         html = ['<div class="table-container">']
         if title:
-            html.append(f'<div style="padding:12px 16px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase">{title}</div>')
+            html.append(f'<div style="padding:12px 16px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase">{_esc(title)}</div>')
         html.append("<table><thead><tr>")
         for h in headers:
-            html.append(f"<th>{h}</th>")
+            html.append(f"<th>{_esc(h)}</th>")
         html.append("</tr></thead><tbody>")
         for row in rows:
             html.append("<tr>")
@@ -548,13 +554,13 @@ class DashboardGenerator:
                 cell_str = str(cell)
                 lu = cell_str.upper()
                 if lu in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "MINIMAL"):
-                    cell_html = f'<span class="badge badge-{lu.lower()}">{cell_str}</span>'
+                    cell_html = f'<span class="badge badge-{lu.lower()}">{_esc(cell_str)}</span>'
                 elif lu in ("PASSED", "PASS", "✓"):
                     cell_html = '<span class="badge badge-passed">PASSED</span>'
                 elif lu in ("FAILED", "FAIL", "✗"):
                     cell_html = '<span class="badge badge-failed">FAILED</span>'
                 else:
-                    cell_html = cell_str
+                    cell_html = _esc(cell_str)
                 html.append(f"<td>{cell_html}</td>")
             html.append("</tr>")
         html.append("</tbody></table></div>")
@@ -583,19 +589,19 @@ class DashboardGenerator:
         html = ['<div class="table-container">']
         html.append('<div class="table-filter-row">')
         if title:
-            html.append(f'<span style="font-size:12px;font-weight:500;color:#374151;margin-right:8px">{title}</span>')
+            html.append(f'<span style="font-size:12px;font-weight:500;color:#374151;margin-right:8px">{_esc(title)}</span>')
         if type_col is not None:
             html.append(
                 f'<select id="{tid}_tf" onchange="sagFilterTable(\'{tid}\')">'
                 f'<option value="">All types</option>'
-                + "".join(f'<option value="{v}">{v}</option>' for v in type_vals)
+                + "".join(f'<option value="{_esc(v)}">{_esc(v)}</option>' for v in type_vals)
                 + "</select>"
             )
         if level_col is not None:
             html.append(
                 f'<select id="{tid}_lf" onchange="sagFilterTable(\'{tid}\')">'
                 f'<option value="">All levels</option>'
-                + "".join(f'<option value="{v}">{v}</option>' for v in level_vals)
+                + "".join(f'<option value="{_esc(v)}">{_esc(v)}</option>' for v in level_vals)
                 + "</select>"
             )
         html.append(
@@ -608,7 +614,7 @@ class DashboardGenerator:
         for i, h in enumerate(headers):
             html.append(
                 f'<th onclick="sagSortTable(\'{tid}\',{i})">'
-                f'{h} <span class="sort-icon">↕</span></th>'
+                f'{_esc(h)} <span class="sort-icon">↕</span></th>'
             )
         html.append("</tr></thead><tbody>")
         for row in rows:
@@ -688,7 +694,7 @@ class DashboardGenerator:
         """
         html = []
         if note:
-            html.append(f'<div class="cascade-note">{note}</div>')
+            html.append(f'<div class="cascade-note">{_esc(note)}</div>')
 
         html.append('<div class="grid4">')
         stats = [
@@ -721,7 +727,7 @@ class DashboardGenerator:
             html.append(f"""
                 <div style="margin-bottom:12px">
                   <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
-                    <span style="font-weight:600">{name} <span class="badge badge-{level.lower()}">{level}</span>{ '<span class="badge badge-spof" style="margin-left:4px">SPOF</span>' if spof else '' }</span>
+                    <span style="font-weight:600">{_esc(name)} <span class="badge badge-{_esc(level.lower())}">{_esc(level)}</span>{ '<span class="badge badge-spof" style="margin-left:4px">SPOF</span>' if spof else '' }</span>
                     <span style="font-weight:600">{q:.3f}</span>
                   </div>
                   <div style="height:8px;background:var(--bg);border-radius:4px;overflow:hidden">
@@ -777,7 +783,7 @@ class DashboardGenerator:
                 f'<div class="hier-node" style="{indent};background:{bg}22">'
                 f'  <div class="hier-dot" style="background:{accent}"></div>'
                 f'  <span style="font-weight:{fw}">'
-                f'    {node.get("label", node["id"])}'
+                f'    {_esc(node.get("label", node["id"]))}'
                 f'  </span>'
                 f'  {cbci_html}'
                 f'  {q_html}'
@@ -798,14 +804,14 @@ class DashboardGenerator:
         highlights: Dict[str, bool] = None,
     ) -> None:
         highlights = highlights or {}
-        html = [f'<div class="metrics-box"><h4>{title}</h4>']
+        html = [f'<div class="metrics-box"><h4>{_esc(title)}</h4>']
         for name, value in metrics.items():
             val_class = " pass" if highlights.get(name) else (" fail" if name in highlights else "")
             val_str = f"{value:.4f}" if isinstance(value, float) else str(value)
             html.append(
                 f'<div class="metric-row">'
-                f'<span class="metric-name">{name}</span>'
-                f'<span class="metric-value{val_class}">{val_str}</span>'
+                f'<span class="metric-name">{_esc(name)}</span>'
+                f'<span class="metric-value{val_class}">{_esc(val_str)}</span>'
                 f'</div>'
             )
         html.append("</div>")
@@ -816,19 +822,96 @@ class DashboardGenerator:
     def add_explanation_section(self, explanation: Dict[str, Any]) -> None:
         if not explanation:
             return
-        html = []
-        for comp_id, info in explanation.items():
-            if isinstance(info, dict):
-                title = info.get("title", comp_id)
-                text = info.get("explanation", "")
-                level = info.get("level", "MINIMAL").lower()
+        html: List[str] = []
+
+        # Schema 1: SystemReport.to_dict() (from saag.explanation.engine)
+        if "component_explanations" in explanation and isinstance(
+            explanation["component_explanations"], list
+        ):
+            summary = explanation.get("top_risk_summary", "")
+            reason = explanation.get("reason", "")
+            blocked = explanation.get("deployment_blocked", False)
+            if summary or reason:
+                status_badge = (
+                    '<span class="badge badge-critical">DEPLOYMENT BLOCKED</span>'
+                    if blocked
+                    else '<span class="badge badge-passed">OK</span>'
+                )
                 html.append(
                     f'<div class="explanation-card">'
-                    f'<h4>{title} <span class="badge badge-{level}">'
-                    f'{level.upper()}</span></h4>'
-                    f'<p>{text}</p>'
+                    f'<h4>System Risk Summary {status_badge}</h4>'
+                    + (f'<p>{_esc(summary)}</p>' if summary else "")
+                    + (
+                        f'<p style="margin-top:4px;font-weight:500">{_esc(reason)}</p>'
+                        if reason
+                        else ""
+                    )
+                    + '</div>'
+                )
+
+            for ce in explanation["component_explanations"]:
+                if not isinstance(ce, dict):
+                    continue
+                comp_id = ce.get("component_id", "Unknown")
+                pattern = ce.get("pattern", "")
+                level = str(ce.get("level", ce.get("overall_level", "MINIMAL"))).lower()
+                one_line = ce.get("one_line", ce.get("one_line_summary", ""))
+                top_risk = ce.get("top_risk", ce.get("top_risk_description", ""))
+                action = ce.get("priority_action", "")
+                title_str = f"{comp_id} — {pattern}" if pattern else comp_id
+                body_parts = []
+                if one_line:
+                    body_parts.append(f'<p>{_esc(one_line)}</p>')
+                if top_risk and top_risk != one_line:
+                    body_parts.append(f'<p style="margin-top:4px">{_esc(top_risk)}</p>')
+                if action:
+                    body_parts.append(
+                        f'<div class="triage-action"><strong>Priority Action:</strong> {_esc(action)}</div>'
+                    )
+                html.append(
+                    f'<div class="explanation-card">'
+                    f'<h4>{_esc(title_str)} <span class="badge badge-{_esc(level)}">'
+                    f'{_esc(level.upper())}</span></h4>'
+                    f'{"".join(body_parts)}'
                     f'</div>'
                 )
+
+            remediation_plan = explanation.get("remediation_plan", [])
+            if isinstance(remediation_plan, list) and remediation_plan:
+                items = []
+                for step in remediation_plan:
+                    if not isinstance(step, dict):
+                        continue
+                    act = step.get("action", "")
+                    comps = step.get("components", [])
+                    comp_tags = " ".join(
+                        f'<span class="badge badge-tag">{_esc(c)}</span>' for c in comps[:5]
+                    )
+                    items.append(
+                        f'<div class="metric-row">'
+                        f'<span class="metric-name">{_esc(act)}</span>'
+                        f'<span>{comp_tags}</span>'
+                        f'</div>'
+                    )
+                if items:
+                    html.append(
+                        f'<div class="metrics-box"><h4>Prioritized Remediation Plan</h4>'
+                        f'{"".join(items)}</div>'
+                    )
+        else:
+            # Schema 2 (legacy fallback): {comp_id: {"title", "explanation", "level"}}
+            for comp_id, info in explanation.items():
+                if isinstance(info, dict):
+                    title = info.get("title", comp_id)
+                    text = info.get("explanation", "")
+                    level = str(info.get("level", "MINIMAL")).lower()
+                    html.append(
+                        f'<div class="explanation-card">'
+                        f'<h4>{_esc(title)} <span class="badge badge-{_esc(level)}">'
+                        f'{_esc(level.upper())}</span></h4>'
+                        f'<p>{_esc(text)}</p>'
+                        f'</div>'
+                    )
         if html:
             self._emit("".join(html))
 
@@ -863,32 +946,32 @@ class DashboardGenerator:
 
             role_badges = []
             for r in roles:
-                r_slug = r.lower().replace(" / ", "-").replace(" ", "-")
+                r_slug = str(r).lower().replace(" / ", "-").replace(" ", "-")
                 if "devops" in r_slug or "sre" in r_slug:
                     badge_cls = "badge-devops-sre"
                 elif "architect" in r_slug:
                     badge_cls = "badge-architect"
                 else:
                     badge_cls = "badge-developer"
-                role_badges.append(f'<span class="badge {badge_cls}">{r}</span>')
+                role_badges.append(f'<span class="badge {badge_cls}">{_esc(r)}</span>')
 
             elevated_tags = []
             for ed in elevated:
                 d_name = ed.get("dimension", "")
                 d_val = ed.get("value", 0.0)
-                elevated_tags.append(f'<span class="badge badge-tag" style="background:#FCEBEB;color:#791F1F">{d_name}: {d_val:.2f}</span>')
+                elevated_tags.append(f'<span class="badge badge-tag" style="background:#FCEBEB;color:#791F1F">{_esc(d_name)}: {d_val:.2f}</span>')
 
             elevated_block = f'<div class="triage-elevated" style="margin-bottom:6px"><strong>Elevated:</strong> {" ".join(elevated_tags)}</div>' if elevated_tags else ""
-            action_block = f'<div class="triage-action"><strong>Priority Action:</strong> {action}</div>' if action else ""
+            action_block = f'<div class="triage-action"><strong>Priority Action:</strong> {_esc(action)}</div>' if action else ""
 
             html.append(f"""
             <div class="triage-card">
               <div class="triage-header">
                 <div class="triage-title">
-                  <span style="color:var(--muted);margin-right:6px">#{rank}</span>
-                  <strong>{cid}</strong>
-                  <span style="font-size:11px;color:var(--muted);font-weight:normal;margin-left:4px">({ctype})</span>
-                  <span class="badge badge-{level}" style="margin-left:6px">{level.upper()}</span>
+                  <span style="color:var(--muted);margin-right:6px">#{_esc(rank)}</span>
+                  <strong>{_esc(cid)}</strong>
+                  <span style="font-size:11px;color:var(--muted);font-weight:normal;margin-left:4px">({_esc(ctype)})</span>
+                  <span class="badge badge-{_esc(level)}" style="margin-left:6px">{_esc(level.upper())}</span>
                 </div>
                 <div style="display:flex;gap:4px;align-items:center;">
                   <span style="font-size:12px;font-weight:600;color:var(--primary);margin-right:6px">Score: {score:.3f}</span>
@@ -896,7 +979,7 @@ class DashboardGenerator:
                 </div>
               </div>
               <div style="font-size:12px;color:var(--text);margin-bottom:4px;">
-                <strong>Root Cause:</strong> <span style="font-family:monospace;color:var(--primary)">{pattern}</span>
+                <strong>Root Cause:</strong> <span style="font-family:monospace;color:var(--primary)">{_esc(pattern)}</span>
               </div>
               {elevated_block}
               {action_block}
@@ -919,12 +1002,12 @@ class DashboardGenerator:
                 desc = p.get("description", "")
                 components = p.get("components", []) or p.get("component_ids", [])
                 comp_badges = "".join(
-                    f'<span class="badge badge-tag">{c}</span> ' for c in components[:5]
+                    f'<span class="badge badge-tag">{_esc(c)}</span> ' for c in components[:5]
                 )
                 html.append(
-                    f'<div class="antipattern-card {sev}">'
-                    f'<h4>{name} <span class="badge badge-{sev}">{sev.upper()}</span></h4>'
-                    f'<p>{desc}</p>'
+                    f'<div class="antipattern-card {_esc(sev)}">'
+                    f'<h4>{_esc(name)} <span class="badge badge-{_esc(sev)}">{_esc(sev.upper())}</span></h4>'
+                    f'<p>{_esc(desc)}</p>'
                     + (f'<div style="margin-top:6px">{comp_badges}</div>' if comp_badges else "")
                     + f'</div>'
                 )
@@ -1225,6 +1308,15 @@ class DashboardGenerator:
             showInspector(node.data(), connectedEdges, neighborhood);
           }}
 
+          function escHtml(s) {{
+            return String(s == null ? '' : s)
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#39;');
+          }}
+
           function showInspector(d, edges, neighbors) {{
             if (!inspector) return;
 
@@ -1239,11 +1331,11 @@ class DashboardGenerator:
             var html = [];
             html.push('<div class="cy-inspector-header">');
             html.push('  <div>');
-            html.push('    <div class="cy-inspector-title">' + (d.name || d.id) + '</div>');
-            html.push('    <div style="font-size:11px;color:var(--muted);margin-top:2px;">' + d.id + ' &middot; ' + d.nodeType + '</div>');
+            html.push('    <div class="cy-inspector-title">' + escHtml(d.name || d.id) + '</div>');
+            html.push('    <div style="font-size:11px;color:var(--muted);margin-top:2px;">' + escHtml(d.id) + ' &middot; ' + escHtml(d.nodeType) + '</div>');
             html.push('  </div>');
             html.push('  <div style="display:flex;align-items:center;gap:6px;">');
-            html.push('    <span class="badge badge-' + d.level.toLowerCase() + '">' + d.level + '</span>');
+            html.push('    <span class="badge badge-' + escHtml((d.level || 'minimal').toLowerCase()) + '">' + escHtml(d.level) + '</span>');
             html.push('    <button class="cy-inspector-close" onclick="window.sagCloseInspector(\\'{graph_id}\\')">&times;</button>');
             html.push('  </div>');
             html.push('</div>');
@@ -1274,7 +1366,7 @@ class DashboardGenerator:
               html.push('  <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;text-transform:uppercase;">Detected Anti-Patterns</div>');
               html.push('  <div style="display:flex;gap:4px;flex-wrap:wrap;">');
               d.anti_patterns.forEach(function(ap) {{
-                html.push('    <span class="badge badge-tag">' + ap + '</span>');
+                html.push('    <span class="badge badge-tag">' + escHtml(ap) + '</span>');
               }});
               html.push('  </div>');
               html.push('</div>');
@@ -1283,20 +1375,20 @@ class DashboardGenerator:
             if (d.triage_rank || d.triage_priority_action) {{
               html.push('<div style="background:#f8fafc;border:0.5px solid #e2e8f0;border-left:3px solid var(--primary);padding:8px 10px;border-radius:4px;margin-bottom:10px;">');
               html.push('  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">');
-              html.push('    <span style="font-size:11px;font-weight:600;color:var(--primary);">Triage Shortlist #' + (d.triage_rank || '-') + '</span>');
+              html.push('    <span style="font-size:11px;font-weight:600;color:var(--primary);">Triage Shortlist #' + escHtml(d.triage_rank || '-') + '</span>');
               if (d.triage_roles && d.triage_roles.length) {{
                 var roleBadges = d.triage_roles.map(function(r) {{
                   var cls = r.toLowerCase().indexOf('devops') >= 0 ? 'badge-devops-sre' : (r.toLowerCase().indexOf('architect') >= 0 ? 'badge-architect' : 'badge-developer');
-                  return '<span class="badge ' + cls + '" style="font-size:10px;">' + r + '</span>';
+                  return '<span class="badge ' + cls + '" style="font-size:10px;">' + escHtml(r) + '</span>';
                 }}).join(' ');
                 html.push('    <div>' + roleBadges + '</div>');
               }}
               html.push('  </div>');
               if (d.triage_pattern) {{
-                html.push('  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Root Cause: <code>' + d.triage_pattern + '</code></div>');
+                html.push('  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Root Cause: <code>' + escHtml(d.triage_pattern) + '</code></div>');
               }}
               if (d.triage_priority_action) {{
-                html.push('  <div style="font-size:11px;color:var(--text);font-weight:500;">' + d.triage_priority_action + '</div>');
+                html.push('  <div style="font-size:11px;color:var(--text);font-weight:500;">' + escHtml(d.triage_priority_action) + '</div>');
               }}
               html.push('</div>');
             }}
@@ -1424,8 +1516,8 @@ class DashboardGenerator:
         edges_json = json.dumps(edges)
         crit_colors_json = json.dumps(CRITICALITY_COLORS)
         self._emit(
-            f'<p style="font-size:13px;font-weight:500;margin-bottom:12px">{title}</p>'
-            f'<div id="{matrix_id}" style="overflow-x:auto"></div>'
+            f'<p style="font-size:13px;font-weight:500;margin-bottom:12px">{_esc(title)}</p>'
+            f'<div id="{_esc(matrix_id)}" style="overflow-x:auto"></div>'
         )
 
         script = f"""
@@ -1517,18 +1609,18 @@ class DashboardGenerator:
             active = " active" if i == 0 else ""
             display = "" if i == 0 else ' style="display:none"'
             tabs_html.append(
-                f'<button class="tab{active}" onclick="switchTab(\'{tab["id"]}\', this)">'
-                f'{tab["title"]}</button>'
+                f'<button class="tab{active}" onclick="switchTab(\'{_esc(tab["id"])}\', this)">'
+                f'{_esc(tab["title"])}</button>'
             )
             content_html.append(
-                f'<div id="tab-{tab["id"]}"{display}>'
+                f'<div id="tab-{_esc(tab["id"])}"{display}>'
                 + "".join(tab["sections"])
                 + '</div>'
             )
         tabs_html.append("</div>")
 
         return HTML_TEMPLATE.format(
-            title=self.title,
+            title=_esc(self.title),
             timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             badge_css=criticality_badge_css(),
             tabs_html="".join(tabs_html),

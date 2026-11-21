@@ -1,7 +1,7 @@
 """
 Visualization Application Service
 
-Orchestrates Step 7. Work is split into three stages so that each can be
+Orchestrates Step 8. Work is split into three stages so that each can be
 used on its own:
 
     collect()            services + files → List[LayerData]
@@ -12,6 +12,7 @@ used on its own:
 what lets `cli/visualize_graph.py --demo` render the production dashboard
 from a fixture without a database.
 """
+import html
 import json
 import logging
 from pathlib import Path
@@ -88,6 +89,8 @@ class VisualizationService:
         antipatterns_file: Optional[str] = None,
         multi_seed: Any = 0,
         cascade_file: Optional[str] = None,
+        triage_k: Optional[int] = None,
+        precomputed: Optional[Dict[str, Dict[str, Any]]] = None,
     ) -> str:
         """
         Collect every requested layer, render the dashboard, write it to disk
@@ -98,6 +101,10 @@ class VisualizationService:
                           for the expected schema)
             multi_seed:   list of validation JSON paths, a space-separated
                           string of them, or 0 to skip the stability panel
+            triage_k:     optional Top-K shortlist size for the Triage Bridge
+            precomputed:  optional per-layer dict of precomputed stage results
+                          (keys: analysis, prediction, diagnosis, simulation,
+                          validation) to avoid redundant recomputation
         """
         layer_data_list = self.collect(
             layers=layers,
@@ -105,8 +112,10 @@ class VisualizationService:
             antipatterns_file=antipatterns_file,
             multi_seed=multi_seed,
             cascade_file=cascade_file,
+            triage_k=triage_k,
+            precomputed=precomputed,
         )
-        html = self.build_html(
+        html_doc = self.build_html(
             layer_data_list,
             include_network=include_network,
             include_matrix=include_matrix,
@@ -116,7 +125,7 @@ class VisualizationService:
 
         output_path = Path(output_file)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(html, encoding="utf-8")
+        output_path.write_text(html_doc, encoding="utf-8")
         return str(output_path)
 
     def collect(
@@ -126,6 +135,8 @@ class VisualizationService:
         antipatterns_file: Optional[str] = None,
         multi_seed: Any = 0,
         cascade_file: Optional[str] = None,
+        triage_k: Optional[int] = None,
+        precomputed: Optional[Dict[str, Dict[str, Any]]] = None,
     ) -> List[LayerData]:
         """
         Gather one LayerData per requested layer from the analysis, simulation
@@ -136,6 +147,7 @@ class VisualizationService:
         """
         layers = layers or DEFAULT_LAYERS
         seed_paths = _normalise_seed_paths(multi_seed)
+        pre_map = precomputed or {}
 
         layer_data_list: List[LayerData] = []
         for layer in layers:
@@ -145,8 +157,13 @@ class VisualizationService:
                 self.logger.warning(f"Unknown layer: {layer}, skipping")
                 continue
             try:
+                collect_kwargs: Dict[str, Any] = {}
+                if triage_k is not None:
+                    collect_kwargs["triage_k"] = triage_k
+                if layer in pre_map:
+                    collect_kwargs["precomputed"] = pre_map[layer]
                 data = self.collector.collect_layer_data(
-                    layer, include_validation, antipatterns_file
+                    layer, include_validation, antipatterns_file, **collect_kwargs
                 )
                 if seed_paths:
                     self._load_multiseed_data(data, seed_paths)
@@ -207,16 +224,20 @@ class VisualizationService:
         # 3. Validation Tab
         dash.add_tab("Validation", "validation")
         if include_validation:
-            # Add Validation KPIs
+            targets = self._validation_targets()
+            # Add Validation KPIs aligned with ValidationTargets
             dash.add_kpis({
                 "Spearman \u03c1": f"{primary_data.spearman:.3f}",
                 "F1 (top-k)": f"{primary_data.f1_score:.3f}",
                 "Precision": f"{primary_data.precision:.3f}",
-                "Recall": f"{primary_data.recall:.3f}"
+                "Recall": f"{primary_data.recall:.3f}",
             }, {
-                "Spearman \u03c1": "success" if primary_data.spearman > 0.8 else "warning",
-                "F1 (top-k)": "success" if primary_data.f1_score > 0.8 else "warning",
+                "Spearman \u03c1": "success" if primary_data.spearman >= targets.spearman else "warning",
+                "F1 (top-k)": "success" if primary_data.f1_score >= targets.f1_score else "warning",
+                "Precision": "success" if primary_data.precision >= targets.precision else "warning",
             })
+            if primary_data.has_gnn:
+                self._add_gnn_validation_section(dash, primary_data, targets)
             self._add_validation_plots(dash, primary_data, include_per_dim_scatter)
             if primary_data.has_validation:
                 self._add_validation_report(dash, primary_data)
@@ -266,6 +287,31 @@ class VisualizationService:
     # Section builders
     # ─────────────────────────────────────────────────────────────────────────
 
+    def _validation_targets(self) -> ValidationTargets:
+        targets = getattr(self.validation_service, "targets", None)
+        return targets if isinstance(targets, ValidationTargets) else ValidationTargets()
+
+    def _add_gnn_validation_section(
+        self, gen: DashboardGenerator, data: LayerData, targets: ValidationTargets
+    ) -> None:
+        """Pathway B (GNN) forecasting metrics aligned with ValidationTargets."""
+        gen.start_section("Pathway B — GNN Forecasting Metrics", "gnn-validation")
+        gen.add_kpis(
+            {
+                "GNN Spearman \u03c1": f"{data.gnn_spearman:.3f}",
+                "GNN F1": f"{data.gnn_f1:.3f}",
+                "GNN NDCG@10": f"{data.gnn_ndcg:.3f}",
+                "GNN Top-5 Overlap": f"{data.gnn_top5_overlap:.3f}",
+            },
+            {
+                "GNN Spearman \u03c1": "success" if data.gnn_spearman >= targets.gnn_spearman else "warning",
+                "GNN F1": "success" if data.gnn_f1 >= targets.gnn_macro_f1 else "warning",
+                "GNN NDCG@10": "success" if data.gnn_ndcg >= targets.gnn_ndcg_10 else "warning",
+                "GNN Top-5 Overlap": "success" if data.gnn_top5_overlap >= targets.top_5_overlap else "warning",
+            },
+        )
+        gen.end_section()
+
     def _add_executive_overview(
         self, gen: DashboardGenerator, all_layers: List[LayerData]
     ) -> None:
@@ -277,7 +323,8 @@ class VisualizationService:
         total_critical = sum(d.critical_count for d in all_layers)
         total_spofs    = sum(d.spof_count for d in all_layers)
         total_problems = sum(d.problems_count for d in all_layers)
-        primary        = all_layers[0]
+        primary        = _primary_layer(all_layers)
+        targets        = self._validation_targets()
 
         kpis = {
             "Total Components":  total_nodes,
@@ -291,7 +338,7 @@ class VisualizationService:
             "Critical Assets":  "danger"  if total_critical > 0 else "success",
             "SPOFs Detected":   "warning" if total_spofs    > 0 else "success",
             "Anti-Patterns":    "warning" if total_problems > 0 else "success",
-            "Validation \u03c1": "success" if primary.spearman > 0.7 else "warning",
+            "Validation \u03c1": "success" if primary.spearman >= targets.spearman else "warning",
         }
         gen.add_kpis(kpis, styles)
 
@@ -359,11 +406,11 @@ class VisualizationService:
             rm_bar = f'<div class="rm-bar">{segments}</div>'
             spof_html = '<span class="badge badge-spof">SPOF</span>' if c.spof else ""
             rows.append([
-                c.id,
-                c.name,
-                c.type,
+                html.escape(str(c.id), quote=True),
+                html.escape(str(c.name), quote=True),
+                html.escape(str(c.type), quote=True),
                 f"{c.overall:.3f}",
-                f'<span class="badge badge-{c.level.lower()}">{c.level}</span>',
+                f'<span class="badge badge-{html.escape(c.level.lower(), quote=True)}">{html.escape(c.level, quote=True)}</span>',
                 f"{c.impact:.3f}",
                 f"{c.reliability:.2f}",
                 f"{c.maintainability:.2f}",
@@ -420,18 +467,11 @@ class VisualizationService:
         if main_plot:
             gen.add_charts([main_plot])
 
-        # 2. Per-dimension ρ bars + optional multi-seed line
+        # 2. Per-dimension ρ bars (multi-seed line renders once in _add_multiseed_stability)
         if include_per_dim:
             gen.add_subsection("Per-dimension Spearman \u03c1 breakdown")
             dim_rho_html = self.charts.dim_rho_bars(data.dim_rho)
-            seed_chart = None
-            if data.multiseed_rho and data.multiseed_seeds:
-                seed_chart = self.charts.multiseed_line_chart(
-                    data.multiseed_seeds,
-                    data.multiseed_rho,
-                    data.multiseed_f1 or None,
-                )
-            gen.add_dim_rho_panel(dim_rho_html, seed_chart)
+            gen.add_dim_rho_panel(dim_rho_html, None)
 
         # 3. Per-dimension scatter plots (compact 2-column grid)
         dim_configs = [

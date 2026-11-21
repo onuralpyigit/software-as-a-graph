@@ -81,7 +81,7 @@ Six KPI cards aggregated across every collected layer:
 | Critical Assets | Count of CRITICAL components | Red if > 0, else green |
 | SPOFs Detected | Count of articulation points | Amber if > 0, else green |
 | Anti-Patterns | Count of detected instances | Amber if > 0, else green |
-| Validation ρ | Spearman ρ for the primary layer | Green if > 0.7, else amber |
+| Validation ρ | Spearman ρ for the primary layer | Green if ≥ `ValidationTargets.spearman` (default 0.70), else amber |
 
 Below the cards: a **criticality doughnut** (CRITICAL/HIGH/MEDIUM/LOW/MINIMAL) and an **RM dimension breakdown stacked bar** ("RM dimension comparison — top 6") for the top 6 components, with Fault Tolerance / Availability / Maintainability segments sized by each dimension's effective contribution to $Q(v)$ — Reliability itself is not a segment; it is the sum of the Fault Tolerance and Availability segments.
 
@@ -89,7 +89,9 @@ When more than one layer was collected, a **layer comparison** grouped bar chart
 
 ### 3.2 Component Table
 
-A sortable, filterable table, one row per component, capped at the **first 100 components** by descending $Q(v)$.
+When triage results are available (default Top-10, configurable via `--triage-k`), the **Triage Bridge** panel leads the tab: ranked cards pairing Pathway B's shortlist (GNN blast-radius score, or RM fallback in cold start) with Pathway A's root-cause pattern, elevated dimensions, stakeholder role badges (`DevOps / SRE`, `Architect`, `Developer`), and priority remediation action.
+
+Below the Triage Bridge sits a sortable, filterable table, one row per component, capped at the **first 100 components** by descending $Q(v)$.
 
 | Column | Content |
 |--------|---------|
@@ -109,15 +111,15 @@ Below the table, the "RM quality dimension breakdown" chart shows Fault Toleranc
 
 MPCI and FOC are **not** table columns — they appear in the network graph tooltip.
 
-**Architectural Explanations** follow the table when the diagnosis stage produced them (`diagnose_graph.py`, which emits the explanation alongside the RM profile): one card per component with an automated risk narrative and triage guidance.
+**Architectural Explanations** follow the table when the prediction/diagnosis stage produced a `SystemReport`: a system risk summary callout (including deployment-block status), one card per explained component with root-cause pattern, risk narrative, and priority action, and a prioritized remediation plan.
 
 ### 3.3 Validation
 
-Renders unless `--no-validation` is given. KPI cards for Spearman ρ, F1 (top-k), precision and recall lead the tab.
+Renders unless `--no-validation` is given. KPI cards for Spearman ρ, F1 (top-k), precision and recall lead the tab, with pass/warning colours read from `ValidationTargets`. When a trained GNN checkpoint is supplied (`--gnn-model`), a **Pathway B — GNN Forecasting Metrics** panel displays GNN Spearman ρ, GNN F1, GNN NDCG@10, and GNN Top-5 Overlap against their `ValidationTargets` thresholds.
 
-**Composite scatter — $Q^*(v)$ vs $I^*(v)$.** The central visual proof of the methodology's claim. Each point is a component: horizontal axis predicted $Q(v)$, vertical axis simulated $I(v)$. Points near the dashed diagonal indicate good prediction; upper-left points are false negatives (impactful components the model underrated), lower-right are false positives. Points are coloured by criticality level, and the Spearman ρ appears in the chart title.
+**Composite scatter — $Q^*(v)$ vs $I^*(v)$.** The central visual proof of the methodology's claim. Each point is a component: horizontal axis predicted $Q(v)$, vertical axis simulated $I(v)$. Points near the dashed diagonal indicate good prediction; upper-left points are false negatives (impactful components the model underrated), lower-right are false positives. Points are coloured by criticality level, and the Spearman ρ (with its bootstrap 95% CI when available) appears in the chart title.
 
-**Per-dimension ρ bars.** A horizontal progress-bar panel for R, M and A (Reliability, Maintainability, and the Availability sub-characteristic, reported as a diagnostic) using the RM semantic colours. Negative ρ is valid but cannot be a CSS width, so it renders as 0 % width with a red value label. When multi-seed data is loaded, the stability line chart sits beside it.
+**Per-dimension ρ bars.** A horizontal progress-bar panel for R, M and A (Reliability, Maintainability, and the Availability sub-characteristic, reported as a diagnostic) using the RM semantic colours. Negative ρ is valid but cannot be a CSS width, so it renders as 0 % width with a red value label.
 
 **Per-dimension scatter plots** (when `include_per_dim_scatter` and the dimensional ground truths are present) — three plots against the Step 5 per-dimension ground truths:
 
@@ -129,16 +131,20 @@ Renders unless `--no-validation` is given. KPI cards for Spearman ρ, F1 (top-k)
 
 These are the most diagnostic view for understanding which RM characteristic drives the overall correlation and which carries systematic bias.
 
-**Validation gates.** A metrics box scoring four gates:
+**Validation gates.** A metrics box dynamically built from `RELEASE_GATES + REPORTED_GATES` and `ValidationTargets` (`saag/validation/models.py`) so displayed thresholds can never drift from the evaluator:
 
-| Gate | Metric | Threshold |
-|------|--------|-----------|
-| G1 | Spearman ρ(Q, I) | > 0.7 |
-| G2 | F1-score | > 0.6 |
-| G3 | Top-K precision | > 0.5 |
-| G4 | Top-5 overlap | > 0.6 |
+| Gate | Scope | Default Threshold |
+|------|-------|-------------------|
+| Spearman ρ | release | ≥ 0.70 |
+| Top-quartile overlap | release | ≥ 0.75 |
+| Top-5 overlap | release | ≥ 0.60 |
+| Predictive gain | reported | > 0.03 |
+| Weighted κ (CTA) | reported | ≥ 0.70 |
+| Bottleneck precision | reported | ≥ 0.70 |
 
-**Multi-seed stability** renders when `--multi-seed` supplied validation JSONs: KPI cards for mean/min/max ρ and seed count, plus a line chart of ρ (solid purple) and F1 (dashed green) across seeds. A tight range indicates the prediction is robust to graph topology variation.
+Unmeasured gates (`None`) render as `NOT MEASURED` rather than `FAILED`.
+
+**Multi-seed stability** renders once below the gates when `--multi-seed` supplied validation JSONs: KPI cards for mean/min/max ρ and seed count, plus a line chart of ρ (solid purple) and F1 (dashed green) across seeds. A tight range indicates the prediction is robust to graph topology variation.
 
 ### 3.4 Cascade Risk
 
@@ -158,7 +164,7 @@ Renders when `--cascade-file` supplied QoS ablation results; otherwise shows a p
 }
 ```
 
-Missing keys degrade gracefully: `cascade_risk_topo` defaults to 88 % of `cascade_risk`, the scalars to 0.0 / 1.0 / 0.0.
+Missing keys degrade gracefully: when `cascade_risk_topo` is absent, the chart omits the topology-only baseline series rather than fabricating a synthetic baseline, and missing scalars default to 0.0 / 1.0 / 0.0.
 
 ### 3.5 Topology
 
@@ -228,23 +234,16 @@ Frequency-weighted with logarithmic scaling: $\text{thickness} = 1.5 + 2.5 \time
 - **Library edges (`USES`)** — weighted by the aggregate messaging frequency of the dependent Application (sum over all its publish/subscribe topics).
 - **Everything else** — baseline weight 1.0.
 
-### Node tooltip (click)
+### Node inspector (click)
 
-The dashboard opens a plain browser dialog with the fields the collector emitted:
+Clicking any node highlights its immediate neighborhood (dimming unrelated nodes/edges) and opens a floating right-side inspector panel (`.cy-inspector`) with:
 
-```
-[Component ID]
-Name:           Sensor Fusion
-Type:           Application
-Score:          0.840 (CRITICAL)
-MPCI:           0.080
-FOC:            0.000
-Impact:         0.790          (only when simulation has been run)
-Cascade:        3 layers       (only when simulation has been run)
-Anti-Patterns:  SPOF, GOD_COMPONENT   (only when any were detected)
-```
+- Component name, ID, type, and criticality badge
+- Metric grid: $Q(v)$, GNN blast radius (when `--gnn-model` is active), $R(v)$ with FT/A sub-scores, $M(v)$, simulation impact & cascade depth (when simulated), MPCI, and FOC
+- SPOF warning banner (when an articulation point), detected anti-pattern tags, and Triage Shortlist rank/roles/root-cause/priority action
+- Inbound dependency and outbound dependent edge counts
 
-The SMART Graph Explorer provides a richer right-side detail panel, 2D/3D layout switching, live search and overlay selection — see [smart/README.md](../smart/README.md).
+The toolbar above the graph provides a layout switcher (`CoSE-Bilkent`, `Concentric`, `Breadthfirst`, `Circle`, `Grid`), live node search, and zoom/fit/reset controls. The SMART Graph Explorer additionally provides 2D/3D layout switching and live Neo4j overlays — see [smart/README.md](../smart/README.md).
 
 ---
 
@@ -335,6 +334,10 @@ PYTHONPATH=. python cli/visualize_graph.py --layers system --no-network --output
 # ─── Full pipeline in one command ────────────────────────────────────────────
 PYTHONPATH=. python cli/run.py --all --layer app --open
 
+# ─── With a trained GNN checkpoint and custom Triage Top-K ───────────────────
+PYTHONPATH=. python cli/visualize_graph.py --layer system \
+    --gnn-model output/gnn_checkpoints --triage-k 5 --output output/dashboard_gnn.html
+
 # ─── Demo mode (no Neo4j) — renders the production dashboard from a fixture ──
 PYTHONPATH=. python cli/visualize_graph.py --demo --open
 
@@ -393,6 +396,8 @@ output_path = viz.generate_dashboard(
     include_per_dim_scatter=True,   # R/M/A/V scatter plots
     antipatterns_file=None,         # JSON path for the anti-pattern catalog
     cascade_file=None,              # JSON path for the Cascade Risk tab
+    triage_k=10,                    # Top-K shortlist size for the Triage Bridge
+    precomputed=None,               # Optional per-layer dict of precomputed stage results
 )
 
 print(f"Dashboard: {output_path}")

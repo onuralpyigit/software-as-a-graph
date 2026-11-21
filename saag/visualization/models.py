@@ -195,7 +195,7 @@ class LayerData:
 
     @property
     def has_validation(self) -> bool:
-        return self.spearman > 0
+        return bool(self.gates) or self.spearman != 0.0
 
     @property
     def has_cascade(self) -> bool:

@@ -377,10 +377,36 @@ class Pipeline:
 
         # Execution step 7 (Stage 8: Visualize)
         if self._do_visualize:
-            out_file = self._visualize_kwargs.pop("output", "report.html")
-            vis_layers = self._visualize_kwargs.pop("layers", [self._layer]) or [self._layer]
+            vis_kwargs = dict(self._visualize_kwargs)
+            out_file = vis_kwargs.pop("output", "report.html")
+            vis_layers = vis_kwargs.pop("layers", [self._layer]) or [self._layer]
+            if "precomputed" not in vis_kwargs:
+                precomputed: dict = {}
+                layer_cache: dict = {}
+                if result.analysis is not None:
+                    layer_cache["analysis"] = getattr(result.analysis, "raw", result.analysis)
+                if result.prediction is not None:
+                    layer_cache["prediction"] = getattr(
+                        result.prediction, "raw", getattr(result.prediction, "_inner", result.prediction)
+                    )
+                if result.diagnosis is not None:
+                    layer_cache["diagnosis"] = getattr(
+                        result.diagnosis, "raw", getattr(result.diagnosis, "_inner", result.diagnosis)
+                    )
+                if result.simulation is not None:
+                    layer_cache["simulation"] = getattr(result.simulation, "raw", result.simulation)
+                if layer_cache:
+                    precomputed[self._layer] = layer_cache
+                if result.validation is not None:
+                    val_raw = getattr(result.validation, "raw", result.validation)
+                    val_layers = getattr(val_raw, "layers", None)
+                    if isinstance(val_layers, dict):
+                        for v_layer, v_res in val_layers.items():
+                            precomputed.setdefault(v_layer, {})["validation"] = v_res
+                if precomputed:
+                    vis_kwargs["precomputed"] = precomputed
             logger.info(f"Generating visualization report → {out_file}")
-            self.client.visualize(output=out_file, layers=vis_layers, **self._visualize_kwargs)
+            self.client.visualize(output=out_file, layers=vis_layers, **vis_kwargs)
 
         logger.info("Pipeline execution complete.")
         return result
