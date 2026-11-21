@@ -229,3 +229,63 @@ def test_apply_policy_hardens_before_splitting(topology):
 
     assert topics["T1_AppA"]["qos_reliability"] == "RELIABLE"
     assert topics["T1_AppA"]["qos"]["durability"] == "TRANSIENT"
+
+
+def test_reallocation_connects_source_host_to_clone_and_siblings():
+    """Processes split off the same host must retain network reachability to each other."""
+    graph = {
+        "nodes": [{"id": "N1"}, {"id": "N2"}],
+        "applications": [{"id": "AppA"}, {"id": "AppB"}, {"id": "AppC"}],
+        "relationships": {
+            "runs_on": [
+                {"from": "AppA", "to": "N1"},
+                {"from": "AppB", "to": "N1"},
+                {"from": "AppC", "to": "N1"},
+            ],
+            "connects_to": [{"from": "N1", "to": "N2", "weight": 1.0}],
+        },
+    }
+    policy = PrescriptionPolicy(node_reallocations=[
+        NodeReallocation("AppB", "N1", "N1_AppB"),
+        NodeReallocation("AppC", "N1", "N1_AppC"),
+    ])
+
+    connects = {
+        (c["from"], c["to"]) for c in apply_policy(graph, policy)["relationships"]["connects_to"]
+    }
+
+    # Source <-> clone and clone <-> clone links are all present bidirectionally.
+    assert ("N1", "N1_AppB") in connects
+    assert ("N1_AppB", "N1") in connects
+    assert ("N1", "N1_AppC") in connects
+    assert ("N1_AppC", "N1") in connects
+    assert ("N1_AppB", "N1_AppC") in connects
+    assert ("N1_AppC", "N1_AppB") in connects
+
+
+def test_reallocation_adds_cross_clone_links_when_both_endpoints_reallocated():
+    """If N1 -> N2 exists and both N1 and N2 are cloned, N1_clone -> N2_clone must exist."""
+    graph = {
+        "nodes": [{"id": "N1"}, {"id": "N2"}],
+        "applications": [{"id": "AppA"}, {"id": "AppB"}, {"id": "AppC"}, {"id": "AppD"}],
+        "relationships": {
+            "runs_on": [
+                {"from": "AppA", "to": "N1"},
+                {"from": "AppB", "to": "N1"},
+                {"from": "AppC", "to": "N2"},
+                {"from": "AppD", "to": "N2"},
+            ],
+            "connects_to": [{"from": "N1", "to": "N2", "weight": 0.9, "capacity_mbps": 500}],
+        },
+    }
+    policy = PrescriptionPolicy(node_reallocations=[
+        NodeReallocation("AppB", "N1", "N1_AppB"),
+        NodeReallocation("AppD", "N2", "N2_AppD"),
+    ])
+
+    connects = apply_policy(graph, policy)["relationships"]["connects_to"]
+    pairs = {(c["from"], c["to"]): c for c in connects}
+
+    assert ("N1_AppB", "N2_AppD") in pairs
+    assert pairs[("N1_AppB", "N2_AppD")]["capacity_mbps"] == 500
+    assert pairs[("N1_AppB", "N2_AppD")]["weight"] == 0.9

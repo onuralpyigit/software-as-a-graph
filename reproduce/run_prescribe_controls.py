@@ -117,13 +117,14 @@ def build_arms(
 
 def score_point(base: Dict[str, float], mutated: Dict[str, float]) -> Dict[str, float]:
     """The three outcomes for one arm at one (threshold, seed); positive means better."""
-    base_mean = statistics.fmean(base.values())
+    common = [c for c in base if c in mutated]
+    base_common_mean = statistics.fmean(base[c] for c in common) if common else 0.0
     base_total = sum(base.values())
-    fixed = statistics.fmean(base[c] - mutated.get(c, 0.0) for c in base)
+    fixed = statistics.fmean(base[c] - mutated[c] for c in common) if common else 0.0
     return {
         # Absolute form of fixed_rel, in the filter's own units (additivity check only).
         "fixed_abs": fixed,
-        "fixed_rel": fixed / base_mean if base_mean else 0.0,
+        "fixed_rel": fixed / base_common_mean if base_common_mean else 0.0,
         "closed_rel": (base_total - sum(mutated.values())) / base_total if base_total else 0.0,
         "max_delta": max(base.values()) - max(mutated.values()),
     }

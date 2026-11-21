@@ -309,3 +309,76 @@ def test_parallel_and_serial_paths_agree_on_evaluator_layer(monkeypatch):
                 f"comparison — the mutated impact was read from a different "
                 f"layer than the baseline"
             )
+
+
+def test_judge_min_delta_rejects_zero_variance_negligible_gain():
+    """A zero-variance edit with delta 1e-7 must be rejected when min_delta=1e-4."""
+    verdict = judge("node_reallocation", "AppA", {
+        "0.1": ThresholdStat(mean_delta=1e-7, sigma_seed=0.0),
+        "0.2": ThresholdStat(mean_delta=1e-7, sigma_seed=0.0),
+    }, kappa=1.0, n_thresholds=2, min_delta=1e-4)
+
+    assert not verdict.accepted
+    assert "min_delta" in verdict.reason
+    assert verdict.worst_margin == pytest.approx(1e-7 - 1e-4)
+
+
+def test_closed_reduction_penalizes_added_high_impact_hosts():
+    """mean_reduction ignores newly added nodes; closed_reduction penalizes them."""
+    from saag.prescription.verifier import closed_reduction
+
+    baseline = {"N1": 0.50, "A1": 0.20}
+    # Moving a process drops N1 from 0.50 to 0.35, but adds N1_clone with impact 0.30.
+    mutated = {"N1": 0.35, "A1": 0.20, "N1_clone": 0.30}
+
+    assert mean_reduction(baseline, mutated) == pytest.approx(0.075)
+    # Total impact rose from 0.70 to 0.85 -> negative closed reduction (-0.15 / 2 = -0.075).
+    assert closed_reduction(baseline, mutated) == pytest.approx(-0.075)
+
+
+def test_worker_forwards_network_gating_and_replica_aware(monkeypatch, one_edit_policy):
+    from saag.prescription import verifier as verifier_mod
+
+    seen = {}
+
+    class RecordingEvaluator:
+        def __init__(self, layer="system", gnn_checkpoint=None,
+                     network_gating=False, replica_aware=False):
+            seen["layer"] = layer
+            seen["gnn_checkpoint"] = gnn_checkpoint
+            seen["network_gating"] = network_gating
+            seen["replica_aware"] = replica_aware
+
+        def impact(self, repo, *, threshold, seed):
+            return {"A1": 1.0}
+
+    monkeypatch.setattr(verifier_mod, "GraphEvaluator", RecordingEvaluator)
+
+    edit = one_edit_policy.edits()[0]
+    args_tuple = (
+        edit, {}, 1.0, [0.2], [42], {(0.2, 42): {"A1": 1.0}},
+        "system", None, True, True, 1e-4, "closed",
+    )
+    verifier_mod._verify_single_edit_worker(args_tuple)
+
+    assert seen == {
+        "layer": "system",
+        "gnn_checkpoint": None,
+        "network_gating": True,
+        "replica_aware": True,
+    }
+
+
+def test_control_score_point_excludes_renamed_split_topics_from_fixed_rel():
+    """score_point must not treat a renamed split topic as 0.0 post-mutation impact."""
+    from reproduce.run_prescribe_controls import score_point
+
+    # A1 and A2 are completely unchanged; T1 was renamed to T1_P1 / T1_P2 with equal total impact.
+    base = {"A1": 0.4, "A2": 0.4, "T1": 0.8}
+    mutated = {"A1": 0.4, "A2": 0.4, "T1_P1": 0.4, "T1_P2": 0.4}
+
+    scores = score_point(base, mutated)
+
+    assert scores["fixed_abs"] == pytest.approx(0.0)
+    assert scores["fixed_rel"] == pytest.approx(0.0)
+    assert scores["closed_rel"] == pytest.approx(0.0)

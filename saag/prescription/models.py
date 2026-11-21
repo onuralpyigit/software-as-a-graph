@@ -113,9 +113,9 @@ class ThresholdStat:
     mean_delta: float
     sigma_seed: float
 
-    def margin(self, kappa: float) -> float:
-        """How far the mean reduction clears the noise bar. Positive accepts."""
-        return self.mean_delta - kappa * self.sigma_seed
+    def margin(self, kappa: float, min_delta: float = 0.0) -> float:
+        """How far the mean reduction clears max(min_delta, kappa * sigma_seed). Positive accepts."""
+        return self.mean_delta - max(min_delta, kappa * self.sigma_seed)
 
     def to_dict(self) -> Dict[str, float]:
         # 12 dp, not 6: acceptance is decided on ``mean_delta - kappa*sigma_seed``,
@@ -151,6 +151,9 @@ class EditVerdict:
     #: is accepted only if it clears the bar at *every* threshold, so acceptance
     #: cannot be an artifact of the canonical 0.2 default.
     per_threshold: Dict[str, ThresholdStat] = field(default_factory=dict)
+    #: Minimum practical effect-size floor; prevents zero-variance (sigma=0)
+    #: edits with negligible floating-point deltas from passing unconditionally.
+    min_delta: float = 0.0
 
     @property
     def worst_delta(self) -> float:
@@ -160,9 +163,9 @@ class EditVerdict:
     @property
     def worst_margin(self) -> float:
         """The quantity acceptance is decided on: min over thresholds of
-        ``mean_delta - kappa * sigma_seed``. Accepted iff strictly positive."""
+        ``mean_delta - max(min_delta, kappa * sigma_seed)``. Accepted iff strictly positive."""
         return min(
-            (s.margin(self.kappa) for s in self.per_threshold.values()),
+            (s.margin(self.kappa, self.min_delta) for s in self.per_threshold.values()),
             default=0.0,
         )
 
@@ -219,7 +222,7 @@ class PrescriptionPolicy:
 
 @dataclass
 class PrescribeResult:
-    """Result of the prescriptive Stage 6 optimization and closed-loop validation."""
+    """Result of the prescriptive Stage 7 optimization and closed-loop validation."""
     original_sri: float
     mutated_sri: float
     sri_improvement: float

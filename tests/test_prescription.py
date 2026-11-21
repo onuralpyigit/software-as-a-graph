@@ -427,3 +427,171 @@ def test_node_reallocation_moves_only_the_edge_off_its_source_host():
         ("AppA", "N1_AppA"), ("AppA", "N2_AppA"), ("AppB", "N1"),
     ]
     assert {n["id"] for n in both["nodes"]} == {"N1", "N2", "N1_AppA", "N2_AppA"}
+
+
+def test_smells_match_by_pattern_id_even_if_display_name_changes():
+    """Renaming a PatternSpec's display name must not unlink an operator when pattern_id is set."""
+    prediction = SimpleNamespace(problems=[
+        SimpleNamespace(pattern_id="SPOF", name="Renamed Availability Risk", entity_id="N1"),
+        SimpleNamespace(pattern_id="GOD_COMPONENT", name="Renamed Monolith", entity_id="AppA"),
+        SimpleNamespace(pattern_id="FAILURE_HUB", name="Renamed Cascade Origin", entity_id="AppB"),
+        SimpleNamespace(pattern_id="BROKER_OVERLOAD", name="Renamed Hub Saturation", entity_id="B1"),
+    ])
+
+    spof, god = _smells(None, prediction)
+
+    assert spof == {"N1"}
+    # BROKER_OVERLOAD has "Hub" in its renamed display name, but pattern_id takes precedence
+    # so it must NOT leak into the god-component bucket.
+    assert god == {"AppA", "AppB"}
+
+
+def test_qos_mismatch_edge_triggers_qos_upgrade_only_on_connecting_topic():
+    """QOS_MISMATCH on edge 'AppA->AppB' upgrades the topic linking AppA to AppB, not unrelated topics."""
+    graph = _graph(
+        components=[
+            ("T_link", "Topic", {"qos_reliability": "BEST_EFFORT", "qos_durability": "VOLATILE"}),
+            ("T_other", "Topic", {"qos_reliability": "BEST_EFFORT", "qos_durability": "VOLATILE"}),
+            ("AppA", "Application", None),
+            ("AppB", "Application", None),
+            ("AppC", "Application", None),
+        ],
+        edges=[
+            ("AppA", "T_link", "PUBLISHES_TO"),
+            ("AppB", "T_link", "SUBSCRIBES_TO"),
+            ("AppA", "T_other", "PUBLISHES_TO"),
+            ("AppC", "T_other", "SUBSCRIBES_TO"),
+        ],
+    )
+    prediction = SimpleNamespace(problems=[
+        SimpleNamespace(pattern_id="QOS_MISMATCH", name="QoS Policy Mismatch", entity_id="AppA->AppB"),
+    ])
+
+    policy = compile_policy(graph, analysis_result=None, prediction_result=prediction)
+
+    assert [u.topic for u in policy.qos_upgrades] == ["T_link"]
+
+
+def test_qos_mismatch_direct_topic_id_triggers_qos_upgrade():
+    graph = _graph(
+        components=[
+            ("T1", "Topic", {"qos_reliability": "BEST_EFFORT", "qos_durability": "VOLATILE"}),
+            ("AppA", "Application", None),
+        ],
+        edges=[("AppA", "T1", "PUBLISHES_TO")],
+    )
+    prediction = SimpleNamespace(problems=[
+        SimpleNamespace(pattern_id="QOS_MISMATCH", name="QoS Policy Mismatch", entity_id="T1"),
+    ])
+
+    policy = compile_policy(graph, analysis_result=None, prediction_result=prediction)
+
+    assert [u.topic for u in policy.qos_upgrades] == ["T1"]
+
+
+def test_pipeline_prescribe_forwards_kwargs(repo_with_congested_topology, monkeypatch):
+    captured = {}
+
+    def fake_prescribe(self, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(sri_improvement=0.0, accepted=False)
+
+    monkeypatch.setattr(Client, "prescribe", fake_prescribe)
+
+    Pipeline(repo=repo_with_congested_topology).analyze().predict().prescribe(
+        kappa=2.5,
+        min_delta=1e-4,
+        accounting="closed",
+        composition="greedy",
+        max_new_hosts=3,
+    ).run()
+
+    assert captured["kappa"] == 2.5
+    assert captured["min_delta"] == 1e-4
+    assert captured["accounting"] == "closed"
+    assert captured["composition"] == "greedy"
+    assert captured["max_new_hosts"] == 3
+
+
+def test_greedy_composition_rejects_interfering_second_edit():
+    """Two edits that each pass alone, but regress when combined: greedy keeps only the stronger."""
+    from saag.prescription.models import EditVerdict, QosUpgrade, PrescriptionPolicy, ThresholdStat
+    from saag.prescription.verifier import EditVerifier
+
+    e1 = QosUpgrade("T1", "BEST_EFFORT", "VOLATILE")
+    e2 = QosUpgrade("T2", "BEST_EFFORT", "VOLATILE")
+    edits = [e1, e2]
+    verdicts = [
+        EditVerdict("qos_upgrade", "T1", kappa=1.0, accepted=True,
+                    per_threshold={"0.2": ThresholdStat(0.20, 0.0)}),
+        EditVerdict("qos_upgrade", "T2", kappa=1.0, accepted=True,
+                    per_threshold={"0.2": ThresholdStat(0.10, 0.0)}),
+    ]
+
+    class FakeEvaluator:
+        layer = "system"
+        gnn_checkpoint = None
+
+        def impact(self, repo, *, threshold, seed):
+            topics = {t["id"]: t for t in repo.export_json()["topics"]}
+            t1_up = topics["T1"].get("qos_reliability") == "RELIABLE"
+            t2_up = topics["T2"].get("qos_reliability") == "RELIABLE"
+            if t1_up and t2_up:
+                # Joint interference: worse than T1 alone (0.80 -> 0.85)
+                return {"A1": 0.85}
+            if t1_up:
+                return {"A1": 0.80}
+            if t2_up:
+                return {"A1": 0.90}
+            return {"A1": 1.00}
+
+    original_json = {
+        "applications": [{"id": "A1", "name": "A1"}],
+        "brokers": [],
+        "nodes": [],
+        "topics": [
+            {"id": "T1", "name": "T1", "qos": {"reliability": "BEST_EFFORT", "durability": "VOLATILE"}},
+            {"id": "T2", "name": "T2", "qos": {"reliability": "BEST_EFFORT", "durability": "VOLATILE"}},
+        ],
+        "relationships": {"publishes_to": [], "subscribes_to": [], "routes": [], "runs_on": [], "connects_to": []},
+    }
+    repo = MemoryRepository()
+    repo.save_graph(original_json, clear=True)
+    service = PrescribeService(repo)
+    verifier = EditVerifier(FakeEvaluator(), kappa=1.0, seeds=[42], thresholds=[0.2])
+
+    committed = service._compose_greedy(
+        verifier, original_json, edits, verdicts, max_edits=None, max_new_hosts=None,
+    )
+
+    assert committed == [e1]
+    assert verdicts[0].accepted is True
+    assert verdicts[1].accepted is False
+    assert "compositional_regression" in verdicts[1].reason
+
+
+def test_budget_caps_keep_highest_margin_edits():
+    from saag.prescription.models import EditVerdict, NodeReallocation, QosUpgrade, ThresholdStat
+
+    e1 = NodeReallocation("AppA", "N1", "N1_AppA")
+    e2 = NodeReallocation("AppB", "N1", "N1_AppB")
+    e3 = QosUpgrade("T1", "BEST_EFFORT", "VOLATILE")
+    verdicts = [
+        EditVerdict("node_reallocation", "AppA", accepted=True,
+                    per_threshold={"0.2": ThresholdStat(0.05, 0.0)}),
+        EditVerdict("node_reallocation", "AppB", accepted=True,
+                    per_threshold={"0.2": ThresholdStat(0.30, 0.0)}),
+        EditVerdict("qos_upgrade", "T1", accepted=True,
+                    per_threshold={"0.2": ThresholdStat(0.10, 0.0)}),
+    ]
+
+    selected = PrescribeService._select_batch(
+        [e1, e2, e3], verdicts, max_edits=None, max_new_hosts=1,
+    )
+
+    # e2 beats e1 on margin, so e2 gets the 1 host slot; e3 is a QoS upgrade so unaffected.
+    assert selected == [e2, e3]
+    assert verdicts[0].accepted is False
+    assert "max_new_hosts=1" in verdicts[0].reason
+    assert verdicts[1].accepted is True
+    assert verdicts[2].accepted is True

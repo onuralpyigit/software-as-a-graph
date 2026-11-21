@@ -37,7 +37,24 @@ def build_parser() -> argparse.ArgumentParser:
     # Per-edit acceptance filter
     parser.add_argument("--kappa", type=float, default=1.0,
                         help="Acceptance multiple: an edit is kept only when its mean impact reduction "
-                             "exceeds kappa * sigma_seed at every propagation threshold (default 1.0).")
+                             "exceeds max(min_delta, kappa * sigma_seed) at every propagation threshold (default 1.0).")
+    parser.add_argument("--min-delta", type=float, default=0.0,
+                        help="Minimum practical effect-size floor (default 0.0). Prevents zero-variance "
+                             "(sigma_seed == 0) edits with negligible deltas from passing unconditionally.")
+    parser.add_argument("--accounting", choices=("common", "closed"), default="common",
+                        help="Impact accounting mode: 'common' (shared components only) or 'closed' "
+                             "(total system impact including newly added hosts/sub-topics).")
+    parser.add_argument("--composition", choices=("batch", "greedy"), default="batch",
+                        help="Policy composition mode: 'batch' (apply all individually-accepted edits) or "
+                             "'greedy' (sequentially verify marginal reduction in worst_margin order).")
+    parser.add_argument("--max-edits", type=int, default=None,
+                        help="Optional cap on the total number of committed edits.")
+    parser.add_argument("--max-new-hosts", type=int, default=None,
+                        help="Optional cap on the number of committed node reallocations (new hosts).")
+    parser.add_argument("--network-gating", action="store_true",
+                        help="Enable network-reachability gating in counterfactual simulation.")
+    parser.add_argument("--replica-aware", action="store_true",
+                        help="Enable replica-aware failover in counterfactual simulation.")
     parser.add_argument("--seeds", nargs="+", type=int, default=None,
                         help="Simulation seeds for the noise estimate (default: PrescribeService default).")
     parser.add_argument("--thresholds", nargs="+", type=float, default=None,
@@ -152,7 +169,7 @@ def main():
     setup_logging(args)
     console = ConsoleDisplay()
 
-    console.print_header("Prescriptive Architecture Optimization (Stage 6)")
+    console.print_header("Prescriptive Architecture Optimization (Stage 7)")
 
     try:
         client = build_client(args, console)
@@ -173,7 +190,16 @@ def main():
         )
 
         console.print_step("Generating refactoring recommendations and validating in closed-loop...")
-        filter_kwargs = {"kappa": args.kappa}
+        filter_kwargs = {
+            "kappa": args.kappa,
+            "min_delta": args.min_delta,
+            "accounting": args.accounting,
+            "composition": args.composition,
+            "max_edits": args.max_edits,
+            "max_new_hosts": args.max_new_hosts,
+            "network_gating": args.network_gating,
+            "replica_aware": args.replica_aware,
+        }
         if args.seeds is not None:
             filter_kwargs["seeds"] = args.seeds
         if args.thresholds is not None:

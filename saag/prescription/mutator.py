@@ -85,27 +85,65 @@ def _reallocate_nodes(mutated: Dict[str, Any], policy: PrescriptionPolicy) -> No
 
     # Mirror the original host's CONNECTS_TO links so reachability is preserved.
     # The clone gets links of the same capacity, but on new ports: interface
-    # names belong to the original cable.
-    connects_to: List[Dict[str, Any]] = []
-    for conn in relationships.get("connects_to", []):
-        connects_to.append(conn)
+    # names belong to the original cable. Expand across both endpoints so
+    # cloned-to-cloned links (N1_B -> N2_D) are preserved, and connect each
+    # clone back to its source host (and sibling clones) so processes that were
+    # previously co-located do not lose reachability under network gating.
+    clones_by_source: Dict[str, List[str]] = {}
+    for new_node_id, source_node_id in clone_sources.items():
+        clones_by_source.setdefault(source_node_id, []).append(new_node_id)
+
+    orig_connects = relationships.get("connects_to", [])
+    connects_to: List[Dict[str, Any]] = list(orig_connects)
+    seen_pairs = {(c.get("from"), c.get("to")) for c in orig_connects}
+    source_capacities: Dict[str, float] = {}
+
+    for conn in orig_connects:
+        src = conn.get("from")
+        tgt = conn.get("to")
+        cap = conn.get("capacity_mbps")
+        if cap is not None:
+            for endpoint in (src, tgt):
+                if endpoint in clones_by_source:
+                    source_capacities[endpoint] = max(
+                        source_capacities.get(endpoint, 0.0), cap
+                    )
+
         carried = {k: v for k, v in conn.items()
                    if k not in ("from", "to", "weight", "from_interface", "to_interface")}
-        for new_node_id, source_node_id in clone_sources.items():
-            if conn.get("from") == source_node_id:
+        src_group = [src, *clones_by_source.get(src, [])]
+        tgt_group = [tgt, *clones_by_source.get(tgt, [])]
+        for u in src_group:
+            for v in tgt_group:
+                if (u == src and v == tgt) or u == v or (u, v) in seen_pairs:
+                    continue
                 connects_to.append({
-                    "from": new_node_id,
-                    "to": conn.get("to"),
+                    "from": u,
+                    "to": v,
                     "weight": conn.get("weight", 1.0),
                     **carried,
                 })
-            if conn.get("to") == source_node_id:
+                seen_pairs.add((u, v))
+
+    for source_node_id, clones in clones_by_source.items():
+        group = [source_node_id, *clones]
+        extra = (
+            {"capacity_mbps": source_capacities[source_node_id]}
+            if source_node_id in source_capacities
+            else {}
+        )
+        for u in group:
+            for v in group:
+                if u == v or (u, v) in seen_pairs:
+                    continue
                 connects_to.append({
-                    "from": conn.get("from"),
-                    "to": new_node_id,
-                    "weight": conn.get("weight", 1.0),
-                    **carried,
+                    "from": u,
+                    "to": v,
+                    "weight": 1.0,
+                    **extra,
                 })
+                seen_pairs.add((u, v))
+
     relationships["connects_to"] = connects_to
 
 

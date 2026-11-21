@@ -2,22 +2,24 @@
 saag/prescription/service.py
 """
 import logging
-from typing import Any, Dict, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from saag.core.ports.graph_repository import IGraphRepository
 
 from .evaluator import GraphEvaluator, repo_from_json
-from .models import PrescribeResult, PrescriptionPolicy
+from .models import EditVerdict, NodeReallocation, PolicyEdit, PrescribeResult, PrescriptionPolicy
 from .mutator import apply_policy
 from .rules import compile_policy
-from .verifier import EditVerifier
+from .verifier import EditVerifier, judge
 
 logger = logging.getLogger(__name__)
+
+VALID_COMPOSITION_MODES = ("batch", "greedy")
 
 
 class PrescribeService:
     """
-    Service for generating prescriptive architectural modifications (Stage 6)
+    Service for generating prescriptive architectural modifications (Stage 7)
     and validating them in a closed-loop simulation.
     """
 
@@ -50,6 +52,13 @@ class PrescribeService:
         kappa: float = 1.0,
         seeds: Optional[Sequence[int]] = None,
         thresholds: Optional[Sequence[float]] = None,
+        min_delta: float = 0.0,
+        accounting: str = "common",
+        composition: str = "batch",
+        max_edits: Optional[int] = None,
+        max_new_hosts: Optional[int] = None,
+        network_gating: bool = False,
+        replica_aware: bool = False,
     ) -> PrescribeResult:
         """
         Generate optimization recommendations for components flagged as CRITICAL/HIGH,
@@ -60,9 +69,8 @@ class PrescribeService:
         ----------
         kappa:
             Acceptance multiple. An edit is kept only when its mean impact
-            reduction exceeds ``kappa * sigma_seed`` at every threshold — it must
-            beat the simulator's own seed noise, not merely register a positive
-            delta.
+            reduction exceeds ``max(min_delta, kappa * sigma_seed)`` at every
+            threshold.
         seeds:
             Simulation seeds used to estimate that noise. Defaults to
             ``verifier.DEFAULT_SEEDS``.
@@ -70,7 +78,36 @@ class PrescribeService:
             Propagation thresholds the edit must clear at *every* value, so an
             accepted edit is not an artifact of the 0.2 default. Defaults to
             ``verifier.DEFAULT_THRESHOLDS``.
+        min_delta:
+            Minimum practical effect-size floor (default ``0.0``). Prevents
+            zero-variance (``sigma_seed == 0``) edits with negligible deltas
+            from passing unconditionally.
+        accounting:
+            ``"common"`` (default) measures mean reduction over components
+            present before and after; ``"closed"`` penalizes newly created
+            hosts/sub-topics by summing total system impact.
+        composition:
+            ``"batch"`` (default) applies all individually-accepted edits
+            together; ``"greedy"`` ranks individually-accepted edits by
+            ``worst_margin`` and commits each one only if its marginal impact
+            reduction still clears the acceptance bar on the progressively
+            mutated graph.
+        max_edits:
+            Optional hard cap on the total number of committed edits.
+        max_new_hosts:
+            Optional hard cap on the number of committed ``NodeReallocation``
+            edits (each of which provisions a new host node).
+        network_gating:
+            Forwarded to ``GraphEvaluator`` / ``SimulationService``.
+        replica_aware:
+            Forwarded to ``GraphEvaluator`` / ``SimulationService``.
         """
+        if composition not in VALID_COMPOSITION_MODES:
+            raise ValueError(
+                f"Unsupported composition mode: {composition!r} "
+                f"(expected one of {VALID_COMPOSITION_MODES})"
+            )
+
         logger.info(f"Starting Prescriptive Optimization for layer '{layer}'...")
 
         # 1. Compile the transformation policy Delta(G) — this is the *candidate* set.
@@ -104,20 +141,42 @@ class PrescribeService:
 
         # 2. Baseline system health and resilience.
         logger.info("Evaluating baseline system health and resilience...")
-        evaluator = GraphEvaluator(layer, gnn_checkpoint)
+        evaluator = GraphEvaluator(
+            layer,
+            gnn_checkpoint,
+            network_gating=network_gating,
+            replica_aware=replica_aware,
+        )
         baseline = evaluator.evaluate(self.repository)
         original_json = self.repository.export_json()
 
         # 3. Per-edit acceptance filter — each candidate is simulated alone.
-        verifier = EditVerifier(evaluator, kappa=kappa, seeds=seeds, thresholds=thresholds)
+        verifier = EditVerifier(
+            evaluator,
+            kappa=kappa,
+            seeds=seeds,
+            thresholds=thresholds,
+            min_delta=min_delta,
+            accounting=accounting,
+        )
         verdicts = verifier.verify(self.repository, original_json, candidate_policy)
-        policy = PrescriptionPolicy.from_edits([
-            edit for edit, verdict in zip(candidate_policy.edits(), verdicts)
-            if verdict.accepted
-        ])
+        candidate_edits = candidate_policy.edits()
+
+        if composition == "greedy":
+            committed_edits = self._compose_greedy(
+                verifier, original_json, candidate_edits, verdicts,
+                max_edits=max_edits, max_new_hosts=max_new_hosts,
+            )
+        else:
+            committed_edits = self._select_batch(
+                candidate_edits, verdicts,
+                max_edits=max_edits, max_new_hosts=max_new_hosts,
+            )
+
+        policy = PrescriptionPolicy.from_edits(committed_edits)
         logger.info(
-            "Per-edit filter: %d/%d edits accepted (kappa=%.2f).",
-            len(policy.edits()), len(verdicts), kappa,
+            "Per-edit filter (%s): %d/%d edits accepted (kappa=%.2f, min_delta=%.6f, accounting=%s).",
+            composition, len(policy.edits()), len(verdicts), kappa, min_delta, accounting,
         )
 
         if policy.is_empty():
@@ -165,6 +224,129 @@ class PrescribeService:
             edit_verdicts=verdicts,
             candidate_policy=candidate_policy,
         )
+
+    @staticmethod
+    def _select_batch(
+        candidate_edits: Sequence[PolicyEdit],
+        verdicts: Sequence[EditVerdict],
+        *,
+        max_edits: Optional[int],
+        max_new_hosts: Optional[int],
+    ) -> List[PolicyEdit]:
+        """Select accepted edits in batch mode, honoring optional edit/host budgets."""
+        accepted_indices = [i for i, v in enumerate(verdicts) if v.accepted]
+        if max_edits is None and max_new_hosts is None:
+            return [candidate_edits[i] for i in accepted_indices]
+
+        # Rank by worst_margin descending so budgets keep the strongest edits first.
+        ranked = sorted(
+            accepted_indices,
+            key=lambda i: (-verdicts[i].worst_margin, i),
+        )
+        selected: set[int] = set()
+        n_hosts = 0
+        for idx in ranked:
+            edit = candidate_edits[idx]
+            is_host = isinstance(edit, NodeReallocation)
+            if max_edits is not None and len(selected) >= max_edits:
+                verdicts[idx].accepted = False
+                verdicts[idx].reason = f"budget_exceeded: max_edits={max_edits}"
+                continue
+            if is_host and max_new_hosts is not None and n_hosts >= max_new_hosts:
+                verdicts[idx].accepted = False
+                verdicts[idx].reason = f"budget_exceeded: max_new_hosts={max_new_hosts}"
+                continue
+            selected.add(idx)
+            if is_host:
+                n_hosts += 1
+
+        # Preserve canonical candidate_edits ordering.
+        return [candidate_edits[i] for i in range(len(candidate_edits)) if i in selected]
+
+    def _compose_greedy(
+        self,
+        verifier: EditVerifier,
+        original_json: Dict[str, Any],
+        candidate_edits: Sequence[PolicyEdit],
+        verdicts: Sequence[EditVerdict],
+        *,
+        max_edits: Optional[int],
+        max_new_hosts: Optional[int],
+    ) -> List[PolicyEdit]:
+        """Sequentially commit individually-accepted edits by worst_margin.
+
+        Each candidate is re-verified marginally on top of the already-committed
+        subset so non-additive or interfering edits are pruned before final
+        evaluation.
+        """
+        accepted_indices = [i for i, v in enumerate(verdicts) if v.accepted]
+        if not accepted_indices:
+            return []
+
+        ranked = sorted(
+            accepted_indices,
+            key=lambda i: (-verdicts[i].worst_margin, i),
+        )
+        committed_indices: List[int] = []
+        n_hosts = 0
+        current_grid: Optional[Dict[Tuple[float, int], Dict[str, float]]] = None
+
+        for idx in ranked:
+            edit = candidate_edits[idx]
+            is_host = isinstance(edit, NodeReallocation)
+            if max_edits is not None and len(committed_indices) >= max_edits:
+                verdicts[idx].accepted = False
+                verdicts[idx].reason = f"budget_exceeded: max_edits={max_edits}"
+                continue
+            if is_host and max_new_hosts is not None and n_hosts >= max_new_hosts:
+                verdicts[idx].accepted = False
+                verdicts[idx].reason = f"budget_exceeded: max_new_hosts={max_new_hosts}"
+                continue
+
+            if not committed_indices:
+                # First edit was already verified alone against the baseline.
+                committed_indices.append(idx)
+                if is_host:
+                    n_hosts += 1
+                continue
+
+            if current_grid is None:
+                committed_policy = PrescriptionPolicy.from_edits(
+                    [candidate_edits[i] for i in committed_indices]
+                )
+                current_grid = verifier.measure_grid(
+                    repo_from_json(apply_policy(original_json, committed_policy))
+                )
+
+            trial_policy = PrescriptionPolicy.from_edits(
+                [candidate_edits[i] for i in committed_indices] + [edit]
+            )
+            try:
+                trial_grid = verifier.measure_grid(
+                    repo_from_json(apply_policy(original_json, trial_policy))
+                )
+                per_threshold = verifier.compare_grids(current_grid, trial_grid)
+                marginal = judge(
+                    edit.KIND, edit.target, per_threshold,
+                    verifier.kappa, len(verifier.thresholds),
+                    min_delta=verifier.min_delta,
+                )
+            except Exception as exc:  # noqa: BLE001
+                verdicts[idx].accepted = False
+                verdicts[idx].reason = f"compositional_error: {exc}"
+                continue
+
+            if marginal.accepted:
+                committed_indices.append(idx)
+                if is_host:
+                    n_hosts += 1
+                current_grid = trial_grid
+            else:
+                verdicts[idx].accepted = False
+                verdicts[idx].reason = f"compositional_regression: {marginal.reason}"
+
+        committed_set = set(committed_indices)
+        return [candidate_edits[i] for i in range(len(candidate_edits)) if i in committed_set]
 
     @staticmethod
     def _impact_deltas(

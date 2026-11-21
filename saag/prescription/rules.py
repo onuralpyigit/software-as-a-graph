@@ -34,12 +34,17 @@ def compile_policy(
     critical = _predicted_critical(prediction_result) | _scored_critical(
         analysis_result, prediction_result)
     spof, god = _smells(analysis_result, prediction_result)
+    qos_mismatch_pairs, qos_mismatch_entities = _qos_mismatch_targets(
+        analysis_result, prediction_result)
     publishers, subscribers, hosted = _endpoints(graph_data)
 
     policy = PrescriptionPolicy()
     for component in graph_data.components:
         if component.component_type == "Topic":
-            _topic_edits(policy, component, publishers, subscribers, critical, god)
+            _topic_edits(
+                policy, component, publishers, subscribers, critical, god,
+                qos_mismatch_pairs, qos_mismatch_entities,
+            )
         elif component.component_type == "Node":
             _node_edits(policy, component, hosted, critical, spof)
     return policy
@@ -132,30 +137,72 @@ def _legacy_scored_critical(analysis_result: Any) -> Set[str]:
     return critical
 
 
-def _smells(analysis_result: Any, prediction_result: Optional[Any]) -> Tuple[Set[str], Set[str]]:
-    """Split detected anti-patterns into (SPOF, god-component) entity ids.
+#: Canonical pattern IDs that map directly into the remediation operators.
+_SPOF_PATTERN_IDS = frozenset({"SPOF"})
+_GOD_PATTERN_IDS = frozenset({"GOD_COMPONENT", "BOTTLENECK_EDGE", "FAILURE_HUB", "HUB_AND_SPOKE"})
+_QOS_MISMATCH_PATTERN_IDS = frozenset({"QOS_MISMATCH"})
 
-    Anti-patterns are matched on the problem's display name rather than a
-    pattern-ID field. `tests/test_antipattern_detector.py` guards the catalog
-    names this depends on — renaming a `PatternSpec` silently unlinks the
-    operator it feeds.
-    """
-    problems = (
+
+def _problems_from(analysis_result: Any, prediction_result: Optional[Any]) -> List[Any]:
+    return (
         _field(prediction_result, "problems")
         or _field(analysis_result, "problems")
         or []
     )
 
+
+def _smells(analysis_result: Any, prediction_result: Optional[Any]) -> Tuple[Set[str], Set[str]]:
+    """Split detected anti-patterns into (SPOF, god-component) entity ids.
+
+    Matches canonical ``pattern_id`` first so renaming a ``PatternSpec`` display
+    name cannot silently unlink an operator. Falls back to display-name
+    substring matching only when ``pattern_id`` is absent (e.g. hand-crafted
+    legacy dicts).
+    """
     spof: Set[str] = set()
     god: Set[str] = set()
-    for problem in problems:
-        name = _field(problem, "name", "") or ""
+    for problem in _problems_from(analysis_result, prediction_result):
+        pattern_id = str(_field(problem, "pattern_id", "") or "").upper()
         entity_id = _field(problem, "entity_id", "") or ""
+        if pattern_id:
+            if pattern_id in _SPOF_PATTERN_IDS:
+                spof.add(entity_id)
+            if pattern_id in _GOD_PATTERN_IDS:
+                god.add(entity_id)
+            continue
+
+        name = _field(problem, "name", "") or ""
         if "SPOF" in name or "Single Point of Failure" in name:
             spof.add(entity_id)
         if "God Component" in name or "Bottleneck" in name or "Hub" in name:
             god.add(entity_id)
     return spof, god
+
+
+def _qos_mismatch_targets(
+    analysis_result: Any,
+    prediction_result: Optional[Any],
+) -> Tuple[Set[Tuple[str, str]], Set[str]]:
+    """Extract (publisher, subscriber) pairs and direct entity ids flagged as QOS_MISMATCH."""
+    pairs: Set[Tuple[str, str]] = set()
+    entities: Set[str] = set()
+    for problem in _problems_from(analysis_result, prediction_result):
+        pattern_id = str(_field(problem, "pattern_id", "") or "").upper()
+        name = _field(problem, "name", "") or ""
+        is_qos_mismatch = (
+            pattern_id in _QOS_MISMATCH_PATTERN_IDS
+            if pattern_id
+            else ("QoS Policy Mismatch" in name or "QOS_MISMATCH" in name)
+        )
+        if not is_qos_mismatch:
+            continue
+        entity_id = _field(problem, "entity_id", "") or ""
+        if "->" in entity_id:
+            src, tgt = entity_id.split("->", 1)
+            pairs.add((src, tgt))
+        elif entity_id:
+            entities.add(entity_id)
+    return pairs, entities
 
 
 def _endpoints(
@@ -187,8 +234,10 @@ def _topic_edits(
     subscribers: Dict[str, List[str]],
     critical: Set[str],
     god: Set[str],
+    qos_mismatch_pairs: Optional[Set[Tuple[str, str]]] = None,
+    qos_mismatch_entities: Optional[Set[str]] = None,
 ) -> None:
-    """Rules 1 and 3: split congested topics, harden critical channels."""
+    """Rules 1 and 3: split congested topics, harden critical or QoS-mismatched channels."""
     pubs = publishers.get(topic.id, [])
     subs = subscribers.get(topic.id, [])
     endpoints = (*pubs, *subs)
@@ -206,12 +255,22 @@ def _topic_edits(
             subscribers=sorted(set(subs)),
         ))
 
-    # Rule 3 — Middleware Transport Contract Hardening. Already-hardened topics
-    # are skipped, so a compiled upgrade always changes something.
+    # Rule 3 — Middleware Transport Contract Hardening. Fires on critical
+    # channels or channels implicated in a QOS_MISMATCH anti-pattern. Already-
+    # hardened topics are skipped, so a compiled upgrade always changes something.
     is_critical_channel = topic.id in critical or any(e in critical for e in endpoints)
+    has_qos_mismatch = bool(
+        (qos_mismatch_entities and topic.id in qos_mismatch_entities)
+        or (
+            qos_mismatch_pairs
+            and any((p, s) in qos_mismatch_pairs for p in pubs for s in subs)
+        )
+    )
     reliability = topic.properties.get("qos_reliability", "BEST_EFFORT")
     durability = topic.properties.get("qos_durability", "VOLATILE")
-    if is_critical_channel and (reliability != "RELIABLE" or durability == "VOLATILE"):
+    if (is_critical_channel or has_qos_mismatch) and (
+        reliability != "RELIABLE" or durability == "VOLATILE"
+    ):
         policy.qos_upgrades.append(QosUpgrade(
             topic=topic.id,
             original_reliability=reliability,

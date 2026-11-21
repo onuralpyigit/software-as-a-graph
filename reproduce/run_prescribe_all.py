@@ -16,6 +16,7 @@ from saag import Client
 from saag.analysis.antipattern_detector import CATALOG
 from saag.infrastructure.memory_repo import MemoryRepository
 from saag.prescription.verifier import DEFAULT_SEEDS, DEFAULT_THRESHOLDS
+from reproduce._provenance import stamp
 from reproduce.detection_validation import DEFAULT_EXCLUDED_PATTERNS
 
 SCENARIOS = {
@@ -32,7 +33,17 @@ def parse_args():
     p = argparse.ArgumentParser(description="Prescriptive optimization across all benchmark scenarios.")
     p.add_argument("--kappa", type=float, default=1.0,
                    help="Acceptance multiple: an edit is kept only when its mean impact reduction "
-                        "exceeds kappa * sigma_seed at every propagation threshold (default 1.0).")
+                        "exceeds max(min_delta, kappa * sigma_seed) at every propagation threshold (default 1.0).")
+    p.add_argument("--min-delta", type=float, default=0.0,
+                   help="Minimum practical effect-size floor (default 0.0).")
+    p.add_argument("--accounting", choices=("common", "closed"), default="common",
+                   help="Impact accounting mode: 'common' or 'closed' (default: 'common').")
+    p.add_argument("--composition", choices=("batch", "greedy"), default="batch",
+                   help="Composition mode: 'batch' or 'greedy' (default: 'batch').")
+    p.add_argument("--max-edits", type=int, default=None,
+                   help="Optional cap on committed edits per scenario.")
+    p.add_argument("--max-new-hosts", type=int, default=None,
+                   help="Optional cap on committed node reallocations per scenario.")
     p.add_argument("--seeds", nargs="+", type=int, default=None,
                    help="Simulation seeds for the noise estimate (default: PrescribeService default).")
     p.add_argument("--thresholds", nargs="+", type=float, default=None,
@@ -134,7 +145,14 @@ def main():
         ])
 
         # Prescribe mutations
-        prescribe_kwargs = {"kappa": args.kappa}
+        prescribe_kwargs = {
+            "kappa": args.kappa,
+            "min_delta": args.min_delta,
+            "accounting": args.accounting,
+            "composition": args.composition,
+            "max_edits": args.max_edits,
+            "max_new_hosts": args.max_new_hosts,
+        }
         if args.seeds is not None:
             prescribe_kwargs["seeds"] = args.seeds
         if args.thresholds is not None:
@@ -216,15 +234,32 @@ def _write_output(args, records) -> None:
     if args.output.name == "prescribe_results.json":
         data = {r["scenario"]: r for r in records}
     else:
+        eff_seeds = list(args.seeds if args.seeds is not None else DEFAULT_SEEDS)
+        eff_thresholds = list(
+            args.thresholds if args.thresholds is not None else DEFAULT_THRESHOLDS
+        )
         data = {
+            "provenance": stamp(
+                kappa=args.kappa,
+                min_delta=args.min_delta,
+                accounting=args.accounting,
+                composition=args.composition,
+                max_edits=args.max_edits,
+                max_new_hosts=args.max_new_hosts,
+                seeds=eff_seeds,
+                thresholds=eff_thresholds,
+            ),
             "kappa": args.kappa,
+            "min_delta": args.min_delta,
+            "accounting": args.accounting,
+            "composition": args.composition,
+            "max_edits": args.max_edits,
+            "max_new_hosts": args.max_new_hosts,
             # Record the *effective* sweep, not the CLI flags: both default to None
             # when the caller relies on the service defaults, which left the artifact
             # claiming "seeds: null" for a run that actually swept (42, 123, 456).
-            "seeds": list(args.seeds if args.seeds is not None else DEFAULT_SEEDS),
-            "thresholds": list(
-                args.thresholds if args.thresholds is not None else DEFAULT_THRESHOLDS
-            ),
+            "seeds": eff_seeds,
+            "thresholds": eff_thresholds,
             "scenarios": records,
             "summary": {
                 "n_candidate_edits": n_cand,

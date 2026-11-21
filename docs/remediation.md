@@ -37,19 +37,20 @@ Every entry carries a `PatternSpec.recommendation` string — narrative remediat
 Two separate signals feed these triggers, and only one of them ties back to specific catalog IDs:
 
 - **Generic criticality tier** — any component classified `CRITICAL`/`HIGH` on the RM dimensional scale can trigger any operator, regardless of which (if any) specific anti-pattern was detected on it.
-- **Detected-problem name matching** (`rules.py`, `_smells`) — the only channel that links back to particular catalog entries, and it works by substring-matching `DetectedProblem.name` (the human-readable `PatternSpec.name`), not a dedicated pattern-ID field.
+- **Detected-problem pattern ID matching** (`rules.py`, `_smells` / `_qos_mismatch_targets`) — links directly to canonical catalog IDs via `DetectedProblem.pattern_id` (falling back to display-name substring matching only for legacy payloads without `pattern_id`).
 
-Following that name-matching channel through to the catalog, only **5 of the 19** patterns are directly wired into an operator:
+Following that `pattern_id` channel through to the catalog, **6 of the 19** patterns are directly wired into an operator:
 
 | Catalog ID | Operator reached | How |
 |---|---|---|
-| `SPOF` | 2 (anti-affinity) | name contains `"SPOF"` / `"Single Point of Failure"` |
-| `GOD_COMPONENT` | 1 (topic split) | name contains `"God Component"` / `"Bottleneck"` |
-| `BOTTLENECK_EDGE` | 1 (topic split) | name contains `"Bottleneck"` |
-| `FAILURE_HUB` | 1 (topic split) | name contains `"Hub"` |
-| `HUB_AND_SPOKE` | 1 (topic split) | name contains `"Hub"` |
+| `SPOF` | 2 (anti-affinity) | `pattern_id == "SPOF"` |
+| `GOD_COMPONENT` | 1 (topic split) | `pattern_id == "GOD_COMPONENT"` |
+| `BOTTLENECK_EDGE` | 1 (topic split) | `pattern_id == "BOTTLENECK_EDGE"` |
+| `FAILURE_HUB` | 1 (topic split) | `pattern_id == "FAILURE_HUB"` |
+| `HUB_AND_SPOKE` | 1 (topic split) | `pattern_id == "HUB_AND_SPOKE"` |
+| `QOS_MISMATCH` | 3 (QoS hardening) | `pattern_id == "QOS_MISMATCH"` (matches connecting topic or direct topic ID) |
 
-Notably, **`QOS_MISMATCH` has no link to Operator 3** despite the obvious conceptual overlap — QoS hardening fires only from the generic criticality tier, never from the `QOS_MISMATCH` detection itself. The remaining 14 patterns (`BRIDGE_EDGE`, `BROKER_OVERLOAD`, `CONCENTRATION_RISK`, `DEEP_PIPELINE`, `TOPIC_FANOUT`, `QOS_MISMATCH`, `CHATTY_PAIR`, `ORPHANED_TOPIC`, `UNSTABLE_INTERFACE`, `CYCLE`, `CHAIN`, `ISOLATED`, `SYSTEMIC_RISK`, `COMPOUND_RISK`) have **no automated operator at all** — their `PatternSpec.recommendation` text in [antipatterns.md](antipatterns.md) is advisory-only, for a human to act on (interface extraction, mediator components, stage merging, cycle-breaking via events, redundancy injection, and similar remediations that require semantic — not purely topological — judgment).
+The remaining 13 patterns (`BRIDGE_EDGE`, `BROKER_OVERLOAD`, `CONCENTRATION_RISK`, `DEEP_PIPELINE`, `TOPIC_FANOUT`, `CHATTY_PAIR`, `ORPHANED_TOPIC`, `UNSTABLE_INTERFACE`, `CYCLE`, `CHAIN`, `ISOLATED`, `SYSTEMIC_RISK`, `COMPOUND_RISK`) have **no automated operator at all** — their `PatternSpec.recommendation` text in [antipatterns.md](antipatterns.md) is advisory-only, for a human to act on (interface extraction, mediator components, stage merging, cycle-breaking via events, redundancy injection, and similar remediations that require semantic — not purely topological — judgment).
 
 This is a principled boundary, not an oversight: the three operators only automate remediations expressible as pure topology/QoS mutations. Remediations that require understanding *what* a component does (breaking a cycle correctly, deciding which pipeline stages are safe to merge) stay advisory.
 
@@ -109,7 +110,7 @@ The output of a `prescribe()` call is a remediation blueprint: an itemized `appl
 | `BOTTLENECK_EDGE` | HIGH | **Automated** (Operator 1: Topic Splitting) | System Architect |
 | `HUB_AND_SPOKE` | MEDIUM | **Automated** (Operator 1: Topic Splitting) | System Architect |
 | `BROKER_OVERLOAD` | HIGH | Advisory (Cluster replication / Broker scale-out) | DevOps / SRE |
-| `QOS_MISMATCH` | MEDIUM | **Automated** (Operator 3: Transport QoS Hardening) via Tier | System Architect |
+| `QOS_MISMATCH` | MEDIUM | **Automated** (Operator 3: Transport QoS Hardening) | System Architect |
 | `SYSTEMIC_RISK`, `COMPOUND_RISK` | CRITICAL | Advisory only | System Architect & SRE |
 | `CYCLE`, `BRIDGE_EDGE`, `DEEP_PIPELINE` | HIGH | Advisory only | System Architect |
 | `CONCENTRATION_RISK`, `TOPIC_FANOUT`, `CHATTY_PAIR`, `ORPHANED_TOPIC`, `UNSTABLE_INTERFACE`, `CHAIN`, `ISOLATED` | MEDIUM | Advisory only | Software Developer & Architect |

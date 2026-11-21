@@ -53,6 +53,7 @@ class Pipeline:
         self._do_simulate = False
         self._do_validate = False
         self._do_prescribe = False
+        self._prescribe_kwargs: Dict[str, Any] = {}
         self._do_deploy = False
         self._do_visualize = False
 
@@ -203,17 +204,23 @@ class Pipeline:
         self._validate_targets = targets
         return self
 
-    def prescribe(self) -> "Pipeline":
+    def prescribe(self, **kwargs: Any) -> "Pipeline":
         """Stage 7: Prescriptive remediation generation.
 
         Uses predict()'s RM criticality scores regardless of whether
         diagnose() ran (RM scoring is unconditional in predict()). SPOF/
-        GOD_COMPONENT-triggered edits specifically need diagnose()'s
+        GOD_COMPONENT/QOS_MISMATCH-triggered edits specifically need diagnose()'s
         anti-pattern detection to have run in this pipeline — without it
-        those two rules see no smells and stay silent, while
-        criticality-triggered rules are unaffected.
+        those rules see no smells and stay silent, while criticality-triggered
+        rules are unaffected.
+
+        ``kwargs`` are forwarded to ``Client.prescribe`` / ``PrescribeService.prescribe``
+        (e.g. ``kappa``, ``seeds``, ``thresholds``, ``min_delta``, ``accounting``,
+        ``composition``, ``max_edits``, ``max_new_hosts``, ``network_gating``,
+        ``replica_aware``).
         """
         self._do_prescribe = True
+        self._prescribe_kwargs = kwargs
         return self
 
     def deploy(self, spec: Any, **kwargs: Any) -> "Pipeline":
@@ -358,7 +365,8 @@ class Pipeline:
                 analysis_result=result.analysis,
                 prediction_result=result.prediction,
                 layer=self._layer,
-                gnn_checkpoint=gnn_checkpoint
+                gnn_checkpoint=gnn_checkpoint,
+                **self._prescribe_kwargs,
             )
 
         # Pre-deployment planning — reads only the topology

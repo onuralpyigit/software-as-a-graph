@@ -116,25 +116,23 @@ SPOF or god-component smells among `prediction_result.problems`.
 
 **Automation coverage.** [antipatterns.md](antipatterns.md) documents remediation guidance for
 all 19 catalog anti-patterns, but that guidance is advisory unless it maps to one of the three
-operators below. Only 5 catalog IDs feed an operator, and they do so through a substring match
-on the detected problem's *display name* rather than a dedicated pattern-ID field:
+operators below. **6 catalog IDs** feed an operator directly via `DetectedProblem.pattern_id`
+(with legacy display-name substring matching retained only as a fallback when `pattern_id` is
+absent):
 
-| Catalog ID | `PatternSpec.name` | Matched substring | Feeds |
-|:--|:--|:--|:--|
-| `SPOF` | Single Point of Failure (SPOF) | `SPOF` | §2.2 Node reallocation |
-| `GOD_COMPONENT` | God Component / Central Bottleneck | `God Component` | §2.1 Topic splitting |
-| `BOTTLENECK_EDGE` | Bottleneck Dependency | `Bottleneck` | §2.1 Topic splitting |
-| `FAILURE_HUB` | Critical Failure Propagation Hub | `Hub` | §2.1 Topic splitting |
-| `HUB_AND_SPOKE` | Hub-and-Spoke Anti-Pattern | `Hub` | §2.1 Topic splitting |
+| Catalog ID | `PatternSpec.name` | Feeds |
+|:--|:--|:--|
+| `SPOF` | Single Point of Failure (SPOF) | §2.2 Node reallocation |
+| `GOD_COMPONENT` | God Component / Central Bottleneck | §2.1 Topic splitting |
+| `BOTTLENECK_EDGE` | Bottleneck Dependency | §2.1 Topic splitting |
+| `FAILURE_HUB` | Critical Failure Propagation Hub | §2.1 Topic splitting |
+| `HUB_AND_SPOKE` | Hub-and-Spoke Anti-Pattern | §2.1 Topic splitting |
+| `QOS_MISMATCH` | QoS Policy Mismatch | §2.3 Transport QoS hardening |
 
 Every operator can also fire independently off the generic RM `CRITICAL`/`HIGH` tier,
-regardless of which (if any) specific anti-pattern was detected. The remaining 14 catalog IDs
+regardless of which (if any) specific anti-pattern was detected. The remaining 13 catalog IDs
 have no automated operator at all. See [remediation.md](remediation.md) for the full
 advisory-versus-automated breakdown.
-
-> Because the link is a name substring match, renaming a `PatternSpec` silently unlinks the
-> operator it feeds. `tests/test_antipattern_detector.py::test_catalog_names_avoid_prescription_collision`
-> guards the reverse direction — a new pattern accidentally acquiring "Bottleneck" or "Hub".
 
 ### 2.1 Logical Subgraph Refactoring (Topic Splitting)
 
@@ -180,10 +178,11 @@ SPOF smell or scored `CRITICAL`/`HIGH`.
 **Problem**: Critical communication channels running on unreliable or volatile transport
 configurations (e.g. ROS 2 `BEST_EFFORT` reliability or `VOLATILE` durability).
 
-**Trigger**: a topic $T$ that is `CRITICAL`/`HIGH`, or has any publisher or subscriber that is,
-**and** is not already hardened — i.e. `qos_reliability != "RELIABLE"` or
-`qos_durability == "VOLATILE"`. An already-hardened topic produces no upgrade, so a compiled
-upgrade always changes something.
+**Trigger**: a topic $T$ that is `CRITICAL`/`HIGH`, has any publisher or subscriber that is,
+**or** is implicated in a `QOS_MISMATCH` anti-pattern (either directly or via a flagged
+`(publisher, subscriber)` edge), **and** is not already hardened — i.e.
+`qos_reliability != "RELIABLE"` or `qos_durability == "VOLATILE"`. An already-hardened topic
+produces no upgrade, so a compiled upgrade always changes something.
 
 **Remediation**: set `qos_reliability = "RELIABLE"` and `qos_durability = "TRANSIENT"`, written
 to both the nested `qos` block and the flat properties the layer projections read.
@@ -227,7 +226,7 @@ The verification engine executes the following loop:
 An edit is **accepted** iff its sweep completed at every threshold and, for **every**
 $\theta \in \text{thresholds}$:
 
-$$\operatorname{mean}_{s}\!\left[\Delta I(\theta, s)\right] > \kappa \cdot \operatorname{stdev}_{s}\!\left[\Delta I(\theta, s)\right]$$
+$$\operatorname{mean}_{s}\!\left[\Delta I(\theta, s)\right] > \max\!\left(\epsilon_{\min},\; \kappa \cdot \operatorname{stdev}_{s}\!\left[\Delta I(\theta, s)\right]\right)$$
 
 where
 
@@ -279,9 +278,11 @@ from saag import Pipeline
 result = (
     Pipeline.from_json("data/system.json", clear=True)
         .analyze(layer="system")
+        .predict()
+        .diagnose()
         .simulate(layer="system")
         .validate()
-        .prescribe()
+        .prescribe(kappa=1.0, min_delta=1e-4, composition="greedy")
         .run()
 )
 
@@ -348,7 +349,14 @@ for verdict in prescription.edit_verdicts:
 
 | Parameter | Default | Meaning |
 |:--|:--|:--|
-| `kappa` | `1.0` | Acceptance multiple. An edit must beat `κ · σ_seed` at every threshold, not merely register a positive delta. Raise it to demand a larger margin over simulator noise. |
+| `kappa` | `1.0` | Acceptance multiple. An edit must beat `max(min_delta, κ · σ_seed)` at every threshold, not merely register a positive delta. Raise it to demand a larger margin over simulator noise. |
+| `min_delta` | `0.0` | Minimum practical effect-size floor ($\epsilon_{\min}$). Prevents zero-variance ($\sigma_{\text{seed}} = 0$) edits with negligible floating-point deltas from passing unconditionally. |
+| `accounting` | `"common"` | `"common"` measures mean reduction over $V_{\text{common}}$; `"closed"` measures total-impact reduction including newly created hosts and sub-topics, normalized by $|V_{\text{base}}|$. |
+| `composition` | `"batch"` | `"batch"` applies all individually-accepted edits together; `"greedy"` ranks accepted edits by `worst_margin` and commits each only if its marginal impact reduction still clears the bar on the progressively mutated graph. |
+| `max_edits` | `None` | Optional hard cap on committed edits (keeps highest-margin edits first). |
+| `max_new_hosts` | `None` | Optional hard cap on committed `NodeReallocation` edits (new hosts). |
+| `network_gating` | `False` | Enable network-reachability gating in counterfactual simulation (forwarded to both serial and parallel workers). |
+| `replica_aware` | `False` | Enable replica-aware failover in counterfactual simulation (forwarded to both serial and parallel workers). |
 | `seeds` | `(42, 123, 456)` | Simulation seeds used to estimate σ. Three rather than five: because baseline and mutated runs are paired on `(θ, seed)`, shared noise largely cancels, and a third seed already pins the residual spread. |
 | `thresholds` | `(0.1, 0.2, 0.5)` | Propagation thresholds the edit must clear at *every* value, so acceptance is not an artifact of the 0.2 default. |
 
@@ -495,13 +503,13 @@ Documented so they aren't mistaken for working code.
 | # | Limitation | Impact |
 |:--|------------|--------|
 | L1 | **Topic splits are excluded from `mean_cascade_impact_reduction`.** A split replaces the original topic id with per-publisher sub-topics. | There is no stable before/after counterpart to difference, so split targets are omitted from `remediated_component_impact_deltas` rather than approximated. On a policy of splits only, `mean_cascade_impact_reduction` is `null`. |
-| L2 | **Anti-patterns link to operators by display-name substring**, not by pattern ID ([§2](#2-preservation--remediation-rules)). | Renaming a `PatternSpec` silently unlinks its operator. Only 5 of 19 catalog IDs are linked at all. |
-| L3 | **§2.3 has no link to `QOS_MISMATCH`** despite the conceptual overlap. QoS hardening fires only from the generic RM criticality tier. | A detected `QOS_MISMATCH` does not by itself produce an upgrade. |
+| L2 | **Automation covers 6 of 19 catalog patterns** (`SPOF`, `GOD_COMPONENT`, `BOTTLENECK_EDGE`, `FAILURE_HUB`, `HUB_AND_SPOKE`, `QOS_MISMATCH`) via `DetectedProblem.pattern_id` ([§2](#2-preservation--remediation-rules)). | The remaining 13 patterns remain advisory-only because they require semantic refactoring judgment. |
+| L3 | **Default `accounting="common"` ignores newly created hosts/sub-topics.** | Pass `accounting="closed"` and/or `max_new_hosts` to penalize or cap host proliferation from `NodeReallocation`. |
 | L4 | **The whole-policy gate is reported, not enforced** ([§3](#3-closed-loop-verification-mechanics) step 7). A policy with `accepted = false` is still returned in full, and the mutation is not rolled back in the result object. | Callers must check `accepted` themselves. Nothing is written to the source repository either way — the mutation only ever exists in a sandbox. |
-| L5 | **`kappa` has no effect on an edit whose seed spread is exactly zero.** The simulator is deterministic for many edits, giving $\sigma = 0$ at every threshold. | The bar $\kappa \cdot \sigma$ collapses to 0 and the rule degenerates to "mean reduction > 0" no matter how large `kappa` is. Raising `kappa` only filters edits whose measured deltas actually vary across seeds. |
+| L5 | **`kappa` has no effect on an edit whose seed spread is exactly zero unless `min_delta > 0`.** The simulator is deterministic for many edits, giving $\sigma = 0$ at every threshold. | With default `min_delta = 0.0`, the bar collapses to "mean reduction > 0" no matter how large `kappa` is. Set `min_delta` (e.g. `1e-4`) to enforce a practical effect-size floor. |
 | L6 | **Verification cost is linear in candidate count** ([§3.2](#32-cost-model)). | Large scenarios with tens of candidates run hundreds of exhaustive sweeps. |
 | L7 | **No REST surface.** Stage 7 has no router in `api/routers/` and no presenter. | Prescribe is reachable from the SDK and the CLI only. |
-| L8 | **Individually-verified edits are not shown to compose.** Acceptance is decided on singletons ([§3](#3-closed-loop-verification-mechanics)): each candidate is simulated alone, on a graph containing only that edit. | Nothing in the procedure establishes that a set of individually-accepted edits remains beneficial applied together — the reported whole-policy `ΔSRI` (L4) is the outcome of applying the accepted subset, not a verified prediction of it. Verifying subsets rather than singletons would close this at combinatorial cost. |
+| L8 | **Default `composition="batch"` does not verify edit interactions.** Acceptance is decided on singletons ([§3](#3-closed-loop-verification-mechanics)). | Pass `composition="greedy"` to verify each committed edit's marginal reduction sequentially in `worst_margin` order (linear in accepted count rather than combinatorial). |
 
 ---
 

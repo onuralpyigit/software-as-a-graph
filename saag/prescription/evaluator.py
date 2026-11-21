@@ -2,7 +2,7 @@
 saag/prescription/evaluator.py
 
 Runs the Analyze -> Predict -> Simulate -> Validate chain over a repository and
-returns the numbers Stage 6 judges a graph by.
+returns the numbers Stage 7 judges a graph by.
 
 Depends on the four services directly rather than on the Client facade: a core
 service reaching back up into the SDK facade inverts the layering the rest of
