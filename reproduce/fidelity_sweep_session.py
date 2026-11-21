@@ -51,6 +51,8 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--hours", type=float, default=6.0, help="time budget for this session")
     p.add_argument("--scenarios", type=int, default=1, help="scenarios to finish in this session")
+    p.add_argument("--defer", action="append", default=[], choices=FROZEN,
+                   help="run this scenario after all the others (repeatable)")
     a = p.parse_args()
 
     deadline = time.time() + a.hours * 3600
@@ -72,7 +74,8 @@ def main() -> None:
     log.parent.mkdir(parents=True, exist_ok=True)
     start, finished, outcome = time.time(), [], "scenario limit reached"
     try:
-        for name in [n for n in FROZEN if not done_marker(n).exists()][: a.scenarios]:
+        queue = [n for n in FROZEN if n not in a.defer] + [n for n in FROZEN if n in a.defer]
+        for name in [n for n in queue if not done_marker(n).exists()][: a.scenarios]:
             t = fs.targets_for(name)
             order = t["publishers"] + t["sinks"] + t["brokers"] + t["hosts"]
             random.Random(fs.study.run_seed(fs.STUDY_SEED, name, "order")).shuffle(order)
