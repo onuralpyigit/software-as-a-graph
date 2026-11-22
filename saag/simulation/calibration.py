@@ -55,7 +55,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 from .models import RuntimeTelemetryProfile
 
 EVENT_NAMES = ("saag.publish", "saag.deliver", "saag.deadline_miss", "saag.drop", "saag.state",
-               "saag.status", "saag.forward")
+               "saag.health", "saag.status", "saag.forward")
 
 
 def make_event(t: float, name: str, app: str, topic: Optional[str] = None, **attrs: Any) -> Dict[str, Any]:

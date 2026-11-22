@@ -98,6 +98,7 @@ def run(out_dir: Path, duration_s: float, faults: Optional[List[FaultSpec]] = No
     record = {"start_unix": start, "duration_s": duration_s, "mode": mode, "seed": seed,
               "faults": [f.to_dict() for f in faults or []], "unsupported": chaos.unsupported}
     (out_dir / "run.json").write_text(json.dumps(record))
+    cpu_p95: Optional[Dict[str, Optional[float]]] = None
     if mode == "local":
         sink = TelemetrySink(out_dir / "telemetry" / "all.jsonl")
         th = threading.Thread(target=run_host, args=(plan, "all", LocalTransport(), sink,
@@ -106,21 +107,27 @@ def run(out_dir: Path, duration_s: float, faults: Optional[List[FaultSpec]] = No
         log = execute(chaos, out_dir / "control", start)
         th.join()
     elif mode == "docker":
+        from . import study
+
         compose = ["docker", "compose", "-f", str(out_dir / "docker-compose.yml")]
         subprocess.run(compose + ["up", "--build", "-d"], check=True)
         try:
-            start = _start_together(out_dir, list(plan["hosts"]))
-            (out_dir / "run.json").write_text(json.dumps({**record, "start_unix": start}))
-            log = execute(chaos, out_dir / "control", start)
-            remaining = start + duration_s + 2.0 - time.time()
-            if remaining > 0:
-                time.sleep(remaining)
+            with study.CpuSampler(period_s=1.0) as sampler:
+                start = _start_together(out_dir, list(plan["hosts"]))
+                (out_dir / "run.json").write_text(json.dumps({**record, "start_unix": start}))
+                log = execute(chaos, out_dir / "control", start)
+                remaining = start + duration_s + 2.0 - time.time()
+                if remaining > 0:
+                    time.sleep(remaining)
+            cpu_p95 = sampler.p95_by_container(start, start + duration_s)
         finally:
             subprocess.run(compose + ["down"])
     else:
         raise ValueError(f"mode must be 'local' or 'docker', got {mode!r}")
     meta = json.loads((out_dir / "run.json").read_text())
     meta["chaos_log"] = log
+    if cpu_p95 is not None:
+        meta["docker_cpu_p95"] = cpu_p95
     (out_dir / "run.json").write_text(json.dumps(meta, indent=2))
     return meta
 
@@ -203,29 +210,115 @@ def _dead_instances(plan: Dict[str, Any], faults: List[Dict[str, Any]]) -> set:
     return dead
 
 
+def health(out_dir: Path, warmup_s: float = 2.0, thresholds: Optional[Any] = None) -> Dict[str, Any]:
+    """Compute end-of-simulation Tier-2 component health & operational criticality."""
+    from saag.validation.health import observed_operational_criticality, summarize_system_health
+
+    out_dir = Path(out_dir)
+    plan = _load(out_dir)
+    meta = json.loads((out_dir / "run.json").read_text())
+    observed = load_run(out_dir)
+    faults = meta.get("faults") or []
+    first = min((f["start_s"] for f in faults), default=None)
+    summary = summarize_system_health(
+        observed,
+        plan,
+        fault_time=first,
+        warmup_s=warmup_s,
+        faults=faults,
+        docker_cpu_p95=meta.get("docker_cpu_p95"),
+        thresholds=thresholds,
+    )
+    if faults:
+        op_crit = {}
+        for f in faults:
+            target = str(f["target"])
+            op_crit[target] = observed_operational_criticality(
+                observed,
+                plan,
+                target,
+                float(f["start_s"]),
+                warmup_s=warmup_s,
+                fault_duration_s=f.get("duration_s"),
+                health_summary=summary,
+            )
+        payload: Dict[str, Any] = {
+            **summary,
+            "operational_criticality": op_crit,
+        }
+    else:
+        payload = summary
+    (out_dir / "health_summary.json").write_text(
+        json.dumps(payload, indent=2, sort_keys=True, default=str)
+    )
+    return payload
+
+
 def fidelity(out_dir: Path, calibrated: bool = False, warmup_s: float = 2.0) -> Dict[str, Any]:
     from saag.validation.fidelity import (
         compare_dds_status, compare_fault_response, compare_steady_state, stalled_in_trace)
+    from saag.validation.health import (
+        compare_health_summaries, observed_operational_criticality, summarize_system_health)
 
     out_dir = Path(out_dir)
+    plan = _load(out_dir)
     meta = json.loads((out_dir / "run.json").read_text())
     observed = load_run(out_dir)
     simulated = simulate_like(out_dir, calibrated=calibrated)
-    first = min((f["start_s"] for f in meta["faults"]), default=meta["duration_s"])
+    faults = meta.get("faults") or []
+    first = min((f["start_s"] for f in faults), default=meta["duration_s"])
     report = {
         "run": {k: meta[k] for k in ("duration_s", "mode", "seed", "faults", "unsupported")},
         "calibrated": calibrated,
         "steady_state": compare_steady_state(simulated.window(warmup_s, first),
                                              observed.window(warmup_s, first)),
     }
-    if meta["faults"]:
-        targets = {f["target"] for f in meta["faults"]}
+    if faults:
+        targets = {f["target"] for f in faults}
         sim_st = stalled_in_trace(simulated, first) - targets
         obs_st = stalled_in_trace(observed, first) - targets
         report["fault_response"] = compare_fault_response({}, {}, sim_st, obs_st)
     report["dds_status"] = compare_dds_status(
-        simulated, observed, split_at=first if meta["faults"] else None,
-        dead_instances=_dead_instances(_load(out_dir), meta["faults"]))
+        simulated, observed, split_at=first if faults else None,
+        dead_instances=_dead_instances(plan, faults))
+
+    obs_health = summarize_system_health(
+        observed, plan,
+        fault_time=first if faults else None,
+        warmup_s=warmup_s,
+        faults=faults,
+        docker_cpu_p95=meta.get("docker_cpu_p95"),
+    )
+    sim_health = summarize_system_health(
+        simulated, plan,
+        fault_time=first if faults else None,
+        warmup_s=warmup_s,
+        faults=faults,
+    )
+    report["health_summary"] = {
+        "observed": obs_health,
+        "simulated": sim_health,
+        "comparison": compare_health_summaries(sim_health, obs_health),
+    }
+    if faults:
+        report["operational_criticality"] = {
+            "observed": {
+                str(f["target"]): observed_operational_criticality(
+                    observed, plan, str(f["target"]), float(f["start_s"]),
+                    warmup_s=warmup_s, fault_duration_s=f.get("duration_s"),
+                    health_summary=obs_health,
+                )
+                for f in faults
+            },
+            "simulated": {
+                str(f["target"]): observed_operational_criticality(
+                    simulated, plan, str(f["target"]), float(f["start_s"]),
+                    warmup_s=warmup_s, fault_duration_s=f.get("duration_s"),
+                    health_summary=sim_health,
+                )
+                for f in faults
+            },
+        }
     name = "fidelity_calibrated.json" if calibrated else "fidelity.json"
     (out_dir / name).write_text(json.dumps(report, indent=2, sort_keys=True, default=str))
     return report

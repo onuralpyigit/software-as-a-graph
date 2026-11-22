@@ -1,0 +1,365 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://saag.local/schemas/health_summary.schema.json",
+  "title": "SaG End-of-Simulation Operational Health-Status Summary",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "metadata",
+    "system_health",
+    "product_in_use",
+    "components"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "metadata": {
+      "type": "object",
+      "required": [
+        "scenario",
+        "domain",
+        "window_s",
+        "tail_window_s",
+        "fault_time_s",
+        "thresholds",
+        "criticality_policy"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "scenario": { "type": "string" },
+        "domain": { "type": ["string", "null"] },
+        "window_s": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "tail_window_s": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "fault_time_s": { "type": ["number", "null"] },
+        "thresholds": {
+          "type": "object",
+          "required": [
+            "healthy_attainment_min",
+            "deadline_miss_rate_max",
+            "cpu_p95_max",
+            "tail_window_s",
+            "operational_critical_levels"
+          ],
+          "properties": {
+            "healthy_attainment_min": { "type": "number", "minimum": 0, "maximum": 1 },
+            "deadline_miss_rate_max": { "type": "number", "minimum": 0, "maximum": 1 },
+            "cpu_p95_max": { "type": "number", "minimum": 0 },
+            "tail_window_s": { "type": "number", "exclusiveMinimum": 0 },
+            "operational_critical_levels": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/criticality_level" }
+            }
+          }
+        },
+        "criticality_policy": {
+          "type": "object",
+          "required": ["escalate_app_from_topics", "weights"],
+          "properties": {
+            "escalate_app_from_topics": { "type": "boolean" },
+            "weights": {
+              "type": "object",
+              "additionalProperties": { "type": "number" }
+            }
+          }
+        }
+      }
+    },
+    "system_health": {
+      "type": "object",
+      "required": [
+        "counts",
+        "shares",
+        "by_type",
+        "by_criticality",
+        "operational_critical",
+        "resilience"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "counts": { "$ref": "#/$defs/health_counts" },
+        "shares": { "$ref": "#/$defs/health_shares" },
+        "by_type": {
+          "type": "object",
+          "required": ["Node", "Application", "Topic", "Broker", "NetworkDevice"],
+          "additionalProperties": false,
+          "properties": {
+            "Node": { "$ref": "#/$defs/type_health_bucket" },
+            "Application": { "$ref": "#/$defs/type_health_bucket" },
+            "Topic": { "$ref": "#/$defs/type_health_bucket" },
+            "Broker": { "$ref": "#/$defs/type_health_bucket" },
+            "NetworkDevice": { "$ref": "#/$defs/type_health_bucket" }
+          }
+        },
+        "by_criticality": {
+          "type": "object",
+          "required": ["CRITICAL", "HIGH", "MEDIUM", "LOW"],
+          "additionalProperties": false,
+          "properties": {
+            "CRITICAL": { "$ref": "#/$defs/crit_health_bucket" },
+            "HIGH": { "$ref": "#/$defs/crit_health_bucket" },
+            "MEDIUM": { "$ref": "#/$defs/crit_health_bucket" },
+            "LOW": { "$ref": "#/$defs/crit_health_bucket" }
+          }
+        },
+        "operational_critical": {
+          "type": "object",
+          "required": ["levels", "counts", "shares", "by_type"],
+          "additionalProperties": false,
+          "properties": {
+            "levels": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/criticality_level" }
+            },
+            "counts": { "$ref": "#/$defs/health_counts" },
+            "shares": { "$ref": "#/$defs/health_shares" },
+            "by_type": {
+              "type": "object",
+              "required": ["Node", "Application", "Topic", "Broker", "NetworkDevice"],
+              "additionalProperties": false,
+              "properties": {
+                "Node": { "$ref": "#/$defs/crit_health_bucket" },
+                "Application": { "$ref": "#/$defs/crit_health_bucket" },
+                "Topic": { "$ref": "#/$defs/crit_health_bucket" },
+                "Broker": { "$ref": "#/$defs/crit_health_bucket" },
+                "NetworkDevice": { "$ref": "#/$defs/crit_health_bucket" }
+              }
+            }
+          }
+        },
+        "resilience": {
+          "type": "object",
+          "required": [
+            "time_integrated_availability",
+            "end_to_end_delivery_attainment",
+            "blast_radius_count",
+            "failover_takeover_count",
+            "peak_cpu_p95"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "time_integrated_availability": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+            "end_to_end_delivery_attainment": { "type": ["number", "null"], "minimum": 0 },
+            "blast_radius_count": { "type": "integer", "minimum": 0 },
+            "failover_takeover_count": { "type": "integer", "minimum": 0 },
+            "peak_cpu_p95": { "type": ["number", "null"], "minimum": 0 }
+          }
+        }
+      }
+    },
+    "product_in_use": {
+      "type": "object",
+      "required": [
+        "beneficialness",
+        "freedom_from_risk",
+        "acceptability",
+        "domain_context",
+        "overall_qiu_health_index"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "beneficialness": {
+          "type": "object",
+          "required": [
+            "score",
+            "critical_mission_continuity",
+            "criticality_weighted_health_index",
+            "critical_topic_timeliness_rate"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "score": { "type": "number", "minimum": 0, "maximum": 1 },
+            "critical_mission_continuity": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+            "criticality_weighted_health_index": { "type": "number", "minimum": 0, "maximum": 1 },
+            "critical_topic_timeliness_rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+          }
+        },
+        "freedom_from_risk": {
+          "type": "object",
+          "required": [
+            "score",
+            "zero_tolerance_critical_loss",
+            "lost_critical_count",
+            "lost_operational_critical_count",
+            "critical_safety_exposure_s",
+            "critical_redundancy_depletion_rate",
+            "n_minus_0_critical_ids"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "score": { "type": "number", "minimum": 0, "maximum": 1 },
+            "zero_tolerance_critical_loss": { "type": "boolean" },
+            "lost_critical_count": { "type": "integer", "minimum": 0 },
+            "lost_operational_critical_count": { "type": "integer", "minimum": 0 },
+            "critical_safety_exposure_s": { "type": "number", "minimum": 0 },
+            "critical_redundancy_depletion_rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+            "n_minus_0_critical_ids": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "acceptability": {
+          "type": "object",
+          "required": [
+            "score",
+            "critical_sla_compliance_rate",
+            "critical_sla_breach_count",
+            "dds_status_breaches"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "score": { "type": "number", "minimum": 0, "maximum": 1 },
+            "critical_sla_compliance_rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+            "critical_sla_breach_count": { "type": "integer", "minimum": 0 },
+            "dds_status_breaches": {
+              "type": "object",
+              "additionalProperties": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "domain_context": {
+          "type": "object",
+          "required": ["domain", "omega", "derived"],
+          "additionalProperties": false,
+          "properties": {
+            "domain": { "type": ["string", "null"] },
+            "omega": {
+              "type": "object",
+              "required": ["beneficialness", "freedom_from_risk", "acceptability"],
+              "additionalProperties": false,
+              "properties": {
+                "beneficialness": { "type": "number", "minimum": 0, "maximum": 1 },
+                "freedom_from_risk": { "type": "number", "minimum": 0, "maximum": 1 },
+                "acceptability": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            },
+            "derived": { "type": "boolean" }
+          }
+        },
+        "overall_qiu_health_index": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/component_record" }
+    }
+  },
+  "$defs": {
+    "health_state": { "type": "string", "enum": ["healthy", "degraded", "lost"] },
+    "criticality_level": { "type": "string", "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"] },
+    "health_counts": {
+      "type": "object",
+      "required": ["total", "healthy", "degraded", "lost"],
+      "additionalProperties": false,
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "healthy": { "type": "integer", "minimum": 0 },
+        "degraded": { "type": "integer", "minimum": 0 },
+        "lost": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "health_shares": {
+      "type": "object",
+      "required": ["healthy", "degraded", "lost"],
+      "additionalProperties": false,
+      "properties": {
+        "healthy": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "degraded": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "lost": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+      }
+    },
+    "crit_health_bucket": {
+      "type": "object",
+      "required": ["counts", "shares"],
+      "additionalProperties": false,
+      "properties": {
+        "counts": { "$ref": "#/$defs/health_counts" },
+        "shares": { "$ref": "#/$defs/health_shares" }
+      }
+    },
+    "type_health_bucket": {
+      "type": "object",
+      "required": ["counts", "shares", "ids", "by_criticality"],
+      "additionalProperties": false,
+      "properties": {
+        "counts": { "$ref": "#/$defs/health_counts" },
+        "shares": { "$ref": "#/$defs/health_shares" },
+        "ids": {
+          "type": "object",
+          "required": ["healthy", "degraded", "lost"],
+          "additionalProperties": false,
+          "properties": {
+            "healthy": { "type": "array", "items": { "type": "string" } },
+            "degraded": { "type": "array", "items": { "type": "string" } },
+            "lost": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "by_criticality": {
+          "type": "object",
+          "required": ["CRITICAL", "HIGH", "MEDIUM", "LOW"],
+          "additionalProperties": false,
+          "properties": {
+            "CRITICAL": { "$ref": "#/$defs/crit_health_bucket" },
+            "HIGH": { "$ref": "#/$defs/crit_health_bucket" },
+            "MEDIUM": { "$ref": "#/$defs/crit_health_bucket" },
+            "LOW": { "$ref": "#/$defs/crit_health_bucket" }
+          }
+        }
+      }
+    },
+    "component_record": {
+      "type": "object",
+      "required": ["id", "type", "state", "health_score", "criticality", "reasons", "metrics"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["Node", "Application", "Topic", "Broker", "NetworkDevice"] },
+        "state": { "$ref": "#/$defs/health_state" },
+        "health_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "criticality": {
+          "type": "object",
+          "required": ["level", "weight", "provenance", "derived_from"],
+          "additionalProperties": false,
+          "properties": {
+            "level": { "$ref": "#/$defs/criticality_level" },
+            "weight": { "type": "number" },
+            "provenance": { "type": "string", "enum": ["declared", "derived", "default"] },
+            "derived_from": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "reasons": { "type": "array", "items": { "type": "string" } },
+        "metrics": {
+          "type": "object",
+          "required": [
+            "delivery_attainment",
+            "emission_attainment",
+            "deadline_miss_rate",
+            "drop_count",
+            "redundancy_remaining",
+            "redundancy_initial",
+            "failover_occurred",
+            "cpu_p95"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "delivery_attainment": { "type": ["number", "null"] },
+            "emission_attainment": { "type": ["number", "null"] },
+            "deadline_miss_rate": { "type": ["number", "null"] },
+            "drop_count": { "type": "integer", "minimum": 0 },
+            "redundancy_remaining": { "type": ["integer", "null"], "minimum": 0 },
+            "redundancy_initial": { "type": ["integer", "null"], "minimum": 0 },
+            "failover_occurred": { "type": "boolean" },
+            "cpu_p95": { "type": ["number", "null"] }
+          }
+        }
+      }
+    }
+  }
+}

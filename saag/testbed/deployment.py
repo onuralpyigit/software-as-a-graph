@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List
@@ -22,6 +23,17 @@ def _rate(attrs: Dict[str, Any]) -> float:
         return float(attrs.get("frequency") or attrs.get("topic_frequency") or 10.0)
     except (TypeError, ValueError):
         return 10.0
+
+
+def _criticality(attrs: Dict[str, Any]) -> Any:
+    val = attrs.get("criticality")
+    if val is None:
+        val = attrs.get("criticality_level")
+    if val is None:
+        return None
+    s = val.value if hasattr(val, "value") else str(val)
+    s = s.strip().upper()
+    return s if s in ("CRITICAL", "HIGH", "MEDIUM", "LOW") else None
 
 
 def build_deployment(
@@ -86,6 +98,7 @@ def build_deployment(
             "history_depth": d.get("history_depth"),
             "priority": qos.transport_priority,
             "size": int(d.get("size") or 64),
+            "criticality": _criticality(d),
             "publishers": sorted(pubs.get(t, [])),
             "routers": sorted(routers.get(t, [])),
         }
@@ -112,6 +125,7 @@ def build_deployment(
                                    for t in out},
             "phase_index": {t: topics[t]["publishers"].index(a) for t in out},
             "hotstandby": bool(g.nodes[a].get("hotstandby")),
+            "criticality": _criticality(g.nodes[a]),
             # Every host it RUNS_ON: one instance each, lowest-id live one active.
             "hosts": sorted(hosts_of.get(a, [])) or [DEFAULT_HOST],
         }
@@ -120,10 +134,15 @@ def build_deployment(
     for b in sorted(n for n, t in ntype.items() if t == "Broker"):
         routed = sorted(t for t, rs in routers.items() if b in rs and t in topics)
         load = sum(topics[t]["rate_hz"] for t in routed)
-        brokers[b] = {"routes": routed,
-                      "service_mean_s": (target_utilization / load) if load > 0 else 0.0}
+        b_host = (sorted(hosts_of.get(b, [])) or [DEFAULT_HOST])[0]
+        brokers[b] = {
+            "routes": routed,
+            "host": b_host,
+            "criticality": _criticality(g.nodes[b]),
+            "service_mean_s": (target_utilization / load) if load > 0 else 0.0,
+        }
 
-    hosts: Dict[str, Dict[str, List[str]]] = defaultdict(lambda: {"apps": [], "brokers": []})
+    hosts: Dict[str, Dict[str, Any]] = defaultdict(lambda: {"apps": [], "brokers": []})
     # A multi-hosted application runs an instance on every host (active /
     # standby, see runtime.AppRuntime), so a host outage takes it down only when
     # all of its hosts are down -- `replica_aware` semantics. Brokers stay on
@@ -134,6 +153,10 @@ def build_deployment(
     for b in brokers:
         for h in (sorted(hosts_of.get(b, [])) or [DEFAULT_HOST])[:1]:
             hosts[h]["brokers"].append(b)
+    host_criticality = {
+        h: c for h in sorted(hosts)
+        if h in g and (c := _criticality(g.nodes[h])) is not None
+    }
 
     cpus: Dict[str, int] = {}
     if service_work == "cpu":
@@ -144,9 +167,25 @@ def build_deployment(
             declared = g.nodes[h].get("cpu_cores") if h in g else None
             cpus[h] = int(declared) if declared else max(1, stations)
 
+    devices: Dict[str, Dict[str, Any]] = {
+        d: {
+            "role": str(g.nodes[d].get("role") or "switch"),
+            "criticality": _criticality(g.nodes[d]),
+        }
+        for d in sorted(n for n, t in ntype.items() if t == "NetworkDevice")
+    }
+    domain = g.graph.get("domain") or (g.graph.get("metadata") or {}).get("domain")
+    if domain is None:
+        try:
+            raw_meta = json.loads(Path(scenario).read_text()).get("metadata") or {}
+            domain = raw_meta.get("domain")
+        except Exception:
+            domain = None
+
     return {
         "schema_version": "1.0",
         "scenario": g.graph.get("id", Path(scenario).stem),
+        "domain": domain,
         "target_utilization": target_utilization,
         "staleness_periods": staleness_periods,
         "qos_semantics": qos_semantics,
@@ -159,8 +198,12 @@ def build_deployment(
         "apps": apps,
         "brokers": brokers,
         "hosts": {h: hosts[h] for h in sorted(hosts)},
+        "host_criticality": host_criticality,
+        "network_devices": devices,
         "links": sorted({tuple(sorted((u, v))) for u, v, d in g.edges(data=True)
                          if d.get("type") == "CONNECTS_TO"}),
-        "network": {"gating": network_gating,
-                    "vertices": sorted(n for n, t in ntype.items() if t in NETWORK_TYPES)},
+        "network": {
+            "gating": network_gating,
+            "vertices": sorted(n for n, t in ntype.items() if t in NETWORK_TYPES),
+        },
     }

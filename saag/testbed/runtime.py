@@ -156,6 +156,7 @@ class _Station:
         self.keep_last = keep_last
         self.cond = threading.Condition()
         self.queues: Dict[str, deque] = {t: deque() for t in topics}
+        self.peak_depth: Dict[str, int] = {t: 0 for t in topics}
         self.capacity = {t: int(spec.get("history_depth") or DEFAULT_QUEUE) for t, spec in topics.items()}
         self.reliable = {t: str(spec.get("reliability", "RELIABLE")).upper() != "BEST_EFFORT"
                          for t, spec in topics.items()}
@@ -172,6 +173,8 @@ class _Station:
                     return item
                 dropped = q.popleft()
             q.append(item)
+            if len(q) > self.peak_depth[topic]:
+                self.peak_depth[topic] = len(q)
             self.cond.notify()
             return dropped
 
@@ -190,9 +193,12 @@ class AppRuntime:
 
     def __init__(self, app: str, plan: Mapping[str, Any], transport: Transport,
                  sink: TelemetrySink, seed: int = 0, clock: Callable[[], float] = time.time,
-                 host: Optional[str] = None) -> None:
+                 host: Optional[str] = None,
+                 criticality_info: Optional[Mapping[str, Any]] = None) -> None:
         self.app = app
         self.spec = plan["apps"][app]
+        self.criticality_info = dict(criticality_info) if criticality_info else {}
+        self._last_health_state: Optional[str] = None
         self.replicas: List[str] = list(self.spec.get("hosts") or [])
         self._was_active: Optional[bool] = None
         self.host = host if host is not None else (self.replicas[0] if self.replicas else None)
@@ -383,12 +389,49 @@ class AppRuntime:
             self.sink.emit(make_event(now, "saag.drop", self.app, topic,
                                       publisher=dropped.get("publisher")))
 
+    def health_state(self, now: float) -> Tuple[str, str]:
+        """Current runtime health state and reason for live Tier-2 observability."""
+        c = self.control
+        if c.crashed:
+            return "crashed", "control:crashed"
+        if c.frozen:
+            return "frozen", "control:frozen"
+        share = self.emit_share(now)
+        if share <= 0.0:
+            return "stalled", "emit_share=0.0"
+        if share < 1.0:
+            return "degraded", f"emit_share={share:.2f}"
+        if c.slowdown > 1.0:
+            return "degraded", f"control:slowdown={c.slowdown}"
+        if c.omission > 0.0:
+            return "degraded", f"control:omission={c.omission}"
+        if c.babbling > 1.0:
+            return "degraded", f"control:babbling={c.babbling}"
+        return "healthy", "nominal"
+
+    def state_events(self, now: float) -> List[Dict[str, Any]]:
+        """`saag.state` record emitted whenever this application's health state changes."""
+        if not self.active(now) and not (self.control.crashed or self.control.frozen):
+            return []
+        state, reason = self.health_state(now)
+        if state == self._last_health_state:
+            return []
+        self._last_health_state = state
+        attrs: Dict[str, Any] = {"state": state, "reason": reason, "host": self.host}
+        if self.criticality_info.get("level"):
+            attrs["criticality"] = self.criticality_info["level"]
+            attrs["criticality_provenance"] = self.criticality_info.get("provenance", "default")
+        return [make_event(now, "saag.health", self.app, **attrs)]
+
     def status_events(self, now: float) -> List[Dict[str, Any]]:
         """`saag.status` records for agent-level counts that changed since the last call."""
         counts = dict(self.status_counts)
         for (kind, topic), mon in self.monitors.items():
             name = "requested_deadline_missed" if kind == "reader" else "offered_deadline_missed"
             counts[(kind, topic, name)] = mon.pending(now)
+        for topic, peak in self.station.peak_depth.items():
+            if peak > 0:
+                counts[("reader", topic, "cache_samples_peak")] = peak
         out = []
         for (kind, topic, name), value in sorted(counts.items()):
             if value and self._reported.get((kind, topic, name)) != value:
@@ -437,10 +480,13 @@ class BrokerRelay:
     """Forward a broker's routed topics ingress -> egress, with failover."""
 
     def __init__(self, broker: str, plan: Mapping[str, Any], transport: Transport,
-                 sink: TelemetrySink, seed: int = 0, clock: Callable[[], float] = time.time) -> None:
+                 sink: TelemetrySink, seed: int = 0, clock: Callable[[], float] = time.time,
+                 criticality_info: Optional[Mapping[str, Any]] = None) -> None:
         self.broker = broker
         self.plan = plan
         self.spec = plan["brokers"][broker]
+        self.criticality_info = dict(criticality_info) if criticality_info else {}
+        self._last_health_state: Optional[str] = None
         self.transport = transport
         self.sink = sink
         self.clock = clock
@@ -486,6 +532,27 @@ class BrokerRelay:
 
     def _on_heartbeat(self, sample: Dict[str, Any]) -> None:
         self.heard[sample["publisher"]] = self.clock()
+
+    def health_state(self) -> Tuple[str, str]:
+        c = self.control
+        if c.crashed:
+            return "crashed", "control:crashed"
+        if c.frozen:
+            return "frozen", "control:frozen"
+        if c.slowdown > 1.0:
+            return "degraded", f"control:slowdown={c.slowdown}"
+        return "healthy", "nominal"
+
+    def state_events(self, now: float) -> List[Dict[str, Any]]:
+        state, reason = self.health_state()
+        if state == self._last_health_state:
+            return []
+        self._last_health_state = state
+        attrs: Dict[str, Any] = {"state": state, "reason": reason}
+        if self.criticality_info.get("level"):
+            attrs["criticality"] = self.criticality_info["level"]
+            attrs["criticality_provenance"] = self.criticality_info.get("provenance", "default")
+        return [make_event(now, "saag.health", self.broker, **attrs)]
 
     def _heartbeat(self) -> None:
         while not self.stop.wait(HEARTBEAT_PERIOD_S):

@@ -35,10 +35,11 @@ START_POLL_S = 0.05
 def _emit_status(parts: Dict[str, object], sink: TelemetrySink) -> None:
     now = time.time()
     for part in parts.values():
-        events = getattr(part, "status_events", None)
-        if events is not None:
-            for ev in events(now):
-                sink.emit(ev)
+        for fn_name in ("status_events", "state_events"):
+            events = getattr(part, fn_name, None)
+            if events is not None:
+                for ev in events(now):
+                    sink.emit(ev)
 
 
 def _await_start(control_dir: Path, host: str) -> None:
@@ -52,15 +53,21 @@ def _await_start(control_dir: Path, host: str) -> None:
 
 def run_host(plan: Dict, host: str, transport, sink: TelemetrySink, duration_s: float,
              control_dir: Optional[Path] = None, seed: int = 0, await_start: bool = False) -> None:
+    from saag.validation.health import derive_operational_criticality
+
+    crit_map = derive_operational_criticality(plan)
     hosts = plan["hosts"] if host == "all" else {host: plan["hosts"][host]}
     parts: Dict[str, object] = {}
     for h, residents in hosts.items():
         for b in residents["brokers"]:
-            parts[b] = BrokerRelay(b, plan, transport, sink, seed=seed)
+            parts[b] = BrokerRelay(
+                b, plan, transport, sink, seed=seed, criticality_info=crit_map.get(b)
+            )
         for a in residents["apps"]:
             replicated = len(plan["apps"][a].get("hosts", [])) > 1
             parts[f"{a}@{h}" if replicated else a] = AppRuntime(
-                a, plan, transport, sink, seed=seed, host=h)
+                a, plan, transport, sink, seed=seed, host=h, criticality_info=crit_map.get(a)
+            )
     if await_start:
         _await_start(control_dir, host)
     for p in parts.values():
@@ -91,6 +98,11 @@ def run_host(plan: Dict, host: str, transport, sink: TelemetrySink, duration_s: 
                             if f.exists():
                                 state.update(json.loads(f.read_text()))
                         part.control = Control.from_dict(state)
+                        state_fn = getattr(part, "state_events", None)
+                        if state_fn is not None:
+                            now = time.time()
+                            for ev in state_fn(now):
+                                sink.emit(ev)
             time.sleep(CONTROL_POLL_S)
     finally:
         _emit_status(parts, sink)

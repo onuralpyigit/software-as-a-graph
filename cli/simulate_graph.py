@@ -500,13 +500,23 @@ def _run_hybrid_verify(args: argparse.Namespace) -> None:
     )
     elapsed = time.perf_counter() - t0
 
+    from saag.validation.health import (
+        format_health_report,
+        format_operational_criticality_table,
+    )
+
     s0 = report["step0_calibration"]
     s1 = report["step1_tier1_screening"]
     s2 = report["step2_shortlist"]
     s3 = report["step3_tier2_verification"]
+    b_obs = (s0.get("baseline_health") or {}).get("observed") or {}
+    b_cnt = (b_obs.get("system_health") or {}).get("counts") or {}
+    b_qiu = (b_obs.get("product_in_use") or {}).get("overall_qiu_health_index")
     print(f"\nHybrid verification complete ({cfg.mode}, {elapsed:.1f} s) → {Path(args.output) / 'hybrid_report.json'}")
     print(f"  Step 0: kappa={s0['kappa']:.3f}  calibrated={s0['calibrated']}  "
-          f"steady topic-rate med err={s0['steady_state']['metrics']['topic_rate']['median_rel_error']}")
+          f"steady topic-rate med err={s0['steady_state']['metrics']['topic_rate']['median_rel_error']}  "
+          f"baseline H/D/L={b_cnt.get('healthy', 0)}/{b_cnt.get('degraded', 0)}/{b_cnt.get('lost', 0)}  "
+          f"QiU={b_qiu if b_qiu is not None else 'N/A'}")
     print(f"  Step 1: {s1['n_candidates']} Tier-1 candidates  label={s1['label']}  "
           f"retest={s1['label_stability'].get(s1['label'], {})}")
     print(f"  Step 2: shortlist={len(s2['primary_targets'])} primary + "
@@ -514,8 +524,19 @@ def _run_hybrid_verify(args: argparse.Namespace) -> None:
           f"diagnostics={s2['tier1_diagnostics']}")
     for pid, pdata in s3["probes"].items():
         cmp = pdata["replay_fidelity"]
+        oc = pdata.get("operational_criticality") or {}
+        t1_cmp = (oc.get("tier1_vs_tier2") or {}).get(cfg.tier1_label) or {}
         print(f"  Step 3 [{pid}]: n={pdata['n_primary_targets']}  "
-              f"rho={cmp.get('spearman')}  topK_jaccard={cmp.get('topk_jaccard')}")
+              f"replay_rho={cmp.get('spearman')}  topK_jaccard={cmp.get('topk_jaccard')}  "
+              f"tier1_vs_tier2({cfg.tier1_label})_rho={t1_cmp.get('spearman')}")
+        if oc.get("ranking"):
+            print(format_operational_criticality_table(oc["ranking"], sort_by=cfg.tier1_label))
+        if getattr(args, "show_health", False):
+            for target, tdata in pdata.get("per_target", {}).items():
+                oh = (tdata.get("health_summary") or {}).get("observed")
+                if oh:
+                    print(f"\n  --- Tier-2 Health [{pid} / {target}] ---")
+                    print(format_health_report(oh))
     for cav in report["caveats"]:
         print(f"  [{cav['severity'].upper()}] {cav['code']}: {cav['message']}")
 
@@ -544,6 +565,27 @@ def _run_testbed(args: argparse.Namespace) -> None:
         print(f"Calibrated {len(prof['msg_rate_per_sec'])} topic rates, "
               f"{len(prof['service_time_dist'])} service-time fits, "
               f"{len(prof['trigger_policy'])} trigger policies → {out / 'profile.json'}")
+    elif args.action == "health":
+        from saag.validation.health import (
+            format_health_report,
+            format_operational_criticality_table,
+        )
+
+        rep = orchestrate.health(out, warmup_s=float(args.warmup))
+        if getattr(args, "json", False):
+            print(json.dumps(rep, indent=2, sort_keys=True))
+        else:
+            print(format_health_report(
+                rep,
+                only_unhealthy=bool(args.only_unhealthy),
+                only_critical=bool(args.only_critical),
+            ))
+            if rep.get("operational_criticality"):
+                print("\nTier-2 Observed Operational Criticality:")
+                print(format_operational_criticality_table(
+                    list(rep["operational_criticality"].values())
+                ))
+            print(f"\nHealth summary written → {out / 'health_summary.json'}")
     else:
         rep = orchestrate.fidelity(out, calibrated=args.calibrated)
         for metric, v in rep["steady_state"]["metrics"].items():
@@ -553,6 +595,10 @@ def _run_testbed(args: argparse.Namespace) -> None:
                       f"  within tol {v['share_within_tolerance']}")
         if "fault_response" in rep:
             print(f"  stall-set Jaccard {rep['fault_response'].get('stall_jaccard')}")
+        if "health_summary" in rep:
+            cmp_h = rep["health_summary"]["comparison"]
+            print(f"  health exact-state agreement {cmp_h.get('exact_state_agreement')}  "
+                  f"op-crit lost Jaccard {cmp_h.get('operational_critical_lost_jaccard')}")
 
 
 def _run_message_flow(args: argparse.Namespace) -> None:
@@ -1253,25 +1299,30 @@ def _build_parser() -> argparse.ArgumentParser:
                          "slowdown:duration=10,k=3). Default: crash.")
     hv.add_argument("--repetitions", type=int, default=3, metavar="N")
     hv.add_argument("--seed", type=int, default=42)
+    hv.add_argument("--show-health", action="store_true",
+                    help="Print full per-component Tier-2 health tables for every verified target.")
     hv.add_argument("--verbose", "-v", action="store_true")
 
     # ── testbed ───────────────────────────────────────────────────────────
     tb = subparsers.add_parser(
         "testbed",
-        help="Emulated DDS testbed: build, run (with chaos), calibrate, fidelity.",
+        help="Emulated DDS testbed: build, run (with chaos), calibrate, fidelity, health.",
         description=(
             "build: scenario -> deployment.json + Dockerfile + docker-compose.yml.  "
             "run: run it (--mode local: in-process, no containers; --mode docker: "
             "docker compose + Cyclone DDS) and apply --faults on schedule.  "
             "calibrate: telemetry -> profile.json.  fidelity: simulate the same run "
-            "and compare it with the observed telemetry (a report, never a gate)."
+            "and compare it with the observed telemetry (a report, never a gate).  "
+            "health: observe end-of-simulation Tier-2 component health and operational criticality."
         ),
     )
-    tb.add_argument("action", choices=("build", "run", "calibrate", "fidelity"))
+    tb.add_argument("action", choices=("build", "run", "calibrate", "fidelity", "health"))
     tb.add_argument("--input", default=None, help="Scenario JSON (build).")
     tb.add_argument("--layer", default=None, help=argparse.SUPPRESS)
     tb.add_argument("--output", required=True, help="Testbed directory.")
     tb.add_argument("--duration", type=float, default=60.0, metavar="SECONDS")
+    tb.add_argument("--warmup", type=float, default=2.0, metavar="SECONDS",
+                    help="health: warm-up window excluded from baseline rates.")
     tb.add_argument("--seed", type=int, default=0)
     tb.add_argument("--mode", choices=("local", "docker"), default="local")
     tb.add_argument("--faults", default=None, metavar="FAULTS.json")
@@ -1288,6 +1339,12 @@ def _build_parser() -> argparse.ArgumentParser:
                          "network-vertex crashes (the simulator's network_gating).")
     tb.add_argument("--calibrated", action="store_true",
                     help="fidelity: simulate with profile.json from 'calibrate'.")
+    tb.add_argument("--only-unhealthy", action="store_true",
+                    help="health: show only degraded or lost components in the table.")
+    tb.add_argument("--only-critical", action="store_true",
+                    help="health: show only operational-critical (CRITICAL/HIGH) components.")
+    tb.add_argument("--json", action="store_true",
+                    help="health: emit raw JSON instead of formatted tables.")
     tb.add_argument("--verbose", "-v", action="store_true")
 
     # ── combined ──────────────────────────────────────────────────────────

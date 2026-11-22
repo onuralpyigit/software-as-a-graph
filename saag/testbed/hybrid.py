@@ -49,6 +49,12 @@ from saag.validation.fidelity import (
     observed_impact,
     stalled_in_trace,
 )
+from saag.validation.health import (
+    compare_health_summaries,
+    compare_operational_criticality,
+    observed_operational_criticality,
+    summarize_system_health,
+)
 
 from . import orchestrate, study
 from .chaos import plan_actions
@@ -625,6 +631,18 @@ def run_hybrid_protocol(
         base_simulated.window(eff_warmup, eff_duration),
         base_observed.window(eff_warmup, eff_duration),
     )
+    base_obs_health = summarize_system_health(
+        base_observed, plan, warmup_s=eff_warmup, docker_cpu_p95=cpu_p95,
+    )
+    base_sim_health = summarize_system_health(
+        base_simulated, plan, warmup_s=eff_warmup,
+    )
+    tier2_health_dir = out_path / "tier2_health"
+    tier2_health_dir.mkdir(parents=True, exist_ok=True)
+    (tier2_health_dir / "baseline.json").write_text(
+        json.dumps(base_obs_health, indent=2, sort_keys=True, default=str)
+    )
+    baseline_qiu = float(base_obs_health["product_in_use"]["overall_qiu_health_index"])
 
     step0_summary: Dict[str, Any] = {
         "kappa": round(kappa, 6),
@@ -643,6 +661,11 @@ def run_hybrid_protocol(
         ),
         "attainment": base_attainment,
         "steady_state": steady_state_report,
+        "baseline_health": {
+            "observed": base_obs_health,
+            "simulated": base_sim_health,
+            "comparison": compare_health_summaries(base_sim_health, base_obs_health),
+        },
         "docker_cpu_p95": cpu_p95,
     }
 
@@ -727,6 +750,8 @@ def run_hybrid_protocol(
         per_target: Dict[str, Any] = {}
         sim_primary: Dict[str, float] = {}
         obs_primary: Dict[str, float] = {}
+        obs_op_crit_by_target: Dict[str, Dict[str, Any]] = {}
+        sim_op_crit_by_target: Dict[str, Dict[str, Any]] = {}
         controls_summary: Dict[str, Any] = {}
         skipped_targets: Dict[str, str] = {}
 
@@ -742,10 +767,16 @@ def run_hybrid_protocol(
 
             rep_obs_impacts: List[float] = []
             rep_sim_impacts: List[float] = []
+            rep_obs_op_crits: List[Dict[str, Any]] = []
+            rep_sim_op_crits: List[Dict[str, Any]] = []
             rep_stall_jaccards: List[float] = []
             rep_unsupported: List[Any] = []
             dds_by_rep: List[Dict[str, Any]] = []
             last_obs_tr = None
+            last_sim_tr = None
+            last_meta: Dict[str, Any] = {}
+            last_obs_health = None
+            last_sim_health = None
             obs_stalled_union: set = set()
             sim_stalled_union: set = set()
 
@@ -762,11 +793,13 @@ def run_hybrid_protocol(
                 if meta.get("unsupported"):
                     rep_unsupported.extend(meta["unsupported"])
                     continue
+                last_meta = meta
                 obs_tr = load_run(tb_dir)
                 last_obs_tr = obs_tr
                 sim_tr = orchestrate.simulate_like(
                     tb_dir, calibrated=(profile_obj is not None)
                 )
+                last_sim_tr = sim_tr
 
                 obs_imp = observed_impact(
                     obs_tr, subs_map, target, fault_time,
@@ -778,6 +811,32 @@ def run_hybrid_protocol(
                 )
                 rep_obs_impacts.append(obs_imp)
                 rep_sim_impacts.append(sim_imp)
+
+                rep_obs_h = summarize_system_health(
+                    obs_tr, plan, fault_time=fault_time, warmup_s=eff_warmup,
+                    faults=[spec], docker_cpu_p95=meta.get("docker_cpu_p95"),
+                )
+                rep_sim_h = summarize_system_health(
+                    sim_tr, plan, fault_time=fault_time, warmup_s=eff_warmup, faults=[spec],
+                )
+                last_obs_health = rep_obs_h
+                last_sim_health = rep_sim_h
+                rep_obs_op_crits.append(
+                    observed_operational_criticality(
+                        obs_tr, plan, target, fault_time,
+                        warmup_s=eff_warmup, failed=failed_set,
+                        fault_duration_s=p_dur, health_summary=rep_obs_h,
+                        baseline_qiu=baseline_qiu,
+                    )
+                )
+                rep_sim_op_crits.append(
+                    observed_operational_criticality(
+                        sim_tr, plan, target, fault_time,
+                        warmup_s=eff_warmup, failed=failed_set,
+                        fault_duration_s=p_dur, health_summary=rep_sim_h,
+                        baseline_qiu=float(base_sim_health["product_in_use"]["overall_qiu_health_index"]),
+                    )
+                )
 
                 obs_st = stalled_in_trace(obs_tr, fault_time) - failed_set - {target}
                 sim_st = stalled_in_trace(sim_tr, fault_time) - failed_set - {target}
@@ -806,6 +865,45 @@ def run_hybrid_protocol(
                 current_profile=profile_obj,
             )
 
+            obs_health = last_obs_health
+            sim_health = last_sim_health
+            health_cmp = (
+                compare_health_summaries(sim_health, obs_health)
+                if sim_health is not None and obs_health is not None
+                else None
+            )
+
+            def _avg_op_crit(items: List[Dict[str, Any]]) -> Dict[str, Any]:
+                base = dict(items[-1])
+                for k in (
+                    "i_flow", "i_delivery", "i_delivery_consumer",
+                    "i_timeliness", "i_recovery", "qiu_impact",
+                    "criticality_weighted_health_loss",
+                ):
+                    vals = [it[k] for it in items if isinstance(it.get(k), (int, float))]
+                    base[k] = round(statistics.fmean(vals), 6) if vals else None
+                base["lost_operational_critical_count"] = int(
+                    round(statistics.fmean(it["lost_operational_critical_count"] for it in items))
+                )
+                base["zero_tolerance_critical_loss"] = any(
+                    it["zero_tolerance_critical_loss"] for it in items
+                )
+                return base
+
+            obs_op_crit = _avg_op_crit(rep_obs_op_crits)
+            sim_op_crit = _avg_op_crit(rep_sim_op_crits)
+            obs_op_crit_by_target[target] = obs_op_crit
+            sim_op_crit_by_target[target] = sim_op_crit
+
+            safe_target = target.replace("|", "__").replace("/", "_")
+            if obs_health is not None:
+                (tier2_health_dir / f"{pid}_{safe_target}.json").write_text(
+                    json.dumps(
+                        {**obs_health, "operational_criticality": obs_op_crit},
+                        indent=2, sort_keys=True, default=str,
+                    )
+                )
+
             obs_mean = statistics.fmean(rep_obs_impacts)
             sim_mean = statistics.fmean(rep_sim_impacts)
             entry = {
@@ -824,6 +922,15 @@ def run_hybrid_protocol(
                 "observed_stalled": sorted(obs_stalled_union),
                 "simulated_stalled": sorted(sim_stalled_union),
                 "dds_status": dds_by_rep,
+                "health_summary": {
+                    "observed": obs_health,
+                    "simulated": sim_health,
+                },
+                "health_agreement": health_cmp,
+                "operational_criticality": {
+                    "observed": obs_op_crit,
+                    "simulated": sim_op_crit,
+                },
                 "policy_updates": policy_diag["policy_updates"],
                 "unsupported": rep_unsupported,
             }
@@ -877,6 +984,24 @@ def run_hybrid_protocol(
             if pred_scores
             else None
         )
+        sort_lbl = cfg.tier1_label
+        ranking = sorted(
+            obs_op_crit_by_target.values(),
+            key=lambda r: (
+                -(float(r[sort_lbl]) if isinstance(r.get(sort_lbl), (int, float)) else -1e9),
+                str(r.get("target", "")),
+            ),
+        )
+        op_crit_summary = {
+            "sort_by": sort_lbl,
+            "ranking": ranking,
+            "tier1_vs_tier2": compare_operational_criticality(
+                tier1_out["records"], obs_op_crit_by_target
+            ),
+            "replay_vs_tier2": compare_operational_criticality(
+                sim_op_crit_by_target, obs_op_crit_by_target
+            ),
+        }
         probes_report[pid] = {
             "probe": probe,
             "n_primary_targets": len(obs_primary),
@@ -885,12 +1010,23 @@ def run_hybrid_protocol(
             # run, both scored by observed_impact: Link-2 fidelity, not a check
             # of the Step 1 `tier1_label` screening that chose the shortlist.
             "replay_fidelity": primary_cmp,
+            "operational_criticality": op_crit_summary,
             "residual_diagnosis": residual_diag,
             "predictions_vs_tier2": pred_vs_obs,
             "controls": controls_summary,
             "skipped_targets": skipped_targets,
             "per_target": per_target,
         }
+
+    (tier2_health_dir / "operational_criticality_ranking.json").write_text(
+        json.dumps(
+            {
+                pid: pdata["operational_criticality"]
+                for pid, pdata in probes_report.items()
+            },
+            indent=2, sort_keys=True, default=str,
+        )
+    )
 
     report: Dict[str, Any] = {
         "schema_version": "1.0",
