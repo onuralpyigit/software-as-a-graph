@@ -25,6 +25,7 @@ from scipy.stats import norm, spearmanr, wilcoxon
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from reproduce.fidelity_study import EXCLUDED  # noqa: E402
 from saag.validation.fidelity import compare_dds_status, summarize  # noqa: E402
 
 
@@ -308,7 +309,7 @@ def main(out: Optional[Path] = None, delta: Optional[float] = None,
     rng = random.Random(study.SELECTION_SEED)
     tables: Dict[str, Dict[str, Dict[str, Any]]] = {"O-open": {}, "O-react": {}}
     for name, row in cap.items():
-        if not row["included"]:
+        if not row["included"] or name in EXCLUDED:
             continue
         src = Path(sources.get(name) or ROOT / "data" / "scenarios" / f"{name}_system.json")
         plan = build_deployment(src, open_loop=True)

@@ -275,3 +275,15 @@ def test_undefined_rho_is_not_coerced_and_lost_scenarios_leave_the_contrast():
     rows = {"x": _scenario_row(0.5, 0.6), "y": {**_scenario_row(0.5, 0.9), "lost_scenario": True},
             "z": {**_scenario_row(0.5, 0.6), "rho": {"S0": None, "S2": 0.6}}}
     assert contrast(rows, "S2", "S0") == pytest.approx([0.1])
+
+
+def test_amendment_2_withdraws_industrial_scada_everywhere(tmp_path, monkeypatch):
+    import reproduce.fidelity_significance as sig
+    import reproduce.fidelity_study as fs
+
+    cap = {"atm": {"included": True, "kappa": 1.0}, "industrial_scada": {"included": True, "kappa": 1.0},
+           "av": {"included": False, "kappa": 1.0}}
+    (tmp_path / "capacity.json").write_text(json.dumps(cap))
+    monkeypatch.setattr(fs, "OUT", tmp_path)
+    assert set(fs.included()) == {"atm"}
+    assert sig.EXCLUDED is fs.EXCLUDED == {"industrial_scada": "Amendment 2"}

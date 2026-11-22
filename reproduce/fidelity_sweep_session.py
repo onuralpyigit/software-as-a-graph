@@ -34,9 +34,10 @@ sys.path.insert(0, str(ROOT))
 import reproduce.fidelity_study as fs  # noqa: E402
 import reproduce.fidelity_sweep_progress as progress  # noqa: E402
 
-# PREREGISTRATION.md §8 "Inclusion", in capacity.json order.
-FROZEN = ["iot_smart_city", "healthcare", "hub_and_spoke", "microservices", "telecom_ran",
-          "industrial_scada", "realtime_gaming", "logistics_fleet", "atm"]
+# PREREGISTRATION.md §8 "Inclusion", in capacity.json order, less §12 Amendment 2.
+FROZEN = [n for n in ["iot_smart_city", "healthcare", "hub_and_spoke", "microservices", "telecom_ran",
+                      "industrial_scada", "realtime_gaming", "logistics_fleet", "atm"]
+          if n not in fs.EXCLUDED]
 
 
 class BudgetSpent(Exception):
@@ -66,6 +67,8 @@ def main() -> None:
     fs.attempt_run = budgeted_attempt
     fs.require_frozen()
     inc = fs.included()
+    if set(inc) != set(FROZEN):
+        raise SystemExit("capacity.json no longer matches the frozen §8 table")
     for n in FROZEN:
         if not inc.get(n, {}).get("included") or inc[n]["kappa"] != 1.0:
             raise SystemExit(f"{n}: capacity.json no longer matches the frozen §8 table")
@@ -91,6 +94,7 @@ def main() -> None:
             (reports / f"{name}.md").write_text(progress.report(name, fs.OUT / "sweep"))
         if all(done_marker(n).exists() for n in FROZEN):
             outcome = "all scenarios finished"
+            (fs.OUT / "sweep" / "COMPLETE").write_text("all runs finished\n")
     except BudgetSpent:
         outcome = "budget reached"
     except BaseException as exc:
