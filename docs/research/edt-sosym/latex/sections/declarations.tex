@@ -22,13 +22,14 @@ $S testbed run --output $OUT --duration 50 \
     --faults faults.json --mode docker
 $S testbed calibrate --output $OUT
 $S testbed fidelity --output $OUT --calibrated
+$S testbed health --output $OUT --only-unhealthy
 
 # Single-command hybrid two-tiered verification (Step 0 -> Step 3)
 $S hybrid-verify --input data/scenarios/tiny_system.json \
     --output output/hybrid/tiny --mode local --duration 20 \
     --warmup 2 --seeds 42,123 --repetitions 1 --top-k 2 \
     --controls 1 --fault-probe crash \
-    --fault-probe omission:duration=5,p=0.5
+    --fault-probe omission:duration=5,p=0.5 --show-health
 \end{verbatim}
 
 \paragraph{Author Contributions:} [To be completed via the submission interface, per the journal's Submitting Declarations requirements.]

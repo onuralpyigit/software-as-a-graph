@@ -97,7 +97,7 @@ Each twin service matches what an engineering pipeline can afford:
 |---|---|---|---|
 | **Tier 1** | Graph analysis & change gate | **0.01–1.01 s** (29–444 components) | Every commit / PR |
 | **Tier 2a** | Calibrated queue-flow simulation ($I_{\mathrm{dyn}}$) | **1.5–4.3 s** per fault | System-wide screening & shortlisting |
-| **Tier 2b** | Hybrid two-tiered verification (`hybrid-verify`) | **54.2 s** local (`tiny_system`) / **≈ 40 min** projected Docker shortlist (`atm`) | Milestone triage & targeted gray-failure checks |
+| **Tier 2b** | Hybrid two-tiered verification (`hybrid-verify` + `testbed health`) | **54.2 s** local (`tiny_system`) / **≈ 40 min** projected Docker shortlist (`atm`) | Milestone triage, targeted gray-failure checks, Tier-2 operational health (ISO/IEC 25019) & criticality rankings |
 | **Tier 3** | Exhaustive Docker + DDS counterpart sweep | **≈ 71 s/run** (≈ 56 h full study) | Periodic twin fidelity validation |
 
 ---

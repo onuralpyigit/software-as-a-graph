@@ -72,8 +72,9 @@ The stub applications behave like the simulator's application model, in real tim
 \begin{itemize}[leftmargin=*,nosep]
   \item one publisher thread per output topic;
   \item a single worker thread serving all inputs, which is the simulator's shared station;
-  \item bounded receive queues with the model's overflow policy;
-  \item deadline checks on end-to-end latency.
+  \item bounded receive queues with the model's overflow policy and peak-depth tracking (\texttt{cache\_\allowbreak samples\_\allowbreak peak});
+  \item deadline checks on end-to-end latency;
+  \item live health-state transition reporting (\texttt{saag.health}) annotated with each component's declared or derived operational criticality.
 \end{itemize}
 Samples are taken by a poller thread blocked on a DDS WaitSet, never by middleware listener callbacks. We learned this the hard way: a Python listener runs on the middleware's receive thread while that thread holds the reader's lock and waits for the interpreter lock, which stalls reception under load. Such details are invisible in the model. Yet they decide whether the counterpart measures the middleware or the emulation harness, which is why we report them.
 
@@ -127,4 +128,4 @@ Every artefact of a counterpart run can be traced to the model element that prod
   \item each telemetry event carries the identifier of the modelled component that emitted it and of the modelled topic involved;
   \item control files are named after the targeted component.
 \end{itemize}
-A run directory therefore contains the plan, the build context, the per-host telemetry, the run metadata, the calibrated profile and the fidelity report. Any fidelity finding can be followed back to a model element and forward to the container that exhibited it. This auditability is what the model-driven twin literature asks for when it calls for traceable synchronisation between twin and system~\citep{bordeleau2020towards}. Here it is a by-product of generating, rather than hand-building, the counterpart.
+A run directory therefore contains the plan (including scenario domain, declared entity criticalities, host criticalities and network-device descriptors), the build context, the per-host telemetry, the run metadata (including per-container \texttt{docker\_cpu\_p95} on Docker runs), the calibrated profile, the fidelity report and the end-of-simulation operational health summary (\texttt{health\_summary.json}). Any fidelity or health finding can be followed back to a model element and forward to the container that exhibited it. This auditability is what the model-driven twin literature asks for when it calls for traceable synchronisation between twin and system~\citep{bordeleau2020towards}. Here it is a by-product of generating, rather than hand-building, the counterpart.

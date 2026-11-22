@@ -44,8 +44,9 @@ R2 & The in-memory and graph-database repositories agree on derived edges for al
 R3 & Simulation code never imports the analysis or prediction packages, and never reads derived edges. & guard test \\
 R3 & The labelling simulator and the validation simulator are never substituted for each other within a pipeline stage. & contract test \\
 R1 & Every committed scenario regenerates byte-identically from its configuration, and a manifest matches the files on disk. & corpus test \\
-R4 & Plan, QoS mapping, compose file, chaos compilation (including partitions under network gating) and the in-process counterpart are checked against the simulator. An in-process counterpart run must cascade like the simulator, and its DDS-status semantics must agree with the simulator's. & 32 tests \\
-R4/R6 & Hybrid two-tiered protocol: calibrated Tier-1 runtime sweeps stay JSON-serialisable, multi-format prediction loading, deterministic top-$K$ / disagreement / negative-control shortlisting, pre-flight parity and caveat emission, \texttt{open\_loop} parity and end-to-end in-process verification. & 8 tests \\
+R4 & Plan, QoS mapping, compose file, chaos compilation (including partitions under network gating) and the in-process counterpart are checked against the simulator. An in-process counterpart run must cascade like the simulator, and its DDS-status semantics must agree with the simulator's. & 33 tests \\
+R4/R6 & Hybrid two-tiered protocol: calibrated Tier-1 runtime sweeps stay JSON-serialisable, multi-format prediction loading, deterministic top-$K$ / disagreement / negative-control shortlisting, pre-flight parity and caveat emission, per-target unsupported-probe filtering, \texttt{open\_loop} parity and end-to-end in-process verification. & 12 tests \\
+R4/R6 & End-of-simulation operational health-status summary and Tier-2 operational criticality observability: Draft~2020-12 JSON Schema conformance, five-type derived operational criticality (nodes, brokers, ECMP network devices), ISO/IEC~25019 Product-in-Use scoring, live \texttt{saag.health} and \texttt{cache\_samples\_peak} telemetry, \texttt{testbed health}/\texttt{fidelity} and Tier-1 vs.\ Tier-2 criticality ranking agreement. & 9 tests \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -159,7 +160,7 @@ Median & 0.929 & 0.922 & 0.932 & 0.916 & 0.911 & 0.931 & \\
   \item \emph{Infrastructure faults.} On broker and host crashes, S2 ranks impact with median $\rho = 0.98$ (0.90--0.997) and reproduces the stall set with median Jaccard 0.94. Seven scenarios lie at 0.90--1.00; healthcare is the exception at 0.28. S0 cannot represent these faults at all.
   \item \emph{Latency.} Host stations cut the median p50 latency error from 0.41 (S0) to 0.25 (S2), lower in seven of eight scenarios, which brings p50 to its 25\% tolerance. The p95 errors of S1--S3 stay within their 35\% tolerance in every scenario. Delivery error is near zero under every arm.
   \item \emph{Attribution.} The DDS deadline rule alone (S1 vs.\ S0) moves rankings by a median of $+0.007$.
-  \item \emph{Middleware status.} On 40 sampled faults, the entities whose counters fire agree closely for liveliness alive count and offered deadline misses (median Jaccard 0.98) and moderately for requested deadline misses (0.71) and replaced cache samples (0.50). Lost, rejected and incompatible-QoS counters are zero on both sides.
+  \item \emph{Middleware status.} On 40 sampled faults, the entities whose counters fire agree closely for liveliness alive count and offered deadline misses (median Jaccard 0.98) and moderately for requested deadline misses (0.71) and replaced cache samples (0.50). Lost, rejected and incompatible-QoS counters are zero on both sides. (\texttt{cache\_samples\_peak} was simulator-only in the frozen [S] runs and has since been instrumented on Tier-2 agents in the companion release [P].)
   \item \emph{Negative control.} Observed impact on sinks is 0.002--0.038, at the level of the lowest-impact publishers.
 \end{itemize}
 

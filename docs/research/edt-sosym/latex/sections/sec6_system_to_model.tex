@@ -11,18 +11,19 @@ After deployment, or on the counterpart, these can be measured. The system-to-mo
 
 \subsection{Trace schema}
 
-Telemetry is a stream of JSON-lines events shaped like OpenTelemetry log records. Every event has a timestamp on a clock shared by all agents, an event name, and attributes that use OpenTelemetry's messaging conventions where they exist (\texttt{service.name}, \texttt{messaging.\allowbreak destination.\allowbreak name}, \texttt{messaging.\allowbreak message.\allowbreak id}). Seven event kinds are defined:
+Telemetry is a stream of JSON-lines events shaped like OpenTelemetry log records. Every event has a timestamp on a clock shared by all agents, an event name, and attributes that use OpenTelemetry's messaging conventions where they exist (\texttt{service.name}, \texttt{messaging.\allowbreak destination.\allowbreak name}, \texttt{messaging.\allowbreak message.\allowbreak id}). Eight event kinds are defined:
 \begin{itemize}[leftmargin=*,nosep]
   \item \emph{publish}, for an emission;
   \item \emph{deliver}, for a sample processed within its deadline, with latency and service time;
   \item \emph{deadline miss}, for a sample that was processed and then dropped as late; it carries its service time too;
   \item \emph{drop}, for a queue overflow, dead-broker drop or network-partition drop;
   \item \emph{forward}, for a broker relay forwarding a sample, carrying its measured broker service time without double-counting application deliveries;
-  \item \emph{state}, for a component state change such as crash, recovery, freeze/thaw, overload or replica takeover;
-  \item \emph{status}, for periodic DDS status counts.
+  \item \emph{state}, for a component lifecycle event such as crash, recovery, freeze/thaw, overload or replica takeover;
+  \item \emph{health}, for live Tier-2 component health-state transitions (\texttt{healthy}, \texttt{degraded}, \texttt{stalled}, \texttt{crashed}, \texttt{frozen}) emitted by stub applications and broker relays and annotated with resolved operational criticality (\texttt{saag.criticality}, \texttt{saag.criticality\_provenance}), kept distinct from \emph{state} so replica-takeover parsing remains unaffected;
+  \item \emph{status}, for periodic DDS status counts (including reader peak queue depth \texttt{cache\_samples\_peak}).
 \end{itemize}
 
-The queue-flow simulator writes the \emph{same} schema across all seven event kinds when asked to record events. This is the single most useful decision in the system-to-model path. Calibration and fidelity comparison are written once and applied to simulated and observed traces alike. A difference between the two can then never be an artefact of two parsers.
+The queue-flow simulator writes the \emph{same} schema across the shared operational event kinds when asked to record events. This is the single most useful decision in the system-to-model path. Calibration and fidelity comparison are written once and applied to simulated and observed traces alike. A difference between the two can then never be an artefact of two parsers.
 
 \subsection{The calibrator}
 
