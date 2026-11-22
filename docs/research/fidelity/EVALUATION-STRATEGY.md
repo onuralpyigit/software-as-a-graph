@@ -70,7 +70,7 @@ Both engines write the same trace format, so [`fidelity.py`](../../../saag/valid
 3. **No fixed success thresholds.** There is no "ρ > 0.8" target. If fewer than 6 scenarios pass the gate, report descriptively. Inconclusive is stated in advance as a likely outcome and is not evidence of equivalence.
 4. **Claim scope.** The strongest allowed conclusion is about *timing and transport fidelity on an emulated DDS system under declared behaviour*. Not "physical reality", not production, not label correctness.
 
-**Status.** The pre-registration is **frozen** (2026-11-16). Its §8 records the pilot: B_h = 3,033 msg/s, δ = 0.05, and 9 included scenarios. The sweep and the simulator arms may now run. Until they finish and the analysis has run, papers can describe the testbed and the protocol but cannot cite a Link 2 result.
+**Status.** The pre-registered study is **complete** (2026-11-22): n = 8 after Amendment 2, all runs valid. H1 is **Inconclusive**: S2 and S0 cannot be distinguished in publisher ranking, and neither beats the Eq. 7 reference at the noise ceiling (median ρ 0.92 against C_s 0.93). Brokers and hosts, stall sets and latency favour the current model descriptively. Full results and the claims they license: [RESULTS.md](RESULTS.md).
 
 ---
 

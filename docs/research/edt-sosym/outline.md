@@ -3,7 +3,7 @@
 - **Working Title:** *Engineering an Architectural Digital Twin for Distributed Publish–Subscribe Systems: One Graph Model for Analysis, Simulation, and an Executable Container Testbed*
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Rolling Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track; manuscript type: **Theme Section Paper**)
 - **Length & Build:** 10 sections + Declarations, 30 pages ([latex/manuscript.tex](latex/manuscript.tex), [latex/manuscript.pdf](latex/manuscript.pdf))
-- **Status (2026-11-20):** Full draft complete; fidelity pre-registration frozen at commit `9f84aad9` (16 Nov 2026); `[P]` prototype evidence complete; `[S]` pre-registered fidelity study (3,147 runs, ~62 machine-hours) pending.
+- **Status (2026-11-22):** Full draft complete; fidelity pre-registration frozen at commit `9f84aad9` (16 Nov 2026), Amendments 1–2; `[P]` prototype evidence complete; `[S]` pre-registered fidelity study complete (n = 8, 2,738 runs, ~56 machine-hours): H1 inconclusive, see [RESULTS.md](../fidelity/RESULTS.md).
 
 ---
 
@@ -78,7 +78,7 @@ Capabilities are positioned on an extended Kritzinger et al. maturity ladder, cl
 |---|---|---|---|
 | **RQ1** | Do all twin artefacts derived from one model instance agree on its semantics? | 55+ automated CI checks (rule-by-rule parity, substrate guard, contract, corpus, testbed, hybrid two-tiered protocol); historical 6-rule $I_M$ bug fixed; residual Rule-1 weight divergence measured and documented. | None |
 | **RQ2** | Which runtime parameters can S2M calibration recover from telemetry? | ATM identifiability test: rates ≤ 3% error, service mean/CV ≤ 1%, trigger policies 100% accurate when observable; staleness window & burst ratio non-identifiable. Calibrated `profile.json` feeds `runtime-sweep --profile` natively. | **H5:** whether S3 (calibrated) reduces per-reader delivery error vs. S2 |
-| **RQ3** | How faithfully do simulators reproduce the counterpart, and where do they diverge? | `tiny_system` smoke test (stall-set $J=1.0$, exact liveliness, delivery ≤ 6%); switch-crash test exposing ~6 s Cyclone DDS peer-rediscovery gap; automated caveats codified in `hybrid_report.json`. | **H1–H4**, per-scenario noise ceilings $C_s$, arm N instrument check, broker/host descriptive results (3,147 runs) |
+| **RQ3** | How faithfully do simulators reproduce the counterpart, and where do they diverge? | `tiny_system` smoke test (stall-set $J=1.0$, exact liveliness, delivery ≤ 6%); switch-crash test exposing ~6 s Cyclone DDS peer-rediscovery gap; automated caveats codified in `hybrid_report.json`. | Done: H1 inconclusive; H2–H5 n.s.; S2 ≈ S0 ≈ R at ceiling; brokers/hosts ρ 0.98, J 0.94 |
 | **RQ4** | What do twin services and the counterpart cost, and does that fit CI/CD? | Gate: 0.01–1.01 s (29–444 components); $I^*/I_{\mathrm{comp}}$: 0.06–0.45 s; $I_{\mathrm{dyn}}$: 1.5–4.3 s/fault (12.7 CPU-h corpus); hybrid verification: 54.2 s in-process (`tiny_system`) / ≈ 40 min projected Docker shortlist (`atm`); full counterpart study: ~71 s/run (~62 h). | None |
 
 ---
