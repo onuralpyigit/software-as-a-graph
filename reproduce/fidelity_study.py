@@ -257,9 +257,10 @@ def cmd_capacity(a) -> None:
         (OUT / "capacity.json").write_text(json.dumps(res, indent=2))
 
 
-def included() -> dict:
-    cap = json.loads((OUT / "capacity.json").read_text())
-    return {n: r for n, r in cap.items() if r["included"] and n not in EXCLUDED}
+def included(out: Path = None) -> dict:
+    """§8 inclusion, restricted to the §2 candidates and less §12 Amendment 2's withdrawal."""
+    cap = json.loads(((out or OUT) / "capacity.json").read_text())
+    return {n: r for n, r in cap.items() if r["included"] and n in CANDIDATES and n not in EXCLUDED}
 
 
 def targets_for(name: str) -> dict:

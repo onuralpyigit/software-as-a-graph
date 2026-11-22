@@ -282,8 +282,9 @@ def test_amendment_2_withdraws_industrial_scada_everywhere(tmp_path, monkeypatch
     import reproduce.fidelity_study as fs
 
     cap = {"atm": {"included": True, "kappa": 1.0}, "industrial_scada": {"included": True, "kappa": 1.0},
-           "av": {"included": False, "kappa": 1.0}}
+           "av": {"included": False, "kappa": 1.0}, "realworld_edgex": {"included": True, "kappa": 1.0}}
     (tmp_path / "capacity.json").write_text(json.dumps(cap))
     monkeypatch.setattr(fs, "OUT", tmp_path)
     assert set(fs.included()) == {"atm"}
-    assert sig.EXCLUDED is fs.EXCLUDED == {"industrial_scada": "Amendment 2"}
+    assert sig.included is fs.included
+    assert set(fs.included(tmp_path)) == {"atm"}

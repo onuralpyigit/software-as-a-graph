@@ -357,7 +357,8 @@ Rate error was 0 at every step; CPU was the binding limit in both pilots. A fine
 
 **Implementation.**
 - `reproduce/fidelity_study.py` defines `EXCLUDED = {"industrial_scada": "Amendment 2"}`; `included()` drops it, so `simulate` runs no arm on it.
-- `reproduce/fidelity_significance.py` skips the same set.
+- `included()` also keeps only the §2 candidates. `results/fidelity_study/capacity.json` was rewritten on 2026-11-17, after freezing, by exploratory capacity checks that added five `realworld_*` scenarios outside §2. Before this amendment `simulate` would have run arms on them. The nine §8 rows in that file are unchanged (all included, κ = 1).
+- `reproduce/fidelity_significance.py` uses the same `included()`.
 - `reproduce/fidelity_sweep_session.py` drops it from its scenario list and writes `sweep/COMPLETE` once the remaining eight are done.
 - Test: `test_amendment_2_withdraws_industrial_scada_everywhere` in `tests/test_fidelity_study.py`.
 - **Commit:** this text and the code change are registered together, in the commit that adds this section, before `simulate` is run.
