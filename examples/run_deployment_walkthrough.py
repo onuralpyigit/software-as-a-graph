@@ -8,7 +8,7 @@ racks and a deployment spec; the optimizer proposes placements, every candidate
 and baseline is re-scored on the replica-aware failure simulator, and a
 placement is recommended with or without a reliability claim.
 
-After deployment (docs/simulation-extensions.md, section 3): the recommended
+After deployment (docs/simulation.md, section 12): the recommended
 placement is run as real processes on the in-process testbed while one host is
 crashed; the telemetry is calibrated and compared with the simulator's version
 of the same run. No Docker is needed; the run takes about half a minute.

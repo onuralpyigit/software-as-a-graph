@@ -2,7 +2,7 @@
 
 **Statistically prove that pre-deployment architectural predictions $Q(v)$ agree with simulation-derived failure cascades $I(v)$, establishing empirical validity through Tier-1 release gates and Tier-2 diagnostic telemetry.**
 
-← [Step 5: Simulate](failure-simulation.md) | [README](../README.md) | **Step 6: Validate** | → [Step 7: Prescribe](prescription.md)
+← [Step 5: Simulate](simulation.md) | [README](../README.md) | **Step 6: Validate** | → [Step 7: Prescribe](prescription.md)
 
 ---
 
@@ -280,13 +280,13 @@ flowchart TD
 
 ### 4.1 The Simulation Oracles ($I^*, I_{\text{comp}}, I_{\text{dyn}}, IM$)
 
-To validate predictions, the simulation suite generates four ground-truth metrics. How each engine works is in [Step 5: Simulate](failure-simulation.md).
+To validate predictions, the simulation suite generates four ground-truth metrics. How each engine works is in [Step 5: Simulate](simulation.md).
 
 | Oracle Symbol | Generating Engine | Mathematical Definition | Validates What? |
 |:---:|:---|:---|:---|
 | **$I^*(v)$** | `FaultInjector` | Mean continuous subscriber feed loss across 5 seeds | Global GNN predictions (`HGT-QoS`, `GAT`), CLI benchmarks |
 | **$I_{\text{comp}}(v)$** | `FailureSimulator` | $0.35\cdot\text{reach} + 0.25\cdot\text{frag} + 0.25\cdot\text{tp} + 0.15\cdot\text{flow}$ | Multi-layer structural resilience, Tier-1 release gates, `EditVerifier` |
-| **$I_{\text{dyn}}(v)$** | `MessageFlowSimulator` | $\text{DeliveryRate}_{\text{pre-fault}} - \text{DeliveryRate}_{\text{post-fault}}$ | Simulated delivery loss under queueing, contention and QoS contracts (research probe; its deadline rule is [not DDS DEADLINE](failure-simulation.md#6-messageflowsimulator-queue-flow-oracle-i_dyn)) |
+| **$I_{\text{dyn}}(v)$** | `MessageFlowSimulator` | $\text{DeliveryRate}_{\text{pre-fault}} - \text{DeliveryRate}_{\text{post-fault}}$ | Simulated delivery loss under queueing, contention and QoS contracts (research probe; its deadline rule is [not DDS DEADLINE](simulation.md#6-messageflowsimulator-queue-flow-oracle-i_dyn)) |
 | **$I_M(v)$** | `ChangePropagationSimulator` | $0.45\cdot\text{Reach} + 0.35\cdot\text{Impact} + 0.20\cdot\text{Depth}$ | Maintainability blast radius on transposed dependency graph $G^\top$ |
 
 > [!CAUTION]
@@ -619,7 +619,7 @@ Every oracle in §4 ($I^*, I_{\text{comp}}, I_{\text{dyn}}, I_M$) validates stat
 
 Like all Tier-2 diagnostics, `saag-validate fidelity` and `saag-simulate testbed health` are strictly informational and always exit `0`.
 
-**Automated two-tiered Link-2 workflow (`saag-simulate hybrid-verify`).** Rather than manually wiring `testbed` runs and `fidelity` comparisons one target at a time, [`saag/testbed/hybrid.py`](../saag/testbed/hybrid.py) automates the full four-step protocol: (0) fault-free testbed baseline, `TelemetryCalibrator` fitting, `compare_steady_state`, and `baseline_health`; (1) calibrated Tier-1 `MessageFlowSimulator` screening (`runtime_labels` under `stations`/`dds`/`paired`) with order-$k$ references; (2) Top-*K* + prediction-disagreement + negative-control shortlist selection; and (3) targeted Tier-2 testbed verification across crash and gray-failure probes using `compare_fault_response`, `compare_dds_status`, `compare_health_summaries`, and `compare_operational_criticality`, writing standalone Tier-2 artifacts under `<output>/tier2_health/`. The resulting `hybrid_report.json` is strictly an advisory Tier-2 triage artifact with explicit circularity (`reactive`), rate-scaling ($\kappa < 1$), and fault-parity caveats — it never decides a blocking CI gate or replaces `FailureSimulator` release gates. See [simulation-extensions.md §4–§5](simulation-extensions.md#4-hybrid-two-tiered-runtime-verification).
+**Automated two-tiered Link-2 workflow (`saag-simulate hybrid-verify`).** Rather than manually wiring `testbed` runs and `fidelity` comparisons one target at a time, [`saag/testbed/hybrid.py`](../saag/testbed/hybrid.py) automates the full four-step protocol: (0) fault-free testbed baseline, `TelemetryCalibrator` fitting, `compare_steady_state`, and `baseline_health`; (1) calibrated Tier-1 `MessageFlowSimulator` screening (`runtime_labels` under `stations`/`dds`/`paired`) with order-$k$ references; (2) Top-*K* + prediction-disagreement + negative-control shortlist selection; and (3) targeted Tier-2 testbed verification across crash and gray-failure probes using `compare_fault_response`, `compare_dds_status`, `compare_health_summaries`, and `compare_operational_criticality`, writing standalone Tier-2 artifacts under `<output>/tier2_health/`. The resulting `hybrid_report.json` is strictly an advisory Tier-2 triage artifact with explicit circularity (`reactive`), rate-scaling ($\kappa < 1$), and fault-parity caveats — it never decides a blocking CI gate or replaces `FailureSimulator` release gates. See [simulation.md §13–§14](simulation.md#13-hybrid-two-tiered-runtime-verification).
 
 ---
 
@@ -706,4 +706,4 @@ Validation outputs serve as the decision threshold for downstream stages:
 
 ---
 
-← [Step 5: Simulate](failure-simulation.md) | → [Step 7: Prescribe](prescription.md)
+← [Step 5: Simulate](simulation.md) | → [Step 7: Prescribe](prescription.md)

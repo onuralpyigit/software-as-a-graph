@@ -500,7 +500,7 @@ def _apply_qos_mode(qos: QoSProfile, qos_mode: str, default_queue: int) -> QoSPr
     effective = QoSProfile(**{**qos.__dict__})
 
     # Reader queue capacity. DDS KEEP_LAST(history_depth) -- which is what
-    # docs/failure-simulation.md has claimed all along while the code used a flat
+    # docs/simulation.md has claimed all along while the code used a flat
     # default_queue_size. An explicitly declared queue_size still wins; an
     # undeclared history stays an unconstrained reader cache rather than being
     # forced to DEFAULT_HISTORY_DEPTH, because the resolver cannot tell a topic

@@ -67,7 +67,7 @@ Together, they form the **RM Quality Model**, which produces the composite criti
 | Stakeholder definitions, harm mappings, and theoretical validity | [criticality.md](criticality.md) |
 | Formal graph-theoretic definitions ($RPR, MPCI, AP_c, \dots$) | [structural-analysis.md](structural-analysis.md) |
 | Raw graph ingestion, entity modeling, and QoS weights | [graph-model.md](graph-model.md) |
-| Simulation oracle design, failure injection, and change impact | [failure-simulation.md](failure-simulation.md) |
+| Simulation oracle design, failure injection, and change impact | [simulation.md](simulation.md) |
 | Statistical validation batteries, gates, and metrics | [validation.md](validation.md) |
 | Graph Neural Network (GNN) learning-based scoring path | [prediction.md](prediction.md) |
 

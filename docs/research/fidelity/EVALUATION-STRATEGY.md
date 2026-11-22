@@ -51,7 +51,7 @@ Both engines write the same trace format, so [`fidelity.py`](../../../saag/valid
   - checking simulator fidelity on real DDS;
   - collecting calibration traces;
   - gray-failure behaviour the simulator abstracts away (freeze vs. crash, partitions seen by discovery and liveliness, CPU contention with `--service-work cpu`).
-- **The testbed cannot:** say anything about real application behaviour (apps are stubs), production systems ([L7](../../failure-simulation.md#15-known-limitations)), or behaviour the plan shares with the simulator.
+- **The testbed cannot:** say anything about real application behaviour (apps are stubs), production systems ([L7](../../simulation.md#19-known-limitations)), or behaviour the plan shares with the simulator.
 
 ---
 

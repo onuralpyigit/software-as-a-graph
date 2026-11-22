@@ -2,7 +2,7 @@
 
 **Map Applications and Brokers to Nodes under resource, replica, failure-domain, pinning and topic-deadline constraints, then verify every candidate on the replica-aware failure simulator before recommending one.**
 
-[README](../README.md) | [Prescribe](prescription.md) | [Failure Simulation](failure-simulation.md) | [CLI guide](cli-pipeline-guide.md#pre-deployment-deploy)
+[README](../README.md) | [Prescribe](prescription.md) | [Failure Simulation](simulation.md) | [CLI guide](cli-pipeline-guide.md#pre-deployment-deploy)
 
 > The stage **plans** a deployment. It never deploys anything and never writes to the repository.
 

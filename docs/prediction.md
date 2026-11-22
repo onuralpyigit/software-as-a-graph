@@ -1109,7 +1109,7 @@ When executed with `--predictor-mode dual`, the result attaches the `dual_result
 ## 12. What Comes Next
 
 - **For Root-Cause Attribution & Anti-Patterns**: Proceed to **[Step 4: Diagnose](diagnosis.md)** for the closed-form ISO-RM Quality Model, 19-pattern structural audits, and the Triage Bridge.
-- **For Training Data Generation**: Execute **[Step 5: Simulate](failure-simulation.md)** to generate supervised ground-truth failure blast-radius labels $I^*(v)$.
+- **For Training Data Generation**: Execute **[Step 5: Simulate](simulation.md)** to generate supervised ground-truth failure blast-radius labels $I^*(v)$.
 - **For Empirical Statistical Validation**: Proceed to **[Step 6: Validate](validation.md)** to test model predictions against physical fault injection.
 - **For Actionable Refactoring**: Proceed to **[Step 7: Prescribe](prescription.md)** to compile verified refactoring blueprints from Step 4's findings.
 

@@ -14,7 +14,7 @@ inside one table compares different estimators on different samples.
 
 **Absent is not zero.** A stratum whose labels are constant (Topic and Node are
 not injected under the default node types, so they carry no ground truth — see
-``docs/failure-simulation.md``, "Known limitations") has an
+``docs/simulation.md``, "Known limitations") has an
 *undefined* rank correlation, not a correlation of 0.0. Emitting 0.0 there
 silently converts a coverage gap into evidence of a bad model.
 """

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Example script that runs the four Step 5 simulators (docs/failure-simulation.md)
+Example script that runs the four Step 5 simulators (docs/simulation.md)
 on the 15-component mini-ATM topology and builds an interactive HTML walkthrough
 of what each engine does when a component fails.
 """

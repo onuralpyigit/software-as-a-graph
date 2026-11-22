@@ -208,7 +208,7 @@ Step 4 (Diagnose) is the deterministic root-cause stage. It requires no trained 
 | **REQ-QS-05** | The system shall scope Step 3's Top-K ranking to Step 4's root-cause profile via the Triage Bridge, joining strictly by component ID (never reading a root cause off the ranking itself), and route the joined profile to stakeholder roles (DevOps/SRE, Architect, Developer). |
 
 ### 3.6 Failure Simulation (Step 5)
-The system must inject failures into the architecture model to produce training labels and validation oracles. The engines are described in [failure-simulation.md](../failure-simulation.md).
+The system must inject failures into the architecture model to produce training labels and validation oracles. The engines are described in [simulation.md](../simulation.md).
 
 | ID | Requirement |
 |----|-------------|

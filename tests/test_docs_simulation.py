@@ -1,5 +1,5 @@
 """
-Keep docs/failure-simulation.md and docs/simulation-extensions.md honest.
+Keep docs/simulation.md honest.
 
 The pages' examples had drifted from the code: calls to APIs that did not
 exist, CLI defaults that had changed, JSON snippets with invented fields. This
@@ -24,7 +24,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = [ROOT / "docs" / "failure-simulation.md", ROOT / "docs" / "simulation-extensions.md"]
+DOCS = [ROOT / "docs" / "simulation.md"]
 
 _FENCE = re.compile(r"(?:^<!--\s*(?P<marker>[^>]*?)\s*-->\s*\n)?^```(?P<lang>\w+)\n(?P<body>.*?)^```",
                     re.M | re.S)

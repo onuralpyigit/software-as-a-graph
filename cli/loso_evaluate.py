@@ -2088,7 +2088,7 @@ def write_summary_md(report: LOSOReport, path: Path) -> None:
     for nt, info in sorted(report.per_type_summary.items()):
         # "undefined" is a real outcome here — Topic and Node are not injected
         # under the default node types, so they carry no ground truth
-        # (failure-simulation.md, "Known limitations"): their ρ is not a number
+        # (simulation.md, "Known limitations"): their ρ is not a number
         # and must not be printed as one.
         L.append(
             f"| {nt} | {_fmt(info.get('mean'))} | {_fmt(info.get('std'))} | "

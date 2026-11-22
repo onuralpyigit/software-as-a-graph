@@ -1,4 +1,4 @@
-"""Guards for edge-removal simulation (failure-simulation.md, "Edge criticality").
+"""Guards for edge-removal simulation (simulation.md, "Edge criticality").
 
 Edge criticality labels used to be a projection of node labels through a
 hand-picked bridge multiplier (``I*(u) x {1.0, 0.1}``), and

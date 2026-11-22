@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 
 from saag.core.ports.graph_repository import IGraphRepository
 
-#: Canonical evaluation point for reported SRI and metrics (see docs/failure-simulation.md).
+#: Canonical evaluation point for reported SRI and metrics (see docs/simulation.md).
 CANONICAL_THRESHOLD = 0.2
 CANONICAL_SEED = 42
 

@@ -2,7 +2,7 @@
 
 **Transform complex architectural graph metrics and criticality predictions into deterministic, standards-grounded root-cause attributions, audit 19 structural anti-patterns, generate human-readable natural language explanations, and route prioritized remediations to engineering stakeholders via the Triage Bridge.**
 
-← [Step 3: Predict](prediction.md) | [README](../README.md) | **Step 4: Diagnose** | → [Step 5: Simulate](failure-simulation.md)
+← [Step 3: Predict](prediction.md) | [README](../README.md) | **Step 4: Diagnose** | → [Step 5: Simulate](simulation.md)
 
 ---
 
@@ -1195,11 +1195,11 @@ flowchart TD
 
 ## 14. What Comes Next
 
-- **Simulation & Ground-Truth Verification**: Proceed to **[Step 5: Simulate](failure-simulation.md)** to execute discrete-event failure injection, empirical cascade propagation, and recoverability verification.
+- **Simulation & Ground-Truth Verification**: Proceed to **[Step 5: Simulate](simulation.md)** to execute discrete-event failure injection, empirical cascade propagation, and recoverability verification.
 - **Statistical Metric Validation**: See **[Step 6: Validate](validation.md)** to verify predicted scores against the six shipped gates — three Tier-1 release gates (`spearman`, `overlap_at_q3`, `top5_overlap`) and three Tier-2 reported gates (`predictive_gain`, `kappa_cta`, `bottleneck_precision`), declared in [`saag/validation/models.py`](../saag/validation/models.py#L15).
 - **Automated Refactoring Prescriptions**: Proceed to **[Step 7: Prescribe](prescription.md)** to compile actionable refactoring blueprints directly from this stage's anti-pattern findings.
 - **Learned Ranking & GNN Prediction**: Review **[Step 3: Predict](prediction.md)** to explore how the Heterogeneous Graph Transformer (HGT) produces the quantitative blast-radius shortlist.
 
 ---
 
-← [Step 3: Predict](prediction.md) | → [Step 5: Simulate](failure-simulation.md)
+← [Step 3: Predict](prediction.md) | → [Step 5: Simulate](simulation.md)

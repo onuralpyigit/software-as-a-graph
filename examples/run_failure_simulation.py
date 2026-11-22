@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Example script to run Step 5: Failure Simulation (Fault Injection & Message Flow)
-on the worked example topology, adhering to docs/failure-simulation.md specifications.
+on the worked example topology, adhering to docs/simulation.md specifications.
 """
 
 import argparse

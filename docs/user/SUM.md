@@ -307,10 +307,10 @@ Scores deterministic ISO-RM quality attribution, detects 19 architectural anti-p
 ---
 
 ### 5.6 Step 5: Cascade Failure Simulation
-Injects failures into the architecture model and measures the impact: `FaultInjector` training labels (I\*), the `FailureSimulator` validation oracle (I_comp), and the `MessageFlowSimulator` queue-flow probe (I_dyn), plus opt-in runtime and testbed extensions. [Which engine to use](../failure-simulation.md#2-which-engine-do-i-need).
+Injects failures into the architecture model and measures the impact: `FaultInjector` training labels (I\*), the `FailureSimulator` validation oracle (I_comp), and the `MessageFlowSimulator` queue-flow probe (I_dyn), plus opt-in runtime and testbed extensions. [Which engine to use](../simulation.md#2-which-engine-do-i-need).
 - **Script:** [cli/simulate_graph.py] or `saag-simulate`
 - **Subcommands:** `fault-inject` (the default when none is given), `edge-criticality`, `message-flow`, `runtime-sweep`, `hybrid-verify`, `testbed`, `combined`. (`--sim-mode` belongs to `cli/run.py`, not to this script.)
-  - Use `hybrid-verify` for two-tiered runtime verification: calibrates `MessageFlowSimulator` (Tier 1) from a fault-free testbed baseline, screens all candidates, verifies a Top-*K* + disagreement + negative-control shortlist on the emulated/container DDS testbed (Tier 2) across crash and gray-failure probes, and reports Tier-2 operational health summaries (ISO/IEC 25019 Product-in-Use) and operational criticality rankings (`--show-health` prints full per-component tables; standalone JSONs are written under `tier2_health/`) ([details](../simulation-extensions.md#4-hybrid-two-tiered-runtime-verification)).
+  - Use `hybrid-verify` for two-tiered runtime verification: calibrates `MessageFlowSimulator` (Tier 1) from a fault-free testbed baseline, screens all candidates, verifies a Top-*K* + disagreement + negative-control shortlist on the emulated/container DDS testbed (Tier 2) across crash and gray-failure probes, and reports Tier-2 operational health summaries (ISO/IEC 25019 Product-in-Use) and operational criticality rankings (`--show-health` prints full per-component tables; standalone JSONs are written under `tier2_health/`) ([details](../simulation.md#13-hybrid-two-tiered-runtime-verification)).
   - Use `testbed health --output DIR [--only-unhealthy] [--only-critical] [--json]` to inspect end-of-simulation Tier-2 component health (`Node`, `Application`, `Topic`, `Broker`, `NetworkDevice`) and observed operational criticality from a standalone testbed run (`health_summary.json`).
 - **Common arguments:**
   - `--input`: System topology JSON the simulation runs against.
@@ -444,7 +444,7 @@ All are `POST`, run on Neo4j, and take Neo4j `credentials` in the body. Layers a
     "layer": "system"
   }
   ```
-- `FaultInjector` labels and the `MessageFlowSimulator` are available from the [command line](../cli-pipeline-guide.md#step-5-simulate) only. Behaviour notes: [failure-simulation.md §11](../failure-simulation.md#11-command-line-and-rest-api).
+- `FaultInjector` labels and the `MessageFlowSimulator` are available from the [command line](../cli-pipeline-guide.md#step-5-simulate) only. Behaviour notes: [simulation.md §15](../simulation.md#15-command-line-and-rest-api).
 
 ---
 

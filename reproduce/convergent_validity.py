@@ -33,7 +33,7 @@ a different kind from agreement between I* and I_comp.
 
 I_dyn is a **delivery-based** measure whose QoS contract enforcement
 mode is configurable via ``--qos-mode`` (default: ``legacy`` to maintain
-reproducibility of published results); see ``docs/failure-simulation.md``.
+reproducibility of published results); see ``docs/simulation.md``.
 
 Interpretation
 --------------

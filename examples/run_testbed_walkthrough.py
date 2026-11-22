@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Example script that runs the container testbed (docs/simulation-extensions.md,
+Example script that runs the container testbed (docs/simulation.md,
 section 3) on the 15-component mini-ATM topology and builds an interactive
 HTML walkthrough.
 

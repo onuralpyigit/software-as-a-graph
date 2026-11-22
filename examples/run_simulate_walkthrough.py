@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Example script that walks through Step 5, Simulate (docs/failure-simulation.md),
+Example script that walks through Step 5, Simulate (docs/simulation.md),
 as a workflow on the 15-component mini-ATM topology and builds an interactive
 HTML page.
 

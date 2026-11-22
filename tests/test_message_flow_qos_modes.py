@@ -80,7 +80,7 @@ def test_legacy_remains_reachable():
 # ── history_depth -> queue capacity ──────────────────────────────────────────
 
 def test_declared_history_depth_becomes_queue_capacity():
-    """history_depth becomes the reader queue capacity (failure-simulation.md, QoS table)."""
+    """history_depth becomes the reader queue capacity (simulation.md, QoS table)."""
     qos = _extract_qos({"qos": {"history_depth": 4}})
     assert qos.history_depth_declared
 

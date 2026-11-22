@@ -126,7 +126,7 @@ When comparing the output of the actual Python script against the theoretical Se
 
 ## Step 5: Failure Simulation
 
-- **`run_failure_simulation.py`**: Executes the Step 5 Failure Simulation phase. It showcases two of the [simulation engines](../docs/failure-simulation.md#2-which-engine-do-i-need): the stochastic **Fault Injector** (cascade labels I\*) and the discrete-event **Message Flow Simulator** (SimPy queue timing, I_dyn).
+- **`run_failure_simulation.py`**: Executes the Step 5 Failure Simulation phase. It showcases two of the [simulation engines](../docs/simulation.md#2-which-engine-do-i-need): the stochastic **Fault Injector** (cascade labels I\*) and the discrete-event **Message Flow Simulator** (SimPy queue timing, I_dyn).
 
 ### Running the Simulation Example
 
@@ -158,7 +158,7 @@ The script asserts each result below, so a change in behaviour makes it fail.
 ### Simulator Walkthrough (Mini-ATM Failure Lab)
 
 - **`mini_atm.json`**: A hand-made 15-component air-traffic topology (2 hosts, 2 brokers, 1 library, 6 applications, 4 topics). It is a demo and is not part of the scenario corpus.
-- **`run_simulator_walkthrough.py`**: Runs all four [simulation engines](../docs/failure-simulation.md#2-which-engine-do-i-need) on it with their published defaults (`FaultInjector`, `FailureSimulator`, `MessageFlowSimulator`, `ChangePropagationSimulator`), prints the four scores per component, and builds the page below.
+- **`run_simulator_walkthrough.py`**: Runs all four [simulation engines](../docs/simulation.md#2-which-engine-do-i-need) on it with their published defaults (`FaultInjector`, `FailureSimulator`, `MessageFlowSimulator`, `ChangePropagationSimulator`), prints the four scores per component, and builds the page below.
 - **`mini_atm_failure_lab.template.html`**: The page template; the script injects the engine output into it.
 - **`mini_atm_failure_lab.html`**: The generated interactive walkthrough. Open it in a browser, pick a component to fail, and compare what each engine does with it.
 - **`mini_atm_scenarios.py`**: Nine proof-of-concept incidents that are not a clean crash, shared by both mini-ATM walkthroughs. They cover a slowed tracker, a radar dropping or flooding plots, a flapping inter-host link, a hung broker, both brokers or both sources lost together, a host reboot and a rolling relay restart. The Failure Lab runs each through `MessageFlowSimulator` with the testbed's settings, and through `FailureSimulator` where one of its failure modes expresses it. `FaultInjector` takes single crashes only.
@@ -171,7 +171,7 @@ The four scores answer different questions and rank the components differently. 
 
 ### Container Testbed Walkthrough (Mini-ATM Testbed Run)
 
-- **`run_testbed_walkthrough.py`**: Runs the [container testbed](../docs/simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) on `mini_atm.json` once for every component the testbed can fail, the same picker as the Failure Lab: each application, broker relay and host crashes at 20 s and stays down, plus a 12 s outage of the `B1` relay to show recovery. Topics and the library are not processes, so the page shows them as not emulable. For each run it calibrates from the telemetry, runs the fidelity comparison with declared and with calibrated parameters, and sets the observed trace beside the simulator's. It also runs the Failure Lab's `FaultInjector` (I\*) and `FailureSimulator` (I_comp) and compares which applications each predicts are affected with what the containers did. Then it runs the nine incidents from `mini_atm_scenarios.py` on the containers. For each it compares the share of traffic delivered while the incident lasts, per reader, and the recovery time after a fault ends, against MessageFlowSimulator.
+- **`run_testbed_walkthrough.py`**: Runs the [container testbed](../docs/simulation.md#12-emulated-testbed-calibration-and-fidelity) on `mini_atm.json` once for every component the testbed can fail, the same picker as the Failure Lab: each application, broker relay and host crashes at 20 s and stays down, plus a 12 s outage of the `B1` relay to show recovery. Topics and the library are not processes, so the page shows them as not emulable. For each run it calibrates from the telemetry, runs the fidelity comparison with declared and with calibrated parameters, and sets the observed trace beside the simulator's. It also runs the Failure Lab's `FaultInjector` (I\*) and `FailureSimulator` (I_comp) and compares which applications each predicts are affected with what the containers did. Then it runs the nine incidents from `mini_atm_scenarios.py` on the containers. For each it compares the share of traffic delivered while the incident lasts, per reader, and the recovery time after a fault ends, against MessageFlowSimulator.
 - **`mini_atm_testbed_run.template.html`** / **`mini_atm_testbed_run.html`**: The page template and the generated interactive walkthrough.
 
 ```bash

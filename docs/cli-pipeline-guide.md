@@ -329,7 +329,7 @@ saag-diagnose --layer system --baseline base.json --waivers waivers.yaml     # o
 ## Step 5: Simulate
 
 **Script:** `cli/simulate_graph.py` (`saag-simulate`)
-**Purpose:** Inject failures and measure their impact: training labels, validation oracles and the opt-in runtime engine. What each engine computes, and which to use, is in [failure-simulation.md](failure-simulation.md#2-which-engine-do-i-need). This section is the complete flag reference.
+**Purpose:** Inject failures and measure their impact: training labels, validation oracles and the opt-in runtime engine. What each engine computes, and which to use, is in [simulation.md](simulation.md#2-which-engine-do-i-need). This section is the complete flag reference.
 
 ```bash
 PYTHONPATH=. python cli/simulate_graph.py fault-inject --input data/scenarios/atm_system.json --export-json
@@ -339,7 +339,7 @@ Every subcommand accepts `--input` (scenario JSON), `--layer` (resolves `data/<l
 
 ### `fault-inject`
 
-`FaultInjector` cascade labels I\* → `impact_scores.json` ([format](failure-simulation.md#12-output-files)).
+`FaultInjector` cascade labels I\* → `impact_scores.json` ([format](simulation.md#16-output-files)).
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -349,7 +349,7 @@ Every subcommand accepts `--input` (scenario JSON), `--layer` (resolves `data/<l
 | `--cascade-depth` | `0` | Maximum waves (0 = unlimited) |
 | `--propagation-threshold` | `0.2` | Feed loss at which a subscriber may fail |
 | `--qos-factor` | `ladder` | `ladder` (published ×1.2 / ×1.15 / ×1.05), `wt` (topic weight w(t)), `none` (topology only) |
-| `--failure-model` | `step` | `threshold_cdf`: tolerance θ ~ U(0.1, 0.5) per subscriber instead of a cliff ([details](failure-simulation.md#4-faultinjector-cascade-labels-i)) |
+| `--failure-model` | `step` | `threshold_cdf`: tolerance θ ~ U(0.1, 0.5) per subscriber instead of a cliff ([details](simulation.md#4-faultinjector-cascade-labels-i)) |
 | `--network-gating` | off | A feed the live CONNECTS_TO network no longer carries counts as lost; labels `Node` and `NetworkDevice` failures |
 | `--replica-aware` | off | A host outage kills a multi-hosted component only when all its hosts are down |
 
@@ -383,7 +383,7 @@ One `MessageFlowSimulator` run, with an optional failure → `message_flow_resul
 | `--warmup` | `0.0` | Seconds excluded from both windows at the start |
 | `--guard-band` | `0.0` | Seconds around the fault excluded from both windows |
 
-Runtime-engine flags ([simulation-extensions.md §1](simulation-extensions.md#1-runtime-engine)). Every default is the published engine:
+Runtime-engine flags ([simulation.md §1](simulation.md#10-runtime-engine)). Every default is the published engine:
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -396,10 +396,10 @@ Runtime-engine flags ([simulation-extensions.md §1](simulation-extensions.md#1-
 | `--workload-model` | `declared` | `mmpp`: bursty arrivals with the declared mean rate |
 | `--staleness-periods` | `3.0` | Reactive input-freshness window, in periods |
 | `--calibration-load` | `declared` | `published`: size stations without topics nobody publishes |
-| `--overload-model` | `none` | `saturation`: with `stations`, a component offered more work than it can do over a window crashes ([details](simulation-extensions.md#overload-failure-overload_modelsaturation)) |
+| `--overload-model` | `none` | `saturation`: with `stations`, a component offered more work than it can do over a window crashes ([details](simulation.md#overload-failure-overload_modelsaturation)) |
 | `--overload-window` / `--overload-utilization` / `--overload-restart` | `5.0` / `1.0` / never | Window, threshold and restart delay of the overload model |
 | `--network-gating` | off | With `stations`: CONNECTS_TO reachability gates delivery |
-| `--qos-semantics` | `engine` | `dds`: DEADLINE as a period contract (no drops), KEEP_LAST replaces the oldest sample, incompatible offered/requested QoS pairs do not communicate ([details](simulation-extensions.md#2-dds-qos-semantics-and-status-metrics)) |
+| `--qos-semantics` | `engine` | `dds`: DEADLINE as a period contract (no drops), KEEP_LAST replaces the oldest sample, incompatible offered/requested QoS pairs do not communicate ([details](simulation.md#11-dds-qos-semantics-and-status-metrics)) |
 | `--dds-status` | off | Count the DDS standard statuses into the result (implied by `--qos-semantics dds`) |
 | `--fault-mode` | `crash` | `transient_crash`, `freeze`, `slowdown`, `omission`, `babbling`, `buffer_leak`, `redelivery_storm`, `link_flap` |
 | `--fault-duration` | none | Duration of a bounded fault |
@@ -408,7 +408,7 @@ Runtime-engine flags ([simulation-extensions.md §1](simulation-extensions.md#1-
 
 ### `runtime-sweep`
 
-Fails every candidate under the runtime engine → `runtime_labels.json`: the five runtime labels with per-seed values and stability, plus their order-k references ([details](simulation-extensions.md#runtime-labels-runtime-sweep)). Defaults are the runtime oracle.
+Fails every candidate under the runtime engine → `runtime_labels.json`: the five runtime labels with per-seed values and stability, plus their order-k references ([details](simulation.md#runtime-labels-runtime-sweep)). Defaults are the runtime oracle.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -425,7 +425,7 @@ Fails every candidate under the runtime engine → `runtime_labels.json`: the fi
 
 ### `hybrid-verify`
 
-Runs the four-step two-tiered runtime verification protocol: Step 0 steady-state testbed baseline & calibration, Step 1 calibrated Tier 1 `runtime-sweep` screening, Step 2 shortlist selection (Top-*K* + prediction/Tier-1 disagreements + negative controls), and Step 3 targeted Tier 2 verification & gray-failure probing → `hybrid_report.json` ([details](simulation-extensions.md#4-hybrid-two-tiered-runtime-verification)). Always an advisory Tier-2 report, never a blocking gate.
+Runs the four-step two-tiered runtime verification protocol: Step 0 steady-state testbed baseline & calibration, Step 1 calibrated Tier 1 `runtime-sweep` screening, Step 2 shortlist selection (Top-*K* + prediction/Tier-1 disagreements + negative controls), and Step 3 targeted Tier 2 verification & gray-failure probing → `hybrid_report.json` ([details](simulation.md#13-hybrid-two-tiered-runtime-verification)). Always an advisory Tier-2 report, never a blocking gate.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -454,7 +454,7 @@ Runs the four-step two-tiered runtime verification protocol: Step 0 steady-state
 
 ### `testbed`
 
-`testbed {build,run,calibrate,fidelity,health} --output DIR` runs the emulated DDS testbed and observes Tier-2 component health & operational criticality ([details](simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity)).
+`testbed {build,run,calibrate,fidelity,health} --output DIR` runs the emulated DDS testbed and observes Tier-2 component health & operational criticality ([details](simulation.md#12-emulated-testbed-calibration-and-fidelity)).
 
 | Flag | Default | Used by | Description |
 |------|---------|---------|-------------|
@@ -488,7 +488,7 @@ Runs `fault-inject`, then `message-flow`, using a subset of their flags: `--node
 - `testbed` → `<output>/deployment.json`, `Dockerfile`, `docker-compose.yml`, `telemetry/*.jsonl`, `run.json`, `profile.json`, `fidelity.json`, `health_summary.json`
 - `combined` → the `fault-inject` and `message-flow` files
 
-All are written under `--output` (default `output/simulation/`). Formats are described in [failure-simulation.md §12](failure-simulation.md#12-output-files).
+All are written under `--output` (default `output/simulation/`). Formats are described in [simulation.md §16](simulation.md#16-output-files).
 
 ---
 
@@ -1006,7 +1006,7 @@ The orchestrator warns when `--all` is used without a GNN checkpoint and skips t
 - Structural analysis: [structural-analysis.md](structural-analysis.md)
 - Prediction and GNN: [prediction.md](prediction.md)
 - Diagnosis and Triage Bridge: [diagnosis.md](diagnosis.md)
-- Failure simulation: [failure-simulation.md](failure-simulation.md), with opt-in engines in [simulation-extensions.md](simulation-extensions.md)
+- Failure simulation: [simulation.md](simulation.md), with opt-in engines in [simulation.md](simulation.md)
 - Validation methodology: [validation.md](validation.md)
 - Prescription: [prescription.md](prescription.md)
 - Visualization: [visualization.md](visualization.md)
