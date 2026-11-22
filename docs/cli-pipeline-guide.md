@@ -447,7 +447,7 @@ Runs the four-step two-tiered runtime verification protocol: Step 0 steady-state
 | `--max-host-load` | none | Per-host capacity cap $B_h$ (msg/s); scales rates by $\kappa \le 1$ if exceeded and records a latency caveat |
 | `--skip-calibration` | off | Skip `TelemetryCalibrator` and run Tier 1 with declared parameters |
 | `--top-k` / `--top-k-frac` | none / `0.15` | Shortlist Top-*K* size (explicit count or fraction of candidates) |
-| `--disagreements` / `--controls` | `3` / `3` | Max prediction-vs-Tier-1 rank disagreement targets and low-impact negative controls (preferring sinks) |
+| `--disagreements` / `--controls` | `3` / `3` | Max prediction-vs-Tier-1 rank disagreement targets and lowest-Tier-1-impact negative controls (sinks last on ties) |
 | `--fault-probe` | `crash` | Repeatable Tier 2 fault probe (`MODE[:k=v,...]`, e.g. `crash`, `omission:duration=10,p=0.5`, `slowdown:duration=10,k=3`) |
 | `--repetitions` / `--seed` | `3` / `42` | Tier 2 repetitions per `(probe, target)` and base seed |
 

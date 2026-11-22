@@ -17,12 +17,13 @@ testbed (Tier 2):
   Step 2  Shortlist & triage selection:
           Combine Top-K risk targets (from predictions or Tier 1), highest
           prediction-vs-Tier-1 rank disagreements, and low-impact negative
-          controls (preferring sinks).
+          controls (lowest Tier-1 impact; sinks only on ties).
   Step 3  Targeted verification & gray-failure probing (Tier 2):
           Re-run shortlisted targets on the built testbed across crash and
-          opt-in gray-failure probes, comparing simulated vs. observed impact,
-          stall-set Jaccard, and DDS statuses, with explicit circularity,
-          scaling, and fault-parity caveats.
+          opt-in gray-failure probes, comparing a `simulate_like` replay of
+          each run against the observed run (impact, stall-set Jaccard, DDS
+          statuses), with explicit circularity, scaling, and fault-parity
+          caveats. Targets the testbed cannot fault under a probe are skipped.
 
 This report is a Tier-2 advisory triage artifact: it never decides a blocking
 CI pass/fail gate and never substitutes for `FailureSimulator` release gates.
@@ -169,15 +170,22 @@ def parse_fault_probe(spec: str) -> Dict[str, Any]:
     return out
 
 
-def _probe_id(probe: Mapping[str, Any], index: int) -> str:
+def _probe_id(probe: Mapping[str, Any]) -> str:
     mode = str(probe.get("mode", "crash"))
     parts = [mode]
     if probe.get("duration_s") is not None:
         parts.append(f"d{probe['duration_s']}")
     for k, v in sorted((probe.get("params") or {}).items()):
         parts.append(f"{k}{v}")
-    base = "_".join(parts)
-    return base if index == 0 or len(parts) > 1 else f"{base}_{index}"
+    return "_".join(parts)
+
+
+def _unsupported_reason(
+    spec: FaultSpec, plan: Mapping[str, Any], mode: str, duration_s: float
+) -> Optional[str]:
+    """Why the testbed cannot emulate *spec* on its target, or ``None`` if it can."""
+    cp = plan_actions([spec], dict(plan), duration_s=duration_s, seed=0, local=(mode == "local"))
+    return cp.unsupported[0].get("reason", "unsupported") if cp.unsupported else None
 
 
 def load_prediction_scores(
@@ -293,8 +301,10 @@ def select_shortlist(
     2. **Disagreements** (up to ``n_disagreements``) with the largest rank gap
        between ``predictions`` and Tier 1 ``label``.
     3. **Negative controls** (up to ``n_controls``) with the lowest Tier 1
-       impact, preferring declared sinks so false-positive impact is detectable
-       without inflating primary rank correlations.
+       impact, kept out of primary rank correlations. Declared sinks rank
+       last among equal scores: a sink's crash removes only its own receipts,
+       which ``observed_impact`` excludes, so a sink control cannot show a
+       false-positive impact.
     """
     tier1_scores: Dict[str, float] = {}
     ref_flow: Dict[str, float] = {}
@@ -360,12 +370,12 @@ def select_shortlist(
 
     primary_targets = list(selected_order)
 
-    # Negative controls: lowest-impact remaining candidates, preferring sinks
+    # Negative controls: lowest-impact remaining candidates, sinks last on ties
     sink_set = set(sinks or ())
     remaining_all = [c for c in candidates if c not in reasons_by_id]
     control_pool = sorted(
         remaining_all,
-        key=lambda c: (0 if c in sink_set else 1, abs(tier1_scores[c]), c),
+        key=lambda c: (abs(tier1_scores[c]), 1 if c in sink_set else 0, c),
     )
     control_targets: List[str] = []
     for cid in control_pool[: max(0, n_controls)]:
@@ -471,24 +481,29 @@ def assess_probe_parity(
         if t in plan.get("apps", {}) and not plan["apps"][t].get("subscribes")
     ]
 
+    used_ids: set = set()
     for idx, probe in enumerate(fault_probes):
-        pid = _probe_id(probe, idx)
+        pid = _probe_id(probe)
+        if pid in used_ids:
+            pid = f"{pid}_{idx}"
+        used_ids.add(pid)
         p_mode = str(probe.get("mode", "crash"))
-        sample_target = rep_link if p_mode == "link_flap" else rep_target
-        spec = FaultSpec(
-            sample_target,
-            p_mode,
-            1.0,
-            probe.get("duration_s"),
-            dict(probe.get("params") or {}),
+        # A probe is unsupported only if no target can take it; per-target gaps
+        # are skipped later in Step 3.
+        sample_targets = (
+            [rep_link] if p_mode == "link_flap" else list(shortlist_targets or [rep_target])
         )
-        cp = plan_actions([spec], dict(plan), duration_s=10.0, seed=0, local=(mode == "local"))
-        if cp.unsupported or (p_mode == "link_flap" and not links):
-            reason = (
-                cp.unsupported[0].get("reason", "unsupported")
-                if cp.unsupported
-                else "scenario declares no CONNECTS_TO links for link_flap"
+        reasons = [
+            _unsupported_reason(
+                FaultSpec(t, p_mode, 1.0, probe.get("duration_s"), dict(probe.get("params") or {})),
+                plan, mode, 10.0,
             )
+            for t in sample_targets
+        ]
+        reason = None if any(r is None for r in reasons) else reasons[0]
+        if reason is None and p_mode == "link_flap" and not links:
+            reason = "scenario declares no CONNECTS_TO links for link_flap"
+        if reason is not None:
             unsupported.append({"probe_id": pid, "probe": dict(probe), "reason": reason})
         else:
             supported.append({"probe_id": pid, "probe": dict(probe)})
@@ -713,13 +728,24 @@ def run_hybrid_protocol(
         sim_primary: Dict[str, float] = {}
         obs_primary: Dict[str, float] = {}
         controls_summary: Dict[str, Any] = {}
+        skipped_targets: Dict[str, str] = {}
 
         for target in probe_targets:
+            spec = FaultSpec(target, p_mode, fault_time, p_dur, p_params)
+            # A probe supported on one target type may not be on another (e.g.
+            # omission on a host in docker mode): the testbed would run fault-free
+            # while the replay injects the fault, so the pair must not be compared.
+            reason = _unsupported_reason(spec, plan, cfg.mode, eff_duration)
+            if reason is not None:
+                skipped_targets[target] = reason
+                continue
+
             rep_obs_impacts: List[float] = []
             rep_sim_impacts: List[float] = []
             rep_stall_jaccards: List[float] = []
             rep_unsupported: List[Any] = []
-            last_dds_cmp: Optional[Dict[str, Any]] = None
+            dds_by_rep: List[Dict[str, Any]] = []
+            last_obs_tr = None
             obs_stalled_union: set = set()
             sim_stalled_union: set = set()
 
@@ -730,13 +756,14 @@ def run_hybrid_protocol(
 
             for rep in range(cfg.repetitions):
                 rep_seed = study.run_seed(cfg.base_seed, pid, target, str(rep))
-                spec = FaultSpec(target, p_mode, fault_time, p_dur, p_params)
                 meta = orchestrate.run(
                     tb_dir, eff_duration, faults=[spec], mode=cfg.mode, seed=rep_seed
                 )
                 if meta.get("unsupported"):
                     rep_unsupported.extend(meta["unsupported"])
+                    continue
                 obs_tr = load_run(tb_dir)
+                last_obs_tr = obs_tr
                 sim_tr = orchestrate.simulate_like(
                     tb_dir, calibrated=(profile_obj is not None)
                 )
@@ -759,16 +786,31 @@ def run_hybrid_protocol(
                 st_cmp = compare_fault_response({}, {}, sim_st, obs_st)
                 rep_stall_jaccards.append(float(st_cmp["stall_jaccard"]))
 
-                last_dds_cmp = compare_dds_status(
+                dds_by_rep.append(compare_dds_status(
                     sim_tr, obs_tr, split_at=fault_time,
                     dead_instances=orchestrate._dead_instances(plan, meta["faults"]),
-                )
+                ))
+
+            if not rep_obs_impacts:
+                skipped_targets[target] = "every repetition reported the fault unsupported"
+                continue
+
+            # Re-infer the trigger policy of apps whose stall disagrees, from a
+            # run where their inputs actually went stale (the fault-free
+            # baseline never exercises a policy).
+            policy_diag = diagnose_fault_residuals(
+                {}, {},
+                simulated_stalled=sim_stalled_union,
+                observed_stalled=obs_stalled_union,
+                observed_trace=last_obs_tr,
+                current_profile=profile_obj,
+            )
 
             obs_mean = statistics.fmean(rep_obs_impacts)
             sim_mean = statistics.fmean(rep_sim_impacts)
             entry = {
                 "is_control": target in control_set,
-                "repetitions": cfg.repetitions,
+                "repetitions": len(rep_obs_impacts),
                 "observed_impact_mean": round(obs_mean, 6),
                 "observed_impact_std": round(
                     statistics.stdev(rep_obs_impacts) if len(rep_obs_impacts) > 1 else 0.0, 6
@@ -781,7 +823,8 @@ def run_hybrid_protocol(
                 "stall_jaccard_mean": round(statistics.fmean(rep_stall_jaccards), 6),
                 "observed_stalled": sorted(obs_stalled_union),
                 "simulated_stalled": sorted(sim_stalled_union),
-                "dds_status": last_dds_cmp,
+                "dds_status": dds_by_rep,
+                "policy_updates": policy_diag["policy_updates"],
                 "unsupported": rep_unsupported,
             }
             per_target[target] = entry
@@ -803,6 +846,29 @@ def run_hybrid_protocol(
             observed_stalled=all_obs_stalled,
             current_profile=profile_obj,
         )
+        inferred: Dict[str, set] = {}
+        for e in per_target.values():
+            for app, policy in e["policy_updates"].items():
+                inferred.setdefault(app, set()).add(policy)
+        residual_diag["policy_updates"] = {
+            a: next(iter(p)) for a, p in sorted(inferred.items()) if len(p) == 1
+        }
+        residual_diag["conflicting_policy_inferences"] = {
+            a: sorted(p) for a, p in sorted(inferred.items()) if len(p) > 1
+        }
+        residual_diag["needs_recalibration"] = (
+            residual_diag["needs_recalibration"] or bool(inferred)
+        )
+        if skipped_targets:
+            parity["caveats"].append({
+                "code": "unsupported_probe_targets",
+                "severity": "warning",
+                "message": (
+                    f"Probe {pid} cannot be emulated on {len(skipped_targets)} target(s) in "
+                    f"{cfg.mode!r} mode; they were skipped and excluded from every comparison: "
+                    + ", ".join(f"{t} ({r})" for t, r in sorted(skipped_targets.items()))
+                ),
+            })
         pred_vs_obs = (
             compare_fault_response(
                 {t: pred_scores[t] for t in obs_primary if t in pred_scores},
@@ -815,10 +881,14 @@ def run_hybrid_protocol(
             "probe": probe,
             "n_primary_targets": len(obs_primary),
             "n_control_targets": len(controls_summary),
-            "tier1_vs_tier2": primary_cmp,
+            # Replay of each testbed run in MessageFlowSimulator vs. the observed
+            # run, both scored by observed_impact: Link-2 fidelity, not a check
+            # of the Step 1 `tier1_label` screening that chose the shortlist.
+            "replay_fidelity": primary_cmp,
             "residual_diagnosis": residual_diag,
             "predictions_vs_tier2": pred_vs_obs,
             "controls": controls_summary,
+            "skipped_targets": skipped_targets,
             "per_target": per_target,
         }
 
