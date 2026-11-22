@@ -12,7 +12,8 @@ pytest.importorskip("simpy")
 from saag.core.graph_io import load_graph  # noqa: E402
 from saag.simulation.models import RuntimeTelemetryProfile  # noqa: E402
 from saag.simulation.runtime.labels import runtime_labels  # noqa: E402
-from saag.testbed import orchestrate  # noqa: E402
+from saag.simulation.runtime.faults import FaultSpec  # noqa: E402
+from saag.testbed import hybrid, orchestrate  # noqa: E402
 from saag.testbed.deployment import build_deployment  # noqa: E402
 from saag.testbed.hybrid import (  # noqa: E402
     HybridProtocolConfig,
@@ -182,6 +183,22 @@ def test_select_shortlist_topk_disagreements_and_controls():
     assert sl_no_pred["control_targets"] == ["SINK"]
 
 
+def test_select_shortlist_controls_are_lowest_impact_not_sink_first():
+    # A sole critical sink has maximal Tier-1 i_flow: it must not become a negative control.
+    records = {
+        "A": {"node_type": "Application", "i_flow": {"mean": 0.90}},
+        "LOW": {"node_type": "Application", "i_flow": {"mean": 0.05}},
+        "SINK": {"node_type": "Application", "i_flow": {"mean": 1.00}},
+        "TIE_SINK": {"node_type": "Application", "i_flow": {"mean": 0.05}},
+    }
+    sl = select_shortlist(records, top_k=1, n_controls=1, sinks=["SINK", "TIE_SINK"])
+    assert sl["primary_targets"] == ["SINK"]
+    # Among equal lowest scores, the non-sink wins: a sink control cannot show impact.
+    assert sl["control_targets"] == ["LOW"]
+    sl2 = select_shortlist(records, top_k=1, n_controls=2, sinks=["SINK", "TIE_SINK"])
+    assert sl2["control_targets"] == ["LOW", "TIE_SINK"]
+
+
 def test_assess_probe_parity_flags_unsupported_and_caveats(tmp_path):
     plan = build_deployment(_chain_scenario(tmp_path), qos_semantics="dds")
 
@@ -218,6 +235,51 @@ def test_assess_probe_parity_flags_unsupported_and_caveats(tmp_path):
     assert "link_flap_rediscovery_lag" in docker_codes
     assert "slowdown_stationless_divergence" in docker_codes
     assert "circular_reactive_policies" not in docker_codes
+
+
+def test_assess_probe_parity_gives_identical_probes_distinct_ids(tmp_path):
+    plan = build_deployment(_chain_scenario(tmp_path), qos_semantics="dds")
+    probe = {"mode": "omission", "duration_s": 1.0, "params": {"p": 0.5}}
+    parity = assess_probe_parity(
+        [{"mode": "crash"}, probe, dict(probe), {"mode": "crash"}],
+        plan, mode="local", shortlist_targets=["S", "P"],
+    )
+    ids = [s["probe_id"] for s in parity["supported"]]
+    assert len(set(ids)) == 4
+    assert ids[0] == "crash" and ids[1] == "omission_d1.0_p0.5"
+
+
+def test_unsupported_reason_is_per_target(tmp_path):
+    plan = build_deployment(_chain_scenario(tmp_path), qos_semantics="dds")
+    # Docker emulates omission on an app's control file but not on a host container.
+    assert hybrid._unsupported_reason(FaultSpec("P", "omission", 1.0, 1.0, {}), plan, "docker", 10.0) is None
+    assert hybrid._unsupported_reason(FaultSpec("H1", "omission", 1.0, 1.0, {}), plan, "docker", 10.0)
+    assert hybrid._unsupported_reason(FaultSpec("H1", "crash", 1.0, None, {}), plan, "docker", 10.0) is None
+
+
+def test_hybrid_protocol_excludes_targets_a_probe_cannot_fault(tmp_path, monkeypatch):
+    real = hybrid._unsupported_reason
+
+    def fake(spec, plan, mode, duration_s):
+        if spec.target == "BR" and spec.mode == "omission":
+            return "not emulated (test)"
+        return real(spec, plan, mode, duration_s)
+
+    monkeypatch.setattr(hybrid, "_unsupported_reason", fake)
+    cfg = HybridProtocolConfig(
+        duration_s=3.0, warmup_s=0.5, tier1_seeds=(42,), mode="local", top_k=2,
+        n_disagreements=0, n_controls=0, repetitions=1,
+        fault_probes=({"mode": "crash"}, {"mode": "omission", "duration_s": 1.0, "params": {"p": 0.5}}),
+    )
+    report = run_hybrid_protocol(_chain_scenario(tmp_path), tmp_path / "out", config=cfg)
+    assert "BR" in report["step2_shortlist"]["primary_targets"]
+    probes = report["step3_tier2_verification"]["probes"]
+    om = next(v for k, v in probes.items() if k.startswith("omission"))
+    assert om["skipped_targets"] == {"BR": "not emulated (test)"}
+    assert "BR" not in om["per_target"]
+    assert om["n_primary_targets"] == len(report["step2_shortlist"]["primary_targets"]) - 1
+    assert "BR" in probes["crash"]["per_target"]
+    assert "unsupported_probe_targets" in {c["code"] for c in report["caveats"]}
 
 
 def test_simulate_like_respects_open_loop_plan(tmp_path):
@@ -293,7 +355,10 @@ def test_hybrid_protocol_end_to_end_local(tmp_path):
     assert set(crash_rep["controls"]) == set(controls)
     for t_entry in crash_rep["per_target"].values():
         assert 0.0 <= t_entry["stall_jaccard_mean"] <= 1.0
-        assert "dds_status" in t_entry
+        assert len(t_entry["dds_status"]) == t_entry["repetitions"] == 1
+        assert isinstance(t_entry["policy_updates"], dict)
+    assert "replay_fidelity" in crash_rep and "tier1_vs_tier2" not in crash_rep
+    assert "conflicting_policy_inferences" in crash_rep["residual_diagnosis"]
 
 
 def test_cli_hybrid_verify_and_runtime_sweep_profile_parse():

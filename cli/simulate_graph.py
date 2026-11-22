@@ -513,7 +513,7 @@ def _run_hybrid_verify(args: argparse.Namespace) -> None:
           f"{len(s2['control_targets'])} controls  "
           f"diagnostics={s2['tier1_diagnostics']}")
     for pid, pdata in s3["probes"].items():
-        cmp = pdata["tier1_vs_tier2"]
+        cmp = pdata["replay_fidelity"]
         print(f"  Step 3 [{pid}]: n={pdata['n_primary_targets']}  "
               f"rho={cmp.get('spearman')}  topK_jaccard={cmp.get('topk_jaccard')}")
     for cav in report["caveats"]:
