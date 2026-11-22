@@ -283,7 +283,85 @@ Rate error was 0 at every step; CPU was the binding limit in both pilots. A fine
 
 ## 12. Amendments
 
-None yet.
+### Amendment 1: liveness of standby-only hosts (2026-11-21, before any simulator comparison)
+
+**Status when written.**
+- **Sweep progress:** the sweep had finished five of the nine scenarios: iot_smart_city, healthcare, hub_and_spoke, microservices and telecom_ran. It had also started `industrial_scada`, with 5 baselines and 44 fault runs recorded, all in condition O-open.
+- **Blinding:** no simulator arm had been run and no comparison with I_obs had been computed (§10 "Blinding"). The diagnosis below used only:
+  - the validity fields of the run records (`valid`, `failures`);
+  - the deployment plan;
+  - one host's raw telemetry log from the run in progress, read for timing only.
+- **No outcome known:** nothing that bears on H1–H5 was known when this amendment was written.
+
+**What prompted it.**
+- **The failures:** in `industrial_scada`, 31 of the first 80 attempts failed the §10 validity check (2 of 7 baseline attempts and 29 of 73 fault-run attempts). Every one failed for the same reason: `host stopped early: N4`, with N4's last log record 0.1–1.0 s after the run started.
+- **Effect so far:** target A22 lost one repetition after three failed attempts. At this rate the §10 lost-scenario rule (more than 10% of targets lost) would exclude the scenario.
+- **The cause is the check, not the host.** Both apps on N4 are hot-standby replicas:
+  - A21 also runs on N10, and A117 also runs on N16.
+  - In both cases the other replica has the lower id, so it is the active instance under the testbed's replica rule (`saag/testbed/runtime.py`).
+  - A warm standby "neither serves nor emits", so a healthy N4 has nothing to log once it has started.
+- **Why runs passed only sometimes:** N4 passed when its log happened to contain a late record, such as a DDS `requested_deadline_missed` status from a standby reader or deliveries after a takeover. That makes validity, and therefore which targets are lost, depend on incidental timing rather than on whether N4 was running.
+- **Scope of the problem:** among the nine included scenarios, N4 of `industrial_scada` is the only host on which every component is a standby replica and no broker runs. No other host is affected.
+
+**Original rule (§10 "Failed run", as implemented in `study.run_validity`).** Every host's telemetry log must exist and be non-empty. Its last record must lie within max(5 s, 10% of the run) of the end of the trace, except for a host that is the fault target.
+
+**Amended rule.**
+- **Standby-only hosts:** a *standby-only host* runs no broker, and every app on it is replicated with a lower-id replica on another host. Its log must still exist and be non-empty. Whether it stopped early is decided by container liveness instead of log recency: the host's container must appear in the `docker stats` samples already taken for CPU logging (§2) within max(5 s, 10% of the run) of the end.
+- **Every other host:** the original rule applies unchanged.
+- **Rest of §10:** the pre-fault rate-error bound, the two reruns and the lost-target and lost-scenario rules are unchanged.
+
+**Scope and re-run.**
+- **Where the new rule changes anything:** it differs from the original rule only on standby-only hosts. Among the nine scenarios the only such host is `industrial_scada`'s N4, so the classification of every run already recorded in the other five scenarios is unchanged.
+- **Re-running industrial_scada:** its runs recorded under the original rule are set aside, but kept and reported. The scenario is re-run from scratch, baselines and fault runs, in both conditions. It uses the registered seeds, target order and repetitions, so every run of the scenario is classified under one rule.
+- **Run order:** `industrial_scada` is run last. Moving it changes no seed: seeds are keyed by scenario, condition, target and repetition, not by execution order.
+
+**Cost of the amendment.**
+- **Machine time:** re-running `industrial_scada` adds the roughly 1.7 h already spent on it under the original rule.
+- **Blind spot:**
+  - A standby-only host whose agent hangs while its container keeps running would now pass the check. Such a host emits nothing even when healthy, so the original rule could not distinguish this case either.
+  - When a standby-only host takes over during a fault run, its deliveries are checked by the unchanged pre-fault rate-error bound and by the trace itself.
+- **Reported in the paper:**
+  - the number of `industrial_scada` attempts rejected under the original rule;
+  - the fact that the scenario was re-run under this amendment.
+
+**Implementation.**
+- **Code changes:**
+  - `study.standby_only_hosts(plan)` defines a standby-only host.
+  - `study.CpuSampler.last_seen()` gives each container's last `docker stats` sample.
+  - `measured_run` passes those last-seen times to `study.run_validity`, which applies the amended rule to standby-only hosts. Without them (local mode), the original rule applies.
+- **Tests** in `tests/test_fidelity_study.py`:
+  - `test_amendment_1_judges_a_standby_only_host_by_container_liveness`: the original rule rejects a silent but live standby host, and the amended rule accepts it.
+  - `test_amendment_1_leaves_active_hosts_on_the_log_rule`: a host that is not standby-only is still judged by its log.
+  - `test_amendment_1_changes_only_industrial_scada_n4`: across the nine included scenarios, `industrial_scada`'s N4 is the only standby-only host.
+- **Run order:** the session runner's `--defer` option runs `industrial_scada` last.
+- **Commit:** this text and the code change are registered together, in the commit that adds this section.
+
+### Amendment 2: `industrial_scada` withdrawn (2026-11-22, before any simulator comparison)
+
+**Status when written.**
+- **Sweep progress:** eight of the nine scenarios were finished in both conditions or about to be: iot_smart_city, healthcare, hub_and_spoke, microservices, telecom_ran, realtime_gaming and logistics_fleet were finished and retained under §10, and `atm` was in its last O-react runs. `industrial_scada` had no runs under Amendment 1; its runs under the original rule were set aside (Amendment 1).
+- **Blinding:** no simulator arm had been run and no comparison with I_obs had been computed. The only data read were the validity fields of the run records.
+- **No outcome known:** nothing that bears on H1–H5 was known, for `industrial_scada` or for any other scenario.
+
+**Decision.** `industrial_scada` is withdrawn from the study. The study's author took this decision to finish the study without the scenario's full re-run under Amendment 1 (about 400 runs, 7–8 h of machine time). It is a decision about cost, not about the scenario's data: the scenario's observed impacts were never compared with any simulator, and no simulator arm is run on it.
+
+**Consequences.**
+- **n = 8** included scenarios, all at κ = 1. The §8 inclusion table is otherwise unchanged.
+- **§9 floors at n = 8:** H1 one-sided p can reach 0.0039 with no losses, 0.0078 with one, 0.020 with two and 0.055 with three. The secondary family remains testable: at n = 8 a test passes Holm's first threshold (0.0125) only with no losses, and its second (0.0167) with at most one.
+- **§6 decision table, δ, arms, seeds, targets, metrics and every other rule:** unchanged.
+
+**Reported in the paper.**
+- That `industrial_scada` passed the §2 inclusion gate and was withdrawn after freezing, by this amendment, for the reason above.
+- The 80 attempts made on it under the original rule (49 run records, 31 attempts rejected by the check that Amendment 1 corrected), which are kept but not analysed.
+- That the study has n = 8, not the n = 9 stated in §6 and §8.
+
+**Implementation.**
+- `reproduce/fidelity_study.py` defines `EXCLUDED = {"industrial_scada": "Amendment 2"}`; `included()` drops it, so `simulate` runs no arm on it.
+- `included()` also keeps only the §2 candidates. `results/fidelity_study/capacity.json` was rewritten on 2026-11-17, after freezing, by exploratory capacity checks that added five `realworld_*` scenarios outside §2. Before this amendment `simulate` would have run arms on them. The nine §8 rows in that file are unchanged (all included, κ = 1).
+- `reproduce/fidelity_significance.py` uses the same `included()`.
+- `reproduce/fidelity_sweep_session.py` drops it from its scenario list and writes `sweep/COMPLETE` once the remaining eight are done.
+- Test: `test_amendment_2_withdraws_industrial_scada_everywhere` in `tests/test_fidelity_study.py`.
+- **Commit:** this text and the code change are registered together, in the commit that adds this section, before `simulate` is run.
 
 ## 13. Design decisions
 

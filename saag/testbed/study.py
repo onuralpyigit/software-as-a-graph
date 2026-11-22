@@ -16,7 +16,7 @@ import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Set, Tuple
 
 from saag.simulation._stats import percentile, derive_seed
 from saag.simulation.calibration import TelemetryTrace
@@ -188,17 +188,43 @@ def load_archived(path: Path, start_s: float, end_s: float) -> TelemetryTrace:
     return TelemetryTrace.from_records(records(), start_s=0.0, end_s=end_s)
 
 
+def standby_only_hosts(plan: Mapping[str, Any]) -> Set[str]:
+    """Hosts with no broker whose every app is a replica with a lower-id instance elsewhere.
+
+    Under the runtime's replica rule such a host is a warm standby that neither
+    serves nor emits, so its log may legitimately fall silent after startup.
+    """
+    return {h for h, s in plan["hosts"].items()
+            if s["apps"] and not s["brokers"]
+            and all(len(plan["apps"][a]["hosts"]) > 1 and plan["apps"][a]["hosts"][0] != h
+                    for a in s["apps"])}
+
+
 def run_validity(tb: Path, plan: Mapping[str, Any], trace: TelemetryTrace, target: Optional[str],
-                 start_unix: float, fault_s: Optional[float], warmup_s: float) -> Optional[str]:
-    """§10: why a run is invalid, or None. Checks each host's own log and the pre-fault rates."""
+                 start_unix: float, fault_s: Optional[float], warmup_s: float,
+                 last_seen: Optional[Mapping[str, float]] = None) -> Optional[str]:
+    """§10: why a run is invalid, or None. Checks each host's own log and the pre-fault rates.
+
+    Amendment 1: when *last_seen* (container name to last ``docker stats`` sample,
+    unix seconds) is given, a standby-only host is judged by container liveness
+    instead of by the time of its last log record.
+    """
     gone = {target} if target in plan["hosts"] else set()
     end = fault_s if fault_s is not None else trace.end_s
     in_process = (Path(tb) / "telemetry" / "all.jsonl").exists()
+    standby = standby_only_hosts(plan) if last_seen is not None else set()
     for host in () if in_process else plan["hosts"]:
         log = Path(tb) / "telemetry" / f"{host}.jsonl"
         if not log.exists() or not log.stat().st_size:
             return f"missing trace: {host}"
         if host in gone:
+            continue
+        if host in standby:
+            seen = last_seen.get(f"saag-{host}")
+            if seen is None:
+                return f"host stopped early: {host} (container never sampled)"
+            if seen - start_unix < trace.end_s - max(5.0, 0.1 * trace.end_s):
+                return f"host stopped early: {host} container last seen at {seen - start_unix:.1f}s"
             continue
         with open(log, "rb") as fh:
             fh.seek(max(0, log.stat().st_size - 4096))
@@ -249,6 +275,10 @@ class CpuSampler:
             kept = [v for t, v in rows if since <= t <= until]
             out[c] = percentile(kept, 95) if kept else None
         return out
+
+    def last_seen(self) -> Dict[str, float]:
+        """Time of each container's last sample: ``docker stats`` lists running containers only."""
+        return {c: max(t for t, _ in rows) for c, rows in self.samples.items() if rows}
 
 
 def attainment(trace: TelemetryTrace, plan: Mapping[str, Any], warmup_s: float,

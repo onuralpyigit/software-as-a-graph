@@ -25,6 +25,7 @@ from scipy.stats import norm, spearmanr, wilcoxon
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from reproduce.fidelity_study import included  # noqa: E402
 from saag.validation.fidelity import compare_dds_status, summarize  # noqa: E402
 
 
@@ -302,14 +303,11 @@ def main(out: Optional[Path] = None, delta: Optional[float] = None,
     for part in ("sweep", "simulate"):
         if not (out / part / "COMPLETE").exists():
             raise SystemExit(f"{part} is not complete; no comparison may be computed yet (§10).")
-    cap = json.loads((out / "capacity.json").read_text())
     arms = load_arms(out)
     sources = json.loads((out / "sources.json").read_text()) if (out / "sources.json").exists() else {}
     rng = random.Random(study.SELECTION_SEED)
     tables: Dict[str, Dict[str, Dict[str, Any]]] = {"O-open": {}, "O-react": {}}
-    for name, row in cap.items():
-        if not row["included"]:
-            continue
+    for name, row in included(out).items():
         src = Path(sources.get(name) or ROOT / "data" / "scenarios" / f"{name}_system.json")
         plan = build_deployment(src, open_loop=True)
         apps = [n for n, d in load_graph(src).nodes(data=True) if d.get("type") == "Application"]

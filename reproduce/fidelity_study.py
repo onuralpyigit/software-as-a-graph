@@ -53,6 +53,8 @@ MAX_ATTEMPTS = 3
 BASE_S = 60.0
 WARM_S = 5.0
 CONDITIONS = {"O-open": True, "O-react": False}
+# PREREGISTRATION.md §12 Amendment 2: withdrawn before any simulator comparison.
+EXCLUDED = {"industrial_scada": "Amendment 2"}
 
 
 def scenario_path(name: str) -> Path:
@@ -78,7 +80,8 @@ def measured_run(tb: Path, duration: float, faults, seed: int) -> dict:
     with study.CpuSampler() as cpu:
         meta = orchestrate.run(tb, duration, faults, mode="docker", seed=seed)
     start = meta["start_unix"]
-    return {"meta": meta, "cpu_p95": cpu.p95_by_container(start + WARM_S, start + duration)}
+    return {"meta": meta, "cpu_p95": cpu.p95_by_container(start + WARM_S, start + duration),
+            "last_seen": cpu.last_seen()}
 
 
 def archive(tb: Path, dest: Path) -> None:
@@ -123,7 +126,8 @@ def attempt_run(tb, plan, duration, target, mid, kappa, key_seed):
             r = measured_run(tb, duration, faults, seed)
             trace = load_run(tb)
             why = study.run_validity(tb, plan, trace, target,
-                                     r["meta"]["start_unix"], mid if target else None, WARM_S / kappa)
+                                     r["meta"]["start_unix"], mid if target else None, WARM_S / kappa,
+                                     last_seen=r.get("last_seen"))
         except (subprocess.CalledProcessError, OSError, ValueError) as exc:
             r, trace, why = None, None, repr(exc)
         if why is None:
@@ -253,9 +257,10 @@ def cmd_capacity(a) -> None:
         (OUT / "capacity.json").write_text(json.dumps(res, indent=2))
 
 
-def included() -> dict:
-    cap = json.loads((OUT / "capacity.json").read_text())
-    return {n: r for n, r in cap.items() if r["included"]}
+def included(out: Path = None) -> dict:
+    """§8 inclusion, restricted to the §2 candidates and less §12 Amendment 2's withdrawal."""
+    cap = json.loads(((out or OUT) / "capacity.json").read_text())
+    return {n: r for n, r in cap.items() if r["included"] and n in CANDIDATES and n not in EXCLUDED}
 
 
 def targets_for(name: str) -> dict:

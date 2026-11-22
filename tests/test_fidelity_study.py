@@ -94,6 +94,47 @@ def test_cpu_counts_only_the_measured_window():
     assert cpu.p95_by_container(5.0, 25.0) == {"saag-H1": 40.0, "saag-H2": None}
 
 
+def test_cpu_sampler_reports_when_each_container_was_last_seen():
+    cpu = study.CpuSampler()
+    cpu.samples = {"saag-H1": [(0.0, 1.0), (30.0, 1.0)], "saag-H2": []}
+    assert cpu.last_seen() == {"saag-H1": 30.0}
+
+
+def _standby_fixture(tmp_path, monkeypatch, log_t):
+    """H2 runs only a replica whose lower-id instance is on H1, so H2 is a warm standby."""
+    plan = {"hosts": {"H1": {"apps": ["A", "B"], "brokers": []}, "H2": {"apps": ["B"], "brokers": []}},
+            "apps": {"A": {"hosts": ["H1"]}, "B": {"hosts": ["H1", "H2"]}}, "topics": {}}
+    (tmp_path / "telemetry").mkdir()
+    for host, t in log_t.items():
+        (tmp_path / "telemetry" / f"{host}.jsonl").write_text(json.dumps({"time_unix_s": 1000.0 + t}) + "\n")
+    monkeypatch.setattr(study, "attainment", lambda *a, **k: {"median_rate_error": 0.0})
+    trace = TelemetryTrace(events=[], start_s=0.0, end_s=60.0)
+    return lambda seen=None: study.run_validity(tmp_path, plan, trace, None, 1000.0, None, 5.0, last_seen=seen)
+
+
+def test_amendment_1_judges_a_standby_only_host_by_container_liveness(tmp_path, monkeypatch):
+    check = _standby_fixture(tmp_path, monkeypatch, {"H1": 59.0, "H2": 0.5})
+    live = {"saag-H1": 1061.0, "saag-H2": 1061.0}
+    assert check().startswith("host stopped early: H2")            # original rule: a silent standby fails
+    assert check(live) is None                                      # amended rule: its container was running
+    assert "last seen at 10.0s" in check({**live, "saag-H2": 1010.0})
+    assert "never sampled" in check({"saag-H1": 1061.0})
+
+
+def test_amendment_1_leaves_active_hosts_on_the_log_rule(tmp_path, monkeypatch):
+    check = _standby_fixture(tmp_path, monkeypatch, {"H1": 10.0, "H2": 59.0})
+    assert check({"saag-H1": 1061.0, "saag-H2": 1061.0}).startswith("host stopped early: H1 at 10.0s")
+
+
+def test_amendment_1_changes_only_industrial_scada_n4():
+    """The amended rule differs from the original only on standby-only hosts (§12, Amendment 1)."""
+    frozen = ["iot_smart_city", "healthcare", "hub_and_spoke", "microservices", "telecom_ran",
+              "industrial_scada", "realtime_gaming", "logistics_fleet", "atm"]
+    got = {n: study.standby_only_hosts(build_deployment(Path(f"data/scenarios/{n}_system.json"), open_loop=True))
+           for n in frozen}
+    assert got == {n: ({"N4"} if n == "industrial_scada" else set()) for n in frozen}
+
+
 def test_hosts_send_nothing_before_the_common_start(tmp_path):
     plan = build_deployment(scenario(tmp_path), open_loop=True)
     control, trace = tmp_path / "control", tmp_path / "all.jsonl"
@@ -234,3 +275,16 @@ def test_undefined_rho_is_not_coerced_and_lost_scenarios_leave_the_contrast():
     rows = {"x": _scenario_row(0.5, 0.6), "y": {**_scenario_row(0.5, 0.9), "lost_scenario": True},
             "z": {**_scenario_row(0.5, 0.6), "rho": {"S0": None, "S2": 0.6}}}
     assert contrast(rows, "S2", "S0") == pytest.approx([0.1])
+
+
+def test_amendment_2_withdraws_industrial_scada_everywhere(tmp_path, monkeypatch):
+    import reproduce.fidelity_significance as sig
+    import reproduce.fidelity_study as fs
+
+    cap = {"atm": {"included": True, "kappa": 1.0}, "industrial_scada": {"included": True, "kappa": 1.0},
+           "av": {"included": False, "kappa": 1.0}, "realworld_edgex": {"included": True, "kappa": 1.0}}
+    (tmp_path / "capacity.json").write_text(json.dumps(cap))
+    monkeypatch.setattr(fs, "OUT", tmp_path)
+    assert set(fs.included()) == {"atm"}
+    assert sig.included is fs.included
+    assert set(fs.included(tmp_path)) == {"atm"}
