@@ -268,7 +268,28 @@ footer p { max-width: 92ch; }
       <div class="box scroll"><table id="cal-pol"></table></div>
     </div>
   </section>
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Operational health &amp; Product-in-Use (ISO/IEC 25019)</div>
+      <h2>End-of-simulation Tier-2 component health &amp; derived criticality</h2>
+      <p>Every modelled <code>Node</code>, <code>Application</code>, <code>Topic</code>, <code>Broker</code> and <code>NetworkDevice</code> is classified at the end of the Tier-2 run into <b>healthy</b>, <b>degraded</b> or <b>lost</b>, with operational criticality derived for infrastructure entities from the topics and applications they host or route.</p>
+    </div>
+    <div class="box pad" id="health-bar" style="margin-bottom:14px"></div>
+    <div class="half">
+      <div class="box scroll"><table id="health-types"></table></div>
+      <div class="box scroll"><table id="health-comps"></table></div>
+    </div>
+  </section>
   </div>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Tier-2 operational criticality ranking</div>
+      <h2>Observed operational criticality across all ten component crashes</h2>
+      <p>Direct Tier-2 trace counterparts of Tier 1's runtime labels (<code>i_flow</code>, <code>i_delivery</code>, <code>i_delivery_consumer</code>, <code>i_timeliness</code>) alongside ISO/IEC 25019 <code>qiu_impact</code> and derived static criticality. Click a row to inspect that run above.</p>
+    </div>
+    <div class="box scroll"><table id="op-crit-all"></table></div>
+  </section>
 
   <section>
     <div class="sec-head">
@@ -665,10 +686,54 @@ function renderRun() {
     Object.entries(p.service).map(([a, [d, f, dist, n]]) => `<tr><td>${NAME[a]} service mean <span style="color:var(--muted)">(${dist}, n = ${n})</span></td><td class="num">${d.toFixed(1)} ms</td><td class="num">${f.toFixed(1)} ms</td><td class="num">${(Math.abs(f - d) / d * 100).toFixed(1)}%</td></tr>`).join('') + '</tbody>';
   document.getElementById('cal-pol').innerHTML = `<thead><tr><th>Trigger policy</th><th>Declared</th><th>Inferred</th><th></th></tr></thead><tbody>` +
     Object.entries(p.policy).map(([a, [d, f]]) => { const sink = !D.plan.apps[a].publishes.length; return `<tr><td>${NAME[a]}</td><td>${sink ? 'sink' : d}</td><td>${f || 'no answer'}</td><td>${f ? ok(f === d) : '<span style="color:var(--muted)">nothing to observe</span>'}</td></tr>`; }).join('') + '</tbody>';
+  renderHealth(r);
+}
+
+function renderHealth(r) {
+  const h = r.health, ha = r.health_agreement || {}, oc = r.op_crit || {};
+  if (!h) return;
+  const fmt = v => v == null ? '—' : f3(v);
+  document.getElementById('health-bar').innerHTML =
+    `<div style="display:flex;flex-wrap:wrap;gap:16px;font-size:0.86rem">` +
+    `<span><b>Overall H/D/L:</b> ${h.counts.healthy} / ${h.counts.degraded} / ${h.counts.lost}</span>` +
+    `<span><b>Op-Critical Lost:</b> <b class="${h.zero_tol_loss ? 'no' : 'yes'}">${h.op_crit.lost}</b></span>` +
+    `<span><b>QiU (ISO 25019):</b> ${f3(h.qiu)} (Ben ${f3(h.ben)} · Risk ${f3(h.risk)} · Acc ${f3(h.acc)})</span>` +
+    `<span><b>Tier-1/2 State Agree:</b> ${fmt(ha.exact_state_agreement)}</span>` +
+    `<span><b>Tier-2 i_flow / i_deliv / qiu_imp:</b> ${fmt(oc.i_flow)} / ${fmt(oc.i_delivery)} / ${fmt(oc.qiu_impact)}</span>` +
+    `<span><b>Live saag.health events:</b> ${r.health_events_count ?? 0}</span>` +
+    `</div>`;
+  document.getElementById('health-types').innerHTML =
+    `<thead><tr><th>Component type</th><th class="num">Total</th><th class="num">Healthy</th><th class="num">Degraded</th><th class="num">Lost</th></tr></thead><tbody>` +
+    Object.entries(h.by_type).map(([t, c]) =>
+      `<tr><td>${t}</td><td class="num">${c.total}</td><td class="num yes">${c.healthy}</td><td class="num">${c.degraded}</td><td class="num ${c.lost ? 'no' : ''}">${c.lost}</td></tr>`
+    ).join('') + `</tbody>`;
+  document.getElementById('health-comps').innerHTML =
+    `<thead><tr><th>Component</th><th>Type</th><th>Crit (prov)</th><th>State</th><th class="num">Score</th><th>Reasons</th></tr></thead><tbody>` +
+    h.components.map(c =>
+      `<tr><td><span class="mono">${c.id}</span> ${NAME[c.id] || ''}</td><td>${c.type}</td>` +
+      `<td>${c.crit} <span style="color:var(--muted);font-size:0.76rem">(${c.prov})</span></td>` +
+      `<td class="${c.state === 'healthy' ? 'yes' : 'no'}">${c.state}</td>` +
+      `<td class="num">${f3(c.score)}</td><td style="white-space:normal">${c.reasons.join(', ') || '—'}</td></tr>`
+    ).join('') + `</tbody>`;
+}
+
+function renderOpCritAll() {
+  const rows = D.op_crit_ranking || [];
+  const el = document.getElementById('op-crit-all');
+  if (!el || !rows.length) return;
+  const fmt = v => v == null ? '—' : f3(v);
+  el.innerHTML =
+    `<thead><tr><th>Target</th><th>Type</th><th>Static Crit</th><th class="num">i_flow</th><th class="num">i_delivery</th><th class="num">i_cons</th><th class="num">i_time</th><th class="num">qiu_impact</th><th class="num">OpCrit Lost</th></tr></thead><tbody>` +
+    rows.map(r =>
+      `<tr class="pick" data-id="${r.target}" style="cursor:pointer"><td><span class="mono">${r.target}</span> ${NAME[r.target] || ''}</td>` +
+      `<td>${r.target_type || ''}</td><td>${r.static_crit} <span style="color:var(--muted);font-size:0.76rem">(${r.static_prov})</span></td>` +
+      `<td class="num">${fmt(r.i_flow)}</td><td class="num">${fmt(r.i_delivery)}</td><td class="num">${fmt(r.i_delivery_consumer)}</td>` +
+      `<td class="num">${fmt(r.i_timeliness)}</td><td class="num">${fmt(r.qiu_impact)}</td><td class="num ${r.op_crit_lost ? 'no' : 'yes'}">${r.op_crit_lost}</td></tr>`
+    ).join('') + `</tbody>`;
 }
 
 /* ---------- all failures ---------- */
-const CRASHED = ORDER.filter(c => !OFF[c]);
+const CRASHED = ORDER.filter(c => !OFF[c] && D.runs[c]);
 function renderAll() {
   const j = (c, k) => jaccard(affected(c, k, D.runs[c]), affected(c, 'testbed', D.runs[c]));
   const cell = v => `<td class="num ${v === 1 ? 'yes' : 'no'}">${f2(v)}</td>`;
@@ -686,8 +751,8 @@ function renderTake() {
     `<b>The lab's cascade engines matched less often: I* in ${hits('fi')} and I_comp in ${hits('fs')} of ${CRASHED.length}.</b> They answer a different question, a threshold cascade over QoS-weighted feed loss rather than a stream of messages, so a mismatch is a difference in model, not necessarily an error.`,
     `<b>Before the fault, rates and deliveries agree with the simulator</b> to within ${(mx(r => r.fidelity.metrics.delivery_rate.max_rel_error) * 100).toFixed(0)}% for every reader in every run. Latency does not: the median p95 error with declared parameters reaches ${f3(mx(r => r.fidelity.metrics.latency_p95.median_rel_error))}.`,
     `<b>Calibration recovered what was declared.</b> Across all runs, topic rates came back within ${mx(r => Math.max(...Object.values(r.profile.rates).map(([d, f]) => Math.abs(f - d) / d * 100))).toFixed(1)}% and service means within ${mx(r => Math.max(...Object.values(r.profile.service).map(([d, f]) => Math.abs(f - d) / d * 100))).toFixed(1)}%.`,
-    `<b>The nine incidents show where the message-level twin holds up beyond a clean crash.</b> For every reader, MessageFlow's share of traffic delivered while the incident lasted was within 20 points of the testbed's in ${D.pred.scenarios.filter(x => readersAgree(D.runs[x.id])).length} of ${D.pred.scenarios.length} incidents. It misses the flood, where the real tracker kept up and the simulated one overflowed. It also restarts applications faster than containers do. The cascade engines can say less: FaultInjector nothing, FailureSimulator one time-free number for seven of them.`,
-    `<b>These are single runs.</b> One seed, one machine, 40 seconds per failure or incident. They show that the pieces connect and how the models line up on a small topology, nothing more.`,
+    `<b>The nine incidents show where the message-level twin holds up beyond a clean crash.</b> For every reader, MessageFlow's share of traffic delivered while the incident lasted was within 20 points of the testbed's in ${D.pred.scenarios.filter(x => D.runs[x.id] && readersAgree(D.runs[x.id])).length} of ${D.pred.scenarios.filter(x => D.runs[x.id]).length} incidents. It misses the flood, where the real tracker kept up and the simulated one overflowed. It also restarts applications faster than containers do. The cascade engines can say less: FaultInjector nothing, FailureSimulator one time-free number for seven of them.`,
+    `<b>These are single runs.</b> One seed, one machine, ${D.runs[CRASHED[0]] ? D.runs[CRASHED[0]].meta.duration_s : 40} seconds per failure or incident. They show that the pieces connect and how the models line up on a small topology, nothing more.`,
   ].map(i => `<li>${i}</li>`).join('');
 }
 
@@ -696,11 +761,12 @@ document.addEventListener('click', e => {
   const m = e.target.closest('[data-mode]'); if (m) { b1mode = m.dataset.mode; render(); return; }
   const v = e.target.closest('[data-view]'); if (v) { view = v.dataset.view; renderCmp(); return; }
   const t = e.target.closest('[data-id]'); if (t && (N[t.dataset.id] || isSc(t.dataset.id)) && t.dataset.id !== sel) {
-    const fromTable = !!t.closest('#all'); sel = t.dataset.id; render();
+    if (isSc(t.dataset.id) && !D.runs[t.dataset.id]) return;
+    const fromTable = !!(t.closest('#all') || t.closest('#op-crit-all')); sel = t.dataset.id; render();
     if (fromTable) document.querySelector('.picker').scrollIntoView({ behavior: 'smooth' });
   }
 });
-if (isSc(location.hash.slice(1))) sel = location.hash.slice(1);
-drawDeploy(); staticTables(); render(); renderAll(); renderTake();
+if (isSc(location.hash.slice(1)) && D.runs[location.hash.slice(1)]) sel = location.hash.slice(1);
+drawDeploy(); staticTables(); render(); renderOpCritAll(); renderAll(); renderTake();
 if (isSc(location.hash.slice(1))) document.querySelector('.picker').scrollIntoView();
 </script>

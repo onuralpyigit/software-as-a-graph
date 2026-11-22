@@ -16,6 +16,7 @@ import copy
 import json
 import logging
 import sys
+import tempfile
 import warnings
 from pathlib import Path
 
@@ -32,6 +33,7 @@ from saag.prediction.label_artifacts import (
 from saag.simulation.failure_simulator import FailureSimulator
 from saag.simulation.fault_injector import RECOMMENDED_SEEDS, FaultInjector
 from saag.simulation.service import SimulationService
+from saag.testbed.hybrid import HybridProtocolConfig, run_hybrid_protocol
 
 from walkthrough_page import write_page
 
@@ -125,6 +127,71 @@ def oracle_stage(topology: dict) -> dict:
     }
 
 
+def hybrid_stage() -> dict:
+    """Run the 4-step Tier 1 + Tier 2 hybrid protocol on mini_atm (fast local mode)."""
+    cfg = HybridProtocolConfig(
+        duration_s=5.0,
+        warmup_s=0.5,
+        tier1_duration_s=6.0,
+        tier1_seeds=(42, 123),
+        tier1_label="i_flow",
+        behavior_model="reactive",
+        qos_semantics="dds",
+        mode="local",
+        top_k=3,
+        n_disagreements=0,
+        n_controls=2,
+        repetitions=1,
+        base_seed=42,
+        fault_probes=({"mode": "crash"},),
+    )
+    with tempfile.TemporaryDirectory(prefix="saag_hybrid_walk_") as tmp:
+        rep = run_hybrid_protocol(TOPOLOGY, Path(tmp), config=cfg)
+
+    s0 = rep["step0_calibration"]
+    s1 = rep["step1_tier1_screening"]
+    s2 = rep["step2_shortlist"]
+    crash = rep["step3_tier2_verification"]["probes"]["crash"]
+    bh = s0["baseline_health"]["observed"]
+    ranking = []
+    for row in crash["operational_criticality"]["ranking"]:
+        tid = row["target"]
+        tdata = crash["per_target"].get(tid, {})
+        ha = tdata.get("health_agreement") or {}
+        oh = (tdata.get("health_summary") or {}).get("observed") or {}
+        ranking.append({
+            "target": tid,
+            "type": row.get("target_type"),
+            "is_control": bool(tdata.get("is_control", False)),
+            "static_crit": (row.get("static_criticality") or {}).get("level") or "LOW",
+            "static_prov": (row.get("static_criticality") or {}).get("provenance") or "default",
+            "i_flow": r4(row.get("i_flow")),
+            "i_delivery": r4(row.get("i_delivery")),
+            "i_delivery_consumer": r4(row.get("i_delivery_consumer")),
+            "i_timeliness": r4(row.get("i_timeliness")),
+            "qiu_impact": r4(row.get("qiu_impact")),
+            "op_crit_lost": int(row.get("lost_operational_critical_count", 0)),
+            "counts": (oh.get("system_health") or {}).get("counts"),
+            "health_agree": r4(ha.get("exact_state_agreement")),
+        })
+    return {
+        "calibrated": bool(s0["calibrated"]),
+        "n_tier1_candidates": s1["n_candidates"],
+        "tier1_label": s1["label"],
+        "baseline_counts": bh["system_health"]["counts"],
+        "baseline_op_crit": bh["system_health"]["operational_critical"]["counts"],
+        "baseline_qiu": r4(bh["product_in_use"]["overall_qiu_health_index"]),
+        "shortlist": {
+            "primary": s2["primary_targets"],
+            "controls": s2["control_targets"],
+        },
+        "ranking": ranking,
+        "tier1_vs_tier2": crash["operational_criticality"]["tier1_vs_tier2"],
+        "replay_fidelity": crash["replay_fidelity"],
+        "caveats": rep["caveats"],
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=SCRIPT_DIR / "simulate_walkthrough.html",
@@ -138,6 +205,7 @@ def main() -> None:
     label = label_stage(graph)
     safety = safety_stage(label.pop("artifact"), graph)
     oracle = oracle_stage(topology)
+    hybrid = hybrid_stage()
 
     print(f"Label artifact: {label['header']['labeler']}, fingerprint {label['header']['topology_fingerprint']}, "
           f"retest rho {label['header']['label_stability']['test_retest_spearman']}")
@@ -145,8 +213,11 @@ def main() -> None:
         print(f"  {'accepted' if s['accepted'] else 'refused '}  {s['case']}")
     print(f"Oracle: {len(oracle['single'])} single failures, {len(oracle['pairs'])} pairs, "
           f"{len(oracle['edge_criticality'])} edges measured, Monte Carlo mean {oracle['monte_carlo']['mean']}")
+    print(f"Hybrid Tier 1+2: {hybrid['n_tier1_candidates']} Tier-1 screened, "
+          f"{len(hybrid['ranking'])} Tier-2 verified, baseline QiU={hybrid['baseline_qiu']}")
 
     write_page(TEMPLATE, args.output, {"label": label, "safety": safety, "oracle": oracle,
+                                       "hybrid": hybrid,
                                        "min_retest": MIN_LABEL_RETEST, "thresholds": list(THRESHOLDS)})
     print(f"\nWalkthrough written to {args.output}")
 

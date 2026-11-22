@@ -633,6 +633,13 @@ function renderSC() {
     `<div class="rows"><h3>MessageFlowSimulator · deliveries per second</h3>${barRow('before the fault', pre / mx, pre.toFixed(1))}${barRow('while it lasts', dur / mx, dur.toFixed(1), 'f')}${post != null ? barRow('after it ends', post / mx, post.toFixed(1)) : ''}` +
     `<div class="bar-row"><span class="lab">stalled</span><span style="font-size:0.84rem">${r.stalled.length ? r.stalled.map(a => nm(a)).join(', ') : 'none'}</span><span></span></div>` +
     `<div class="bar-row"><span class="lab">queue overflows</span><span></span><span class="num">${r.overflow}</span></div></div>` +
+    (r.health ? `<div class="rows"><h3>End-of-run operational health &amp; ISO 25019 Product-in-Use</h3>` +
+      barRow('QiU Health Index', r.health.qiu, `${f3(r.health.qiu)} (Ben ${f3(r.health.ben)} · Risk ${f3(r.health.risk)} · Acc ${f3(r.health.acc)})`, r.health.zero_tol_loss ? 'f' : '') +
+      `<div class="bar-row"><span class="lab">H / D / L (all types)</span><span style="font-size:0.82rem">H=${r.health.counts.healthy} · D=${r.health.counts.degraded} · L=${r.health.counts.lost} (OpCrit L=${r.health.op_crit.lost})</span><span></span></div>` +
+      (r.op_crit ? `<div class="bar-row"><span class="lab">Operational criticality</span><span class="mono" style="font-size:0.78rem">i_flow=${f3(r.op_crit.i_flow)} · i_deliv=${f3(r.op_crit.i_delivery)} · qiu_imp=${f3(r.op_crit.qiu_impact)}</span><span></span></div>` : '') +
+      (r.health.unhealthy.length
+        ? `<ol class="log">${r.health.unhealthy.map(u => `<li><span class="d">${esc(u.state)}</span><span class="c">${esc(u.id)}</span><span class="w">${esc(u.type)} · ${esc(u.crit)} (${esc(u.prov)}) · ${esc(u.reasons.join(', '))}</span></li>`).join('')}</ol>`
+        : `<p class="note">All components healthy at end of run.</p>`) + `</div>` : '') +
     (fs ? `<div class="rows"><h3>FailureSimulator · ${esc(s.fs.mode)} · ${esc(s.fs_note)}</h3>${scoreBlock('I_comp', f3(fs.comp), `${fs.failed.length} cascaded failures`)}${TERMS.map(([k, wk, lab]) => barRow(lab, fs[k], `${fs[k].toFixed(2)} × ${w[wk].toFixed(2)}`)).join('')}<ol class="log">${fs.seq.map(e => `<li><span class="d">d${e.depth}</span><span class="c">${e.id}</span><span class="w">${esc(cause(e.cause))}</span></li>`).join('')}</ol></div>`
        : `<div class="rows"><h3>FailureSimulator</h3><p class="note">Not run: ${esc(s.fs_note)}.</p></div>`) +
     `<div class="rows"><h3>FaultInjector</h3><p class="note">Not run: it injects one permanent crash at a time.</p></div>` +

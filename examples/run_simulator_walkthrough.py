@@ -28,7 +28,9 @@ from saag.simulation.models import FailureMode
 from saag.simulation.runtime.faults import FaultSpec
 from saag.simulation.service import SimulationService
 from saag.testbed.collect import TelemetryTrace
+from saag.testbed.deployment import build_deployment
 from saag.validation.fidelity import stalled_in_trace
+from saag.validation.health import observed_operational_criticality, summarize_system_health
 
 SCRIPT_DIR = Path(__file__).parent
 TOPOLOGY = SCRIPT_DIR / "mini_atm.json"
@@ -156,13 +158,45 @@ def fault_window(faults: list) -> tuple:
     return min(f["start_s"] for f in faults), max(ends)
 
 
+def _compact_health(hs: dict) -> dict:
+    sh = hs["system_health"]
+    piu = hs["product_in_use"]
+    return {
+        "counts": sh["counts"],
+        "by_type": {t: b["counts"] for t, b in sh["by_type"].items()},
+        "op_crit": sh["operational_critical"]["counts"],
+        "qiu": r4(piu["overall_qiu_health_index"]),
+        "ben": r4(piu["beneficialness"]["score"]),
+        "risk": r4(piu["freedom_from_risk"]["score"]),
+        "acc": r4(piu["acceptability"]["score"]),
+        "zero_tol_loss": bool(piu["freedom_from_risk"]["zero_tolerance_critical_loss"]),
+        "unhealthy": [
+            {
+                "id": cid,
+                "type": c["type"],
+                "state": c["state"],
+                "score": r4(c["health_score"]),
+                "crit": c["criticality"]["level"],
+                "prov": c["criticality"]["provenance"],
+                "reasons": c["reasons"],
+            }
+            for cid, c in sorted(hs["components"].items())
+            if c["state"] != "healthy"
+        ],
+    }
+
+
 def run_scenarios(graph, service: SimulationService) -> dict:
     """The proof-of-concept incidents: MessageFlowSimulator for every one, FailureSimulator where it can say it."""
     n, out = int(SCENARIO_S), {}
+    plan_default = build_deployment(TOPOLOGY, qos_semantics="dds", network_gating=False)
+    plan_gated = build_deployment(TOPOLOGY, qos_semantics="dds", network_gating=True)
     for sc in SCENARIOS:
+        gated = sc.get("network_gating", False)
+        plan = plan_gated if gated else plan_default
         res = MessageFlowSimulator(graph, duration=SCENARIO_S, seed=0, record_events=True,
                                    faults=[FaultSpec.from_dict(f) for f in sc["faults"]],
-                                   network_gating=sc.get("network_gating", False), **TESTBED_LIKE).run()
+                                   network_gating=gated, **TESTBED_LIKE).run()
         trace = TelemetryTrace.from_records(res.events, start_s=0.0, end_s=SCENARIO_S)
         f0, f1 = fault_window(sc["faults"])
         pub, dlv = {}, {}
@@ -177,9 +211,18 @@ def run_scenarios(graph, service: SimulationService) -> dict:
             a, b = int(a), int(b)
             return r4(sum(total[a:b]) / (b - a)) if b > a else None
 
+        hs = summarize_system_health(trace, plan, fault_time=f0, warmup_s=2.0, faults=sc["faults"])
+        primary_f = sc["faults"][0]
+        oc = observed_operational_criticality(
+            trace, plan, str(primary_f["target"]), float(primary_f["start_s"]),
+            warmup_s=2.0, fault_duration_s=primary_f.get("duration_s"), health_summary=hs,
+        )
         entry = {"pub": pub, "dlv": dlv, "stalled": sorted(stalled_in_trace(trace, f0)),
                  "rate": [rate(2, f0), rate(f0, f1), rate(f1, n)],
-                 "deadline": res.total_deadline_violations, "overflow": res.total_queue_overflows}
+                 "deadline": res.total_deadline_violations, "overflow": res.total_queue_overflows,
+                 "health": _compact_health(hs),
+                 "op_crit": {k: (r4(oc[k]) if isinstance(oc.get(k), (int, float)) else oc.get(k))
+                             for k in ("i_flow", "i_delivery", "i_delivery_consumer", "i_timeliness", "qiu_impact")}}
         if sc["fs"]:
             r = service.run_failure_simulation(sc["fs"]["targets"], failure_mode=FailureMode(sc["fs"]["mode"]))
             i = r.impact

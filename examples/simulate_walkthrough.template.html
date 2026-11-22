@@ -95,6 +95,17 @@
 
   <section>
     <div class="sec-head">
+      <div class="eyebrow">Tier 1 + Tier 2 · 7 · hybrid runtime verification</div>
+      <h2>Calibrated Tier-1 screening, Tier-2 operational health &amp; criticality</h2>
+      <p><code>saag-simulate hybrid-verify</code> calibrates <code>MessageFlowSimulator</code> (Tier 1) from a fault-free testbed baseline, screens all candidates, and verifies the shortlisted targets on Tier 2 — measuring both end-of-simulation operational health (ISO/IEC 25019 Product-in-Use, with derived infrastructure criticality) and Tier-2 observed operational criticality (<code>i_flow</code>, <code>i_delivery</code>, <code>i_delivery_consumer</code>, <code>i_timeliness</code>, <code>qiu_impact</code>).</p>
+    </div>
+    <div class="box pad" id="hybrid-summary" style="margin-bottom:14px"></div>
+    <div class="box scroll"><table id="hybrid-table"></table></div>
+    <div class="box pad" id="hybrid-caveats" style="margin-top:14px"></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
       <div class="eyebrow">Reading the result</div>
       <h2>What the two jobs show</h2>
     </div>
@@ -102,7 +113,7 @@
   </section>
 
   <footer>
-    <p><b>How this was produced.</b> <code>python examples/run_simulate_walkthrough.py</code> on <code>examples/mini_atm.json</code>: <code>FaultInjector</code> with five seeds and each option shown, the checks in <code>saag/prediction/label_artifacts.py</code>, and <code>SimulationService</code>'s exhaustive, pairwise, named-event and Monte Carlo runs plus <code>FailureSimulator.simulate_edge_removal_sweep</code>. For what each engine does inside a single failure, see the Mini-ATM Failure Lab.</p>
+    <p><b>How this was produced.</b> <code>python examples/run_simulate_walkthrough.py</code> on <code>examples/mini_atm.json</code>: <code>FaultInjector</code> with five seeds and each option shown, the checks in <code>saag/prediction/label_artifacts.py</code>, <code>SimulationService</code>'s exhaustive, pairwise, named-event and Monte Carlo runs plus <code>FailureSimulator.simulate_edge_removal_sweep</code>, and <code>run_hybrid_protocol</code> (Tier 1 + Tier 2 local mode) with <code>saag/validation/health.py</code>. For what each engine does inside a single failure, see the Mini-ATM Failure Lab.</p>
     <p>The bad artifacts in step 3 are made by editing the genuine one, or by pointing it at the corpus file <code>atm_system_tiny.json</code>.</p>
   </footer>
 </div>
@@ -198,6 +209,38 @@ function renderOpt() {
   document.getElementById('edges').innerHTML = `<thead><tr><th>Relationship removed</th><th>Type</th><th>Impact</th><th>Level</th></tr></thead><tbody>` +
     E.slice(0, 10).map(e => `<tr><td>${esc(NAME[e.source] || e.source)} → ${esc(NAME[e.target] || e.target)}</td><td class="mono" style="font-size:0.74rem">${e.relationship}</td><td>${bar(e.impact, max2)}</td><td>${level(e.level)}</td></tr>`).join('') +
     `<tr><td colspan="4" style="color:var(--muted);white-space:normal">Top 10 of ${E.length} relationships measured. Each is removed alone with no cascade: the question is what the link carries, not what fails after it.</td></tr></tbody>`;
+})();
+
+(function hybridSec() {
+  const HY = D.hybrid;
+  if (!HY) return;
+  const bc = HY.baseline_counts || {}, boc = HY.baseline_op_crit || {};
+  const t1c = (HY.tier1_vs_tier2 || {})[HY.tier1_label] || {};
+  document.getElementById('hybrid-summary').innerHTML =
+    `<div style="display:flex;flex-wrap:wrap;gap:18px;font-size:0.86rem">` +
+    `<span><b>Step 0 baseline health:</b> H=${bc.healthy ?? 0} / D=${bc.degraded ?? 0} / L=${bc.lost ?? 0} (Op-Crit L=${boc.lost ?? 0})</span>` +
+    `<span><b>Baseline QiU (ISO 25019):</b> ${f3(HY.baseline_qiu)}</span>` +
+    `<span><b>Step 1 Tier-1 screened:</b> ${HY.n_tier1_candidates} (${esc(HY.tier1_label)}, calibrated=${HY.calibrated})</span>` +
+    `<span><b>Step 2 shortlist:</b> ${HY.shortlist.primary.join(', ')} + controls [${HY.shortlist.controls.join(', ')}]</span>` +
+    `<span><b>Tier-1 vs Tier-2 ρ:</b> ${t1c.spearman != null ? f3(t1c.spearman) : 'n/a'}</span>` +
+    `</div>`;
+  const fmt = v => v == null ? '—' : f3(v);
+  document.getElementById('hybrid-table').innerHTML =
+    `<thead><tr><th>Target</th><th>Role</th><th>Static Crit</th><th class="num">i_flow</th><th class="num">i_delivery</th><th class="num">i_cons</th><th class="num">i_time</th><th class="num">qiu_impact</th><th class="num">H / D / L</th><th class="num">OpCrit L</th><th class="num">T1/T2 Agree</th></tr></thead><tbody>` +
+    HY.ranking.map(r => {
+      const c = r.counts || {};
+      return `<tr><td>${who(r.target)}</td><td>${r.is_control ? 'control' : 'primary'}</td>` +
+        `<td>${level(r.static_crit)} <span class="mono" style="font-size:0.72rem;color:var(--muted)">(${esc(r.static_prov)})</span></td>` +
+        `<td class="num">${fmt(r.i_flow)}</td><td class="num">${fmt(r.i_delivery)}</td><td class="num">${fmt(r.i_delivery_consumer)}</td>` +
+        `<td class="num">${fmt(r.i_timeliness)}</td><td class="num">${fmt(r.qiu_impact)}</td>` +
+        `<td class="num mono">${c.healthy ?? 0}/${c.degraded ?? 0}/${c.lost ?? 0}</td>` +
+        `<td class="num">${r.op_crit_lost}</td><td class="num">${fmt(r.health_agree)}</td></tr>`;
+    }).join('') + `</tbody>`;
+  const cavs = HY.caveats || [];
+  document.getElementById('hybrid-caveats').innerHTML = cavs.length
+    ? `<p class="note" style="margin:0"><b>Advisory caveats emitted:</b> ` +
+      cavs.map(c => `<span class="mono" style="font-size:0.76rem">[${esc(c.severity.toUpperCase())}] ${esc(c.code)}</span>`).join(' · ') + `</p>`
+    : `<p class="note" style="margin:0">No parity caveats emitted.</p>`;
 })();
 
 (function take() {
