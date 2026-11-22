@@ -11,7 +11,7 @@ After deployment, or on the counterpart, these can be measured. The system-to-mo
 
 \subsection{Trace schema}
 
-Telemetry is a stream of JSON-lines events shaped like OpenTelemetry log records. Every event has a timestamp on a clock shared by all agents, an event name, and attributes that use OpenTelemetry's messaging conventions where they exist (\texttt{service.name}, \texttt{messaging.\allowbreak destination.\allowbreak name}, \texttt{messaging.\allowbreak message.\allowbreak id}). Eight event kinds are defined:
+Telemetry is a stream of JSON-lines events shaped like OpenTelemetry log records. Every event has a timestamp on a clock shared by all agents, an event name, and attributes that use OpenTelemetry's messaging conventions where they exist (\texttt{service.name}, \texttt{messaging.\allowbreak destination.\allowbreak name}, \texttt{messaging.\allowbreak message.\allowbreak id}). Seven event kinds carry the operational behaviour:
 \begin{itemize}[leftmargin=*,nosep]
   \item \emph{publish}, for an emission;
   \item \emph{deliver}, for a sample processed within its deadline, with latency and service time;
@@ -19,15 +19,15 @@ Telemetry is a stream of JSON-lines events shaped like OpenTelemetry log records
   \item \emph{drop}, for a queue overflow, dead-broker drop or network-partition drop;
   \item \emph{forward}, for a broker relay forwarding a sample, carrying its measured broker service time without double-counting application deliveries;
   \item \emph{state}, for a component lifecycle event such as crash, recovery, freeze/thaw, overload or replica takeover;
-  \item \emph{health}, for live Tier-2 component health-state transitions (\texttt{healthy}, \texttt{degraded}, \texttt{stalled}, \texttt{crashed}, \texttt{frozen}) emitted by stub applications and broker relays and annotated with resolved operational criticality (\texttt{saag.criticality}, \texttt{saag.criticality\_provenance}), kept distinct from \emph{state} so replica-takeover parsing remains unaffected;
-  \item \emph{status}, for periodic DDS status counts (including reader peak queue depth \texttt{cache\_samples\_peak}).
+  \item \emph{status}, for periodic DDS status counts.
 \end{itemize}
+An eighth kind, \emph{health}, records component health-state transitions for the operational health summary (\S\ref{sec:dimensions}); calibration and fidelity comparison do not read it.
 
 The queue-flow simulator writes the \emph{same} schema across the shared operational event kinds when asked to record events. This is the single most useful decision in the system-to-model path. Calibration and fidelity comparison are written once and applied to simulated and observed traces alike. A difference between the two can then never be an artefact of two parsers.
 
 \subsection{The calibrator}
 
-The calibrator fits five groups of parameters on the post-warm-up window of a trace: topic rates, application and broker service-time distributions, and per-topic workload burstiness on steady state (robust to mid-run outages), and trigger policies whenever the trace contains discriminating input outages. It also supports incremental exponential-moving-average updates (\texttt{update\_profile}) for rolling re-calibration against a prior profile.
+The calibrator fits five groups of parameters on the post-warm-up window of a trace: topic rates, application and broker service-time distributions, and per-topic workload burstiness on steady state (robust to mid-run outages), and trigger policies whenever the trace contains discriminating input outages. It also supports incremental exponential-moving-average updates (\texttt{update\_profile}) for rolling re-calibration against a prior profile; this update is unit-tested but not evaluated here.
 
 \paragraph{Topic rates.} The fitted rate of a topic is its emissions per active second, counted over all of its publishers. Silence gaps exceeding $\max(5\,\text{s}, 10\cdot\text{median gap})$ are subtracted from the active duration so that a mid-run crash does not bias the healthy publication rate low, while fault-free traces remain unchanged.
 
@@ -39,38 +39,43 @@ The calibrator fits five groups of parameters on the post-warm-up window of a tr
 
 \paragraph{What the calibrator refuses to write.} The behavioural profile also has slots used by other simulators. One is a per-edge \emph{failure correlation}, which is a cascade-propagation probability in the multi-layer failure simulator. Another is a starvation tolerance. A measured message-drop rate looks superficially like the former, but it is a different quantity, and no trace event measures the latter. The calibrator writes neither. In a twin, a model slot filled with a plausible but semantically wrong measurement is worse than an empty slot, because it is indistinguishable from a real calibration.
 
-\paragraph{Closing the calibration loop into Tier-1 sweeps.} Both single-fault fidelity comparisons and full-system Tier-1 runtime sweeps (\texttt{runtime-sweep --profile}) consume the serialised \texttt{profile.json} via \texttt{telemetry\_profile}. The resulting runtime-label artefact records \texttt{calibrated: true} and \texttt{calibration\_source} while keeping its settings JSON-serialisable, so calibrated Tier-1 screening and uncalibrated declared sweeps remain cleanly distinguishable downstream.
+\paragraph{Calibrated screening.} Calibrated profiles feed both single-fault fidelity comparisons and full-system Tier-1 sweeps, and every label artefact records whether, and from what, it was calibrated, so calibrated and declared sweeps cannot be confused downstream.
 
 \subsection{Identifiability: what telemetry can and cannot recover}
 \label{sec:identifiability}
 
-Calibration is only useful if it recovers the right values. To test this, we simulated the 74-component ATM scenario with \emph{known} parameters under the runtime-label settings, calibrated the resulting trace, and compared the fitted values with the known ones (Table~\ref{tab:identifiability}). The experiment is an automated test in the framework, so it is re-run on every change to the calibrator.
+Calibration is only useful if it recovers the right values. We test this in two ways (Table~\ref{tab:identifiability}). The main experiment simulates the 74-component ATM scenario with \emph{known} parameters under the runtime-label settings, calibrates the resulting trace, and compares the fitted values with the known ones. Rates and service times use 60\,s traces; trigger policies use 200\,s traces in which every application is down for 15\,s in one of eight staggered slots. Parameters that the ATM settings do not exercise (broker service times, $k$-of-$n$ policies and bursty workloads) are checked by unit round trips on small synthetic systems with two to five applications and one seed. These are weaker evidence: they show that an estimator works, not how accurately it works at scale. Both kinds are automated tests in the framework, so they are re-run on every change to the calibrator.
 
 \begin{table}[t]
 \centering
-\caption{Parameter recovery on the ATM scenario: simulate with known parameters, calibrate the trace, compare (60\,s trace).}
+\caption{Parameter recovery: simulate with known parameters, calibrate the trace, compare. (a)~The ATM identifiability experiment. (b)~Unit round trips on small synthetic systems (one seed).}
 \label{tab:identifiability}
 \small
 \begin{tabularx}{\textwidth}{@{}l l Y@{}}
 \toprule
 Parameter & Recovered? & Evidence \\
 \midrule
+\multicolumn{3}{@{}l}{\emph{(a) ATM scenario}} \\
 Topic rates & yes & median relative error 3\% (outage-robust on fault traces) \\
 App service mean and CV & yes & median relative error 1\%; every application within sampling noise (at most 3.6 standard errors, 30 applications); a uniform distribution is returned as lognormal with its true CV of 0.115 \\
-Broker service mean and CV & yes, when brokered & recovered from \texttt{saag.forward} in both simulator and testbed relays (exponential and uniform$\to$lognormal) \\
-Workload burstiness (MMPP) & yes, when bursty & CV + Fano gate with 2-means segmentation recovers burst ratio, burst fraction and mean burst length; zero false positives on periodic, Poisson or crashed periodic traces \\
-Trigger policy & yes, when observable & 16--17 of the 17 applications with inputs and outputs receive an answer, and every answer is correct, for true staleness windows of 2, 3 or 6 periods (the calibrator assumes 3); also identifies \texttt{k\_of\_n:$K$} when partial-outage ramps are observed \\
+Trigger policy & yes, when observable & 16--17 of the 17 applications with inputs and outputs receive an answer, and every answer is correct, for true staleness windows of 2, 3 or 6 periods (the calibrator assumes 3) \\
 Staleness window & no & no estimator; the trace does not determine it \\
+Workload burstiness & no, if periodic & the declared workload is periodic, so the burst ratio has no effect on the trace and cannot be recovered \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{(b) Unit round trips}} \\
+Broker service mean and CV & yes & from \emph{forward} events of simulator and testbed relays; exponential, and uniform returned as lognormal \\
+\texttt{k\_of\_n:$K$} trigger policy & yes & $K = 2$ identified for a three-input application from its partial-outage ramp \\
+Workload burstiness (MMPP) & yes, when bursty & classified as MMPP; true burst ratio 4.0 recovered within the accepted band 1.5--6.0 and burst fraction 0.1 within 0.02--0.35; no false positives on periodic, Poisson or crashed periodic traces \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The negative row is a result, not an omission. It tells the twin's users that post-deployment data cannot narrow the plausible range of the staleness window. Any conclusion sensitive to that parameter must keep carrying its uncertainty after deployment. Applications that never experienced a partial input outage receive no policy, which is correct behaviour rather than a gap.
+The negative rows are a result, not an omission. They tell the twin's users that post-deployment data cannot narrow the plausible range of the staleness window, and that a periodic trace says nothing about how bursty the workload would be under other conditions. Any conclusion sensitive to these parameters must keep carrying its uncertainty after deployment. Applications that never experienced a partial input outage receive no policy, which is correct behaviour rather than a gap.
 
 An identifiability table of this kind is cheap to produce once the simulator and the counterpart share a trace schema, and we recommend it as a standard artefact for calibrated twins. It separates three kinds of parameter:
 \begin{itemize}[leftmargin=*,nosep]
   \item parameters that data can pin down;
-  \item parameters that data can pin down only under particular operating conditions (here, trigger policies need an outage);
+  \item parameters that data can pin down only under particular operating conditions (here, trigger policies need an outage and burstiness needs a bursty workload);
   \item parameters that data cannot pin down at all.
 \end{itemize}
 Without such a table, a calibrated twin silently presents all three as equally ``calibrated''.

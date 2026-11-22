@@ -18,7 +18,7 @@ We condensed the baseline into seven requirements for an architectural digital t
 
 \begin{table}[t]
 \centering
-\caption{Requirements for an architectural digital twin of a publish--subscribe system, condensed from a 112-requirement industrial baseline. ``Status'' uses the capability voice of \S\ref{sec:maturity}: \emph{built} means implemented and tested; \emph{designed} means specified, not implemented.}
+\caption{Requirements for an architectural digital twin of a publish--subscribe system, condensed from a 112-requirement industrial baseline. ``Status'' uses the capability voice of \S\ref{sec:maturity}: \emph{built} means implemented and tested; \emph{partly built} means some parts are implemented; \emph{designed} means specified, not implemented.}
 \label{tab:requirements}
 \small
 \begin{tabularx}{\textwidth}{@{}l Y l l@{}}
@@ -31,8 +31,9 @@ R3 & \textbf{Substrate separation.} Behavioural oracles (simulators) operate on 
 R4 & \textbf{Executable counterpart.} Where the real system is unavailable, the model can be compiled into a running system that exercises the real middleware, under the same faults the simulators inject. & \S\ref{sec:m2s} & built \\
 R5 & \textbf{Calibration from telemetry.} Runtime parameters guessed before deployment can be re-estimated from traces, and the method reports which parameters it cannot estimate. & \S\ref{sec:s2m} & built (batch) \\
 R6 & \textbf{Measured fidelity.} Agreement between twin and counterpart is measured on declared metrics with declared tolerances, and reported as a report, never silently used as a gate. & \S\ref{sec:fidelity} & built; pre-registered study run \\
-R7 & \textbf{Drift detection.} Divergence between the modelled and the observed system (topology or parameters) is detected and triggers re-calibration or model repair. & \S\ref{sec:livetwin} & designed \\
+R7 & \textbf{Drift detection.} Divergence between the modelled and the observed system (topology or parameters) is detected and triggers re-calibration or model repair. & \S\ref{sec:livetwin} & partly built$^{a}$ \\
 \bottomrule
+\multicolumn{4}{@{}p{\textwidth}@{}}{\footnotesize $^{a}$Batch parameter and behavioural drift detection is implemented and unit-tested but not evaluated in this paper; topology drift is designed.}\\
 \end{tabularx}
 \end{table}
 
@@ -43,5 +44,5 @@ Taken one at a time, each requirement is unremarkable. Taken together, they pull
   \item \textbf{R1 vs.\ R3.} R1 asks for one model. R3 forbids the simulators from seeing part of what the model derives. The metamodel must therefore keep two views of the same instance and make the boundary between them enforceable (\S\ref{sec:metamodel}).
   \item \textbf{R4 vs.\ R6.} The executable counterpart is generated from the same model the simulators read. Some agreement between them is therefore guaranteed, and counting it as fidelity evidence would be circular. R6 is only meaningful if the method separates the parts of the counterpart that are independent of the simulators from the parts that are not (\S\ref{sec:independence}).
   \item \textbf{R5 vs.\ R6.} Calibrating on the same runs that fidelity is measured on would inflate fidelity. The data used for calibration and the data used for evaluation must be disjoint by protocol (\S\ref{sec:protocol}).
-  \item \textbf{R7 depends on R5 and R6.} Drift is a fidelity breach on new data. Detecting it presupposes a calibrated baseline and a fidelity metric with known noise. This is why we build R5 and R6 first and design R7 last.
+  \item \textbf{R7 depends on R5 and R6.} Drift is a fidelity breach on new data. Detecting it presupposes a calibrated baseline and a fidelity metric with known noise. This is why we built R5 and R6 first and R7 last: its batch detectors exist, but they are not evaluated here, and topology drift is still designed.
 \end{itemize}

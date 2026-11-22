@@ -4,7 +4,7 @@
 
 - **Authors:** Ibrahim Onuralp Yigit, Feza Buzluca
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track)
-- **Current Status:** Complete 30-page draft ([manuscript.pdf](latex/manuscript.pdf)); fidelity study protocol frozen (`9f84aad9`); pre-registered study complete (n = 8, 2,738 runs, ~56 h): H1 inconclusive
+- **Current Status:** Complete 35-page draft ([manuscript.pdf](latex/manuscript.pdf)); fidelity study protocol frozen (`9f84aad9`), arms run on tag `fidelity-study-arms-code`; pre-registered study complete (n = 8, 2,738 runs, ~56 h): H1 inconclusive
 
 ---
 
@@ -41,7 +41,7 @@ flowchart LR
 
 | # | Contribution | Why It Matters |
 |---|---|---|
-| **C1** | **One metamodel, two views** | Simulators read raw structure ($G_{\mathrm{struct}}$); analysis reads derived dependencies ($G_{\mathrm{an}}$). Prevents circularity; 56 CI tests enforce consistency. |
+| **C1** | **One metamodel, two views** | Simulators read raw structure ($G_{\mathrm{struct}}$); analysis reads derived dependencies ($G_{\mathrm{an}}$). Prevents circularity; 103 automated test cases enforce consistency. |
 | **C2** | **Model → System (M2S)** | Generates a runnable Docker + Cyclone DDS counterpart (including broker relays & replica failover) before the real system exists. |
 | **C3** | **System → Model (S2M)** | Calibrates rates, service times, and trigger policies from traces—and explicitly reports what telemetry **cannot** identify. |
 | **C4** | **Bounded fidelity method** | Separates genuine evidence from agreement by construction (independence table) and locks the analysis in a pre-registered study. |
@@ -66,18 +66,18 @@ Reviewers in EDTConf scrutinize *"is this really a digital twin?"* We answer up 
 ## 5. Key Results Already Built & Verified (`[P]`)
 
 1. **Consistency (RQ1):**
-   - 56 automated CI invariants keep repositories, simulators, testbed, and the hybrid two-tiered protocol aligned.
+   - 103 automated test cases keep repositories, simulators, testbed, and the hybrid two-tiered protocol aligned.
    - Caught a real historical bug where 6 of 7 dependency rules were missing in $I_M$; one residual edge-weight divergence is measured and documented.
 2. **Calibration Identifiability (RQ2):**
    - On the 74-component ATM scenario: topic rates recovered within **3%**, service times within **1%** (fixing a 45% survivor bias by logging deadline misses), trigger policies **100% accurate** when an outage occurs.
-   - **Negative result:** Staleness window and burst ratio are **not identifiable** from telemetry.
+   - **Negative result:** The staleness window, and burstiness under the periodic declared workload, are **not identifiable** from telemetry. Broker service times, `k_of_n:K` and bursty workloads are recovered only in unit round trips.
 3. **Smoke Test & Real Fidelity Gap (RQ3):**
    - On a 4-container testbed (`tiny_system`): exact stall-set agreement ($J = 1.0$) and exact DDS liveliness counts across 15 readers.
    - **Headline finding:** During a 10 s switch crash, Cyclone DDS expires remote participants and takes **~6 s to rediscover peers** after recovery—whereas the simulator reconnects instantly. *(A real gap no self-consistent simulator could find alone.)*
 
 ---
 
-## 6. What Remains: The Pre-Registered Fidelity Study (`[S]`)
+## 6. The Pre-Registered Fidelity Study (`[S]`, done)
 
 - **Frozen protocol** (16 Nov 2026, commit `9f84aad9`) before any comparison was run.
 - **Included scenarios:** 9 of 12 pass the capacity gate ($B_h = 3{,}033$ msg/s, full rate $\kappa = 1$); `industrial_scada` withdrawn for cost (Amendment 2), so n = 8.
@@ -89,23 +89,23 @@ Reviewers in EDTConf scrutinize *"is this really a digital twin?"* We answer up 
 
 ---
 
-## 7. Practicality: A Five-Order-of-Magnitude Cost Ladder (RQ4)
+## 7. Practicality: A Cost Ladder Spanning About Five Orders of Magnitude (RQ4)
 
 Each twin service matches what an engineering pipeline can afford:
 
 | Tier | Service | Cost | When to Run |
 |---|---|---|---|
-| **Tier 1** | Graph analysis & change gate | **0.01–1.01 s** (29–444 components) | Every commit / PR |
-| **Tier 2a** | Calibrated queue-flow simulation ($I_{\mathrm{dyn}}$) | **1.5–4.3 s** per fault | System-wide screening & shortlisting |
-| **Tier 2b** | Hybrid two-tiered verification (`hybrid-verify` + `testbed health`) | **54.2 s** local (`tiny_system`) / **≈ 40 min** projected Docker shortlist (`atm`) | Milestone triage, targeted gray-failure checks, Tier-2 operational health (ISO/IEC 25019) & criticality rankings |
-| **Tier 3** | Exhaustive Docker + DDS counterpart sweep | **≈ 71 s/run** (≈ 56 h full study) | Periodic twin fidelity validation |
+| **Gate** | Graph analysis & change gate | **0.01–1.01 s** (29–444 components) | Every commit / PR |
+| **Tier 1 screening** | Calibrated queue-flow simulation ($I_{\mathrm{dyn}}$) | **1.5–4.3 s** per fault | System-wide screening & shortlisting |
+| **Hybrid (Tier 1 + Tier 2 shortlist)** | Hybrid two-tiered verification (`hybrid-verify`) | **54.2 s** local (`tiny_system`) / **≈ 40 min** projected Docker shortlist (`atm`) | Milestone triage, targeted gray-failure checks |
+| **Exhaustive counterpart** | Exhaustive Docker + DDS counterpart sweep | **≈ 71 s/run** (≈ 56 h full study) | Periodic twin fidelity validation |
 
 ---
 
 ## 8. Fit to SoSyM & Overlap Safety
 
 - **Strong venue fit:** The call explicitly asks for *engineering methods* for digital twins—not just another domain application. Our paper hits 7 call topics (modeling, simulation, QA/fidelity, uncertainty, models+data, consistency, DevOps).
-- **Zero self-plagiarism risk:**
+- **Low overlap risk:**
   - **RASSE 2025 (published):** Cited; metamodel condensed in §4.1.
   - **JSS (under review):** Cited for simulators as ranking oracles; **no results reused**.
   - **SoSyM Tool Paper (in prep):** Disclosed; covers language/diagnosis/refactoring, **no overlap** with testbed, calibration, or fidelity.

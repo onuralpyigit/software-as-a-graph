@@ -49,6 +49,8 @@ Per-scenario Spearman ρ on publishing applications, O-open:
 
 **Why it is inconclusive.** Six scenarios have |d_s| ≤ 0.02, well inside δ, which on their own point to equivalence. The seventh, logistics_fleet, favours S0 by 0.020. The eighth, hub_and_spoke, favours S2 by 0.177. That one scenario is large enough to defeat TOST, but its observed ranking is also the noisiest in the study (C_s = 0.658, against 0.84–0.99 elsewhere), and with n = 8 one scenario decides both tests. The §6 text recorded this possibility in advance.
 
+**Note on the superiority p-value (added 2026-11-23, after the analysis; not an amendment).** microservices and logistics_fleet tie exactly in |d_s| (0.020022), so the signed-rank statistic is W+ = 28.5. The pre-registered test (`scipy.stats.wilcoxon`, `method="exact"`) uses the no-ties exact distribution and treats this as W+ ≥ 28, which gives 25/256 = 0.098. A tie-aware exact permutation test over all 256 sign assignments with mid-ranks gives 20/256 = 0.078. The pre-registered value stands as the result. The outcome is Inconclusive either way, because both values are above 0.05. The TOST p-value is unaffected, because the TOST ranks have no ties.
+
 ## 4. Secondary family (§7, Holm, two-sided, O-open)
 
 | ID | Contrast | HL [95% CI] | Raw p | Holm |
