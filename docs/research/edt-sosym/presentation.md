@@ -4,7 +4,7 @@
 
 - **Authors:** Ibrahim Onuralp Yigit, Feza Buzluca
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track)
-- **Current Status:** Complete 30-page draft ([manuscript.pdf](latex/manuscript.pdf)); fidelity study protocol frozen (`9f84aad9`); main study sweep pending (~62 h)
+- **Current Status:** Complete 30-page draft ([manuscript.pdf](latex/manuscript.pdf)); fidelity study protocol frozen (`9f84aad9`); pre-registered study complete (n = 8, 2,738 runs, ~56 h): H1 inconclusive
 
 ---
 
@@ -80,10 +80,11 @@ Reviewers in EDTConf scrutinize *"is this really a digital twin?"* We answer up 
 ## 6. What Remains: The Pre-Registered Fidelity Study (`[S]`)
 
 - **Frozen protocol** (16 Nov 2026, commit `9f84aad9`) before any comparison was run.
-- **Included scenarios:** 9 of 12 pass the capacity gate ($B_h = 3{,}033$ msg/s, full rate $\kappa = 1$).
+- **Included scenarios:** 9 of 12 pass the capacity gate ($B_h = 3{,}033$ msg/s, full rate $\kappa = 1$); `industrial_scada` withdrawn for cost (Amendment 2), so n = 8.
 - **Primary hypothesis (H1):** Does our current queue-flow model (S2) rank fault impact closer to observed DDS delivery loss than the published baseline (S0)?
 - **Secondary hypotheses (H2–H5):** Absolute accuracy ($\ge 0.70$), beating a closed-form formula (R), and whether calibration improves delivery error (S3 vs. S2).
-- **Scale:** 3,147 Docker + DDS runs (~71 s/run → **~62 machine-hours**).
+- **Scale:** 2,738 Docker + DDS runs, all valid first time (~72–76 s/run → **~56 machine-hours**).
+- **Results:** H1 **inconclusive** (HL +0.014 [−0.002, 0.094], p = 0.098); H2–H5 n.s. under Holm. S0, S2 and the formula R all rank at the noise ceiling (median ρ 0.91–0.93 vs. C_s 0.93). Where detail matters: broker/host faults ρ 0.98, stall-set J 0.94; p50 latency error 0.41 → 0.25.
 - **Safe design:** A pre-fixed decision table maps outcomes to *better / equivalent / inconclusive / worse*—every outcome is publishable and paired with the exact claim it permits.
 
 ---
@@ -97,7 +98,7 @@ Each twin service matches what an engineering pipeline can afford:
 | **Tier 1** | Graph analysis & change gate | **0.01–1.01 s** (29–444 components) | Every commit / PR |
 | **Tier 2a** | Calibrated queue-flow simulation ($I_{\mathrm{dyn}}$) | **1.5–4.3 s** per fault | System-wide screening & shortlisting |
 | **Tier 2b** | Hybrid two-tiered verification (`hybrid-verify`) | **54.2 s** local (`tiny_system`) / **≈ 40 min** projected Docker shortlist (`atm`) | Milestone triage & targeted gray-failure checks |
-| **Tier 3** | Exhaustive Docker + DDS counterpart sweep | **≈ 71 s/run** (≈ 62 h full study) | Periodic twin fidelity validation |
+| **Tier 3** | Exhaustive Docker + DDS counterpart sweep | **≈ 71 s/run** (≈ 56 h full study) | Periodic twin fidelity validation |
 
 ---
 
@@ -116,7 +117,7 @@ Each twin service matches what an engineering pipeline can afford:
 
 ### Action Plan
 1. **Advisor feedback** on the current draft ([draft.md](draft.md) / [manuscript.pdf](latex/manuscript.pdf)).
-2. **Run the 62 h fidelity sweep** (`reproduce/fidelity_study.py`) and fill Table 10 + H1 headline (`[TBD]` placeholders).
+2. ~~Run the fidelity sweep~~ Done (2,738 runs, ~56 h); results in Tables 10–11 and [RESULTS.md](../fidelity/RESULTS.md).
 3. **Archive traces & mint Zenodo DOI**, fill author/grant metadata, and submit.
 
 ### Open Decisions

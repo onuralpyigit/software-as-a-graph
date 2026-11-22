@@ -16,6 +16,12 @@ The system is a digital model with a generated counterpart and a batch digital s
   \item on the smoke test, the counterpart reproduced the simulator's stall sets and DDS liveliness exactly;
   \item the counterpart exposed a real gap, slow DDS rediscovery after long partitions, which the twin could not have found by checking itself against its own simulators.
 \end{itemize}
-The pre-registered fidelity study will report \tbd{H1 headline}, interpreted under the claim table fixed in advance.
+The pre-registered fidelity study, interpreted under the claim table fixed in advance, adds a sobering result:
+\begin{itemize}[leftmargin=*,nosep]
+  \item on eight emulated systems, the current and the published simulator cannot be distinguished in how they rank fault impact on publishing applications, and neither beats a closed-form first-order reference;
+  \item all three rank at about the counterpart's own repeatability, so under declared periodic behaviour the ranking question is already saturated;
+  \item the added model detail pays off where the reference cannot reach: broker and host faults, stall sets and latency.
+\end{itemize}
+For twin engineering, the lesson is that the order-$k$ reference must be reported next to every simulator: without it, near-ceiling agreement would have read as simulator fidelity.
 
 The next step is the one that turns the batch shadow (with its built parameter-drift detection, incremental EMA re-calibration and residual policy feedback) into a live twin: continuous ingestion and automated topology-drift detection, with engineer-approved model repair and production actuation. We have argued that this order is forced: drift detection presupposes calibration and a fidelity metric with known noise. We expect that order to apply to other pre-deployment twins whose physical side must, at first, be generated from the model itself.

@@ -336,6 +336,33 @@ Rate error was 0 at every step; CPU was the binding limit in both pilots. A fine
 - **Run order:** the session runner's `--defer` option runs `industrial_scada` last.
 - **Commit:** this text and the code change are registered together, in the commit that adds this section.
 
+### Amendment 2: `industrial_scada` withdrawn (2026-11-22, before any simulator comparison)
+
+**Status when written.**
+- **Sweep progress:** eight of the nine scenarios were finished in both conditions or about to be: iot_smart_city, healthcare, hub_and_spoke, microservices, telecom_ran, realtime_gaming and logistics_fleet were finished and retained under §10, and `atm` was in its last O-react runs. `industrial_scada` had no runs under Amendment 1; its runs under the original rule were set aside (Amendment 1).
+- **Blinding:** no simulator arm had been run and no comparison with I_obs had been computed. The only data read were the validity fields of the run records.
+- **No outcome known:** nothing that bears on H1–H5 was known, for `industrial_scada` or for any other scenario.
+
+**Decision.** `industrial_scada` is withdrawn from the study. The study's author took this decision to finish the study without the scenario's full re-run under Amendment 1 (about 400 runs, 7–8 h of machine time). It is a decision about cost, not about the scenario's data: the scenario's observed impacts were never compared with any simulator, and no simulator arm is run on it.
+
+**Consequences.**
+- **n = 8** included scenarios, all at κ = 1. The §8 inclusion table is otherwise unchanged.
+- **§9 floors at n = 8:** H1 one-sided p can reach 0.0039 with no losses, 0.0078 with one, 0.020 with two and 0.055 with three. The secondary family remains testable: at n = 8 a test passes Holm's first threshold (0.0125) only with no losses, and its second (0.0167) with at most one.
+- **§6 decision table, δ, arms, seeds, targets, metrics and every other rule:** unchanged.
+
+**Reported in the paper.**
+- That `industrial_scada` passed the §2 inclusion gate and was withdrawn after freezing, by this amendment, for the reason above.
+- The 80 attempts made on it under the original rule (49 run records, 31 attempts rejected by the check that Amendment 1 corrected), which are kept but not analysed.
+- That the study has n = 8, not the n = 9 stated in §6 and §8.
+
+**Implementation.**
+- `reproduce/fidelity_study.py` defines `EXCLUDED = {"industrial_scada": "Amendment 2"}`; `included()` drops it, so `simulate` runs no arm on it.
+- `included()` also keeps only the §2 candidates. `results/fidelity_study/capacity.json` was rewritten on 2026-11-17, after freezing, by exploratory capacity checks that added five `realworld_*` scenarios outside §2. Before this amendment `simulate` would have run arms on them. The nine §8 rows in that file are unchanged (all included, κ = 1).
+- `reproduce/fidelity_significance.py` uses the same `included()`.
+- `reproduce/fidelity_sweep_session.py` drops it from its scenario list and writes `sweep/COMPLETE` once the remaining eight are done.
+- Test: `test_amendment_2_withdraws_industrial_scada_everywhere` in `tests/test_fidelity_study.py`.
+- **Commit:** this text and the code change are registered together, in the commit that adds this section, before `simulate` is run.
+
 ## 13. Design decisions
 
 Settled by the study's author before freezing:

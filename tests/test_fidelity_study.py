@@ -230,6 +230,7 @@ def test_whole_pipeline_on_the_in_process_transport(tmp_path, monkeypatch):
     monkeypatch.setattr(fr, "CONDITIONS", {"O-open": True, "O-react": False})
     monkeypatch.setattr(fr, "scenario_path", lambda name: src)
     monkeypatch.setattr(fr, "require_frozen", lambda: None)
+    monkeypatch.setattr(fr, "CANDIDATES", ("chain",))  # included() admits §2 candidates only
     monkeypatch.setattr(fr, "REPS", 3)
     monkeypatch.setattr(fr, "ProcessPoolExecutor", ThreadPoolExecutor)
     monkeypatch.setattr(study, "SIM_SEEDS", (42, 123))
@@ -275,3 +276,16 @@ def test_undefined_rho_is_not_coerced_and_lost_scenarios_leave_the_contrast():
     rows = {"x": _scenario_row(0.5, 0.6), "y": {**_scenario_row(0.5, 0.9), "lost_scenario": True},
             "z": {**_scenario_row(0.5, 0.6), "rho": {"S0": None, "S2": 0.6}}}
     assert contrast(rows, "S2", "S0") == pytest.approx([0.1])
+
+
+def test_amendment_2_withdraws_industrial_scada_everywhere(tmp_path, monkeypatch):
+    import reproduce.fidelity_significance as sig
+    import reproduce.fidelity_study as fs
+
+    cap = {"atm": {"included": True, "kappa": 1.0}, "industrial_scada": {"included": True, "kappa": 1.0},
+           "av": {"included": False, "kappa": 1.0}, "realworld_edgex": {"included": True, "kappa": 1.0}}
+    (tmp_path / "capacity.json").write_text(json.dumps(cap))
+    monkeypatch.setattr(fs, "OUT", tmp_path)
+    assert set(fs.included()) == {"atm"}
+    assert sig.included is fs.included
+    assert set(fs.included(tmp_path)) == {"atm"}

@@ -11,7 +11,7 @@ We evaluate the twin against four research questions, one per engineering challe
 Every number below is tagged with its provenance:
 \begin{itemize}[leftmargin=*,nosep]
   \item \textbf{[P]}: measured on the open-source prototype, regenerable from a committed artefact;
-  \item \textbf{[S]}: from the pre-registered fidelity study, pending (\tbd{study run}).
+  \item \textbf{[S]}: from the pre-registered fidelity study (\S\ref{sec:protocol}), run in November 2026.
 \end{itemize}
 A number from one source is never presented as evidence for another.
 
@@ -66,7 +66,7 @@ Table~\ref{tab:identifiability} (\S\ref{sec:identifiability}) gives the result [
   \item trigger policies (including \texttt{k\_of\_n:$K$}) are always correct when the trace contains a discriminating outage, and abstained on otherwise;
   \item staleness windows are not identifiable.
 \end{itemize}
-On the counterpart itself, the in-process calibration round trip recovers rates, application and broker service means, and identifies trigger policies, under automated tests [P]. Whether calibrating on counterpart telemetry improves simulator fidelity is H5 [S]: \tbd{H5 result: per-scenario median per-reader delivery error, S2 vs.\ S3}.
+On the counterpart itself, the in-process calibration round trip recovers rates, application and broker service means, and identifies trigger policies, under automated tests [P]. Whether calibrating on counterpart telemetry improves simulator fidelity is H5 [S]. It cannot be decided on this counterpart: the uncalibrated simulator's per-reader delivery error is already 0.000 in seven of eight scenarios (0.018 in the eighth, identical after calibration), so calibration has nothing to reduce (HL $0.000$, Holm n.s.).
 
 \textbf{Answer to RQ2.} Telemetry recovers the rate, service (application and broker) and burstiness parameters that govern queue-flow behaviour. It recovers reactive trigger policies only when outages occur, and it cannot recover staleness windows. The twin must keep carrying the uncertainty of the staleness window after deployment.
 
@@ -102,32 +102,70 @@ Under both faults, the simulator and the counterpart agree exactly on which read
 
 This finding is the kind of result the counterpart exists to produce. It falls in the independent row of Table~\ref{tab:independence}: discovery and liveliness belong to the middleware, not to the shared plan. It is invisible to any oracle the framework computes about itself. It also has a direct consequence for the twin's users. Fault-response predictions for partitions longer than a liveliness lease underestimate the outage by the rediscovery time, and we now state this as a known limitation of the behavioural model. A twin that only checked itself against its own simulators could not have found it.
 
-\paragraph{Pre-registered study.} Table~\ref{tab:study} is the reporting template of the study in \S\ref{sec:protocol}. The protocol is frozen, and the rows fixed by the pilot are filled in. The result cells stay empty until the sweep is complete.
+\paragraph{Pre-registered study.} The study of \S\ref{sec:protocol} ran on eight scenarios, all at $\kappa = 1$ [S]. All 2,738 counterpart runs (80 fault-free baselines and 2,658 fault runs over 443 targets, three repetitions, two conditions) passed the validity checks on the first attempt, so no target and no scenario was lost. Pre-fault rate error was zero throughout, and the busiest container's CPU p95 stayed between 38\% and 62\%. The simulator arms ran 10,950 times on the frozen simulator code. The shuffled-label instrument check gave a median $\rho$ of 0.001, inside its $\pm 0.10$ bound, so the confirmatory results are reported. Table~\ref{tab:study} gives the decisions and Table~\ref{tab:perscenario} the per-scenario agreement.
 
 \begin{table}[t]
 \centering
-\caption{Fidelity study results [S]: reporting template, to be filled after the frozen protocol has run. $n$ is the number of included scenarios; $C_s$ is the noise ceiling.}
+\caption{Fidelity study results [S]. $n$ is the number of included scenarios; $C_s$ is the noise ceiling; HL is the Hodges--Lehmann median with its 95\% CI. Holm-corrected secondary tests are two-sided.}
 \label{tab:study}
 \small
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth} >{\raggedright\arraybackslash}Y >{\raggedright\arraybackslash}p{0.16\textwidth} >{\raggedright\arraybackslash}p{0.16\textwidth}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth} >{\raggedright\arraybackslash}Y >{\raggedright\arraybackslash}p{0.26\textwidth} >{\raggedright\arraybackslash}p{0.14\textwidth}@{}}
 \toprule
 Quantity & Statistic & Value & Decision \\
 \midrule
-Included scenarios & $n$ (and $\kappa$ per scenario) & 9 of 12; $\kappa = 1$ for all & --- \\
+Included scenarios & $n$ (and $\kappa$) & 8 of 12; $\kappa = 1$ for all & one withdrawn (\S\ref{sec:protocol}) \\
 Pilot capacity and margin & $B_h$, $\delta$ & 3,033\,msg/s; 0.05 & --- \\
-H1: S2 vs.\ S0 & HL median of $d_s$ [95\% CI], $p$, TOST $p$ & \tbd{H1} & \tbd{outcome} \\
-H2: S0 vs.\ 0.70 & HL, Holm-adjusted $p$ & \tbd{H2} & \tbd{} \\
-H3: S2 vs.\ R & HL, Holm-adjusted $p$ & \tbd{H3} & \tbd{} \\
-H4: S0 vs.\ R & HL, Holm-adjusted $p$ & \tbd{H4} & \tbd{} \\
-H5: S3 vs.\ S2 delivery error & HL, Holm-adjusted $p$ & \tbd{H5} & \tbd{} \\
-Noise ceiling & median $C_s$ (range) & \tbd{$C_s$} & --- \\
-Instrument check (arm N) & median $\rho_s(\mathrm{N})$ & \tbd{N} & within $\pm 0.10$? \\
-Brokers and hosts (S2, S3) & $\rho$, stall-set Jaccard & \tbd{S2, S3} & descriptive \\
+H1: S2 vs.\ S0 & HL of $d_s$ [95\% CI]; $p$ superiority; $p$ TOST & $+0.014$ [$-0.002$, $0.094$]; 0.098; 0.098 & \textbf{inconclusive} \\
+H2: S0 vs.\ 0.70 & HL [CI]; raw $p$ & $+0.21$ [$0.06$, $0.26$]; 0.016 & n.s.\ (Holm) \\
+H3: S2 vs.\ R & HL [CI]; raw $p$ & $+0.002$ [$-0.015$, $0.067$]; 0.84 & n.s. \\
+H4: S0 vs.\ R & HL [CI]; raw $p$ & $-0.014$ [$-0.030$, $0.001$]; 0.078 & n.s. \\
+H5: S2 vs.\ S3 delivery error & HL [CI]; raw $p$ & $0.000$ [$0.000$, $0.0002$]; 0.50 & n.s. \\
+Noise ceiling & median $C_s$ (range) & 0.93 (0.66--0.99) & --- \\
+Instrument check (arm N) & median $\rho_s(\mathrm{N})$ & 0.001 & within $\pm 0.10$ \\
+Brokers and hosts (S2) & median $\rho$; median stall-set $J$ & 0.98; 0.94 & descriptive \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\textbf{Answer to RQ3 (provisional).} On the smoke test, the twin reproduces which components a fault silences, and reproduces the DDS liveliness status exactly. Its first divergence is attributable to middleware rediscovery after long partitions, a behaviour the model omits. Whether the current simulator ranks fault impact closer to the observed system than the published configuration does is \tbd{H1 headline per the decision table}. The noise pilot leaves room for rank agreement up to about 0.90 and resolves differences near $\delta = 0.05$; \emph{inconclusive} remains possible if the included scenarios are noisier than the pilot.
+\begin{table}[t]
+\centering
+\caption{Per-scenario Spearman $\rho$ against $\Iobs$ on publishing applications, condition O-open [S]. $d_s = \rho(\mathrm{S2}) - \rho(\mathrm{S0})$.}
+\label{tab:perscenario}
+\small
+\begin{tabular}{@{}lrrrrrrr@{}}
+\toprule
+Scenario & $C_s$ & S0 & S1 & S2 & S3 & R & $d_s$ \\
+\midrule
+iot\_smart\_city & 0.887 & 0.892 & 0.882 & 0.891 & 0.885 & 0.915 & $-0.001$ \\
+healthcare & 0.984 & 0.952 & 0.977 & 0.969 & 0.972 & 0.974 & $+0.017$ \\
+hub\_and\_spoke & 0.658 & 0.576 & 0.618 & 0.753 & 0.710 & 0.614 & $+0.177$ \\
+microservices & 0.841 & 0.855 & 0.854 & 0.875 & 0.861 & 0.864 & $+0.020$ \\
+telecom\_ran & 0.931 & 0.868 & 0.903 & 0.886 & 0.879 & 0.903 & $+0.018$ \\
+realtime\_gaming & 0.951 & 0.964 & 0.972 & 0.976 & 0.960 & 0.966 & $+0.012$ \\
+logistics\_fleet & 0.926 & 0.962 & 0.962 & 0.942 & 0.937 & 0.947 & $-0.020$ \\
+atm & 0.994 & 0.988 & 0.995 & 0.997 & 0.997 & 0.987 & $+0.009$ \\
+\midrule
+Median & 0.929 & 0.922 & 0.932 & 0.916 & 0.911 & 0.931 & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{H1 is inconclusive.} Six scenarios differ by at most 0.02, well inside $\delta$; logistics\_fleet favours S0 by 0.020; hub\_and\_spoke favours S2 by 0.177. That single scenario is enough to defeat the equivalence test, yet it is also the noisiest observed ranking in the study ($C_s = 0.66$ against 0.84--0.99 elsewhere). With $n = 8$, one scenario decides both tests. By the decision table, the study cannot distinguish the two configurations, and this is not evidence that they are equal.
+
+\paragraph{The ranking question is saturated.} Every arm, including the published one and the formula R, ranks publishers at about the counterpart's own repeatability: the medians are 0.91--0.93 against a median ceiling of 0.93, and each arm reaches or exceeds $C_s$ in at least four scenarios.\footnote{$C_s$ compares one repetition with the mean of the other two, whereas each arm is compared with the mean of all three, so $C_s$ is a conservative ceiling for the arms.} The secondary family follows from this. S2 does not beat its first-order reference (H3: HL $+0.002$), and S0, if anything, falls slightly below it (H4: HL $-0.014$). By the claim table, \emph{against this counterpart, simulation adds no ranking value over the closed-form rate expansion}. S0 clears 0.70 in seven of eight scenarios (H2), but with one loss at $n = 8$ the smallest attainable $p$ is 0.016, above Holm's first threshold of 0.0125. This consequence was stated in the protocol (\S\ref{sec:discussion}).
+
+\paragraph{Where the added model detail does matter.} The descriptive analyses locate the value of the current model outside publisher ranking, where neither S0 nor R can look:
+\begin{itemize}[leftmargin=*,nosep]
+  \item \emph{Infrastructure faults.} On broker and host crashes, S2 ranks impact with median $\rho = 0.98$ (0.90--0.997) and reproduces the stall set with median Jaccard 0.94. Seven scenarios lie at 0.90--1.00; healthcare is the exception at 0.28. S0 cannot represent these faults at all.
+  \item \emph{Latency.} Host stations cut the median p50 latency error from 0.41 (S0) to 0.25 (S2), lower in seven of eight scenarios, which brings p50 to its 25\% tolerance. The p95 errors of S1--S3 stay within their 35\% tolerance in every scenario. Delivery error is near zero under every arm.
+  \item \emph{Attribution.} The DDS deadline rule alone (S1 vs.\ S0) moves rankings by a median of $+0.007$.
+  \item \emph{Middleware status.} On 40 sampled faults, the entities whose counters fire agree closely for liveliness alive count and offered deadline misses (median Jaccard 0.98) and moderately for requested deadline misses (0.71) and replaced cache samples (0.50). Lost, rejected and incompatible-QoS counters are zero on both sides.
+  \item \emph{Negative control.} Observed impact on sinks is 0.002--0.038, at the level of the lowest-impact publishers.
+\end{itemize}
+
+\paragraph{The reactive condition (descriptive only).} If the counterpart's applications follow their declared reactive policies, assuming open-loop behaviour (S0) costs little rank agreement against the reactive simulator (S4) in six scenarios, and about 0.06 on iot\_smart\_city and hub\_and\_spoke. Because S4 and the counterpart share the trigger-policy function (Table~\ref{tab:independence}), this is the cost of the open-loop assumption, not evidence that reactive modelling is more accurate.
+
+\textbf{Answer to RQ3.} On the smoke test, the twin reproduces which components a fault silences and the DDS liveliness status exactly, and its first divergence is slow DDS rediscovery after long partitions. In the pre-registered study, the current and the published simulator cannot be distinguished in how they rank application-fault impact on eight emulated systems, and neither beats a closed-form first-order reference: under declared periodic behaviour, the counterpart's own noise, not the simulator, bounds ranking fidelity. The twin's added fidelity shows instead in broker and host faults, stall sets and latency, which the published configuration and the reference cannot represent.
 
 \subsection{RQ4: Cost of the twin's services and counterpart}
 
@@ -136,7 +174,7 @@ Table~\ref{tab:cost} summarises costs [P].
   \item \textbf{Analytical services.} Analysis, static checks and the two graph simulators cost milliseconds to about a second up to several hundred components. For the ATM scale family, a complete gate invocation (analysis plus all structural checks) grows roughly in proportion to size, with no cliff: from 0.01\,s at 29 components to 1.01\,s at 444, mean over five seeds.
   \item \textbf{Queue-flow simulation.} This costs seconds per faulted component and 12.7 CPU-hours for an exhaustive five-seed sweep over the corpus. It therefore suits targeted, second-tier use on shortlisted components rather than every commit.
   \item \textbf{Hybrid two-tiered verification.} Combining one fault-free baseline, a calibrated Tier-1 sweep and Tier-2 verification on a shortlist of size $K + D + C$ (top-$K$ targets, prediction disagreements and negative controls) makes counterpart cost scale with the shortlist rather than with $|V|$. On \texttt{tiny\_system}, an end-to-end in-process smoke run (baseline calibration, 17 Tier-1 candidates across 2 seeds, and shortlisted \texttt{crash} + \texttt{omission} probes) finishes in 54.2\,s [P]. On the 74-component \texttt{atm} scenario in Docker mode, a shortlist of 11 targets (5 primary, 3 disagreements, 3 controls) at three repetitions and 71\,s per run projects to roughly 40 minutes per fault mode---a 4--6$\times$ reduction over an exhaustive counterpart sweep, and 10--15$\times$ on 150--444-component topologies.
-  \item \textbf{The counterpart (full-corpus study).} Exhaustive counterpart sweeps remain the most expensive artefact by far. On the nine included scenarios, the study needs 3,147 runs: 508 targets, three repetitions each, in both observed conditions, plus 11 fault-free runs per scenario. At the 71\,s per run measured in the noise pilot, including start-up, this projects to about 62 machine-hours. It is a validation instrument for the twin, not a per-change service.
+  \item \textbf{The counterpart (full-corpus study).} Exhaustive counterpart sweeps remain the most expensive artefact by far. On the eight scenarios of the study, the sweep took 2,738 runs at a median of 72--76\,s per run including start-up, about 56 machine-hours, spread over eleven budgeted sessions [S]. The 10,950 simulator runs of the arms took 69 minutes on 16 cores. The counterpart is a validation instrument for the twin, not a per-change service.
 \end{itemize}
 \begin{table}[t]
 \centering
@@ -155,7 +193,7 @@ Queue-flow simulator ($\Idyn$) & 5 seeds, whole corpus & 12.7 CPU-h (355.6\,Wh) 
 Hybrid verification (in-process) & \texttt{tiny\_system}: Step~0 + 17 Tier-1 $\times$ 2 seeds + shortlist $\times$ 2 probes & 54.2\,s \\
 Hybrid verification (Docker + DDS) & \texttt{atm}: baseline + Tier-1 sweep + 11 shortlisted targets $\times$ 3 reps & $\approx$40\,min (projected) \\
 Counterpart (Docker + DDS) & one faulted run incl.\ start-up (noise pilot) & $\approx$71\,s \\
-Counterpart (Docker + DDS) & full study, both conditions, 9 scenarios & $\approx$62\,h (projected) \\
+Counterpart (Docker + DDS) & full study, both conditions, 8 scenarios, 2,738 runs & $\approx$56\,h [S] \\
 \bottomrule
 \end{tabularx}
 \end{table}

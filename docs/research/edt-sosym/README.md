@@ -5,7 +5,7 @@
 - **Authors:** Ibrahim Onuralp Yigit, Feza Buzluca
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Rolling Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track)
 - **Framework:** [Software-as-a-Graph (SaG)](../../../README.md) (commit `9f84aad9`)
-- **Status:** Full draft (30 pages). Prototype evaluation (`[P]`) is complete and the fidelity study protocol is frozen; the pre-registered fidelity sweep (`[S]`, 3,147 runs) is pending execution.
+- **Status:** Full draft (33 pages). Prototype evaluation (`[P]`) and the pre-registered fidelity study (`[S]`, 2,738 counterpart runs on 8 scenarios, 2026-11-22) are complete; results in [RESULTS.md](../fidelity/RESULTS.md).
 
 ---
 
@@ -38,7 +38,7 @@ A shared **OpenTelemetry-shaped trace schema** connects the counterpart back to 
 - **Fidelity & Real Gap Exposed (RQ3, `[P]` / `[S]`):**
   - *Smoke test (`tiny_system`, 4 containers):* Exact stall-set agreement ($J = 1.0$), exact DDS liveliness alive counts across all 15 readers, and per-reader delivery within 6%.
   - *Middleware fidelity gap:* A 10 s switch-crash partition test exposed a **~6 s Cyclone DDS peer-rediscovery delay** after the partition heals (because participants expire past their lease), whereas the simulator reconnects instantaneously—a real behaviour that no self-consistent simulator could discover on its own.
-  - *Pre-registered study:* 9 of 12 candidate scenarios pass the capacity gate ($B_h = 3{,}033$ msg/s, full rate $\kappa = 1$, equivalence margin $\delta = 0.05$, pilot noise ceiling 0.90). Results for H1–H5 (3,147 runs) are pending execution.
+  - *Pre-registered study:* 9 of 12 candidate scenarios passed the capacity gate; `industrial_scada` was withdrawn by Amendment 2, so n = 8, all at $\kappa = 1$. H1 (S2 vs. S0) **inconclusive**: HL +0.014 [−0.002, 0.094], p = 0.098 superiority and TOST. H2–H5 not significant under Holm; S2 ≈ S0 ≈ closed-form reference R at the noise ceiling (median ρ 0.92 vs. C_s 0.93). Descriptive: brokers/hosts ρ 0.98, stall-set J 0.94; p50 latency error 0.41 → 0.25.
 - **Pipeline Cost Ladder (RQ4, `[P]`):** Twin services span five orders of magnitude—sub-second graph analysis and change gating (**0.01–1.01 s** for 29–444 components, suitable for every commit), seconds-per-fault queue-flow simulation (**1.5–4.3 s**, suitable for screening), hybrid two-tiered shortlisted verification (**54.2 s** in-process on `tiny_system`, **≈ 40 min** projected Docker shortlist on `atm`, suitable for milestone triage and gray-failure probing), and exhaustive machine-hour counterpart runs (**≈ 71 s/run**, **≈ 62 h** projected for the full study, suitable for periodic twin validation).
 
 ---

@@ -53,6 +53,8 @@ MAX_ATTEMPTS = 3
 BASE_S = 60.0
 WARM_S = 5.0
 CONDITIONS = {"O-open": True, "O-react": False}
+# PREREGISTRATION.md §12 Amendment 2: withdrawn before any simulator comparison.
+EXCLUDED = {"industrial_scada": "Amendment 2"}
 
 
 def scenario_path(name: str) -> Path:
@@ -255,9 +257,10 @@ def cmd_capacity(a) -> None:
         (OUT / "capacity.json").write_text(json.dumps(res, indent=2))
 
 
-def included() -> dict:
-    cap = json.loads((OUT / "capacity.json").read_text())
-    return {n: r for n, r in cap.items() if r["included"]}
+def included(out: Path = None) -> dict:
+    """§8 inclusion, restricted to the §2 candidates and less §12 Amendment 2's withdrawal."""
+    cap = json.loads(((out or OUT) / "capacity.json").read_text())
+    return {n: r for n, r in cap.items() if r["included"] and n in CANDIDATES and n not in EXCLUDED}
 
 
 def targets_for(name: str) -> dict:
