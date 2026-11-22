@@ -118,7 +118,7 @@ def test_inferred_trigger_policy_is_never_wrong(atm, staleness_periods):
             truth = got  # one input: all_of and any_of are the same policy
         assert got == truth, (app, evidence)
         right += 1
-    assert right >= 14  # measured 15 and 14 of 17 apps with inputs and outputs
+    assert right >= 14  # measured 17 and 16 of 17 apps with inputs and outputs (2026-11-23)
 
 
 def test_burst_ratio_is_inert_under_the_runtime_label_settings():
