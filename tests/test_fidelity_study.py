@@ -230,6 +230,7 @@ def test_whole_pipeline_on_the_in_process_transport(tmp_path, monkeypatch):
     monkeypatch.setattr(fr, "CONDITIONS", {"O-open": True, "O-react": False})
     monkeypatch.setattr(fr, "scenario_path", lambda name: src)
     monkeypatch.setattr(fr, "require_frozen", lambda: None)
+    monkeypatch.setattr(fr, "CANDIDATES", ("chain",))  # included() admits §2 candidates only
     monkeypatch.setattr(fr, "REPS", 3)
     monkeypatch.setattr(fr, "ProcessPoolExecutor", ThreadPoolExecutor)
     monkeypatch.setattr(study, "SIM_SEEDS", (42, 123))
