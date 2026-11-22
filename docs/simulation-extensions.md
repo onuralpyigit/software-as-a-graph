@@ -70,7 +70,7 @@ Faults are given as `faults=[FaultSpec(target, mode, start_s, duration_s, params
 | `crash` | Permanent crash; a host takes its residents | — |
 | `transient_crash` | Crash, restart after `duration_s` | `storm_copies` on restart |
 | `freeze` | Stops serving and publishing (a broker stops forwarding); queues keep filling | `duration_s` |
-| `slowdown` | Service time × k (a host's residents, or a broker's station). An app with no inputs has no station, so it emits one tick in k instead; its demand stays counted. An app with a station keeps emitting on schedule, even when saturated, unless its inputs go stale. The testbed agent does not yet throttle station-less apps. | `k`, or `k_mu` / `k_sigma` (log-normal) |
+| `slowdown` | Service time × k (a host's residents, or a broker's station). An app with no inputs has no station, so it emits one tick in k instead; its demand stays counted. An app with a station keeps emitting on schedule, even when saturated, unless its inputs go stale. Testbed `AppRuntime` also stretches emission periods for station-less apps when `k >= 1.0`. | `k`, or `k_mu` / `k_sigma` (log-normal) |
 | `omission` | Drops each emission with probability p | `p` |
 | `babbling` | Publishes at k × its rate | `k` |
 | `buffer_leak` | Reader queues shrink by β slots per second | `beta` |
@@ -257,9 +257,9 @@ Not modelled: the RTI Prometheus import and export, participant UDP bandwidth, t
 
 ## 3. Emulated testbed, calibration and fidelity
 
-Code: [`saag/testbed/`](../saag/testbed/), [`saag/simulation/calibration.py`](../saag/simulation/calibration.py), [`saag/validation/fidelity.py`](../saag/validation/fidelity.py).
+Code: [`saag/testbed/`](../saag/testbed/), [`saag/simulation/calibration.py`](../saag/simulation/calibration.py), [`saag/validation/fidelity.py`](../saag/validation/fidelity.py), [`saag/validation/health.py`](../saag/validation/health.py).
 
-Every oracle in Step 5 is scored against something the framework computes. The testbed produces *observed* behaviour instead. It runs the scenario as a real pub-sub system, injects the same `FaultSpec`s, and records OpenTelemetry-shaped traces:
+Every oracle in Step 5 is scored against something the framework computes. The testbed produces *observed* behaviour instead. It runs the scenario as a real pub-sub system, injects the same `FaultSpec`s, and records OpenTelemetry-shaped traces (8 event kinds: `saag.publish`, `saag.deliver`, `saag.deadline_miss`, `saag.drop`, `saag.forward`, `saag.state`, `saag.health`, `saag.status`):
 
 ```mermaid
 flowchart TD
@@ -273,40 +273,43 @@ flowchart TD
     C -. "--calibrated" .-> SIM
     T --> F["testbed fidelity<br>fidelity.json"]
     SIM --> F
+    T --> H["testbed health<br>health_summary.json"]
 ```
 
 | Part | What it does |
 |:---|:---|
-| Deployment plan | Hosts and residents, each topic's DDS QoS, and each app's trigger policy, staleness windows and service time. The same functions as the reactive model are used, so a gap in fidelity is a gap in timing and transport, not in the behavioural model. |
-| Runtime | Stub applications: one publisher thread per output, one worker per app (the shared station), bounded queues, deadline checks. A **broker** is a relay: writers publish to `ingress`, the routing broker republishes to `egress`, and the lowest-id relay with a live heartbeat routes. A **multi-hosted app** runs one instance per host; the lowest-id live instance is active and the others are warm standbys. |
+| Deployment plan | Hosts and residents, scenario `domain`, declared entity `criticality` (`topics`, `apps`, `brokers`, `host_criticality`, `network_devices`), each topic's DDS QoS, and each app's trigger policy, staleness windows and service time. The same functions as the reactive model are used, so a gap in fidelity is a gap in timing and transport, not in the behavioural model. |
+| Runtime | Stub applications: one publisher thread per output, one worker per app (the shared station), bounded queues with peak-depth tracking (`cache_samples_peak`), deadline checks, and live `saag.health` state-transition telemetry (`healthy`/`degraded`/`stalled`/`crashed`/`frozen`, annotated with resolved operational criticality). A **broker** is a relay: writers publish to `ingress`, the routing broker republishes to `egress`, and the lowest-id relay with a live heartbeat routes (emitting `saag.forward` and `saag.health`). A **multi-hosted app** runs one instance per host; the lowest-id live instance is active and the others are warm standbys. |
 | Transport | Cyclone DDS (extra `testbed`, `cyclonedds==11.0.1`) through a WaitSet poller, never listeners, with AUTOMATIC liveliness. `--mode local` runs everything in-process without Docker. |
-| Chaos | Host crashes and freezes become `docker kill`, `start` or `pause`. A host slowdown, like any app fault, becomes control files the agents poll, one per resident (brokers included). A slowed app with no inputs stretches its emission period, as in the simulator. `link_flap` becomes a *partition*: each blocked container drops ingress traffic from its peers' addresses with `tc`, multicast included, so DDS discovery and liveliness see the cut. Without `--network-gating` the flapping link's two hosts are blocked from each other. With it, any two hosts that CONNECTS_TO no longer connects are blocked, as in `network_gating`. That also makes a NetworkDevice crash real, and a topology that already separates hosts is partitioned before traffic starts. `buffer_leak`, `redelivery_storm` and faults on a network vertex with no container are reported as unsupported. |
+| Chaos | Host crashes and freezes become `docker kill`, `start` or `pause`. Docker runs sample per-container `docker_cpu_p95` into `run.json`. A host slowdown, like any app fault, becomes control files the agents poll, one per resident (brokers included). A slowed app with no inputs stretches its emission period, as in the simulator. `link_flap` becomes a *partition*: each blocked container drops ingress traffic from its peers' addresses with `tc`, multicast included, so DDS discovery and liveliness see the cut. Without `--network-gating` the flapping link's two hosts are blocked from each other. With it, any two hosts that CONNECTS_TO no longer connects are blocked, as in `network_gating`. That also makes a NetworkDevice crash real, and a topology that already separates hosts is partitioned before traffic starts. `buffer_leak`, `redelivery_storm` and faults on a network vertex with no container are reported as unsupported. |
 | Emulation options | All opt-in at `build`, so the defaults behave as before. `--service-work cpu` burns each service time on the CPU (hashing, which releases the GIL) instead of sleeping. It also caps each host container at the simulator's host capacity: `cpu_cores`, or else one core per resident station. Co-located apps then really compete for a host, while broker relays keep sleeping, as broker stations do in the simulator. The build refuses if utilisation × stations exceeds this machine's cores. `--carry-payload` puts each topic's `size` bytes on the wire. Serializing costs about 12 ns per byte, so 32 KiB takes about 0.4 ms. |
-| Calibration | `TelemetryCalibrator` fits topic rates and service-time distributions on the pre-fault steady state. It infers trigger policies from how emissions respond to input outages, abstaining when the evidence is ambiguous. It never writes `edge_failure_correlation`, which is a cascade probability, not a drop rate. See *What calibration can recover*, below. |
-| Fidelity | The simulated run is compared with the observed one: steady state against declared tolerances, the fault response (stall-set Jaccard), and DDS statuses. It is a report, never a gate. |
+| Calibration | `TelemetryCalibrator` fits topic rates (outage-robust), application and broker service-time distributions (`saag.deliver`, `saag.deadline_miss`, `saag.forward`), and per-topic MMPP workload burstiness on steady state. It infers trigger policies (including `k_of_n:K`) from input outages, abstaining when ambiguous, and supports incremental EMA re-calibration (`update_profile`). It never writes `edge_failure_correlation`, which is a cascade probability, not a drop rate. See *What calibration can recover*, below. |
+| Fidelity & Health | `testbed fidelity` compares the simulated run with the observed one across steady state, fault response (stall-set Jaccard), DDS statuses, end-of-simulation health summaries (`compare_health_summaries`), and operational criticality. `testbed health` computes and prints the standalone Tier-2 operational health summary (`health_summary.json`) and observed operational criticality table directly from `telemetry/*.jsonl`. Both are advisory reports, never gates. |
 
 ```bash
 python cli/simulate_graph.py testbed build --input data/scenarios/tiny_system.json --output output/testbed/tiny --duration 50 --qos-semantics dds
 python cli/simulate_graph.py testbed run --output output/testbed/tiny --duration 50 --faults faults.json --mode docker
 python cli/simulate_graph.py testbed calibrate --output output/testbed/tiny
 python cli/simulate_graph.py testbed fidelity --output output/testbed/tiny --calibrated
+python cli/simulate_graph.py testbed health --output output/testbed/tiny --only-unhealthy
 ```
 
 `--mode docker` builds an image that downloads `python:3.11-slim` and `cyclonedds`. The testbed directory is its own build context, with a copy of `saag/`.
 
-**What calibration can recover.** To test this, `atm` was simulated under the runtime-label settings with known parameters. The trace was then calibrated, and the fitted parameters compared with the known ones (`tests/test_calibration_identifiability.py`, measured 2026-11-07):
+**What calibration can recover.** To test this, `atm` was simulated under the runtime-label settings with known parameters. The trace was then calibrated, and the fitted parameters compared with the known ones (`tests/test_calibration_identifiability.py`):
 
 | Parameter | Recovered? |
 |:---|:---|
-| Topic rates | Yes. Median error 3% over a 60 s trace. |
-| Service mean and CV | Yes. The median error is 1%, and every app is within sampling noise (at most 3.6 standard errors over 30 apps). A uniform service distribution comes back as `lognormal` with its true CV of 0.115. A message dropped for missing its deadline was served first, so `saag.deadline_miss` carries `service_ms` in both the simulated and the testbed trace, and the fit includes it. Before that, the fit saw only the fast survivors, and on `atm` `A11` the mean came back 45% low. |
-| Trigger policy | Never wrong. On `atm`, 16 or 17 of the 17 apps with inputs and outputs get an answer, and every answer is right, whether the true staleness window is 2, 3 or 6 periods (the calibrator assumes 3). A single-input `all_of` comes back as `any_of`, which is the same policy. Pure sinks and apps that never saw a partial input outage get no answer. |
-| `staleness_periods`, `burst_ratio` | No. The calibrator has no estimator for either, so post-deployment data cannot narrow those ranges. |
+| Topic rates | Yes. Median error 3% over a 60 s trace (outage-robust on fault traces). |
+| App & broker service mean and CV | Yes. Median error 1% for apps (every app within sampling noise, at most 3.6 SE over 30 apps), including `saag.deadline_miss` service times so late samples do not bias the mean low; broker service times recovered from `saag.forward`. |
+| Workload burstiness (MMPP) | Yes, when bursty. Outage-filtered CV + Fano gate with 2-means segmentation recovers `burst_ratio`, `burst_fraction`, and `mean_burst_s` with zero false positives on periodic/Poisson traces. |
+| Trigger policy | Never wrong. On `atm`, 16 or 17 of the 17 apps with inputs and outputs get an answer, and every answer is right (including `k_of_n:K` when partial-outage ramps are observed). Pure sinks and apps that never saw a partial input outage get no answer. |
+| `staleness_periods` | No. The calibrator has no estimator, so post-deployment data cannot narrow this range. |
 
 A testbed directory contains:
 - `deployment.json`, `Dockerfile`, `docker-compose.yml` and `saag/`;
-- `telemetry/<host>.jsonl`, OpenTelemetry-shaped `saag.*` events;
-- `run.json`, `profile.json` (calibration) and `fidelity.json` (`fidelity_calibrated.json` with `--calibrated`).
+- `telemetry/<host>.jsonl`, OpenTelemetry-shaped `saag.*` events (including `saag.health` and `cache_samples_peak`);
+- `run.json` (including `docker_cpu_p95` on Docker runs), `profile.json` (calibration), `fidelity.json` (`fidelity_calibrated.json` with `--calibrated`), and `health_summary.json` (from `testbed health`).
 
 **Validation on `tiny_system`.** This setup has 4 containers, 12 apps and 2 broker relays at 1 Hz, run with declared parameters; each row is a single run, so treat this as a smoke test.
 
@@ -341,7 +344,7 @@ flowchart TD
     subgraph S0["Step 0: Steady-State Baseline & Calibration (Tier 2 -> Tier 1)"]
         B["Build testbed once (optional kappa scaling)"] --> R0["Fault-free baseline run (local | docker)"]
         R0 --> CAL["TelemetryCalibrator -> profile.json"]
-        R0 --> SS["compare_steady_state + attainment"]
+        R0 --> SS["compare_steady_state + attainment + baseline_health"]
     end
     S0 --> S1
     subgraph S1["Step 1: Full-System Screening (Tier 1: MessageFlowSimulator)"]
@@ -350,22 +353,22 @@ flowchart TD
     end
     S1 --> S2
     subgraph S2["Step 2: Shortlist & Triage Selection"]
-        SEL["Top-K risk targets + Prediction/Tier-1 disagreements + Negative controls (sinks)"]
+        SEL["Top-K risk targets + Prediction/Tier-1 disagreements + Negative controls"]
     end
     S2 --> S3
     subgraph S3["Step 3: Targeted Verification & Gray-Failure Probing (Tier 2)"]
         PR["Run shortlist x fault_probes x repetitions (reusing built testbed)"]
-        PR --> FID["replay_fidelity: simulate_like replay vs. observed run (Spearman, Top-K Jaccard, stall-set Jaccard) + DDS status + caveats"]
+        PR --> FID["replay_fidelity + DDS status + health_summary + operational_criticality + caveats"]
     end
-    S3 --> OUT["hybrid_report.json (advisory Tier-2 report)"]
+    S3 --> OUT["hybrid_report.json + tier2_health/ (advisory Tier-2 artifacts)"]
 ```
 
 ### The four steps
 
-1. **Step 0 — Steady-state baseline & calibration:** Builds the testbed once under `<output>/testbed/` (optionally scaling topic rates by $\kappa \le 1$ via `--max-host-load` and writing `scaled_scenario.json` without mutating the input), runs a fault-free baseline (logging per-container CPU p95 in `docker` mode), fits `profile.json` via `TelemetryCalibrator`, and checks steady-state fidelity (`compare_steady_state` and `study.attainment`).
+1. **Step 0 — Steady-state baseline & calibration:** Builds the testbed once under `<output>/testbed/` (optionally scaling topic rates by $\kappa \le 1$ via `--max-host-load` and writing `scaled_scenario.json` without mutating the input), runs a fault-free baseline (logging per-container CPU p95 in `docker` mode), fits `profile.json` via `TelemetryCalibrator`, checks steady-state fidelity (`compare_steady_state` and `study.attainment`), and records `baseline_health` (also written to `tier2_health/baseline.json`).
 2. **Step 1 — Full-system Tier 1 screening:** Loads `profile.json` (unless `--skip-calibration`) and runs `runtime_labels` under the runtime/DDS engine (`deployment_model="stations"`, `qos_semantics="dds"`, `dds_status=True`, `estimator="paired"`, `rng_streams="per_process"`, `replica_aware=True`) with multi-seed stability, optional `--parameter-draws`, and order-$k$ references (`ref_flow_policy`, `ref_delivery_first_order`), writing `tier1_runtime_labels.json`.
 3. **Step 2 — Shortlist & triage selection:** Combines **Top-*K*** targets (ranked by `--predictions` if supplied—accepting flat `{id: score}`, `saag-predict` GNN/RM JSON, `impact_scores.json`, or `runtime_labels.json`—or by Tier 1 `--tier1-label` otherwise), up to `--disagreements` targets with the largest normalized rank gap between predictions and Tier 1, and up to `--controls` lowest-Tier-1-impact negative controls (kept separate from primary rank correlations so tied zeros do not inflate Spearman $\rho$; declared sinks rank last among equal scores, because a sink's crash removes only its own receipts, which `observed_impact` excludes, so a sink control cannot fail), writing `shortlist.json`.
-4. **Step 3 — Targeted Tier 2 verification & gray-failure probing:** Reuses the built testbed across every `(probe, target, repetition)`, replaying each testbed run in `MessageFlowSimulator` (`simulate_like`) and comparing the replay with the observed run: impact scored by `observed_impact` on both sides (`replay_fidelity`, via `compare_fault_response`), stall-set Jaccard, and DDS communication statuses per repetition (`compare_dds_status`). `replay_fidelity` is Link-2 fidelity of the simulator on those runs; it does not compare the Step 1 `--tier1-label` scores that chose the shortlist with Tier 2. A probe that the testbed cannot emulate on a particular target (e.g. `omission` on a host in `docker` mode) is skipped for that target and listed under `skipped_targets` with an `unsupported_probe_targets` caveat, since the testbed would run fault-free while the replay injects the fault. Apps whose stall disagrees get their trigger policy re-inferred from the faulted run (`policy_updates`; an app inferred differently by different targets goes to `conflicting_policy_inferences`). Unsupported probes and structured caveats are recorded in `hybrid_report.json`.
+4. **Step 3 — Targeted Tier 2 verification & gray-failure probing:** Reuses the built testbed across every `(probe, target, repetition)`, replaying each testbed run in `MessageFlowSimulator` (`simulate_like`) and comparing the replay with the observed run: impact scored by `observed_impact` on both sides (`replay_fidelity`, via `compare_fault_response`), stall-set Jaccard, DDS communication statuses per repetition (`compare_dds_status`), schema-validated end-of-simulation health summaries (`health_summary`, `health_agreement` via `compare_health_summaries`), and Tier-2 observed operational criticality (`operational_criticality` per target and probe-level `ranking`, `tier1_vs_tier2`, and `replay_vs_tier2` comparisons via `compare_operational_criticality`). Standalone Tier-2 JSONs are written under `<output>/tier2_health/`. A probe that the testbed cannot emulate on a particular target (e.g. `omission` on a host in `docker` mode) is skipped for that target and listed under `skipped_targets` with an `unsupported_probe_targets` caveat. Apps whose stall disagrees get their trigger policy re-inferred from the faulted run (`policy_updates`; conflicting inferences go to `conflicting_policy_inferences`). Unsupported probes and structured caveats are recorded in `hybrid_report.json`.
 
 ### Gray-failure parity & caveats
 
@@ -385,15 +388,31 @@ flowchart TD
 
 ### Output directory & CLI examples
 
-An invocation writes `<output>/{testbed/, tier1_runtime_labels.json, shortlist.json, hybrid_report.json}` (plus `scaled_scenario.json` when $\kappa < 1$).
+An invocation writes `<output>/{testbed/, tier1_runtime_labels.json, shortlist.json, hybrid_report.json, tier2_health/}` (plus `scaled_scenario.json` when $\kappa < 1$), where `tier2_health/` holds `baseline.json`, per-target `<probe>_<target>.json`, and `operational_criticality_ranking.json`.
 
 ```bash
-# Quick local smoke check with crash + gray-failure omission probe
-python cli/simulate_graph.py hybrid-verify --input data/scenarios/tiny_system.json --output output/hybrid/tiny --mode local --duration 20 --warmup 2 --seeds 42,123 --repetitions 1 --top-k 2 --controls 1 --fault-probe crash --fault-probe omission:duration=5,p=0.5
+# Quick local smoke check with crash + gray-failure omission probe (printing full Tier-2 health tables)
+python cli/simulate_graph.py hybrid-verify --input data/scenarios/tiny_system.json --output output/hybrid/tiny --mode local --duration 20 --warmup 2 --seeds 42,123 --repetitions 1 --top-k 2 --controls 1 --fault-probe crash --fault-probe omission:duration=5,p=0.5 --show-health
 
 # Container + Cyclone DDS verification (non-circular open-loop transport check with CPU contention)
 python cli/simulate_graph.py hybrid-verify --input data/scenarios/atm_system.json --output output/hybrid/atm --mode docker --open-loop --service-work cpu --carry-payload --duration 60 --warmup 5 --seeds 42,123,456 --repetitions 3 --top-k 5 --disagreements 3 --controls 3 --fault-probe crash --fault-probe slowdown:duration=10,k=3
 ```
+
+---
+
+## 5. Operational health status and Tier-2 operational criticality
+
+Code: [`saag/validation/health.py`](../saag/validation/health.py), schema: [`saag/validation/schemas/health_summary.schema.json`](../saag/validation/schemas/health_summary.schema.json) (Draft 2020-12).
+
+To evaluate end-of-simulation system health and operational criticality in terms of **product-in-use (ISO/IEC 25019:2023)** identically on Tier 1 (`MessageFlowSimulator`) and Tier 2 (`saag/testbed`), `summarize_system_health(trace, plan, ...)` classifies every modelled component across all five types (`Node`, `Application`, `Topic`, `Broker`, `NetworkDevice`) into `healthy`, `degraded`, or `lost`:
+
+- **Derived operational criticality (`derive_operational_criticality`):** Uses declared `criticality` (`CRITICAL`/`HIGH`/`MEDIUM`/`LOW`) on `Topic` and `Application` entities and derives operational criticality (with explicit `provenance` and `derived_from` source IDs) for infrastructure entities:
+  - `Broker` ← max criticality of routed topics;
+  - `Node` ← max criticality of resident applications, resident brokers, and resident application topics;
+  - `NetworkDevice` ← max criticality of pub-sub flows traversing the device along shortest/ECMP paths (`saag.core.network.Fabric.ecmp_shares`), falling back to adjacent nodes when isolated.
+- **System & component health:** Reports counts and shares overall, by type, by criticality level, and for `operational_critical` (`CRITICAL` + `HIGH`), together with per-component `health_score`, `reasons`, `redundancy_remaining`, `n_minus_0_critical_ids`, time-integrated availability, and `docker_cpu_p95` saturation.
+- **ISO/IEC 25019 Product-in-Use health indices:** Computes `beneficialness` (critical sink mission continuity, criticality-weighted health index, critical topic timeliness), `freedom_from_risk` (zero-tolerance critical loss flag, safety-contract exposure seconds, critical redundancy depletion rate), and `acceptability` (critical SLA compliance and DDS status breaches), combined via domain stakeholder priorities $\vec{\omega}$ from `saag.core.quality_model.DOMAIN_PRIORITIES` into `overall_qiu_health_index`.
+- **Tier-2 operational criticality (`observed_operational_criticality`):** Extracts trace-based counterparts of Tier 1's runtime labels (`i_flow`, `i_delivery`, `i_delivery_consumer`, `i_timeliness`, `i_recovery`) plus `qiu_impact` and `static_criticality`, enabling side-by-side Tier-1 vs. Tier-2 health agreement (`compare_health_summaries`) and criticality rank correlation (`compare_operational_criticality`).
 
 ---
 

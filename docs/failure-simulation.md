@@ -429,8 +429,9 @@ The published engines have structural limits: publishers ignore their inputs, so
 | [Overload failure](simulation-extensions.md#overload-failure-overload_modelsaturation) | `overload_model="saturation"` | `MessageFlowSimulator` | Components crash when offered more work than they can do, so failover can cascade |
 | [Runtime labels](simulation-extensions.md#runtime-labels-runtime-sweep) | `saag-simulate runtime-sweep` | `MessageFlowSimulator` | Five labels with their order-k references; `--parameter-draws` tests them against guessed parameters |
 | [DDS semantics and statuses](simulation-extensions.md#2-dds-qos-semantics-and-status-metrics) | `qos_semantics="dds"`, `dds_status=True` | `MessageFlowSimulator`, testbed | Period deadlines, KEEP_LAST, QoS matching; DDS status counts |
-| [Emulated testbed](simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) | `saag-simulate testbed …` | — | Runs the scenario on real Cyclone DDS and compares it with the simulator |
-| [Hybrid two-tiered verification](simulation-extensions.md#4-hybrid-two-tiered-runtime-verification) | `saag-simulate hybrid-verify` | `MessageFlowSimulator` + testbed | Calibrates Tier 1 from a fault-free testbed baseline, screens all candidates, and verifies a Top-*K* + disagreement + control shortlist across crash and gray-failure probes |
+| [Emulated testbed](simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) | `saag-simulate testbed …` | — | Runs the scenario on real Cyclone DDS, emits live `saag.health` & `cache_samples_peak` telemetry, compares fidelity, and reports Tier-2 operational health & criticality (`testbed health`) |
+| [Hybrid two-tiered verification](simulation-extensions.md#4-hybrid-two-tiered-runtime-verification) | `saag-simulate hybrid-verify` | `MessageFlowSimulator` + testbed | Calibrates Tier 1 from a fault-free testbed baseline, screens all candidates, verifies a Top-*K* + disagreement + control shortlist across crash and gray-failure probes, and outputs schema-validated Tier-2 health summaries (ISO/IEC 25019 Product-in-Use) & operational criticality rankings |
+| [Operational health & Tier-2 criticality](simulation-extensions.md#5-operational-health-status-and-tier-2-operational-criticality) | `saag/validation/health.py` | Tier 1 & Tier 2 traces | Draft 2020-12 `health_summary.schema.json`, 5-type `healthy`/`degraded`/`lost` counts, derived node/broker/network-device criticality, ISO/IEC 25019 Product-in-Use indices, and Tier-2 `i_flow`/`i_delivery`/`i_delivery_consumer`/`i_timeliness`/`qiu_impact` rankings |
 
 ---
 
@@ -444,8 +445,8 @@ The published engines have structural limits: publishers ignore their inputs, so
 | `edge-criticality` | `FailureSimulator` edge sweep | `edge_criticality.json` |
 | `message-flow` | `MessageFlowSimulator` (one failure), including all runtime and DDS flags | `message_flow_results.json` |
 | `runtime-sweep` | [Runtime engine](simulation-extensions.md#runtime-labels-runtime-sweep) over all candidates | `runtime_labels.json` |
-| `hybrid-verify` | [Hybrid two-tiered protocol](simulation-extensions.md#4-hybrid-two-tiered-runtime-verification) (Tier 1 + Tier 2) | `hybrid_report.json`, `tier1_runtime_labels.json`, `shortlist.json` |
-| `testbed {build,run,calibrate,fidelity}` | [Emulated testbed](simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) | the testbed directory |
+| `hybrid-verify` | [Hybrid two-tiered protocol](simulation-extensions.md#4-hybrid-two-tiered-runtime-verification) (Tier 1 + Tier 2) | `hybrid_report.json`, `tier1_runtime_labels.json`, `shortlist.json`, `tier2_health/` |
+| `testbed {build,run,calibrate,fidelity,health}` | [Emulated testbed](simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) | the testbed directory (`deployment.json`, `telemetry/`, `run.json`, `profile.json`, `fidelity.json`, `health_summary.json`) |
 | `combined` | `fault-inject`, then `message-flow` | both |
 
 ```bash
@@ -540,8 +541,8 @@ Read labels from `records[*].impact_score`. `unlabeled_node_ids` lists nodes tha
 |:---|:---|:---|
 | `edge_criticality.json` | `edge-criticality` | Run metadata (`top_q`, `n_evaluated`, `n_nonzero`) and `edge_criticality`, one entry per candidate: `source`, `target`, `relationship`, `flow_impact`, `connectivity_impact`, `combined_impact` (= I_edge), `level`, `evaluated` |
 | `runtime_labels.json` | `runtime-sweep` | [Runtime labels](simulation-extensions.md#runtime-labels-runtime-sweep) |
-| `hybrid_report.json` | `hybrid-verify` | [Two-tiered hybrid report](simulation-extensions.md#4-hybrid-two-tiered-runtime-verification) (`step0_calibration`, `step1_tier1_screening`, `step2_shortlist`, `step3_tier2_verification`, `caveats`) |
-| Testbed directory | `testbed` | [Plan, telemetry, profile and fidelity report](simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) |
+| `hybrid_report.json` & `tier2_health/` | `hybrid-verify` | [Two-tiered hybrid report](simulation-extensions.md#4-hybrid-two-tiered-runtime-verification) (`step0_calibration` incl. `baseline_health`, `step1_tier1_screening`, `step2_shortlist`, `step3_tier2_verification` incl. `health_summary`, `health_agreement`, `operational_criticality`, `caveats`) plus standalone `tier2_health/{baseline.json, <probe>_<target>.json, operational_criticality_ranking.json}` |
+| Testbed directory | `testbed` | [Plan, telemetry, profile, fidelity and health summary](simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity) (`health_summary.json` conforms to `saag/validation/schemas/health_summary.schema.json`) |
 
 ---
 

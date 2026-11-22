@@ -450,24 +450,29 @@ Runs the four-step two-tiered runtime verification protocol: Step 0 steady-state
 | `--disagreements` / `--controls` | `3` / `3` | Max prediction-vs-Tier-1 rank disagreement targets and lowest-Tier-1-impact negative controls (sinks last on ties) |
 | `--fault-probe` | `crash` | Repeatable Tier 2 fault probe (`MODE[:k=v,...]`, e.g. `crash`, `omission:duration=10,p=0.5`, `slowdown:duration=10,k=3`) |
 | `--repetitions` / `--seed` | `3` / `42` | Tier 2 repetitions per `(probe, target)` and base seed |
+| `--show-health` | off | Print full per-component Tier-2 health tables (in addition to the default Tier-2 operational criticality ranking table) |
 
 ### `testbed`
 
-`testbed {build,run,calibrate,fidelity} --output DIR` runs the emulated DDS testbed ([details](simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity)).
+`testbed {build,run,calibrate,fidelity,health} --output DIR` runs the emulated DDS testbed and observes Tier-2 component health & operational criticality ([details](simulation-extensions.md#3-emulated-testbed-calibration-and-fidelity)).
 
 | Flag | Default | Used by | Description |
 |------|---------|---------|-------------|
 | `--input` | — | `build` | Scenario JSON |
 | `--duration` | `60.0` | `build`, `run` | Run length (s) |
+| `--warmup` | `2.0` | `health` | Warm-up window excluded from baseline rates (s) |
 | `--seed` | `0` | `build`, `run` | Agent seed |
 | `--target-utilization` | `0.65` | `build` | Service times in the deployment plan |
 | `--qos-semantics` | `engine` | `build` | `dds` for DDS-semantics agents |
 | `--service-work` | `sleep` | `build` | `cpu`: burn service time on the CPU, each host container capped at its simulated capacity |
 | `--carry-payload` | off | `build` | Put each topic's declared `size` bytes on the wire |
 | `--network-gating` | off | `build` | Partition hosts by CONNECTS_TO reachability on link flaps and network-vertex crashes |
-| `--mode` | `local` | `run` | `local`: in-process, no containers; `docker`: Docker Compose and Cyclone DDS (downloads `cyclonedds` when the image is built) |
+| `--mode` | `local` | `run` | `local`: in-process, no containers; `docker`: Docker Compose and Cyclone DDS (downloads `cyclonedds` when the image is built; records `docker_cpu_p95` in `run.json`) |
 | `--faults` | none | `run` | Fault specs, the same JSON as `message-flow --faults` |
 | `--calibrated` | off | `fidelity` | Simulate with `profile.json` from `calibrate` |
+| `--only-unhealthy` | off | `health` | Show only degraded or lost components in the console table |
+| `--only-critical` | off | `health` | Show only operational-critical (`CRITICAL`/`HIGH`) components |
+| `--json` | off | `health` | Print raw schema-validated JSON instead of formatted tables |
 
 ### `combined`
 
@@ -479,8 +484,8 @@ Runs `fault-inject`, then `message-flow`, using a subset of their flags: `--node
 - `edge-criticality` → `edge_criticality.json`
 - `message-flow` → `message_flow_results.json`, `message_flow_summary.txt`
 - `runtime-sweep` → `runtime_labels.json`
-- `hybrid-verify` → `<output>/{testbed/, tier1_runtime_labels.json, shortlist.json, hybrid_report.json}` (plus `scaled_scenario.json` if $\kappa < 1$)
-- `testbed` → `<output>/deployment.json`, `Dockerfile`, `docker-compose.yml`, `telemetry/*.jsonl`, `run.json`, `profile.json`, `fidelity.json`
+- `hybrid-verify` → `<output>/{testbed/, tier1_runtime_labels.json, shortlist.json, hybrid_report.json, tier2_health/}` (plus `scaled_scenario.json` if $\kappa < 1$)
+- `testbed` → `<output>/deployment.json`, `Dockerfile`, `docker-compose.yml`, `telemetry/*.jsonl`, `run.json`, `profile.json`, `fidelity.json`, `health_summary.json`
 - `combined` → the `fault-inject` and `message-flow` files
 
 All are written under `--output` (default `output/simulation/`). Formats are described in [failure-simulation.md §12](failure-simulation.md#12-output-files).
