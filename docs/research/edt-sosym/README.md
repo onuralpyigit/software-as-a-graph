@@ -5,7 +5,7 @@
 - **Authors:** Ibrahim Onuralp Yigit, Feza Buzluca
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Rolling Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track)
 - **Framework:** [Software-as-a-Graph (SaG)](../../../README.md): protocol freeze commit `9f84aad9`; study code tag `fidelity-study-arms-code`; paper release tag TBD
-- **Status:** Full draft (35 pages). Prototype evaluation (`[P]`) and the pre-registered fidelity study (`[S]`, 2,738 counterpart runs on 8 scenarios, 2026-11-22) are complete; results in [RESULTS.md](../fidelity/RESULTS.md).
+- **Status:** Full draft (36 pages). Prototype evaluation (`[P]`) and the pre-registered fidelity study (`[S]`, 2,738 counterpart runs and 10,950 simulator runs on 8 scenarios, 2026-11-22) are complete; results in [RESULTS.md](../fidelity/RESULTS.md).
 
 ---
 
@@ -38,7 +38,7 @@ A shared **OpenTelemetry-shaped trace schema** connects the counterpart back to 
 - **Fidelity & Real Gap Exposed (RQ3, `[P]` / `[S]`):**
   - *Smoke test (`tiny_system`, 4 containers):* Exact stall-set agreement ($J = 1.0$), exact DDS liveliness alive counts across all 15 readers, and per-reader delivery within 6%.
   - *Middleware fidelity gap:* A 10 s switch-crash partition test exposed a **~6 s Cyclone DDS peer-rediscovery delay** after the partition heals (because participants expire past their lease), whereas the simulator reconnects instantaneously—a real behaviour that no self-consistent simulator could discover on its own.
-  - *Pre-registered study:* 9 of 12 candidate scenarios passed the capacity gate; `industrial_scada` was withdrawn by Amendment 2, so n = 8, all at $\kappa = 1$. H1 (S2 vs. S0, publisher faults) **inconclusive**: HL +0.014 [−0.002, 0.094], p = 0.098 superiority and TOST (a tie-aware permutation test gives 0.078 for superiority; same decision). H2–H5 not significant under Holm; S2 ≈ S0 ≈ closed-form reference R at the noise ceiling (median ρ 0.92 vs. C_s 0.93). In hindsight the tie was likely by design: under open-loop behaviour a publisher crash only removes its direct readers' deliveries, which is what R computes. Descriptive: brokers/hosts ρ 0.98, stall-set J 0.94 (healthcare's 0.28 comes from one replicated application); p50 latency error 0.41 → 0.25. Only the queue-flow simulator ($I_{\mathrm{dyn}}$) is compared with the counterpart.
+  - *Pre-registered study:* 9 of 12 candidate scenarios passed the capacity gate; `industrial_scada` was withdrawn by Amendment 2, so $n = 8$, all at $\kappa = 1$. H1 (S2 vs. S0, publisher faults) **inconclusive**: HL $+0.014$ $[-0.002, +0.094]$, $p = 0.098$ superiority and TOST (a tie-aware permutation test gives $0.078$ for superiority; same decision). H2–H5 not significant under Holm; S2 $\approx$ S0 $\approx$ closed-form reference R at the noise ceiling (median $\rho$ 0.92 vs. $C_s = 0.93$). In hindsight the tie was likely by design: under open-loop behaviour a publisher crash only removes its direct readers' deliveries, which is what R computes. Descriptive: brokers/hosts median $\rho = 0.98$, stall-set $J = 0.94$ (`healthcare`'s 0.28 comes from one replicated application); p50 latency error $0.41 \to 0.25$. Only the queue-flow simulator ($I_{\mathrm{dyn}}$) is compared with the counterpart.
 - **Pipeline Cost Ladder (RQ4, `[P]`):** Twin services span about five orders of magnitude—sub-second graph analysis and change gating (**0.01–1.01 s** for 29–444 components, suitable for every commit), seconds-per-fault queue-flow simulation (**1.5–4.3 s**, suitable for screening), and hybrid two-tiered shortlisted verification (**54.2 s** in-process on `tiny_system`, **≈ 40 min** projected Docker shortlist on `atm`, suitable for milestone triage and gray-failure probing). Exhaustive counterpart sweeps (**≈ 71 s/run**, **≈ 56 h** measured for the full study `[S]`) lie two orders above, suitable for periodic twin validation.
 
 ---
@@ -48,13 +48,15 @@ A shared **OpenTelemetry-shaped trace schema** connects the counterpart back to 
 | File | Description |
 |---|---|
 | [draft.md](draft.md) | Complete Markdown version of the manuscript (with Mermaid diagrams and KaTeX math) for easy reading |
-| [outline.md](outline.md) | Structured abstract, section-by-section paper outline, contributions, and evidence status |
-| [latex/manuscript.pdf](latex/manuscript.pdf) | Compiled 35-page PDF manuscript |
+| [outline.md](outline.md) | Advisor-ready paper overview: abstract, structure, embedded figures, experimental design, quantitative results, and review checklist |
+| [presentation.md](presentation.md) | Concise advisor briefing covering problem, contributions, maturity bounds, headline results, and submission decisions |
+| [latex/manuscript.pdf](latex/manuscript.pdf) | Compiled 36-page PDF manuscript |
 | [latex/manuscript.tex](latex/manuscript.tex) | Main LaTeX source (`article` class; includes instructions for `sn-jnl`) |
 | [latex/sections/](latex/sections/) | Individual LaTeX source files for the abstract, §§1–10, and declarations |
 | [latex/refs.bib](latex/refs.bib) | Bibliography (38 entries) |
 | [cover_letter.md](cover_letter.md) | Submission cover letter for the SoSyM EDTConf Theme Section |
 | [../fidelity/PREREGISTRATION.md](../fidelity/PREREGISTRATION.md) | Frozen pre-registration protocol for the fidelity study (commit `9f84aad9`); arms and analysis ran on tag `fidelity-study-arms-code` |
+| [../fidelity/RESULTS.md](../fidelity/RESULTS.md) | Complete pre-registered fidelity study results (2,738 counterpart runs, 10,950 simulator runs across 8 scenarios) |
 
 ---
 
@@ -75,13 +77,14 @@ $S testbed run --output $OUT --duration 50 \
     --faults faults.json --mode docker
 $S testbed calibrate --output $OUT
 $S testbed fidelity --output $OUT --calibrated
+$S testbed health --output $OUT --only-unhealthy
 
 # Single-command hybrid two-tiered verification (Step 0 -> Step 3)
 $S hybrid-verify --input data/scenarios/tiny_system.json \
     --output output/hybrid/tiny --mode local --duration 20 \
     --warmup 2 --seeds 42,123 --repetitions 1 --top-k 2 \
     --controls 1 --fault-probe crash \
-    --fault-probe omission:duration=5,p=0.5
+    --fault-probe omission:duration=5,p=0.5 --show-health
 ```
 
 ---

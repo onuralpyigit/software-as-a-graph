@@ -4,7 +4,7 @@
 
 - **Authors:** Ibrahim Onuralp Yigit, Feza Buzluca
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track)
-- **Current Status:** Complete 35-page draft ([manuscript.pdf](latex/manuscript.pdf)); fidelity study protocol frozen (`9f84aad9`), arms run on tag `fidelity-study-arms-code`; pre-registered study complete (n = 8, 2,738 runs, ~56 h): H1 inconclusive
+- **Current Status:** Complete 36-page draft ([manuscript.pdf](latex/manuscript.pdf)); fidelity study protocol frozen (`9f84aad9`), arms run on tag `fidelity-study-arms-code`; pre-registered study complete ($n = 8$, 2,738 counterpart runs, 10,950 simulator runs, $\approx$56 h): H1 inconclusive
 
 ---
 
@@ -56,8 +56,8 @@ Reviewers in EDTConf scrutinize *"is this really a digital twin?"* We answer up 
 |---|---|
 | **Digital model** (analysis & simulation on one model) | **Built** |
 | **Generated counterpart** (model compiled to Docker + DDS) | **Built** |
-| **Batch digital shadow** (automated calibration, calibrated screening, shortlisted verification & caveat report per run via `hybrid-verify`) | **Built** |
-| **Live digital twin** (continuous ingestion + drift detection → re-calibration / repair) | **Designed only (§9.2)** |
+| **Batch digital shadow** (automated calibration, calibrated screening, shortlisted verification & caveat report per run via `hybrid-verify`; batch drift detection, EMA re-calibration & residual policy feedback implemented and unit-tested, not evaluated) | **Built** |
+| **Live digital twin** (continuous streaming ingestion, automated topology-drift graph diffing & model-repair proposals, engineer-approved actuation) | **Designed only (§9.2)** |
 
 > **Bounded claim:** Because the counterpart uses generated stubs, fidelity results speak strictly to **middleware, timing, and transport behaviour under declared application behaviour**—never to production business logic.
 
@@ -80,11 +80,11 @@ Reviewers in EDTConf scrutinize *"is this really a digital twin?"* We answer up 
 ## 6. The Pre-Registered Fidelity Study (`[S]`, done)
 
 - **Frozen protocol** (16 Nov 2026, commit `9f84aad9`) before any comparison was run.
-- **Included scenarios:** 9 of 12 pass the capacity gate ($B_h = 3{,}033$ msg/s, full rate $\kappa = 1$); `industrial_scada` withdrawn for cost (Amendment 2), so n = 8.
+- **Included scenarios:** 9 of 12 pass the capacity gate ($B_h = 3{,}033$ msg/s, full rate $\kappa = 1$); `industrial_scada` withdrawn for cost (Amendment 2), so $n = 8$.
 - **Primary hypothesis (H1):** Does our current queue-flow model (S2) rank fault impact closer to observed DDS delivery loss than the published baseline (S0)?
 - **Secondary hypotheses (H2–H5):** Absolute accuracy ($\ge 0.70$), beating a closed-form formula (R), and whether calibration improves delivery error (S3 vs. S2).
-- **Scale:** 2,738 Docker + DDS runs, all valid first time (~72–76 s/run → **~56 machine-hours**).
-- **Results:** H1 **inconclusive** (HL +0.014 [−0.002, 0.094], p = 0.098); H2–H5 n.s. under Holm. S0, S2 and the formula R all rank at the noise ceiling (median ρ 0.91–0.93 vs. C_s 0.93). Where detail matters: broker/host faults ρ 0.98, stall-set J 0.94; p50 latency error 0.41 → 0.25.
+- **Scale:** 2,738 Docker + DDS runs, all valid first time ($\approx$72–76 s/run $\to$ **$\approx$56 machine-hours**), plus 10,950 simulator runs (69 min on 16 cores).
+- **Results:** H1 **inconclusive** (HL $+0.014$ $[-0.002, +0.094]$, $p = 0.098$ superiority & TOST; tie-aware permutation $p = 0.078$); H2–H5 n.s. under Holm. S0, S2 and the formula R all rank at the noise ceiling (median $\rho$ 0.91–0.93 vs. $C_s = 0.93$)—foreseeable in hindsight because under periodic open-loop behaviour a publisher crash removes only direct-reader deliveries, which R computes directly. Where detail matters: broker/host faults median $\rho = 0.98$, stall-set $J = 0.94$; p50 latency error $0.41 \to 0.25$.
 - **Safe design:** A pre-fixed decision table maps outcomes to *better / equivalent / inconclusive / worse*—every outcome is publishable and paired with the exact claim it permits.
 
 ---
@@ -116,9 +116,8 @@ Each twin service matches what an engineering pipeline can afford:
 ## 9. Next Steps & Decisions for Advisor Review
 
 ### Action Plan
-1. **Advisor feedback** on the current draft ([draft.md](draft.md) / [manuscript.pdf](latex/manuscript.pdf)).
-2. ~~Run the fidelity sweep~~ Done (2,738 runs, ~56 h); results in Tables 10–11 and [RESULTS.md](../fidelity/RESULTS.md).
-3. **Archive traces & mint Zenodo DOI**, fill author/grant metadata, and submit.
+1. **Advisor review** of the complete draft ([outline.md](outline.md) / [draft.md](draft.md) / [manuscript.pdf](latex/manuscript.pdf)) and pre-registered results ([RESULTS.md](../fidelity/RESULTS.md)).
+2. **Incorporate feedback**, archive raw traces and mint the Zenodo DOI, fill author/grant/release-tag metadata, and submit.
 
 ### Open Decisions
 1. **Target submission window:**

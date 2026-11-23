@@ -11,7 +11,7 @@ We submit the manuscript *"Engineering an Architectural Digital Twin for Distrib
 - a system-to-model calibration path, with an identifiability analysis;
 - a fidelity-assessment method that separates genuine evidence from agreement that holds by construction, supported by a pre-registered study protocol.
 
-We position the system on the digital model, shadow and twin maturity ladder, and claim only the levels that are built: a digital model with a generated counterpart and a batch digital shadow. Every fidelity claim is bounded to middleware, timing and transport behaviour under declared application behaviour.
+We position the system on the digital model, shadow and twin maturity ladder, and claim only the levels that are built: a digital model with a generated counterpart and a batch digital shadow. Every fidelity claim is bounded to middleware, timing and transport behaviour under declared application behaviour. In our evaluation—including a frozen, pre-registered fidelity study across eight emulated DDS systems (2,738 counterpart runs and 10,950 simulator runs)—we report both an inconclusive primary publisher-ranking comparison (saturated at the counterpart's noise ceiling and matched by a closed-form reference) and the concrete evidence where the counterpart adds value: broker and host fault rankings, stall sets, latency error reduction, and a ~6 s Cyclone DDS post-partition peer-rediscovery delay that no self-consistent simulator could expose alone.
 
 **Fit to the call.** Each contribution addresses topics of the theme section:
 - the single metamodel with executable consistency checks: modeling methods for digital twins, and model consistency;

@@ -36,7 +36,7 @@ Deadline-miss share & 0.05 \\
 
 \paragraph{Fault response.} For a fault on component $v$, the \emph{observed impact} $\Iobs(v)$ follows the definition of the simulator's $\Idyn$: the pre-fault minus the post-fault delivery rate, summed over surviving readers. The faulted component's own receipts are excluded, the value is not clamped, and the simulator's guard band is used. Computing $\Iobs$ from a trace with the simulator's definition makes the two directly comparable. On the ATM scenario, $\Iobs$ computed from a simulated trace differs from the engine's internal $\Idyn$ by at most 0.0002. At 1\,Hz on the smallest scenario the difference is about 0.03, because whole samples are counted. Two comparisons follow:
 \begin{itemize}[leftmargin=*,nosep]
-  \item rank agreement between simulated and observed impact across faulted components, measured by Spearman's $\rho$ and top-$K$ Jaccard;
+  \item rank agreement between simulated and observed impact across faulted components, measured by Spearman's $\rho$ (with top-$K$ Jaccard also computed by the operational fidelity report for triage);
   \item for each single fault, the Jaccard index between the sets of readers that stall in simulation and in observation (the \emph{stall set}).
 \end{itemize}
 

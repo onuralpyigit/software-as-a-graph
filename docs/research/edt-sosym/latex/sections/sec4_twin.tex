@@ -71,8 +71,8 @@ The rules invert data flow into dependency, and their outcomes are:
 \begin{enumerate}[leftmargin=*,nosep]
   \item a subscriber depends on the publishers of its topics, including through library chains;
   \item an application depends on the broker routing its topics;
-  \item and 4. both of these are lifted to the hosting nodes;
-  \setcounter{enumi}{4}
+  \item a subscriber's host depends on the publisher's host (Rule~1 lifted to hosting nodes);
+  \item an application's host depends on the routing broker's host (Rule~2 lifted to hosting nodes);
   \item an application depends on the libraries it uses;
   \item brokers on the same host share fate;
   \item when the model declares network devices, a host depends on the devices that separate it from a host it depends on.
