@@ -4,7 +4,7 @@
 
 - **Authors:** Ibrahim Onuralp Yigit, Feza Buzluca
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track)
-- **Current Status:** Complete 37-page draft ([manuscript.pdf](latex/manuscript.pdf)); fidelity study protocol frozen (`9f84aad9`), arms run on tag `fidelity-study-arms-code`; pre-registered study complete ($n = 8$, 2,738 counterpart runs, 10,950 simulator runs, $\approx$56 h): H1 inconclusive; perturbed Docker calibration/drift & Docker `hybrid-verify` (`atm`) measured (`[P]`).
+- **Current Status:** Complete, condensed 20-page draft ([manuscript.pdf](latex/manuscript.pdf)) + GitHub reproducibility supplement ([SUPPLEMENT.md](SUPPLEMENT.md)); fidelity study protocol frozen (`9f84aad9`), arms run on tag `fidelity-study-arms-code`; pre-registered study complete ($n = 8$, 2,738 counterpart runs, 10,950 simulator runs, $\approx$56 h): H1 inconclusive; perturbed Docker calibration/drift & Docker `hybrid-verify` (`atm`) measured (`[P]`).
 
 ---
 

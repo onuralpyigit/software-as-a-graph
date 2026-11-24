@@ -1,83 +1,49 @@
 \section{System to Model: Telemetry and Calibration}
 \label{sec:s2m}
 
-A pre-deployment model has to guess the runtime parameters that drive its behavioural simulation:
+Pre-deployment models must guess runtime parameters (publication rates, service times, reactive trigger policies). The S2M transformation turns a trace into a \emph{calibrated profile} that overrides declared values in $\Idyn$ (R5), recording provenance for every fitted value and abstaining rather than guessing when telemetry cannot determine a parameter.
+
+\subsection{Shared trace schema and calibrator}
+
+Both $\Idyn$ and the counterpart emit the same OpenTelemetry-shaped JSON-lines schema (shared-clock timestamps, messaging attributes, and seven operational event kinds---\emph{publish}, \emph{deliver}, \emph{deadline miss}, \emph{drop}, \emph{forward}, \emph{state}, \emph{status}---plus an eighth \emph{health} event for operational summaries; full specification in the online supplement~\citealp{sag-software}). Sharing one schema eliminates dual-parser drift.
+
+On the post-warm-up window, the calibrator fits five parameter groups (with exact estimator thresholds in the supplement~\citealp{sag-software}):
 \begin{itemize}[leftmargin=*,nosep]
-  \item how often each topic is really published;
-  \item how long each application takes to serve a message;
-  \item whether an application emits on its own schedule or only when its inputs are fresh.
+  \item \textbf{Topic rates:} Emissions per active second, subtracting silence gaps from mid-run crashes so fault traces do not bias healthy rates low.
+  \item \textbf{Application and broker service times:} Mean and CV from \emph{deliver} and \emph{deadline miss} events (applications) and \emph{forward} events (brokers), fitted as exponential ($\text{CV} \in [0.7, 1.3]$) or lognormal. Including \emph{deadline miss} events is essential: fitting on-time survivors alone biased one ATM application's mean 45\% low.
+  \item \textbf{Workload burstiness:} Classifies topics with $\ge 30$ emissions as periodic, homogeneous Poisson, or Markov-modulated Poisson process (MMPP) via inter-arrival CV and Fano-factor segmentation.
+  \item \textbf{Trigger policies:} Infers \emph{periodic}, \emph{any-of}, \emph{all-of} or \texttt{k\_of\_n:$K$} from realised emission rates across input-freshness states whenever discriminating outages occur; abstains otherwise.
+  \item \textbf{Incremental EMA updates:} \texttt{update\_profile} blends new steady-state windows against a prior profile for rolling re-calibration (\S\ref{sec:evaluation}).
 \end{itemize}
-After deployment, or on the counterpart, these can be measured. The system-to-model transformation turns a trace into a \emph{calibrated profile} that overrides the declared values in the queue-flow simulator (R5). Its design rests on two principles. First, every fitted value records where it came from. Second, the calibrator abstains rather than guesses when the trace does not determine a parameter.
-
-\subsection{Trace schema}
-
-Telemetry is a stream of JSON-lines events shaped like OpenTelemetry log records. Every event has a timestamp on a clock shared by all agents, an event name, and attributes that use OpenTelemetry's messaging conventions where they exist (\texttt{service.name}, \texttt{messaging.\allowbreak destination.\allowbreak name}, \texttt{messaging.\allowbreak message.\allowbreak id}). Seven event kinds carry the operational behaviour:
-\begin{itemize}[leftmargin=*,nosep]
-  \item \emph{publish}, for an emission;
-  \item \emph{deliver}, for a sample processed within its deadline, with latency and service time;
-  \item \emph{deadline miss}, for a sample that was processed and then dropped as late; it carries its service time too;
-  \item \emph{drop}, for a queue overflow, dead-broker drop or network-partition drop;
-  \item \emph{forward}, for a broker relay forwarding a sample, carrying its measured broker service time without double-counting application deliveries;
-  \item \emph{state}, for a component lifecycle event such as crash, recovery, freeze/thaw, overload or replica takeover;
-  \item \emph{status}, for periodic DDS status counts.
-\end{itemize}
-An eighth kind, \emph{health}, records component health-state transitions for the operational health summary (\S\ref{sec:dimensions}); calibration and fidelity comparison do not read it.
-
-The queue-flow simulator writes the \emph{same} schema across the shared operational event kinds when asked to record events. This is the single most useful decision in the system-to-model path. Calibration and fidelity comparison are written once and applied to simulated and observed traces alike. A difference between the two can then never be an artefact of two parsers.
-
-\subsection{The calibrator}
-
-The calibrator fits five groups of parameters on the post-warm-up window of a trace: topic rates, application and broker service-time distributions, and per-topic workload burstiness on steady state (robust to mid-run outages), and trigger policies whenever the trace contains discriminating input outages. It also supports incremental exponential-moving-average updates (\texttt{update\_profile}) for rolling re-calibration against a prior profile, evaluated on perturbed Docker counterparts in \S\ref{sec:evaluation}.
-
-\paragraph{Topic rates.} The fitted rate of a topic is its emissions per active second, counted over all of its publishers. Silence gaps exceeding $\max(5\,\text{s}, 10\cdot\text{median gap})$ are subtracted from the active duration so that a mid-run crash does not bias the healthy publication rate low, while fault-free traces remain unchanged.
-
-\paragraph{Service-time distributions (applications and brokers).} For each application (from \emph{deliver} and \emph{deadline miss} events) and each routing broker (from \emph{forward} events), the calibrator records the mean and coefficient of variation of measured service times. It reports an exponential family when the CV lies in $[0.7, 1.3]$ and a lognormal family otherwise, and it fits only when at least five samples exist. Service times are taken from delivered samples \emph{and} from samples dropped as late. A late sample was still served, and fitting only the on-time survivors biases the mean low. On the ATM scenario, this bias put one application's mean 45\% low before the schema carried service times on deadline misses.
-
-\paragraph{Workload burstiness.} For each topic with at least 30 active emissions, the calibrator computes the outage-filtered inter-arrival CV and the binned count Fano factor. Topics with $\text{CV} < 0.25$ are classified as periodic; topics exhibiting both $\text{CV} > 1.15$ and Fano factor $> 1.5$ are segmented by 1D two-means clustering over bin rates into burst and calm states to estimate \emph{burst ratio}, \emph{burst fraction} and \emph{mean burst duration} for per-topic Markov-modulated Poisson process (MMPP) replay. Remaining topics are classified as homogeneous Poisson.
-
-\paragraph{Trigger policies.} An application with inputs emits periodically regardless of its inputs (\emph{periodic}), stops only when all inputs are stale (\emph{any-of}), stops as soon as one input is stale (\emph{all-of}), or degrades proportionally when fewer than $K$ inputs are fresh (\emph{$k$-of-$n$}). The calibrator infers which by splitting time into input freshness states and comparing the application's realised emission rate with its active rate. A state counts as evidence only if it lasted long enough to expect at least three emissions; when partial-outage emission shares fall in the middle band $(0.2, 0.8)$, per-fresh-count shares are checked against candidate $K \in \{2,\dots,N\}$ ramps and reported as \texttt{k\_of\_n:$K$} only when a unique $K$ fits within tolerance. Otherwise the calibrator abstains. For a single-input application, \emph{all-of} and \emph{any-of} coincide, and the calibrator reports the simpler one.
-
-\paragraph{What the calibrator refuses to write.} The behavioural profile also has slots used by other simulators. One is a per-edge \emph{failure correlation}, which is a cascade-propagation probability in the multi-layer failure simulator. Another is a starvation tolerance. A measured message-drop rate looks superficially like the former, but it is a different quantity, and no trace event measures the latter. The calibrator writes neither. In a twin, a model slot filled with a plausible but semantically wrong measurement is worse than an empty slot, because it is indistinguishable from a real calibration.
-
-\paragraph{Calibrated screening.} Calibrated profiles feed both single-fault fidelity comparisons and full-system Tier-1 sweeps, and every label artefact records whether, and from what, it was calibrated, so calibrated and declared sweeps cannot be confused downstream.
+The calibrator deliberately refuses to populate semantically mismatched slots used by other simulators (such as per-edge failure-correlation probabilities or starvation tolerances), preferring empty slots over plausible-looking miscalibrations.
 
 \subsection{Identifiability: what telemetry can and cannot recover}
 \label{sec:identifiability}
 
-Calibration is only useful if it recovers the right values. We test this in two ways (Table~\ref{tab:identifiability}). The main experiment simulates the 74-component ATM scenario with \emph{known} parameters under the runtime-label settings, calibrates the resulting trace, and compares the fitted values with the known ones. Rates and service times use 60\,s traces; trigger policies use 200\,s traces in which every application is down for 15\,s in one of eight staggered slots. Parameters that the ATM settings do not exercise (broker service times, $k$-of-$n$ policies and bursty workloads) are checked by unit round trips on small synthetic systems with two to five applications and one seed. These are weaker evidence: they show that an estimator works, not how accurately it works at scale. Both kinds are automated tests in the framework, so they are re-run on every change to the calibrator.
+We evaluate parameter recovery as automated CI tests (Table~\ref{tab:identifiability}): simulating the 74-component ATM scenario with known ground truth (60\,s fault-free traces for rates/service times; 200\,s staggered-outage traces for policies), calibrating, and comparing, supplemented by small synthetic unit round trips (2--5 apps, one seed) for features the ATM settings do not exercise.
 
 \begin{table}[t]
 \centering
-\caption{Parameter recovery: simulate with known parameters, calibrate the trace, compare. (a)~The ATM identifiability experiment. (b)~Unit round trips on small synthetic systems (one seed).}
+\caption{Parameter recovery: simulate with known parameters, calibrate the trace, compare [P]. (a)~ATM identifiability experiment. (b)~Unit round trips on small synthetic systems (one seed).}
 \label{tab:identifiability}
 \small
 \begin{tabularx}{\textwidth}{@{}l l Y@{}}
 \toprule
 Parameter & Recovered? & Evidence \\
 \midrule
-\multicolumn{3}{@{}l}{\emph{(a) ATM scenario}} \\
+\multicolumn{3}{@{}l}{\emph{(a) ATM scenario (74 components)}} \\
 Topic rates & yes & median relative error 3\% (outage-robust on fault traces) \\
-App service mean and CV & yes & median relative error 1\%; every application within sampling noise (at most 3.6 standard errors, 30 applications); a uniform distribution is returned as lognormal with its true CV of 0.115 \\
-Trigger policy & yes, when observable & 16--17 of the 17 applications with inputs and outputs receive an answer, and every answer is correct, for true staleness windows of 2, 3 or 6 periods (the calibrator assumes 3) \\
-Staleness window & no & no estimator; the trace does not determine it \\
-Workload burstiness & no, if periodic & the declared workload is periodic, so the burst ratio has no effect on the trace and cannot be recovered \\
+App service mean \& CV & yes & median relative error 1\%; all 30 apps within $\le 3.6$ SE \\
+Trigger policy & yes, if observable & 16--17 of 17 apps with inputs/outputs answered, 100\% correct across true staleness windows of 2, 3 or 6 periods \\
+Staleness window & no & no estimator; not determined by trace \\
+Workload burstiness & no, if periodic & periodic declared workload leaves burst ratio unobservable \\
 \midrule
 \multicolumn{3}{@{}l}{\emph{(b) Unit round trips}} \\
-Broker service mean and CV & yes & from \emph{forward} events of simulator and testbed relays; exponential, and uniform returned as lognormal \\
-\texttt{k\_of\_n:$K$} trigger policy & yes & $K = 2$ identified for a three-input application from its partial-outage ramp \\
-Workload burstiness (MMPP) & yes, when bursty & classified as MMPP; true burst ratio 4.0 recovered within the accepted band 1.5--6.0 and burst fraction 0.1 within 0.02--0.35; no false positives on periodic, Poisson or crashed periodic traces \\
+Broker service mean \& CV & yes & from \emph{forward} events of simulator and testbed relays \\
+\texttt{k\_of\_n:$K$} trigger policy & yes & $K = 2$ identified on 3-input app from partial-outage ramp \\
+Workload burstiness (MMPP) & yes, if bursty & burst ratio 4.0 recovered in 1.5--6.0; burst fraction 0.1 in 0.02--0.35; zero false positives on periodic/Poisson traces \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The negative rows are a result, not an omission. They tell the twin's users that post-deployment data cannot narrow the plausible range of the staleness window, and that a periodic trace says nothing about how bursty the workload would be under other conditions. Any conclusion sensitive to these parameters must keep carrying its uncertainty after deployment. Applications that never experienced a partial input outage receive no policy, which is correct behaviour rather than a gap.
-
-An identifiability table of this kind is cheap to produce once the simulator and the counterpart share a trace schema, and we recommend it as a standard artefact for calibrated twins. It separates three kinds of parameter:
-\begin{itemize}[leftmargin=*,nosep]
-  \item parameters that data can pin down;
-  \item parameters that data can pin down only under particular operating conditions (here, trigger policies need an outage and burstiness needs a bursty workload);
-  \item parameters that data cannot pin down at all.
-\end{itemize}
-Without such a table, a calibrated twin silently presents all three as equally ``calibrated''.
-
-The identifiability test uses a simulated trace as ground truth, so it checks the estimators, not the counterpart. Applying the calibrator to counterpart traces, and asking whether calibration improves fidelity, is hypothesis H5 of the fidelity study (\S\ref{sec:protocol}).
+The negative rows are a first-class result: post-deployment periodic traces cannot narrow staleness windows or latent burstiness, so twin conclusions sensitive to them must keep carrying that uncertainty. Evaluating calibration on counterpart telemetry is addressed in \S\ref{sec:evaluation}.

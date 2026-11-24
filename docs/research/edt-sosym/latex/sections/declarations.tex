@@ -1,37 +1,11 @@
 \section*{Declarations}
 
-\paragraph{Funding:} This work was supported in part by the Scientific and Technological Research Council of T\"urkiye (T\"UB\.ITAK), grant number [GRANT-NUMBER].
+\paragraph{Funding:} Supported in part by the Scientific and Technological Research Council of T\"urkiye (T\"UB\.ITAK), grant number [GRANT-NUMBER].
 
-\paragraph{Competing Interests:} The authors declare that they have no competing financial or non-financial interests that are directly or indirectly related to the work submitted for publication.
+\paragraph{Competing Interests:} The authors declare no competing financial or non-financial interests related to this work.
 
-\paragraph{Related Work by the Authors and Overlap Disclosure:} The following works by the same authors are related to this paper.
-\begin{itemize}[leftmargin=*]
-  \item \emph{Published.} \citet{yigit2025graph} introduced a reduced dependency-derivation method for publish--subscribe systems. This paper restates the extended metamodel in one condensed subsection (\S\ref{sec:metamodel}) and cites it.
-  \item \emph{Under review.} A companion manuscript~\citep{yigit2026jss}, under review at the Journal of Systems and Software, develops the failure simulators as ranking oracles for learned criticality prediction. This paper uses those simulators as the twin's behavioural models, cites them, and reports none of that manuscript's results.
-  \item \emph{In preparation.} A tool paper for this journal describes the framework's modeling language, quality diagnosis and refactoring. It shares the metamodel description with this paper but none of the twin method, and this paper reuses no text or results from it.
-  \item \emph{Not in any other manuscript.} The model-to-system transformation and generated counterpart, the telemetry calibration and its identifiability analysis, the fidelity-assessment method and independence analysis, the smoke-test and partition results, the maturity analysis and the requirements condensation are reported here for the first time.
-\end{itemize}
-We disclose this so the editor can assess the overlap directly.
+\paragraph{Related Work by the Authors and Overlap Disclosure:} (1)~\emph{Published:} \citet{yigit2025graph} introduced a reduced dependency derivation, condensed and cited in \S\ref{sec:metamodel}. (2)~\emph{Under review:} A companion manuscript~\citep{yigit2026jss} (JSS) develops the failure simulators as ranking oracles; this paper cites them as behavioural models and reuses none of its results. (3)~\emph{In preparation:} A SoSyM tool paper covers the modeling language, quality diagnosis and refactoring, sharing only the metamodel description and reusing no text or results. (4)~\emph{Novel here:} The M2S transformation and generated counterpart, S2M calibration and identifiability analysis, fidelity method and independence analysis, pre-registered study, perturbed-counterpart drift evaluation, maturity analysis and requirements condensation appear here for the first time.
 
-\paragraph{Data Availability:} The framework, including the counterpart generator, calibrator, fidelity report and hybrid two-tiered verification orchestrator, is open source~\citep{sag-software}. Three versions are pinned: the fidelity-study protocol, frozen at commit \texttt{9f84aad9}; the code on which the study's simulator arms and analysis ran [S], tagged \texttt{fidelity-study-arms-code} (commit \texttt{d4d5ca05} plus the two amendments); and the release that contains the [P] features described here, including \texttt{hybrid-verify}, \tbd{paper-release tag}. Later releases do not modify any pre-registered arm or scenario. Scenario topologies, generator configurations, the fidelity-study protocol, the runner and analysis scripts, raw telemetry traces and result artefacts will be archived at [REPOSITORY-URL], persistent identifier \tbd{mint Zenodo DOI for the fidelity-study archive}. The counterpart for one scenario is regenerated and run step by step, or end to end via the hybrid workflow, with:
-\begin{verbatim}
-S="python cli/simulate_graph.py"; OUT=output/testbed/tiny
-$S testbed build --input data/scenarios/tiny_system.json \
-    --output $OUT --duration 50 --qos-semantics dds
-$S testbed run --output $OUT --duration 50 \
-    --faults faults.json --mode docker
-$S testbed calibrate --output $OUT
-$S testbed fidelity --output $OUT --calibrated
-$S testbed health --output $OUT --only-unhealthy
+\paragraph{Data Availability:} The open-source \SaG\ framework, online reproducibility supplement (\texttt{docs/research/edt-sosym/SUPPLEMENT.md} with detailed mapping tables, per-scenario matrices and CLI commands), frozen Study~1 protocol (commit \texttt{9f84aad9}), study code tag \texttt{fidelity-study-arms-code}, and release \tbd{paper-release tag} are available at~\citep{sag-software}. Scenarios, traces and result artefacts will be archived at [REPOSITORY-URL], persistent identifier \tbd{mint Zenodo DOI for the fidelity-study archive}.
 
-# Single-command hybrid two-tiered verification (Step 0 -> Step 3)
-$S hybrid-verify --input data/scenarios/tiny_system.json \
-    --output output/hybrid/tiny --mode local --duration 20 \
-    --warmup 2 --seeds 42,123 --repetitions 1 --top-k 2 \
-    --controls 1 --fault-probe crash \
-    --fault-probe omission:duration=5,p=0.5 --show-health
-\end{verbatim}
-
-\paragraph{Author Contributions:} [To be completed via the submission interface, per the journal's Submitting Declarations requirements.]
-
-\paragraph{Ethics Approval:} Not applicable.
+\paragraph{Author Contributions:} [To be completed via the submission interface.] \textbf{Ethics Approval:} Not applicable.

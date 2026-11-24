@@ -1,27 +1,6 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-We engineered an architectural digital twin for distributed publish--subscribe systems as a family of transformations around one graph metamodel:
-\begin{itemize}[leftmargin=*,nosep]
-  \item a structural view for simulation and a derived view for analysis, kept consistent by executable invariants;
-  \item a model-to-system transformation that generates a running Docker and Cyclone DDS counterpart, driven by the same fault vocabulary as the simulators;
-  \item a system-to-model calibration path whose limits are measured;
-  \item a fidelity-assessment method that separates evidence from agreement by construction, paired with a pre-registered study protocol and a single-command hybrid two-tiered verification service that emits machine-readable independence and fault-parity caveats.
-\end{itemize}
+We engineered an architectural digital twin for distributed publish--subscribe systems around one typed graph metamodel, deriving separated structural and analysis views guarded by 103 CI invariants (C1), compiling a runnable Docker + Cyclone DDS counterpart under a shared fault vocabulary (C2), calibrating $\Idyn$ over a shared OpenTelemetry-shaped trace schema with explicit identifiability limits (C3), and assessing fidelity through an independence analysis and frozen pre-registered study (C4). Claimed strictly at its built level---a digital model, generated counterpart and batch digital shadow---the twin recovers rates, service times and observable trigger policies, cuts delivery error by 77--96\% under Docker parameter perturbations with monotonic EMA convergence, matches smoke-test stall sets and DDS liveliness exactly, exposes a $\approx 6$\,s Cyclone DDS post-partition rediscovery gap, and fits CI/CD via a five-order-of-magnitude cost ladder (including measured Docker \texttt{hybrid-verify} on ATM).
 
-The system is a digital model with a generated counterpart and a batch digital shadow, and we have stated it at exactly that level. The results so far support the method:
-\begin{itemize}[leftmargin=*,nosep]
-  \item the artefacts agree on dependency semantics rule by rule;
-  \item on a 74-component scenario, rates, application service times and trigger policies are recovered, while the staleness window, and burstiness under a periodic workload, are shown not to be recoverable; under controlled rate and service-time perturbations on three Docker counterparts (including a real-world ROS~2 topology), batch calibration cuts delivery error by 77--96\% with monotonic rolling EMA convergence; broker service times, $k$-of-$n$ policies and bursty workloads are so far recovered only in unit round trips;
-  \item on the smoke test, the counterpart reproduced the simulator's stall sets and DDS liveliness exactly;
-  \item the counterpart exposed a real gap, slow DDS rediscovery after long partitions, which the twin could not have found by checking itself against its own simulators.
-\end{itemize}
-The pre-registered fidelity study, interpreted under the claim table fixed in advance, adds a sobering result:
-\begin{itemize}[leftmargin=*,nosep]
-  \item on eight emulated systems, the current and the published simulator cannot be distinguished in how they rank publisher-fault impact, and neither beats a closed-form first-order reference;
-  \item all three rank at about the counterpart's own repeatability; in hindsight the confirmatory condition made this likely, because a publisher crash there removes only its direct readers' deliveries;
-  \item descriptively, the added model detail pays off where the reference cannot reach: broker and host faults, stall sets and latency.
-\end{itemize}
-For twin engineering, two lessons follow. The order-$k$ reference must be reported next to every simulator: without it, near-ceiling agreement would have read as simulator fidelity. And a confirmatory fidelity contrast should be placed where the counterpart is independent of the model; ours mostly tested the shared plan. All fidelity evidence here concerns the queue-flow simulator; the other three simulators remain to be compared with the counterpart.
-
-The next step turns the batch shadow into a live twin, building on the batch drift detection and EMA re-calibration evaluated here with continuous ingestion, automated topology-drift detection, engineer-approved model repair and production actuation. The most important open validation is a counterpart that is not generated from the model: an existing DDS or ROS~2 system run under the same fault vocabulary. We have argued that this order is forced: drift detection presupposes calibration and a fidelity metric with known noise. We expect that order to apply to other pre-deployment twins whose physical side must, at first, be generated from the model itself.
+Our pre-registered study adds two sobering engineering lessons: under open-loop periodic behaviour, publisher-impact ranking saturates at the counterpart's noise ceiling and ties a closed-form first-order reference, so order-$k$ references must always be reported alongside simulators and confirmatory contrasts must target the independent rows of the independence analysis (infrastructure faults, latency, partitions and gray failures, where added model detail pays off descriptively). Turning this batch shadow into an engineer-in-the-loop live twin---adding continuous ingestion, topology-drift repair, and validation against an independently built DDS/ROS~2 system---is the natural next step.
