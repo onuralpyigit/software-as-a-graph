@@ -120,7 +120,7 @@ Level & Model $\to$ counterpart & Counterpart $\to$ model & Status \\
 \midrule
 Digital model & The model is authored or extracted from engineering artefacts; analysis and simulation run on it. & None. & built \\
 Generated counterpart & The model is compiled automatically into a running DDS deployment, with faults compiled into chaos actions (\S\ref{sec:m2s}). & None. & built \\
-Digital shadow (batch) & As above. & Telemetry is calibrated automatically into simulator parameters (rates, app and broker service times, workload burstiness, trigger policies), and fidelity reports are computed automatically (\S\S\ref{sec:s2m}--\ref{sec:fidelity}), individually or via one closed-batch hybrid verification command (\S\ref{sec:services}). Batch drift detection, EMA re-calibration and residual policy feedback are implemented and unit-tested, not evaluated. Still \emph{invoked per run} by an engineer. & built \\
+Digital shadow (batch) & As above. & Telemetry is calibrated automatically into simulator parameters (rates, app and broker service times, workload burstiness, trigger policies), and fidelity reports are computed automatically (\S\S\ref{sec:s2m}--\ref{sec:fidelity}), individually or via one closed-batch hybrid verification command (\S\ref{sec:services}). Batch drift detection, EMA re-calibration and residual policy feedback are implemented and evaluated on perturbed Docker counterparts (\S\ref{sec:evaluation}). Still \emph{invoked per run} by an engineer. & built \\
 Digital twin & Accepted decisions (re-placement, configuration change) are pushed to the deployed system. & Continuous streaming ingestion; automated topology-drift graph diffing and model-repair proposals (\S\ref{sec:livetwin}). & designed \\
 \bottomrule
 \end{tabularx}

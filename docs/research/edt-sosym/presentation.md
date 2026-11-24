@@ -4,7 +4,7 @@
 
 - **Authors:** Ibrahim Onuralp Yigit, Feza Buzluca
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track)
-- **Current Status:** Complete 36-page draft ([manuscript.pdf](latex/manuscript.pdf)); fidelity study protocol frozen (`9f84aad9`), arms run on tag `fidelity-study-arms-code`; pre-registered study complete ($n = 8$, 2,738 counterpart runs, 10,950 simulator runs, $\approx$56 h): H1 inconclusive
+- **Current Status:** Complete 37-page draft ([manuscript.pdf](latex/manuscript.pdf)); fidelity study protocol frozen (`9f84aad9`), arms run on tag `fidelity-study-arms-code`; pre-registered study complete ($n = 8$, 2,738 counterpart runs, 10,950 simulator runs, $\approx$56 h): H1 inconclusive; perturbed Docker calibration/drift & Docker `hybrid-verify` (`atm`) measured (`[P]`).
 
 ---
 
@@ -56,7 +56,7 @@ Reviewers in EDTConf scrutinize *"is this really a digital twin?"* We answer up 
 |---|---|
 | **Digital model** (analysis & simulation on one model) | **Built** |
 | **Generated counterpart** (model compiled to Docker + DDS) | **Built** |
-| **Batch digital shadow** (automated calibration, calibrated screening, shortlisted verification & caveat report per run via `hybrid-verify`; batch drift detection, EMA re-calibration & residual policy feedback implemented and unit-tested, not evaluated) | **Built** |
+| **Batch digital shadow** (automated calibration, calibrated screening, shortlisted verification & caveat report per run via `hybrid-verify`; batch drift detection, EMA re-calibration & residual policy feedback implemented and evaluated on perturbed Docker counterparts) | **Built** |
 | **Live digital twin** (continuous streaming ingestion, automated topology-drift graph diffing & model-repair proposals, engineer-approved actuation) | **Designed only (§9.2)** |
 
 > **Bounded claim:** Because the counterpart uses generated stubs, fidelity results speak strictly to **middleware, timing, and transport behaviour under declared application behaviour**—never to production business logic.
@@ -68,8 +68,9 @@ Reviewers in EDTConf scrutinize *"is this really a digital twin?"* We answer up 
 1. **Consistency (RQ1):**
    - 103 automated test cases keep repositories, simulators, testbed, and the hybrid two-tiered protocol aligned.
    - Caught a real historical bug where 6 of 7 dependency rules were missing in $I_M$; one residual edge-weight divergence is measured and documented.
-2. **Calibration Identifiability (RQ2):**
+2. **Calibration Identifiability & Perturbed Docker Recovery (RQ2):**
    - On the 74-component ATM scenario: topic rates recovered within **3%**, service times within **1%** (fixing a 45% survivor bias by logging deadline misses), trigger policies **100% accurate** when an outage occurs.
+   - **Perturbed Docker counterparts (`tiny_system`, `atm`, `realworld_autoware_ros2`):** Under $+50\% / -35\%$ rate shifts and $2\times$ busiest-host service times, batch calibration (`S2 → S3`) cuts delivery error by **77%–96%** and latency error by **10%–63%**, with monotonic 3-window EMA convergence.
    - **Negative result:** The staleness window, and burstiness under the periodic declared workload, are **not identifiable** from telemetry. Broker service times, `k_of_n:K` and bursty workloads are recovered only in unit round trips.
 3. **Smoke Test & Real Fidelity Gap (RQ3):**
    - On a 4-container testbed (`tiny_system`): exact stall-set agreement ($J = 1.0$) and exact DDS liveliness counts across 15 readers.
@@ -97,7 +98,7 @@ Each twin service matches what an engineering pipeline can afford:
 |---|---|---|---|
 | **Gate** | Graph analysis & change gate | **0.01–1.01 s** (29–444 components) | Every commit / PR |
 | **Tier 1 screening** | Calibrated queue-flow simulation ($I_{\mathrm{dyn}}$) | **1.5–4.3 s** per fault | System-wide screening & shortlisting |
-| **Hybrid (Tier 1 + Tier 2 shortlist)** | Hybrid two-tiered verification (`hybrid-verify`) | **54.2 s** local (`tiny_system`) / **≈ 40 min** projected Docker shortlist (`atm`) | Milestone triage, targeted gray-failure checks |
+| **Hybrid (Tier 1 + Tier 2 shortlist)** | Hybrid two-tiered verification (`hybrid-verify`) | **54.2 s** local (`tiny_system`) / **107.4 min** measured Docker 2-probe (`atm`, $\approx$48–54 min/probe) | Milestone triage, targeted gray-failure checks |
 | **Exhaustive counterpart** | Exhaustive Docker + DDS counterpart sweep | **≈ 71 s/run** (≈ 56 h full study) | Periodic twin fidelity validation |
 
 ---

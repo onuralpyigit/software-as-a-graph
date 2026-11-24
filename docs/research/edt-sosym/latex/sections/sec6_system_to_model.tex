@@ -27,7 +27,7 @@ The queue-flow simulator writes the \emph{same} schema across the shared operati
 
 \subsection{The calibrator}
 
-The calibrator fits five groups of parameters on the post-warm-up window of a trace: topic rates, application and broker service-time distributions, and per-topic workload burstiness on steady state (robust to mid-run outages), and trigger policies whenever the trace contains discriminating input outages. It also supports incremental exponential-moving-average updates (\texttt{update\_profile}) for rolling re-calibration against a prior profile; this update is unit-tested but not evaluated here.
+The calibrator fits five groups of parameters on the post-warm-up window of a trace: topic rates, application and broker service-time distributions, and per-topic workload burstiness on steady state (robust to mid-run outages), and trigger policies whenever the trace contains discriminating input outages. It also supports incremental exponential-moving-average updates (\texttt{update\_profile}) for rolling re-calibration against a prior profile, evaluated on perturbed Docker counterparts in \S\ref{sec:evaluation}.
 
 \paragraph{Topic rates.} The fitted rate of a topic is its emissions per active second, counted over all of its publishers. Silence gaps exceeding $\max(5\,\text{s}, 10\cdot\text{median gap})$ are subtracted from the active duration so that a mid-run crash does not bias the healthy publication rate low, while fault-free traces remain unchanged.
 

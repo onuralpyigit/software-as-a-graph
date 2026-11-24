@@ -3,8 +3,8 @@
 - **Working Title:** *Engineering an Architectural Digital Twin for Distributed Publish–Subscribe Systems: One Graph Model for Analysis, Simulation, and an Executable Container Testbed*
 - **Authors:** Ibrahim Onuralp Yigit, Feza Buzluca
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Rolling Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track; manuscript type: **Theme Section Paper**)
-- **Manuscript Files:** 10 sections + Declarations, 36 pages ([manuscript.pdf](latex/manuscript.pdf) | [manuscript.tex](latex/manuscript.tex) | [draft.md](draft.md) | [cover_letter.md](cover_letter.md) | [RESULTS.md](../fidelity/RESULTS.md))
-- **Status (2026-11-23):** Full draft complete. Both the prototype evaluation (`[P]`) and the pre-registered fidelity study (`[S]`, frozen at commit `9f84aad9`, Amendments 1–2, code tag `fidelity-study-arms-code`; $n = 8$ scenarios, 2,738 counterpart runs, 10,950 simulator runs, $\approx$56 machine-hours) are complete. Only submission metadata placeholders remain (affiliations, ORCIDs, grant number, release tag, Zenodo DOI).
+- **Manuscript Files:** 10 sections + Declarations, 37 pages ([manuscript.pdf](latex/manuscript.pdf) | [manuscript.tex](latex/manuscript.tex) | [draft.md](draft.md) | [cover_letter.md](cover_letter.md) | [RESULTS.md](../fidelity/RESULTS.md))
+- **Status (2026-11-24):** Full draft complete. Both the prototype evaluation (`[P]`, including measured Docker perturbed-counterpart calibration/drift and Docker `hybrid-verify` on `atm`) and the pre-registered fidelity study (`[S]`, frozen at commit `9f84aad9`, Amendments 1–2, code tag `fidelity-study-arms-code`; $n = 8$ scenarios, 2,738 counterpart runs, 10,950 simulator runs, $\approx$56 machine-hours) are complete. Only submission metadata placeholders remain (affiliations, ORCIDs, grant number, release tag, Zenodo DOI).
 
 ---
 
@@ -25,11 +25,11 @@
 We place each capability on a digital model, shadow and twin maturity ladder and claim only the levels that are built: a digital model, a generated counterpart and a batch digital shadow.
 
 **Results.** Model consistency is enforced by executable invariants: the simulators re-derive all seven dependency rules from raw relations and must match the repository edge set.
-- *Calibration.* On a 74-component scenario, topic rates are recovered within 3% median error, application service times within 1%, and inferred trigger policies are never wrong. Unit round trips on a small brokered system also recover broker service times, $k$-of-$n$ trigger policies and, when the workload is bursty, its burstiness. Under declared periodic workload, neither the staleness window nor burstiness can be recovered from telemetry, and we report both as such.
+- *Calibration.* On a 74-component scenario, topic rates are recovered within 3% median error, application service times within 1%, and inferred trigger policies are never wrong. Under controlled rate and service-time perturbations on three Docker counterparts (including a real-world ROS 2 topology), batch calibration cuts delivery error by 77–96% and latency error by 10–63%, with monotonic rolling EMA convergence. Unit round trips on a small brokered system also recover broker service times, $k$-of-$n$ trigger policies and, when the workload is bursty, its burstiness. Under declared periodic workload, neither the staleness window nor burstiness can be recovered from telemetry, and we report both as such.
 - *Smoke test.* On a four-container system, simulated and observed fault responses agree exactly at the stall-set level. The test also exposes a fidelity gap: DDS peer rediscovery after a partition takes about 6 s, which the simulator does not model.
 - *Fidelity study.* In a pre-registered study on eight emulated systems (2,738 counterpart runs, 10,950 simulator runs), the primary comparison is *inconclusive*: the current simulator and the published one cannot be distinguished in how they rank the impact of publisher faults (Hodges–Lehmann $+0.014$, 95% CI $[-0.002, 0.094]$). Both, and a closed-form first-order reference, rank at about the counterpart's own repeatability (median $\rho \approx 0.92$ against a ceiling of 0.93). In hindsight this follows from the design: under declared periodic behaviour, a publisher crash removes only its direct readers' deliveries, which is what the reference computes. Descriptively, the current model reproduces broker and host fault rankings (median $\rho = 0.98$) and stall sets (median Jaccard 0.94), and lowers median latency error from 41% to 25%.
 
-**Conclusion.** An architectural digital twin can be engineered as a family of model transformations around one metamodel, with fidelity treated as a measured, bounded property rather than an assumption. On publisher ranking, the study could not separate simulation from a closed-form formula. The evidence that the counterpart adds lies in infrastructure faults, latency and middleware behaviour the simulator does not model. The remaining step to a live twin—continuous ingestion, drift-triggered re-calibration, topology-drift repair and production actuation—is designed, not evaluated.
+**Conclusion.** An architectural digital twin can be engineered as a family of model transformations around one metamodel, with fidelity treated as a measured, bounded property rather than an assumption. On publisher ranking, the study could not separate simulation from a closed-form formula. The evidence that the counterpart adds lies in infrastructure faults, latency, perturbed-parameter calibration and middleware behaviour the simulator does not model. The remaining step to a live twin—continuous ingestion, topology-drift repair and production actuation—is designed, not implemented.
 
 ---
 
@@ -43,7 +43,7 @@ We place each capability on a digital model, shadow and twin maturity ladder and
 
 ### Honest Maturity Positioning
 - **Built:** Digital model $\to$ Generated counterpart $\to$ Batch digital shadow (both M2S and S2M are automated, but an engineer closes the loop per run and the counterpart is an emulation).
-- **Partly built (R7, §9.2):** Batch parameter and behavioural drift detection, EMA re-calibration, and residual policy feedback are implemented and unit-tested, not evaluated.
+- **Partly built & evaluated in batch (R7, §8.3, §9.2):** Batch parameter and behavioural drift detection, incremental EMA re-calibration, and residual policy feedback are implemented, unit-tested, and evaluated on perturbed Docker counterparts.
 - **Designed only (§9.2):** Continuous telemetry ingestion, automated topology-drift graph diffing, engineer-approved model repair; no autonomous production actuation.
 - **Claim boundary:** Every fidelity claim applies strictly to *middleware, timing, and transport behaviour under declared application behaviour*—never to real production application logic.
 
@@ -179,7 +179,8 @@ Every empirical number in §8 carries an explicit provenance tag: **`[P]`** (mea
 | Trigger policy | ATM (74 comp.) `[P]` | Yes, if observable | 100% accurate on 16–17 of 17 observable apps across true staleness windows of 2, 3, or 6 periods; abstains otherwise |
 | Staleness window / Burstiness (periodic) | ATM (74 comp.) `[P]` | **No** | Explicitly reported as non-identifiable from periodic telemetry |
 | Broker service times, `k_of_n:K`, MMPP burstiness | Unit round trips `[P]` | Yes | Recovered on small synthetic systems ($K = 2$ on 3-input ramp; burst ratio 4.0 in 1.5–6.0; zero false positives) |
-| Calibration impact on delivery error (H5) | Study ($n = 8$) `[S]` | **Undecidable** | Uncalibrated delivery error already `0.000` in 7/8 scenarios (`0.018` in `iot_smart_city`, unchanged after calibration); HL $0.000$, Holm n.s. |
+| Perturbed-counterpart calibration & EMA (Docker) | `tiny_system`, `atm`, `realworld_autoware_ros2` `[P]` | **Yes** | Delivery error cut **77–96%** (`S2 → S3`), p50/p95 latency error cut **10–63%**, monotonic 3-window EMA convergence; `detect_drift` TP 1.00 (topic recall 0.73–1.00; baseline latency FP shows rate vs. latency drift need separate thresholds) |
+| Calibration impact on delivery error (H5) | Unperturbed study ($n = 8$) `[S]` | **Undecidable** | Uncalibrated delivery error already `0.000` in 7/8 scenarios (`0.018` in `iot_smart_city`, unchanged after calibration); HL $0.000$, Holm n.s. |
 
 ### RQ3 — Smoke Test, Middleware Gap & Pre-Registered Fidelity Study (`[P]` / `[S]`)
 
@@ -206,7 +207,7 @@ All 2,738 counterpart runs passed validity checks on the first attempt (0.000 pr
 | Change gate (analysis + checks) `[P]` | ATM family (29–444 components) | **0.01–1.01 s** | Every commit |
 | Graph simulators ($I^*$, $I_{\mathrm{comp}}$) `[P]` | `atm` (74) / `av` (152) sweeps | **0.06–0.45 s** | Every commit |
 | Queue-flow simulator ($I_{\mathrm{dyn}}$) `[P]` | Per fault (`atm`/`av`); whole-corpus 5-seed | **1.5–4.3 s/fault** (12.7 CPU-h corpus) | Candidate screening |
-| Hybrid verification (`hybrid-verify`) `[P]` | `tiny_system` (in-process) / `atm` (Docker shortlist, 11 targets $\times$ 3 reps) | **54.2 s** / **$\approx$40 min** (projected; 4–6$\times$ vs. exhaustive) | Milestone triage & gray-failure probing |
+| Hybrid verification (`hybrid-verify`) `[P]` | `tiny_system` (in-process) / `atm` (Docker shortlist: 8 targets $\times$ 3 reps $\times$ 2 probes) | **54.2 s** / **107.4 min** (measured; $\approx$48–54 min/probe; 4–6$\times$ vs. exhaustive) | Milestone triage & gray-failure probing |
 | Counterpart full sweep `[S]` | 8 scenarios, 2,738 runs (72–76 s/run median) | **$\approx$56 machine-hours** (10,950 sim runs: 69 min on 16 cores) | Periodic twin validation |
 
 ---
@@ -237,7 +238,7 @@ All 2,738 counterpart runs passed validity checks on the first attempt (0.000 pr
 
 1. **Framing of the inconclusive primary outcome (H1) & tie with $R$:** Does the current framing—reporting H1 transparently as inconclusive, explaining why the open-loop publisher tie with $R$ followed from the design in hindsight, and positioning the counterpart's added value in broker/host faults, latency, and DDS rediscovery—strike the right tone for SoSyM reviewers?
 2. **Maturity claim boundary:** Confirm you are happy claiming **batch digital shadow** (with R7 drift/re-calibration partly built and live-twin actuation strictly designed in §9.2) rather than over-claiming a full digital twin.
-3. **Length & structure:** The compiled draft is currently **36 pages** (`article` class, 11 pt, 1 in margins; SoSyM imposes no page limit on Theme Section papers). Let me know if any section should be trimmed or moved to an appendix.
+3. **Length & structure:** The compiled draft is currently **37 pages** (`article` class, 11 pt, 1 in margins; SoSyM imposes no page limit on Theme Section papers). Let me know if any section should be trimmed or moved to an appendix.
 4. **Remaining submission metadata placeholders** (in `manuscript.tex` and `declarations.tex`):
    - Author affiliations, street address, corresponding email, and ORCIDs
    - TÜBİTAK grant number (`[GRANT-NUMBER]`)

@@ -50,7 +50,7 @@ The report compares, for each counter, the set of entities with non-zero values 
 
 \paragraph{Operational health.} An evaluator also classifies every modelled entity at the end of a run as healthy, degraded or lost, and aggregates the result into quality-in-use indices in the sense of ISO/IEC~25019~\citep{iso25019}; this summary is implemented and schema-validated but not evaluated in this paper.
 
-\paragraph{From fidelity report to feedback.} Two advisory diagnostics connect fidelity back to calibration: \texttt{detect\_drift} flags metrics, topics and readers whose steady-state error leaves the tolerances of Table~\ref{tab:tolerances}, and \texttt{diagnose\_fault\_residuals} re-infers trigger policies for applications whose stall sets disagree and proposes, without applying, a profile update. Both are implemented and unit-tested but not evaluated in this paper, and neither ever blocks a build (R6).
+\paragraph{From fidelity report to feedback.} Two advisory diagnostics connect fidelity back to calibration: \texttt{detect\_drift} flags metrics, topics and readers whose steady-state error leaves the tolerances of Table~\ref{tab:tolerances}, and \texttt{diagnose\_fault\_residuals} re-infers trigger policies for applications whose stall sets disagree and proposes, without applying, a profile update. Both are evaluated on perturbed Docker counterparts in \S\ref{sec:evaluation}, and neither ever blocks a build (R6).
 
 \subsection{Independence analysis: what the counterpart can show}
 \label{sec:independence}
