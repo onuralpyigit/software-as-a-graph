@@ -1,6 +1,6 @@
 # Pre-registration (Study 2): Confirmatory Fidelity on Independent Middleware, Infrastructure, Calibration, and Gray-Failure Dimensions
 
-**Status: DRAFT (ready to freeze before any Study 2 simulator comparison).**
+**Status: FROZEN 2026-11-24.**
 
 - **Relation to Study 1:** Study 1 ([PREREGISTRATION.md](PREREGISTRATION.md), frozen `2026-11-16` at commit `9f84aad9`, code tag `fidelity-study-arms-code`; $n = 8$, 2,738 runs; [RESULTS.md](RESULTS.md)) stands **completely unmodified**. Study 1 showed that under open-loop periodic behaviour (`O-open`), publisher-crash ranking saturates at the counterpart's noise ceiling ($C_s = 0.93$) and ties with the closed-form first-order reference $R$, because a publisher crash removes only direct-reader deliveries derived from the shared plan.
 - **Purpose of Study 2:** Test the **independent rows** of the independence table (DDS delivery/discovery/liveliness, OS scheduling, real elapsed time, host/broker crashes, partitions, and model-vs-counterpart parameter mismatch) across an expanded population of **$n = 13$ full-rate ($\kappa = 1$) scenarios** (including 4 full-rate real-world OSS topologies and `industrial_scada`), with strong exact-Wilcoxon power and a bounded ~5–7 hour compute budget.
