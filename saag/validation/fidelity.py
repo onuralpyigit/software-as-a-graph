@@ -149,23 +149,30 @@ def stalled_in_trace(trace: TelemetryTrace, after: float, min_silence_s: float =
                      periods: float = 3.0) -> Set[str]:
     """Apps that emitted before *after* and then fell silent until the end of the trace.
 
-    "Silent" means no emission for the last ``max(min_silence_s, periods / r)``
-    seconds, with r the app's own pre-*after* emission rate: a 1 Hz publisher is
-    routinely quiet for a second, so a fixed window would call it stalled. The
+    "Silent" means no emission for the last ``max(min_silence_s, periods / r, 1.5 * max_pre_gap)``
+    seconds, with r the app's own pre-*after* emission rate and ``max_pre_gap`` its largest
+    observed pre-fault inter-emission gap (preventing multi-topic synchronized sub-1 Hz
+    publishers from being falsely flagged as stalled during a normal inter-tick gap). The
     observed counterpart of `FaultEventRecord.stalled_apps`; callers drop the
     faulted component itself.
     """
     last: Dict[str, float] = {}
-    before: Dict[str, int] = defaultdict(int)
+    pre_times: Dict[str, List[float]] = defaultdict(list)
     for e in trace.events:
         if e["kind"] == "publish":
-            last[e["app"]] = e["t"]
-            if e["t"] < after:
-                before[e["app"]] += 1
+            app = e["app"]
+            t = e["t"]
+            if app not in last or t > last[app]:
+                last[app] = t
+            if t < after:
+                pre_times[app].append(t)
     span = max(after - trace.start_s, 1e-9)
     out = set()
-    for a, n in before.items():
-        window = max(min_silence_s, periods * span / n)
+    for a, ts in pre_times.items():
+        n = len(ts)
+        ts_sorted = sorted(ts)
+        max_gap = max((b - x for x, b in zip(ts_sorted, ts_sorted[1:])), default=0.0)
+        window = max(min_silence_s, periods * span / n, 1.5 * max_gap)
         if last[a] < trace.end_s - window:
             out.add(a)
     return out
