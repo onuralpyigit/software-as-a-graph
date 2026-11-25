@@ -4,7 +4,7 @@
 
 - **Authors:** Ibrahim Onuralp Yigit, Feza Buzluca
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track)
-- **Current Status:** Complete, condensed 20-page draft ([manuscript.pdf](latex/manuscript.pdf)) + GitHub reproducibility supplement ([SUPPLEMENT.md](SUPPLEMENT.md)); fidelity study protocol frozen (`9f84aad9`), arms run on tag `fidelity-study-arms-code`; pre-registered study complete ($n = 8$, 2,738 counterpart runs, 10,950 simulator runs, $\approx$56 h): H1 inconclusive; perturbed Docker calibration/drift & Docker `hybrid-verify` (`atm`) measured (`[P]`).
+- **Current Status:** Complete, condensed 20-page draft ([manuscript.pdf](latex/manuscript.pdf)) + GitHub reproducibility supplement ([SUPPLEMENT.md](SUPPLEMENT.md)); Study 1 (`9f84aad9`, $n = 8$, 2,738 runs, $\approx$56 h: H1 inconclusive) + **Study 2 (`0bbe06af`, $n = 14$ incl. 5 real-world OSS topologies, $\approx$17.8 h: H2.1 Better $p = 0.00061$, H2.2a/b & H2.3 Holm $p = 0.00049$)** + Docker `hybrid-verify` (`atm`, 107.4 min) all complete.
 
 ---
 
@@ -85,7 +85,8 @@ Reviewers in EDTConf scrutinize *"is this really a digital twin?"* We answer up 
 - **Primary hypothesis (H1):** Does our current queue-flow model (S2) rank fault impact closer to observed DDS delivery loss than the published baseline (S0)?
 - **Secondary hypotheses (H2–H5):** Absolute accuracy ($\ge 0.70$), beating a closed-form formula (R), and whether calibration improves delivery error (S3 vs. S2).
 - **Scale:** 2,738 Docker + DDS runs, all valid first time ($\approx$72–76 s/run $\to$ **$\approx$56 machine-hours**), plus 10,950 simulator runs (69 min on 16 cores).
-- **Results:** H1 **inconclusive** (HL $+0.014$ $[-0.002, +0.094]$, $p = 0.098$ superiority & TOST; tie-aware permutation $p = 0.078$); H2–H5 n.s. under Holm. S0, S2 and the formula R all rank at the noise ceiling (median $\rho$ 0.91–0.93 vs. $C_s = 0.93$)—foreseeable in hindsight because under periodic open-loop behaviour a publisher crash removes only direct-reader deliveries, which R computes directly. Where detail matters: broker/host faults median $\rho = 0.98$, stall-set $J = 0.94$; p50 latency error $0.41 \to 0.25$.
+- **Results (Study 1):** H1 **inconclusive** (HL $+0.014$ $[-0.002, +0.094]$, $p = 0.098$ superiority & TOST; tie-aware permutation $p = 0.078$); H2–H5 n.s. under Holm. S0, S2 and the formula R all rank at the noise ceiling (median $\rho$ 0.91–0.93 vs. $C_s = 0.93$)—foreseeable in hindsight because under periodic open-loop behaviour a publisher crash removes only direct-reader deliveries, which R computes directly.
+- **Follow-up Study 2 (`0bbe06af`, $n = 14$ incl. 5 real-world OSS topologies, $\approx$17.8 h, [RESULTS_V2.md](../fidelity/RESULTS_V2.md)):** Targeting the independent rows directly: **H2.1 Better** (p50 latency `0.376 → 0.258`, HL $+0.135$, $p = 0.00061$); **H2.2a Significant** (infra crash median $\rho = 0.979$, Holm $p = 0.00049$); **H2.2b Significant** (**$J = 1.000$ on all 14/14**, Holm $p = 0.00049$); **H2.3 Significant** (perturbed calibration improved on **14/14**, median `0.082 → 0.018`, Holm $p = 0.00049$); H2.4 omission vs. crash ref n.s. ($p = 0.542$).
 - **Safe design:** A pre-fixed decision table maps outcomes to *better / equivalent / inconclusive / worse*—every outcome is publishable and paired with the exact claim it permits.
 
 ---

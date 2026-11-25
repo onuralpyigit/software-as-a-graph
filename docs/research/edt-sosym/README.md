@@ -5,7 +5,7 @@
 - **Authors:** Ibrahim Onuralp Yigit, Feza Buzluca
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Rolling Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track)
 - **Framework:** [Software-as-a-Graph (SaG)](../../../README.md): protocol freeze commit `9f84aad9`; study code tag `fidelity-study-arms-code`; paper release tag TBD
-- **Status:** Condensed full draft (**20 pages**, 2 figures, 6 core tables + [SUPPLEMENT.md](SUPPLEMENT.md)). Prototype evaluation (`[P]`, including measured Docker perturbed-counterpart calibration/drift and Docker `hybrid-verify` on `atm`) and the pre-registered fidelity study (`[S]`, 2,738 counterpart runs and 10,950 simulator runs on 8 scenarios, 2026-11-22) are complete; results in [RESULTS.md](../fidelity/RESULTS.md).
+- **Status:** Condensed full draft (**20 pages**, 2 figures, 6 core tables + [SUPPLEMENT.md](SUPPLEMENT.md)). Prototype evaluation (`[P]`), Study 1 (`[S1]`, `9f84aad9`, $n = 8$, 2,738 runs, [RESULTS.md](../fidelity/RESULTS.md)), and **Study 2 (`[S2]`, `0bbe06af`, $n = 14$ incl. 5 real-world OSS topologies, ~17.8 h, [RESULTS_V2.md](../fidelity/RESULTS_V2.md))** are all complete.
 
 ---
 
@@ -39,6 +39,7 @@ A shared **OpenTelemetry-shaped trace schema** connects the counterpart back to 
   - *Smoke test (`tiny_system`, 4 containers):* Exact stall-set agreement ($J = 1.0$), exact DDS liveliness alive counts across all 15 readers, and per-reader delivery within 6%.
   - *Middleware fidelity gap:* A 10 s switch-crash partition test exposed a **~6 s Cyclone DDS peer-rediscovery delay** after the partition heals (because participants expire past their lease), whereas the simulator reconnects instantaneously—a real behaviour that no self-consistent simulator could discover on its own.
   - *Pre-registered study:* 9 of 12 candidate scenarios passed the capacity gate; `industrial_scada` was withdrawn by Amendment 2, so $n = 8$, all at $\kappa = 1$. H1 (S2 vs. S0, publisher faults) **inconclusive**: HL $+0.014$ $[-0.002, +0.094]$, $p = 0.098$ superiority and TOST (a tie-aware permutation test gives $0.078$ for superiority; same decision). H2–H5 not significant under Holm; S2 $\approx$ S0 $\approx$ closed-form reference R at the noise ceiling (median $\rho$ 0.92 vs. $C_s = 0.93$). In hindsight the tie was likely by design: under open-loop behaviour a publisher crash only removes its direct readers' deliveries, which is what R computes. Descriptive: brokers/hosts median $\rho = 0.98$, stall-set $J = 0.94$ (`healthcare`'s 0.28 comes from one replicated application); p50 latency error $0.41 \to 0.25$. Only the queue-flow simulator ($I_{\mathrm{dyn}}$) is compared with the counterpart.
+  - *Pre-registered Study 2 (`[S2]`, commit `0bbe06af`, $n = 14$ incl. `industrial_scada` and 5 real-world OSS topologies, $\approx$17.8 h):* Confirmatorily validates independent-row fidelity: **H2.1 Better** (p50 latency `0.376 → 0.258`, HL $+0.135$, 1-sided $p = 0.00061$, $n = 13$ at $\kappa = 1$); **H2.2a/b Significant** (broker/host crash median $\rho = 0.979$, **$J = 1.000$ on all 14/14**, Holm $p = 0.00049$); **H2.3 Significant** (perturbed calibration `S2 → S3` improved on **14/14**, median `0.082 → 0.018`, Holm $p = 0.00049$); H2.4 omission vs. crash ref n.s. ($p = 0.542$).
 - **Pipeline Cost Ladder (RQ4, `[P]`):** Twin services span about five orders of magnitude—sub-second graph analysis and change gating (**0.01–1.01 s** for 29–444 components, suitable for every commit), seconds-per-fault queue-flow simulation (**1.5–4.3 s**, suitable for screening), and hybrid two-tiered shortlisted verification (**54.2 s** in-process on `tiny_system`, **107.4 min** measured Docker two-probe run on `atm` [$\approx$48–54 min/probe], suitable for milestone triage and gray-failure probing). Exhaustive counterpart sweeps (**≈ 71 s/run**, **≈ 56 h** measured for the full study `[S]`) lie two orders above, suitable for periodic twin validation.
 
 ---
@@ -51,13 +52,15 @@ A shared **OpenTelemetry-shaped trace schema** connects the counterpart back to 
 | [outline.md](outline.md) | Advisor-ready paper overview: abstract, structure, embedded figures, experimental design, quantitative results, and review checklist |
 | [presentation.md](presentation.md) | Concise advisor briefing covering problem, contributions, maturity bounds, headline results, and submission decisions |
 | [latex/manuscript.pdf](latex/manuscript.pdf) | Compiled 20-page PDF manuscript (2 figures, 6 core tables) |
-| [SUPPLEMENT.md](SUPPLEMENT.md) | Online reproducibility supplement: detailed QoS/chaos mappings, trace schema, Tables S1–S7, and CLI reproduction commands |
+| [SUPPLEMENT.md](SUPPLEMENT.md) | Online reproducibility supplement: detailed QoS/chaos mappings, trace schema, Tables S1–S8, and CLI reproduction commands |
 | [latex/manuscript.tex](latex/manuscript.tex) | Main LaTeX source (`article` class; includes instructions for `sn-jnl`) |
 | [latex/sections/](latex/sections/) | Individual LaTeX source files for the abstract, §§1–10, and declarations |
 | [latex/refs.bib](latex/refs.bib) | Bibliography (38 entries) |
 | [cover_letter.md](cover_letter.md) | Submission cover letter for the SoSyM EDTConf Theme Section |
-| [../fidelity/PREREGISTRATION.md](../fidelity/PREREGISTRATION.md) | Frozen pre-registration protocol for the fidelity study (commit `9f84aad9`); arms and analysis ran on tag `fidelity-study-arms-code` |
-| [../fidelity/RESULTS.md](../fidelity/RESULTS.md) | Complete pre-registered fidelity study results (2,738 counterpart runs, 10,950 simulator runs across 8 scenarios) |
+| [../fidelity/PREREGISTRATION.md](../fidelity/PREREGISTRATION.md) | Frozen Study 1 protocol (`9f84aad9`; arms/analysis on tag `fidelity-study-arms-code`) |
+| [../fidelity/RESULTS.md](../fidelity/RESULTS.md) | Study 1 results (2,738 counterpart runs, 10,950 simulator runs across 8 scenarios) |
+| [../fidelity/PREREGISTRATION_V2.md](../fidelity/PREREGISTRATION_V2.md) | Frozen Study 2 protocol (`0bbe06af`, $n = 14$ scenarios targeting independent rows) |
+| [../fidelity/RESULTS_V2.md](../fidelity/RESULTS_V2.md) | Study 2 confirmatory results (H2.1 Better; H2.2a/b & H2.3 Holm-significant; H2.4 n.s.) |
 
 ---
 

@@ -146,6 +146,30 @@ $C_s$ is the leave-one-repetition-out noise ceiling; $d_s = \rho(\mathrm{S2}) - 
 | `atm` | 21 | 0.994 | 0.988 | 0.995 | 0.997 | 0.997 | 0.987 | +0.009 |
 | **Median** | | **0.929** | **0.922** | **0.932** | **0.916** | **0.911** | **0.931** | **—** |
 
+### Table S8: Pre-Registered Study 2 Per-Scenario Results ($n = 14$, `[S2]`, Commit `0bbe06af`)
+
+Full protocol: [../fidelity/PREREGISTRATION_V2.md](../fidelity/PREREGISTRATION_V2.md); full results: [../fidelity/RESULTS_V2.md](../fidelity/RESULTS_V2.md).
+
+| Scenario | $\kappa$ | Infra Targets | p50 Err (`S0 → S2`) | p95 Err (`S2`) | Infra $\rho$ (`S2`) | Infra Stall $J$ | Perturbed Cal (`S2 → S3`) | Omission Err (`S2` vs. Crash) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `iot_smart_city` | 1.00 | 37 | `0.302 → 0.307` | 0.245 | 0.987 | 1.000 | `0.089 → 0.018` | `0.025 vs. 0.024` |
+| `healthcare` | 1.00 | 12 | `0.351 → 0.354` | 0.226 | 0.979 | 1.000 | `0.053 → 0.018` | `0.026 vs. 0.028` |
+| `hub_and_spoke` | 1.00 | 15 | `0.417 → 0.381` | 0.252 | 0.968 | 1.000 | `0.075 → 0.028` | `0.008 vs. 0.008` |
+| `microservices` | 1.00 | 22 | `0.469 → 0.258` | 0.256 | 0.995 | 1.000 | `0.036 → 0.018` | `0.014 vs. 0.015` |
+| `telecom_ran` | 1.00 | 29 | `0.435 → 0.205` | 0.236 | 0.952 | 1.000 | `0.114 → 0.018` | `0.012 vs. 0.012` |
+| `realtime_gaming` | 1.00 | 18 | `0.358 → 0.214` | 0.215 | 0.995 | 1.000 | `0.036 → 0.009` | `0.006 vs. 0.006` |
+| `logistics_fleet` | 1.00 | 26 | `0.468 → 0.270` | 0.256 | 0.998 | 1.000 | `0.036 → 0.017` | `0.010 vs. 0.009` |
+| `atm` | 1.00 | 13 | `0.545 → 0.203` | 0.231 | 0.978 | 1.000 | `0.037 → 0.003` | `0.0005 vs. 0.020` |
+| `industrial_scada` | 1.00 | 30 | `0.376 → 0.263` | 0.254 | 0.916 | 1.000 | `0.035 → 0.018` | `0.020 vs. 0.021` |
+| `realworld_autoware_ros2` | 1.00 | 9 | `0.345 → 0.224` | 0.179 | 1.000 | 1.000 | `0.245 → 0.013` | `0.004 vs. 0.005` |
+| `realworld_edgex` | 1.00 | 9 | `0.557 → 0.221` | 0.235 | 0.950 | 1.000 | `0.161 → 0.042` | `0.017 vs. 0.017` |
+| `realworld_homeassistant` | 1.00 | 9 | `0.319 → 0.259` | 0.206 | 0.967 | 1.000 | `0.327 → 0.047` | `0.005 vs. 0.004` |
+| `realworld_trainticket` | 1.00 | 9 | `0.325 → 0.212` | 0.299 | 0.992 | 1.000 | `0.334 → 0.004` | `0.003 vs. 0.0005` |
+| `realworld_cloud_microservices`\* | 0.74 | 9 | *(excluded, $\kappa < 1$)* | *(0.159)* | 0.950 | 1.000 | `0.332 → 0.003` | `0.001 vs. 0.006` |
+| **Median** | | **247 total** | **`0.376 → 0.258`** | **0.236** | **0.979** | **1.000** | **`0.082 → 0.018`** | **`0.011 vs. 0.013`** |
+
+\* Excluded from H2.1 latency ($\kappa < 1$), included in H2.2–H2.4 ($n = 14$).
+
 ---
 
 ## S6. Exact CLI Reproduction Commands
@@ -174,4 +198,7 @@ $S hybrid-verify --input data/scenarios/atm_system.json --output results/hybrid_
 # Perturbed-counterpart calibration & R7 batch drift evaluation (Docker)
 python3 reproduce/calibration_drift_eval.py --mode docker \
     --scenarios tiny_system,atm,realworld_autoware_ros2 --duration 40 --warmup 5 --reps 3
+
+# Pre-registered Study 2 across 14 scenarios (~17.8 h, commit 0bbe06af)
+python3 reproduce/fidelity_study_v2.py --mode docker --duration 60 --warmup 5 --reps 3
 ```

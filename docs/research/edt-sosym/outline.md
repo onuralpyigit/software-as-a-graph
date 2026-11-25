@@ -3,8 +3,8 @@
 - **Working Title:** *Engineering an Architectural Digital Twin for Distributed Publish–Subscribe Systems: One Graph Model for Analysis, Simulation, and an Executable Container Testbed*
 - **Authors:** Ibrahim Onuralp Yigit, Feza Buzluca
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Rolling Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track; manuscript type: **Theme Section Paper**)
-- **Manuscript Files:** 10 sections + Declarations, 20 pages ([manuscript.pdf](latex/manuscript.pdf) | [manuscript.tex](latex/manuscript.tex) | [SUPPLEMENT.md](SUPPLEMENT.md) | [cover_letter.md](cover_letter.md) | [RESULTS.md](../fidelity/RESULTS.md))
-- **Status (2026-11-24):** Full draft complete. Both the prototype evaluation (`[P]`, including measured Docker perturbed-counterpart calibration/drift and Docker `hybrid-verify` on `atm`) and the pre-registered fidelity study (`[S]`, frozen at commit `9f84aad9`, Amendments 1–2, code tag `fidelity-study-arms-code`; $n = 8$ scenarios, 2,738 counterpart runs, 10,950 simulator runs, $\approx$56 machine-hours) are complete. Only submission metadata placeholders remain (affiliations, ORCIDs, grant number, release tag, Zenodo DOI).
+- **Manuscript Files:** 10 sections + Declarations, 20 pages ([manuscript.pdf](latex/manuscript.pdf) | [manuscript.tex](latex/manuscript.tex) | [SUPPLEMENT.md](SUPPLEMENT.md) | [cover_letter.md](cover_letter.md) | [RESULTS.md](../fidelity/RESULTS.md) | [RESULTS_V2.md](../fidelity/RESULTS_V2.md))
+- **Status (2026-11-25):** Condensed 20-page draft complete. All three evidence tracks are complete: prototype (`[P]`, including Docker perturbed calibration/drift & Docker `hybrid-verify` on `atm`), frozen Study 1 (`[S1]`, `9f84aad9`, $n = 8$, 2,738 runs, $\approx$56 h), and frozen Study 2 (`[S2]`, `0bbe06af`, $n = 14$ including 5 real-world OSS topologies, $\approx$17.8 h: **H2.1 Better**, **H2.2a/b & H2.3 Holm-significant**). Only submission metadata placeholders remain.
 
 ---
 
@@ -132,7 +132,7 @@ flowchart LR
 | Location | Tables |
 |---|---|
 | **Main Paper (Tables 1–6)** | **Table 1** (§3): Requirements R1–R7 • **Table 2** (§4): Kritzinger maturity ladder • **Table 3** (§6): Calibration parameter recovery (ATM + unit round trips) • **Table 4** (§7): Independence analysis • **Table 5** (§8.4): Pre-registered Study 1 decisions `[S]` • **Table 6** (§8.5): 5-order-of-magnitude cost ladder `[P]`/`[S]` |
-| **Online Supplement ([SUPPLEMENT.md](SUPPLEMENT.md), Tables S1–S7)** | **S1:** Topic QoS $\to$ DDS mapping • **S2:** FaultSpec $\to$ chaos actions • **S3:** Steady-state tolerances • **S4:** 103 executable CI invariants • **S5:** `tiny_system` Docker smoke test • **S6:** Perturbed-counterpart calibration & R7 drift (Docker) • **S7:** 8-scenario per-scenario Spearman $\rho$ matrix |
+| **Online Supplement ([SUPPLEMENT.md](SUPPLEMENT.md), Tables S1–S8)** | **S1:** Topic QoS $\to$ DDS mapping • **S2:** FaultSpec $\to$ chaos actions • **S3:** Steady-state tolerances • **S4:** 103 executable CI invariants • **S5:** `tiny_system` Docker smoke test • **S6:** Perturbed-counterpart calibration & R7 drift (Docker) • **S7:** Study 1 per-scenario $\rho$ matrix • **S8:** Study 2 14-scenario matrix |
 
 ---
 
@@ -198,7 +198,11 @@ All 2,738 counterpart runs passed validity checks on the first attempt (0.000 pr
 | **Noise ceiling saturation** | Median $C_s = 0.929$ (range 0.658–0.994); arm medians: `S0` 0.922, `S1` 0.932, `S2` 0.916, `S3` 0.911, `R` 0.931 | **Tied at ceiling:** Under `O-open`, a publisher crash removes only direct-reader deliveries, which `R` computes directly from the shared plan |
 | **Infrastructure faults (descriptive, `S2`)** | Broker & host crashes: median $\rho = 0.98$ (0.90–0.997); stall-set median $J = 0.94$ (7 scenarios 0.90–1.00; `healthcare` 0.28 from one hot-standby replica) | **Where `S2` adds value** (`S0` and `R` cannot model broker/host faults) |
 | **Steady-state latency (descriptive)** | Median p50 error cut `0.41 (S0) → 0.25 (S2)` (lower in 7/8 scenarios); p95 within 35% tolerance for `S1–S3` in all 8 scenarios | Host stations measurably improve latency fidelity |
-| **DDS status & controls (descriptive)** | 40 sampled faults: `liveliness_alive_count` $J = 0.98$, `offered_deadline_missed` $J = 0.98$, `requested_deadline_missed` $J = 0.71$, `cache_replaced_dropped_samples` $J = 0.50$; sinks negative control $I_{\mathrm{obs}} \in [0.002, 0.038]$ | Independent middleware signals agree closely |
+| **DDS status & controls (Study 1 descriptive)** | 40 sampled faults: `liveliness_alive_count` $J = 0.98$, `offered_deadline_missed` $J = 0.98$, `requested_deadline_missed` $J = 0.71$, `cache_replaced_dropped_samples` $J = 0.50$; sinks $I_{\mathrm{obs}} \in [0.002, 0.038]$ | Independent middleware signals agree closely |
+| **Study 2 — H2.1:** p50 latency `S0 − S2` ($n = 13$, $\kappa = 1$) `[S2]` | HL $+0.135$ $[+0.071, +0.225]$; rank-biserial 0.934; 1-sided $p = 0.00061$; median `0.376 → 0.258` (p95 $\le 0.30$ everywhere) | **Better** (confirmatory) |
+| **Study 2 — H2.2a/b:** Infra crashes & stall sets ($n = 14$) `[S2]` | Median $\rho = 0.979$ (`0.916–1.000`, `autoware_ros2 = 1.000`); **$J = 1.000$ on all 14/14 scenarios**; Holm $p = 0.00049$ | **Significant** (confirmatory) |
+| **Study 2 — H2.3:** Perturbed calibration `S2 − S3` ($n = 14$) `[S2]` | **14/14 improved**; median delivery error `0.082 → 0.018`; HL $+0.096$ $[+0.034, +0.182]$; Holm $p = 0.00049$ | **Significant** (confirmatory) |
+| **Study 2 — H2.4:** Gray `omission` ($p = 0.5$) vs. crash ref `[S2]` | HL $+0.0003$ $[-0.0006, +0.0021]$; $p = 0.542$ (both errors tiny, $\approx 0.001\text{--}0.028$) | **Not significant** |
 
 ### RQ4 — Five-Order-of-Magnitude Cost Ladder (`[P]` / `[S]`)
 

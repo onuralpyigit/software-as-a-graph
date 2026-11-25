@@ -1,11 +1,11 @@
 \section{Evaluation}
 \label{sec:evaluation}
 
-We evaluate four research questions---one per challenge of \S\ref{sec:intro}: \textbf{RQ1} (semantic consistency across artefacts), \textbf{RQ2} (parameter calibration and batch drift), \textbf{RQ3} (fidelity to the counterpart and divergences) and \textbf{RQ4} (service and counterpart cost). Every result carries an explicit provenance tag: \textbf{[P]} (open-source prototype, regenerable from committed artefacts) or \textbf{[S]} (frozen pre-registered Study~1, November 2026). Full per-scenario matrices and test breakdowns are archived in the online supplement~\citep{sag-software}.
+We evaluate four research questions---one per challenge of \S\ref{sec:intro}: \textbf{RQ1} (semantic consistency across artefacts), \textbf{RQ2} (parameter calibration and batch drift), \textbf{RQ3} (fidelity to the counterpart and divergences) and \textbf{RQ4} (service and counterpart cost). Every result carries an explicit provenance tag: \textbf{[P]} (open-source prototype, regenerable from committed artefacts), \textbf{[S1]} (frozen pre-registered Study~1, commit \texttt{9f84aad9}) or \textbf{[S2]} (frozen pre-registered Study~2, commit \texttt{0bbe06af}). Full per-scenario matrices and test breakdowns are archived in the online supplement~\citep{sag-software}.
 
 \subsection{Subjects}
 
-Subjects come from the framework's byte-reproducible scenario corpus~\citep{sag-software}: the 74-component \texttt{atm} scenario, a five-member ATM scale family (29--444 components), eleven generated domain scenarios (including autonomous vehicles, IoT, healthcare, telecom RAN, microservices and industrial control), two pilot scenarios excluded from the study population (\texttt{tiny\_system}: 4 hosts, 12 apps, 2 brokers; and an integration-hub pilot), and one real-world ROS~2 topology (\texttt{realworld\_\allowbreak autoware\_\allowbreak ros2}, 6 hosts) used in the perturbed-counterpart calibration evaluation.
+Subjects come from the framework's byte-reproducible scenario corpus~\citep{sag-software}: the 74-component \texttt{atm} scenario, a five-member ATM scale family (29--444 components), eleven generated domain scenarios (including autonomous vehicles, IoT, healthcare, telecom RAN, microservices and industrial control), two pilot scenarios excluded from the study populations (\texttt{tiny\_system}: 4 hosts, 12 apps, 2 brokers; and an integration-hub pilot), and five real-world OSS architecture topologies (\texttt{autoware\_ros2}, \texttt{edgex}, \texttt{homeassistant}, \texttt{trainticket} and \texttt{cloud\_microservices}) included in Study~2 and the perturbed-counterpart evaluation.
 
 \subsection{RQ1: Consistency across twin artefacts}
 \label{sec:consistency}
@@ -27,43 +27,45 @@ Table~\ref{tab:identifiability} (\S\ref{sec:identifiability}) shows that on ATM,
   \item \emph{Drift detection and residual feedback:} \texttt{detect\_drift} achieves 1.00 TP (shifted-topic recall 0.73--1.00), but also flags unperturbed baselines ($\text{FP} = 1.00$) despite 0.28\% baseline delivery error because single-machine p50 latency exceeds 25\% on $>20\%$ of topics---showing that rate/delivery and latency drift require separate thresholds. Under a behavioural shift (one app changed from \emph{periodic} to \emph{all-of}), \texttt{diagnose\_fault\_residuals} correctly infers \emph{all-of} on \texttt{tiny\_system} (\texttt{A11}) and \texttt{realworld\_\allowbreak autoware\_\allowbreak ros2} (\texttt{A10}), and \emph{any-of} on \texttt{atm} (\texttt{A1}).
 \end{itemize}
 
-\textbf{Answer to RQ2.} Telemetry recovers rates, service times and observable trigger policies; under real parameter misspecification on Docker + DDS counterparts, batch calibration and rolling EMA cut delivery error by 77--96\% [P], whereas unperturbed Study~1 H5 has zero baseline error to reduce [S]. Staleness windows and periodic-trace burstiness remain unidentifiable.
+\textbf{Answer to RQ2.} Telemetry recovers rates, service times and observable trigger policies; under real parameter misspecification on Docker + DDS counterparts, batch calibration and rolling EMA cut delivery error by 77--96\% [P] and Study~2 confirmatorily validates delivery-error reduction across all 14 topologies (H2.3: median $0.082 \to 0.018$, HL $+0.096$, Holm $p = 0.00049$) [S2], whereas unperturbed Study~1 H5 has zero baseline error to reduce [S1]. Staleness windows and periodic-trace burstiness remain unidentifiable.
 
 \subsection{RQ3: Fidelity of the simulators to the counterpart}
 \label{sec:rq3}
 
 \paragraph{Smoke test and a real middleware fidelity gap [P].} On \texttt{tiny\_system} in Docker (4 containers, 1\,Hz; supplement Table~S5~\citealp{sag-software}), fault-free, host-crash (\texttt{docker kill}) and broker-failover runs agree exactly on stalled readers ($J = 1.0$), exact DDS \texttt{liveliness\_\allowbreak alive\_\allowbreak count} across all 15 readers, and per-reader delivery within 5.9\% (p95 latency error 11--18\%, within 35\% tolerance; p50 14\% fault-free, 34--40\% under faults). Next, a 10\,s switch-crash partition on a two-host chain (with network gating and CPU-bound service matching 21.3\,ms vs.\ 22.5\,ms exponential median) stopped deliveries within 0.2\,s as simulated, but resumed \textbf{$\approx 6$\,s after the partition healed} whereas $\Idyn$ reconnects instantaneously: during partitions longer than the 1\,s participant lease, Cyclone DDS expires remote participants and must rediscover them. This independent-row finding (Table~\ref{tab:independence}) is invisible to any self-consistent simulator.
 
-\paragraph{Pre-registered fidelity study [S].} All 2,738 counterpart runs across $n = 8$ scenarios at $\kappa = 1$ (80 baselines + 2,658 fault runs over 443 targets $\times$ 3 repetitions $\times$ 2 conditions) passed validity on the first attempt (0.000 pre-fault rate error; peak container CPU p95 38--62\%). Simulator arms ran 10,950 times on the frozen study code. The shuffled-label instrument check passed ($\rho(\mathrm{N}) = 0.001$, within $\pm 0.10$). Table~\ref{tab:study} summarises all decisions (full 8-scenario matrix in supplement Table~S7~\citealp{sag-software}).
+\paragraph{Pre-registered fidelity studies [S1] and [S2].} In Study~1 [S1], all 2,738 counterpart runs across $n = 8$ scenarios at $\kappa = 1$ passed validity on the first attempt (0.000 pre-fault rate error; peak CPU p95 38--62\%), simulator arms ran 10,950 times, and the instrument check passed ($\rho(\mathrm{N}) = 0.001$). In Study~2 [S2], all 14 topologies (13 at $\kappa = 1$, plus \texttt{cloud\_microservices} at $\kappa = 0.74$) completed cleanly (~17.8\,h). Table~\ref{tab:study} summarises both studies (per-scenario matrices in supplement Tables~S7--S8~\citealp{sag-software}).
 
 \begin{table}[t]
 \centering
-\caption{Pre-registered fidelity study results [S] ($n = 8$ scenarios at $\kappa = 1$, $B_h = 3{,}033$\,msg/s, $\delta = 0.05$; one scenario withdrawn by Amendment~2). HL: Hodges--Lehmann median [95\% CI]. Holm-corrected secondary tests are two-sided.}
+\caption{Pre-registered fidelity study results: Study~1 [S1] ($n = 8$, $\kappa = 1$, $\delta = 0.05$) and Study~2 [S2] ($n = 13$--$14$, independent rows). HL: Hodges--Lehmann median [95\% CI]. Holm-corrected secondary tests are two-sided.}
 \label{tab:study}
 \small
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.25\textwidth} >{\raggedright\arraybackslash}Y >{\raggedright\arraybackslash}p{0.27\textwidth} >{\raggedright\arraybackslash}p{0.14\textwidth}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.26\textwidth} >{\raggedright\arraybackslash}Y >{\raggedright\arraybackslash}p{0.27\textwidth} >{\raggedright\arraybackslash}p{0.14\textwidth}@{}}
 \toprule
 Quantity & Statistic & Value & Decision \\
 \midrule
-H1: S2 vs.\ S0 (publishers) & HL of $d_s$ [CI]; rank-biserial; $p_{\text{sup}}$; $p_{\text{TOST}}$ & $+0.014$ [$-0.002$, $0.094$]; 0.56; 0.098; 0.098$^{a}$ & \textbf{inconclusive} \\
-H2: S0 vs.\ 0.70 & HL [CI]; raw $p$ & $+0.21$ [$0.06$, $0.26$]; 0.016 & n.s.\ (Holm) \\
-H3: S2 vs.\ R & HL [CI]; raw $p$ & $+0.002$ [$-0.015$, $0.067$]; 0.84 & n.s. \\
-H4: S0 vs.\ R & HL [CI]; raw $p$ & $-0.014$ [$-0.030$, $0.001$]; 0.078 & n.s. \\
-H5: S2 vs.\ S3 delivery err. & HL [CI]; raw $p$ & $0.000$ [$0.000$, $0.0002$]; 0.50 & n.s. \\
-Noise ceiling \& arms & median $C_s$ (range); arm medians (S0--S3, R) & 0.93 (0.66--0.99); 0.91--0.93 & saturated \\
+\multicolumn{4}{@{}l}{\emph{Study~1 [S1] (commit \texttt{9f84aad9}, $n = 8$, O-open publishers)}} \\
+H1: S2 vs.\ S0 (publishers) & HL [CI]; rank-biserial; $p_{\text{sup}}$; $p_{\text{TOST}}$ & $+0.014$ [$-0.002$, $0.094$]; 0.56; 0.098; 0.098$^{a}$ & \textbf{inconclusive} \\
+H2--H5 (secondary, Holm) & H2 S0 vs.\ 0.70 ($p = 0.016$); H3 S2 vs.\ R ($0.84$); H4 S0 vs.\ R ($0.078$); H5 cal ($0.50$) & all arms \& R at ceiling ($\rho \approx 0.91$--$0.93$ vs.\ $C_s = 0.93$) & all n.s.\ (Holm) \\
 Instrument check (arm N) & median $\rho_s(\mathrm{N})$ & 0.001 & within $\pm 0.10$ \\
-Brokers \& hosts (S2) & median $\rho$ (range); median stall-set $J$ & 0.98 (0.90--0.997); 0.94 & descriptive \\
-Steady-state latency p50 & median rel.\ error, S0 $\to$ S2 (p95 S1--S3) & $0.41 \to 0.25$ (all $\le 0.35$) & descriptive \\
+\midrule
+\multicolumn{4}{@{}l}{\emph{Study~2 [S2] (commit \texttt{0bbe06af}, $n = 13$--$14$, independent rows)}} \\
+H2.1: p50 latency S0 $-$ S2 & $n = 13$ ($\kappa = 1$); HL [CI]; 1-sided $p$ & $+0.135$ [$+0.071$, $+0.225$]; $p = 0.00061$ & \textbf{better} \\
+H2.2a: Infra $\rho - 0.85$ & $n = 14$; median $\rho$ (range); Holm $p$ & $0.979$ ($0.916$--$1.000$); $p_{\text{H}} = 0.00049$ & \textbf{significant} \\
+H2.2b: Infra stall $J - 0.85$ & $n = 14$; median $J$; Holm $p$ & $1.000$ (all 14/14); $p_{\text{H}} = 0.00049$ & \textbf{significant} \\
+H2.3: Perturbed cal S2 $-$ S3 & $n = 14$; HL [CI]; Holm $p$ & $+0.096$ [$+0.034$, $+0.182$]; $p_{\text{H}} = 0.00049$ & \textbf{significant} \\
+H2.4: Omission vs.\ crash ref & $n = 14$; HL [CI]; raw $p$ & $+0.0003$ [$-0.0006$, $+0.0021$]; $p = 0.542$ & n.s.\ (Holm) \\
 \bottomrule
 \multicolumn{4}{@{}p{\textwidth}@{}}{\footnotesize $^{a}$Both $p$-values equal 25/256; a tie-aware permutation test gives $p_{\text{sup}} = 0.078$ (same decision).}\\
 \end{tabularx}
 \end{table}
 
-\paragraph{Why H1 is inconclusive and tied with R.} Six scenarios differ by $|d_s| \le 0.02$, \texttt{logistics\_\allowbreak fleet} favours S0 by 0.020, and \texttt{hub\_\allowbreak and\_\allowbreak spoke} favours S2 by 0.177---defeating TOST yet also being the noisiest ranking ($C_s = 0.66$). Every arm (S0--S3 and closed-form R) sits at the noise ceiling (medians 0.91--0.93 vs.\ $C_s = 0.93$), so simulation adds no publisher-ranking value over R against this counterpart (H3). In hindsight this followed from O-open: a periodic publisher crash removes only direct-reader deliveries, which R computes directly from the shared plan (dependent rows of Table~\ref{tab:independence}). H2 clears 0.70 in 7/8 scenarios, but at $n = 8$ one loss floors two-sided $p$ at $0.016 > 0.0125$ (Holm).
+\paragraph{Interpreting Study~1 and Study~2 together.} In Study~1, six scenarios differ by $|d_s| \le 0.02$, \texttt{logistics\_\allowbreak fleet} favours S0 by 0.020, and noisy \texttt{hub\_\allowbreak and\_\allowbreak spoke} ($C_s = 0.66$) favours S2 by 0.177, leaving H1 inconclusive. Every arm (S0--S3 and closed-form R) sits at the noise ceiling ($\rho \approx 0.91$--$0.93$ vs.\ $C_s = 0.93$): under O-open, a periodic publisher crash removes only direct-reader deliveries, which R computes directly from the shared plan (dependent rows of Table~\ref{tab:independence}). H2 clears 0.70 in 7/8 scenarios, but at $n = 8$ one loss floors two-sided $p$ at $0.016 > 0.0125$.
 
-\paragraph{Where added model detail matters (descriptive).} Outside publisher ranking, where S0 and R cannot look: (1)~on broker and host crashes, S2 achieves median $\rho = 0.98$ and stall-set $J = 0.94$ (seven scenarios 0.90--1.00; \texttt{healthcare}'s 0.28 traced to \texttt{A4} publishing six integer-second sub-1\,Hz topics with no emission at prime second 59\,s, leaving a normal 2.0\,s gap misclassified by \texttt{stalled\_in\_trace}---fixed on \texttt{main} while Study~1's frozen 0.28 stands); (2)~host stations cut median p50 latency error from 0.41 (S0) to 0.25 (S2) in 7/8 scenarios, with p95 within 35\% everywhere; (3)~on 40 sampled faults, DDS \texttt{liveliness\_alive\_count} and \texttt{offered\_deadline\_missed} reach median $J = 0.98$ (\texttt{requested\_deadline\_missed} 0.71, \texttt{cache\_replaced} 0.50); (4)~sink negative controls stay at $I_{\mathrm{obs}} \in [0.002, 0.038]$; and (5)~in descriptive O-react, assuming open-loop (S0 vs.\ S4) costs little in six scenarios and $\approx 0.06$ on two.
+Study~2 confirms what Study~1's descriptive analyses suggested once the contrast moves to independent rows across 14 topologies (including five real-world OSS systems): (1)~host stations (S2) significantly lower steady-state p50 latency error from median 0.376 (S0) to 0.258 (11/13 wins; p95 $\le 0.30$ on all 13 full-rate scenarios, well inside the 35\% tolerance); (2)~on broker and host crashes (247 targets total), S2 ranks impact at median $\rho = 0.979$ (\texttt{autoware\_ros2} $= 1.000$) and achieves exact stall-set agreement ($J = 1.000$) on all 14 scenarios (after fixing Study~1's \texttt{healthcare} \texttt{A4} prime-second 59\,s silence-window artefact on \texttt{main}, while Study~1's frozen 0.28 stands); (3)~under parameter misspecification, S3 reduces delivery error on all 14/14 scenarios (median $0.082 \to 0.018$, and $0.161$--$0.334 \to 0.003$--$0.047$ on the five OSS topologies); and (4)~for top-3 publisher omissions ($p = 0.5$, H2.4), both S2 and the crash reference incur tiny absolute errors ($\approx 0.001$--$0.028$) with no significant difference ($p = 0.542$). Study~1's descriptive DDS-status checks (40 faults: \texttt{liveliness\_alive\_count} and \texttt{offered\_deadline\_missed} $J = 0.98$; \texttt{requested\_deadline\_missed} 0.71; \texttt{cache\_replaced} 0.50), sink controls ($I_{\mathrm{obs}} \in [0.002, 0.038]$) and O-react sensitivity ($\le 0.06$) remain in the supplement~\citep{sag-software}.
 
-\textbf{Answer to RQ3.} The counterpart confirms exact smoke-test stall sets and liveliness and exposes a 6\,s DDS post-partition rediscovery gap. In the pre-registered study, open-loop publisher ranking is inconclusive and saturated at the noise ceiling alongside closed-form R; added model detail pays off descriptively on infrastructure faults, stall sets and latency. All counterpart evidence concerns $\Idyn$ alone.
+\textbf{Answer to RQ3.} The counterpart confirms smoke-test stall sets and liveliness and exposes a 6\,s DDS post-partition rediscovery gap [P]. Study~1 shows open-loop publisher ranking is inconclusive and tied with closed-form R at the noise ceiling [S1]. Study~2 confirmatorily establishes that added model detail significantly improves steady-state latency (H2.1), reproduces broker/host crash rankings and exact stall sets (H2.2a/b), and makes S2M calibration effective under parameter misspecification (H2.3), while gray-failure omission error vs.\ a crash reference is n.s.\ (H2.4) [S2]. All counterpart evidence concerns $\Idyn$ alone.
 
 \subsection{RQ4: Cost of the twin's services and counterpart}
 
@@ -83,7 +85,7 @@ Graph simulators ($I^*, \Icomp$) & 5-seed / exhaustive sweep, \texttt{atm} (74) 
 Queue-flow simulator ($\Idyn$) & per fault (\texttt{atm}/\texttt{av}); 5-seed whole corpus & 1.5--4.3\,s (12.7\,CPU-h) \\
 Hybrid verification (in-process) & \texttt{tiny\_system}: baseline + 17 Tier-1 $\times$ 2 seeds + 2 probes & 54.2\,s \\
 Hybrid verification (Docker + DDS) & \texttt{atm}: baseline + 39 Tier-1 $\times$ 3 seeds + 8 targets $\times$ 3 reps $\times$ 2 probes & 107.4\,min ($\approx$48--54\,min/probe) \\
-Counterpart (Docker + DDS) & single faulted run (pilot); full Study~1 (8 scenarios, 2,738 runs) & $\approx$71\,s; $\approx$56\,h [S] \\
+Counterpart (Docker + DDS) & single run; Study~2 (14 scenarios) [S2]; Study~1 (8 scenarios, 2,738 runs) [S1] & $\approx$71\,s; $\approx$17.8\,h; $\approx$56\,h \\
 \bottomrule
 \end{tabularx}
 \end{table}
