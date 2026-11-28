@@ -4,7 +4,7 @@
 
 - **Authors:** Ibrahim Onuralp Yigit, Feza Buzluca
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track)
-- **Current Status:** Complete, condensed 20-page draft ([manuscript.pdf](latex/manuscript.pdf)) + GitHub reproducibility supplement ([SUPPLEMENT.md](SUPPLEMENT.md)); Study 1 (`9f84aad9`, $n = 8$, 2,738 runs, $\approx$56 h: H1 inconclusive) + **Study 2 (`0bbe06af`, $n = 14$ incl. 5 real-world OSS topologies, $\approx$17.8 h: H2.1 Better $p = 0.00061$, H2.2a/b & H2.3 Holm $p = 0.00049$)** + Docker `hybrid-verify` (`atm`, 107.4 min) all complete.
+- **Current Status:** Complete, condensed 21-page draft ([manuscript.pdf](latex/manuscript.pdf)) + GitHub reproducibility supplement ([SUPPLEMENT.md](SUPPLEMENT.md)); Study 1 (`9f84aad9`, $n = 8$, 2,738 runs, $\approx$56 h: H1 inconclusive) + **Study 2 (`0bbe06af`, $n = 14$ incl. 5 real-world OSS topologies, $\approx$17.8 h: H2.1 Better $p = 0.00061$, H2.2a/b & H2.3 Holm $p = 0.00049$)** + Docker `hybrid-verify` (`atm`, 107.4 min) all complete.
 
 ---
 
@@ -59,7 +59,10 @@ Reviewers in EDTConf scrutinize *"is this really a digital twin?"* We answer up 
 | **Batch digital shadow** (automated calibration, calibrated screening, shortlisted verification & caveat report per run via `hybrid-verify`; batch drift detection, EMA re-calibration & residual policy feedback implemented and evaluated on perturbed Docker counterparts) | **Built** |
 | **Live digital twin** (continuous streaming ingestion, automated topology-drift graph diffing & model-repair proposals, engineer-approved actuation) | **Designed only (§9.2)** |
 
-> **Bounded claim:** Because the counterpart uses generated stubs, fidelity results speak strictly to **middleware, timing, and transport behaviour under declared application behaviour**—never to production business logic.
+> **Bounded claim & defense (why an emulated counterpart rather than a physical system?):**
+> 1. **Real-middleware emulation $\neq$ discrete-event simulation:** The Docker counterpart runs real Cyclone DDS 11.0.1, Linux kernel networking (`tc`), OS scheduling, and `docker kill`/`pause`—only application business logic is stubbed.
+> 2. **Pre-deployment necessity:** Safety-critical systems (ATM, AV) either do not exist yet during architecture verification or cannot endure ~3,600 destructive crash/partition runs across 14 topologies.
+> 3. **Non-circular & falsifiable:** Table 4 separates independent runtime evidence from shared-plan construction, and the counterpart *falsified* the simulator (exposing the $\approx 6$ s DDS rediscovery gap, Study 1's tie with $R$, and H2.4 n.s.). All claims are strictly bounded to **middleware, timing, and transport behaviour under declared application behaviour**.
 
 ---
 

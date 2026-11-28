@@ -3,8 +3,8 @@
 - **Working Title:** *Engineering an Architectural Digital Twin for Distributed Publish–Subscribe Systems: One Graph Model for Analysis, Simulation, and an Executable Container Testbed*
 - **Authors:** Ibrahim Onuralp Yigit, Feza Buzluca
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Rolling Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track; manuscript type: **Theme Section Paper**)
-- **Manuscript Files:** 10 sections + Declarations, 20 pages ([manuscript.pdf](latex/manuscript.pdf) | [manuscript.tex](latex/manuscript.tex) | [SUPPLEMENT.md](SUPPLEMENT.md) | [cover_letter.md](cover_letter.md) | [RESULTS.md](../fidelity/RESULTS.md) | [RESULTS_V2.md](../fidelity/RESULTS_V2.md))
-- **Status (2026-11-25):** Condensed 20-page draft complete. All three evidence tracks are complete: prototype (`[P]`, including Docker perturbed calibration/drift & Docker `hybrid-verify` on `atm`), frozen Study 1 (`[S1]`, `9f84aad9`, $n = 8$, 2,738 runs, $\approx$56 h), and frozen Study 2 (`[S2]`, `0bbe06af`, $n = 14$ including 5 real-world OSS topologies, $\approx$17.8 h: **H2.1 Better**, **H2.2a/b & H2.3 Holm-significant**). Only submission metadata placeholders remain.
+- **Manuscript Files:** 10 sections + Declarations, 21 pages ([manuscript.pdf](latex/manuscript.pdf) | [manuscript.tex](latex/manuscript.tex) | [SUPPLEMENT.md](SUPPLEMENT.md) | [cover_letter.md](cover_letter.md) | [RESULTS.md](../fidelity/RESULTS.md) | [RESULTS_V2.md](../fidelity/RESULTS_V2.md))
+- **Status (2026-11-28):** Condensed 21-page draft complete. All three evidence tracks are complete: prototype (`[P]`, including Docker perturbed calibration/drift & Docker `hybrid-verify` on `atm`), frozen Study 1 (`[S1]`, `9f84aad9`, $n = 8$, 2,738 runs, $\approx$56 h), and frozen Study 2 (`[S2]`, `0bbe06af`, $n = 14$ including 5 real-world OSS topologies, $\approx$17.8 h: **H2.1 Better**, **H2.2a/b & H2.3 Holm-significant**). Only submission metadata placeholders remain.
 
 ---
 
@@ -45,7 +45,7 @@ We place each capability on a digital model, shadow and twin maturity ladder and
 - **Built:** Digital model $\to$ Generated counterpart $\to$ Batch digital shadow (both M2S and S2M are automated, but an engineer closes the loop per run and the counterpart is an emulation).
 - **Partly built & evaluated in batch (R7, §8.3, §9.2):** Batch parameter and behavioural drift detection, incremental EMA re-calibration, and residual policy feedback are implemented, unit-tested, and evaluated on perturbed Docker counterparts.
 - **Designed only (§9.2):** Continuous telemetry ingestion, automated topology-drift graph diffing, engineer-approved model repair; no autonomous production actuation.
-- **Claim boundary:** Every fidelity claim applies strictly to *middleware, timing, and transport behaviour under declared application behaviour*—never to real production application logic.
+- **Claim boundary & defense of the emulated counterpart (§1, §5, §7.2):** Why compare against a generated container testbed instead of a physical production system? (1) **Real-middleware emulation $\neq$ simulation**—the counterpart runs real Cyclone DDS 11.0.1, Linux kernel `tc` drops, OS scheduling, and `docker kill`/`pause` (only application logic is stubbed); (2) **Pre-deployment necessity**—safety-critical systems do not exist yet or cannot endure ~3,600 destructive fault runs; (3) **Non-circular & falsifiable**—Table 4 isolates independent evidence, and the counterpart actively falsified the simulator (6 s DDS rediscovery gap, Study 1 tie with $R$, Study 2 H2.4 n.s.). All fidelity claims apply strictly to *middleware, timing, and transport behaviour under declared application behaviour*.
 
 ### Headline Engineering Lessons (L1–L6, §9.1)
 1. **Generate the physical stand-in; do not build it by hand** (enables traceability, co-evolution, and enumerable shared assumptions).
@@ -242,7 +242,7 @@ All 2,738 counterpart runs passed validity checks on the first attempt (0.000 pr
 
 1. **Framing of the inconclusive primary outcome (H1) & tie with $R$:** Does the current framing—reporting H1 transparently as inconclusive, explaining why the open-loop publisher tie with $R$ followed from the design in hindsight, and positioning the counterpart's added value in broker/host faults, latency, and DDS rediscovery—strike the right tone for SoSyM reviewers?
 2. **Maturity claim boundary:** Confirm you are happy claiming **batch digital shadow** (with R7 drift/re-calibration partly built and live-twin actuation strictly designed in §9.2) rather than over-claiming a full digital twin.
-3. **Length & structure:** The compiled draft has been condensed to **20 pages** (including 4 pages of references, 2 figures, and 6 core tables; detailed tables and CLI specs are in [SUPPLEMENT.md](SUPPLEMENT.md)). Let me know if any offloaded detail should be brought back into the main text.
+3. **Length & structure:** The compiled draft has been condensed to **21 pages** (including 4 pages of references, 2 figures, and 6 core tables; detailed tables and CLI specs are in [SUPPLEMENT.md](SUPPLEMENT.md)). Let me know if any offloaded detail should be brought back into the main text.
 4. **Remaining submission metadata placeholders** (in `manuscript.tex` and `declarations.tex`):
    - Author affiliations, street address, corresponding email, and ORCIDs
    - TÜBİTAK grant number (`[GRANT-NUMBER]`)

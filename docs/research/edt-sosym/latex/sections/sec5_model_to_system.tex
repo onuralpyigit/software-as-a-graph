@@ -1,7 +1,7 @@
 \section{Model to System: Generating the Executable Counterpart}
 \label{sec:m2s}
 
-To satisfy R4 before the real system exists, the M2S transformation compiles one model instance into a Docker + Cyclone DDS deployment (one container per modelled host) in three stages (Figure~\ref{fig:m2s}). Detailed QoS/chaos tables and harness implementation notes (including WaitSet polling to avoid Python GIL stalls, opt-in CPU-bound service burn and payload carrying, and network-gating mechanics) are provided in the online supplement~\citep{sag-software}.
+To satisfy R4 before the real system exists, the M2S transformation compiles one model instance into a Docker + Cyclone DDS deployment (one container per modelled host) in three stages (Figure~\ref{fig:m2s}). Importantly, this counterpart is an \emph{executable middleware emulation}, not a second discrete-event simulator: every message traverses real Cyclone DDS~11.0.1 wire protocols, Linux bridge networking, OS scheduling and kernel-level \texttt{tc}/\texttt{docker} faults, with only application business logic replaced by timing stubs. Detailed QoS/chaos tables and harness implementation notes (including WaitSet polling to avoid Python GIL stalls, opt-in CPU-bound service burn and payload carrying, and network-gating mechanics) are provided in the online supplement~\citep{sag-software}.
 
 \begin{figure}[t]
 \centering

@@ -5,7 +5,7 @@
 - **Authors:** Ibrahim Onuralp Yigit, Feza Buzluca
 - **Target Venue:** *Software and Systems Modeling (SoSyM)* — Rolling Theme Section on *Engineering of Digital Twins* (EDTConf journal-first track)
 - **Framework:** [Software-as-a-Graph (SaG)](../../../README.md): protocol freeze commit `9f84aad9`; study code tag `fidelity-study-arms-code`; paper release tag TBD
-- **Status:** Condensed full draft (**20 pages**, 2 figures, 6 core tables + [SUPPLEMENT.md](SUPPLEMENT.md)). Prototype evaluation (`[P]`), Study 1 (`[S1]`, `9f84aad9`, $n = 8$, 2,738 runs, [RESULTS.md](../fidelity/RESULTS.md)), and **Study 2 (`[S2]`, `0bbe06af`, $n = 14$ incl. 5 real-world OSS topologies, ~17.8 h, [RESULTS_V2.md](../fidelity/RESULTS_V2.md))** are all complete.
+- **Status:** Condensed full draft (**21 pages**, 2 figures, 6 core tables + [SUPPLEMENT.md](SUPPLEMENT.md)). Prototype evaluation (`[P]`), Study 1 (`[S1]`, `9f84aad9`, $n = 8$, 2,738 runs, [RESULTS.md](../fidelity/RESULTS.md)), and **Study 2 (`[S2]`, `0bbe06af`, $n = 14$ incl. 5 real-world OSS topologies, ~17.8 h, [RESULTS_V2.md](../fidelity/RESULTS_V2.md))** are all complete.
 
 ---
 
@@ -51,7 +51,7 @@ A shared **OpenTelemetry-shaped trace schema** connects the counterpart back to 
 | [draft.md](draft.md) | Complete Markdown version of the manuscript (with Mermaid diagrams and KaTeX math) for easy reading |
 | [outline.md](outline.md) | Advisor-ready paper overview: abstract, structure, embedded figures, experimental design, quantitative results, and review checklist |
 | [presentation.md](presentation.md) | Concise advisor briefing covering problem, contributions, maturity bounds, headline results, and submission decisions |
-| [latex/manuscript.pdf](latex/manuscript.pdf) | Compiled 20-page PDF manuscript (2 figures, 6 core tables) |
+| [latex/manuscript.pdf](latex/manuscript.pdf) | Compiled 21-page PDF manuscript (2 figures, 6 core tables) |
 | [SUPPLEMENT.md](SUPPLEMENT.md) | Online reproducibility supplement: detailed QoS/chaos mappings, trace schema, Tables S1–S8, and CLI reproduction commands |
 | [latex/manuscript.tex](latex/manuscript.tex) | Main LaTeX source (`article` class; includes instructions for `sn-jnl`) |
 | [latex/sections/](latex/sections/) | Individual LaTeX source files for the abstract, §§1–10, and declarations |
