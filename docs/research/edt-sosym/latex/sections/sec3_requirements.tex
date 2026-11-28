@@ -19,7 +19,7 @@ R2 & \textbf{Semantic consistency.} All consumers of dependency semantics apply 
 R3 & \textbf{Substrate separation.} Simulators read structural relations only, never derived analysis edges, avoiding tautological scoring. & \S\ref{sec:metamodel} & built \\
 R4 & \textbf{Executable counterpart.} When the real system is unavailable, the model compiles into a runnable middleware deployment under the same faults. & \S\ref{sec:m2s} & built \\
 R5 & \textbf{Calibration from telemetry.} Pre-deployment parameter guesses are re-estimated from traces, explicitly reporting non-identifiable parameters. & \S\ref{sec:s2m} & built (batch) \\
-R6 & \textbf{Measured fidelity.} Twin-to-counterpart agreement is measured against declared tolerances and reported without gating builds. & \S\ref{sec:fidelity} & built; study run \\
+R6 & \textbf{Measured fidelity.} Twin-to-counterpart agreement is measured against declared tolerances and reported without gating builds. & \S\ref{sec:fidelity} & built; studies run \\
 R7 & \textbf{Drift detection.} Model--system divergence triggers re-calibration or engineer-reviewed model repair. & \S\ref{sec:livetwin} & partly built$^{a}$ \\
 \bottomrule
 \multicolumn{4}{@{}p{\textwidth}@{}}{\footnotesize $^{a}$Batch parameter/behavioural drift detection, EMA re-calibration and residual feedback are evaluated on perturbed Docker counterparts (\S\ref{sec:evaluation}); topology drift is designed.}\\

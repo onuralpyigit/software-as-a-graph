@@ -1,6 +1,6 @@
 # Study 2 Results: Confirmatory Fidelity on Independent Middleware, Infrastructure, Calibration, and Gray-Failure Dimensions
 
-Results of Study 2 registered in [PREREGISTRATION_V2.md](PREREGISTRATION_V2.md) (frozen `2026-11-24`, commit `0bbe06af`), executed on `2026-11-24`–`2026-11-25` via `reproduce/fidelity_study_v2.py --mode docker --duration 60 --warmup 5 --reps 3` (~17.8 machine-hours across 14 scenarios, ~853 Docker + Cyclone DDS runs). Artifacts: `results/fidelity_study_v2/` (`summary.json`, `analysis_v2.json`).
+Results of Study 2 registered in [PREREGISTRATION_V2.md](PREREGISTRATION_V2.md) (frozen `2026-11-24`, commit `0bbe06af`), executed on `2026-11-24`–`2026-11-25` via `reproduce/fidelity_study_v2.py --mode docker --duration 60 --warmup 5 --reps 3` (~18.0 machine-hours across 14 scenarios, ~853 Docker + Cyclone DDS runs). Artifacts: `results/fidelity_study_v2/` (`summary.json`, `analysis_v2.json`).
 
 **Headline (Pre-Registered Decision Table):**
 - **H2.1 (Primary — Steady-State p50 Latency Fidelity, $n = 13$, $\kappa = 1$): Better.** Host stations (`S2`) significantly reduce median p50 latency relative error over the published engine (`S0`): **HL $= +0.135$**, 95% CI $[+0.071, +0.225]$, rank-biserial $= 0.934$ (11/13 favour `S2`, 2 near-ties within 0.005), one-sided exact Wilcoxon **$p = 0.00061$** (two-sided $p = 0.00122$).
@@ -29,7 +29,7 @@ Results of Study 2 registered in [PREREGISTRATION_V2.md](PREREGISTRATION_V2.md) 
 | `realworld_homeassistant` | 1.00 | 41.9 | 9 | `0.319 → 0.259` | 0.206 | 0.967 | 1.000 | `0.327 → 0.047` | `0.005 vs. 0.004` |
 | `realworld_trainticket` | 1.00 | 41.7 | 9 | `0.325 → 0.212` | 0.299 | 0.992 | 1.000 | `0.334 → 0.004` | `0.003 vs. 0.0005` |
 | `realworld_cloud_microservices`\* | 0.74 | 55.8 | 9 | *(excluded, $\kappa < 1$)* | *(0.159)* | 0.950 | 1.000 | `0.332 → 0.003` | `0.001 vs. 0.006` |
-| **Median** | | **1,067 min (~17.8 h)** | **247 total** | **`0.376 → 0.258`** | **0.236** | **0.979** | **1.000** | **`0.082 → 0.018`** | **`0.011 vs. 0.013`** |
+| **Median** | | **1,077 min (~18.0 h)** | **247 total** | **`0.376 → 0.258`** | **0.236** | **0.979** | **1.000** | **`0.082 → 0.018`** | **`0.011 vs. 0.013`** |
 
 \* `realworld_cloud_microservices` ($\kappa = 0.744$) is excluded from H2.1 latency per the $\kappa = 1$ rule and included in H2.2–H2.4 ($n = 14$).
 

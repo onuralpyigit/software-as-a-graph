@@ -130,7 +130,7 @@ In the host-crash run with DDS semantics: `liveliness_alive_count` matched exact
 | `atm` | 517 s | 0.73 | `0.053 → 0.002` (−96%) | `0.392 → 0.305` (−22%) | `0.471 → 0.426` (−10%) | `0.059 → 0.040 → 0.029` |
 | `realworld_autoware_ros2` | 488 s | 0.80 | `0.284 → 0.036` (−87%) | `0.524 → 0.392` (−25%) | `0.620 → 0.228` (−63%) | `0.118 → 0.062 → 0.038` |
 
-### Table S7: Pre-Registered Fidelity Study Per-Scenario Spearman $\rho$ (O-open Publishers, `[S]`)
+### Table S7: Pre-Registered Study 1 Per-Scenario Spearman $\rho$ (O-open Publishers, `[S1]`)
 
 $C_s$ is the leave-one-repetition-out noise ceiling; $d_s = \rho(\mathrm{S2}) - \rho(\mathrm{S0})$.
 
@@ -146,7 +146,15 @@ $C_s$ is the leave-one-repetition-out noise ceiling; $d_s = \rho(\mathrm{S2}) - 
 | `atm` | 21 | 0.994 | 0.988 | 0.995 | 0.997 | 0.997 | 0.987 | +0.009 |
 | **Median** | | **0.929** | **0.922** | **0.932** | **0.916** | **0.911** | **0.931** | **—** |
 
-### Table S8: Pre-Registered Study 2 Per-Scenario Results ($n = 14$, `[S2]`, Commit `0bbe06af`)
+### Study 1 Descriptive Analyses (`[S1]`, Archived from `RESULTS.md`)
+
+- **Fault-free steady state (median over 8 scenarios, $\kappa = 1$):** Delivery error `0.001` (`S0`), `0.000` (`S1`–`S3`); p50 latency error `0.41` (`S0`) $\to$ `0.38` (`S1`) $\to$ `0.25` (`S2`) / `0.26` (`S3`); p95 latency error `0.31` (`S0`) $\to$ `0.23` (`S1`) / `0.24` (`S2`) / `0.23` (`S3`, within 35% tolerance for `S1`–`S3` in all 8 scenarios).
+- **Broker and host crashes (`S2`, `S3`):** Median $\rho = 0.98$ (`0.90`–`0.997`); median stall-set Jaccard $J = 0.94$ (seven scenarios `0.90`–`1.00`; `healthcare` `0.28` caused by one hot-standby replica `A4` whose sub-1 Hz integer-second topic schedule produced a 2.0 s gap across prime second $t = 59$ s; fixed on `main` before Study 2 while Study 1's frozen `0.28` stands).
+- **DDS status counters (`S2`, 40 sampled faults = 5 per scenario):** Entity-set median Jaccard for non-zero counters: `liveliness_alive_count` `0.98`, `offered_deadline_missed` `0.98`, `requested_deadline_missed` `0.71`, `cache_replaced_dropped_samples` `0.50`; `sample_lost`, `sample_rejected`, `requested_incompatible_qos`, and `liveliness_not_alive_count` are zero on both sides (`cache_samples_peak` was reported only by the simulator in Study 1).
+- **Negative-control sinks:** Observed sink impact $I_{\mathrm{obs}} \in [0.002, 0.038]$ (at the level of the lowest-impact publishers).
+- **Reactive condition `O-react` (descriptive only; $\rho$ vs. $I_{\mathrm{obs}}$, `S0 / S4`):** `iot_smart_city` `0.841 / 0.905`, `healthcare` `0.959 / 0.981`, `hub_and_spoke` `0.386 / 0.442`, `microservices` `0.911 / 0.876`, `telecom_ran` `0.909 / 0.902`, `realtime_gaming` `0.938 / 0.948`, `logistics_fleet` `0.964 / 0.949`, `atm` `0.990 / 0.999` (open-loop assumption cost $\le 0.06$ on `iot_smart_city` and `hub_and_spoke`; not evidence that reactive modelling is more accurate due to shared trigger-policy construction).
+
+### Table S8: Pre-Registered Study 2 Per-Scenario Results ($n = 14$, `[S2]`, Commit `0bbe06af`, $\approx 853$ Runs, $\approx 18.0$ h)
 
 Full protocol: [../fidelity/PREREGISTRATION_V2.md](../fidelity/PREREGISTRATION_V2.md); full results: [../fidelity/RESULTS_V2.md](../fidelity/RESULTS_V2.md).
 
@@ -174,6 +182,8 @@ Full protocol: [../fidelity/PREREGISTRATION_V2.md](../fidelity/PREREGISTRATION_V
 
 ## S6. Exact CLI Reproduction Commands
 
+When installed via `pip install -e .`, `saag-simulate` is the console alias for `python3 cli/simulate_graph.py`.
+
 ```bash
 # Step-by-step counterpart generation, execution, calibration, fidelity & health
 S="python3 cli/simulate_graph.py"; OUT=output/testbed/tiny
@@ -199,6 +209,6 @@ $S hybrid-verify --input data/scenarios/atm_system.json --output results/hybrid_
 python3 reproduce/calibration_drift_eval.py --mode docker \
     --scenarios tiny_system,atm,realworld_autoware_ros2 --duration 40 --warmup 5 --reps 3
 
-# Pre-registered Study 2 across 14 scenarios (~17.8 h, commit 0bbe06af)
+# Pre-registered Study 2 across 14 scenarios (~18.0 h, commit 0bbe06af)
 python3 reproduce/fidelity_study_v2.py --mode docker --duration 60 --warmup 5 --reps 3
 ```

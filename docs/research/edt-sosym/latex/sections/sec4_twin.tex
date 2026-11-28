@@ -55,7 +55,7 @@ An architecture model is a typed, weighted, directed multigraph $\mathcal{G} = (
 \[\tau_V : V \to \{\textsf{Application}, \textsf{Library}, \textsf{Topic}, \textsf{Broker}, \textsf{Node}, \textsf{NetworkDevice}\},\]
 and edges $E = E_s \cup E_d$ partitioned into derived edges $\tau_E(E_d) = \{\textsc{depends\_on}\}$ and structural relations
 \[\tau_E(E_s) \subseteq \{\textsc{publishes\_to}, \textsc{subscribes\_to}, \textsc{routes}, \textsc{runs\_on}, \textsc{connects\_to}, \textsc{uses}\}.\]
-Topics carry QoS contracts (reliability, durability, history depth, deadline, priority, payload size, rate); hosts carry capacities; undirected \textsc{connects\_to} edges carry link capacity and latency.
+Topics carry QoS contracts (reliability, durability, history depth, deadline, priority, payload size, rate); hosts carry capacities; undirected \textsc{connects\_to} edges (modelled as symmetric pairs) carry link capacity and latency.
 \end{definition}
 
 Each instance exposes two views: the \textbf{structural view} $\Gs = (V, E_s)$ and the \textbf{analysis view} $\Ga(\ell)$, which holds \textsc{depends\_on} edges derived by seven rules (extending \citealp{yigit2025graph}) and filtered by layer $\ell \in \{\text{app}, \text{infra}, \text{mw}, \text{system}\}$:
@@ -78,7 +78,7 @@ The twin provides four engineering services, each graded independently of the mo
   \item[What-if failure analysis.] Four simulators on $\Gs$~\citep{yigit2026jss} serve as behavioural models: cascade reachability ($I^*$), multi-layer composite ($\Icomp$), discrete-event SimPy queue-flow delivery loss ($\Idyn$, \citealp{team2020simpy}) and upstream change ripple ($I_M$). Opt-in $\Idyn$ extensions (queued physical links, latency-SLA degradation and LHS/Sobol uncertainty sweeps) are detailed in the online supplement~\citep{sag-software}.
   \item[Placement verification.] An exact optimiser proposes placements under host capacities, failure domains and replica counts; proposals are re-scored on a held-out replica-aware failure simulation and accepted only above a measured noise bar.
   \item[Change gating.] Rebuilds the twin on candidate changes and blocks only on \emph{newly introduced} structural defects (e.g.\ new single points of failure or cycles); impact rankings remain advisory rather than blocking~\citep{yigit2026jss}.
-  \item[Hybrid two-tiered verification.] \texttt{saag-simulate hybrid-verify} chains one fault-free baseline and calibration (Step~0), calibrated Tier-1 $\Idyn$ screening with order-$k$ references (Step~1), deterministic shortlisting of top-$K$ targets, disagreements and negative controls (Step~2), and targeted Tier-2 counterpart probing with crash and gray failures (Step~3), emitting machine-readable caveats and an operational health summary.
+  \item[Hybrid two-tiered verification.] The CLI entry point \texttt{saag-simulate hybrid-verify} chains one fault-free baseline and calibration (Step~0), calibrated Tier-1 $\Idyn$ screening with order-$k$ references (Step~1), deterministic shortlisting of top-$K$ targets, disagreements and negative controls (Step~2), and targeted Tier-2 counterpart probing with crash and gray failures (Step~3), emitting machine-readable caveats and an operational health summary.
 \end{description}
 
 \subsection{Maturity: what is built and what is designed}
